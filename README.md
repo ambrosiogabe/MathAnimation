@@ -1,32 +1,25 @@
-# Generating Projects
+## Math Anim
 
-First we will clone this repository. Create a new directory where you would like your project to live. For example I'll create a directory called `MyCoolProject`. Open a command prompt in this directory and execute:
+This is a quick and dirty math animation library I am creating for personal use. It should work on any Windows machine, but I am not testing it on any other platforms as of right now. It's main purpose will be to quickly and easily render mathematical animations in real time as well as render mathematical animations to video files.
 
-```bat
-git clone https://github.com/ambrosiogabe/opengl-template-cpp ./
-```
+### Current Features
 
-Then we will pull all our dependencies and create the file structure for our project. Type in:
+Right now this library can
 
-```bat
-build.bat create MyCoolProject
-```
+* Animate any parametric equation over time
+* Draw a grid of arbitrary width
+* Draw basic lines
 
-where `MyCoolProject` is the name of your project. Finally we will build the actual project files using premake. Type in:
+### Planned Features
 
-```bat
-build.bat vs2019
-```
+This library is planned to support
 
-You can use vs2015, vs2017, codelite, xcode, etc. To see all options just type in `build.bat` and hit enter. Once you have a generated project file click onto the project file then compile and run your project and you should be greeted with a window and a console window printing out 'Hello OpenGL'.
+* Render to video files (.mp4, .mov, etc)
+* Draw coordinate marks
+* Animate and draw text in any font format
+* Animate text over time
+* Animate interpolations transitioning from one curve to another
+* Draw arbitrary shapes
+* Draw textured quads
+* Animate camera movements
 
-## Requirements
-
-In order to use this build script you must have python and git installed. This means you should be able to run:
-
-```bat
-python --version
-git --version
-```
-
-and not encounter any errors. If this works then you should be able to follow the instructions above and generate an OpenGL project.
