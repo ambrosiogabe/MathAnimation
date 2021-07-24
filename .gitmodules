@@ -1,0 +1,6 @@
+[submodule "Animations/vendor/glm"]
+	path = Animations/vendor/glm
+	url = https://github.com/g-truc/glm
+[submodule "Animations/vendor/CppUtils"]
+	path = Animations/vendor/CppUtils
+	url = https://github.com/ambrosiogabe/CppUtils
