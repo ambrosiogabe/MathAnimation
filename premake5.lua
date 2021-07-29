@@ -18,8 +18,8 @@ project "Animations"
     cppdialect "C++17"
     staticruntime "on"
 
-    targetdir("bin/" .. outputdir .. "/%{prj.name}")
-    objdir("bin-int/" .. outputdir .. "/%{prj.name}")
+    targetdir("_bin/" .. outputdir .. "/%{prj.name}")
+    objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
 
     files {
         "Animations/src/**.cpp",
@@ -39,7 +39,7 @@ project "Animations"
         "Animations/vendor/cppUtils/SingleInclude/CppUtils/CppUtils.h",
         "Animations/vendor/glm/glm/**.hpp",
 		"Animations/vendor/glm/glm/**.inl",
-        "Animations/vendor/stb/stb_image.h",
+        "Animations/vendor/stb/stb_image.h"
     }
 
     includedirs {
@@ -48,7 +48,9 @@ project "Animations"
         "Animations/vendor/glad/include",
         "Animations/vendor/CppUtils/SingleInclude/",
         "Animations/vendor/glm/",
-        "Animations/vendor/stb/"
+        "Animations/vendor/stb/",
+        "Animations/vendor/vlc/include",
+        "Animations/vendor/ffmpeg/include"
     }
 
     filter "system:windows"
@@ -64,12 +66,27 @@ project "Animations"
             "Animations/vendor/GLFW/src/win32_window.c",
             "Animations/vendor/GLFW/src/wgl_context.c",
             "Animations/vendor/GLFW/src/egl_context.c",
-            "Animations/vendor/GLFW/src/osmesa_context.c"
+            "Animations/vendor/GLFW/src/osmesa_context.c",
         }
 
         defines  {
             "_GLFW_WIN32",
             "_CRT_SECURE_NO_WARNINGS"
+        }
+
+        libdirs {
+            "./Animations/vendor/ffmpeg/lib"
+        }
+
+        links {
+            "avcodec.dll",
+            "avdevice.dll",
+            "avfilter.dll",
+            "avformat.dll",
+            "avutil.dll",
+            "postproc.dll",
+            "swresample.dll",
+            "swscale.dll"
         }
 
     filter { "configurations:Debug" }
@@ -82,3 +99,65 @@ project "Animations"
         runtime "Release"
         optimize "on"
 
+
+
+project "Bootstrap"
+    kind "ConsoleApp"
+    language "C++"
+    cppdialect "C++17"
+    staticruntime "off"
+
+    targetdir("_bin/" .. outputdir .. "/%{prj.name}")
+    objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
+
+    files {
+        "Bootstrap/src/**.cpp",
+        "Bootstrap/include/**.h",
+        "Animations/vendor/cppUtils/SingleInclude/CppUtils/CppUtils.h",
+        "Bootstrap/vendor/bit7z/include/**.hpp"
+    }
+
+    includedirs {
+        "Bootstrap/include",
+        "Bootstrap/vendor/curl/include",
+        "Animations/vendor/CppUtils/SingleInclude/",
+        "Bootstrap/vendor/bit7z/include/"
+    }
+
+    filter "system:windows"
+        buildoptions { "-lgdi32" }
+        systemversion "latest"
+
+        libdirs {
+            "./Bootstrap/vendor/curl/lib",
+            "./Bootstrap/vendor/bit7z/lib"
+        }
+
+        links {
+            "libcurl.dll.lib",
+            "oleaut32",
+            "user32"
+        }
+
+        filter { "configurations:Debug" }
+            links {
+                "bit7z64_d"
+            }
+        filter { "configurations:Release" }
+            links {
+                "bit7z64"
+            }
+
+        defines  {
+            "_CRT_SECURE_NO_WARNINGS"
+        }
+
+    filter { "configurations:Debug" }
+        buildoptions "/MTd"
+        runtime "Debug"
+        symbols "on"
+
+    filter { "configurations:Release" }
+        buildoptions "/MT"
+        runtime "Release"
+        optimize "on"

@@ -1,5 +1,5 @@
-#ifndef MATH_ANIM_ANIMATION_H
-#define MATH_ANIM_ANIMATION_H
+#ifndef MATH_ANIM_APPLICATION_H
+#define MATH_ANIM_APPLICATION_H
 
 namespace MathAnim
 {

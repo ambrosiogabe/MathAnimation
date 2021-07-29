@@ -1,8 +1,10 @@
-bin/**
-bin-int/**
+_bin/**
+_bin-int/**
 
-*/bin/**
-*/bin-int/**
+*/_bin/**
+*/_bin-int/**
+
+*/ffmpeg/**
 
 .vs/**
 

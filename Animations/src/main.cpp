@@ -12,9 +12,12 @@
 #include <CppUtils/CppUtils.h>
 #include "core/Application.h"
 
+#include "renderer/VideoWriter.h"
+
 using namespace MathAnim;
 int main()
 {
+	VideoWriter::test();
 	Application::run();
 	return 0;
 }
