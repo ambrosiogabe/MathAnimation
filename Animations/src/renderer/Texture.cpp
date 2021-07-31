@@ -72,9 +72,9 @@ namespace MathAnim
 			switch (format)
 			{
 			case ByteFormat::RGBA8:
-				return GL_FLOAT;
+				return GL_UNSIGNED_INT_8_8_8_8;
 			case ByteFormat::RGB8:
-				return GL_FLOAT;
+				return GL_UNSIGNED_INT_8_8_8_8;
 			case ByteFormat::RGBA:
 				return GL_FLOAT;
 			case ByteFormat::RGB:
@@ -108,6 +108,31 @@ namespace MathAnim
 				return true;
 			case ByteFormat::RED_INTEGER:
 				return true;
+			case ByteFormat::None:
+				return GL_NONE;
+			default:
+				Logger::Warning("Unknown glByteFormat '%d'", format);
+			}
+
+			return false;
+		}
+
+		bool byteFormatIsRgb(ByteFormat format)
+		{
+			switch (format)
+			{
+			case ByteFormat::RGBA8:
+				return false;
+			case ByteFormat::RGB8:
+				return true;
+			case ByteFormat::RGBA:
+				return false;
+			case ByteFormat::RGB:
+				return true;
+			case ByteFormat::R32UI:
+				return false;
+			case ByteFormat::RED_INTEGER:
+				return false;
 			case ByteFormat::None:
 				return GL_NONE;
 			default:

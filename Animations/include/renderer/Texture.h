@@ -75,6 +75,7 @@ namespace MathAnim
 		uint32 toGl(FilterMode filterMode);
 		uint32 toGlDataType(ByteFormat format);
 		bool byteFormatIsInt(ByteFormat format);
+		bool byteFormatIsRgb(ByteFormat format);
 	}
 }
 

@@ -21,6 +21,7 @@ namespace MathAnim
 	{
 		void addAnimation(const Animation& animation, const Style& style);
 		void update(float dt);
+		void reset();
 	}
 }
 

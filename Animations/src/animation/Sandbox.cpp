@@ -119,7 +119,7 @@ namespace MathAnim
 
 		void update(float dt)
 		{
-			Renderer::clearColor(Colors::greenBrown);
+			
 		}
 	}
 }

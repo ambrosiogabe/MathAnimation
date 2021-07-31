@@ -7,12 +7,15 @@ namespace MathAnim
 	struct OrthoCamera;
 	struct Shader;
 	struct Style;
+	struct Framebuffer;
 
 	namespace Renderer
 	{
 		void init(OrthoCamera& sceneCamera);
 
 		void render();
+
+		void renderFramebuffer(const Framebuffer& framebuffer);
 
 		void drawLine(const glm::vec2& start, const glm::vec2& end, const Style& style);
 

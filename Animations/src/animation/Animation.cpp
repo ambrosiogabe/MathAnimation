@@ -41,5 +41,10 @@ namespace MathAnim
 				}
 			}
 		}
+
+		void reset()
+		{
+			mTime = 0.0f;
+		}
 	}
 }
