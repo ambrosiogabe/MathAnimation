@@ -79,14 +79,14 @@ project "Animations"
         }
 
         links {
-            "avcodec.dll",
-            "avdevice.dll",
-            "avfilter.dll",
-            "avformat.dll",
-            "avutil.dll",
-            "postproc.dll",
-            "swresample.dll",
-            "swscale.dll"
+            "avcodec.lib",
+            "avdevice.lib",
+            "avfilter.lib",
+            "avformat.lib",
+            "avutil.lib",
+            "postproc.lib",
+            "swresample.lib",
+            "swscale.lib"
         }
 
     filter { "configurations:Debug" }
