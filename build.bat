@@ -5,7 +5,11 @@ IF "%~1" == "help" GOTO PrintHelp
 IF "%~1" == "h" GOTO PrintHelp
 
 REM Run bootstrap if necessary
+REM TODO: Move these into the bootstrap program
 if not exist Animations\vendor\ffmpeg (
+    .\vendor\Bootstrap\Bootstrap.exe
+)
+if not exist Animations\vendor\freetype (
     .\vendor\Bootstrap\Bootstrap.exe
 )
 

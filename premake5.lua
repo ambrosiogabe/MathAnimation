@@ -50,7 +50,8 @@ project "Animations"
         "Animations/vendor/glm/",
         "Animations/vendor/stb/",
         "Animations/vendor/vlc/include",
-        "Animations/vendor/ffmpeg/include"
+        "Animations/vendor/ffmpeg/include",
+        "Animations/vendor/freetype/include"
     }
 
     filter "system:windows"
@@ -75,7 +76,8 @@ project "Animations"
         }
 
         libdirs {
-            "./Animations/vendor/ffmpeg/lib"
+            "./Animations/vendor/ffmpeg/lib",
+            "\"./Animations/vendor/freetype/release dll/win64\""
         }
 
         links {
@@ -86,7 +88,8 @@ project "Animations"
             "avutil.lib",
             "postproc.lib",
             "swresample.lib",
-            "swscale.lib"
+            "swscale.lib",
+            "freetype.lib"
         }
 
     filter { "configurations:Debug" }

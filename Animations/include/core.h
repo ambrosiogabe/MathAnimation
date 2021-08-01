@@ -33,4 +33,8 @@ using namespace CppUtils;
 // User defined literals
 glm::vec4 operator "" _hex(const char* hexColor, size_t length);
 
+// Freetype
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 #endif

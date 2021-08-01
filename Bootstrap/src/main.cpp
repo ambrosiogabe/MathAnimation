@@ -5,126 +5,53 @@
 using namespace CppUtils;
 #undef GABE_CPP_UTILS_IMPL
 
-#include "curl/curl.h"
 #include "File.h"
+#include "Download.h"
 
-#include "bitextractor.hpp"
-#include <bit7z.hpp>
-using namespace bit7z;
+const char* tmpDir = "./Animations/vendor/tmp";
 
-const char* zipFilename = "./Animations/vendor/tmp/tmp.7z";
-const char* unzipDirName = "./Animations/vendor/tmp/unzipped";
-const std::wstring lZipFilename = L"./Animations/vendor/tmp/tmp.7z";
-const std::wstring lUnzipDirName = L"./Animations/vendor/tmp/unzipped";
+const char* ffmpegZipFile = "./Animations/vendor/tmp/ffmpegTmp.7z";
+const char* ffmpegUnzipDir = "./Animations/vendor/tmp/ffmpegUnzipped";
+const char* ffmpegVendorDir = "./Animations/vendor/ffmpeg";
+const char* ffmpegUrl = "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-4.4-full_build-shared.7z";
 
-const char* url = "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-4.4-full_build-shared.7z";
+const char* freetypeZipFile = "./Animations/vendor/tmp/freetypeTmp.zip";
+const char* freetypeUnzipDir = "./Animations/vendor/tmp/freetypeUnzipped";
+const char* freetypeVendorDir = "./Animations/vendor/freetype";
+const char* freetypeUrl = "https://github.com/ubawurinna/freetype-windows-binaries/archive/refs/tags/v2.11.0.zip";
 
-#define kInputBufSize ((size_t)1 << 18)
-
-size_t write_data(void* ptr, size_t size, size_t nmemb, FILE* stream)
+void install(const char* url, const char* zipFile, const char* unzipDir, const char* vendorDir, const char* unzippedFilename, zip_type zipType)
 {
-	size_t written = fwrite(ptr, size, nmemb, stream);
-	return written;
-}
-
-bool downloadFfmpeg()
-{
-	bool ret = false;
-	CURL* curl;
-	FILE* fp;
-	CURLcode res;
-
-	Logger::Info("Downloading ffmpeg from '%s' into '%s'", url, zipFilename);
-	if (!manim_create_dir_if_not_exists("./Animations/vendor/tmp"))
+	if (manim_download(url, tmpDir, zipFile))
 	{
-		return false;
-	}
-
-	curl = curl_easy_init();
-	if (curl)
-	{
-		fp = fopen(zipFilename, "wb");
-		curl_easy_setopt(curl, CURLOPT_URL, url);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-		curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
-		curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-
-		res = curl_easy_perform(curl);
-
-		if (res != CURLE_OK)
+		if (!manim_unzip(zipFile, unzipDir, zipType))
 		{
-			const char* msg = R"(
-It looks like we couldn't download the ffmpeg binaries. Please go to https://www.gyan.dev/ffmpeg/builds/ and download
-version 4.4 and place the binaries in the Animations/vendor/ffmpeg directory. If version 4.4 is not available then place
-the newest version into the directory.
-)";
-			Logger::Error(msg);
-			Logger::Error(curl_easy_strerror(res));
+			Logger::Error("Failed to unzip '%s'. Please install '%s' binaries manually. TODO: Write detailed instructions", zipFile, zipFile);
+			return;
 		}
-		else
+	}
+
+	if (manim_is_dir(vendorDir))
+	{
+		if (!manim_remove_dir(vendorDir))
 		{
-			ret = true;
+			Logger::Warning("Failed to remove directory for '%s'. Installation may fail.", vendorDir);
 		}
-
-		curl_easy_cleanup(curl);
-		ret = true;
 	}
-	else
+
+	if (!manim_move_file(unzippedFilename, vendorDir))
 	{
-		Logger::Error("Could not initialize curl properly.");
+		Logger::Error("Failed to move unzipped directory '%s' into '%s'", unzippedFilename, vendorDir);
 	}
-
-	fclose(fp);
-	if (!ret)
-	{
-		remove(zipFilename);
-	}
-
-	return ret;
-}
-
-void unzipFfmpeg()
-{
-	Logger::Info("Unzipping ffmpeg.");
-	try
-	{
-		Bit7zLibrary lib{ L"7za.dll" };
-		BitExtractor extractor{ lib, BitFormat::SevenZip };
-		extractor.extract(lZipFilename, lUnzipDirName);
-	}
-	catch (const BitException& ex)
-	{
-		Logger::Error(ex.what());
-	}
-	
-	Logger::Info("Ffmpeg successfully installed.");
-	remove(zipFilename);
-
-	const char* finalDir = "./Animations/vendor/ffmpeg";
-	if (manim_is_dir(finalDir))
-	{
-		manim_remove_dir("./Animations/vendor/ffmpeg");
-	}
-
-	if (!manim_move_file("./Animations/vendor/tmp/unzipped/ffmpeg-4.4-full_build-shared", finalDir))
-	{
-		return;
-	}
-
-	Logger::Info("Removing tmp directory.");
-	manim_remove_dir("./Animations/vendor/tmp");
 }
 
 int main()
 {
-	if (downloadFfmpeg())
-	{
-		unzipFfmpeg();
-	}
+	install(ffmpegUrl, ffmpegZipFile, ffmpegUnzipDir, ffmpegVendorDir, "./Animations/vendor/tmp/ffmpegUnzipped/ffmpeg-4.4-full_build-shared", zip_type::_7Z);
+	install(freetypeUrl, freetypeZipFile, freetypeUnzipDir, freetypeVendorDir, "./Animations/vendor/tmp/freetypeUnzipped/freetype-windows-binaries-2.11.0", zip_type::_ZIP);
+
+	Logger::Info("Removing tmp directory.");
+	manim_remove_dir(tmpDir);
 
 	return 0;
 }

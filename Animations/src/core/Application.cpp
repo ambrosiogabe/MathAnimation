@@ -7,6 +7,7 @@
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
 #include "renderer/VideoWriter.h"
+#include "renderer/Fonts.h"
 #include "animation/Animation.h"
 #include "animation/GridLines.h"
 #include "animation/Settings.h"
@@ -38,6 +39,7 @@ namespace MathAnim
 
 			Renderer::init(camera);
 			Sandbox::init();
+			Fonts::init();
 
 			Texture mainTexture;
 			mainTexture.internalFormat = ByteFormat::RGBA8;
