@@ -7,11 +7,22 @@ namespace MathAnim
 {
 	typedef uint32 FontSize;
 
+	struct RenderableChar
+	{
+		glm::vec2 texCoordStart;
+		glm::vec2 texCoordSize;
+		glm::vec2 advance;
+	};
+
 	struct Font
 	{
 		FT_Face fontFace;
 		Texture texture;
 		FontSize fontSize;
+		std::unordered_map<char, RenderableChar> characterMap;
+
+		const RenderableChar& getCharInfo(char c) const;
+		float getKerning(char leftChar, char rightChar) const;
 	};
 
 	namespace Fonts

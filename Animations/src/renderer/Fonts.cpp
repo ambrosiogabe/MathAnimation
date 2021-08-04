@@ -2,6 +2,30 @@
 
 namespace MathAnim
 {
+	const RenderableChar& Font::getCharInfo(char c) const
+	{
+		auto iter = characterMap.find(c);
+		if (iter == characterMap.end())
+		{
+			Logger::Warning("Font does not contain character code '%d'. Defaulting to empty glyph.", c);
+			return {
+				{0, 0},
+				{0, 0}
+			};
+		}
+		return iter->second;
+	}
+
+	float Font::getKerning(char leftChar, char rightChar) const
+	{
+		FT_Vector kerning;
+
+		FT_UInt leftGlyph = FT_Get_Char_Index(fontFace, leftChar);
+		FT_UInt rightGlyph = FT_Get_Char_Index(fontFace, rightChar);
+		int error = FT_Get_Kerning(fontFace, leftGlyph, rightGlyph, FT_Kerning_Mode::FT_KERNING_DEFAULT, &kerning);
+		return (float)(kerning.x >> 6);
+	}
+
 	namespace Fonts
 	{
 		static bool initialized = false;
@@ -176,13 +200,20 @@ namespace MathAnim
 					{
 						// Copy the glyph data to our bitmap
 						int bufferX = x + currentX;
-						int bufferY = font.texture.height - (y + currentY + 1);
+						int bufferY = font.texture.height - (currentY + 1 + y);
 						Logger::Assert(bufferX < font.texture.width && bufferY < font.texture.height, "Invalid bufferX, bufferY. Out of bounds greater than tex size.");
 						Logger::Assert(bufferX >= 0 && bufferY >= 0, "Invalid bufferX, bufferY. Out of bounds less than 0.");
 						fontBuffer[bufferX + (bufferY * font.texture.width)] = 
 							font.fontFace->glyph->bitmap.buffer[x + (y * font.fontFace->glyph->bitmap.width)];
 					}
 				}
+
+				int flippedY = font.texture.height - (currentY + 1 + font.fontFace->glyph->bitmap.rows);
+				font.characterMap[i] = {
+					{ (float)currentX / (float)font.texture.width, (float)flippedY / (float)font.texture.height },
+					{ (float)font.fontFace->glyph->bitmap.width / (float)font.texture.width, (float)font.fontFace->glyph->bitmap.rows / (float)font.texture.height },
+					{ (float)(font.fontFace->glyph->advance.x >> 6) / (float)font.texture.width, (float)(font.fontFace->glyph->bitmap.rows >> 6) / (float)font.texture.height }
+				};
 
 				currentX += font.fontFace->glyph->bitmap.width + hzPadding;
 			}

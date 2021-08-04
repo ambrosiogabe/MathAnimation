@@ -126,7 +126,13 @@ namespace MathAnim
 		{
 			if (font)
 			{
-				Renderer::drawTexture(font->texture, glm::vec2(1, 0), glm::vec2(3, 3), glm::vec3(1, 1, 1));
+				std::string str = "";
+				for (int i = 0; i < 12; i++)
+				{
+					str += (rand() % 'Z') + 'a';
+				}
+				Renderer::drawString("Hello World!", *font, glm::vec2(1, 0), 0.2f, glm::vec3(1, 1, 1));
+				Renderer::drawString(str, *font, glm::vec2(1, -1), 0.2f, glm::vec3(0.8f, 0.2f, 0.83f));
 			}
 		}
 	}

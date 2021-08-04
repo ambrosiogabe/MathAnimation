@@ -39,7 +39,7 @@ vec4 getSampleFromFont(int index, vec2 uv) {
         rVal += c;
       }
     }
-    return vec4(float(rVal) / 255.0, float(rVal) / 255.0, float(rVal) / 255.0, 1.0);
+    return vec4(float(rVal) / 255.0, float(rVal) / 255.0, float(rVal) / 255.0, float(rVal) / 255.0);
 }
 
 void main()
@@ -50,8 +50,6 @@ void main()
     }
     else
     {
-        FragColor = getSampleFromFont(int(fTexId) - 1, fTexCoord);// * vec4(fColor, 1.0);
-        //FragColor = vec4(float(fTexId) / 2.0, float(fTexId), float(fTexId), 1);
-        //FragColor += vec4(0.8, 0.2, 0.4, 1.0);
+        FragColor = getSampleFromFont(int(fTexId) - 1, fTexCoord) * vec4(fColor, 1.0);
     }
 }

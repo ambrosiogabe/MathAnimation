@@ -9,6 +9,16 @@ namespace MathAnim
 	struct Style;
 	struct Framebuffer;
 	struct Texture;
+	struct Font;
+
+	struct RenderableTexture
+	{
+		const Texture* texture;
+		glm::vec2 start;
+		glm::vec2 size;
+		glm::vec2 texCoordStart;
+		glm::vec2 texCoordSize;
+	};
 
 	namespace Renderer
 	{
@@ -20,7 +30,9 @@ namespace MathAnim
 
 		void drawLine(const glm::vec2& start, const glm::vec2& end, const Style& style);
 
-		void drawTexture(const Texture& texture, const glm::vec2& start, const glm::vec2& size, const glm::vec3& color);
+		void drawTexture(const RenderableTexture& renderable, const glm::vec3& color);
+
+		void drawString(const std::string& string, const Font& font, const glm::vec2& start, float scale, const glm::vec3& color);
 
 		void flushBatch();
 

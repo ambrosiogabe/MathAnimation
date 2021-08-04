@@ -4,6 +4,7 @@
 #include "renderer/Shader.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
+#include "renderer/Fonts.h"
 #include "animation/Styles.h"
 
 namespace MathAnim
@@ -166,6 +167,10 @@ namespace MathAnim
 			glDebugMessageCallback(messageCallback, 0);
 #endif
 
+			// Enable blending
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 			// Initialize default shader
 			shader.compile("assets/shaders/default.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
@@ -247,58 +252,84 @@ namespace MathAnim
 			numVertices++;
 		}
 
-		void drawTexture(const Texture& texture, const glm::vec2& start, const glm::vec2& size, const glm::vec3& color)
+		void drawTexture(const RenderableTexture& renderable, const glm::vec3& color)
 		{
 			if (numVertices + 6 >= maxNumVerticesPerBatch)
 			{
 				flushBatch();
 			}
 
-			uint32 texId = getTexId(texture);
+			uint32 texId = getTexId(*renderable.texture);
 
 			// Triangle 1
 			// "Bottom-left" corner
-			vertices[numVertices].position = start;
+			vertices[numVertices].position = renderable.start;
 			vertices[numVertices].color = color;
 			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = glm::vec2(0, 0);
+			vertices[numVertices].textureCoords = renderable.texCoordStart;
 			numVertices++;
 
 			// "Top-Left" corner
-			vertices[numVertices].position = start + glm::vec2(0, size.y);
+			vertices[numVertices].position = renderable.start + glm::vec2(0, renderable.size.y);
 			vertices[numVertices].color = color;
 			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = glm::vec2(0, 1);
+			vertices[numVertices].textureCoords = renderable.texCoordStart + glm::vec2(0, renderable.texCoordSize.y);
 			numVertices++;
 
 			// "Top-Right" corner of line
-			vertices[numVertices].position = start + size;
+			vertices[numVertices].position = renderable.start + renderable.size;
 			vertices[numVertices].color = color;
 			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = glm::vec2(1, 1);
+			vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
 			numVertices++;
 
 			// Triangle 2
 			// "Bottom-left" corner of line
-			vertices[numVertices].position = start;
+			vertices[numVertices].position = renderable.start;
 			vertices[numVertices].color = color;
 			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = glm::vec2(0, 0);
+			vertices[numVertices].textureCoords = renderable.texCoordStart;
 			numVertices++;
 
 			// "Bottom-Right" corner of line
-			vertices[numVertices].position = start + glm::vec2(size.x, 0);
+			vertices[numVertices].position = renderable.start + glm::vec2(renderable.size.x, 0);
 			vertices[numVertices].color = color;
 			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = glm::vec2(1, 0);
+			vertices[numVertices].textureCoords = renderable.texCoordStart + glm::vec2(renderable.texCoordSize.x, 0);
 			numVertices++;
 
 			// "Top-Right" corner of line
-			vertices[numVertices].position = start + size;
+			vertices[numVertices].position = renderable.start + renderable.size;
 			vertices[numVertices].color = color;
 			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = glm::vec2(1, 1);
+			vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
 			numVertices++;
+		}
+
+		void drawString(const std::string& string, const Font& font, const glm::vec2& position, float scale, const glm::vec3& color)
+		{
+			float x = position.x;
+			float y = position.y;
+			
+			for (int i = 0; i < string.length(); i++)
+			{
+				char c = string[i];
+				RenderableChar renderableChar = font.getCharInfo(c);
+				float charWidth = renderableChar.texCoordSize.x * font.fontSize * scale;
+				float charHeight = renderableChar.texCoordSize.y * font.fontSize * scale;
+
+				drawTexture(RenderableTexture{
+					&font.texture,
+					{ x, y },
+					{ charWidth, charHeight },
+					renderableChar.texCoordStart,
+					renderableChar.texCoordSize
+				}, color);
+
+				char nextC = i < string.length() - 1 ? string[i + 1] : '\0';
+				//x += font.getKerning(c, nextC) * scale * font.fontSize;
+				x += renderableChar.advance.x * scale * font.fontSize;
+			}
 		}
 
 		void flushBatch()
