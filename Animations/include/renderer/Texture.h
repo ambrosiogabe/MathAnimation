@@ -20,62 +20,86 @@ namespace MathAnim
 	enum class ByteFormat
 	{
 		None = 0,
-		RGBA,
-		RGBA8,
+		RGBA8_UI,
 
-		RGB,
-		RGB8,
+		RGB8_UI,
 
-		R32UI,
-		RED_INTEGER,
+		R32_UI,
+		R8_UI,
+	};
 
-		// Depth/Stencil formats
-		DEPTH24_STENCIL8
+	enum class ColorChannel
+	{
+		None = 0,
+		Red,
+		Green,
+		Blue,
+		Alpha,
+		Zero,
+		One
 	};
 
 	struct Texture
 	{
-		uint32 graphicsId = (uint32)-1;
-		int32 width = 0;
-		int32 height = 0;
+		uint32 graphicsId;
+		int32 width;
+		int32 height;
 
 		// Texture attributes
-		FilterMode magFilter = FilterMode::None;
-		FilterMode minFilter = FilterMode::None;
-		WrapMode wrapS = WrapMode::None;
-		WrapMode wrapT = WrapMode::None;
-		ByteFormat internalFormat = ByteFormat::None;
-		ByteFormat externalFormat = ByteFormat::None;
+		FilterMode magFilter;
+		FilterMode minFilter;
+		WrapMode wrapS;
+		WrapMode wrapT;
+		ByteFormat format;
+		ColorChannel swizzleFormat[4];
 
-		std::filesystem::path path = std::filesystem::path();
-		bool isDefault = false;
+		std::filesystem::path path;
+
+		void bind() const;
+		void unbind() const;
+		void destroy();
+
+		void uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer) const;
+
+		bool isNull() const;
+	};
+
+	class TextureBuilder
+	{
+	public:
+		TextureBuilder();
+
+		TextureBuilder& setMagFilter(FilterMode mode);
+		TextureBuilder& setMinFilter(FilterMode mode);
+		TextureBuilder& setWrapS(WrapMode mode);
+		TextureBuilder& setWrapT(WrapMode mode);
+		TextureBuilder& setFormat(ByteFormat format);
+		TextureBuilder& setFilepath(const char* filepath);
+		TextureBuilder& setWidth(uint32 width);
+		TextureBuilder& setHeight(uint32 height);
+		TextureBuilder& setSwizzle(std::initializer_list<ColorChannel> swizzleMask);
+
+		Texture generate(bool generateFromFilepath = false);
+		Texture build();
+
+	private:
+		Texture texture;
 	};
 
 	namespace TextureUtil
 	{
-		// Namespace variables
-		// NOTE: To make sure this variable is visible to other translation units, declare it as extern
-		extern const Texture NULL_TEXTURE;
-
-		void bind(const Texture& texture);
-		void unbind(const Texture& texture);
-		void destroy(Texture& texture);
-
-		// Loads a texture using stb library and generates a texutre using the filter/wrap modes and automatically detects
-		// internal/external format, width, height, and alpha channel
-		void Generate(Texture& texture, const std::filesystem::path& filepath);
-
-		// Allocates memory space on the GPU according to the texture specifications listed here
-		void generate(Texture& texture);
-
-		bool isNull(const Texture& texture);
-
-		uint32 toGl(ByteFormat format);
+		uint32 toGlSizedInternalFormat(ByteFormat format);
+		uint32 toGlExternalFormat(ByteFormat format);
 		uint32 toGl(WrapMode wrapMode);
 		uint32 toGl(FilterMode filterMode);
 		uint32 toGlDataType(ByteFormat format);
-		bool byteFormatIsInt(ByteFormat format);
-		bool byteFormatIsRgb(ByteFormat format);
+		int32 toGlSwizzle(ColorChannel colorChannel);
+
+		bool byteFormatIsInt(const Texture& texture);
+		bool byteFormatIsRgb(const Texture& texture);
+
+		void generateFromFile(Texture& texture);
+		void generateEmptyTexture(Texture& texture);
 	}
 }
 

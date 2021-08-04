@@ -8,6 +8,7 @@ namespace MathAnim
 	struct Shader;
 	struct Style;
 	struct Framebuffer;
+	struct Texture;
 
 	namespace Renderer
 	{
@@ -18,6 +19,8 @@ namespace MathAnim
 		void renderFramebuffer(const Framebuffer& framebuffer);
 
 		void drawLine(const glm::vec2& start, const glm::vec2& end, const Style& style);
+
+		void drawTexture(const Texture& texture, const glm::vec2& start, const glm::vec2& size, const glm::vec3& color);
 
 		void flushBatch();
 

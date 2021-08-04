@@ -10,13 +10,25 @@ namespace MathAnim
 	struct ShaderVariable
 	{
 		std::string name;
-		uint32 hash;
 		GLint varLocation;
 		uint32 shaderProgramId;
+
+		bool operator==(const ShaderVariable& other) const
+		{
+			return other.shaderProgramId == shaderProgramId && other.name == name;
+		}
+	};
+
+	struct hashShaderVar
+	{
+		std::size_t operator()(const ShaderVariable& key) const
+		{
+			return (std::hash<std::string>()(key.name) ^ std::hash<uint32>()(key.shaderProgramId));
+		}
 	};
 
 	// Internal Variables
-	static std::vector<ShaderVariable> mAllShaderVariables = std::vector<ShaderVariable>(10);
+	static auto mAllShaderVariableLocations = std::unordered_map<ShaderVariable, GLint, hashShaderVar>();
 
 	// Forward Declarations
 	static GLint GetVariableLocation(const Shader& shader, const char* varName);
@@ -120,7 +132,7 @@ namespace MathAnim
 			return;
 		}
 
-		startIndex = (uint32)mAllShaderVariables.size();
+		startIndex = (uint32)mAllShaderVariableLocations.size();
 
 		// Get all the active vertex attributes and store them in our map of uniform variable locations
 		int numUniforms;
@@ -138,12 +150,11 @@ namespace MathAnim
 				GLenum type;
 				glGetActiveUniform(program, i, maxCharLength, &length, &size, &type, charBuffer);
 				GLint varLocation = glGetUniformLocation(program, charBuffer);
-				mAllShaderVariables.push_back({
+				mAllShaderVariableLocations[{
 					std::string(charBuffer),
-					CMath::hashString(charBuffer),
 					varLocation,
 					program
-					});
+				}] = varLocation;
 			}
 
 			FreeMem(charBuffer);
@@ -232,29 +243,25 @@ namespace MathAnim
 
 	void clearAllShaderVariables()
 	{
-		mAllShaderVariables.clear();
+		mAllShaderVariableLocations.clear();
 	}
 
 	// Private functions
 	static GLint GetVariableLocation(const Shader& shader, const char* varName)
 	{
-		uint32 hash = CMath::hashString(varName);
-
-		for (int i = shader.startIndex; i < mAllShaderVariables.size(); i++)
+		ShaderVariable match = {
+			varName,
+			0,
+			shader.programId
+		};
+		auto iter = mAllShaderVariableLocations.find(match);
+		if (iter != mAllShaderVariableLocations.end())
 		{
-			const ShaderVariable& shaderVar = mAllShaderVariables[i];
-			if (shaderVar.shaderProgramId != shader.programId)
-			{
-				Logger::Warning("Could not find shader variable '%s' for shader '%s'", varName, shader.filepath.string().c_str());
-				break;
-			}
-
-			if (shaderVar.hash == hash && shaderVar.name == varName)
-			{
-				return shaderVar.varLocation;
-			}
+			return iter->second;
 		}
 
+		Logger::Warning("Could not find shader variable '%s' for shader '%s'. Hint, maybe the shader variable is not used in the program? If so, then it will be compiled out of existence.", 
+			varName, shader.filepath.string().c_str());
 		return -1;
 	}
 

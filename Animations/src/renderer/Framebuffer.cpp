@@ -26,10 +26,10 @@ namespace MathAnim
 	{
 		Logger::Assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
-		Logger::Assert(TextureUtil::byteFormatIsInt(texture.internalFormat) && TextureUtil::byteFormatIsInt(texture.externalFormat), "Cannot clear non-uint texture as if it were a uint texture.");
+		Logger::Assert(TextureUtil::byteFormatIsInt(texture), "Cannot clear non-uint texture as if it were a uint texture.");
 
-		uint32 externalFormat = TextureUtil::toGl(texture.externalFormat);
-		uint32 formatType = TextureUtil::toGlDataType(texture.externalFormat);
+		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
+		uint32 formatType = TextureUtil::toGlDataType(texture.format);
 		glClearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
 	}
 
@@ -37,10 +37,10 @@ namespace MathAnim
 	{
 		Logger::Assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
-		Logger::Assert(TextureUtil::byteFormatIsRgb(texture.internalFormat) && TextureUtil::byteFormatIsRgb(texture.externalFormat), "Cannot clear non-rgb texture as if it were a rgb texture.");
+		Logger::Assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
 
-		uint32 externalFormat = TextureUtil::toGl(texture.externalFormat);
-		uint32 formatType = TextureUtil::toGlDataType(texture.externalFormat);
+		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
+		uint32 formatType = TextureUtil::toGlDataType(texture.format);
 		glClearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
 	}
 
@@ -48,7 +48,7 @@ namespace MathAnim
 	{
 		Logger::Assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
-		Logger::Assert(TextureUtil::byteFormatIsInt(texture.internalFormat) && TextureUtil::byteFormatIsInt(texture.externalFormat), "Cannot read non-uint texture as if it were a uint texture.");
+		Logger::Assert(TextureUtil::byteFormatIsInt(texture), "Cannot read non-uint texture as if it were a uint texture.");
 
 		// If we are requesting an out of bounds pixel, return max uint32 which should be a good flag I guess
 		// TODO: Create clearColor member variable in color attachments and return that instead here
@@ -63,8 +63,8 @@ namespace MathAnim
 		// 128 bits should be big enough for 1 pixel of any format
 		// TODO: Come up with generic way to get any type of pixel data
 		static uint32 pixel;
-		uint32 externalFormat = TextureUtil::toGl(texture.externalFormat);
-		uint32 formatType = TextureUtil::toGlDataType(texture.externalFormat);
+		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
+		uint32 formatType = TextureUtil::toGlDataType(texture.format);
 		glReadPixels(x, y, 1, 1, externalFormat, formatType, &pixel);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -84,8 +84,8 @@ namespace MathAnim
 		// 128 bits should be big enough for 1 pixel of any format
 		// TODO: Come up with generic way to get any type of pixel data
 		uint8* pixelBuffer = (uint8*)AllocMem(sizeof(uint8) * texture.width * texture.height * 4);
-		uint32 externalFormat = TextureUtil::toGl(texture.externalFormat);
-		uint32 formatType = TextureUtil::toGlDataType(texture.externalFormat);
+		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
+		uint32 formatType = TextureUtil::toGlDataType(texture.format);
 		glReadPixels(0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, pixelBuffer);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -106,6 +106,14 @@ namespace MathAnim
 		FreeMem(pixelBuffer);
 
 		return output;
+	}
+
+	void Framebuffer::freePixels(Pixel* pixels) const
+	{
+		if (pixels)
+		{
+			FreeMem(pixels);
+		}
 	}
 
 	const Texture& Framebuffer::getColorAttachment(int index) const
@@ -134,7 +142,7 @@ namespace MathAnim
 		for (int i = 0; i < colorAttachments.size(); i++)
 		{
 			Texture& texture = colorAttachments[i];
-			TextureUtil::destroy(texture);
+			texture.destroy();
 		}
 
 		if (clearColorAttachmentSpecs)
@@ -199,7 +207,7 @@ namespace MathAnim
 			Texture& texture = framebuffer.colorAttachments[i];
 			texture.width = framebuffer.width;
 			texture.height = framebuffer.height;
-			TextureUtil::generate(texture);
+			TextureUtil::generateEmptyTexture(texture);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, texture.graphicsId, 0);
 		}
 
@@ -210,7 +218,7 @@ namespace MathAnim
 			// Create renderbuffer to store depth_stencil info
 			glGenRenderbuffers(1, &framebuffer.rbo);
 			glBindRenderbuffer(GL_RENDERBUFFER, framebuffer.rbo);
-			uint32 glDepthFormat = TextureUtil::toGl(framebuffer.depthStencilFormat);
+			uint32 glDepthFormat = TextureUtil::toGlExternalFormat(framebuffer.depthStencilFormat);
 			glRenderbufferStorage(GL_RENDERBUFFER, glDepthFormat, framebuffer.width, framebuffer.height);
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, framebuffer.rbo);
 		}

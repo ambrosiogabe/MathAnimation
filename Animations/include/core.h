@@ -21,6 +21,7 @@ using namespace CppUtils;
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <optional>
 
 // GLFW/glad
 #include <glad/glad.h>

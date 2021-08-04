@@ -3,6 +3,7 @@
 #include "animation/Animation.h"
 #include "animation/Styles.h"
 #include "renderer/Renderer.h"
+#include "renderer/Fonts.h"
 
 namespace MathAnim
 {
@@ -73,6 +74,8 @@ namespace MathAnim
 			};
 		}
 
+		static Font* font = nullptr;
+
 		void init()
 		{
 			Style style = Styles::defaultStyle;
@@ -115,11 +118,16 @@ namespace MathAnim
 			animation4.granularity = 100;
 			animation4.startTime = 5.0f;
 			AnimationManager::addAnimation(animation4, style);
+
+			font = Fonts::loadFont("C:/Windows/Fonts/Arial.ttf", 64);
 		}
 
 		void update(float dt)
 		{
-			
+			if (font)
+			{
+				Renderer::drawTexture(font->texture, glm::vec2(1, 0), glm::vec2(3, 3), glm::vec3(1, 1, 1));
+			}
 		}
 	}
 }

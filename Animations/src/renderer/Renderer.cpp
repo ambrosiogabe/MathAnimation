@@ -12,6 +12,8 @@ namespace MathAnim
 	{
 		glm::vec2 position;
 		glm::vec3 color;
+		uint32 textureId;
+		glm::vec2 textureCoords;
 	};
 
 	namespace Renderer
@@ -40,6 +42,26 @@ namespace MathAnim
 		};
 
 		static uint32 screenVao;
+		static const uint32 numTextureGraphicsIds = 8;
+		static uint32 numFontTextures = 0;
+		static Texture textureGraphicIds[numTextureGraphicsIds];
+		static int32 uTextures[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+		static uint32 getTexId(const Texture& texture)
+		{
+			for (int i = 0; i < numTextureGraphicsIds; i++)
+			{
+				if (texture.graphicsId == textureGraphicIds[i].graphicsId || i >= numFontTextures)
+				{
+					textureGraphicIds[i].graphicsId = texture.graphicsId;
+					numFontTextures++;
+					return i + 1;
+				}
+			}
+
+			Logger::Warning("Could not find texture id in Renderer::drawTexture.");
+			return 0;
+		}
 
 		static void setupScreenVao()
 		{
@@ -89,11 +111,17 @@ namespace MathAnim
 			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * maxNumTrianglesPerBatch * 3, elements.data(), GL_DYNAMIC_DRAW);
 
 			// Set up the batched vao attributes
-			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(offsetof(Vertex, position)));
 			glEnableVertexAttribArray(0);
 
 			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(offsetof(Vertex, color)));
 			glEnableVertexAttribArray(1);
+
+			glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(Vertex), (void*)(offsetof(Vertex, textureId)));
+			glEnableVertexAttribArray(2);
+
+			glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(offsetof(Vertex, textureCoords)));
+			glEnableVertexAttribArray(3);
 		}
 
 		static void GLAPIENTRY
@@ -144,6 +172,11 @@ namespace MathAnim
 
 			setupBatchedVao();
 			setupScreenVao();
+
+			for (int i = 0; i < numTextureGraphicsIds; i++)
+			{
+				textureGraphicIds[i] = {0};
+			}
 		}
 
 		void render()
@@ -157,7 +190,7 @@ namespace MathAnim
 
 			const Texture& texture = framebuffer.getColorAttachment(0);
 			glActiveTexture(GL_TEXTURE0);
-			TextureUtil::bind(texture);
+			texture.bind();
 			screenShader.uploadInt("uTexture", 0);
 
 			glBindVertexArray(screenVao);
@@ -175,36 +208,96 @@ namespace MathAnim
 			glm::vec2 normalDirection = glm::normalize(direction);
 			glm::vec2 perpVector = glm::normalize(glm::vec2(normalDirection.y, -normalDirection.x));
 
+			// Triangle 1
 			// "Bottom-left" corner of line
 			vertices[numVertices].position = start + (perpVector * style.strokeWidth * 0.5f);
 			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
 			numVertices++;
 
-			// Triangle 1
 			// "Top-Left" corner of line
 			vertices[numVertices].position = vertices[numVertices - 1].position + direction;
 			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
 			numVertices++;
 
 			// "Top-Right" corner of line
 			vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * style.strokeWidth);
 			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
 			numVertices++;
 
 			// Triangle 2
 			// "Bottom-left" corner of line
 			vertices[numVertices].position = start + (perpVector * style.strokeWidth * 0.5f);
 			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
 			numVertices++;
 
 			// "Bottom-Right" corner of line
 			vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * style.strokeWidth);
 			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
 			numVertices++;
 
 			// "Top-Right" corner of line
 			vertices[numVertices].position = vertices[numVertices - 1].position + direction;
 			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+		}
+
+		void drawTexture(const Texture& texture, const glm::vec2& start, const glm::vec2& size, const glm::vec3& color)
+		{
+			if (numVertices + 6 >= maxNumVerticesPerBatch)
+			{
+				flushBatch();
+			}
+
+			uint32 texId = getTexId(texture);
+
+			// Triangle 1
+			// "Bottom-left" corner
+			vertices[numVertices].position = start;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = glm::vec2(0, 0);
+			numVertices++;
+
+			// "Top-Left" corner
+			vertices[numVertices].position = start + glm::vec2(0, size.y);
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = glm::vec2(0, 1);
+			numVertices++;
+
+			// "Top-Right" corner of line
+			vertices[numVertices].position = start + size;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = glm::vec2(1, 1);
+			numVertices++;
+
+			// Triangle 2
+			// "Bottom-left" corner of line
+			vertices[numVertices].position = start;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = glm::vec2(0, 0);
+			numVertices++;
+
+			// "Bottom-Right" corner of line
+			vertices[numVertices].position = start + glm::vec2(size.x, 0);
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = glm::vec2(1, 0);
+			numVertices++;
+
+			// "Top-Right" corner of line
+			vertices[numVertices].position = start + size;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = glm::vec2(1, 1);
 			numVertices++;
 		}
 
@@ -217,12 +310,23 @@ namespace MathAnim
 			shader.uploadMat4("uProjection", camera->calculateProjectionMatrix());
 			shader.uploadMat4("uView", camera->calculateViewMatrix());
 
+			for (int i = 0; i < numTextureGraphicsIds; i++)
+			{
+				if (textureGraphicIds[i].graphicsId != 0)
+				{
+					glActiveTexture(GL_TEXTURE0 + i);
+					textureGraphicIds[i].bind();
+				}
+			}
+			shader.uploadIntArray("uFontTextures[0]", 8, uTextures);
+
 			glBindVertexArray(vao);
 			glDrawElements(GL_TRIANGLES, maxNumTrianglesPerBatch * 3, GL_UNSIGNED_INT, NULL);
 
 			// Clear the batch
 			memset(&vertices, 0, sizeof(Vertex) * maxNumVerticesPerBatch);
 			numVertices = 0;
+			numFontTextures = 0;
 		}
 
 		void clearColor(const glm::vec4& color)

@@ -37,19 +37,15 @@ namespace MathAnim
 			camera.position = glm::vec2(0, 0);
 			camera.projectionSize = glm::vec2(6.0f * (1920.0f / 1080.0f), 6.0f);
 
+			Fonts::init();
 			Renderer::init(camera);
 			Sandbox::init();
-			Fonts::init();
 
-			Texture mainTexture;
-			mainTexture.internalFormat = ByteFormat::RGBA8;
-			mainTexture.externalFormat = ByteFormat::RGBA;
-			mainTexture.width = outputWidth;
-			mainTexture.height = outputHeight;
-			mainTexture.minFilter = FilterMode::Linear;
-			mainTexture.magFilter = FilterMode::Linear;
-			mainTexture.wrapS = WrapMode::None;
-			mainTexture.wrapT = WrapMode::None;
+			Texture mainTexture = TextureBuilder()
+				.setFormat(ByteFormat::RGBA8_UI)
+				.setWidth(outputWidth)
+				.setHeight(outputHeight)
+				.build();
 
 			Framebuffer mainFramebuffer = FramebufferBuilder(outputWidth, outputHeight)
 				.addColorAttachment(mainTexture)
@@ -76,14 +72,14 @@ namespace MathAnim
 
 				if (playAnim)
 				{
-					Sandbox::update(deltaTime);
 					AnimationManager::update(deltaTime);
+					Sandbox::update(deltaTime);
 				}
 
 				if (outputVideoFile)
 				{
-					Sandbox::update(1.0f / (float)framerate);
 					AnimationManager::update(1.0f / (float)framerate);
+					Sandbox::update(1.0f / (float)framerate);
 				}
 
 				// Render to main framebuffer
@@ -98,6 +94,7 @@ namespace MathAnim
 				{
 					Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 					VideoWriter::pushFrame(pixels, outputHeight * outputWidth);
+					mainFramebuffer.freePixels(pixels);
 				}
 
 				window.swapBuffers();

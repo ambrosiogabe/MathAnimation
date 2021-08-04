@@ -30,6 +30,7 @@ namespace MathAnim
 
 		uint32 readPixelUint32(int colorAttachment, int x, int y) const;
 		Pixel* readAllPixelsRgb8(int colorAttachment) const;
+		void freePixels(Pixel* pixels) const;
 		const Texture& getColorAttachment(int index) const;
 
 		void regenerate();
