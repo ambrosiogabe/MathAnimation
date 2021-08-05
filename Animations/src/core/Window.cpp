@@ -82,6 +82,11 @@ namespace MathAnim
 		}
 	}
 
+	void Window::setTitle(const std::string& newTitle)
+	{
+		glfwSetWindowTitle((GLFWwindow*)windowPtr, newTitle.c_str());
+	}
+
 	void Window::update(float dt)
 	{
 

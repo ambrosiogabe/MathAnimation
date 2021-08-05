@@ -33,6 +33,8 @@ namespace MathAnim
 
 		void setVSync(bool on);
 
+		void setTitle(const std::string& newTitle);
+
 		static void cleanup();
 	};
 }

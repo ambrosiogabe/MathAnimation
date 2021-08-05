@@ -16,6 +16,8 @@ namespace MathAnim
 		return iter->second;
 	}
 
+	CharRange CharRange::Ascii = { 32, 127 };
+
 	float Font::getKerning(char leftChar, char rightChar) const
 	{
 		FT_Vector kerning;
@@ -35,7 +37,7 @@ namespace MathAnim
 		static std::unordered_map<std::string, Font> loadedFonts;
 
 		static std::string getFormattedFilepath(const char* filepath, FontSize fontSize);
-		static void generateAsciiTexture(Font& font);
+		static void generateDefaultCharset(Font& font, CharRange defaultCharset);
 
 		void init()
 		{
@@ -49,7 +51,7 @@ namespace MathAnim
 			initialized = true;
 		}
 
-		Font* loadFont(const char* filepath, FontSize fontSize)
+		Font* loadFont(const char* filepath, FontSize fontSize, CharRange defaultCharset)
 		{
 			Logger::Assert(initialized, "Font library must be initialized to load a font.");
 
@@ -97,7 +99,7 @@ namespace MathAnim
 				.generate();
 
 			// TODO: Turn the preset characters into a parameter
-			generateAsciiTexture(font);
+			generateDefaultCharset(font, defaultCharset);
 
 			loadedFonts[formattedFilepath] = font;
 			
@@ -146,14 +148,14 @@ namespace MathAnim
 			return std::string(filepath) + std::to_string(fontSize);
 		}
 
-		static void generateAsciiTexture(Font& font)
+		static void generateDefaultCharset(Font& font, CharRange defaultCharset)
 		{
 			uint8* fontBuffer = (uint8*)AllocMem(sizeof(uint8) * font.texture.width * font.texture.height);
 			uint32 currentLineHeight = 0;
 			uint32 currentX = 0;
 			uint32 currentY = 0;
 
-			for (int i = 0; i < 128; i++)
+			for (uint32 i = defaultCharset.firstCharCode; i <= defaultCharset.lastCharCode; i++)
 			{
 				FT_UInt glyphIndex = FT_Get_Char_Index(font.fontFace, i);
 				if (glyphIndex == 0)

@@ -25,12 +25,14 @@ namespace MathAnim
 		static int outputWidth = 3840;
 		static int outputHeight = 2160;
 
+		static const char* winTitle = "Math Animations";
+
 		void run()
 		{
 			// Initiaize GLFW/Glad
 			bool isRunning = true;
 
-			Window window = Window(1920, 1080, "Math Animations");
+			Window window = Window(1920, 1080, winTitle);
 			window.setVSync(true);
 
 			OrthoCamera camera;
@@ -58,6 +60,8 @@ namespace MathAnim
 			{
 				float deltaTime = glfwGetTime() - previousTime;
 				previousTime = glfwGetTime();
+
+				window.setTitle(winTitle + std::string(" -- ") + std::to_string(deltaTime));
 
 				// Bind main framebuffer
 				mainFramebuffer.bind();

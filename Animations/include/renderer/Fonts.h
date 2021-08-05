@@ -14,6 +14,14 @@ namespace MathAnim
 		glm::vec2 advance;
 	};
 
+	struct CharRange
+	{
+		uint32 firstCharCode;
+		uint32 lastCharCode;
+
+		static CharRange Ascii;
+	};
+
 	struct Font
 	{
 		FT_Face fontFace;
@@ -29,7 +37,7 @@ namespace MathAnim
 	{
 		void init();
 
-		Font* loadFont(const char* filepath, FontSize fontSize);
+		Font* loadFont(const char* filepath, FontSize fontSize, CharRange defaultCharset = CharRange::Ascii);
 		void unloadFont(Font* font);
 		void unloadFont(const char* filepath, FontSize fontSize);
 

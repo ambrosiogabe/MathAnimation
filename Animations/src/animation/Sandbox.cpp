@@ -129,7 +129,7 @@ namespace MathAnim
 				std::string str = "";
 				for (int i = 0; i < 12; i++)
 				{
-					str += (rand() % 'Z') + 'a';
+					str += (char)((rand() % (127 - 33)) + 33);
 				}
 				Renderer::drawString("Hello World!", *font, glm::vec2(1, 0), 0.2f, glm::vec3(1, 1, 1));
 				Renderer::drawString(str, *font, glm::vec2(1, -1), 0.2f, glm::vec3(0.8f, 0.2f, 0.83f));
