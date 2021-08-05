@@ -202,6 +202,60 @@ namespace MathAnim
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}
 
+		void drawSquare(const glm::vec2& start, const glm::vec2& size, const Style& style)
+		{
+			drawLine(start, start + glm::vec2(size.x, 0), style);
+			drawLine(start + glm::vec2(0, size.y), start + size, style);
+			drawLine(start, start + glm::vec2(0, size.y), style);
+			drawLine(start + glm::vec2(size.x, 0), start + size, style);
+		}
+
+		void drawFilledSquare(const glm::vec2& start, const glm::vec2& size, const Style& style)
+		{
+			if (numVertices + 6 >= maxNumVerticesPerBatch)
+			{
+				flushBatch();
+			}
+
+			// Triangle 1
+			// "Bottom-left" corner of line
+			vertices[numVertices].position = start;
+			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Top-Left" corner of line
+			vertices[numVertices].position = start + glm::vec2(0, size.y);
+			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Top-Right" corner of line
+			vertices[numVertices].position = start + size;
+			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// Triangle 2
+			// "Bottom-left" corner of line
+			vertices[numVertices].position = start;
+			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Bottom-Right" corner of line
+			vertices[numVertices].position = start + glm::vec2(size.x, 0);
+			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Top-Right" corner of line
+			vertices[numVertices].position = start + size;
+			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+		}
+
 		void drawLine(const glm::vec2& start, const glm::vec2& end, const Style& style)
 		{
 			if (numVertices + 6 >= maxNumVerticesPerBatch)
@@ -317,10 +371,11 @@ namespace MathAnim
 				RenderableChar renderableChar = font.getCharInfo(c);
 				float charWidth = renderableChar.texCoordSize.x * font.fontSize * scale;
 				float charHeight = renderableChar.texCoordSize.y * font.fontSize * scale;
+				float adjustedY = y - renderableChar.bearingY * font.fontSize * scale;
 
 				drawTexture(RenderableTexture{
 					&font.texture,
-					{ x, y },
+					{ x, adjustedY },
 					{ charWidth, charHeight },
 					renderableChar.texCoordStart,
 					renderableChar.texCoordSize

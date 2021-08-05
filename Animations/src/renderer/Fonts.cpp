@@ -214,7 +214,8 @@ namespace MathAnim
 				font.characterMap[i] = {
 					{ (float)currentX / (float)font.texture.width, (float)flippedY / (float)font.texture.height },
 					{ (float)font.fontFace->glyph->bitmap.width / (float)font.texture.width, (float)font.fontFace->glyph->bitmap.rows / (float)font.texture.height },
-					{ (float)(font.fontFace->glyph->advance.x >> 6) / (float)font.texture.width, (float)(font.fontFace->glyph->bitmap.rows >> 6) / (float)font.texture.height }
+					{ (float)(font.fontFace->glyph->advance.x >> 6) / (float)font.texture.width, (float)(font.fontFace->glyph->bitmap.rows >> 6) / (float)font.texture.height },
+					{ (float)(font.fontFace->glyph->bitmap.rows - font.fontFace->glyph->bitmap_top) / (float)(font.texture.height) }
 				};
 
 				currentX += font.fontFace->glyph->bitmap.width + hzPadding;

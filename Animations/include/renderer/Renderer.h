@@ -28,6 +28,10 @@ namespace MathAnim
 
 		void renderFramebuffer(const Framebuffer& framebuffer);
 
+		void drawSquare(const glm::vec2& start, const glm::vec2& size, const Style& style);
+
+		void drawFilledSquare(const glm::vec2& start, const glm::vec2& size, const Style& style);
+
 		void drawLine(const glm::vec2& start, const glm::vec2& end, const Style& style);
 
 		void drawTexture(const RenderableTexture& renderable, const glm::vec3& color);

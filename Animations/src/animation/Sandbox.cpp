@@ -80,60 +80,65 @@ namespace MathAnim
 		{
 			Style style = Styles::defaultStyle;
 			style.color = Colors::blue;
-			Animation animation1;
+			ParametricAnimation animation1;
 			animation1.parametricEquation = parabola;
 			animation1.duration = 0.6f;
 			animation1.startT = -4;
 			animation1.endT = 4;
 			animation1.granularity = 100.0f;
 			animation1.startTime = 0.0f;
-			AnimationManager::addAnimation(animation1, style);
+			AnimationManager::addParametricAnimation(animation1, style);
 
 			style.color = Colors::yellow;
-			Animation animation2;
+			ParametricAnimation animation2;
 			animation2.parametricEquation = hyperbolic;
 			animation2.duration = 1.0f;
 			animation2.startT = -6;
 			animation2.endT = -0.1f;
 			animation2.granularity = 100.0f;
 			animation2.startTime = 0.8f;
-			AnimationManager::addAnimation(animation2, style);
+			AnimationManager::addParametricAnimation(animation2, style);
 
 			style.color = Colors::lightOrange;
-			Animation animation3;
+			ParametricAnimation animation3;
 			animation3.parametricEquation = circle;
 			animation3.duration = 3;
 			animation3.startT = 0;
 			animation3.endT = glm::pi<float>() * 2.0f;
 			animation3.granularity = 100;
 			animation3.startTime = 2.0f;
-			AnimationManager::addAnimation(animation3, style);
+			AnimationManager::addParametricAnimation(animation3, style);
 
 			style.color = Colors::purple;
-			Animation animation4;			
+			ParametricAnimation animation4;
 			animation4.parametricEquation = triangle;
 			animation4.duration = 3;
 			animation4.startT = 0;
 			animation4.endT = 3;
 			animation4.granularity = 100;
 			animation4.startTime = 5.0f;
-			AnimationManager::addAnimation(animation4, style);
+			AnimationManager::addParametricAnimation(animation4, style);
 
 			font = Fonts::loadFont("C:/Windows/Fonts/Arial.ttf", 64);
+
+			TextAnimation textAnim1;
+			textAnim1.font = font;
+			textAnim1.position = glm::vec2(-2, 2);
+			textAnim1.scale = 0.1f;
+			textAnim1.startTime = 2.0f;
+			textAnim1.typingTime = 0.1f;
+			textAnim1.text = "Hello there, how are you doing?";
+			style.color = Colors::offWhite;
+			AnimationManager::addTextAnimation(textAnim1, style);
 		}
 
 		void update(float dt)
 		{
-			if (font)
-			{
-				std::string str = "";
-				for (int i = 0; i < 12; i++)
-				{
-					str += (char)((rand() % (127 - 33)) + 33);
-				}
-				Renderer::drawString("Hello World!", *font, glm::vec2(1, 0), 0.2f, glm::vec3(1, 1, 1));
-				Renderer::drawString(str, *font, glm::vec2(1, -1), 0.2f, glm::vec3(0.8f, 0.2f, 0.83f));
-			}
+			static Style style = Styles::defaultStyle;
+			style.color = Colors::lightOrange;
+			Renderer::drawFilledSquare(glm::vec2(-1, 0), glm::vec2(1, 1), style);
+			style.color = Colors::red;
+			Renderer::drawSquare(glm::vec2(-1.025f, -0.025f), glm::vec2(1.045f, 1.045f), style);
 		}
 	}
 }

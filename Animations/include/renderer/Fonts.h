@@ -12,6 +12,7 @@ namespace MathAnim
 		glm::vec2 texCoordStart;
 		glm::vec2 texCoordSize;
 		glm::vec2 advance;
+		float bearingY;
 	};
 
 	struct CharRange
