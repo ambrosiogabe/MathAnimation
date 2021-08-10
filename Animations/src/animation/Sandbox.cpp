@@ -1,6 +1,7 @@
 #include "core.h"
 #include "animation/Sandbox.h"
 #include "animation/Animation.h"
+#include "animation/AnimationBuilders.h"
 #include "animation/Styles.h"
 #include "renderer/Renderer.h"
 #include "renderer/Fonts.h"
@@ -80,56 +81,67 @@ namespace MathAnim
 		{
 			Style style = Styles::defaultStyle;
 			style.color = Colors::blue;
-			ParametricAnimation animation1;
-			animation1.parametricEquation = parabola;
-			animation1.duration = 0.6f;
-			animation1.startT = -4;
-			animation1.endT = 4;
-			animation1.granularity = 100.0f;
-			animation1.startTime = 0.0f;
+			ParametricAnimation animation1 = ParametricAnimationBuilder()
+				.setFunction(parabola)
+				.setDuration(0.6f)
+				.setStartT(-4)
+				.setEndT(4)
+				.setGranularity(100)
+				.build();
 			AnimationManager::addParametricAnimation(animation1, style);
 
 			style.color = Colors::yellow;
-			ParametricAnimation animation2;
-			animation2.parametricEquation = hyperbolic;
-			animation2.duration = 1.0f;
-			animation2.startT = -6;
-			animation2.endT = -0.1f;
-			animation2.granularity = 100.0f;
-			animation2.startTime = 0.8f;
+			ParametricAnimation animation2 = ParametricAnimationBuilder()
+				.setFunction(hyperbolic)
+				.setDuration(1.0f)
+				.setStartT(-6)
+				.setEndT(-0.1f)
+				.setGranularity(100)
+				.build();
 			AnimationManager::addParametricAnimation(animation2, style);
 
 			style.color = Colors::lightOrange;
-			ParametricAnimation animation3;
-			animation3.parametricEquation = circle;
-			animation3.duration = 3;
-			animation3.startT = 0;
-			animation3.endT = glm::pi<float>() * 2.0f;
-			animation3.granularity = 100;
-			animation3.startTime = 2.0f;
+			ParametricAnimation animation3 = ParametricAnimationBuilder()
+				.setFunction(circle)
+				.setDuration(3.0f)
+				.setStartT(0.0f)
+				.setEndT(glm::pi<float>() * 2.0f)
+				.setGranularity(100)
+				.build();
 			AnimationManager::addParametricAnimation(animation3, style);
 
 			style.color = Colors::purple;
-			ParametricAnimation animation4;
-			animation4.parametricEquation = triangle;
-			animation4.duration = 3;
-			animation4.startT = 0;
-			animation4.endT = 3;
-			animation4.granularity = 100;
-			animation4.startTime = 5.0f;
+			ParametricAnimation animation4 = ParametricAnimationBuilder()
+				.setFunction(triangle)
+				.setDuration(3.0f)
+				.setStartT(0.0f)
+				.setEndT(3.0f)
+				.setGranularity(100)
+				.build();
 			AnimationManager::addParametricAnimation(animation4, style);
 
 			font = Fonts::loadFont("C:/Windows/Fonts/Arial.ttf", 64);
 
-			TextAnimation textAnim1;
-			textAnim1.font = font;
-			textAnim1.position = glm::vec2(-2, 2);
-			textAnim1.scale = 0.1f;
-			textAnim1.startTime = 2.0f;
-			textAnim1.typingTime = 0.1f;
-			textAnim1.text = "Hello there, how are you doing?";
+			TextAnimation textAnim1 = TextAnimationBuilder()
+				.setFont(font)
+				.setPosition(glm::vec2(-2, -2))
+				.setScale(0.1f)
+				.setText("Hello there, how are you doing?")
+				.setDelay(-2.0f)
+				.build();
 			style.color = Colors::offWhite;
 			AnimationManager::addTextAnimation(textAnim1, style);
+
+			AnimationManager::addTextAnimation(
+				TextAnimationBuilder()
+					.setFont(font)
+					.setPosition(glm::vec2(-2, 2))
+					.setScale(0.11f)
+					.setText("And this is more stuff...")
+					.setDelay(-1.5f)
+					.build(),
+				style
+			);
 		}
 
 		void update(float dt)

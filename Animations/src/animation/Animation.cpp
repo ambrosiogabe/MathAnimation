@@ -12,15 +12,24 @@ namespace MathAnim
 		static std::vector<TextAnimation> mTextAnimations = std::vector<TextAnimation>();
 		static std::vector<Style> mTextStyles = std::vector<Style>();
 		static float mTime = 0.0f;
+		static float mLastAnimEndTime = 0.0f;
 
-		void addParametricAnimation(const ParametricAnimation& animation, const Style& style)
+		void addParametricAnimation(ParametricAnimation& animation, const Style& style)
 		{
+			mLastAnimEndTime += animation.delay;
+			animation.startTime = mLastAnimEndTime;
+			mLastAnimEndTime += animation.duration;
+
 			mParametricAnimations.push_back(animation);
 			mParametricStyles.push_back(style);
 		}
 
-		void addTextAnimation(const TextAnimation& animation, const Style& style)
+		void addTextAnimation(TextAnimation& animation, const Style& style)
 		{
+			mLastAnimEndTime += animation.delay;
+			animation.startTime = mLastAnimEndTime;
+			mLastAnimEndTime += animation.typingTime * animation.text.length();
+
 			mTextAnimations.push_back(animation);
 			mTextStyles.push_back(style);
 		}

@@ -6,16 +6,17 @@ namespace MathAnim
 {
 	struct Style;
 	struct Font;
-	typedef glm::vec2(*Function)(float t);
+	typedef glm::vec2(*ParametricFunction)(float t);
 
 	struct ParametricAnimation
 	{
 		int32 granularity;
 		float startT;
 		float endT;
+		float delay;
 		float startTime;
 		float duration;
-		Function parametricEquation;
+		ParametricFunction parametricEquation;
 	};
 
 	struct TextAnimation
@@ -23,6 +24,7 @@ namespace MathAnim
 		float typingTime;
 		float startTime;
 		float scale;
+		float delay;
 		glm::vec2 position;
 		Font* font;
 		std::string text;
@@ -30,8 +32,8 @@ namespace MathAnim
 
 	namespace AnimationManager
 	{
-		void addParametricAnimation(const ParametricAnimation& animation, const Style& style);
-		void addTextAnimation(const TextAnimation& animation, const Style& style);
+		void addParametricAnimation(ParametricAnimation& animation, const Style& style);
+		void addTextAnimation(TextAnimation& animation, const Style& style);
 		void update(float dt);
 		void reset();
 	}
