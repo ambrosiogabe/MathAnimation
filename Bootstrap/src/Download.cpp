@@ -1,13 +1,12 @@
 #include "Download.h"
 #include "File.h"
 
+#include <logger/logger.h>
 #include <bitextractor.hpp>
 #include <bit7z.hpp>
 #include <curl/curl.h>
-#include <CppUtils/CppUtils.h>
 
 using namespace bit7z;
-using namespace CppUtils;
 
 size_t write_data(void* ptr, size_t size, size_t nmemb, FILE* stream)
 {
@@ -22,10 +21,10 @@ bool manim_download(const char* url, const char* outputDir, const char* outputFi
 	FILE* fp;
 	CURLcode res;
 
-	Logger::Info("Downloading from '%s' into '%s'", url, outputFilename);
+	g_logger_info("Downloading from '%s' into '%s'", url, outputFilename);
 	if (!manim_create_dir_if_not_exists(outputDir))
 	{
-		Logger::Error("Could not create output directory '%s'. Cancelling curl installation.", outputDir);
+		g_logger_error("Could not create output directory '%s'. Cancelling curl installation.", outputDir);
 		return false;
 	}
 
@@ -52,8 +51,8 @@ It looks like we couldn't download the ffmpeg binaries. Please go to https://www
 version 4.4 and place the binaries in the Animations/vendor/ffmpeg directory. If version 4.4 is not available then place
 the newest version into the directory.
 )";
-			Logger::Error(msg);
-			Logger::Error(curl_easy_strerror(res));
+			g_logger_error(msg);
+			g_logger_error(curl_easy_strerror(res));
 		}
 		else
 		{
@@ -65,7 +64,7 @@ the newest version into the directory.
 	}
 	else
 	{
-		Logger::Error("Could not initialize curl properly.");
+		g_logger_error("Could not initialize curl properly.");
 	}
 
 	fclose(fp);
@@ -85,7 +84,7 @@ static std::wstring charPtrToWString(const char* string)
 
 bool manim_unzip(const char* fileToUnzip, const char* outputFile, zip_type type)
 {
-	Logger::Info("Unzipping '%s'.", fileToUnzip);
+	g_logger_info("Unzipping '%s'.", fileToUnzip);
 	try
 	{
 		std::wstring libStr = type == zip_type::_7Z ?
@@ -104,11 +103,11 @@ bool manim_unzip(const char* fileToUnzip, const char* outputFile, zip_type type)
 	}
 	catch (const BitException& ex)
 	{
-		Logger::Error(ex.what());
+		g_logger_error(ex.what());
 		return false;
 	}
 
-	Logger::Info("'%s' successfully unzipped. Removing file '%s'", fileToUnzip, fileToUnzip);
+	g_logger_info("'%s' successfully unzipped. Removing file '%s'", fileToUnzip, fileToUnzip);
 	remove(fileToUnzip);
 	return true;
 }

@@ -8,6 +8,7 @@ namespace MathAnim
 	{
 		extern glm::vec2 gridGranularity;
 		extern bool displayGrid;
+		extern bool colorGridAxes;
 		extern float waitTime;
 	}
 }

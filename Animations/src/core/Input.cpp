@@ -45,7 +45,7 @@ namespace MathAnim
 
 		bool isKeyPressed(int key)
 		{
-			Logger::Assert(key >= 0 && key < GLFW_KEY_LAST, "Invalid key.");
+			g_logger_assert(key >= 0 && key < GLFW_KEY_LAST, "Invalid key.");
 			return keyPressed[key];
 		}
 	}

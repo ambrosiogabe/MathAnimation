@@ -1,9 +1,7 @@
 #include "File.h"
 
-#include "CppUtils/CppUtils.h"
-using namespace CppUtils;
-
 #include <string>
+#include <logger/logger.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -27,7 +25,7 @@ bool manim_remove_dir(const char* directoryName)
 	};
 	if (SHFileOperationA(&op) != 0)
 	{
-		Logger::Error("Removing directory '%s' failed with '%d'", directoryName, GetLastError());
+		g_logger_error("Removing directory '%s' failed with '%d'", directoryName, GetLastError());
 		return false;
 	}
 
@@ -50,7 +48,7 @@ bool manim_move_file(const char* from, const char* to)
 {
 	if (!MoveFileExA(from, to, MOVEFILE_WRITE_THROUGH))
 	{
-		Logger::Error("Move file failed with %d", GetLastError());
+		g_logger_error("Move file failed with %d", GetLastError());
 		return false;
 	}
 
@@ -64,7 +62,7 @@ bool manim_create_dir_if_not_exists(const char* directoryName)
 	{
 		if (!CreateDirectoryA(directoryName, NULL))
 		{
-			Logger::Error("Creating tmp directory failed with error code '%d'", GetLastError());
+			g_logger_error("Creating tmp directory failed with error code '%d'", GetLastError());
 			return false;
 		}
 	}

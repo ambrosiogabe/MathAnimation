@@ -47,35 +47,35 @@ namespace MathAnim
 			oformat = av_guess_format(nullptr, outputFilename, nullptr);
 			if (!oformat)
 			{
-				Logger::Error("can't create output format");
+				g_logger_error("can't create output format");
 				return;
 			}
 
 			int err = avformat_alloc_output_context2(&ofctx, oformat, nullptr, outputFilename);
 			if (err)
 			{
-				Logger::Error("can't create output context");
+				g_logger_error("can't create output context");
 				return;
 			}
 
 			AVCodec* codec = avcodec_find_encoder(oformat->video_codec);
 			if (!codec)
 			{
-				Logger::Error("can't create codec");
+				g_logger_error("can't create codec");
 				return;
 			}
 
 			AVStream* stream = avformat_new_stream(ofctx, codec);
 			if (!stream)
 			{
-				Logger::Error("can't find format");
+				g_logger_error("can't find format");
 				return;
 			}
 
 			cctx = avcodec_alloc_context3(codec);
 			if (!cctx)
 			{
-				Logger::Error("can't create codec context");
+				g_logger_error("can't create codec context");
 				return;
 			}
 
@@ -103,7 +103,7 @@ namespace MathAnim
 			avcodec_parameters_from_context(stream->codecpar, cctx);
 			if ((err = avcodec_open2(cctx, codec, NULL)) < 0)
 			{
-				Logger::Error("Failed to open codec %d", err);
+				g_logger_error("Failed to open codec %d", err);
 				return;
 			}
 
@@ -111,14 +111,14 @@ namespace MathAnim
 			{
 				if ((err = avio_open(&ofctx->pb, outputFilename, AVIO_FLAG_WRITE)) < 0)
 				{
-					Logger::Error("Failed to open file %d", err);
+					g_logger_error("Failed to open file %d", err);
 					return;
 				}
 			}
 
 			if ((err = avformat_write_header(ofctx, NULL)) < 0)
 			{
-				Logger::Error("Failed to write header %d", err);
+				g_logger_error("Failed to write header %d", err);
 				return;
 			}
 
@@ -127,7 +127,7 @@ namespace MathAnim
 
 		void pushFrame(Pixel* pixels, int pixelsLength)
 		{
-			Logger::Assert(pixelsLength == width * height, "Invalid pixel buffer for video encoding. Width and height do not match pixelsLength.");
+			g_logger_assert(pixelsLength == width * height, "Invalid pixel buffer for video encoding. Width and height do not match pixelsLength.");
 
 			int err;
 			if (!videoFrame)
@@ -139,7 +139,7 @@ namespace MathAnim
 
 				if ((err = av_frame_get_buffer(videoFrame, 32)) < 0)
 				{
-					Logger::Error("Failed to allocate video frame %d", err);
+					g_logger_error("Failed to allocate video frame %d", err);
 					return;
 				}
 			}
@@ -169,12 +169,12 @@ namespace MathAnim
 
 			if (frameCounter % 60 == 0)
 			{
-				Logger::Info("%d second(s) encoded.", (frameCounter / 60));
+				g_logger_info("%d second(s) encoded.", (frameCounter / 60));
 			}
 
 			if ((err = avcodec_send_frame(cctx, videoFrame)) < 0)
 			{
-				Logger::Error("Failed to send frame %d", err);
+				g_logger_error("Failed to send frame %d", err);
 				return;
 			}
 
@@ -225,7 +225,7 @@ namespace MathAnim
 				int err = avio_close(ofctx->pb);
 				if (err < 0)
 				{
-					Logger::Error("Failed to close file %d", err);
+					g_logger_error("Failed to close file %d", err);
 				}
 			}
 		}

@@ -13,7 +13,7 @@ namespace MathAnim
 	// =============================================================
 	void Framebuffer::bind() const
 	{
-		Logger::Assert(fbo != UINT32_MAX, "Tried to bind invalid framebuffer.");
+		g_logger_assert(fbo != UINT32_MAX, "Tried to bind invalid framebuffer.");
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	}
 
@@ -24,9 +24,9 @@ namespace MathAnim
 
 	void Framebuffer::clearColorAttachmentUint32(int colorAttachment, uint32 clearColor) const
 	{
-		Logger::Assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
-		Logger::Assert(TextureUtil::byteFormatIsInt(texture), "Cannot clear non-uint texture as if it were a uint texture.");
+		g_logger_assert(TextureUtil::byteFormatIsInt(texture), "Cannot clear non-uint texture as if it were a uint texture.");
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
@@ -35,9 +35,9 @@ namespace MathAnim
 
 	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, glm::vec3 clearColor) const
 	{
-		Logger::Assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
-		Logger::Assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
+		g_logger_assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
@@ -46,9 +46,9 @@ namespace MathAnim
 
 	uint32 Framebuffer::readPixelUint32(int colorAttachment, int x, int y) const
 	{
-		Logger::Assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
-		Logger::Assert(TextureUtil::byteFormatIsInt(texture), "Cannot read non-uint texture as if it were a uint texture.");
+		g_logger_assert(TextureUtil::byteFormatIsInt(texture), "Cannot read non-uint texture as if it were a uint texture.");
 
 		// If we are requesting an out of bounds pixel, return max uint32 which should be a good flag I guess
 		// TODO: Create clearColor member variable in color attachments and return that instead here
@@ -74,23 +74,23 @@ namespace MathAnim
 
 	Pixel* Framebuffer::readAllPixelsRgb8(int colorAttachment) const
 	{
-		Logger::Assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
-		//Logger::Assert(TextureUtil::byteFormatIsRgb(texture.internalFormat) && TextureUtil::byteFormatIsRgb(texture.externalFormat), "Cannot read non-rgb texture as if it were a rgb texture.");
+		//g_logger_assert(TextureUtil::byteFormatIsRgb(texture.internalFormat) && TextureUtil::byteFormatIsRgb(texture.externalFormat), "Cannot read non-rgb texture as if it were a rgb texture.");
 
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		glReadBuffer(GL_COLOR_ATTACHMENT0 + colorAttachment);
 
 		// 128 bits should be big enough for 1 pixel of any format
 		// TODO: Come up with generic way to get any type of pixel data
-		uint8* pixelBuffer = (uint8*)AllocMem(sizeof(uint8) * texture.width * texture.height * 4);
+		uint8* pixelBuffer = (uint8*)g_memory_allocate(sizeof(uint8) * texture.width * texture.height * 4);
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
 		glReadPixels(0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, pixelBuffer);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		Pixel* output = (Pixel*)AllocMem(sizeof(Pixel) * texture.width * texture.height);
+		Pixel* output = (Pixel*)g_memory_allocate(sizeof(Pixel) * texture.width * texture.height);
 		for (int y = texture.height - 1; y >= 0; y--)
 		{
 			for (int x = 0; x < texture.width; x++)
@@ -103,7 +103,7 @@ namespace MathAnim
 			}
 		}
 
-		FreeMem(pixelBuffer);
+		g_memory_free(pixelBuffer);
 
 		return output;
 	}
@@ -112,7 +112,7 @@ namespace MathAnim
 	{
 		if (pixels)
 		{
-			FreeMem(pixels);
+			g_memory_free(pixels);
 		}
 	}
 
@@ -123,10 +123,10 @@ namespace MathAnim
 
 	void Framebuffer::regenerate()
 	{
-		Logger::Assert(fbo != UINT32_MAX, "Cannot regenerate framebuffer that has with Fbo id != UINT32_MAX.");
+		g_logger_assert(fbo != UINT32_MAX, "Cannot regenerate framebuffer that has with Fbo id != UINT32_MAX.");
 		if (includeDepthStencil)
 		{
-			Logger::Assert(rbo != UINT32_MAX, "Cannot regenerate framebuffer that has with Rbo id != UINT32_MAX.");
+			g_logger_assert(rbo != UINT32_MAX, "Cannot regenerate framebuffer that has with Rbo id != UINT32_MAX.");
 		}
 
 		destroy(false);
@@ -135,7 +135,7 @@ namespace MathAnim
 
 	void Framebuffer::destroy(bool clearColorAttachmentSpecs)
 	{
-		Logger::Assert(fbo != UINT32_MAX, "Tried to delete invalid framebuffer.");
+		g_logger_assert(fbo != UINT32_MAX, "Tried to delete invalid framebuffer.");
 		glDeleteFramebuffers(1, &fbo);
 		fbo = UINT32_MAX;
 
@@ -152,7 +152,7 @@ namespace MathAnim
 
 		if (includeDepthStencil)
 		{
-			Logger::Assert(rbo != UINT32_MAX, "Tried to delete invalid renderbuffer.");
+			g_logger_assert(rbo != UINT32_MAX, "Tried to delete invalid renderbuffer.");
 			glDeleteRenderbuffers(1, &rbo);
 			rbo = UINT32_MAX;
 		}
@@ -187,16 +187,16 @@ namespace MathAnim
 	// Internal functions
 	static void internalGenerate(Framebuffer& framebuffer)
 	{
-		Logger::Assert(framebuffer.fbo == UINT32_MAX, "Cannot generate framebuffer with Fbo already id == UINT32_MAX.");
-		Logger::Assert(framebuffer.rbo == UINT32_MAX, "Cannot generate framebuffer with Rbo already id == UINT32_MAX.");
-		Logger::Assert(framebuffer.colorAttachments.size() > 0, "Framebuffer must have at least 1 color attachment.");
+		g_logger_assert(framebuffer.fbo == UINT32_MAX, "Cannot generate framebuffer with Fbo already id == UINT32_MAX.");
+		g_logger_assert(framebuffer.rbo == UINT32_MAX, "Cannot generate framebuffer with Rbo already id == UINT32_MAX.");
+		g_logger_assert(framebuffer.colorAttachments.size() > 0, "Framebuffer must have at least 1 color attachment.");
 
 		glGenFramebuffers(1, &framebuffer.fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 
 		if (framebuffer.colorAttachments.size() > 1)
 		{
-			Logger::Assert(framebuffer.colorAttachments.size() < 8, "Too many framebuffer attachments. Only 8 attachments supported.");
+			g_logger_assert(framebuffer.colorAttachments.size() < 8, "Too many framebuffer attachments. Only 8 attachments supported.");
 			static GLenum colorBufferAttachments[8] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5, GL_COLOR_ATTACHMENT6, GL_COLOR_ATTACHMENT7 };
 			glDrawBuffers(framebuffer.colorAttachments.size(), colorBufferAttachments);
 		}
@@ -213,7 +213,7 @@ namespace MathAnim
 
 		if (framebuffer.includeDepthStencil)
 		{
-			Logger::Assert(framebuffer.depthStencilFormat != ByteFormat::None, "Cannot add depth stencil information with no byte format.");
+			g_logger_assert(framebuffer.depthStencilFormat != ByteFormat::None, "Cannot add depth stencil information with no byte format.");
 
 			// Create renderbuffer to store depth_stencil info
 			glGenRenderbuffers(1, &framebuffer.rbo);
@@ -225,7 +225,7 @@ namespace MathAnim
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
-			Logger::Assert(false, "Framebuffer is not complete.");
+			g_logger_assert(false, "Framebuffer is not complete.");
 		}
 
 		// Unbind framebuffer now

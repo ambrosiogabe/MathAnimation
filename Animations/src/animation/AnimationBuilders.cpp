@@ -119,4 +119,165 @@ namespace MathAnim
 	{
 		return animation;
 	}
+
+	// ========================================================================================================
+	// 	   Bitmap Animation Builder
+	// ========================================================================================================
+	BitmapAnimationBuilder::BitmapAnimationBuilder()
+	{
+		for (int y = 0; y < 16; y++)
+		{
+			for (int x = 0; x < 16; x++)
+			{
+				animation.bitmap[y][x] = false;
+				animation.bitmapState[y][x] = false;
+			}
+		}
+
+		animation.delay = 0;
+		animation.duration = 1.0f;
+		animation.revealTime = 0.01f;
+		animation.bitmapSquaresShowing = 0;
+		animation.startTime = 0;
+		animation.canvasPosition = glm::vec2({ -2, -2 });
+		animation.canvasSize = glm::vec2({ 4, 4 });
+	}
+
+	BitmapAnimationBuilder& BitmapAnimationBuilder::setBitmap(bool bitmap[16][16])
+	{
+		for (int y = 0; y < 16; y++)
+		{
+			for (int x = 0; x < 16; x++)
+			{
+				animation.bitmap[y][x] = bitmap[16 - y - 1][x];
+			}
+		}
+		return *this;
+	}
+
+	BitmapAnimationBuilder& BitmapAnimationBuilder::setDelay(float delay)
+	{
+		animation.delay = delay;
+		return *this;
+	}
+
+	BitmapAnimationBuilder& BitmapAnimationBuilder::setDuration(float duration)
+	{
+		animation.duration = duration;
+		return *this;
+	}
+
+	BitmapAnimationBuilder& BitmapAnimationBuilder::setCanvasPosition(const glm::vec2& canvasPosition)
+	{
+		animation.canvasPosition = canvasPosition;
+		return *this;
+	}
+
+	BitmapAnimationBuilder& BitmapAnimationBuilder::setCanvasSize(const glm::vec2& canvasSize)
+	{
+		animation.canvasSize = canvasSize;
+		return *this;
+	}
+
+	BitmapAnimationBuilder& BitmapAnimationBuilder::setRevealTime(float revealTime)
+	{
+		animation.revealTime = revealTime;
+		return *this;
+	}
+
+	BitmapAnimation BitmapAnimationBuilder::build()
+	{
+		return animation;
+	}
+
+	// ========================================================================================================
+	// 	   Bezier 1 Animation Builder
+	// ========================================================================================================
+	Bezier1AnimationBuilder::Bezier1AnimationBuilder()
+	{
+		animation.p0 = glm::vec2();
+		animation.p1 = glm::vec2();
+		animation.duration = 1.0f;
+		animation.delay = 0.0f;
+		animation.startTime = 0.0f;
+		animation.granularity = 2;
+	}
+
+	Bezier1AnimationBuilder& Bezier1AnimationBuilder::setP0(const glm::vec2& point)
+	{
+		animation.p0 = point;
+		return *this;
+	}
+
+	Bezier1AnimationBuilder& Bezier1AnimationBuilder::setP1(const glm::vec2& point)
+	{
+		animation.p1 = point;
+		return *this;
+	}
+
+	Bezier1AnimationBuilder& Bezier1AnimationBuilder::setDelay(float delay)
+	{
+		animation.delay = delay;
+		return *this;
+	}
+
+	Bezier1AnimationBuilder& Bezier1AnimationBuilder::setDuration(float duration)
+	{
+		animation.duration = duration;
+		return *this;
+	}
+
+	Bezier1Animation Bezier1AnimationBuilder::build()
+	{
+		return animation;
+	}
+
+	// ========================================================================================================
+	// 	   Bezier 2 Animation Builder
+	// ========================================================================================================
+	Bezier2AnimationBuilder::Bezier2AnimationBuilder()
+	{
+		animation.p0 = glm::vec2();
+		animation.p1 = glm::vec2();
+		animation.p2 = glm::vec2();
+		animation.duration = 1.0f;
+		animation.delay = 0.0f;
+		animation.startTime = 0.0f;
+		animation.granularity = 100;
+	}
+
+	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setP0(const glm::vec2& point)
+	{
+		animation.p0 = point;
+		return *this;
+	}
+
+	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setP1(const glm::vec2& point)
+	{
+		animation.p1 = point;
+		return *this;
+	}
+
+	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setP2(const glm::vec2& point)
+	{
+		animation.p2 = point;
+		return *this;
+	}
+
+	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setDelay(float delay)
+	{
+		animation.delay = delay;
+		return *this;
+	}
+
+	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setDuration(float duration)
+	{
+		animation.duration = duration;
+		return *this;
+	}
+
+	Bezier2Animation Bezier2AnimationBuilder::build()
+	{
+		return animation;
+	}
 }

@@ -21,6 +21,7 @@ namespace MathAnim
 		static bool playAnim = false;
 		static bool outputVideoFile = false;
 
+		static int numFramesWritten = 0;
 		static int framerate = 60;
 		static int outputWidth = 3840;
 		static int outputHeight = 2160;
@@ -76,14 +77,18 @@ namespace MathAnim
 
 				if (playAnim)
 				{
-					AnimationManager::update(deltaTime);
-					Sandbox::update(deltaTime);
-				}
-
-				if (outputVideoFile)
-				{
-					AnimationManager::update(1.0f / (float)framerate);
-					Sandbox::update(1.0f / (float)framerate);
+					float customDeltaTime = deltaTime;
+					if (outputVideoFile)
+					{
+						customDeltaTime = 1.0f / 60.0f;
+						if (numFramesWritten % 60 == 0)
+						{
+							g_logger_info("Number of seconds rendered: %d", numFramesWritten / 60);
+						}
+						numFramesWritten++;
+					}
+					AnimationManager::update(customDeltaTime);
+					Sandbox::update(customDeltaTime);
 				}
 
 				// Render to main framebuffer

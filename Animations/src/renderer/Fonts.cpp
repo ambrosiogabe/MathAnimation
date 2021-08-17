@@ -7,7 +7,7 @@ namespace MathAnim
 		auto iter = characterMap.find(c);
 		if (iter == characterMap.end())
 		{
-			Logger::Warning("Font does not contain character code '%d'. Defaulting to empty glyph.", c);
+			g_logger_warning("Font does not contain character code '%d'. Defaulting to empty glyph.", c);
 			return {
 				{0, 0},
 				{0, 0}
@@ -44,16 +44,16 @@ namespace MathAnim
 			int error = FT_Init_FreeType(&library);
 			if (error)
 			{
-				Logger::Error("An error occurred during freetype initialization. Font rendering will not work.");
+				g_logger_error("An error occurred during freetype initialization. Font rendering will not work.");
 			}
 
-			Logger::Info("Initialized freetype library.");
+			g_logger_info("Initialized freetype library.");
 			initialized = true;
 		}
 
 		Font* loadFont(const char* filepath, FontSize fontSize, CharRange defaultCharset)
 		{
-			Logger::Assert(initialized, "Font library must be initialized to load a font.");
+			g_logger_assert(initialized, "Font library must be initialized to load a font.");
 
 			// If the font is loaded already, return that font
 			Font* possibleFont = getFont(filepath, fontSize);
@@ -67,19 +67,19 @@ namespace MathAnim
 			int error = FT_New_Face(library, filepath, 0, &face);
 			if (error == FT_Err_Unknown_File_Format)
 			{
-				Logger::Error("Unsupported font file format for '%s'. Could not load font.", filepath);
+				g_logger_error("Unsupported font file format for '%s'. Could not load font.", filepath);
 				return nullptr;
 			}
 			else if (error)
 			{
-				Logger::Error("Font could not be opened or read or is broken '%s'. Could not load font.", filepath);
+				g_logger_error("Font could not be opened or read or is broken '%s'. Could not load font.", filepath);
 				return nullptr;
 			}
 
 			error = FT_Set_Char_Size(face, 0, fontSize * 64, 300, 300);
 			if (error)
 			{
-				Logger::Error("Could not set font size appropriately for '%s'. Is this font non-scalable?", filepath);
+				g_logger_error("Could not set font size appropriately for '%s'. Is this font non-scalable?", filepath);
 				return nullptr;
 			}
 
@@ -150,7 +150,7 @@ namespace MathAnim
 
 		static void generateDefaultCharset(Font& font, CharRange defaultCharset)
 		{
-			uint8* fontBuffer = (uint8*)AllocMem(sizeof(uint8) * font.texture.width * font.texture.height);
+			uint8* fontBuffer = (uint8*)g_memory_allocate(sizeof(uint8) * font.texture.width * font.texture.height);
 			uint32 currentLineHeight = 0;
 			uint32 currentX = 0;
 			uint32 currentY = 0;
@@ -160,7 +160,7 @@ namespace MathAnim
 				FT_UInt glyphIndex = FT_Get_Char_Index(font.fontFace, i);
 				if (glyphIndex == 0)
 				{
-					Logger::Warning("Character code '%d' not found. Missing glyph.", i);
+					g_logger_warning("Character code '%d' not found. Missing glyph.", i);
 					continue;
 				}
 
@@ -168,7 +168,7 @@ namespace MathAnim
 				int error = FT_Load_Glyph(font.fontFace, glyphIndex, FT_LOAD_DEFAULT);
 				if (error)
 				{
-					Logger::Error("Freetype could not load glyph for character code '%d'.", i);
+					g_logger_error("Freetype could not load glyph for character code '%d'.", i);
 					continue;
 				}
 
@@ -177,7 +177,7 @@ namespace MathAnim
 				error = FT_Render_Glyph(font.fontFace->glyph, FT_RENDER_MODE_NORMAL);
 				if (error)
 				{
-					Logger::Error("Freetype could not render glyph for character code '%d'.", i);
+					g_logger_error("Freetype could not render glyph for character code '%d'.", i);
 					continue;
 				}
 
@@ -191,7 +191,7 @@ namespace MathAnim
 
 				if (currentY + currentLineHeight > font.texture.height)
 				{
-					Logger::Error("Cannot continue adding to font. Stopped at char '%d' '%c' because we overran the texture height.", i, i);
+					g_logger_error("Cannot continue adding to font. Stopped at char '%d' '%c' because we overran the texture height.", i, i);
 					break;
 				}
 
@@ -203,8 +203,8 @@ namespace MathAnim
 						// Copy the glyph data to our bitmap
 						int bufferX = x + currentX;
 						int bufferY = font.texture.height - (currentY + 1 + y);
-						Logger::Assert(bufferX < font.texture.width && bufferY < font.texture.height, "Invalid bufferX, bufferY. Out of bounds greater than tex size.");
-						Logger::Assert(bufferX >= 0 && bufferY >= 0, "Invalid bufferX, bufferY. Out of bounds less than 0.");
+						g_logger_assert(bufferX < font.texture.width && bufferY < font.texture.height, "Invalid bufferX, bufferY. Out of bounds greater than tex size.");
+						g_logger_assert(bufferX >= 0 && bufferY >= 0, "Invalid bufferX, bufferY. Out of bounds less than 0.");
 						fontBuffer[bufferX + (bufferY * font.texture.width)] = 
 							font.fontFace->glyph->bitmap.buffer[x + (y * font.fontFace->glyph->bitmap.width)];
 					}
@@ -222,7 +222,7 @@ namespace MathAnim
 			}
 
 			font.texture.uploadSubImage(0, 0, font.texture.width, font.texture.height, fontBuffer);
-			FreeMem(fontBuffer);
+			g_memory_free(fontBuffer);
 		}
 	}
 

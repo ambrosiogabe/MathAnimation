@@ -34,6 +34,7 @@ namespace MathAnim
 
 		// Map Ranges
 		float mapRange(float val, float inMin, float inMax, float outMin, float outMax);
+		float mapRange(const glm::vec2& inputRange, const glm::vec2& outputRange, float value);
 
 		// Max, Min impls
 		int max(int a, int b);
@@ -42,6 +43,10 @@ namespace MathAnim
 
 		// Hash Strings
 		uint32 hashString(const char* str);
+
+		// Other stuff
+		glm::vec2 bezier1(const glm::vec2& p0, const glm::vec2& p1, float t);
+		glm::vec2 bezier2(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, float t);
 	}
 }
 

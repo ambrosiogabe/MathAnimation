@@ -76,6 +76,11 @@ namespace MathAnim
 			return (val - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
 		}
 
+		float mapRange(const glm::vec2& inputRange, const glm::vec2& outputRange, float value)
+		{
+			return (value - inputRange.x) / (inputRange.y - inputRange.x) * (outputRange.y - outputRange.x) + outputRange.x;
+		}
+
 		int max(int a, int b)
 		{
 			return a > b ? a : b;
@@ -105,6 +110,16 @@ namespace MathAnim
 			}
 
 			return hash;
+		}
+
+		glm::vec2 bezier1(const glm::vec2& p0, const glm::vec2& p1, float t)
+		{
+			return (1 - t) * p0 + t * p1;
+		}
+
+		glm::vec2 bezier2(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, float t)
+		{
+			return (1 - t) * ((1 - t) * p0 + t * p1) + t * ((1 - t) * p1 + t * p2);
 		}
 	}
 }

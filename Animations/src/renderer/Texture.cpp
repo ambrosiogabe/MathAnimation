@@ -79,7 +79,7 @@ namespace MathAnim
 
 	TextureBuilder& TextureBuilder::setSwizzle(std::initializer_list<ColorChannel> swizzleMask)
 	{
-		Logger::Assert(swizzleMask.size() == 4, "Must set swizzle mask to { R, G, B, A } format. Size must be 4.");
+		g_logger_assert(swizzleMask.size() == 4, "Must set swizzle mask to { R, G, B, A } format. Size must be 4.");
 		texture.swizzleFormat[0] = *(swizzleMask.begin() + 0);
 		texture.swizzleFormat[1] = *(swizzleMask.begin() + 1);
 		texture.swizzleFormat[2] = *(swizzleMask.begin() + 2);
@@ -127,7 +127,7 @@ namespace MathAnim
 
 	void Texture::uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer) const
 	{
-		Logger::Assert(format != ByteFormat::None, "Cannot generate texture without color format.");
+		g_logger_assert(format != ByteFormat::None, "Cannot generate texture without color format.");
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(format);
 		uint32 dataType = TextureUtil::toGlDataType(format);
@@ -154,7 +154,7 @@ namespace MathAnim
 			case WrapMode::None:
 				return GL_NONE;
 			default:
-				Logger::Warning("Unknown glWrapMode '%d'", wrapMode);
+				g_logger_warning("Unknown glWrapMode '%d'", wrapMode);
 			}
 
 			return GL_NONE;
@@ -171,7 +171,7 @@ namespace MathAnim
 			case FilterMode::None:
 				return GL_NONE;
 			default:
-				Logger::Warning("Unknown glFilterMode '%d'", filterMode);
+				g_logger_warning("Unknown glFilterMode '%d'", filterMode);
 			}
 
 			return GL_NONE;
@@ -192,7 +192,7 @@ namespace MathAnim
 			case ByteFormat::None:
 				return GL_NONE;
 			default:
-				Logger::Warning("Unknown glByteFormat '%d'", format);
+				g_logger_warning("Unknown glByteFormat '%d'", format);
 			}
 
 			return GL_NONE;
@@ -213,7 +213,7 @@ namespace MathAnim
 			case ByteFormat::None:
 				return GL_NONE;
 			default:
-				Logger::Warning("Unknown glByteFormat '%d'", format);
+				g_logger_warning("Unknown glByteFormat '%d'", format);
 			}
 
 			return GL_NONE;
@@ -234,7 +234,7 @@ namespace MathAnim
 			case ByteFormat::None:
 				return GL_NONE;
 			default:
-				Logger::Warning("Unknown glByteFormat '%d'", format);
+				g_logger_warning("Unknown glByteFormat '%d'", format);
 			}
 
 			return GL_NONE;
@@ -255,7 +255,7 @@ namespace MathAnim
 			case ByteFormat::None:
 				return false;
 			default:
-				Logger::Warning("Unknown glByteFormat '%d'", texture.format);
+				g_logger_warning("Unknown glByteFormat '%d'", texture.format);
 			}
 
 			return false;
@@ -277,7 +277,7 @@ namespace MathAnim
 			case ByteFormat::None:
 				return false;
 			default:
-				Logger::Warning("Unknown glByteFormat '%d'", texture.format);
+				g_logger_warning("Unknown glByteFormat '%d'", texture.format);
 			}
 
 			return false;
@@ -300,7 +300,7 @@ namespace MathAnim
 			case ColorChannel::Alpha:
 				return GL_ALPHA;
 			default:
-				Logger::Warning("Unknown glColorChannel swizzle format '%d'. Defaulting to 1.", colorChannel);
+				g_logger_warning("Unknown glColorChannel swizzle format '%d'. Defaulting to 1.", colorChannel);
 			}
 
 			return GL_ONE;
@@ -308,11 +308,11 @@ namespace MathAnim
 
 		void generateFromFile(Texture& texture)
 		{
-			Logger::Assert(texture.path != "", "Cannot generate texture from file without a filepath provided.");
+			g_logger_assert(texture.path != "", "Cannot generate texture from file without a filepath provided.");
 			int channels;
 
 			unsigned char* pixels = stbi_load(texture.path.string().c_str(), &texture.width, &texture.height, &channels, 0);
-			Logger::Assert((pixels != nullptr), "STB failed to load image: %s\n-> STB Failure Reason: %s", texture.path.string().c_str(), stbi_failure_reason());
+			g_logger_assert((pixels != nullptr), "STB failed to load image: %s\n-> STB Failure Reason: %s", texture.path.string().c_str(), stbi_failure_reason());
 
 			int bytesPerPixel = channels;
 			if (bytesPerPixel == 4)
@@ -325,7 +325,7 @@ namespace MathAnim
 			}
 			else
 			{
-				Logger::Warning("Unknown number of channels '%d' in image '%s'.", texture.path.string().c_str(), channels);
+				g_logger_warning("Unknown number of channels '%d' in image '%s'.", texture.path.string().c_str(), channels);
 				return;
 			}
 
@@ -336,7 +336,7 @@ namespace MathAnim
 
 			uint32 internalFormat = TextureUtil::toGlSizedInternalFormat(texture.format);
 			uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
-			Logger::Assert(internalFormat != GL_NONE && externalFormat != GL_NONE, "Tried to load image from file, but failed to identify internal format for image '%s'", texture.path.string().c_str());
+			g_logger_assert(internalFormat != GL_NONE && externalFormat != GL_NONE, "Tried to load image from file, but failed to identify internal format for image '%s'", texture.path.string().c_str());
 			glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, texture.width, texture.height, 0, externalFormat, GL_UNSIGNED_BYTE, pixels);
 
 			stbi_image_free(pixels);
@@ -344,7 +344,7 @@ namespace MathAnim
 
 		void generateEmptyTexture(Texture& texture)
 		{
-			Logger::Assert(texture.format != ByteFormat::None, "Cannot generate texture without color format.");
+			g_logger_assert(texture.format != ByteFormat::None, "Cannot generate texture without color format.");
 			glGenTextures(1, &texture.graphicsId);
 			glBindTexture(GL_TEXTURE_2D, texture.graphicsId);
 

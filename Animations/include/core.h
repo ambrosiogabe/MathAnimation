@@ -8,8 +8,9 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <CppUtils/CppUtils.h>
-using namespace CppUtils;
+// My stuff
+#include <memory/memory.h>
+#include <logger/logger.h>
 
 // Standard
 #include <filesystem>
@@ -22,6 +23,7 @@ using namespace CppUtils;
 #include <unordered_map>
 #include <string>
 #include <optional>
+#include <random>
 
 // GLFW/glad
 #include <glad/glad.h>

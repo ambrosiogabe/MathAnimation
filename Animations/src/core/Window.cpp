@@ -25,10 +25,10 @@ namespace MathAnim
 		if (windowPtr == nullptr)
 		{
 			glfwTerminate();
-			Logger::Error("Window creation failed.");
+			g_logger_error("Window creation failed.");
 			return;
 		}
-		Logger::Info("GLFW window created");
+		g_logger_info("GLFW window created");
 
 		glfwSetWindowUserPointer((GLFWwindow*)windowPtr, (void*)this);
 		makeContextCurrent();

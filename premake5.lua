@@ -36,7 +36,6 @@ project "Animations"
         "Animations/vendor/glad/include/glad/glad.h",
         "Animations/vendor/glad/include/glad/KHR/khrplatform.h",
 		"Animations/vendor/glad/src/glad.c",
-        "Animations/vendor/cppUtils/SingleInclude/CppUtils/CppUtils.h",
         "Animations/vendor/glm/glm/**.hpp",
 		"Animations/vendor/glm/glm/**.inl",
         "Animations/vendor/stb/stb_image.h"
@@ -46,7 +45,8 @@ project "Animations"
         "Animations/include",
         "Animations/vendor/GLFW/include",
         "Animations/vendor/glad/include",
-        "Animations/vendor/CppUtils/SingleInclude/",
+        "Animations/vendor/logger/single_include/",
+        "Animations/vendor/memory/single_include/",
         "Animations/vendor/glm/",
         "Animations/vendor/stb/",
         "Animations/vendor/vlc/include",
@@ -116,14 +116,14 @@ project "Bootstrap"
     files {
         "Bootstrap/src/**.cpp",
         "Bootstrap/include/**.h",
-        "Animations/vendor/cppUtils/SingleInclude/CppUtils/CppUtils.h",
         "Bootstrap/vendor/bit7z/include/**.hpp"
     }
 
     includedirs {
         "Bootstrap/include",
         "Bootstrap/vendor/curl/include",
-        "Animations/vendor/CppUtils/SingleInclude/",
+        "Animations/vendor/logger/single_include/",
+        "Animations/vendor/memory/single_include/",
         "Bootstrap/vendor/bit7z/include/"
     }
 

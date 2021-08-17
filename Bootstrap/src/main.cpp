@@ -1,9 +1,9 @@
 #include <stdio.h>
 
-#define GABE_CPP_UTILS_IMPL
-#include "CppUtils/CppUtils.h"
-using namespace CppUtils;
-#undef GABE_CPP_UTILS_IMPL
+#define GABE_LOGGER_IMPL
+#include <logger/logger.h>
+#define GABE_MEMORY_IMPL
+#include <memory/memory.h>
 
 #include "File.h"
 #include "Download.h"
@@ -26,7 +26,7 @@ void install(const char* url, const char* zipFile, const char* unzipDir, const c
 	{
 		if (!manim_unzip(zipFile, unzipDir, zipType))
 		{
-			Logger::Error("Failed to unzip '%s'. Please install '%s' binaries manually. TODO: Write detailed instructions", zipFile, zipFile);
+			g_logger_error("Failed to unzip '%s'. Please install '%s' binaries manually. TODO: Write detailed instructions", zipFile, zipFile);
 			return;
 		}
 	}
@@ -35,13 +35,13 @@ void install(const char* url, const char* zipFile, const char* unzipDir, const c
 	{
 		if (!manim_remove_dir(vendorDir))
 		{
-			Logger::Warning("Failed to remove directory for '%s'. Installation may fail.", vendorDir);
+			g_logger_warning("Failed to remove directory for '%s'. Installation may fail.", vendorDir);
 		}
 	}
 
 	if (!manim_move_file(unzippedFilename, vendorDir))
 	{
-		Logger::Error("Failed to move unzipped directory '%s' into '%s'", unzippedFilename, vendorDir);
+		g_logger_error("Failed to move unzipped directory '%s' into '%s'", unzippedFilename, vendorDir);
 	}
 }
 
@@ -50,7 +50,7 @@ int main()
 	install(ffmpegUrl, ffmpegZipFile, ffmpegUnzipDir, ffmpegVendorDir, "./Animations/vendor/tmp/ffmpegUnzipped/ffmpeg-4.4-full_build-shared", zip_type::_7Z);
 	install(freetypeUrl, freetypeZipFile, freetypeUnzipDir, freetypeVendorDir, "./Animations/vendor/tmp/freetypeUnzipped/freetype-windows-binaries-2.11.0", zip_type::_ZIP);
 
-	Logger::Info("Removing tmp directory.");
+	g_logger_info("Removing tmp directory.");
 	manim_remove_dir(tmpDir);
 
 	return 0;

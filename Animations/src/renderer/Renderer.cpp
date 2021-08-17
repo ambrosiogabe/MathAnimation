@@ -60,7 +60,7 @@ namespace MathAnim
 				}
 			}
 
-			Logger::Warning("Could not find texture id in Renderer::drawTexture.");
+			g_logger_warning("Could not find texture id in Renderer::drawTexture.");
 			return 0;
 		}
 
@@ -136,14 +136,14 @@ namespace MathAnim
 		{
 			if (type == GL_DEBUG_TYPE_ERROR)
 			{
-				Logger::Error("GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s",
+				g_logger_error("GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s",
 					(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
 					type, severity, message);
 
 				GLenum err;
 				while ((err = glGetError()) != GL_NO_ERROR)
 				{
-					Logger::Error("Error Code: 0x%8x", err);
+					g_logger_error("Error Code: 0x%8x", err);
 				}
 			}
 		}
@@ -156,11 +156,11 @@ namespace MathAnim
 			// Load OpenGL functions using Glad
 			if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 			{
-				Logger::Error("Failed to initialize glad.");
+				g_logger_error("Failed to initialize glad.");
 				return;
 			}
-			Logger::Info("GLAD initialized.");
-			Logger::Info("Hello OpenGL %d.%d", GLVersion.major, GLVersion.minor);
+			g_logger_info("GLAD initialized.");
+			g_logger_info("Hello OpenGL %d.%d", GLVersion.major, GLVersion.minor);
 
 #ifdef _DEBUG
 			glEnable(GL_DEBUG_OUTPUT);

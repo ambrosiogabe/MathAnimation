@@ -38,7 +38,7 @@ namespace MathAnim
 	void Shader::compile(const std::filesystem::path& shaderFilepath)
 	{
 		filepath = shaderFilepath;
-		Logger::Info("Compiling shader: %s", filepath.string().c_str());
+		g_logger_info("Compiling shader: %s", filepath.string().c_str());
 		std::string fileSource = ReadFile(filepath.string().c_str());
 
 		std::unordered_map<GLenum, std::string> shaderSources;
@@ -49,10 +49,10 @@ namespace MathAnim
 		while (pos != std::string::npos)
 		{
 			size_t eol = fileSource.find_first_of("\r\n", pos);
-			Logger::Assert(eol != std::string::npos, "Syntax error");
+			g_logger_assert(eol != std::string::npos, "Syntax error");
 			size_t begin = pos + typeTokenLength + 1;
 			std::string type = fileSource.substr(begin, eol - begin);
-			Logger::Assert(ShaderTypeFromString(type), "Invalid shader type specified.");
+			g_logger_assert(ShaderTypeFromString(type), "Invalid shader type specified.");
 
 			size_t nextLinePos = fileSource.find_first_not_of("\r\n", eol);
 			pos = fileSource.find(typeToken, nextLinePos);
@@ -60,7 +60,7 @@ namespace MathAnim
 		}
 
 		GLuint program = glCreateProgram();
-		Logger::Assert(shaderSources.size() <= 2, "Shader source must be less than 2.");
+		g_logger_assert(shaderSources.size() <= 2, "Shader source must be less than 2.");
 		std::array<GLenum, 2> glShaderIDs;
 		int glShaderIDIndex = 0;
 
@@ -94,8 +94,8 @@ namespace MathAnim
 				// We don't need the shader anymore.
 				glDeleteShader(shader);
 
-				Logger::Error("%s", infoLog.data());
-				Logger::Assert(false, "Shader compilation failed!");
+				g_logger_error("%s", infoLog.data());
+				g_logger_assert(false, "Shader compilation failed!");
 				
 				programId = UINT32_MAX;
 				return;
@@ -126,8 +126,8 @@ namespace MathAnim
 			for (auto id : glShaderIDs)
 				glDeleteShader(id);
 
-			Logger::Error("%s", infoLog.data());
-			Logger::Assert(false, "Shader linking failed!");
+			g_logger_error("%s", infoLog.data());
+			g_logger_assert(false, "Shader linking failed!");
 			programId = UINT32_MAX;
 			return;
 		}
@@ -142,7 +142,7 @@ namespace MathAnim
 		glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxCharLength);
 		if (numUniforms > 0 && maxCharLength > 0)
 		{
-			char* charBuffer = (char*)AllocMem(sizeof(char) * maxCharLength);
+			char* charBuffer = (char*)g_memory_allocate(sizeof(char) * maxCharLength);
 
 			for (int i = 0; i < numUniforms; i++)
 			{
@@ -157,7 +157,7 @@ namespace MathAnim
 				}] = varLocation;
 			}
 
-			FreeMem(charBuffer);
+			g_memory_free(charBuffer);
 		}
 
 		// Always detach shaders after a successful link.
@@ -260,7 +260,7 @@ namespace MathAnim
 			return iter->second;
 		}
 
-		Logger::Warning("Could not find shader variable '%s' for shader '%s'. Hint, maybe the shader variable is not used in the program? If so, then it will be compiled out of existence.", 
+		g_logger_warning("Could not find shader variable '%s' for shader '%s'. Hint, maybe the shader variable is not used in the program? If so, then it will be compiled out of existence.", 
 			varName, shader.filepath.string().c_str());
 		return -1;
 	}
@@ -272,7 +272,7 @@ namespace MathAnim
 		else if (type == "fragment" || type == "pixel")
 			return GL_FRAGMENT_SHADER;
 
-		Logger::Assert(false, "Unkown shader type.");
+		g_logger_assert(false, "Unkown shader type.");
 		return 0;
 	}
 
@@ -290,7 +290,7 @@ namespace MathAnim
 		}
 		else
 		{
-			Logger::Error("Could not open file: '%s'", filepath);
+			g_logger_error("Could not open file: '%s'", filepath);
 		}
 
 		return result;

@@ -1,6 +1,9 @@
 [submodule "Animations/vendor/glm"]
 	path = Animations/vendor/glm
 	url = https://github.com/g-truc/glm
-[submodule "Animations/vendor/CppUtils"]
-	path = Animations/vendor/CppUtils
-	url = https://github.com/ambrosiogabe/CppUtils
+[submodule "Animations/vendor/logger"]
+	path = Animations/vendor/logger
+	url = https://github.com/ambrosiogabe/logger
+[submodule "Animations/vendor/memory"]
+	path = Animations/vendor/memory
+	url = https://github.com/ambrosiogabe/memory

@@ -5,21 +5,21 @@
 #include "animation/Styles.h"
 #include "renderer/Renderer.h"
 #include "renderer/Fonts.h"
+#include "utils/CMath.h"
+
+#include "animation/customAnimations/PhoneAnimation.h"
+#include "animation/customAnimations/GridAnimation.h"
+#include "animation/customAnimations/BitmapLetterAnimations.h"
 
 namespace MathAnim
 {
 	namespace Sandbox
 	{
-		float mapRange(const glm::vec2& inputRange, const glm::vec2& outputRange, float value)
-		{
-			return (value - inputRange.x) / (inputRange.y - inputRange.x) * (outputRange.y - outputRange.x) + outputRange.x;
-		}
-
 		glm::vec2 triangle(float t)
 		{
 			if (t >= 0 && t < 1)
 			{
-				float newT = mapRange({ 0.0f, 1.0f }, { -1.0f, 0.0f }, t);
+				float newT = CMath::mapRange({ 0.0f, 1.0f }, { -1.0f, 0.0f }, t);
 				return glm::vec2{
 					newT,
 					newT + 2
@@ -27,7 +27,7 @@ namespace MathAnim
 			}
 			else if (t >= 1 && t < 2)
 			{
-				float newT = mapRange({ 1.0f, 2.0f }, { 0.0f, 1.0f }, t);
+				float newT = CMath::mapRange({ 1.0f, 2.0f }, { 0.0f, 1.0f }, t);
 				return glm::vec2{
 					newT,
 					-newT + 2
@@ -35,7 +35,7 @@ namespace MathAnim
 			} 
 			else if (t >= 2 && t < 3)
 			{
-				float newT = mapRange({ 2.0f, 3.0f }, { 1.0f, -1.0f }, t);
+				float newT = CMath::mapRange({ 2.0f, 3.0f }, { 1.0f, -1.0f }, t);
 				return glm::vec2{
 					newT,
 					1
@@ -47,7 +47,23 @@ namespace MathAnim
 		{
 			return glm::vec2{
 				t,
-				(-(t * t) / 10.0f) - 2.0f
+				t * t
+			};
+		}
+
+		glm::vec2 cubic(float t)
+		{
+			return glm::vec2{
+				t,
+				t * t * t
+			};
+		}
+
+		glm::vec2 logarithm(float t)
+		{
+			return glm::vec2{
+				t,
+				glm::log(t)
 			};
 		}
 
@@ -79,78 +95,101 @@ namespace MathAnim
 
 		void init()
 		{
+			//PhoneAnimation::init();
+			//GridAnimation::init({ -2.0f, -2.0f }, { 4.0f, 4.0f }, { 0.25f, 0.25f });
+			//BitmapLetterAnimations::init({ -2.0f, -2.0f }, { 4.0f, 4.0f }, { 0.25f, 0.25f });
+
 			Style style = Styles::defaultStyle;
-			style.color = Colors::blue;
-			ParametricAnimation animation1 = ParametricAnimationBuilder()
-				.setFunction(parabola)
-				.setDuration(0.6f)
-				.setStartT(-4)
-				.setEndT(4)
-				.setGranularity(100)
-				.build();
-			AnimationManager::addParametricAnimation(animation1, style);
+			style.color = Colors::green;
+			AnimationManager::addBezier1Animation(
+				Bezier1AnimationBuilder()
+				.setDuration(1)
+				.setP0({ 0.0f, -5.0f })
+				.setP1({ 0.0f, 5.0f })
+				.build(),
+				style
+			);
 
-			style.color = Colors::yellow;
-			ParametricAnimation animation2 = ParametricAnimationBuilder()
-				.setFunction(hyperbolic)
+			style.color = Colors::red;
+			AnimationManager::addBezier1Animation(
+				Bezier1AnimationBuilder()
+				.setDuration(1)
+				.setP0({ -6.0f, 0.0f })
+				.setP1({ 6.0f, 0.0f })
+				.setDelay(-0.5f)
+				.build(),
+				style
+			);
+
+			style.color = Colors::offWhite;
+			AnimationManager::addParametricAnimation(
+				ParametricAnimationBuilder()
+				.setDelay(8.0f)
 				.setDuration(1.0f)
-				.setStartT(-6)
-				.setEndT(-0.1f)
-				.setGranularity(100)
-				.build();
-			AnimationManager::addParametricAnimation(animation2, style);
-
-			style.color = Colors::lightOrange;
-			ParametricAnimation animation3 = ParametricAnimationBuilder()
-				.setFunction(circle)
-				.setDuration(3.0f)
-				.setStartT(0.0f)
-				.setEndT(glm::pi<float>() * 2.0f)
-				.setGranularity(100)
-				.build();
-			AnimationManager::addParametricAnimation(animation3, style);
-
-			style.color = Colors::purple;
-			ParametricAnimation animation4 = ParametricAnimationBuilder()
-				.setFunction(triangle)
-				.setDuration(3.0f)
-				.setStartT(0.0f)
+				.setStartT(-3.0f)
 				.setEndT(3.0f)
 				.setGranularity(100)
-				.build();
-			AnimationManager::addParametricAnimation(animation4, style);
+				.setFunction(parabola)
+				.build(),
+				style
+			);
 
-			font = Fonts::loadFont("C:/Windows/Fonts/Arial.ttf", 64);
+			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.0f);
 
-			TextAnimation textAnim1 = TextAnimationBuilder()
-				.setFont(font)
-				.setPosition(glm::vec2(-2, -2))
-				.setScale(0.1f)
-				.setText("Hello there, how are you doing?")
-				.setDelay(-2.0f)
-				.build();
-			style.color = Colors::offWhite;
-			AnimationManager::addTextAnimation(textAnim1, style);
+			AnimationManager::addParametricAnimation(
+				ParametricAnimationBuilder()
+				.setDelay(0.5f)
+				.setDuration(1.0f)
+				.setStartT(-3.0f)
+				.setEndT(3.0f)
+				.setGranularity(100)
+				.setFunction(cubic)
+				.build(),
+				style
+			);
 
-			AnimationManager::addTextAnimation(
-				TextAnimationBuilder()
-					.setFont(font)
-					.setPosition(glm::vec2(-2, 2))
-					.setScale(0.11f)
-					.setText("And this is more stuff...")
-					.setDelay(-1.5f)
-					.build(),
+			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.0f);
+
+			AnimationManager::addParametricAnimation(
+				ParametricAnimationBuilder()
+				.setDelay(0.5f)
+				.setDuration(1.0f)
+				.setStartT(0.01f)
+				.setEndT(6.0f)
+				.setGranularity(100)
+				.setFunction(logarithm)
+				.build(),
+				style
+			);
+
+			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.0f);
+
+			AnimationManager::addParametricAnimation(
+				ParametricAnimationBuilder()
+				.setDelay(0.5f)
+				.setDuration(1.0f)
+				.setStartT(-6.0f)
+				.setEndT(-0.01f)
+				.setGranularity(100)
+				.setFunction(hyperbolic)
+				.build(),
+				style
+			);
+			AnimationManager::addParametricAnimation(
+				ParametricAnimationBuilder()
+				.setDuration(1.0f)
+				.setStartT(0.01f)
+				.setEndT(6.0f)
+				.setGranularity(100)
+				.setFunction(hyperbolic)
+				.build(),
 				style
 			);
 		}
 
 		void update(float dt)
 		{
-			static Style style = Styles::defaultStyle;
-			style.color = Colors::lightOrange;
-			Renderer::drawFilledSquare(glm::vec2(-1, 0), glm::vec2(1, 1), style);
-			style.color = Colors::red;
-			Renderer::drawSquare(glm::vec2(-1.025f, -0.025f), glm::vec2(1.045f, 1.045f), style);
+
 		}
 	}
 }
