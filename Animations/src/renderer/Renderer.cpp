@@ -258,7 +258,8 @@ namespace MathAnim
 
 		void drawLine(const glm::vec2& start, const glm::vec2& end, const Style& style)
 		{
-			if (numVertices + 6 >= maxNumVerticesPerBatch)
+			if ((style.lineEnding == CapType::Flat && numVertices + 6 >= maxNumVerticesPerBatch) ||
+				(style.lineEnding == CapType::Arrow && numVertices + 15 >= maxNumVerticesPerBatch))
 			{
 				flushBatch();
 			}
@@ -304,6 +305,65 @@ namespace MathAnim
 			vertices[numVertices].color = style.color;
 			vertices[numVertices].textureId = 0;
 			numVertices++;
+
+			if (style.lineEnding == CapType::Arrow)
+			{
+				// Add arrow tip
+				glm::vec2 centerDot = end + (normalDirection * style.strokeWidth * 0.5f);
+				glm::vec2 vectorToCenter = glm::normalize(centerDot - (end - perpVector * style.strokeWidth * 0.5f));
+				glm::vec2 oVectorToCenter = glm::normalize(centerDot - (end + perpVector * style.strokeWidth * 0.5f));
+				glm::vec2 bottomLeft = centerDot - vectorToCenter * style.strokeWidth * 4.0f;
+				glm::vec2 bottomRight = centerDot - oVectorToCenter * style.strokeWidth * 4.0f;
+				glm::vec2 top = centerDot + normalDirection * style.strokeWidth * 4.0f;
+
+				// Left Triangle
+				vertices[numVertices].position = centerDot;
+				vertices[numVertices].color = style.color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = bottomLeft;
+				vertices[numVertices].color = style.color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = top;
+				vertices[numVertices].color = style.color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				// Right triangle
+				vertices[numVertices].position = top;
+				vertices[numVertices].color = style.color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = centerDot;
+				vertices[numVertices].color = style.color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = bottomRight;
+				vertices[numVertices].color = style.color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				// Center triangle
+				vertices[numVertices].position = centerDot;
+				vertices[numVertices].color = style.color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = end + perpVector * style.strokeWidth * 0.5f;
+				vertices[numVertices].color = style.color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = end - perpVector * style.strokeWidth * 0.5f;
+				vertices[numVertices].color = style.color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+			}
 		}
 
 		void drawFilledCircle(const glm::vec2& position, float radius, int numSegments, const Style& style)

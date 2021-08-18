@@ -10,6 +10,10 @@
 #include "animation/customAnimations/PhoneAnimation.h"
 #include "animation/customAnimations/GridAnimation.h"
 #include "animation/customAnimations/BitmapLetterAnimations.h"
+#include "animation/customAnimations/PlottingLettersWithPoints.h"
+#include "animation/customAnimations/LagrangeInterpolation.h"
+#include "animation/customAnimations/BezierCurveAnimation.h"
+#include "animation/customAnimations/FillingInLetters.h"
 
 namespace MathAnim
 {
@@ -98,74 +102,25 @@ namespace MathAnim
 			//PhoneAnimation::init();
 			//GridAnimation::init({ -2.0f, -2.0f }, { 4.0f, 4.0f }, { 0.25f, 0.25f });
 			//BitmapLetterAnimations::init({ -2.0f, -2.0f }, { 4.0f, 4.0f }, { 0.25f, 0.25f });
-
+			//PlottingLettersWithPoints::init();
+			//LagrangeInterpolation::init();
+			//BezierCurveAnimation::init();
+			//FillingInLetters::init();
 			Style style = Styles::defaultStyle;
-			style.color = Colors::green;
-
-			glm::vec2 p0(0.0f, 0.0f);
-			glm::vec2 p1(0.3f, 1.5f);
-			glm::vec2 p2(4.0f, 0.0f);
-
-			AnimationManager::addFilledCircleAnimation(
-				FilledCircleAnimationBuilder()
-				.setPosition(p0)
-				.setRadius(0.08f)
-				.setDuration(0.4f)
-				.setNumSegments(180)
-				.build(),
-				style
-			);
-
-			AnimationManager::addFilledCircleAnimation(
-				FilledCircleAnimationBuilder()
-				.setPosition(p1)
-				.setRadius(0.08f)
-				.setDuration(0.4f)
-				.setNumSegments(180)
-				.build(),
-				style
-			);
-
-			AnimationManager::addFilledCircleAnimation(
-				FilledCircleAnimationBuilder()
-				.setPosition(p2)
-				.setRadius(0.08f)
-				.setDuration(0.4f)
-				.setNumSegments(180)
-				.build(),
-				style
-			);
-
-			AnimationManager::addBezier1Animation(
-				Bezier1AnimationBuilder()
-				.setP0(p0)
-				.setP1(p1)
-				.setDuration(1.0f)
-				.build(),
-				style
-			);
-
-			AnimationManager::addBezier1Animation(
-				Bezier1AnimationBuilder()
-				.setP0(p1)
-				.setP1(p2)
-				.setDuration(1.0f)
-				.build(),
-				style
-			);
-
-			style.color = Colors::offWhite;
+			style.lineEnding = CapType::Arrow;
 			AnimationManager::addBezier2Animation(
 				Bezier2AnimationBuilder()
-				.setDuration(1)
-				.setP0(p0)
-				.setP1(p1)
-				.setP2(p2)
+				.setP0({ 0, 0 })
+				.setP1({ 2.0f, 1.5f })
+				.setP2({2.5f, -1.0f})
+				.setDuration(1.0f)
 				.build(),
 				style
 			);
 
-			/*AnimationManager::addBezier1Animation(
+			/*Style style = Styles::defaultStyle;
+			style.color = Colors::green;
+			AnimationManager::addBezier1Animation(
 				Bezier1AnimationBuilder()
 				.setDuration(1)
 				.setP0({ 0.0f, -5.0f })
@@ -227,7 +182,6 @@ namespace MathAnim
 
 		void update(float dt)
 		{
-
 		}
 	}
 }

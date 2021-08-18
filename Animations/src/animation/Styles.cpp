@@ -20,22 +20,26 @@ namespace MathAnim
 	{
 		extern Style defaultStyle = {
 			Colors::offWhite,
-			0.03f
+			0.03f,
+			CapType::Flat
 		};
 
 		extern Style gridStyle = {
 			Colors::offWhite,
-			0.005f
+			0.005f,
+			CapType::Flat
 		};
 
 		extern Style verticalAxisStyle = {
 			Colors::green,
-			0.02f
+			0.02f,
+			CapType::Flat
 		};
 
 		extern Style horizontalAxisStyle = {
 			Colors::red,
-			0.02f
+			0.02f,
+			CapType::Flat
 		};
 	}
 }

@@ -245,6 +245,7 @@ namespace MathAnim
 		animation.delay = 0.0f;
 		animation.startTime = 0.0f;
 		animation.granularity = 100;
+		animation.withPoints = false;
 	}
 
 	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setP0(const glm::vec2& point)
@@ -274,6 +275,12 @@ namespace MathAnim
 	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setDuration(float duration)
 	{
 		animation.duration = duration;
+		return *this;
+	}
+
+	Bezier2AnimationBuilder& Bezier2AnimationBuilder::withPoints()
+	{
+		animation.withPoints = true;
 		return *this;
 	}
 
@@ -326,6 +333,54 @@ namespace MathAnim
 	}
 
 	FilledCircleAnimation FilledCircleAnimationBuilder::build()
+	{
+		return animation;
+	}
+
+	// ========================================================================================================
+	// 	   Filled Box Animation Builder
+	// ========================================================================================================
+	FilledBoxAnimationBuilder::FilledBoxAnimationBuilder()
+	{
+		animation.center = glm::vec2();
+		animation.size = glm::vec2();
+		animation.fillDirection = Direction::Up;
+		animation.duration = 1.0f;
+		animation.startTime = 0.0f;
+		animation.delay = 0.0f;
+	}
+
+	FilledBoxAnimationBuilder& FilledBoxAnimationBuilder::setCenter(const glm::vec2& point)
+	{
+		animation.center = point;
+		return *this;
+	}
+
+	FilledBoxAnimationBuilder& FilledBoxAnimationBuilder::setSize(const glm::vec2& size)
+	{
+		animation.size = size;
+		return *this;
+	}
+
+	FilledBoxAnimationBuilder& FilledBoxAnimationBuilder::setFillDirection(Direction direction)
+	{
+		animation.fillDirection = direction;
+		return *this;
+	}
+
+	FilledBoxAnimationBuilder& FilledBoxAnimationBuilder::setDelay(float delay)
+	{
+		animation.delay = delay;
+		return *this;
+	}
+
+	FilledBoxAnimationBuilder& FilledBoxAnimationBuilder::setDuration(float duration)
+	{
+		animation.duration = duration;
+		return *this;
+	}
+
+	FilledBoxAnimation FilledBoxAnimationBuilder::build()
 	{
 		return animation;
 	}

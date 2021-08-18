@@ -1,6 +1,8 @@
-#include "renderer/Renderer.h"
 #include "animation/Animation.h"
+
+#include "renderer/Renderer.h"
 #include "animation/Styles.h"
+#include "animation/AnimationBuilders.h"
 #include "utils/CMath.h"
 
 namespace MathAnim
@@ -25,9 +27,14 @@ namespace MathAnim
 		static std::vector<FilledCircleAnimation> mFilledCircleAnimations = std::vector<FilledCircleAnimation>();
 		static std::vector<Style> mFilledCircleStyles = std::vector<Style>();
 
+		static std::vector<FilledBoxAnimation> mFilledBoxAnimations = std::vector<FilledBoxAnimation>();
+		static std::vector<Style> mFilledBoxStyles = std::vector<Style>();
+
 		static std::vector<PopAnimation> mAnimationPops = std::vector<PopAnimation>();
 
 		static std::vector<TranslateAnimation> mTranslationAnimations = std::vector<TranslateAnimation>();
+
+		static std::vector<Interpolation> mInterpolations = std::vector<Interpolation>();
 
 		static float mTime = 0.0f;
 		static float mLastAnimEndTime = 0.0f;
@@ -74,6 +81,43 @@ namespace MathAnim
 
 		void addBezier2Animation(Bezier2Animation& animation, const Style& style)
 		{
+			if (animation.withPoints)
+			{
+				Style pointStyle = Styles::defaultStyle;
+				pointStyle.color = Colors::blue;
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition(animation.p0)
+					.setDuration(0.5f)
+					.setNumSegments(40)
+					.setRadius(0.06f)
+					.build(),
+					pointStyle
+				);
+
+				pointStyle.color = Colors::green;
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition(animation.p1)
+					.setDuration(0.5f)
+					.setNumSegments(40)
+					.setRadius(0.06f)
+					.build(),
+					pointStyle
+				);
+
+				pointStyle.color = Colors::blue;
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition(animation.p2)
+					.setDuration(0.5f)
+					.setNumSegments(40)
+					.setRadius(0.06f)
+					.build(),
+					pointStyle
+				);
+			}
+
 			mLastAnimEndTime += animation.delay;
 			animation.startTime = mLastAnimEndTime;
 			mLastAnimEndTime += animation.duration;
@@ -90,6 +134,33 @@ namespace MathAnim
 
 			mFilledCircleAnimations.push_back(animation);
 			mFilledCircleStyles.push_back(style);
+		}
+
+		void addFilledBoxAnimation(FilledBoxAnimation& animation, const Style& style)
+		{
+			mLastAnimEndTime += animation.delay;
+			animation.startTime = mLastAnimEndTime;
+			mLastAnimEndTime += animation.duration;
+
+			mFilledBoxAnimations.push_back(animation);
+			mFilledBoxStyles.push_back(style);
+		}
+
+		void addInterpolation(Bezier2Animation animation)
+		{
+			Interpolation interpolation;
+			interpolation.ogAnimIndex = mBezier2Animations.size() - 1;
+			interpolation.ogAnim = mBezier2Animations[interpolation.ogAnimIndex];
+			interpolation.ogP0Index = mFilledCircleAnimations.size() - 3;
+			interpolation.ogP1Index = mFilledCircleAnimations.size() - 2;
+			interpolation.ogP2Index = mFilledCircleAnimations.size() - 1;
+
+			mLastAnimEndTime += animation.delay;
+			animation.startTime = mLastAnimEndTime;
+			mLastAnimEndTime += animation.duration;
+
+			interpolation.newAnim = animation;
+			mInterpolations.emplace_back(interpolation);
 		}
 
 		void popAnimation(AnimType animationType, float delay)
@@ -115,6 +186,12 @@ namespace MathAnim
 				break;
 			case AnimType::TextAnimation:
 				pop.index = mTextAnimations.size() - 1;
+				break;
+			case AnimType::FilledBoxAnimation:
+				pop.index = mFilledBoxAnimations.size() - 1;
+				break;
+			case AnimType::FilledCircleAnimation:
+				pop.index = mFilledCircleAnimations.size() - 1;
 				break;
 			}
 
@@ -149,6 +226,12 @@ namespace MathAnim
 			case AnimType::TextAnimation:
 				anim.index = mTextAnimations.size() - 1;
 				break;
+			case AnimType::FilledBoxAnimation:
+				anim.index = mFilledBoxAnimations.size() - 1;
+				break;
+			case AnimType::FilledCircleAnimation:
+				anim.index = mFilledCircleAnimations.size() - 1;
+				break;
 			}
 
 			mTranslationAnimations.emplace_back(anim);
@@ -157,6 +240,7 @@ namespace MathAnim
 		static void drawParametricAnimation(const ParametricAnimation& anim, const Style& style)
 		{
 			if (mTime < anim.startTime) return;
+			Style styleToUse = style;
 
 			float lerp = glm::clamp((mTime - anim.startTime) / anim.duration, 0.0f, 1.0f);
 			float percentToDo = ((anim.endT - anim.startT) * lerp) / (anim.endT - anim.startT);
@@ -165,10 +249,19 @@ namespace MathAnim
 			const float granularity = ((anim.endT - anim.startT) * percentToDo) / anim.granularity;
 			for (int i = 0; i < anim.granularity; i++)
 			{
+				if (i < anim.granularity - 1 && style.lineEnding == CapType::Arrow)
+				{
+					styleToUse.lineEnding = CapType::Flat;
+				}
+				else if (style.lineEnding == CapType::Arrow)
+				{
+					styleToUse.lineEnding = CapType::Arrow;
+				}
+
 				glm::vec2 coord = anim.parametricEquation(t) + anim.translation;
 				float nextT = t + granularity;
 				glm::vec2 nextCoord = anim.parametricEquation(nextT) + anim.translation;
-				Renderer::drawLine(glm::vec2(coord.x, coord.y), glm::vec2(nextCoord.x, nextCoord.y), style);
+				Renderer::drawLine(glm::vec2(coord.x, coord.y), glm::vec2(nextCoord.x, nextCoord.y), styleToUse);
 				t = nextT;
 			}
 		}
@@ -224,6 +317,7 @@ namespace MathAnim
 		static void drawBezier1Animation(Bezier1Animation& anim, const Style& style)
 		{
 			if (mTime < anim.startTime) return;
+			Style styleToUse = style;
 
 			float lerp = glm::clamp((mTime - anim.startTime) / anim.duration, 0.0f, 1.0f);
 			float percentToDo = (anim.duration * lerp) / anim.duration;
@@ -232,10 +326,19 @@ namespace MathAnim
 			const float granularity = percentToDo / anim.granularity;
 			for (int i = 0; i < anim.granularity; i++)
 			{
+				if (i < anim.granularity - 1 && style.lineEnding == CapType::Arrow)
+				{
+					styleToUse.lineEnding = CapType::Flat;
+				}
+				else if (style.lineEnding == CapType::Arrow)
+				{
+					styleToUse.lineEnding = CapType::Arrow;
+				}
+
 				glm::vec2 coord = CMath::bezier1(anim.p0, anim.p1, t);
 				float nextT = t + granularity;
 				glm::vec2 nextCoord = CMath::bezier1(anim.p0, anim.p1, nextT);
-				Renderer::drawLine(glm::vec2(coord.x, coord.y), glm::vec2(nextCoord.x, nextCoord.y), style);
+				Renderer::drawLine(glm::vec2(coord.x, coord.y), glm::vec2(nextCoord.x, nextCoord.y), styleToUse);
 				t = nextT;
 			}
 		}
@@ -243,6 +346,7 @@ namespace MathAnim
 		static void drawBezier2Animation(Bezier2Animation& anim, const Style& style)
 		{
 			if (mTime < anim.startTime) return;
+			Style styleToUse = style;
 
 			float lerp = glm::clamp((mTime - anim.startTime) / anim.duration, 0.0f, 1.0f);
 			float percentToDo = (anim.duration * lerp) / anim.duration;
@@ -251,12 +355,36 @@ namespace MathAnim
 			const float granularity = percentToDo / anim.granularity;
 			for (int i = 0; i < anim.granularity; i++)
 			{
+				if (i < anim.granularity - 1 && style.lineEnding == CapType::Arrow)
+				{
+					styleToUse.lineEnding = CapType::Flat;
+				}
+				else if (style.lineEnding == CapType::Arrow)
+				{
+					styleToUse.lineEnding = CapType::Arrow;
+				}
+
 				glm::vec2 coord = CMath::bezier2(anim.p0, anim.p1, anim.p2, t);
 				float nextT = t + granularity;
 				glm::vec2 nextCoord = CMath::bezier2(anim.p0, anim.p1, anim.p2, nextT);
-				Renderer::drawLine(glm::vec2(coord.x, coord.y), glm::vec2(nextCoord.x, nextCoord.y), style);
+				Renderer::drawLine(glm::vec2(coord.x, coord.y), glm::vec2(nextCoord.x, nextCoord.y), styleToUse);
 				t = nextT;
 			}
+		}
+
+		static void interpolate(Interpolation& anim)
+		{
+			if (mTime <= anim.newAnim.startTime) return;
+
+			float lerp = glm::clamp((mTime - anim.newAnim.startTime) / anim.newAnim.duration, 0.0f, 1.0f);
+			Bezier2Animation& ogAnim = mBezier2Animations.at(anim.ogAnimIndex);
+			ogAnim.p0 += (anim.newAnim.p0 - ogAnim.p0) * lerp;
+			ogAnim.p1 += (anim.newAnim.p1 - ogAnim.p1) * lerp;
+			ogAnim.p2 += (anim.newAnim.p2 - ogAnim.p2) * lerp;
+
+			mFilledCircleAnimations.at(anim.ogP0Index).position = ogAnim.p0;
+			mFilledCircleAnimations.at(anim.ogP1Index).position = ogAnim.p1;
+			mFilledCircleAnimations.at(anim.ogP2Index).position = ogAnim.p2;
 		}
 
 		static void drawFilledCircleAnimation(FilledCircleAnimation& anim, const Style& style)
@@ -277,6 +405,30 @@ namespace MathAnim
 				Renderer::drawFilledTriangle(anim.position, anim.position + glm::vec2(x, y), anim.position + glm::vec2(nextX, nextY), style);
 
 				t += sectorSize;
+			}
+		}
+
+		static void drawFilledBoxAnimation(FilledBoxAnimation& anim, const Style& style)
+		{
+			if (mTime < anim.startTime) return;
+
+			float percentToDo = glm::clamp((mTime - anim.startTime) / anim.duration, 0.0f, 1.0f);
+			switch (anim.fillDirection)
+			{
+			case Direction::Up:
+				Renderer::drawFilledSquare(anim.center - (anim.size / 2.0f), glm::vec2(anim.size.x, anim.size.y * percentToDo), style);
+				break;
+			case Direction::Down:
+				Renderer::drawFilledSquare(anim.center + (anim.size / 2.0f) - glm::vec2(anim.size.x, anim.size.y * percentToDo), 
+					glm::vec2(anim.size.x, anim.size.y * percentToDo), style);
+				break;
+			case Direction::Right:
+				Renderer::drawFilledSquare(anim.center - (anim.size / 2.0f), glm::vec2(anim.size.x * percentToDo, anim.size.y), style);
+				break;
+			case Direction::Left:
+				Renderer::drawFilledSquare(anim.center + (anim.size / 2.0f) - glm::vec2(anim.size.x * percentToDo, anim.size.y),
+					glm::vec2(anim.size.x * percentToDo, anim.size.y), style);
+				break;
 			}
 		}
 
@@ -318,11 +470,24 @@ namespace MathAnim
 				drawBezier2Animation(anim, style);
 			}
 
+			for (int i = 0; i < mFilledBoxAnimations.size(); i++)
+			{
+				FilledBoxAnimation& anim = mFilledBoxAnimations[i];
+				const Style& style = mFilledBoxStyles.at(i);
+				drawFilledBoxAnimation(anim, style);
+			}
+
 			for (int i = 0; i < mFilledCircleAnimations.size(); i++)
 			{
 				FilledCircleAnimation& anim = mFilledCircleAnimations[i];
 				const Style& style = mFilledCircleStyles.at(i);
 				drawFilledCircleAnimation(anim, style);
+			}
+
+			for (int i = 0; i < mInterpolations.size(); i++)
+			{
+				Interpolation& interpolation = mInterpolations[i];
+				interpolate(interpolation);
 			}
 
 			for (int i = 0; i < mAnimationPops.size(); i++)
@@ -348,6 +513,12 @@ namespace MathAnim
 							break;
 						case AnimType::TextAnimation:
 							mTextAnimations.at(anim.index).startTime = FLT_MAX;
+							break;
+						case AnimType::FilledBoxAnimation:
+							mFilledBoxAnimations.at(anim.index).startTime = FLT_MAX;
+							break;
+						case AnimType::FilledCircleAnimation:
+							mFilledCircleAnimations.at(anim.index).startTime = FLT_MAX;
 							break;
 						}
 					}
@@ -384,6 +555,12 @@ namespace MathAnim
 							break;
 						case AnimType::TextAnimation:
 							mTextAnimations.at(anim.index).position += delta * anim.translation;
+							break;
+						case AnimType::FilledBoxAnimation:
+							mFilledBoxAnimations.at(anim.index).center += delta * anim.translation;
+							break;
+						case AnimType::FilledCircleAnimation:
+							mFilledCircleAnimations.at(anim.index).position += delta * anim.translation;
 							break;
 						}
 					}

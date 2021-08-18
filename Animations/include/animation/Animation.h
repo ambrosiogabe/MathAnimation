@@ -14,7 +14,17 @@ namespace MathAnim
 		Bezier1Animation,
 		Bezier2Animation,
 		BitmapAnimation,
-		TextAnimation
+		TextAnimation,
+		FilledCircleAnimation,
+		FilledBoxAnimation
+	};
+
+	enum class Direction
+	{
+		Up,
+		Down,
+		Right,
+		Left
 	};
 
 	struct FilledCircleAnimation
@@ -24,6 +34,16 @@ namespace MathAnim
 		float radius;
 		float duration;
 		float delay;
+		float startTime;
+	};
+
+	struct FilledBoxAnimation
+	{
+		glm::vec2 center;
+		glm::vec2 size;
+		Direction fillDirection;
+		float delay;
+		float duration;
 		float startTime;
 	};
 
@@ -82,6 +102,7 @@ namespace MathAnim
 		float delay;
 		float startTime;
 		float granularity;
+		bool withPoints;
 	};
 
 	struct PopAnimation
@@ -100,6 +121,16 @@ namespace MathAnim
 		glm::vec2 translation;
 	};
 
+	struct Interpolation
+	{
+		int ogAnimIndex;
+		int ogP0Index;
+		int ogP1Index;
+		int ogP2Index;
+		Bezier2Animation ogAnim;
+		Bezier2Animation newAnim;
+	};
+
 	namespace AnimationManager
 	{
 		void addBitmapAnimation(BitmapAnimation& animation, const Style& style);
@@ -108,6 +139,10 @@ namespace MathAnim
 		void addBezier1Animation(Bezier1Animation& animation, const Style& style);
 		void addBezier2Animation(Bezier2Animation& animation, const Style& style);
 		void addFilledCircleAnimation(FilledCircleAnimation& animation, const Style& style);
+		void addFilledBoxAnimation(FilledBoxAnimation& animation, const Style& style);
+
+		// TODO: Make all these functions one templated function
+		void addInterpolation(Bezier2Animation animation);
 
 		void popAnimation(AnimType animationType, float delay);
 		void translateAnimation(AnimType animationType, const glm::vec2& translation, float duration, float delay);

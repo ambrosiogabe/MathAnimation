@@ -4,10 +4,17 @@
 
 namespace MathAnim
 {
+	enum class CapType
+	{
+		Flat,
+		Arrow
+	};
+
 	struct Style
 	{
 		glm::vec3 color;
 		float strokeWidth;
+		CapType lineEnding;
 	};
 
 	namespace Colors

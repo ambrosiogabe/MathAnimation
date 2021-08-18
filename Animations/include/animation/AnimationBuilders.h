@@ -85,6 +85,7 @@ namespace MathAnim
 		Bezier2AnimationBuilder& setP2(const glm::vec2& point);
 		Bezier2AnimationBuilder& setDelay(float delay);
 		Bezier2AnimationBuilder& setDuration(float duration);
+		Bezier2AnimationBuilder& withPoints();
 
 		Bezier2Animation build();
 
@@ -107,6 +108,23 @@ namespace MathAnim
 
 	private:
 		FilledCircleAnimation animation;
+	};
+
+	class FilledBoxAnimationBuilder
+	{
+	public:
+		FilledBoxAnimationBuilder();
+
+		FilledBoxAnimationBuilder& setCenter(const glm::vec2& point);
+		FilledBoxAnimationBuilder& setSize(const glm::vec2& size);
+		FilledBoxAnimationBuilder& setFillDirection(Direction direction);
+		FilledBoxAnimationBuilder& setDelay(float delay);
+		FilledBoxAnimationBuilder& setDuration(float duration);
+
+		FilledBoxAnimation build();
+
+	private:
+		FilledBoxAnimation animation;
 	};
 }
 
