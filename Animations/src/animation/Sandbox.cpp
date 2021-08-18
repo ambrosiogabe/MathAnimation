@@ -101,7 +101,71 @@ namespace MathAnim
 
 			Style style = Styles::defaultStyle;
 			style.color = Colors::green;
+
+			glm::vec2 p0(0.0f, 0.0f);
+			glm::vec2 p1(0.3f, 1.5f);
+			glm::vec2 p2(4.0f, 0.0f);
+
+			AnimationManager::addFilledCircleAnimation(
+				FilledCircleAnimationBuilder()
+				.setPosition(p0)
+				.setRadius(0.08f)
+				.setDuration(0.4f)
+				.setNumSegments(180)
+				.build(),
+				style
+			);
+
+			AnimationManager::addFilledCircleAnimation(
+				FilledCircleAnimationBuilder()
+				.setPosition(p1)
+				.setRadius(0.08f)
+				.setDuration(0.4f)
+				.setNumSegments(180)
+				.build(),
+				style
+			);
+
+			AnimationManager::addFilledCircleAnimation(
+				FilledCircleAnimationBuilder()
+				.setPosition(p2)
+				.setRadius(0.08f)
+				.setDuration(0.4f)
+				.setNumSegments(180)
+				.build(),
+				style
+			);
+
 			AnimationManager::addBezier1Animation(
+				Bezier1AnimationBuilder()
+				.setP0(p0)
+				.setP1(p1)
+				.setDuration(1.0f)
+				.build(),
+				style
+			);
+
+			AnimationManager::addBezier1Animation(
+				Bezier1AnimationBuilder()
+				.setP0(p1)
+				.setP1(p2)
+				.setDuration(1.0f)
+				.build(),
+				style
+			);
+
+			style.color = Colors::offWhite;
+			AnimationManager::addBezier2Animation(
+				Bezier2AnimationBuilder()
+				.setDuration(1)
+				.setP0(p0)
+				.setP1(p1)
+				.setP2(p2)
+				.build(),
+				style
+			);
+
+			/*AnimationManager::addBezier1Animation(
 				Bezier1AnimationBuilder()
 				.setDuration(1)
 				.setP0({ 0.0f, -5.0f })
@@ -124,7 +188,7 @@ namespace MathAnim
 			style.color = Colors::offWhite;
 			AnimationManager::addParametricAnimation(
 				ParametricAnimationBuilder()
-				.setDelay(8.0f)
+				.setDelay(0.5f)
 				.setDuration(1.0f)
 				.setStartT(-3.0f)
 				.setEndT(3.0f)
@@ -133,58 +197,32 @@ namespace MathAnim
 				.build(),
 				style
 			);
-
-			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.0f);
-
 			AnimationManager::addParametricAnimation(
 				ParametricAnimationBuilder()
-				.setDelay(0.5f)
+				.setDelay(-1.0f)
 				.setDuration(1.0f)
 				.setStartT(-3.0f)
 				.setEndT(3.0f)
 				.setGranularity(100)
-				.setFunction(cubic)
+				.setFunction(parabola)
 				.build(),
 				style
 			);
-
-			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.0f);
-
-			AnimationManager::addParametricAnimation(
-				ParametricAnimationBuilder()
-				.setDelay(0.5f)
-				.setDuration(1.0f)
-				.setStartT(0.01f)
-				.setEndT(6.0f)
-				.setGranularity(100)
-				.setFunction(logarithm)
-				.build(),
-				style
-			);
-
-			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.0f);
+			AnimationManager::translateAnimation(AnimType::ParametricAnimation, { 0.0f, 1.0f }, 1.0f, 0.5f);
+			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.5f);
 
 			AnimationManager::addParametricAnimation(
 				ParametricAnimationBuilder()
-				.setDelay(0.5f)
+				.setDelay(-1.0f)
 				.setDuration(1.0f)
-				.setStartT(-6.0f)
-				.setEndT(-0.01f)
+				.setStartT(-3.0f)
+				.setEndT(3.0f)
 				.setGranularity(100)
-				.setFunction(hyperbolic)
+				.setFunction(parabola)
 				.build(),
 				style
 			);
-			AnimationManager::addParametricAnimation(
-				ParametricAnimationBuilder()
-				.setDuration(1.0f)
-				.setStartT(0.01f)
-				.setEndT(6.0f)
-				.setGranularity(100)
-				.setFunction(hyperbolic)
-				.build(),
-				style
-			);
+			AnimationManager::translateAnimation(AnimType::ParametricAnimation, { -1.0f, 0.0f }, 1.0f, 0.5f);*/
 		}
 
 		void update(float dt)

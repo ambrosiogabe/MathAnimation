@@ -17,6 +17,16 @@ namespace MathAnim
 		TextAnimation
 	};
 
+	struct FilledCircleAnimation
+	{
+		glm::vec2 position;
+		int numSegments;
+		float radius;
+		float duration;
+		float delay;
+		float startTime;
+	};
+
 	struct ParametricAnimation
 	{
 		int32 granularity;
@@ -25,6 +35,7 @@ namespace MathAnim
 		float delay;
 		float startTime;
 		float duration;
+		glm::vec2 translation;
 		ParametricFunction parametricEquation;
 	};
 
@@ -80,6 +91,15 @@ namespace MathAnim
 		int index;
 	};
 
+	struct TranslateAnimation
+	{
+		AnimType animType;
+		float startTime;
+		int index;
+		float duration;
+		glm::vec2 translation;
+	};
+
 	namespace AnimationManager
 	{
 		void addBitmapAnimation(BitmapAnimation& animation, const Style& style);
@@ -87,8 +107,10 @@ namespace MathAnim
 		void addTextAnimation(TextAnimation& animation, const Style& style);
 		void addBezier1Animation(Bezier1Animation& animation, const Style& style);
 		void addBezier2Animation(Bezier2Animation& animation, const Style& style);
+		void addFilledCircleAnimation(FilledCircleAnimation& animation, const Style& style);
 
 		void popAnimation(AnimType animationType, float delay);
+		void translateAnimation(AnimType animationType, const glm::vec2& translation, float duration, float delay);
 		void update(float dt);
 		void reset();
 	}

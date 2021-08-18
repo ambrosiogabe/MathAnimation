@@ -306,6 +306,48 @@ namespace MathAnim
 			numVertices++;
 		}
 
+		void drawFilledCircle(const glm::vec2& position, float radius, int numSegments, const Style& style)
+		{
+			float t = 0;
+			float sectorSize = 360.0f / (float)numSegments;
+			for (int i = 0; i < numSegments; i++)
+			{
+				float x = radius * glm::cos(glm::radians(t));
+				float y = radius * glm::sin(glm::radians(t));
+				float nextT = t + sectorSize;
+				float nextX = radius * glm::cos(glm::radians(nextT));
+				float nextY = radius * glm::sin(glm::radians(nextT));
+
+				drawFilledTriangle(position, position + glm::vec2(x, y), position + glm::vec2(nextX, nextY), style);
+
+				t += sectorSize;
+			}
+		}
+
+		void drawFilledTriangle(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const Style& style)
+		{
+			if (numVertices + 3 >= maxNumVerticesPerBatch)
+			{
+				flushBatch();
+			}
+
+			// One triangle per sector
+			vertices[numVertices].position = p0;
+			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			vertices[numVertices].position = p1;
+			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			vertices[numVertices].position = p2;
+			vertices[numVertices].color = style.color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+		}
+
 		void drawTexture(const RenderableTexture& renderable, const glm::vec3& color)
 		{
 			if (numVertices + 6 >= maxNumVerticesPerBatch)

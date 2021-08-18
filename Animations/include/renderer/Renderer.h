@@ -38,6 +38,10 @@ namespace MathAnim
 
 		void drawString(const std::string& string, const Font& font, const glm::vec2& start, float scale, const glm::vec3& color);
 
+		void drawFilledCircle(const glm::vec2& position, float radius, int numSegments, const Style& style);
+
+		void drawFilledTriangle(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const Style& style);
+
 		void flushBatch();
 
 		void clearColor(const glm::vec4& color);

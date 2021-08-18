@@ -91,6 +91,23 @@ namespace MathAnim
 	private:
 		Bezier2Animation animation;
 	};
+
+	class FilledCircleAnimationBuilder
+	{
+	public:
+		FilledCircleAnimationBuilder();
+
+		FilledCircleAnimationBuilder& setPosition(const glm::vec2& point);
+		FilledCircleAnimationBuilder& setRadius(float radius);
+		FilledCircleAnimationBuilder& setNumSegments(int numSegments);
+		FilledCircleAnimationBuilder& setDelay(float delay);
+		FilledCircleAnimationBuilder& setDuration(float duration);
+
+		FilledCircleAnimation build();
+
+	private:
+		FilledCircleAnimation animation;
+	};
 }
 
 #endif 

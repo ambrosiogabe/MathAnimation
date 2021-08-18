@@ -22,6 +22,7 @@ namespace MathAnim
 		animation.granularity = 1;
 		animation.parametricEquation = defaultEquation;
 		animation.startTime = 0;
+		animation.translation = { 0, 0 };
 	}
 
 	ParametricAnimationBuilder& ParametricAnimationBuilder::setFunction(ParametricFunction function)
@@ -277,6 +278,54 @@ namespace MathAnim
 	}
 
 	Bezier2Animation Bezier2AnimationBuilder::build()
+	{
+		return animation;
+	}
+
+	// ========================================================================================================
+	// 	   Filled Circle Animation Builder
+	// ========================================================================================================
+	FilledCircleAnimationBuilder::FilledCircleAnimationBuilder()
+	{
+		animation.position = glm::vec2();
+		animation.radius = 1.0f;
+		animation.startTime = 0.0f;
+		animation.delay = 0.0f;
+		animation.numSegments = 50;
+		animation.duration = 1.0f;
+	}
+
+	FilledCircleAnimationBuilder& FilledCircleAnimationBuilder::setPosition(const glm::vec2& point)
+	{
+		animation.position = point;
+		return *this;
+	}
+
+	FilledCircleAnimationBuilder& FilledCircleAnimationBuilder::setRadius(float radius)
+	{
+		animation.radius = radius;
+		return *this;
+	}
+
+	FilledCircleAnimationBuilder& FilledCircleAnimationBuilder::setNumSegments(int numSegments)
+	{
+		animation.numSegments = numSegments;
+		return *this;
+	}
+
+	FilledCircleAnimationBuilder& FilledCircleAnimationBuilder::setDelay(float delay)
+	{
+		animation.delay = delay;
+		return *this;
+	}
+
+	FilledCircleAnimationBuilder& FilledCircleAnimationBuilder::setDuration(float duration)
+	{
+		animation.duration = duration;
+		return *this;
+	}
+
+	FilledCircleAnimation FilledCircleAnimationBuilder::build()
 	{
 		return animation;
 	}
