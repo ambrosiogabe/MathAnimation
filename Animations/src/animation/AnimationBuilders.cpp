@@ -130,7 +130,7 @@ namespace MathAnim
 		{
 			for (int x = 0; x < 16; x++)
 			{
-				animation.bitmap[y][x] = false;
+				animation.bitmap[y][x] = "#000000"_hex;
 				animation.bitmapState[y][x] = false;
 			}
 		}
@@ -144,7 +144,7 @@ namespace MathAnim
 		animation.canvasSize = glm::vec2({ 4, 4 });
 	}
 
-	BitmapAnimationBuilder& BitmapAnimationBuilder::setBitmap(bool bitmap[16][16])
+	BitmapAnimationBuilder& BitmapAnimationBuilder::setBitmap(glm::vec4 bitmap[16][16])
 	{
 		for (int y = 0; y < 16; y++)
 		{
@@ -202,6 +202,7 @@ namespace MathAnim
 		animation.delay = 0.0f;
 		animation.startTime = 0.0f;
 		animation.granularity = 2;
+		animation.withPoints = false;
 	}
 
 	Bezier1AnimationBuilder& Bezier1AnimationBuilder::setP0(const glm::vec2& point)
@@ -225,6 +226,12 @@ namespace MathAnim
 	Bezier1AnimationBuilder& Bezier1AnimationBuilder::setDuration(float duration)
 	{
 		animation.duration = duration;
+		return *this;
+	}
+
+	Bezier1AnimationBuilder& Bezier1AnimationBuilder::withPoints()
+	{
+		animation.withPoints = true;
 		return *this;
 	}
 

@@ -54,6 +54,9 @@ namespace MathAnim
 				.addColorAttachment(mainTexture)
 				.generate();
 
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 			// Run game loop
 			// Start with a 60 fps frame rate
 			float previousTime = glfwGetTime() - 0.16f;

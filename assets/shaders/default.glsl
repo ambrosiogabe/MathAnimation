@@ -1,11 +1,11 @@
 #type vertex
 #version 330 core
 layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec3 aColor;
+layout (location = 1) in vec4 aColor;
 layout (location = 2) in uint aTexId;
 layout (location = 3) in vec2 aTexCoord;
 
-out vec3 fColor;
+out vec4 fColor;
 flat out uint fTexId;
 out vec2 fTexCoord;
 
@@ -15,8 +15,8 @@ uniform mat4 uView;
 void main()
 {
 	fColor = aColor;
-  fTexCoord = aTexCoord;
-  fTexId = aTexId;
+    fTexCoord = aTexCoord;
+    fTexId = aTexId;
 	gl_Position = uProjection * uView * vec4(aPos.x, aPos.y, 0.0, 1.0);
 }
 
@@ -25,7 +25,7 @@ void main()
 #define numTextures 8
 out vec4 FragColor;
 
-in vec3 fColor;
+in vec4 fColor;
 flat in uint fTexId;
 in vec2 fTexCoord;
 
@@ -46,10 +46,10 @@ void main()
 {
     if (int(fTexId) == 0)
     {
-	    FragColor = vec4(fColor, 1.0);
+	    FragColor = fColor;
     }
     else
     {
-        FragColor = getSampleFromFont(int(fTexId) - 1, fTexCoord) * vec4(fColor, 1.0);
+        FragColor = getSampleFromFont(int(fTexId) - 1, fTexCoord) * fColor;
     }
 }

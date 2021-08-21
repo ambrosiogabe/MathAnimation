@@ -105,7 +105,7 @@ namespace MathAnim
 			addPointsBulk({ p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11 });
 
 			addLinesBulk({ {p0, p1, glm::vec2()}, {p1, p2, glm::vec2()}, {p2, p3, glm::vec2()}, {p3, p4, glm::vec2()}, {p4, p5, glm::vec2()},
-				{p5, p6, glm::vec2()}, {p6, p7, glm::vec2()}, {p7, p8, glm::vec2()}, {p8, p9, glm::vec2()}, {p9, p10, glm::vec2()}, 
+				{p5, p6, glm::vec2()}, {p6, p7, glm::vec2()}, {p7, p8, glm::vec2()}, {p8, p9, glm::vec2()}, {p9, p10, glm::vec2()},
 				{p10, p11, glm::vec2()}, {p11, p0, glm::vec2()} }, 1.0f);
 
 			Style pointStyle = Styles::defaultStyle;
@@ -218,7 +218,7 @@ namespace MathAnim
 			addPointsBulk({ p0, p1, p2, p3, p4, p5, p6, p7, p8,
 				p9, p10, p11, p12 }, 0.75f, { p1, p3, p12, p10 });
 
-			addLinesBulk({ {p0, p1, p2}, {p2, p3, p4}, {p4, p5, glm::vec2()}, {p5, p6, glm::vec2()}, {p6, p7, glm::vec2()}, 
+			addLinesBulk({ {p0, p1, p2}, {p2, p3, p4}, {p4, p5, glm::vec2()}, {p5, p6, glm::vec2()}, {p6, p7, glm::vec2()},
 				{p7, p8, glm::vec2()}, {p8, p9, glm::vec2()}, {p9, p10, p11},
 				{p11, p12, p0} }, 1.5f, 0.75f, { 0, 1, 7, 8 });
 
@@ -240,11 +240,272 @@ namespace MathAnim
 
 			addPointsBulk({ p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26 }, 0.75f, { p15, p17, p22, p24 });
 
-			addLinesBulk({ 
+			addLinesBulk({
 				{p13, p14, glm::vec2()}, {p14, p15, p16}, {p16, p17, p18}, {p18, p19, glm::vec2()}, {p19, p13, glm::vec2()},
 				{p20, p21, glm::vec2()}, {p21, p22, p23}, {p23, p24, p25}, {p25, p26, glm::vec2()}, {p26, p20, glm::vec2()}
 				},
-				0.5f, 0.75f, {1, 2, 6, 7});
+				0.5f, 0.75f, { 1, 2, 6, 7 });
+
+			Style arrowStyle = Styles::defaultStyle;
+			arrowStyle.lineEnding = CapType::Arrow;
+			AnimationManager::addBezier1Animation(
+				Bezier1AnimationBuilder()
+				.setP0({ -2.0f, 0.0f })
+				.setP1({ -0.25f, 0.0f })
+				.setDuration(0.5f)
+				.setDelay(8.0f)
+				.build(),
+				arrowStyle
+			);
+			AnimationManager::popAnimation(AnimType::Bezier1Animation, 14.5f);
+
+			AnimationManager::addBezier1Animation(
+				Bezier1AnimationBuilder()
+				.setP0({ -2.0f, 1.0f })
+				.setP1({ 0.25f, 1.0f })
+				.setDuration(0.5f)
+				.setDelay(4)
+				.build(),
+				arrowStyle
+			);
+
+			AnimationManager::popAnimation(AnimType::Bezier1Animation, 10.0f);
+
+			AnimationManager::addFilledCircleAnimation(
+				FilledCircleAnimationBuilder()
+				.setPosition({ -2.0f, 1.0f })
+				.setDuration(0.32f)
+				.setDelay(10)
+				.setNumSegments(40)
+				.setRadius(0.06f)
+				.build(),
+				Styles::defaultStyle
+			);
+			AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 8);
+
+			Style redStyle = Styles::defaultStyle;
+			redStyle.color = Colors::red;
+			{
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ -2.0f, -1.5f })
+					.setRadius(0.06f)
+					.setDelay(10)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.build(),
+					Styles::defaultStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 4.5f);
+
+				AnimationManager::addBezier1Animation(
+					Bezier1AnimationBuilder()
+					.setP0({ -2.0f, -1.5f })
+					.setP1({ 2.0f, -1.5f })
+					.setDuration(4.0f)
+					.build(),
+					arrowStyle
+				);
+				AnimationManager::popAnimation(AnimType::Bezier1Animation, 0.5f);
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ -0.75f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(-2.9f)
+					.build(),
+					redStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 3.1f);
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 0, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(0.6f)
+					.build(),
+					redStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 2.18f);
+
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 0.65f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(0.6f)
+					.build(),
+					redStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 2.18f - 0.92f);
+
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 1.45f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(0.6f)
+					.build(),
+					redStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 2.18f - 0.92f * 2.0f);
+			}
+
+			{
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ -0.5f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(3.0f)
+					.build(),
+					Styles::defaultStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 4.5f);
+
+				AnimationManager::addBezier1Animation(
+					Bezier1AnimationBuilder()
+					.setP0({ -0.5f, -1.5f })
+					.setP1({ 2.0f, -1.5f })
+					.setDuration(4.0f)
+					.build(),
+					arrowStyle
+				);
+				AnimationManager::popAnimation(AnimType::Bezier1Animation, 0.5f);
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 0, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(-2.9f)
+					.build(),
+					redStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 3.1f);
+
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 0.65f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(0.6f)
+					.build(),
+					redStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 2.18f);
+
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 1.45f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(0.6f)
+					.build(),
+					redStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 2.18f - 0.92f);
+			}
+
+			{
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 0.25f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(3.0f)
+					.build(),
+					Styles::defaultStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 2.5f);
+
+				AnimationManager::addBezier1Animation(
+					Bezier1AnimationBuilder()
+					.setP0({ 0.25f, -1.5f })
+					.setP1({ 2.0f, -1.5f })
+					.setDuration(2.0f)
+					.build(),
+					arrowStyle
+				);
+				AnimationManager::popAnimation(AnimType::Bezier1Animation, 0.5f);
+
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 0.65f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(-1.4f)
+					.build(),
+					redStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 1.55f);
+
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 1.45f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(0.6f)
+					.build(),
+					redStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 1.55f - 0.92f);
+			}
+
+			{
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 0.9f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(3.0f)
+					.build(),
+					Styles::defaultStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 1.5f);
+
+				AnimationManager::addBezier1Animation(
+					Bezier1AnimationBuilder()
+					.setP0({ 0.9f, -1.5f })
+					.setP1({ 2.0f, -1.5f })
+					.setDuration(1.0f)
+					.build(),
+					arrowStyle
+				);
+				AnimationManager::popAnimation(AnimType::Bezier1Animation, 0.5f);
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition({ 1.45f, -1.5f })
+					.setRadius(0.06f)
+					.setNumSegments(40)
+					.setDuration(0.32f)
+					.setDelay(-0.6f)
+					.build(),
+					redStyle
+				);
+				AnimationManager::popAnimation(AnimType::FilledCircleAnimation, 0.8f);
+			}
 		}
 
 		void init()

@@ -70,7 +70,7 @@ namespace MathAnim
 					AnimationManager::addBezier1Animation(
 						Bezier1AnimationBuilder()
 						.setP0(canvasPos + glm::vec2{ pos.x, 0 })
-						.setP1(canvasPos + glm::vec2{ pos.x, canvasSize.x })
+						.setP1(canvasPos + glm::vec2{ pos.x, canvasSize.y })
 						.setDuration(duration)
 						.setDelay(delay)
 						.build(),

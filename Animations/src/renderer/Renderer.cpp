@@ -12,7 +12,7 @@ namespace MathAnim
 	struct Vertex
 	{
 		glm::vec2 position;
-		glm::vec3 color;
+		glm::vec4 color;
 		uint32 textureId;
 		glm::vec2 textureCoords;
 	};
@@ -115,7 +115,7 @@ namespace MathAnim
 			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(offsetof(Vertex, position)));
 			glEnableVertexAttribArray(0);
 
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(offsetof(Vertex, color)));
+			glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(offsetof(Vertex, color)));
 			glEnableVertexAttribArray(1);
 
 			glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(Vertex), (void*)(offsetof(Vertex, textureId)));
@@ -408,7 +408,7 @@ namespace MathAnim
 			numVertices++;
 		}
 
-		void drawTexture(const RenderableTexture& renderable, const glm::vec3& color)
+		void drawTexture(const RenderableTexture& renderable, const glm::vec4& color)
 		{
 			if (numVertices + 6 >= maxNumVerticesPerBatch)
 			{
@@ -462,7 +462,7 @@ namespace MathAnim
 			numVertices++;
 		}
 
-		void drawString(const std::string& string, const Font& font, const glm::vec2& position, float scale, const glm::vec3& color)
+		void drawString(const std::string& string, const Font& font, const glm::vec2& position, float scale, const glm::vec4& color)
 		{
 			float x = position.x;
 			float y = position.y;

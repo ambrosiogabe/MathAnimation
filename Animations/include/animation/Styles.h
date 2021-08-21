@@ -12,7 +12,7 @@ namespace MathAnim
 
 	struct Style
 	{
-		glm::vec3 color;
+		glm::vec4 color;
 		float strokeWidth;
 		CapType lineEnding;
 	};

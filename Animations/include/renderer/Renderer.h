@@ -34,9 +34,9 @@ namespace MathAnim
 
 		void drawLine(const glm::vec2& start, const glm::vec2& end, const Style& style);
 
-		void drawTexture(const RenderableTexture& renderable, const glm::vec3& color);
+		void drawTexture(const RenderableTexture& renderable, const glm::vec4& color);
 
-		void drawString(const std::string& string, const Font& font, const glm::vec2& start, float scale, const glm::vec3& color);
+		void drawString(const std::string& string, const Font& font, const glm::vec2& start, float scale, const glm::vec4& color);
 
 		void drawFilledCircle(const glm::vec2& position, float radius, int numSegments, const Style& style);
 

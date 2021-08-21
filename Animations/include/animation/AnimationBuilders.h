@@ -46,7 +46,7 @@ namespace MathAnim
 	public:
 		BitmapAnimationBuilder();
 
-		BitmapAnimationBuilder& setBitmap(bool bitmap[16][16]);
+		BitmapAnimationBuilder& setBitmap(glm::vec4 bitmap[16][16]);
 		BitmapAnimationBuilder& setDelay(float delay);
 		BitmapAnimationBuilder& setDuration(float duration);
 		BitmapAnimationBuilder& setCanvasPosition(const glm::vec2& canvasPosition);
@@ -68,6 +68,7 @@ namespace MathAnim
 		Bezier1AnimationBuilder& setP1(const glm::vec2& point);
 		Bezier1AnimationBuilder& setDelay(float delay);
 		Bezier1AnimationBuilder& setDuration(float duration);
+		Bezier1AnimationBuilder& withPoints();
 
 		Bezier1Animation build();
 

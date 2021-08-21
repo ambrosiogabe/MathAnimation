@@ -72,7 +72,7 @@ namespace MathAnim
 
 	struct BitmapAnimation
 	{
-		bool bitmap[16][16];
+		glm::vec4 bitmap[16][16];
 		bool bitmapState[16][16];
 		float startTime;
 		float delay;
@@ -91,6 +91,7 @@ namespace MathAnim
 		float delay;
 		float startTime;
 		float granularity;
+		bool withPoints;
 	};
 
 	struct Bezier2Animation
@@ -109,6 +110,7 @@ namespace MathAnim
 	{
 		AnimType animType;
 		float startTime;
+		float fadeOutTime;
 		int index;
 	};
 
@@ -144,7 +146,7 @@ namespace MathAnim
 		// TODO: Make all these functions one templated function
 		void addInterpolation(Bezier2Animation animation);
 
-		void popAnimation(AnimType animationType, float delay);
+		void popAnimation(AnimType animationType, float delay, float fadeOutTime = 0.32f);
 		void translateAnimation(AnimType animationType, const glm::vec2& translation, float duration, float delay);
 		void update(float dt);
 		void reset();

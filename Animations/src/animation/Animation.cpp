@@ -71,6 +71,31 @@ namespace MathAnim
 
 		void addBezier1Animation(Bezier1Animation& animation, const Style& style)
 		{
+			if (animation.withPoints)
+			{
+				Style pointStyle = Styles::defaultStyle;
+				pointStyle.color = Colors::blue;
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition(animation.p0)
+					.setDuration(0.5f)
+					.setNumSegments(40)
+					.setRadius(0.06f)
+					.build(),
+					pointStyle
+				);
+
+				AnimationManager::addFilledCircleAnimation(
+					FilledCircleAnimationBuilder()
+					.setPosition(animation.p1)
+					.setDuration(0.5f)
+					.setNumSegments(40)
+					.setRadius(0.06f)
+					.build(),
+					pointStyle
+				);
+			}
+
 			mLastAnimEndTime += animation.delay;
 			animation.startTime = mLastAnimEndTime;
 			mLastAnimEndTime += animation.duration;
@@ -163,12 +188,12 @@ namespace MathAnim
 			mInterpolations.emplace_back(interpolation);
 		}
 
-		void popAnimation(AnimType animationType, float delay)
+		void popAnimation(AnimType animationType, float delay, float fadeOutTime)
 		{
 			PopAnimation pop;
 			pop.animType = animationType;
-			mLastAnimEndTime += delay;
-			pop.startTime = mLastAnimEndTime;
+			pop.startTime = mLastAnimEndTime + delay;
+			pop.fadeOutTime = fadeOutTime;
 
 			switch (animationType)
 			{
@@ -205,9 +230,7 @@ namespace MathAnim
 			anim.duration = duration;
 			anim.translation = translation;
 
-			mLastAnimEndTime += delay;
-			anim.startTime = mLastAnimEndTime;
-			mLastAnimEndTime += anim.duration;
+			anim.startTime = mLastAnimEndTime + delay;
 
 			switch (animationType)
 			{
@@ -277,7 +300,7 @@ namespace MathAnim
 		static void drawBitmapAnimation(BitmapAnimation& anim, const Style& style)
 		{
 			if (mTime < anim.startTime) return;
-			int numSquaresToShow = glm::clamp((int)((mTime - anim.startTime) / anim.revealTime), 0, 16 * 16);
+			int numSquaresToShow = glm::clamp((int)(((mTime - anim.startTime) / anim.duration) * 16 * 16), 0, 16 * 16);
 
 			int randNumber = rand() % 100;
 			const glm::vec2 gridSize = glm::vec2{
@@ -288,13 +311,15 @@ namespace MathAnim
 			{
 				for (int x = 0; x < 16; x++)
 				{
-					if (anim.bitmapState[y][x] && anim.bitmap[y][x])
+					if (anim.bitmapState[y][x])
 					{
 						glm::vec2 position = anim.canvasPosition + glm::vec2((float)x * gridSize.x, (float)y * gridSize.y);
-						Renderer::drawFilledSquare(position, gridSize, style);
+						Style newStyle = style;
+						newStyle.color = anim.bitmap[y][x];
+						Renderer::drawFilledSquare(position, gridSize, newStyle);
 					}
 
-					if (numSquaresToShow > anim.bitmapSquaresShowing && randNumber >= 49)
+					while (numSquaresToShow > anim.bitmapSquaresShowing && randNumber >= 49)
 					{
 						int randX = rand() % 16;
 						int randY = rand() % 16;
@@ -304,11 +329,8 @@ namespace MathAnim
 							randY = rand() % 16;
 						}
 
-						if (anim.bitmap[randY][randX])
-						{
-							anim.bitmapState[randY][randX] = true;
-							anim.bitmapSquaresShowing++;
-						}
+						anim.bitmapState[randY][randX] = true;
+						anim.bitmapSquaresShowing++;
 					}
 				}
 			}
@@ -419,7 +441,7 @@ namespace MathAnim
 				Renderer::drawFilledSquare(anim.center - (anim.size / 2.0f), glm::vec2(anim.size.x, anim.size.y * percentToDo), style);
 				break;
 			case Direction::Down:
-				Renderer::drawFilledSquare(anim.center + (anim.size / 2.0f) - glm::vec2(anim.size.x, anim.size.y * percentToDo), 
+				Renderer::drawFilledSquare(anim.center + (anim.size / 2.0f) - glm::vec2(anim.size.x, anim.size.y * percentToDo),
 					glm::vec2(anim.size.x, anim.size.y * percentToDo), style);
 				break;
 			case Direction::Right:
@@ -429,6 +451,65 @@ namespace MathAnim
 				Renderer::drawFilledSquare(anim.center + (anim.size / 2.0f) - glm::vec2(anim.size.x * percentToDo, anim.size.y),
 					glm::vec2(anim.size.x * percentToDo, anim.size.y), style);
 				break;
+			}
+		}
+
+		static void popAnim(PopAnimation& anim)
+		{
+			if (anim.startTime - mTime < 0)
+			{
+				switch (anim.animType)
+				{
+				case AnimType::Bezier1Animation:
+					mBezier1Animations.at(anim.index).startTime = FLT_MAX;
+					break;
+				case AnimType::Bezier2Animation:
+					mBezier2Animations.at(anim.index).startTime = FLT_MAX;
+					break;
+				case AnimType::BitmapAnimation:
+					mBitmapAnimations.at(anim.index).startTime = FLT_MAX;
+					break;
+				case AnimType::ParametricAnimation:
+					mParametricAnimations.at(anim.index).startTime = FLT_MAX;
+					break;
+				case AnimType::TextAnimation:
+					mTextAnimations.at(anim.index).startTime = FLT_MAX;
+					break;
+				case AnimType::FilledBoxAnimation:
+					mFilledBoxAnimations.at(anim.index).startTime = FLT_MAX;
+					break;
+				case AnimType::FilledCircleAnimation:
+					mFilledCircleAnimations.at(anim.index).startTime = FLT_MAX;
+					break;
+				}
+			}
+			else
+			{
+				float percent = (anim.startTime - mTime) / anim.fadeOutTime;
+				switch (anim.animType)
+				{
+				case AnimType::Bezier1Animation:
+					mBezier1Styles.at(anim.index).color.a = percent;
+					break;
+				case AnimType::Bezier2Animation:
+					mBezier2Styles.at(anim.index).color.a = percent;
+					break;
+				case AnimType::BitmapAnimation:
+					mBitmapStyles.at(anim.index).color.a = percent;
+					break;
+				case AnimType::ParametricAnimation:
+					mParametricStyles.at(anim.index).color.a = percent;
+					break;
+				case AnimType::TextAnimation:
+					mTextStyles.at(anim.index).color.a = percent;
+					break;
+				case AnimType::FilledBoxAnimation:
+					mFilledBoxStyles.at(anim.index).color.a = percent;
+					break;
+				case AnimType::FilledCircleAnimation:
+					mFilledCircleStyles.at(anim.index).color.a = percent;
+					break;
+				}
 			}
 		}
 
@@ -449,13 +530,6 @@ namespace MathAnim
 				drawTextAnimation(anim, style);
 			}
 
-			for (int i = 0; i < mBitmapAnimations.size(); i++)
-			{
-				BitmapAnimation& anim = mBitmapAnimations[i];
-				const Style& style = mBitmapStyles.at(i);
-				drawBitmapAnimation(anim, style);
-			}
-
 			for (int i = 0; i < mBezier1Animations.size(); i++)
 			{
 				Bezier1Animation& anim = mBezier1Animations[i];
@@ -468,6 +542,13 @@ namespace MathAnim
 				Bezier2Animation& anim = mBezier2Animations[i];
 				const Style& style = mBezier2Styles.at(i);
 				drawBezier2Animation(anim, style);
+			}
+
+			for (int i = 0; i < mBitmapAnimations.size(); i++)
+			{
+				BitmapAnimation& anim = mBitmapAnimations[i];
+				const Style& style = mBitmapStyles.at(i);
+				drawBitmapAnimation(anim, style);
 			}
 
 			for (int i = 0; i < mFilledBoxAnimations.size(); i++)
@@ -493,38 +574,9 @@ namespace MathAnim
 			for (int i = 0; i < mAnimationPops.size(); i++)
 			{
 				PopAnimation& anim = mAnimationPops[i];
-				if (mTime >= anim.startTime)
+				if (anim.index >= 0 && mTime >= anim.startTime - anim.fadeOutTime)
 				{
-					if (anim.index >= 0)
-					{
-						switch (anim.animType)
-						{
-						case AnimType::Bezier1Animation:
-							mBezier1Animations.at(anim.index).startTime = FLT_MAX;
-							break;
-						case AnimType::Bezier2Animation:
-							mBezier2Animations.at(anim.index).startTime = FLT_MAX;
-							break;
-						case AnimType::BitmapAnimation:
-							mBitmapAnimations.at(anim.index).startTime = FLT_MAX;
-							break;
-						case AnimType::ParametricAnimation:
-							mParametricAnimations.at(anim.index).startTime = FLT_MAX;
-							break;
-						case AnimType::TextAnimation:
-							mTextAnimations.at(anim.index).startTime = FLT_MAX;
-							break;
-						case AnimType::FilledBoxAnimation:
-							mFilledBoxAnimations.at(anim.index).startTime = FLT_MAX;
-							break;
-						case AnimType::FilledCircleAnimation:
-							mFilledCircleAnimations.at(anim.index).startTime = FLT_MAX;
-							break;
-						}
-					}
-
-					mAnimationPops.erase(mAnimationPops.begin() + i);
-					i--;
+					popAnim(anim);
 				}
 			}
 			for (int i = 0; i < mTranslationAnimations.size(); i++)

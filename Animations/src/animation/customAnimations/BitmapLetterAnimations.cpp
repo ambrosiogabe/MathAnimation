@@ -11,24 +11,26 @@ namespace MathAnim
 		void init(const glm::vec2& canvasPos, const glm::vec2& canvasSize, const glm::vec2& gridSize)
 		{
 			GridAnimation::init({ -2.0f, -2.0f }, { 4.0f, 4.0f }, { 0.25f, 0.25f });
+			glm::vec4 black = "#000000"_hex;
+			glm::vec4 white = "#ffffff"_hex;
 
-			bool bitmap1[16][16] = {
-						{0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
-						{0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
-						{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0},
+			glm::vec4 bitmap1[16][16] = {
+						{black, black, black, black, black, white, white, white, white, white, white, black, black, black, black, black},
+						{black, black, black, black, black, white, white, white, white, white, white, black, black, black, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, white, white, white, white, white, white, white, white, white, black, black},
+						{black, black, white, white, white, white, white, white, white, white, white, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
+						{black, black, white, white, white, black, black, black, black, black, black, white, white, white, black, black},
 			};
 			AnimationManager::addBitmapAnimation(
 				BitmapAnimationBuilder()
@@ -42,23 +44,23 @@ namespace MathAnim
 
 			AnimationManager::popAnimation(AnimType::BitmapAnimation, 2.5f);
 
-			bool bitmap2[16][16] = {
-				{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
+			glm::vec4 bitmap2[16][16] = {
+				{black, black, white, white, white, white, white, white, white, white, white, white, black, black, black, black},
+				{black, black, white, white, white, white, white, white, white, white, white, white, black, black, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, white, white, white, white, white, white, white, black, black, black, black},
+				{black, black, white, white, white, white, white, white, white, white, white, white, black, black, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, white, white, white, white, white, white, white, black, black, black, black},
+				{black, black, white, white, white, white, white, white, white, white, white, white, black, black, black, black},
 			};
 			AnimationManager::addBitmapAnimation(
 				BitmapAnimationBuilder()
@@ -72,23 +74,23 @@ namespace MathAnim
 
 			AnimationManager::popAnimation(AnimType::BitmapAnimation, 0.5f);
 
-			bool bitmap3[16][16] = {
-				{0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				{0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-				{0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
-				{0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0},
+			glm::vec4 bitmap3[16][16] = {
+				{black, black, black, white, white, white, white, white, white, white, white, white, black, black, black, black},
+				{black, black, white, white, white, white, white, white, white, white, white, white, black, black, black, black},
+				{black, black, white, white, white, white, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, black, black, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, black, black, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, black, black, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, black, black, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, black, black, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, black, black, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, black, black, black, black}, 
+				{black, black, white, white, white, black, black, black, black, black, black, black, black, black, black, black},
+				{black, black, white, white, white, black, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, white, black, black, black, black, black, black, white, white, black, black},
+				{black, black, white, white, white, white, white, white, white, white, white, white, black, black, black, black},
+				{black, black, black, white, white, white, white, white, white, white, white, white, black, black, black, black},
 			};
 			AnimationManager::addBitmapAnimation(
 				BitmapAnimationBuilder()
