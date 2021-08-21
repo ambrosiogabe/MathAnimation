@@ -17,24 +17,24 @@ namespace MathAnim
 	{
 		// Float Comparison functions, using custom epsilon
 		bool compare(float x, float y, float epsilon = std::numeric_limits<float>::min());
-		bool compare(const glm::vec3& vec1, const glm::vec3& vec2, float epsilon = std::numeric_limits<float>::min());
-		bool compare(const glm::vec2& vec1, const glm::vec2& vec2, float epsilon = std::numeric_limits<float>::min());
-		bool compare(const glm::vec4& vec1, const glm::vec4& vec2, float epsilon = std::numeric_limits<float>::min());
+		bool compare(const Vec3& vec1, const Vec3& vec2, float epsilon = std::numeric_limits<float>::min());
+		bool compare(const Vec2& vec1, const Vec2& vec2, float epsilon = std::numeric_limits<float>::min());
+		bool compare(const Vec4& vec1, const Vec4& vec2, float epsilon = std::numeric_limits<float>::min());
 
 		// Vector conversions
-		glm::vec2 vector2From3(const glm::vec3& vec);
-		glm::vec3 vector3From2(const glm::vec2& vec);
+		Vec2 vector2From3(const Vec3& vec);
+		Vec3 vector3From2(const Vec2& vec);
 
 		// Math functions
-		void rotate(glm::vec2& vec, float angleDeg, const glm::vec2& origin);
-		void rotate(glm::vec3& vec, float angleDeg, const glm::vec3& origin);
+		void rotate(Vec2& vec, float angleDeg, const Vec2& origin);
+		void rotate(Vec3& vec, float angleDeg, const Vec3& origin);
 
 		float toRadians(float degrees);
 		float toDegrees(float radians);
 
 		// Map Ranges
 		float mapRange(float val, float inMin, float inMax, float outMin, float outMax);
-		float mapRange(const glm::vec2& inputRange, const glm::vec2& outputRange, float value);
+		float mapRange(const Vec2& inputRange, const Vec2& outputRange, float value);
 
 		// Max, Min impls
 		int max(int a, int b);
@@ -45,8 +45,8 @@ namespace MathAnim
 		uint32 hashString(const char* str);
 
 		// Other stuff
-		glm::vec2 bezier1(const glm::vec2& p0, const glm::vec2& p1, float t);
-		glm::vec2 bezier2(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, float t);
+		Vec2 bezier1(const Vec2& p0, const Vec2& p1, float t);
+		Vec2 bezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t);
 	}
 }
 

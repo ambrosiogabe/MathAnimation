@@ -12,8 +12,8 @@ namespace MathAnim
 		void update(const OrthoCamera& camera)
 		{
 			// Since the viewport is centered, pretend the camera is slightly down-left to get the grid-lines centered properly
-			const glm::vec2& projectionSize = camera.projectionSize;
-			const glm::vec2& cameraPos = camera.position - (projectionSize / 2.0f);
+			const Vec2& projectionSize = camera.projectionSize;
+			const Vec2& cameraPos = camera.position - (projectionSize / 2.0f);
 			const float cameraZoom = 1.0f;
 
 			float firstX = ((int)glm::floor(cameraPos.x / Settings::gridGranularity.x)) * Settings::gridGranularity.x;
@@ -33,20 +33,20 @@ namespace MathAnim
 
 				if (i < numVtLines)
 				{
-					Renderer::drawLine(glm::vec2(x, firstY), glm::vec2(x, firstY + height), Styles::gridStyle);
+					Renderer::drawLine(Vec2{x, firstY}, Vec2{x, firstY + height}, Styles::gridStyle);
 				}
 
 				if (i < numHzLines)
 				{
-					Renderer::drawLine(glm::vec2(firstX, y), glm::vec2(firstX + width, y), Styles::gridStyle);
+					Renderer::drawLine(Vec2{firstX, y}, Vec2{firstX + width, y}, Styles::gridStyle);
 				}
 			}
 
 			// Draw vertical and horizontal axes
 			if (Settings::colorGridAxes)
 			{
-				Renderer::drawLine(glm::vec2(0.0f, -100.0f), glm::vec2(0.0f, 100.0f), Styles::verticalAxisStyle);
-				Renderer::drawLine(glm::vec2(-100.0f, 0.0f), glm::vec2(100.0f, 0.0f), Styles::horizontalAxisStyle);
+				Renderer::drawLine(Vec2{0.0f, -100.0f}, Vec2{0.0f, 100.0f}, Styles::verticalAxisStyle);
+				Renderer::drawLine(Vec2{-100.0f, 0.0f}, Vec2{100.0f, 0.0f}, Styles::horizontalAxisStyle);
 			}
 		}
 	}

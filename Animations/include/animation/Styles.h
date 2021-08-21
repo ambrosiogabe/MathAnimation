@@ -12,23 +12,23 @@ namespace MathAnim
 
 	struct Style
 	{
-		glm::vec4 color;
+		Vec4 color;
 		float strokeWidth;
 		CapType lineEnding;
 	};
 
 	namespace Colors
 	{
-		extern glm::vec4 greenBrown;
-		extern glm::vec4 offWhite;
-		extern glm::vec4 darkGray;
-		extern glm::vec4 red;
-		extern glm::vec4 orange;
-		extern glm::vec4 lightOrange;
-		extern glm::vec4 yellow;
-		extern glm::vec4 green;
-		extern glm::vec4 blue;
-		extern glm::vec4 purple;
+		extern Vec4 greenBrown;
+		extern Vec4 offWhite;
+		extern Vec4 darkGray;
+		extern Vec4 red;
+		extern Vec4 orange;
+		extern Vec4 lightOrange;
+		extern Vec4 yellow;
+		extern Vec4 green;
+		extern Vec4 blue;
+		extern Vec4 purple;
 	}
 
 	namespace Styles

@@ -16,7 +16,7 @@ namespace MathAnim
 
 			float duration1 = 0.1f;
 			float duration2 = 0.2f;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ -1.5f, -2.0f })
 				.setP1({ -1.5f, 2.0f })
@@ -25,7 +25,7 @@ namespace MathAnim
 				style
 			);
 
-			AnimationManager::addBezier2Animation(
+			AnimationManager::addAnimation(
 				Bezier2AnimationBuilder()
 				.setP0({ -1.5f, 2.0f })
 				.setP1({ -1.5f, 2.5f })
@@ -35,7 +35,7 @@ namespace MathAnim
 				style
 			);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ -1.25f, 2.5f })
 				.setP1({ 1.25f, 2.5f })
@@ -44,7 +44,7 @@ namespace MathAnim
 				style
 			);
 
-			AnimationManager::addBezier2Animation(
+			AnimationManager::addAnimation(
 				Bezier2AnimationBuilder()
 				.setP0({ 1.25f, 2.5f })
 				.setP1({ 1.5f, 2.5f })
@@ -54,7 +54,7 @@ namespace MathAnim
 				style
 			);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ 1.5f, 2.0f })
 				.setP1({ 1.5f, -2.0f })
@@ -63,7 +63,7 @@ namespace MathAnim
 				style
 			);
 
-			AnimationManager::addBezier2Animation(
+			AnimationManager::addAnimation(
 				Bezier2AnimationBuilder()
 				.setP0({ 1.5f, -2.0f })
 				.setP1({ 1.5f, -2.5f })
@@ -73,7 +73,7 @@ namespace MathAnim
 				style
 			);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ 1.25f, -2.5f })
 				.setP1({ -1.25f, -2.5f })
@@ -82,7 +82,7 @@ namespace MathAnim
 				style
 			);
 
-			AnimationManager::addBezier2Animation(
+			AnimationManager::addAnimation(
 				Bezier2AnimationBuilder()
 				.setP0({ -1.25f, -2.5f })
 				.setP1({ -1.5f, -2.5f })

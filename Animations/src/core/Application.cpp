@@ -37,8 +37,8 @@ namespace MathAnim
 			window.setVSync(true);
 
 			OrthoCamera camera;
-			camera.position = glm::vec2(0, 0);
-			camera.projectionSize = glm::vec2(6.0f * (1920.0f / 1080.0f), 6.0f);
+			camera.position = Vec2{0, 0};
+			camera.projectionSize = Vec2{6.0f * (1920.0f / 1080.0f), 6.0f};
 
 			Fonts::init();
 			Renderer::init(camera);

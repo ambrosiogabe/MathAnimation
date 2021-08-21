@@ -2,7 +2,7 @@
 
 namespace MathAnim
 {
-	static glm::vec2 defaultEquation(float t)
+	static Vec2 defaultEquation(float t)
 	{
 		return {
 			t,
@@ -17,17 +17,18 @@ namespace MathAnim
 	{
 		animation.delay = 0;
 		animation.duration = 1.0f;
-		animation.startT = 0.0f;
-		animation.endT = 1.0f;
-		animation.granularity = 1;
-		animation.parametricEquation = defaultEquation;
+		animation.as.parametric.startT = 0.0f;
+		animation.as.parametric.endT = 1.0f;
+		animation.as.parametric.granularity = 1;
+		animation.as.parametric.parametricEquation = defaultEquation;
 		animation.startTime = 0;
-		animation.translation = { 0, 0 };
+		animation.as.parametric.translation = { 0, 0 };
+		animation.drawAnimation = AnimationManager::drawParametricAnimation;
 	}
 
 	ParametricAnimationBuilder& ParametricAnimationBuilder::setFunction(ParametricFunction function)
 	{
-		animation.parametricEquation = function;
+		animation.as.parametric.parametricEquation = function;
 		return *this;
 	}
 
@@ -45,23 +46,23 @@ namespace MathAnim
 
 	ParametricAnimationBuilder& ParametricAnimationBuilder::setStartT(float startT)
 	{
-		animation.startT = startT;
+		animation.as.parametric.startT = startT;
 		return *this;
 	}
 
 	ParametricAnimationBuilder& ParametricAnimationBuilder::setEndT(float endT)
 	{
-		animation.endT = endT;
+		animation.as.parametric.endT = endT;
 		return *this;
 	}
 
 	ParametricAnimationBuilder& ParametricAnimationBuilder::setGranularity(int32 granularity)
 	{
-		animation.granularity = granularity;
+		animation.as.parametric.granularity = granularity;
 		return *this;
 	}
 
-	ParametricAnimation ParametricAnimationBuilder::build()
+	Animation ParametricAnimationBuilder::build()
 	{
 		return animation;
 	}
@@ -72,41 +73,46 @@ namespace MathAnim
 	TextAnimationBuilder::TextAnimationBuilder()
 	{
 		animation.startTime = 0.0f;
-		animation.font = nullptr;
-		animation.position = glm::vec2();
-		animation.scale = 1.0f;
-		animation.text = "";
-		animation.typingTime = 0.1f;
+		animation.as.text.font = nullptr;
+		animation.as.text.position.x = 0;
+		animation.as.text.position.y = 0;
+		animation.as.text.scale = 1.0f;
+		animation.as.text.text = "";
+		animation.as.text.typingTime = 0.1f;
 		animation.delay = 0;
+		animation.drawAnimation = AnimationManager::drawTextAnimation;
 	}
 
 	TextAnimationBuilder& TextAnimationBuilder::setTypingTime(float typingTime)
 	{
-		animation.typingTime = typingTime;
+		animation.as.text.typingTime = typingTime;
 		return *this;
 	}
 
 	TextAnimationBuilder& TextAnimationBuilder::setScale(float scale)
 	{
-		animation.scale = scale;
+		animation.as.text.scale = scale;
 		return *this;
 	}
 
-	TextAnimationBuilder& TextAnimationBuilder::setPosition(const glm::vec2& position)
+	TextAnimationBuilder& TextAnimationBuilder::setPosition(const Vec2& position)
 	{
-		animation.position = position;
+		animation.as.text.position.x = position.x;
+		animation.as.text.position.y = position.y;
 		return *this;
 	}
 
 	TextAnimationBuilder& TextAnimationBuilder::setFont(Font* font)
 	{
-		animation.font = font;
+		animation.as.text.font = font;
 		return *this;
 	}
 
 	TextAnimationBuilder& TextAnimationBuilder::setText(const std::string& text)
 	{
-		animation.text = text;
+		char* strMemory = (char*)g_memory_allocate(sizeof(char) * (text.length() + 1));
+		strMemory[text.length()] = '\0';
+		animation.as.text.text = std::strcpy(strMemory, text.c_str());
 		return *this;
 	}
 
@@ -116,7 +122,7 @@ namespace MathAnim
 		return *this;
 	}
 
-	TextAnimation TextAnimationBuilder::build()
+	Animation TextAnimationBuilder::build()
 	{
 		return animation;
 	}
@@ -130,27 +136,28 @@ namespace MathAnim
 		{
 			for (int x = 0; x < 16; x++)
 			{
-				animation.bitmap[y][x] = "#000000"_hex;
-				animation.bitmapState[y][x] = false;
+				animation.as.bitmap.bitmap[y][x] = "#000000"_hex;
+				animation.as.bitmap.bitmapState[y][x] = false;
 			}
 		}
 
 		animation.delay = 0;
 		animation.duration = 1.0f;
-		animation.revealTime = 0.01f;
-		animation.bitmapSquaresShowing = 0;
+		animation.as.bitmap.revealTime = 0.01f;
+		animation.as.bitmap.bitmapSquaresShowing = 0;
 		animation.startTime = 0;
-		animation.canvasPosition = glm::vec2({ -2, -2 });
-		animation.canvasSize = glm::vec2({ 4, 4 });
+		animation.as.bitmap.canvasPosition = { -2, -2 };
+		animation.as.bitmap.canvasSize = { 4, 4 };
+		animation.drawAnimation = AnimationManager::drawBitmapAnimation;
 	}
 
-	BitmapAnimationBuilder& BitmapAnimationBuilder::setBitmap(glm::vec4 bitmap[16][16])
+	BitmapAnimationBuilder& BitmapAnimationBuilder::setBitmap(Vec4 bitmap[16][16])
 	{
 		for (int y = 0; y < 16; y++)
 		{
 			for (int x = 0; x < 16; x++)
 			{
-				animation.bitmap[y][x] = bitmap[16 - y - 1][x];
+				animation.as.bitmap.bitmap[y][x] = bitmap[16 - y - 1][x];
 			}
 		}
 		return *this;
@@ -168,25 +175,25 @@ namespace MathAnim
 		return *this;
 	}
 
-	BitmapAnimationBuilder& BitmapAnimationBuilder::setCanvasPosition(const glm::vec2& canvasPosition)
+	BitmapAnimationBuilder& BitmapAnimationBuilder::setCanvasPosition(const Vec2& canvasPosition)
 	{
-		animation.canvasPosition = canvasPosition;
+		animation.as.bitmap.canvasPosition = {canvasPosition.x, canvasPosition.x};
 		return *this;
 	}
 
-	BitmapAnimationBuilder& BitmapAnimationBuilder::setCanvasSize(const glm::vec2& canvasSize)
+	BitmapAnimationBuilder& BitmapAnimationBuilder::setCanvasSize(const Vec2& canvasSize)
 	{
-		animation.canvasSize = canvasSize;
+		animation.as.bitmap.canvasSize = {canvasSize.x, canvasSize.x};
 		return *this;
 	}
 
 	BitmapAnimationBuilder& BitmapAnimationBuilder::setRevealTime(float revealTime)
 	{
-		animation.revealTime = revealTime;
+		animation.as.bitmap.revealTime = revealTime;
 		return *this;
 	}
 
-	BitmapAnimation BitmapAnimationBuilder::build()
+	Animation BitmapAnimationBuilder::build()
 	{
 		return animation;
 	}
@@ -196,24 +203,25 @@ namespace MathAnim
 	// ========================================================================================================
 	Bezier1AnimationBuilder::Bezier1AnimationBuilder()
 	{
-		animation.p0 = glm::vec2();
-		animation.p1 = glm::vec2();
+		animation.as.bezier1.p0 = {0, 0};
+		animation.as.bezier1.p1 = {0, 0};
 		animation.duration = 1.0f;
 		animation.delay = 0.0f;
 		animation.startTime = 0.0f;
-		animation.granularity = 2;
-		animation.withPoints = false;
+		animation.as.bezier1.granularity = 2;
+		animation.as.bezier1.withPoints = false;
+		animation.drawAnimation = AnimationManager::drawBezier1Animation;
 	}
 
-	Bezier1AnimationBuilder& Bezier1AnimationBuilder::setP0(const glm::vec2& point)
+	Bezier1AnimationBuilder& Bezier1AnimationBuilder::setP0(const Vec2& point)
 	{
-		animation.p0 = point;
+		animation.as.bezier1.p0 = {point.x, point.y};
 		return *this;
 	}
 
-	Bezier1AnimationBuilder& Bezier1AnimationBuilder::setP1(const glm::vec2& point)
+	Bezier1AnimationBuilder& Bezier1AnimationBuilder::setP1(const Vec2& point)
 	{
-		animation.p1 = point;
+		animation.as.bezier1.p1 = {point.x, point.y};
 		return *this;
 	}
 
@@ -231,11 +239,11 @@ namespace MathAnim
 
 	Bezier1AnimationBuilder& Bezier1AnimationBuilder::withPoints()
 	{
-		animation.withPoints = true;
+		animation.as.bezier1.withPoints = true;
 		return *this;
 	}
 
-	Bezier1Animation Bezier1AnimationBuilder::build()
+	Animation Bezier1AnimationBuilder::build()
 	{
 		return animation;
 	}
@@ -245,31 +253,32 @@ namespace MathAnim
 	// ========================================================================================================
 	Bezier2AnimationBuilder::Bezier2AnimationBuilder()
 	{
-		animation.p0 = glm::vec2();
-		animation.p1 = glm::vec2();
-		animation.p2 = glm::vec2();
+		animation.as.bezier2.p0 = {0, 0};
+		animation.as.bezier2.p1 = {0, 0};
+		animation.as.bezier2.p2 = {0, 0};
 		animation.duration = 1.0f;
 		animation.delay = 0.0f;
 		animation.startTime = 0.0f;
-		animation.granularity = 100;
-		animation.withPoints = false;
+		animation.as.bezier2.granularity = 100;
+		animation.as.bezier2.withPoints = false;
+		animation.drawAnimation = AnimationManager::drawBezier2Animation;
 	}
 
-	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setP0(const glm::vec2& point)
+	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setP0(const Vec2& point)
 	{
-		animation.p0 = point;
+		animation.as.bezier2.p0 = {point.x, point.y};
 		return *this;
 	}
 
-	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setP1(const glm::vec2& point)
+	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setP1(const Vec2& point)
 	{
-		animation.p1 = point;
+		animation.as.bezier2.p1 = {point.x, point.y};
 		return *this;
 	}
 
-	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setP2(const glm::vec2& point)
+	Bezier2AnimationBuilder& Bezier2AnimationBuilder::setP2(const Vec2& point)
 	{
-		animation.p2 = point;
+		animation.as.bezier2.p2 = {point.x, point.y};
 		return *this;
 	}
 
@@ -287,11 +296,11 @@ namespace MathAnim
 
 	Bezier2AnimationBuilder& Bezier2AnimationBuilder::withPoints()
 	{
-		animation.withPoints = true;
+		animation.as.bezier2.withPoints = true;
 		return *this;
 	}
 
-	Bezier2Animation Bezier2AnimationBuilder::build()
+	Animation Bezier2AnimationBuilder::build()
 	{
 		return animation;
 	}
@@ -301,29 +310,30 @@ namespace MathAnim
 	// ========================================================================================================
 	FilledCircleAnimationBuilder::FilledCircleAnimationBuilder()
 	{
-		animation.position = glm::vec2();
-		animation.radius = 1.0f;
+		animation.as.filledCircle.position = {0, 0};
+		animation.as.filledCircle.radius = 1.0f;
 		animation.startTime = 0.0f;
 		animation.delay = 0.0f;
-		animation.numSegments = 50;
+		animation.as.filledCircle.numSegments = 50;
 		animation.duration = 1.0f;
+		animation.drawAnimation = AnimationManager::drawFilledCircleAnimation;
 	}
 
-	FilledCircleAnimationBuilder& FilledCircleAnimationBuilder::setPosition(const glm::vec2& point)
+	FilledCircleAnimationBuilder& FilledCircleAnimationBuilder::setPosition(const Vec2& point)
 	{
-		animation.position = point;
+		animation.as.filledCircle.position = {point.x, point.y};
 		return *this;
 	}
 
 	FilledCircleAnimationBuilder& FilledCircleAnimationBuilder::setRadius(float radius)
 	{
-		animation.radius = radius;
+		animation.as.filledCircle.radius = radius;
 		return *this;
 	}
 
 	FilledCircleAnimationBuilder& FilledCircleAnimationBuilder::setNumSegments(int numSegments)
 	{
-		animation.numSegments = numSegments;
+		animation.as.filledCircle.numSegments = numSegments;
 		return *this;
 	}
 
@@ -339,7 +349,7 @@ namespace MathAnim
 		return *this;
 	}
 
-	FilledCircleAnimation FilledCircleAnimationBuilder::build()
+	Animation FilledCircleAnimationBuilder::build()
 	{
 		return animation;
 	}
@@ -349,29 +359,30 @@ namespace MathAnim
 	// ========================================================================================================
 	FilledBoxAnimationBuilder::FilledBoxAnimationBuilder()
 	{
-		animation.center = glm::vec2();
-		animation.size = glm::vec2();
-		animation.fillDirection = Direction::Up;
+		animation.as.filledBox.center = {0, 0};
+		animation.as.filledBox.size = {0, 0};
+		animation.as.filledBox.fillDirection = Direction::Up;
 		animation.duration = 1.0f;
 		animation.startTime = 0.0f;
 		animation.delay = 0.0f;
+		animation.drawAnimation = AnimationManager::drawFilledBoxAnimation;
 	}
 
-	FilledBoxAnimationBuilder& FilledBoxAnimationBuilder::setCenter(const glm::vec2& point)
+	FilledBoxAnimationBuilder& FilledBoxAnimationBuilder::setCenter(const Vec2& point)
 	{
-		animation.center = point;
+		animation.as.filledBox.center = { point.x, point.y };
 		return *this;
 	}
 
-	FilledBoxAnimationBuilder& FilledBoxAnimationBuilder::setSize(const glm::vec2& size)
+	FilledBoxAnimationBuilder& FilledBoxAnimationBuilder::setSize(const Vec2& size)
 	{
-		animation.size = size;
+		animation.as.filledBox.size = { size.x, size.y };
 		return *this;
 	}
 
 	FilledBoxAnimationBuilder& FilledBoxAnimationBuilder::setFillDirection(Direction direction)
 	{
-		animation.fillDirection = direction;
+		animation.as.filledBox.fillDirection = direction;
 		return *this;
 	}
 
@@ -387,7 +398,7 @@ namespace MathAnim
 		return *this;
 	}
 
-	FilledBoxAnimation FilledBoxAnimationBuilder::build()
+	Animation FilledBoxAnimationBuilder::build()
 	{
 		return animation;
 	}

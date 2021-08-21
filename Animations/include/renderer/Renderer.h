@@ -14,10 +14,10 @@ namespace MathAnim
 	struct RenderableTexture
 	{
 		const Texture* texture;
-		glm::vec2 start;
-		glm::vec2 size;
-		glm::vec2 texCoordStart;
-		glm::vec2 texCoordSize;
+		Vec2 start;
+		Vec2 size;
+		Vec2 texCoordStart;
+		Vec2 texCoordSize;
 	};
 
 	namespace Renderer
@@ -28,23 +28,23 @@ namespace MathAnim
 
 		void renderFramebuffer(const Framebuffer& framebuffer);
 
-		void drawSquare(const glm::vec2& start, const glm::vec2& size, const Style& style);
+		void drawSquare(const Vec2& start, const Vec2& size, const Style& style);
 
-		void drawFilledSquare(const glm::vec2& start, const glm::vec2& size, const Style& style);
+		void drawFilledSquare(const Vec2& start, const Vec2& size, const Style& style);
 
-		void drawLine(const glm::vec2& start, const glm::vec2& end, const Style& style);
+		void drawLine(const Vec2& start, const Vec2& end, const Style& style);
 
-		void drawTexture(const RenderableTexture& renderable, const glm::vec4& color);
+		void drawTexture(const RenderableTexture& renderable, const Vec4& color);
 
-		void drawString(const std::string& string, const Font& font, const glm::vec2& start, float scale, const glm::vec4& color);
+		void drawString(const std::string& string, const Font& font, const Vec2& start, float scale, const Vec4& color);
 
-		void drawFilledCircle(const glm::vec2& position, float radius, int numSegments, const Style& style);
+		void drawFilledCircle(const Vec2& position, float radius, int numSegments, const Style& style);
 
-		void drawFilledTriangle(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const Style& style);
+		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Style& style);
 
 		void flushBatch();
 
-		void clearColor(const glm::vec4& color);
+		void clearColor(const Vec4& color);
 	}
 }
 

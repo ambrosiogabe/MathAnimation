@@ -11,29 +11,29 @@ namespace MathAnim
 			return abs(x - y) <= epsilon * std::max(1.0f, std::max(abs(x), abs(y)));
 		}
 
-		bool compare(const glm::vec2& vec1, const glm::vec2& vec2, float epsilon)
+		bool compare(const Vec2& vec1, const Vec2& vec2, float epsilon)
 		{
 			return compare(vec1.x, vec2.x, epsilon) && compare(vec1.y, vec2.y, epsilon);
 		}
 
-		bool compare(const glm::vec3& vec1, const glm::vec3& vec2, float epsilon)
+		bool compare(const Vec3& vec1, const Vec3& vec2, float epsilon)
 		{
 			return compare(vec1.x, vec2.x, epsilon) && compare(vec1.y, vec2.y, epsilon) && compare(vec1.z, vec2.z, epsilon);
 		}
 
-		bool compare(const glm::vec4& vec1, const glm::vec4& vec2, float epsilon)
+		bool compare(const Vec4& vec1, const Vec4& vec2, float epsilon)
 		{
 			return compare(vec1.x, vec2.x, epsilon) && compare(vec1.y, vec2.y, epsilon) && compare(vec1.z, vec2.z, epsilon) && compare(vec1.w, vec2.w, epsilon);
 		}
 
-		glm::vec2 vector2From3(const glm::vec3& vec)
+		Vec2 vector2From3(const Vec3& vec)
 		{
-			return glm::vec2(vec.x, vec.y);
+			return Vec2{vec.x, vec.y};
 		}
 
-		glm::vec3 vector3From2(const glm::vec2& vec)
+		Vec3 vector3From2(const Vec2& vec)
 		{
-			return glm::vec3(vec.x, vec.y, 0.0f);
+			return Vec3{vec.x, vec.y, 0.0f};
 		}
 
 		float toRadians(float degrees)
@@ -46,7 +46,7 @@ namespace MathAnim
 			return radians * 180.0f / PI;
 		}
 
-		void rotate(glm::vec2& vec, float angleDeg, const glm::vec2& origin)
+		void rotate(Vec2& vec, float angleDeg, const Vec2& origin)
 		{
 			float x = vec.x - origin.x;
 			float y = vec.y - origin.y;
@@ -58,7 +58,7 @@ namespace MathAnim
 			vec.y = yPrime;
 		}
 
-		void rotate(glm::vec3& vec, float angleDeg, const glm::vec3& origin)
+		void rotate(Vec3& vec, float angleDeg, const Vec3& origin)
 		{
 			// This function ignores Z values
 			float x = vec.x - origin.x;
@@ -76,7 +76,7 @@ namespace MathAnim
 			return (val - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
 		}
 
-		float mapRange(const glm::vec2& inputRange, const glm::vec2& outputRange, float value)
+		float mapRange(const Vec2& inputRange, const Vec2& outputRange, float value)
 		{
 			return (value - inputRange.x) / (inputRange.y - inputRange.x) * (outputRange.y - outputRange.x) + outputRange.x;
 		}
@@ -112,12 +112,12 @@ namespace MathAnim
 			return hash;
 		}
 
-		glm::vec2 bezier1(const glm::vec2& p0, const glm::vec2& p1, float t)
+		Vec2 bezier1(const Vec2& p0, const Vec2& p1, float t)
 		{
-			return (1 - t) * p0 + t * p1;
+			return (1.0f - t) * p0 + t * p1;
 		}
 
-		glm::vec2 bezier2(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, float t)
+		Vec2 bezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t)
 		{
 			return (1 - t) * ((1 - t) * p0 + t * p1) + t * ((1 - t) * p1 + t * p2);
 		}

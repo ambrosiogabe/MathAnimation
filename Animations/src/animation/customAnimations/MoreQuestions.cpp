@@ -9,12 +9,12 @@ namespace MathAnim
 	{
 		static void hitJunction()
 		{
-			glm::vec2 p0(-1.0f, -2.0f);
-			glm::vec2 p1(3.0f, -2.0f);
-			glm::vec2 p2(1.0f, 2.0f);
-			glm::vec2 p3(0.0f, 2.25f);
+			Vec2 p0{-1.0f, -2.0f};
+			Vec2 p1{3.0f, -2.0f};
+			Vec2 p2{1.0f, 2.0f};
+			Vec2 p3{0.0f, 2.25f};
 
-			AnimationManager::addBezier2Animation(
+			AnimationManager::addAnimation(
 				Bezier2AnimationBuilder()
 				.setP0(p0)
 				.setP1(p1)
@@ -25,7 +25,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0(p2)
 				.setP1(p3)
@@ -35,7 +35,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition({ -1.0f, 2.0f })
 				.setDuration(0.32f)
@@ -47,7 +47,7 @@ namespace MathAnim
 			);
 			Style arrowStyle = Styles::defaultStyle;
 			arrowStyle.lineEnding = CapType::Arrow;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ -1.0f, 2.0f })
 				.setP1({ 2.0f, 2.0f })
@@ -59,12 +59,12 @@ namespace MathAnim
 
 		static void straightLine()
 		{
-			glm::vec2 p0(-1.0f, 1.0f);
-			glm::vec2 p1(2.0f, 1.0f);
+			Vec2 p0{-1.0f, 1.0f};
+			Vec2 p1{2.0f, 1.0f};
 
-			glm::vec2 point(-3.0f, 1.0f);
+			Vec2 point{-3.0f, 1.0f};
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0(p0)
 				.setP1(p1)
@@ -74,7 +74,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition(point)
 				.setRadius(0.06f)
@@ -86,10 +86,10 @@ namespace MathAnim
 			);
 			Style arrowStyle = Styles::defaultStyle;
 			arrowStyle.lineEnding = CapType::Arrow;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0(point)
-				.setP1(point + glm::vec2{ 6.0f, 0.0f })
+				.setP1(point + Vec2{ 6.0f, 0.0f })
 				.setDuration(1.0f)
 				.build(),
 				arrowStyle
@@ -98,12 +98,12 @@ namespace MathAnim
 
 		static void startsOnCurve()
 		{
-			glm::vec2 p0(0.0f, -1.0f);
-			glm::vec2 p1(0.0f, 1.0f);
+			Vec2 p0{0.0f, -1.0f};
+			Vec2 p1{0.0f, 1.0f};
 
-			glm::vec2 point(0.0f, 0.0f);
+			Vec2 point{0.0f, 0.0f};
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0(p0)
 				.setP1(p1)
@@ -113,7 +113,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition(point)
 				.setRadius(0.06f)
@@ -125,10 +125,10 @@ namespace MathAnim
 			);
 			Style arrowStyle = Styles::defaultStyle;
 			arrowStyle.lineEnding = CapType::Arrow;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0(point)
-				.setP1(point + glm::vec2{ 3.0f, 0.0f })
+				.setP1(point + Vec2{ 3.0f, 0.0f })
 				.setDuration(1.0f)
 				.build(),
 				arrowStyle
@@ -137,8 +137,34 @@ namespace MathAnim
 
 		void init()
 		{
+			Style style = Styles::defaultStyle;
+			style.strokeWidth = 0.08f;
+			AnimationManager::addAnimation(
+				Bezier2AnimationBuilder()
+				.setP0({ -2.0f, 0.0f })
+				.setP1({ 2.0f, 1.0f })
+				.setP2({3.0f, 0.0f})
+				.setDuration(1.0f)
+				.withPoints()
+				.build(),
+				style
+			);
+
+			style.strokeWidth = 0.03f;
+			style.lineEnding = CapType::Arrow;
+			AnimationManager::addAnimation(
+				Bezier2AnimationBuilder()
+				.setP0({ -2.0f, -1.0f })
+				.setP1({ 2.0f, 0.0f })
+				.setP2({ 3.0f, -1.0f })
+				.setDuration(1.0f)
+				.withPoints()
+				.build(),
+				style
+			);
+
 			//straightLine();
-			startsOnCurve();
+			//startsOnCurve();
 		}
 	}
 }

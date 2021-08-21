@@ -13,20 +13,20 @@ namespace MathAnim
 		void init()
 		{
 
-			glm::vec4 sky = "#5fcde4"_hex;
-			glm::vec4 cld = "#ffffff"_hex;
-			glm::vec4 rf1 = "#d9a066"_hex;
-			glm::vec4 rf2 = "#d9a066"_hex;
-			glm::vec4 wll = "#595652"_hex;
-			glm::vec4 drt = "#663931"_hex;
-			glm::vec4 grs = "#6abe30"_hex;
-			glm::vec4 dr2 = "#d9a066"_hex;
+			Vec4 sky = "#5fcde4"_hex;
+			Vec4 cld = "#ffffff"_hex;
+			Vec4 rf1 = "#d9a066"_hex;
+			Vec4 rf2 = "#d9a066"_hex;
+			Vec4 wll = "#595652"_hex;
+			Vec4 drt = "#663931"_hex;
+			Vec4 grs = "#6abe30"_hex;
+			Vec4 dr2 = "#d9a066"_hex;
 
-			glm::vec4 c0 = "#eec39a"_hex;
-			glm::vec4 c1 = "#ac3232"_hex;
-			glm::vec4 c2 = "#639bff"_hex;
+			Vec4 c0 = "#eec39a"_hex;
+			Vec4 c1 = "#ac3232"_hex;
+			Vec4 c2 = "#639bff"_hex;
 
-			glm::vec4 leftSide[16][16] = {
+			Vec4 leftSide[16][16] = {
 				{ sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky },
 				{ sky, sky, cld, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky },
 				{ sky, cld, cld, cld, sky, sky, sky, cld, cld, cld, sky, sky, sky, sky, sky, sky },
@@ -45,7 +45,7 @@ namespace MathAnim
 				{ drt, dr2, drt, drt, drt, drt, drt, drt, drt, drt, drt, drt, drt, drt, drt, drt }
 			};
 
-			glm::vec4 rightSide[16][16] = {
+			Vec4 rightSide[16][16] = {
 				{ sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky },
 				{ sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky },
 				{ sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, sky, cld, cld, sky, sky },
@@ -66,7 +66,7 @@ namespace MathAnim
 
 			GridAnimation::init({ -4.0f, -2.0f }, { 8.0f, 4.0f }, { 0.25f, 0.25f });
 
-			AnimationManager::addBitmapAnimation(
+			AnimationManager::addAnimation(
 				BitmapAnimationBuilder()
 				.setCanvasPosition({ -4.0f, -2.0f })
 				.setCanvasSize({ 4.0f, 4.0f })
@@ -77,7 +77,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addBitmapAnimation(
+			AnimationManager::addAnimation(
 				BitmapAnimationBuilder()
 				.setCanvasPosition({ 0.0f, -2.0f })
 				.setCanvasSize({ 4.0f, 4.0f })

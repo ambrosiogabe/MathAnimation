@@ -18,7 +18,7 @@ namespace MathAnim
 
 	glm::mat4 OrthoCamera::calculateProjectionMatrix() const
 	{
-		glm::vec2 halfSize = projectionSize / 2.0f;
+		Vec2 halfSize = projectionSize / 2.0f;
 		return glm::ortho(-halfSize.x, halfSize.x, -halfSize.y, halfSize.y);
 	};
 }

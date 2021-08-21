@@ -8,15 +8,15 @@ namespace MathAnim
 	namespace LagrangeInterpolation
 	{
         // Adapted from https://www.geeksforgeeks.org/lagranges-interpolation/
-		static float lagrange(std::initializer_list<glm::vec2> points, float xi)
+		static float lagrange(std::initializer_list<Vec2> points, float xi)
 		{
             float result = 0; // Initialize result
 
-            for (const glm::vec2& p0 : points)
+            for (const Vec2& p0 : points)
             {
                 // Compute individual terms of above formula
                 float term = p0.y;
-                for (const glm::vec2& p1 : points)
+                for (const Vec2& p1 : points)
                 {
                     if (&p0 != &p1)
                         term *= (xi - p1.x) / (p0.x - p1.x);
@@ -29,14 +29,14 @@ namespace MathAnim
             return result;
 		}
 
-        static void drawLagrangeInterpolation3D(std::initializer_list<glm::vec2> points, float xStart, float xEnd, int granularity, float duration)
+        static void drawLagrangeInterpolation3D(std::initializer_list<Vec2> points, float xStart, float xEnd, int granularity, float duration)
         {
 			Style pointStyle = Styles::defaultStyle;
 			pointStyle.color = Colors::blue;
 
-			for (const glm::vec2& point : points)
+			for (const Vec2& point : points)
 			{
-				AnimationManager::addFilledCircleAnimation(
+				AnimationManager::addAnimation(
 					FilledCircleAnimationBuilder()
 					.setPosition(point)
 					.setRadius(0.06f)
@@ -52,14 +52,14 @@ namespace MathAnim
 
 			float lineSegmentLength = (xEnd - xStart) / (float)granularity;
 			float eachDuration = duration / (float)granularity;
-			glm::vec2 pos = {
+			Vec2 pos = {
 				xStart,
 				lagrange(points, xStart)
 			};
 			for (int i = 0; i < granularity; i++)
 			{
-				glm::vec2 nextPos = pos + glm::vec2(pos.x + lineSegmentLength, lagrange(points, pos.x + lineSegmentLength));
-				AnimationManager::addBezier1Animation(
+				Vec2 nextPos = pos + Vec2{pos.x + lineSegmentLength, lagrange(points, pos.x + lineSegmentLength)};
+				AnimationManager::addAnimation(
 					Bezier1AnimationBuilder()
 					.setP0(pos)
 					.setP1(nextPos)
@@ -73,14 +73,14 @@ namespace MathAnim
 			}
         }
 
-		static void drawLagrangeInterpolation(std::initializer_list<glm::vec2> points, float xStart, float xEnd, int granularity, float duration)
+		static void drawLagrangeInterpolation(std::initializer_list<Vec2> points, float xStart, float xEnd, int granularity, float duration)
 		{
 			Style pointStyle = Styles::defaultStyle;
 			pointStyle.color = Colors::blue;
 
-			for (const glm::vec2& point : points)
+			for (const Vec2& point : points)
 			{
-				AnimationManager::addFilledCircleAnimation(
+				AnimationManager::addAnimation(
 					FilledCircleAnimationBuilder()
 					.setPosition(point)
 					.setRadius(0.06f)
@@ -96,14 +96,14 @@ namespace MathAnim
 
 			float lineSegmentLength = (xEnd - xStart) / (float)granularity;
 			float eachDuration = duration / (float)granularity;
-			glm::vec2 pos = {
+			Vec2 pos = {
 				xStart,
 				lagrange(points, xStart)
 			};
 			for (int i = 0; i < granularity; i++)
 			{
-				glm::vec2 nextPos = glm::vec2(pos.x + lineSegmentLength, lagrange(points, pos.x + lineSegmentLength));
-				AnimationManager::addBezier1Animation(
+				Vec2 nextPos = Vec2{pos.x + lineSegmentLength, lagrange(points, pos.x + lineSegmentLength)};
+				AnimationManager::addAnimation(
 					Bezier1AnimationBuilder()
 					.setP0(pos)
 					.setP1(nextPos)
@@ -118,13 +118,13 @@ namespace MathAnim
 
 		void init()
 		{
-			glm::vec2 p00(-4.0f, -0.25f);
-			glm::vec2 p0(-3.0f, 0.0f);
-			glm::vec2 p1(-1.5f, 0.5f);
-			glm::vec2 p2(0.0f, -0.0f);
-			glm::vec2 p3(1.5f, 0.5f);
-			glm::vec2 p4(3.0f, 0.0f);
-			glm::vec2 p5(4.0f, 0.25f);
+			Vec2 p00{-4.0f, -0.25f};
+			Vec2 p0{-3.0f, 0.0f};
+			Vec2 p1{-1.5f, 0.5f};
+			Vec2 p2{0.0f, -0.0f};
+			Vec2 p3{1.5f, 0.5f};
+			Vec2 p4{3.0f, 0.0f};
+			Vec2 p5{4.0f, 0.25f};
 
 			drawLagrangeInterpolation(
 				{ p00, p0, p1, p2, p3, p4, p5 },
@@ -132,7 +132,7 @@ namespace MathAnim
 
 			Style orange = Styles::defaultStyle;
 			orange.color = Colors::orange;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0(p00)
 				.setP1(p0)

@@ -6,15 +6,16 @@
 #include "renderer/Texture.h"
 #include "renderer/Fonts.h"
 #include "animation/Styles.h"
+#include "animation/Animation.h"
 
 namespace MathAnim
 {
 	struct Vertex
 	{
-		glm::vec2 position;
-		glm::vec4 color;
+		Vec2 position;
+		Vec4 color;
 		uint32 textureId;
-		glm::vec2 textureCoords;
+		Vec2 textureCoords;
 	};
 
 	namespace Renderer
@@ -202,15 +203,15 @@ namespace MathAnim
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}
 
-		void drawSquare(const glm::vec2& start, const glm::vec2& size, const Style& style)
+		void drawSquare(const Vec2& start, const Vec2& size, const Style& style)
 		{
-			drawLine(start, start + glm::vec2(size.x, 0), style);
-			drawLine(start + glm::vec2(0, size.y), start + size, style);
-			drawLine(start, start + glm::vec2(0, size.y), style);
-			drawLine(start + glm::vec2(size.x, 0), start + size, style);
+			drawLine(start, start + Vec2{size.x, 0}, style);
+			drawLine(start + Vec2{0, size.y}, start + size, style);
+			drawLine(start, start + Vec2{0, size.y}, style);
+			drawLine(start + Vec2{size.x, 0}, start + size, style);
 		}
 
-		void drawFilledSquare(const glm::vec2& start, const glm::vec2& size, const Style& style)
+		void drawFilledSquare(const Vec2& start, const Vec2& size, const Style& style)
 		{
 			if (numVertices + 6 >= maxNumVerticesPerBatch)
 			{
@@ -225,7 +226,7 @@ namespace MathAnim
 			numVertices++;
 
 			// "Top-Left" corner of line
-			vertices[numVertices].position = start + glm::vec2(0, size.y);
+			vertices[numVertices].position = start + Vec2{0, size.y};
 			vertices[numVertices].color = style.color;
 			vertices[numVertices].textureId = 0;
 			numVertices++;
@@ -244,7 +245,7 @@ namespace MathAnim
 			numVertices++;
 
 			// "Bottom-Right" corner of line
-			vertices[numVertices].position = start + glm::vec2(size.x, 0);
+			vertices[numVertices].position = start + Vec2{size.x, 0};
 			vertices[numVertices].color = style.color;
 			vertices[numVertices].textureId = 0;
 			numVertices++;
@@ -256,7 +257,7 @@ namespace MathAnim
 			numVertices++;
 		}
 
-		void drawLine(const glm::vec2& start, const glm::vec2& end, const Style& style)
+		void drawLine(const Vec2& start, const Vec2& end, const Style& style)
 		{
 			if ((style.lineEnding == CapType::Flat && numVertices + 6 >= maxNumVerticesPerBatch) ||
 				(style.lineEnding == CapType::Arrow && numVertices + 15 >= maxNumVerticesPerBatch))
@@ -264,9 +265,9 @@ namespace MathAnim
 				flushBatch();
 			}
 
-			glm::vec2 direction = end - start;
-			glm::vec2 normalDirection = glm::normalize(direction);
-			glm::vec2 perpVector = glm::normalize(glm::vec2(normalDirection.y, -normalDirection.x));
+			Vec2 direction = end - start;
+			Vec2 normalDirection = CMath::normalize(direction);
+			Vec2 perpVector = CMath::normalize(Vec2{normalDirection.y, -normalDirection.x});
 
 			// Triangle 1
 			// "Bottom-left" corner of line
@@ -309,12 +310,12 @@ namespace MathAnim
 			if (style.lineEnding == CapType::Arrow)
 			{
 				// Add arrow tip
-				glm::vec2 centerDot = end + (normalDirection * style.strokeWidth * 0.5f);
-				glm::vec2 vectorToCenter = glm::normalize(centerDot - (end - perpVector * style.strokeWidth * 0.5f));
-				glm::vec2 oVectorToCenter = glm::normalize(centerDot - (end + perpVector * style.strokeWidth * 0.5f));
-				glm::vec2 bottomLeft = centerDot - vectorToCenter * style.strokeWidth * 4.0f;
-				glm::vec2 bottomRight = centerDot - oVectorToCenter * style.strokeWidth * 4.0f;
-				glm::vec2 top = centerDot + normalDirection * style.strokeWidth * 4.0f;
+				Vec2 centerDot = end + (normalDirection * style.strokeWidth * 0.5f);
+				Vec2 vectorToCenter = CMath::normalize(centerDot - (end - perpVector * style.strokeWidth * 0.5f));
+				Vec2 oVectorToCenter = CMath::normalize(centerDot - (end + perpVector * style.strokeWidth * 0.5f));
+				Vec2 bottomLeft = centerDot - vectorToCenter * style.strokeWidth * 4.0f;
+				Vec2 bottomRight = centerDot - oVectorToCenter * style.strokeWidth * 4.0f;
+				Vec2 top = centerDot + normalDirection * style.strokeWidth * 4.0f;
 
 				// Left Triangle
 				vertices[numVertices].position = centerDot;
@@ -366,7 +367,7 @@ namespace MathAnim
 			}
 		}
 
-		void drawFilledCircle(const glm::vec2& position, float radius, int numSegments, const Style& style)
+		void drawFilledCircle(const Vec2& position, float radius, int numSegments, const Style& style)
 		{
 			float t = 0;
 			float sectorSize = 360.0f / (float)numSegments;
@@ -378,13 +379,13 @@ namespace MathAnim
 				float nextX = radius * glm::cos(glm::radians(nextT));
 				float nextY = radius * glm::sin(glm::radians(nextT));
 
-				drawFilledTriangle(position, position + glm::vec2(x, y), position + glm::vec2(nextX, nextY), style);
+				drawFilledTriangle(position, position + Vec2{x, y}, position + Vec2{nextX, nextY}, style);
 
 				t += sectorSize;
 			}
 		}
 
-		void drawFilledTriangle(const glm::vec2& p0, const glm::vec2& p1, const glm::vec2& p2, const Style& style)
+		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Style& style)
 		{
 			if (numVertices + 3 >= maxNumVerticesPerBatch)
 			{
@@ -408,7 +409,7 @@ namespace MathAnim
 			numVertices++;
 		}
 
-		void drawTexture(const RenderableTexture& renderable, const glm::vec4& color)
+		void drawTexture(const RenderableTexture& renderable, const Vec4& color)
 		{
 			if (numVertices + 6 >= maxNumVerticesPerBatch)
 			{
@@ -426,10 +427,10 @@ namespace MathAnim
 			numVertices++;
 
 			// "Top-Left" corner
-			vertices[numVertices].position = renderable.start + glm::vec2(0, renderable.size.y);
+			vertices[numVertices].position = renderable.start + Vec2{0, renderable.size.y};
 			vertices[numVertices].color = color;
 			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + glm::vec2(0, renderable.texCoordSize.y);
+			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{0, renderable.texCoordSize.y};
 			numVertices++;
 
 			// "Top-Right" corner of line
@@ -448,10 +449,10 @@ namespace MathAnim
 			numVertices++;
 
 			// "Bottom-Right" corner of line
-			vertices[numVertices].position = renderable.start + glm::vec2(renderable.size.x, 0);
+			vertices[numVertices].position = renderable.start + Vec2{renderable.size.x, 0};
 			vertices[numVertices].color = color;
 			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + glm::vec2(renderable.texCoordSize.x, 0);
+			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{renderable.texCoordSize.x, 0};
 			numVertices++;
 
 			// "Top-Right" corner of line
@@ -462,7 +463,7 @@ namespace MathAnim
 			numVertices++;
 		}
 
-		void drawString(const std::string& string, const Font& font, const glm::vec2& position, float scale, const glm::vec4& color)
+		void drawString(const std::string& string, const Font& font, const Vec2& position, float scale, const Vec4& color)
 		{
 			float x = position.x;
 			float y = position.y;
@@ -517,7 +518,7 @@ namespace MathAnim
 			numFontTextures = 0;
 		}
 
-		void clearColor(const glm::vec4& color)
+		void clearColor(const Vec4& color)
 		{
 			glClearColor(color.r, color.g, color.b, color.a);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

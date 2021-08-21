@@ -7,13 +7,13 @@ namespace MathAnim
 {
 	namespace BezierCurveAnimation
 	{
-		static void plotPoints(std::initializer_list<glm::vec2> points, float yOffset)
+		static void plotPoints(std::initializer_list<Vec2> points, float yOffset)
 		{
 			Style pointStyle = Styles::defaultStyle;
 			pointStyle.color = Colors::blue;
 
 			int i = 0;
-			for (glm::vec2 point : points)
+			for (Vec2 point : points)
 			{
 				point.y += yOffset;
 
@@ -25,7 +25,7 @@ namespace MathAnim
 				{
 					pointStyle.color = Colors::blue;
 				}
-				AnimationManager::addFilledCircleAnimation(
+				AnimationManager::addAnimation(
 					FilledCircleAnimationBuilder()
 					.setPosition(point)
 					.setRadius(0.06f)
@@ -41,12 +41,12 @@ namespace MathAnim
 
 		void init()
 		{
-			glm::vec2 p0(-3.0f, -0.5f);
-			glm::vec2 p1(0.25f, -2.25f);
-			glm::vec2 p2(4.0f, 2.5f);
+			Vec2 p0{-3.0f, -0.5f};
+			Vec2 p1{0.25f, -2.25f};
+			Vec2 p2{4.0f, 2.5f};
 
 			Style style = Styles::defaultStyle;
-			AnimationManager::addBezier2Animation(
+			AnimationManager::addAnimation(
 				Bezier2AnimationBuilder()
 				.setP0(p0)
 				.setP1(p1)
@@ -57,7 +57,7 @@ namespace MathAnim
 				style
 			);
 
-			p1 = glm::vec2(-1.0f, 1.0f);
+			p1 = Vec2{-1.0f, 1.0f};
 			AnimationManager::addInterpolation(
 				Bezier2AnimationBuilder()
 				.setP0(p0)
@@ -68,7 +68,7 @@ namespace MathAnim
 				.build()
 			);
 
-			p1 = glm::vec2(-4.0f, -2.5f);
+			p1 = Vec2{-4.0f, -2.5f};
 			AnimationManager::addInterpolation(
 				Bezier2AnimationBuilder()
 				.setP0(p0)
@@ -79,7 +79,7 @@ namespace MathAnim
 				.build()
 			);
 
-			p0 = glm::vec2(2.0f, -1.0f);
+			p0 = Vec2{2.0f, -1.0f};
 			AnimationManager::addInterpolation(
 				Bezier2AnimationBuilder()
 				.setP0(p0)
@@ -90,7 +90,7 @@ namespace MathAnim
 				.build()
 			);
 
-			p2 = glm::vec2(-1.0f, 1.0f);
+			p2 = Vec2{-1.0f, 1.0f};
 			AnimationManager::addInterpolation(
 				Bezier2AnimationBuilder()
 				.setP0(p0)

@@ -7,8 +7,8 @@ namespace MathAnim
 {
 	struct OrthoCamera
 	{
-		glm::vec2 position;
-		glm::vec2 projectionSize;
+		Vec2 position;
+		Vec2 projectionSize;
 
 		glm::mat4 calculateViewMatrix();
 		glm::mat4 calculateProjectionMatrix() const;

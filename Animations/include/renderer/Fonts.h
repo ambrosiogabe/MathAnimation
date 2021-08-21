@@ -9,9 +9,9 @@ namespace MathAnim
 
 	struct RenderableChar
 	{
-		glm::vec2 texCoordStart;
-		glm::vec2 texCoordSize;
-		glm::vec2 advance;
+		Vec2 texCoordStart;
+		Vec2 texCoordSize;
+		Vec2 advance;
 		float bearingY;
 	};
 

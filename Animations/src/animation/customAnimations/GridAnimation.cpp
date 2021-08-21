@@ -7,43 +7,43 @@ namespace MathAnim
 {
 	namespace GridAnimation
 	{
-		void init(const glm::vec2& canvasPos, const glm::vec2& canvasSize, const glm::vec2& gridSize)
+		void init(const Vec2& canvasPos, const Vec2& canvasSize, const Vec2& gridSize)
 		{
-			glm::vec2 pos{};
+			Vec2 pos{};
 			float duration = 0.25f;
 			float delay = -0.18f;
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
-				.setP0(canvasPos + glm::vec2{ 0, 0 })
-				.setP1(canvasPos + glm::vec2{ canvasSize.x, 0 })
+				.setP0(canvasPos + Vec2{ 0, 0 })
+				.setP1(canvasPos + Vec2{ canvasSize.x, 0 })
 				.setDuration(duration)
 				.build(),
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
-				.setP0(canvasPos + glm::vec2{ canvasSize.x, 0 })
-				.setP1(canvasPos + glm::vec2{ canvasSize.x, canvasSize.y })
+				.setP0(canvasPos + Vec2{ canvasSize.x, 0 })
+				.setP1(canvasPos + Vec2{ canvasSize.x, canvasSize.y })
 				.setDuration(duration)
 				.build(),
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
-				.setP0(canvasPos + glm::vec2{ canvasSize.x, canvasSize.y })
-				.setP1(canvasPos + glm::vec2{ 0, canvasSize.y })
+				.setP0(canvasPos + Vec2{ canvasSize.x, canvasSize.y })
+				.setP1(canvasPos + Vec2{ 0, canvasSize.y })
 				.setDuration(duration)
 				.build(),
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
-				.setP0(canvasPos + glm::vec2{ 0, canvasSize.y })
-				.setP1(canvasPos + glm::vec2{ 0, 0 })
+				.setP0(canvasPos + Vec2{ 0, canvasSize.y })
+				.setP1(canvasPos + Vec2{ 0, 0 })
 				.setDuration(duration)
 				.build(),
 				Styles::defaultStyle
@@ -54,10 +54,10 @@ namespace MathAnim
 			{
 				if (pos.y < canvasSize.y)
 				{
-					AnimationManager::addBezier1Animation(
+					AnimationManager::addAnimation(
 						Bezier1AnimationBuilder()
-						.setP0(canvasPos + glm::vec2{ 0, pos.y })
-						.setP1(canvasPos + glm::vec2{ canvasSize.x, pos.y })
+						.setP0(canvasPos + Vec2{ 0, pos.y })
+						.setP1(canvasPos + Vec2{ canvasSize.x, pos.y })
 						.setDuration(duration)
 						.setDelay(pos.y == 0 ? 0 : delay)
 						.build(),
@@ -67,10 +67,10 @@ namespace MathAnim
 
 				if (pos.x < canvasSize.x)
 				{
-					AnimationManager::addBezier1Animation(
+					AnimationManager::addAnimation(
 						Bezier1AnimationBuilder()
-						.setP0(canvasPos + glm::vec2{ pos.x, 0 })
-						.setP1(canvasPos + glm::vec2{ pos.x, canvasSize.y })
+						.setP0(canvasPos + Vec2{ pos.x, 0 })
+						.setP1(canvasPos + Vec2{ pos.x, canvasSize.y })
 						.setDuration(duration)
 						.setDelay(delay)
 						.build(),

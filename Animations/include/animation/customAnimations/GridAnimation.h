@@ -6,7 +6,7 @@ namespace MathAnim
 {
 	namespace GridAnimation
 	{
-		void init(const glm::vec2& canvasPos, const glm::vec2& canvasSize, const glm::vec2& gridSize);
+		void init(const Vec2& canvasPos, const Vec2& canvasSize, const Vec2& gridSize);
 	}
 }
 

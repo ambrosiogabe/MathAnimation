@@ -40,7 +40,7 @@ float hexToFloat(char hexCode)
 	return (float)hexToInt(hexCode);
 }
 
-glm::vec4 operator "" _hex(const char* rawHexColor, size_t inputLength)
+MathAnim::Vec4 operator""_hex(const char* rawHexColor, size_t inputLength)
 {
 	g_logger_assert(rawHexColor != nullptr, "Invalid hex color. Cannot be null.");
 
@@ -56,13 +56,13 @@ glm::vec4 operator "" _hex(const char* rawHexColor, size_t inputLength)
 	if (length == 8)
 	{
 		float color4 = (hexToFloat(hexColor[6]) * 16 + hexToFloat(hexColor[7])) / 255.0f;
-		return glm::vec4{
+		return MathAnim::Vec4{
 			color1, color2, color3, color4
 		};
 	}
 
 	// Default alpha to 1
-	return glm::vec4{
+	return MathAnim::Vec4{
 		color1, color2, color3, 1.0f
 	};
 }

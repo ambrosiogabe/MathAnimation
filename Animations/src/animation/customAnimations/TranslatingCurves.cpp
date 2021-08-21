@@ -7,9 +7,9 @@ namespace MathAnim
 {
 	namespace TranslatingCurves
 	{
-		glm::vec2 parabola(float t)
+		Vec2 parabola(float t)
 		{
-			return glm::vec2{
+			return Vec2{
 				t,
 				t * t
 			};
@@ -19,7 +19,7 @@ namespace MathAnim
 		{
 			Style style = Styles::defaultStyle;
 			style.color = Colors::green;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setDuration(1)
 				.setP0({ 0.0f, -5.0f })
@@ -29,7 +29,7 @@ namespace MathAnim
 			);
 
 			style.color = Colors::red;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setDuration(1)
 				.setP0({ -6.0f, 0.0f })
@@ -40,7 +40,7 @@ namespace MathAnim
 			);
 
 			style.color = Colors::offWhite;
-			AnimationManager::addParametricAnimation(
+			AnimationManager::addAnimation(
 				ParametricAnimationBuilder()
 				.setDelay(0.5f)
 				.setDuration(1.0f)
@@ -51,7 +51,7 @@ namespace MathAnim
 				.build(),
 				style
 			);
-			AnimationManager::addParametricAnimation(
+			AnimationManager::addAnimation(
 				ParametricAnimationBuilder()
 				.setDelay(-1.0f)
 				.setDuration(1.0f)
@@ -65,7 +65,7 @@ namespace MathAnim
 			AnimationManager::translateAnimation(AnimType::ParametricAnimation, { 0.0f, 1.0f }, 1.0f, 0.5f);
 			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.5f);
 
-			AnimationManager::addParametricAnimation(
+			AnimationManager::addAnimation(
 				ParametricAnimationBuilder()
 				.setDelay(2.5f)
 				.setDuration(1.0f)

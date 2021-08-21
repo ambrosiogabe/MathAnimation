@@ -17,10 +17,10 @@ namespace MathAnim
 		ParametricAnimationBuilder& setEndT(float endT);
 		ParametricAnimationBuilder& setGranularity(int32 granularity);
 
-		ParametricAnimation build();
+		Animation build();
 
 	private:
-		ParametricAnimation animation;
+		Animation animation;
 	};
 
 	class TextAnimationBuilder
@@ -30,15 +30,15 @@ namespace MathAnim
 
 		TextAnimationBuilder& setTypingTime(float typingTime);
 		TextAnimationBuilder& setScale(float scale);
-		TextAnimationBuilder& setPosition(const glm::vec2& position);
+		TextAnimationBuilder& setPosition(const Vec2& position);
 		TextAnimationBuilder& setFont(Font* font);
 		TextAnimationBuilder& setText(const std::string& text);
 		TextAnimationBuilder& setDelay(float delay);
 
-		TextAnimation build();
+		Animation build();
 
 	private:
-		TextAnimation animation;
+		Animation animation;
 	};
 
 	class BitmapAnimationBuilder
@@ -46,17 +46,17 @@ namespace MathAnim
 	public:
 		BitmapAnimationBuilder();
 
-		BitmapAnimationBuilder& setBitmap(glm::vec4 bitmap[16][16]);
+		BitmapAnimationBuilder& setBitmap(Vec4 bitmap[16][16]);
 		BitmapAnimationBuilder& setDelay(float delay);
 		BitmapAnimationBuilder& setDuration(float duration);
-		BitmapAnimationBuilder& setCanvasPosition(const glm::vec2& canvasPosition);
-		BitmapAnimationBuilder& setCanvasSize(const glm::vec2& canvasSize);
+		BitmapAnimationBuilder& setCanvasPosition(const Vec2& canvasPosition);
+		BitmapAnimationBuilder& setCanvasSize(const Vec2& canvasSize);
 		BitmapAnimationBuilder& setRevealTime(float revealTime);
 
-		BitmapAnimation build();
+		Animation build();
 
 	private:
-		BitmapAnimation animation;
+		Animation animation;
 	};
 
 	class Bezier1AnimationBuilder
@@ -64,16 +64,16 @@ namespace MathAnim
 	public:
 		Bezier1AnimationBuilder();
 
-		Bezier1AnimationBuilder& setP0(const glm::vec2& point);
-		Bezier1AnimationBuilder& setP1(const glm::vec2& point);
+		Bezier1AnimationBuilder& setP0(const Vec2& point);
+		Bezier1AnimationBuilder& setP1(const Vec2& point);
 		Bezier1AnimationBuilder& setDelay(float delay);
 		Bezier1AnimationBuilder& setDuration(float duration);
 		Bezier1AnimationBuilder& withPoints();
 
-		Bezier1Animation build();
+		Animation build();
 
 	private:
-		Bezier1Animation animation;
+		Animation animation;
 	};
 
 	class Bezier2AnimationBuilder
@@ -81,17 +81,17 @@ namespace MathAnim
 	public:
 		Bezier2AnimationBuilder();
 
-		Bezier2AnimationBuilder& setP0(const glm::vec2& point);
-		Bezier2AnimationBuilder& setP1(const glm::vec2& point);
-		Bezier2AnimationBuilder& setP2(const glm::vec2& point);
+		Bezier2AnimationBuilder& setP0(const Vec2& point);
+		Bezier2AnimationBuilder& setP1(const Vec2& point);
+		Bezier2AnimationBuilder& setP2(const Vec2& point);
 		Bezier2AnimationBuilder& setDelay(float delay);
 		Bezier2AnimationBuilder& setDuration(float duration);
 		Bezier2AnimationBuilder& withPoints();
 
-		Bezier2Animation build();
+		Animation build();
 
 	private:
-		Bezier2Animation animation;
+		Animation animation;
 	};
 
 	class FilledCircleAnimationBuilder
@@ -99,16 +99,16 @@ namespace MathAnim
 	public:
 		FilledCircleAnimationBuilder();
 
-		FilledCircleAnimationBuilder& setPosition(const glm::vec2& point);
+		FilledCircleAnimationBuilder& setPosition(const Vec2& point);
 		FilledCircleAnimationBuilder& setRadius(float radius);
 		FilledCircleAnimationBuilder& setNumSegments(int numSegments);
 		FilledCircleAnimationBuilder& setDelay(float delay);
 		FilledCircleAnimationBuilder& setDuration(float duration);
 
-		FilledCircleAnimation build();
+		Animation build();
 
 	private:
-		FilledCircleAnimation animation;
+		Animation animation;
 	};
 
 	class FilledBoxAnimationBuilder
@@ -116,16 +116,16 @@ namespace MathAnim
 	public:
 		FilledBoxAnimationBuilder();
 
-		FilledBoxAnimationBuilder& setCenter(const glm::vec2& point);
-		FilledBoxAnimationBuilder& setSize(const glm::vec2& size);
+		FilledBoxAnimationBuilder& setCenter(const Vec2& point);
+		FilledBoxAnimationBuilder& setSize(const Vec2& size);
 		FilledBoxAnimationBuilder& setFillDirection(Direction direction);
 		FilledBoxAnimationBuilder& setDelay(float delay);
 		FilledBoxAnimationBuilder& setDuration(float duration);
 
-		FilledBoxAnimation build();
+		Animation build();
 
 	private:
-		FilledBoxAnimation animation;
+		Animation animation;
 	};
 }
 

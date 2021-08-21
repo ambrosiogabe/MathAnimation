@@ -11,7 +11,7 @@ namespace MathAnim
 	{
 		static void testPixel()
 		{
-			AnimationManager::addBezier2Animation(
+			AnimationManager::addAnimation(
 				Bezier2AnimationBuilder()
 				.setP0({ 0.0f, -1.0f })
 				.setP1({ 1.25f, -1.0f })
@@ -22,7 +22,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition({ -1.0f, -0.0f })
 				.setDuration(0.32f)
@@ -34,7 +34,7 @@ namespace MathAnim
 			);
 			Style arrowStyle = Styles::defaultStyle;
 			arrowStyle.lineEnding = CapType::Arrow;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ -1.0f, 0.0f })
 				.setP1({ 3.5f, 0.0f })
@@ -45,7 +45,7 @@ namespace MathAnim
 
 			Style redStyle = Styles::defaultStyle;
 			redStyle.color = Colors::red;
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition({ 1.6f, 0.0f })
 				.setDuration(0.32f)
@@ -61,7 +61,7 @@ namespace MathAnim
 		{
 			Style blue = Styles::defaultStyle;
 			blue.color = Colors::blue;
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition({ -2.0f, -0.0f })
 				.setDuration(0.32f)
@@ -71,7 +71,7 @@ namespace MathAnim
 				blue
 			);
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition({ 2.0f, -0.0f })
 				.setDuration(0.32f)
@@ -82,7 +82,7 @@ namespace MathAnim
 				blue
 			);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ -2.0f, 0.0f })
 				.setP1({ 2.0f, 0.0f })
@@ -92,7 +92,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ 0.0f, 0.125f })
 				.setP1({ 0.0f, -0.125f })
@@ -102,7 +102,7 @@ namespace MathAnim
 				blue
 			);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ 1.0f, 0.125f })
 				.setP1({ 1.0f, -0.125f })
@@ -115,16 +115,16 @@ namespace MathAnim
 
 		void addingAThirdPoint()
 		{
-			glm::vec2 p0(-2.0f, -1.0f);
-			glm::vec2 p1(-0.5f, 2.0f);
-			glm::vec2 p2(2.0f, -1.5f);
+			Vec2 p0{-2.0f, -1.0f};
+			Vec2 p1{-0.5f, 2.0f};
+			Vec2 p2{2.0f, -1.5f};
 
 			Style blueStyle = Styles::defaultStyle;
 			blueStyle.color = Colors::blue;
 			Style greenStyle = Styles::defaultStyle;
 			greenStyle.color = Colors::green;
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition(p0)
 				.setRadius(0.06f)
@@ -134,7 +134,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition(p1)
 				.setRadius(0.06f)
@@ -144,7 +144,7 @@ namespace MathAnim
 				greenStyle
 			);
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition(p2)
 				.setRadius(0.06f)
@@ -154,7 +154,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addBezier2Animation(
+			AnimationManager::addAnimation(
 				Bezier2AnimationBuilder()
 				.setP0(p0)
 				.setP1(p1)
@@ -166,7 +166,7 @@ namespace MathAnim
 			);
 			AnimationManager::popAnimation(AnimType::Bezier2Animation, 15.0f);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0(p0)
 				.setP1(p1)
@@ -175,7 +175,7 @@ namespace MathAnim
 				.build(),
 				greenStyle
 			);
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0(p1)
 				.setP1(p2)
@@ -190,11 +190,11 @@ namespace MathAnim
 
 		void imaginePixelAsAxis()
 		{
-			glm::vec2 p0(-2.0f, -1.0f);
-			glm::vec2 p1(0.0f, 2.0f);
-			glm::vec2 p2(2.0f, -1.0f);
+			Vec2 p0{-2.0f, -1.0f};
+			Vec2 p1{0.0f, 2.0f};
+			Vec2 p2{2.0f, -1.0f};
 
-			glm::vec2 pixelPos(-3.0f, 0.0f);
+			Vec2 pixelPos{-3.0f, 0.0f};
 
 			Style blueStyle = Styles::defaultStyle;
 			blueStyle.color = Colors::blue;
@@ -203,7 +203,7 @@ namespace MathAnim
 			Style redStyle = Styles::defaultStyle;
 			redStyle.color = Colors::red;
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition(p0)
 				.setRadius(0.06f)
@@ -213,7 +213,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition(p1)
 				.setRadius(0.06f)
@@ -223,7 +223,7 @@ namespace MathAnim
 				greenStyle
 			);
 
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition(p2)
 				.setRadius(0.06f)
@@ -233,7 +233,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 
-			AnimationManager::addBezier2Animation(
+			AnimationManager::addAnimation(
 				Bezier2AnimationBuilder()
 				.setP0(p0)
 				.setP1(p1)
@@ -242,7 +242,7 @@ namespace MathAnim
 				.build(),
 				Styles::defaultStyle
 			);
-			AnimationManager::addFilledCircleAnimation(
+			AnimationManager::addAnimation(
 				FilledCircleAnimationBuilder()
 				.setPosition(pixelPos)
 				.setRadius(0.06f)
@@ -254,17 +254,17 @@ namespace MathAnim
 			);
 			Style arrowStyle = Styles::defaultStyle;
 			arrowStyle.lineEnding = CapType::Arrow;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0(pixelPos)
-				.setP1(pixelPos + glm::vec2{5.0f, 0.0f})
+				.setP1(pixelPos + Vec2{5.0f, 0.0f})
 				.setDuration(1.5f)
 				.build(),
 				arrowStyle
 			);
 			AnimationManager::popAnimation(AnimType::Bezier1Animation, 3.0f);
 
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ -6.0f, pixelPos.y })
 				.setP1({ 6.0f, pixelPos.y })
@@ -273,7 +273,7 @@ namespace MathAnim
 				.build(),
 				redStyle
 			);
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ pixelPos.x, -4.0f })
 				.setP1({ pixelPos.x, 4.0f })
@@ -298,9 +298,9 @@ namespace MathAnim
 		{
 			if (mTime < mTimeToStartBezierAnim) return;
 
-			static glm::vec2 p0(-2.0f, -1.0f);
-			static glm::vec2 p1(-0.5f, 2.0f);
-			static glm::vec2 p2(2.0f, -1.5f);
+			static Vec2 p0{-2.0f, -1.0f};
+			static Vec2 p1{-0.5f, 2.0f};
+			static Vec2 p2{2.0f, -1.5f};
 
 			static float duration = 4.0f;
 			static int numSegments = 100;
@@ -310,18 +310,18 @@ namespace MathAnim
 			static Style blueStyle = Styles::defaultStyle;
 			blueStyle.color = Colors::blue;
 
-			glm::vec2 q0 = p1 * percent + p0 * (1.0f - percent);
-			glm::vec2 q1 = p2 * percent + p1 * (1.0f - percent);
+			Vec2 q0 = p1 * percent + p0 * (1.0f - percent);
+			Vec2 q1 = p2 * percent + p1 * (1.0f - percent);
 			if (percent != 0.0f && percent != 1.0f) 
 				Renderer::drawLine(q0, q1, Styles::defaultStyle);
-			glm::vec2 bezierPoint = q1 * percent + q0 * (1.0f - percent);
+			Vec2 bezierPoint = q1 * percent + q0 * (1.0f - percent);
 			Renderer::drawFilledCircle(bezierPoint, 0.06f, 40, blueStyle);
 
-			glm::vec2 currentPoint;
+			Vec2 currentPoint;
 			for (int i = 0; i < numSegments; i++)
 			{
 				currentPoint = CMath::bezier2(p0, p1, p2, t);
-				glm::vec2 nextPoint = CMath::bezier2(p0, p1, p2, t + segmentSize);
+				Vec2 nextPoint = CMath::bezier2(p0, p1, p2, t + segmentSize);
 
 				Renderer::drawLine(currentPoint, nextPoint, Styles::defaultStyle);
 

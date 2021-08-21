@@ -34,11 +34,14 @@
 #include <stb/stb_image.h>
 #include <stb/stb_write.h>
 
-// User defined literals
-glm::vec4 operator "" _hex(const char* hexColor, size_t length);
-
 // Freetype
 #include <ft2build.h>
 #include FT_FREETYPE_H
+
+// Core library stuff
+#include "math/DataStructures.h"
+
+// User defined literals
+MathAnim::Vec4 operator "" _hex(const char* hexColor, size_t length);
 
 #endif

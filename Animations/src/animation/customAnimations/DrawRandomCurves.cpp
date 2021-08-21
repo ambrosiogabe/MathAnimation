@@ -7,49 +7,49 @@ namespace MathAnim
 {
 	namespace DrawRandomCurves
 	{
-		glm::vec2 parabola(float t)
+		Vec2 parabola(float t)
 		{
-			return glm::vec2{
+			return Vec2{
 				t,
 				t * t
 			};
 		}
 
-		glm::vec2 cubic(float t)
+		Vec2 cubic(float t)
 		{
-			return glm::vec2{
+			return Vec2{
 				t,
 				t * t * t
 			};
 		}
 
-		glm::vec2 logarithm(float t)
+		Vec2 logarithm(float t)
 		{
-			return glm::vec2{
+			return Vec2{
 				t,
 				glm::log(t)
 			};
 		}
 
-		glm::vec2 hyperbolic(float t)
+		Vec2 hyperbolic(float t)
 		{
-			return glm::vec2{
+			return Vec2{
 				t,
 				1.0f / t
 			};
 		}
 
-		glm::vec2 line(float t)
+		Vec2 line(float t)
 		{
-			return glm::vec2{
+			return Vec2{
 				t,
 				(1.0f / 3.0f) * t
 			};
 		}
 
-		glm::vec2 circle(float t)
+		Vec2 circle(float t)
 		{
-			return glm::vec2{
+			return Vec2{
 				1 * sin(t),
 				1 * cos(t)
 			};
@@ -59,7 +59,7 @@ namespace MathAnim
 		{
 			Style xAxisStyle = Styles::defaultStyle;
 			xAxisStyle.color = Colors::red;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ -6.0f, 0.0f })
 				.setP1({ 6.0f, 0.0f })
@@ -70,7 +70,7 @@ namespace MathAnim
 
 			Style yAxisStyle = Styles::defaultStyle;
 			yAxisStyle.color = Colors::green;
-			AnimationManager::addBezier1Animation(
+			AnimationManager::addAnimation(
 				Bezier1AnimationBuilder()
 				.setP0({ 0.0f, -4.0f })
 				.setP1({ 0.0f, 4.0f })
@@ -80,7 +80,7 @@ namespace MathAnim
 				yAxisStyle
 			);
 
-			AnimationManager::addParametricAnimation(
+			AnimationManager::addAnimation(
 				ParametricAnimationBuilder()
 				.setFunction(parabola)
 				.setStartT(-2.0f)
@@ -93,7 +93,7 @@ namespace MathAnim
 			);
 			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.0f);
 
-			AnimationManager::addParametricAnimation(
+			AnimationManager::addAnimation(
 				ParametricAnimationBuilder()
 				.setFunction(cubic)
 				.setStartT(-2.0f)
@@ -106,7 +106,7 @@ namespace MathAnim
 			);
 			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.0f);
 
-			AnimationManager::addParametricAnimation(
+			AnimationManager::addAnimation(
 				ParametricAnimationBuilder()
 				.setFunction(logarithm)
 				.setStartT(0.01f)
@@ -119,7 +119,7 @@ namespace MathAnim
 			);
 			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.0f);
 
-			AnimationManager::addParametricAnimation(
+			AnimationManager::addAnimation(
 				ParametricAnimationBuilder()
 				.setFunction(hyperbolic)
 				.setStartT(-6.0f)
@@ -131,7 +131,7 @@ namespace MathAnim
 				Styles::defaultStyle
 			);
 			AnimationManager::popAnimation(AnimType::ParametricAnimation, 2.0f);
-			AnimationManager::addParametricAnimation(
+			AnimationManager::addAnimation(
 				ParametricAnimationBuilder()
 				.setFunction(hyperbolic)
 				.setStartT(0.001f)
