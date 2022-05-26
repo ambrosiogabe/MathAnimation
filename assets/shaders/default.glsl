@@ -14,10 +14,10 @@ uniform mat4 uView;
 
 void main()
 {
-	fColor = aColor;
+    fColor = aColor;
     fTexCoord = aTexCoord;
     fTexId = aTexId;
-	gl_Position = uProjection * uView * vec4(aPos.x, aPos.y, 0.0, 1.0);
+    gl_Position = uProjection * uView * vec4(aPos.x, aPos.y, 0.0, 1.0);
 }
 
 #type fragment

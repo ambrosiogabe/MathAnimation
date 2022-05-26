@@ -1,20 +1,9 @@
 #ifndef MATH_ANIM_FONTS_H
 #define MATH_ANIM_FONTS_H
 #include "core.h"
-#include "renderer/Texture.h"
 
 namespace MathAnim
 {
-	typedef uint32 FontSize;
-
-	struct RenderableChar
-	{
-		Vec2 texCoordStart;
-		Vec2 texCoordSize;
-		Vec2 advance;
-		float bearingY;
-	};
-
 	struct CharRange
 	{
 		uint32 firstCharCode;
@@ -23,30 +12,55 @@ namespace MathAnim
 		static CharRange Ascii;
 	};
 
+	struct GlyphVertex
+	{
+		Vec2 position;
+		bool controlPoint;
+	};
+
+	struct GlyphContour
+	{
+		GlyphVertex* vertices;
+		int numVertices;
+		int numCurves;
+	};
+
+	struct GlyphOutline
+	{
+		GlyphContour* contours;
+		int numContours;
+		float totalCurveLengthApprox;
+		float advanceX;
+		float bearingX;
+		float descentY;
+
+		void free();
+	};
+
 	struct Font
 	{
 		FT_Face fontFace;
-		Texture texture;
-		FontSize fontSize;
-		std::unordered_map<char, RenderableChar> characterMap;
+		std::unordered_map<uint32, GlyphOutline> glyphMap;
+		std::string filepath;
+		float unitsPerEM;
 
-		const RenderableChar& getCharInfo(char c) const;
-		float getKerning(char leftChar, char rightChar) const;
+		const GlyphOutline& getGlyphInfo(uint32 glyphIndex) const;
+		float getKerning(uint32 leftCodepoint, uint32 rightCodepoint) const;
 	};
 
 	namespace Fonts
 	{
 		void init();
 
-		Font* loadFont(const char* filepath, FontSize fontSize, CharRange defaultCharset = CharRange::Ascii);
+		// Returns a non-zero value if creating the outline fails
+		int createOutline(Font* font, uint32 character, GlyphOutline* outlineResult);
+
+		Font* loadFont(const char* filepath, CharRange defaultCharset = CharRange::Ascii);
 		void unloadFont(Font* font);
-		void unloadFont(const char* filepath, FontSize fontSize);
+		void unloadFont(const char* filepath);
 
-		Font* getFont(const char* filepath, FontSize fontSize);
+		Font* getFont(const char* filepath);
 	}
-
-	FontSize operator""_px(uint64 numPixels);
-	FontSize operator""_em(long double emSize);
 }
 
 #endif

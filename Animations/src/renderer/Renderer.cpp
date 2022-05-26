@@ -18,6 +18,14 @@ namespace MathAnim
 		Vec2 textureCoords;
 	};
 
+	struct VectorVertex
+	{
+		Vec2 position;
+		Vec4 color;
+		Vec2 uv;
+		int32 isConcave;
+	};
+
 	namespace Renderer
 	{
 		// Internal variables
@@ -25,11 +33,17 @@ namespace MathAnim
 		static uint32 vbo;
 		static uint32 numVertices;
 
+		static uint32 vectorVao;
+		static uint32 vectorVbo;
+		static uint32 vectorNumVertices;
+
 		static const int maxNumTrianglesPerBatch = 100;
 		static const int maxNumVerticesPerBatch = maxNumTrianglesPerBatch * 3;
 		static Vertex vertices[maxNumVerticesPerBatch];
+		static VectorVertex vectorVertices[maxNumVerticesPerBatch];
 		static OrthoCamera* camera;
 		static Shader shader;
+		static Shader vectorShader;
 		static Shader screenShader;
 
 		// Default screen rectangle
@@ -126,6 +140,32 @@ namespace MathAnim
 			glEnableVertexAttribArray(3);
 		}
 
+		static void setupBatchedVectorVao()
+		{
+			// Create the batched vector vao
+			glCreateVertexArrays(1, &vectorVao);
+			glBindVertexArray(vectorVao);
+
+			glGenBuffers(1, &vectorVbo);
+
+			// Allocate space for the batched vector vao
+			glBindBuffer(GL_ARRAY_BUFFER, vectorVbo);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(VectorVertex) * maxNumVerticesPerBatch, NULL, GL_DYNAMIC_DRAW);
+
+			// Set up the batched vector vao attributes
+			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VectorVertex), (void*)(offsetof(VectorVertex, position)));
+			glEnableVertexAttribArray(0);
+
+			glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(VectorVertex), (void*)(offsetof(VectorVertex, color)));
+			glEnableVertexAttribArray(1);
+
+			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VectorVertex), (void*)(offsetof(VectorVertex, uv)));
+			glEnableVertexAttribArray(2);
+
+			glVertexAttribIPointer(3, 1, GL_INT, sizeof(VectorVertex), (void*)(offsetof(VectorVertex, isConcave)));
+			glEnableVertexAttribArray(3);
+		}
+
 		static void GLAPIENTRY
 			messageCallback(GLenum source,
 				GLenum type,
@@ -175,19 +215,22 @@ namespace MathAnim
 			// Initialize default shader
 			shader.compile("assets/shaders/default.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
+			vectorShader.compile("assets/shaders/vectorShader.glsl");
 
 			setupBatchedVao();
+			setupBatchedVectorVao();
 			setupScreenVao();
 
 			for (int i = 0; i < numTextureGraphicsIds; i++)
 			{
-				textureGraphicIds[i] = {0};
+				textureGraphicIds[i] = { 0 };
 			}
 		}
 
 		void render()
 		{
 			flushBatch();
+			flushVectorBatch();
 		}
 
 		void renderFramebuffer(const Framebuffer& framebuffer)
@@ -205,10 +248,10 @@ namespace MathAnim
 
 		void drawSquare(const Vec2& start, const Vec2& size, const Style& style)
 		{
-			drawLine(start, start + Vec2{size.x, 0}, style);
-			drawLine(start + Vec2{0, size.y}, start + size, style);
-			drawLine(start, start + Vec2{0, size.y}, style);
-			drawLine(start + Vec2{size.x, 0}, start + size, style);
+			drawLine(start, start + Vec2{ size.x, 0 }, style);
+			drawLine(start + Vec2{ 0, size.y }, start + size, style);
+			drawLine(start, start + Vec2{ 0, size.y }, style);
+			drawLine(start + Vec2{ size.x, 0 }, start + size, style);
 		}
 
 		void drawFilledSquare(const Vec2& start, const Vec2& size, const Style& style)
@@ -226,7 +269,7 @@ namespace MathAnim
 			numVertices++;
 
 			// "Top-Left" corner of line
-			vertices[numVertices].position = start + Vec2{0, size.y};
+			vertices[numVertices].position = start + Vec2{ 0, size.y };
 			vertices[numVertices].color = style.color;
 			vertices[numVertices].textureId = 0;
 			numVertices++;
@@ -245,7 +288,7 @@ namespace MathAnim
 			numVertices++;
 
 			// "Bottom-Right" corner of line
-			vertices[numVertices].position = start + Vec2{size.x, 0};
+			vertices[numVertices].position = start + Vec2{ size.x, 0 };
 			vertices[numVertices].color = style.color;
 			vertices[numVertices].textureId = 0;
 			numVertices++;
@@ -267,7 +310,7 @@ namespace MathAnim
 
 			Vec2 direction = end - start;
 			Vec2 normalDirection = CMath::normalize(direction);
-			Vec2 perpVector = CMath::normalize(Vec2{normalDirection.y, -normalDirection.x});
+			Vec2 perpVector = CMath::normalize(Vec2{ normalDirection.y, -normalDirection.x });
 
 			// Triangle 1
 			// "Bottom-left" corner of line
@@ -379,7 +422,7 @@ namespace MathAnim
 				float nextX = radius * glm::cos(glm::radians(nextT));
 				float nextY = radius * glm::sin(glm::radians(nextT));
 
-				drawFilledTriangle(position, position + Vec2{x, y}, position + Vec2{nextX, nextY}, style);
+				drawFilledTriangle(position, position + Vec2{ x, y }, position + Vec2{ nextX, nextY }, style);
 
 				t += sectorSize;
 			}
@@ -409,6 +452,203 @@ namespace MathAnim
 			numVertices++;
 		}
 
+		void drawBezier(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Style& style)
+		{
+			if (vectorNumVertices + 6 >= maxNumVerticesPerBatch)
+			{
+				flushVectorBatch();
+			}
+
+			glm::vec2 triangleCenter = (glm::vec2(p0.x, p0.y) + glm::vec2(p1.x, p1.y) + glm::vec2(p2.x, p2.y)) / 3.0f;
+
+			float halfStrokeWidth = style.strokeWidth / 2.0f;
+
+			glm::vec2 localP0 = glm::vec2(p0.x, p0.y) - triangleCenter;
+			glm::vec2 localP0Dir = glm::normalize(localP0);
+			glm::vec2 outerP0 = localP0 + (localP0Dir * halfStrokeWidth);
+			glm::vec2 innerP0 = localP0 - (localP0Dir * halfStrokeWidth);
+			outerP0 += triangleCenter;
+			innerP0 += triangleCenter;
+
+			glm::vec2 localP1 = glm::vec2(p1.x, p1.y) - triangleCenter;
+			glm::vec2 localP1Dir = glm::normalize(localP1);
+			glm::vec2 outerP1 = localP1 + (localP1Dir * halfStrokeWidth);
+			glm::vec2 innerP1 = localP1 - (localP1Dir * halfStrokeWidth);
+			outerP1 += triangleCenter;
+			innerP1 += triangleCenter;
+
+			glm::vec2 localP2 = glm::vec2(p2.x, p2.y) - triangleCenter;
+			glm::vec2 localP2Dir = glm::normalize(localP2);
+			glm::vec2 outerP2 = localP2 + (localP2Dir * halfStrokeWidth);
+			glm::vec2 innerP2 = localP2 - (localP2Dir * halfStrokeWidth);
+			outerP2 += triangleCenter;
+			innerP2 += triangleCenter;
+
+			// Do two triangles, one for the outer stroke and one for inner stroke
+			vectorVertices[vectorNumVertices].position = { outerP0.x, outerP0.y };
+			vectorVertices[vectorNumVertices].color = style.color;
+			vectorVertices[vectorNumVertices].uv = { 0.0f, 0.0f };
+			vectorVertices[vectorNumVertices].isConcave = false;
+			vectorNumVertices++;
+
+			vectorVertices[vectorNumVertices].position = { outerP1.x, outerP1.y };
+			vectorVertices[vectorNumVertices].color = style.color;
+			vectorVertices[vectorNumVertices].uv = { 0.5f, 0.0f };
+			vectorVertices[vectorNumVertices].isConcave = false;
+			vectorNumVertices++;
+
+			vectorVertices[vectorNumVertices].position = { outerP2.x, outerP2.y };
+			vectorVertices[vectorNumVertices].color = style.color;
+			vectorVertices[vectorNumVertices].uv = { 1.0f, 1.0f };
+			vectorVertices[vectorNumVertices].isConcave = false;
+			vectorNumVertices++;
+
+			// Inner triangle
+			vectorVertices[vectorNumVertices].position = { innerP0.x, innerP0.y };
+			vectorVertices[vectorNumVertices].color = style.color;
+			vectorVertices[vectorNumVertices].uv = { 0.0f, 0.0f };
+			vectorVertices[vectorNumVertices].isConcave = true;
+			vectorNumVertices++;
+
+			vectorVertices[vectorNumVertices].position = { innerP1.x, innerP1.y };
+			vectorVertices[vectorNumVertices].color = style.color;
+			vectorVertices[vectorNumVertices].uv = { 0.5f, 0.0f };
+			vectorVertices[vectorNumVertices].isConcave = true;
+			vectorNumVertices++;
+
+			vectorVertices[vectorNumVertices].position = { innerP2.x, innerP2.y };
+			vectorVertices[vectorNumVertices].color = style.color;
+			vectorVertices[vectorNumVertices].uv = { 1.0f, 1.0f };
+			vectorVertices[vectorNumVertices].isConcave = true;
+			vectorNumVertices++;
+		}
+
+		void drawCubicBezier(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, const Style& style)
+		{
+			float maxX = glm::max(p0.x, glm::max(p1.x, glm::max(p2.x, p3.x)));
+			float minX = glm::min(p0.x, glm::min(p1.x, glm::min(p2.x, p3.x)));
+			float maxY = glm::max(p0.y, glm::max(p1.y, glm::max(p2.y, p3.y)));
+			float minY = glm::min(p0.y, glm::min(p1.y, glm::min(p2.y, p3.y)));
+
+			const glm::vec3 b0 = glm::vec3((p0.x - minX) / (maxX - minX), (p0.y - minY) / (maxY - minY), 1.0f);
+			const glm::vec3 b1 = glm::vec3((p1.x - minX) / (maxX - minX), (p1.y - minY) / (maxY - minY), 1.0f);
+			const glm::vec3 b2 = glm::vec3((p2.x - minX) / (maxX - minX), (p2.y - minY) / (maxY - minY), 1.0f);
+			const glm::vec3 b3 = glm::vec3((p3.x - minX) / (maxX - minX), (p3.y - minY) / (maxY - minY), 1.0f);
+
+			//const glm::mat4 matrixBasis3 = glm::transpose(glm::mat4(
+			//	glm::vec4(1, 0, 0, 0),
+			//	glm::vec4(-3, 3, 0, 0),
+			//	glm::vec4(3, -6, 3, 0),
+			//	glm::vec4(-1, 3, -3, 1)
+			//));
+
+			//const glm::mat4 matrixBasis3Inverse = glm::transpose(glm::mat4(
+			//	glm::vec4(1, 0, 0, 0),
+			//	glm::vec4(1, 1.0f / 3.0f, 0, 0),
+			//	glm::vec4(1, 2.0f / 3.0f, 1.0f / 3.0f, 0),
+			//	glm::vec4(1, 1, 1, 1)
+			//));
+
+			//// NOTE: For now all w's are implicitly 1
+			//glm::vec3 powerBasis0 = glm::vec3(matrixBasis3 * glm::vec4(p0.x, p0.y, 1.0f, 1.0f));
+			//glm::vec3 powerBasis1 = glm::vec3(matrixBasis3 * glm::vec4(p1.x, p1.y, 1.0f, 1.0f));
+			//glm::vec3 powerBasis2 = glm::vec3(matrixBasis3 * glm::vec4(p2.x, p2.y, 1.0f, 1.0f));
+			//glm::vec3 powerBasis3 = glm::vec3(matrixBasis3 * glm::vec4(p3.x, p3.y, 1.0f, 1.0f));
+
+			//glm::mat3 determinantMatrix0 = glm::transpose(glm::mat3(
+			//	powerBasis3,
+			//	powerBasis2,
+			//	powerBasis1
+			//));
+
+			//glm::mat3 determinantMatrix1 = glm::transpose(glm::mat3(
+			//	powerBasis3,
+			//	powerBasis2,
+			//	powerBasis0
+			//));
+
+			//glm::mat3 determinantMatrix2 = glm::transpose(glm::mat3(
+			//	powerBasis3,
+			//	powerBasis1,
+			//	powerBasis0
+			//));
+
+			//glm::mat3 determinantMatrix3 = glm::transpose(glm::mat3(
+			//	powerBasis2,
+			//	powerBasis1,
+			//	powerBasis0
+			//));
+
+			//float d0 = glm::determinant(determinantMatrix0);
+			//float d1 = -glm::determinant(determinantMatrix1);
+			//float d2 = glm::determinant(determinantMatrix2);
+			//float d3 = -glm::determinant(determinantMatrix3);
+
+			float a1 = glm::dot(b0, glm::cross(b3, b2));
+			float a2 = glm::dot(b1, glm::cross(b0, b3));
+			float a3 = glm::dot(b2, glm::cross(b1, b1));
+
+			float delta1 = a1 - (2.0f * a2) + (3.0f * a3);
+			float delta2 = -a2 + (3.0f * a3);
+			float delta3 = 3.0f * a3;
+
+			// Determine the number of real roots this cubic bezier curve has
+			//float delta1 = d0 * d2 - d1 * d1;
+			//float delta2 = d1 * d2 - d0 * d3;
+			//float delta3 = d1 * d3 - d2 * d2;
+			//float discriminant = 4 * delta1 * delta3 - delta2 * delta2;
+			float discriminant = (delta1 * delta1) * ((3.0f * delta2 * delta2) - (4.0f * delta1 * delta3));
+
+			// First check for quadratic or line or point
+			constexpr float epsilonComparison = 0.01f;
+			if (glm::epsilonEqual(delta1, delta2, epsilonComparison) &&
+				glm::epsilonEqual(delta2, 0.0f, epsilonComparison))
+			{
+				// d1 = d2 = 0.0
+
+				if (glm::all(glm::epsilonEqual(b0, b1, epsilonComparison)) &&
+					glm::all(glm::epsilonEqual(b1, b2, epsilonComparison)) &&
+					glm::all(glm::epsilonEqual(b2, b3, epsilonComparison)))
+				{
+					// Case 6: Point
+					// b0 = b1 = b2 = b3
+					g_logger_info("We have a point.");
+					return;
+				}
+				else if (glm::epsilonEqual(delta1, delta2, epsilonComparison) &&
+					glm::epsilonEqual(delta2, delta3, epsilonComparison) &&
+					glm::epsilonEqual(delta3, 0.0f, epsilonComparison))
+				{
+					// Case 5: Line
+					// d1 = d2 = d3 = 0
+					g_logger_info("We have a line.");
+					return;
+				}
+				else
+				{
+					// Case 4: Quadratic
+					// d1 = d2 = 0.0
+					g_logger_info("We have a quadratic.");
+					return;
+				}
+			}
+			else if (discriminant > 0.0f)
+			{
+				// Case 1: The Serpentine
+				g_logger_info("We have a serpentine.");
+			}
+			else if (discriminant < 0.0f)
+			{
+				// Case 2: The Loop
+				g_logger_info("We have a loop.");
+			}
+			else if (glm::epsilonEqual(discriminant, 0.0f, epsilonComparison))
+			{
+				// Case 3: Cusp
+				g_logger_info("We have a cusp.");
+			}
+		}
+
 		void drawTexture(const RenderableTexture& renderable, const Vec4& color)
 		{
 			if (numVertices + 6 >= maxNumVerticesPerBatch)
@@ -427,10 +667,10 @@ namespace MathAnim
 			numVertices++;
 
 			// "Top-Left" corner
-			vertices[numVertices].position = renderable.start + Vec2{0, renderable.size.y};
+			vertices[numVertices].position = renderable.start + Vec2{ 0, renderable.size.y };
 			vertices[numVertices].color = color;
 			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{0, renderable.texCoordSize.y};
+			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ 0, renderable.texCoordSize.y };
 			numVertices++;
 
 			// "Top-Right" corner of line
@@ -449,10 +689,10 @@ namespace MathAnim
 			numVertices++;
 
 			// "Bottom-Right" corner of line
-			vertices[numVertices].position = renderable.start + Vec2{renderable.size.x, 0};
+			vertices[numVertices].position = renderable.start + Vec2{ renderable.size.x, 0 };
 			vertices[numVertices].color = color;
 			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{renderable.texCoordSize.x, 0};
+			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ renderable.texCoordSize.x, 0 };
 			numVertices++;
 
 			// "Top-Right" corner of line
@@ -467,27 +707,27 @@ namespace MathAnim
 		{
 			float x = position.x;
 			float y = position.y;
-			
-			for (int i = 0; i < string.length(); i++)
-			{
-				char c = string[i];
-				RenderableChar renderableChar = font.getCharInfo(c);
-				float charWidth = renderableChar.texCoordSize.x * font.fontSize * scale;
-				float charHeight = renderableChar.texCoordSize.y * font.fontSize * scale;
-				float adjustedY = y - renderableChar.bearingY * font.fontSize * scale;
 
-				drawTexture(RenderableTexture{
-					&font.texture,
-					{ x, adjustedY },
-					{ charWidth, charHeight },
-					renderableChar.texCoordStart,
-					renderableChar.texCoordSize
-				}, color);
+			//for (int i = 0; i < string.length(); i++)
+			//{
+			//	char c = string[i];
+			//	RenderableChar renderableChar = font.getCharInfo(c);
+			//	float charWidth = renderableChar.texCoordSize.x * font.fontSize * scale;
+			//	float charHeight = renderableChar.texCoordSize.y * font.fontSize * scale;
+			//	float adjustedY = y - renderableChar.bearingY * font.fontSize * scale;
 
-				char nextC = i < string.length() - 1 ? string[i + 1] : '\0';
-				//x += font.getKerning(c, nextC) * scale * font.fontSize;
-				x += renderableChar.advance.x * scale * font.fontSize;
-			}
+			//	drawTexture(RenderableTexture{
+			//		&font.texture,
+			//		{ x, adjustedY },
+			//		{ charWidth, charHeight },
+			//		renderableChar.texCoordStart,
+			//		renderableChar.texCoordSize
+			//		}, color);
+
+			//	char nextC = i < string.length() - 1 ? string[i + 1] : '\0';
+			//	//x += font.getKerning(c, nextC) * scale * font.fontSize;
+			//	x += renderableChar.advance.x * scale * font.fontSize;
+			//}
 		}
 
 		void flushBatch()
@@ -518,10 +758,34 @@ namespace MathAnim
 			numFontTextures = 0;
 		}
 
+		void flushVectorBatch()
+		{
+			// Flush the vector batch
+			glBindBuffer(GL_ARRAY_BUFFER, vectorVbo);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vectorVertices), vectorVertices, GL_DYNAMIC_DRAW);
+
+			vectorShader.bind();
+			vectorShader.uploadMat4("uProjection", camera->calculateProjectionMatrix());
+			vectorShader.uploadMat4("uView", camera->calculateViewMatrix());
+
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glBlendEquation(GL_FUNC_SUBTRACT);
+
+			glBindVertexArray(vectorVao);
+			glDrawArrays(GL_TRIANGLES, 0, maxNumTrianglesPerBatch * 3);
+
+			// Clear the batch
+			memset(&vectorVertices, 0, sizeof(VectorVertex) * maxNumVerticesPerBatch);
+			vectorNumVertices = 0;
+
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glBlendEquation(GL_FUNC_ADD);
+		}
+
 		void clearColor(const Vec4& color)
 		{
 			glClearColor(color.r, color.g, color.b, color.a);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		}
 	}
 }

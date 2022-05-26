@@ -43,6 +43,7 @@ namespace MathAnim
 		FramebufferBuilder(uint32 width, uint32 height);
 		Framebuffer generate();
 
+		FramebufferBuilder& includeDepthStencil();
 		FramebufferBuilder& addColorAttachment(const Texture& textureSpec); // TODO: The order the attachments are added will be the index they get (change this in the future too...?)
 
 	private:

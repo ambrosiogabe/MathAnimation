@@ -51,7 +51,8 @@ project "Animations"
         "Animations/vendor/stb/",
         "Animations/vendor/vlc/include",
         "Animations/vendor/ffmpeg/include",
-        "Animations/vendor/freetype/include"
+        "Animations/vendor/freetype/include",
+        "Animations/vendor/nanovg/src"
     }
 
     filter "system:windows"
@@ -89,7 +90,8 @@ project "Animations"
             "postproc.lib",
             "swresample.lib",
             "swscale.lib",
-            "freetype.lib"
+            "freetype.lib",
+            "nanovg"
         }
 
     filter { "configurations:Debug" }
@@ -102,7 +104,33 @@ project "Animations"
         runtime "Release"
         optimize "on"
 
+project "nanovg"
+    language "C"
+    kind "StaticLib"
+    staticruntime "on"
+    
+    targetdir("_bin/" .. outputdir .. "/%{prj.name}")
+    objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
 
+    includedirs { 
+        "./Animations/vendor/nanovg/src" 
+    }
+
+    files { 
+        "./Animations/vendor/nanovg/src/*.c" 
+    }
+
+    defines { "_CRT_SECURE_NO_WARNINGS" } --,"FONS_USE_FREETYPE" } Uncomment to compile with FreeType support
+
+    filter "configurations:Debug"
+        defines { "DEBUG", "NVG_NO_STB" }
+        symbols "On"
+        warnings "Extra"
+
+    filter "configurations:Release"
+        defines { "NDEBUG", "NVG_NO_STB" }
+        symbols "Off"
+        warnings "Extra"
 
 project "Bootstrap"
     kind "ConsoleApp"

@@ -4,6 +4,7 @@
 #include "animation/Styles.h"
 #include "renderer/Renderer.h"
 #include "utils/CMath.h"
+#include "core/Input.h"
 
 namespace MathAnim
 {
@@ -334,6 +335,32 @@ namespace MathAnim
 		{
 			mTime += dt;
 
+			Style style = Styles::defaultStyle;
+			Vec2 size = { 6.0f * (1920.0f / 1080.0f), 6.0f };
+			Vec2 p0 = Vec2{ -2.0f, -2.0f };
+			Vec2 p1 = Vec2{  ((float)Input::mouseX / 1920.0f) * size.x - (size.x / 2.0f), 
+				(1.0f - ((float)Input::mouseY / 1080.0f)) * 6.0f - 3.0f};
+			Vec2 p2 = Vec2{ 3.0f, 3.0f };
+
+			float maxX = glm::max(glm::max(p0.x, p1.x), p2.x);
+			float minX = glm::min(glm::min(p0.x, p1.x), p2.x);
+			float maxY = glm::max(glm::max(p0.y, p1.y), p2.y);
+			float minY = glm::min(glm::min(p0.y, p1.y), p2.y);
+
+			// Check concavity of bezier curve
+			// First get line equation from p0->p2
+			float m = (p2.x - p0.x) / (p2.y - p0.y);
+			float b = p2.y - (m * p2.x);
+			// Then check if the y-coordinate of p1 is above or below the line
+			float p1LinearY = m * p1.x + b;
+			bool concave = p1LinearY < p1.y;
+
+			const Vec2 bounds = Vec2{ maxX - minX, maxY - minY };
+			Vec2 uv0 = { (p0.x - minX) / bounds.x, (p0.y - minY) / bounds.y };
+			Vec2 uv1 = { (p1.x - minX) / bounds.x, (p1.y - minY) / bounds.y };
+			Vec2 uv2 = { (p2.x - minX) / bounds.x, (p2.y - minY) / bounds.y };
+			
+			Renderer::drawBezier(p0, p1, p2, style);
 			//updateBezierAnim(dt);
 		}
 	}

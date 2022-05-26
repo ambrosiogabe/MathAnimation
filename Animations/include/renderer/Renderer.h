@@ -42,7 +42,13 @@ namespace MathAnim
 
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Style& style);
 
+		void drawBezier(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Style& style);
+
+		void drawCubicBezier(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, const Style& style);
+
 		void flushBatch();
+
+		void flushVectorBatch();
 
 		void clearColor(const Vec4& color);
 	}

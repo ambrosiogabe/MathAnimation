@@ -177,6 +177,13 @@ namespace MathAnim
 		return framebuffer;
 	}
 
+	FramebufferBuilder& FramebufferBuilder::includeDepthStencil()
+	{
+		framebuffer.depthStencilFormat = ByteFormat::None;
+		framebuffer.includeDepthStencil = true;
+		return *this;
+	}
+
 	FramebufferBuilder& FramebufferBuilder::addColorAttachment(const Texture& textureSpecification)
 	{
 		framebuffer.colorAttachments.push_back(textureSpecification);
@@ -213,13 +220,10 @@ namespace MathAnim
 
 		if (framebuffer.includeDepthStencil)
 		{
-			g_logger_assert(framebuffer.depthStencilFormat != ByteFormat::None, "Cannot add depth stencil information with no byte format.");
-
 			// Create renderbuffer to store depth_stencil info
 			glGenRenderbuffers(1, &framebuffer.rbo);
 			glBindRenderbuffer(GL_RENDERBUFFER, framebuffer.rbo);
-			uint32 glDepthFormat = TextureUtil::toGlExternalFormat(framebuffer.depthStencilFormat);
-			glRenderbufferStorage(GL_RENDERBUFFER, glDepthFormat, framebuffer.width, framebuffer.height);
+			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, framebuffer.width, framebuffer.height);
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, framebuffer.rbo);
 		}
 

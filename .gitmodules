@@ -7,3 +7,6 @@
 [submodule "Animations/vendor/memory"]
 	path = Animations/vendor/memory
 	url = https://github.com/ambrosiogabe/memory
+[submodule "Animations/vendor/nanovg"]
+	path = Animations/vendor/nanovg
+	url = https://github.com/memononen/nanovg
