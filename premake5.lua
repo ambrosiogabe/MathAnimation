@@ -50,8 +50,7 @@ project "Animations"
         "Animations/include",
         "Animations/vendor/GLFW/include",
         "Animations/vendor/glad/include",
-        "Animations/vendor/logger/single_include/",
-        "Animations/vendor/memory/single_include/",
+        "Animations/vendor/cppUtils/single_include/",
         "Animations/vendor/glm/",
         "Animations/vendor/stb/",
         "Animations/vendor/vlc/include",
@@ -161,6 +160,16 @@ project "DearImGui"
         "./Animations/vendor/dearimgui",
         "./Animations/vendor/imguizmo"
     }
+
+    filter { "configurations:Debug" }
+        buildoptions "/MTd"
+        runtime "Debug"
+        symbols "on"
+
+    filter { "configurations:Release" }
+        buildoptions "/MT"
+        runtime "Release"
+        optimize "on"
 
 project "Bootstrap"
     kind "ConsoleApp"

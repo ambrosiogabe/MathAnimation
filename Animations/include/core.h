@@ -10,8 +10,7 @@
 #include <glm/gtx/norm.hpp>
 
 // My stuff
-#include <memory/memory.h>
-#include <logger/logger.h>
+#include <cppUtils/cppUtils.hpp>
 
 // Standard
 #include <filesystem>

@@ -13,7 +13,7 @@ namespace MathAnim
 
 		void init()
 		{
-
+			Timeline::init();
 		}
 
 		void update(uint32 sceneTextureId)
@@ -60,7 +60,7 @@ namespace MathAnim
 
 		void free()
 		{
-
+			Timeline::free();
 		}
 
 		// ------------- Internal Functions -------------

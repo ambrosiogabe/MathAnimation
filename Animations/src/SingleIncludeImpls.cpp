@@ -1,7 +1,5 @@
-#define GABE_LOGGER_IMPL
-#include <logger/logger.h>
-#define GABE_MEMORY_IMPL
-#include <memory/memory.h>
+#define GABE_CPP_UTILS_IMPL
+#include <cppUtils/cppUtils.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
