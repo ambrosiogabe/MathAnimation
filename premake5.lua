@@ -38,7 +38,12 @@ project "Animations"
 		"Animations/vendor/glad/src/glad.c",
         "Animations/vendor/glm/glm/**.hpp",
 		"Animations/vendor/glm/glm/**.inl",
-        "Animations/vendor/stb/stb_image.h"
+        "Animations/vendor/stb/stb_image.h",
+        -- Compile ImGui backends into the main code
+        "./Animations/vendor/dearimgui/backends/imgui_impl_opengl3.cpp",
+        "./Animations/vendor/dearimgui/backends/imgui_impl_opengl3.h",
+        "./Animations/vendor/dearimgui/backends/imgui_impl_glfw.cpp",
+        "./Animations/vendor/dearimgui/backends/imgui_impl_glfw.h"
     }
 
     includedirs {
@@ -52,7 +57,8 @@ project "Animations"
         "Animations/vendor/vlc/include",
         "Animations/vendor/ffmpeg/include",
         "Animations/vendor/freetype/include",
-        "Animations/vendor/nanovg/src"
+        "Animations/vendor/nanovg/src",
+        "Animations/vendor/dearimgui"
     }
 
     filter "system:windows"
@@ -91,7 +97,8 @@ project "Animations"
             "swresample.lib",
             "swscale.lib",
             "freetype.lib",
-            "nanovg"
+            "nanovg",
+            "DearImGui"
         }
 
     filter { "configurations:Debug" }
@@ -131,6 +138,24 @@ project "nanovg"
         defines { "NDEBUG", "NVG_NO_STB" }
         symbols "Off"
         warnings "Extra"
+
+project "DearImGui"
+    kind "StaticLib"
+    language "C++"
+    cppdialect "C++17"
+    staticruntime "on"
+
+    targetdir("_bin/" .. outputdir .. "/%{prj.name}")
+    objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
+
+    files {
+        "./Animations/vendor/dearimgui/*.hpp",
+        "./Animations/vendor/dearimgui/*.cpp",
+    }
+
+    includedirs {
+        "./Animations/vendor/dearimgui",
+    }
 
 project "Bootstrap"
     kind "ConsoleApp"

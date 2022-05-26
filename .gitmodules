@@ -10,3 +10,6 @@
 [submodule "Animations/vendor/nanovg"]
 	path = Animations/vendor/nanovg
 	url = https://github.com/memononen/nanovg
+[submodule "Animations/vendor/dearimgui"]
+	path = Animations/vendor/dearimgui
+	url = https://github.com/ocornut/imgui
