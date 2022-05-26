@@ -1,5 +1,6 @@
 #ifndef MATH_ANIM_WINDOW_H
 #define MATH_ANIM_WINDOW_H
+#include "core.h"
 
 namespace MathAnim
 {
@@ -34,6 +35,8 @@ namespace MathAnim
 		void setVSync(bool on);
 
 		void setTitle(const std::string& newTitle);
+
+		float getContentScale() const;
 
 		static void cleanup();
 	};

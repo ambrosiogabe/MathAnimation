@@ -87,6 +87,14 @@ namespace MathAnim
 		glfwSetWindowTitle((GLFWwindow*)windowPtr, newTitle.c_str());
 	}
 
+	float Window::getContentScale() const
+	{
+		float xScale, yScale;
+		glfwGetWindowContentScale((GLFWwindow*)windowPtr, &xScale, &yScale);
+		
+		return xScale;
+	}
+
 	void Window::update(float dt)
 	{
 

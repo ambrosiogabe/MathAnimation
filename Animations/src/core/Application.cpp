@@ -1,6 +1,8 @@
+#include "core/Application.h"
 #include "core.h"
 #include "core/Window.h"
 #include "core/Input.h"
+#include "core/ImGuiLayer.h"
 #include "renderer/Renderer.h"
 #include "renderer/OrthoCamera.h"
 #include "renderer/Shader.h"
@@ -13,22 +15,18 @@
 #include "animation/Settings.h"
 #include "animation/Sandbox.h"
 #include "animation/Styles.h"
+#include "editor/EditorGui.h"
 
 #include "nanovg.h"
 #define NANOVG_GL3_IMPLEMENTATION
 #include "nanovg_gl.h"
 
+#include "imgui.h"
+
 namespace MathAnim
 {
 	namespace Application
 	{
-		enum class AnimState : uint8
-		{
-			PlayForward,
-			PlayReverse,
-			Pause,
-		};
-
 		static AnimState animState = AnimState::Pause;
 		static bool outputVideoFile = false;
 
@@ -39,23 +37,27 @@ namespace MathAnim
 		static NVGcontext* vg = NULL;
 		Font* baskVillFont;
 
+		static Window* window = nullptr;
+		static Framebuffer mainFramebuffer;
+		static Texture mainTexture;
+		static OrthoCamera camera;
+
 		static const char* winTitle = "Math Animations";
 
-		void run()
+		void init()
 		{
 			// Initiaize GLFW/Glad
-			bool isRunning = true;
+			window = new Window(1920, 1080, winTitle);
+			window->setVSync(true);
 
-			Window window = Window(1920, 1080, winTitle);
-			window.setVSync(true);
-
-			OrthoCamera camera;
 			camera.position = Vec2{ 0, 0 };
 			camera.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
 
 			Fonts::init();
 			Renderer::init(camera);
 			Sandbox::init();
+			ImGuiLayer::init(*window);
+			EditorGui::init();
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
@@ -71,13 +73,13 @@ namespace MathAnim
 				return;
 			}
 
-			Texture mainTexture = TextureBuilder()
+			mainTexture = TextureBuilder()
 				.setFormat(ByteFormat::RGBA8_UI)
 				.setWidth(outputWidth)
 				.setHeight(outputHeight)
 				.build();
 
-			Framebuffer mainFramebuffer = FramebufferBuilder(outputWidth, outputHeight)
+			mainFramebuffer = FramebufferBuilder(outputWidth, outputHeight)
 				.addColorAttachment(mainTexture)
 				.includeDepthStencil()
 				.generate();
@@ -106,18 +108,23 @@ namespace MathAnim
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		}
 
+		void run()
+		{
 			// Run game loop
 			// Start with a 60 fps frame rate
+			bool isRunning = true;
 			float previousTime = glfwGetTime() - 0.16f;
 			constexpr float fixedDeltaTime = 1.0f / 60.0f;
 			static float timeAccumulation = 0.0f;
-			while (isRunning && !window.shouldClose())
+			while (isRunning && !window->shouldClose())
 			{
 				float deltaTime = glfwGetTime() - previousTime;
 				previousTime = glfwGetTime();
 
-				window.setTitle(winTitle + std::string(" -- ") + std::to_string(deltaTime));
+				window->pollInput();
+				window->setTitle(winTitle + std::string(" -- ") + std::to_string(deltaTime));
 
 				// Bind main framebuffer
 				mainFramebuffer.bind();
@@ -164,8 +171,16 @@ namespace MathAnim
 
 				// Render to screen
 				mainFramebuffer.unbind();
-				glViewport(0, 0, window.width, window.height);
+				glViewport(0, 0, window->width, window->height);
 				Renderer::renderFramebuffer(mainFramebuffer);
+
+				ImGuiLayer::beginFrame();
+
+				// Do ImGui stuff
+				ImGui::ShowDemoWindow();
+				EditorGui::update(mainFramebuffer.getColorAttachment(0).graphicsId);
+
+				ImGuiLayer::endFrame();
 
 				if (outputVideoFile)
 				{
@@ -173,8 +188,6 @@ namespace MathAnim
 					VideoWriter::pushFrame(pixels, outputHeight * outputWidth);
 					mainFramebuffer.freePixels(pixels);
 				}
-
-				window.swapBuffers();
 
 				if (Input::isKeyPressed(GLFW_KEY_ESCAPE))
 				{
@@ -210,12 +223,27 @@ namespace MathAnim
 					VideoWriter::finishEncodingFile();
 				}
 
-				window.pollInput();
+				window->swapBuffers();
 			}
+		}
 
+		void free()
+		{
 			Fonts::unloadFont(baskVillFont);
 			nvgDeleteGL3(vg);
+
+			ImGuiLayer::free();
 			Window::cleanup();
+		}
+
+		void setEditorPlayState(AnimState state)
+		{
+			animState = state;
+		}
+
+		float getOutputTargetAspectRatio()
+		{
+			return (float)outputWidth / (float)outputHeight;
 		}
 	}
 }
