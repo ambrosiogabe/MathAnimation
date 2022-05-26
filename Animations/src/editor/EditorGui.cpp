@@ -1,4 +1,5 @@
 #include "editor/EditorGui.h"
+#include "editor/Timeline.h"
 #include "core/Application.h"
 
 #include "imgui.h"
@@ -50,9 +51,7 @@ namespace MathAnim
 
 			ImGui::End();
 
-			ImGui::Begin("Timeline");
-
-			ImGui::End();
+			Timeline::update();
 
 			ImGui::Begin("Animation Objects");
 
