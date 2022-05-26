@@ -7,6 +7,150 @@
 
 namespace MathAnim
 {
+	namespace AnimationManagerEx
+	{
+		// List of animations, sorted by start time
+		static std::vector<AnimationEx> mAnimations;
+
+		// List of animatable objects, sorted by start time
+		static std::vector<AnimObject> mObjects;
+
+		void addAnimObject(AnimObject object)
+		{
+			bool insertedObject = false;
+			for (auto iter = mObjects.begin(); iter != mObjects.end(); iter++)
+			{
+				// Insert it here. The list will always be sorted
+				if (object.startTime > iter->startTime)
+				{
+					mObjects.insert(iter, object);
+					insertedObject = true;
+					break;
+				}
+			}
+
+			if (!insertedObject)
+			{
+				// If we didn't insert the object
+				// that means it must start after all the
+				// current animObject start times.
+				mObjects.push_back(object);
+			}
+		}
+
+		void addAnimation(AnimationEx animation)
+		{
+			animation.objectIndex = -1;
+			for (auto iter = mObjects.begin(); iter != mObjects.end(); iter++)
+			{
+				if (iter->id == animation.objectId)
+				{
+					animation.objectIndex = iter - mObjects.begin();
+				}
+			}
+			if (animation.objectIndex == -1)
+			{
+				g_logger_error("Could not find animation object with id: %d. Not adding this animation.", animation.objectId);
+				return;
+			}
+
+			bool insertedObject = false;
+			for (auto iter = mAnimations.begin(); iter != mAnimations.end(); iter++)
+			{
+				// Insert it here. The list will always be sorted
+				if (animation.startTime > iter->startTime)
+				{
+					mAnimations.insert(iter, animation);
+					insertedObject = true;
+					break;
+				}
+			}
+
+			if (!insertedObject)
+			{
+				// If we didn't insert the animation
+				// that means it must start after all the
+				// current animation start times.
+				mAnimations.push_back(animation);
+			}
+		}
+
+		void render(NVGcontext* vg, float time)
+		{
+			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
+			{
+				float objectDeathTime = objectIter->startTime + objectIter->duration;
+				if (objectIter->startTime <= time && time <= objectDeathTime)
+				{
+					objectIter->render(vg);
+				}
+			}
+
+			for (auto animIter = mAnimations.begin(); animIter != mAnimations.end(); animIter++)
+			{
+				float animDeathTime = animIter->startTime + animIter->duration;
+				if (animIter->startTime <= time && time <= animDeathTime)
+				{
+					float interpolatedT = (time - animIter->startTime) / animIter->duration;
+					animIter->render(vg, interpolatedT);
+					// animIter->animationIsAlive = true;
+				}
+				//else if (time > animDeathTime && animIter->animationIsAlive)
+				//{
+				//	animIter->endAnimation();
+				//	animIter->animationIsAlive = false;
+				//}
+			}
+		}
+
+		const AnimObject* getObject(int index)
+		{
+			if (index >= 0 && index < mObjects.size())
+			{
+				return &mObjects[index];
+			}
+
+			return nullptr;
+		}
+	}
+
+	void AnimationEx::render(NVGcontext* vg, float t) const
+	{
+		switch (type)
+		{
+		case AnimTypeEx::WriteInText:
+			getParent()->as.textObject.renderWriteInAnimation(vg, t, getParent());
+			break;
+		default:
+			// TODO: Add magic_enum
+			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
+			g_logger_info("Unknown animation: %d", type);
+			break;
+		}
+	}
+
+	const AnimObject* AnimationEx::getParent() const
+	{
+		const AnimObject* res = AnimationManagerEx::getObject(objectIndex);
+		g_logger_assert(res != nullptr, "Invalid anim object.");
+		return res;
+	}
+
+	void AnimObject::render(NVGcontext* vg) const
+	{
+		switch (objectType)
+		{
+		case AnimObjectType::TextObject:
+			this->as.textObject.render(vg, this);
+			break;
+		default:
+			// TODO: Add magic_enum
+			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(objectType).data());
+			g_logger_info("Unknown animation: %d", objectType);
+			break;
+		}
+	}
+
 	namespace AnimationManager
 	{
 		static std::vector<Animation> mAnimations;

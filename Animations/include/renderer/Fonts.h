@@ -2,6 +2,8 @@
 #define MATH_ANIM_FONTS_H
 #include "core.h"
 
+struct NVGcontext;
+
 namespace MathAnim
 {
 	struct CharRange
@@ -32,6 +34,7 @@ namespace MathAnim
 		float totalCurveLengthApprox;
 		float advanceX;
 		float bearingX;
+		float bearingY;
 		float descentY;
 
 		void free();
@@ -42,10 +45,14 @@ namespace MathAnim
 		FT_Face fontFace;
 		std::unordered_map<uint32, GlyphOutline> glyphMap;
 		std::string filepath;
+		std::string vgFontFace;
 		float unitsPerEM;
+		float lineHeight;
 
 		const GlyphOutline& getGlyphInfo(uint32 glyphIndex) const;
 		float getKerning(uint32 leftCodepoint, uint32 rightCodepoint) const;
+		glm::vec2 getSizeOfString(const std::string& string) const;
+		glm::vec2 getSizeOfString(const std::string& string, int fontSizePixels) const;
 	};
 
 	namespace Fonts
@@ -55,7 +62,7 @@ namespace MathAnim
 		// Returns a non-zero value if creating the outline fails
 		int createOutline(Font* font, uint32 character, GlyphOutline* outlineResult);
 
-		Font* loadFont(const char* filepath, CharRange defaultCharset = CharRange::Ascii);
+		Font* loadFont(const char* filepath, NVGcontext* vg, CharRange defaultCharset = CharRange::Ascii);
 		void unloadFont(Font* font);
 		void unloadFont(const char* filepath);
 

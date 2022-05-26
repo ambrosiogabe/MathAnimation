@@ -1,5 +1,7 @@
 #include "renderer/Fonts.h"
 
+#include "nanovg.h"
+
 #include <string>
 #include <iostream>
 #include <freetype/ftglyph.h>
@@ -31,6 +33,29 @@ namespace MathAnim
 		FT_UInt rightGlyph = FT_Get_Char_Index(fontFace, rightCodepoint);
 		int error = FT_Get_Kerning(fontFace, leftGlyph, rightGlyph, FT_Kerning_Mode::FT_KERNING_DEFAULT, &kerning);
 		return (float)kerning.x / unitsPerEM;
+	}
+
+	glm::vec2 Font::getSizeOfString(const std::string& string) const
+	{
+		glm::vec2 cursor = glm::vec2();
+		for (int i = 0; i < string.length(); i++)
+		{
+			const GlyphOutline& outline = getGlyphInfo((uint32)string[i]);
+			cursor.x += outline.advanceX;
+			
+			if (string[i] == '\n')
+			{
+				cursor.y += lineHeight;
+			}
+		}
+
+		cursor.y += lineHeight;
+		return cursor;
+	}
+
+	glm::vec2 Font::getSizeOfString(const std::string& string, int fontSizePixels) const
+	{
+		return getSizeOfString(string) * (float)fontSizePixels;
 	}
 
 	void GlyphOutline::free()
@@ -119,7 +144,7 @@ namespace MathAnim
 			initialized = true;
 		}
 
-		Font* loadFont(const char* filepath, CharRange defaultCharset)
+		Font* loadFont(const char* filepath, NVGcontext* vg, CharRange defaultCharset)
 		{
 			g_logger_assert(initialized, "Font library must be initialized to load a font.");
 
@@ -141,11 +166,20 @@ namespace MathAnim
 			Font font;
 			font.fontFace = face;
 			font.unitsPerEM = (float)face->units_per_EM;
+			font.lineHeight = (float)face->height / font.unitsPerEM;
 
 			// TODO: Turn the preset characters into a parameter
 			generateDefaultCharset(font, defaultCharset);
 
 			std::string filepathStr = std::string(filepath);
+			font.vgFontFace = filepathStr;
+			int vgFontError = nvgCreateFont(vg, font.vgFontFace.c_str(), font.vgFontFace.c_str());
+			if (vgFontError)
+			{
+				g_logger_error("Failed to create vgFont for font '%s'.", filepathStr.c_str());
+				font.vgFontFace = "";
+			}
+
 			loadedFonts[filepathStr] = font;
 
 			return &loadedFonts[filepathStr];
@@ -254,6 +288,7 @@ namespace MathAnim
 
 			res.advanceX = (float)glyphSlot->advance.x / upem;
 			res.bearingX = (float)glyphSlot->metrics.horiBearingX / upem;
+			res.bearingY = (float)glyphSlot->metrics.horiBearingY / upem;
 			res.descentY = descentY / upem;
 
 			// Iterate once to count the number of total vertices

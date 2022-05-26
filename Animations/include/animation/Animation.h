@@ -2,6 +2,8 @@
 #define MATH_ANIM_ANIMATION_H
 #include "core.h"
 
+#include "animation/TextAnimations.h"
+
 namespace MathAnim
 {
 	struct Style;
@@ -135,6 +137,67 @@ namespace MathAnim
 			BitmapAnimation bitmap;
 		} as;
 	};
+
+	enum class AnimObjectType
+	{
+		TextObject,
+		LaTexObject,
+	};
+
+	struct AnimObject
+	{
+		AnimObjectType objectType;
+		Vec2 position;
+		int id;
+		float startTime;
+		float duration;
+
+		union
+		{
+			TextObject textObject;
+			LaTexObject laTexObject;
+		} as;
+
+		void render(NVGcontext* vg) const;
+	};
+
+	enum class AnimTypeEx
+	{
+		WriteInText,
+	};
+
+	struct AnimationEx
+	{
+		AnimTypeEx type;
+		int objectId;
+		int objectIndex;
+		float startTime;
+		float duration;
+		// TODO: Add me back if endAnimation() is needed.
+		// bool animationIsAlive;
+
+		// Render the animation state using a interpolation t value
+		// 
+		//   t: is a float that ranges from [0, 1] where 0 is the
+		//      beginning of the animation and 1 is the end of the
+		//      animation
+		void render(NVGcontext* vg, float t) const;
+
+		// TODO: Is this actually needed :think_face:
+		// Called once an animation completes. This should do stuff like
+		// convert the animation into a text object or anything like that
+		// void endAnimation();
+		const AnimObject* getParent() const;
+	};
+
+	namespace AnimationManagerEx
+	{
+		void addAnimObject(AnimObject object);
+		void addAnimation(AnimationEx animation);
+		void render(NVGcontext* vg, float time);
+
+		const AnimObject* getObject(int index);
+	}
 
 	namespace AnimationManager
 	{
