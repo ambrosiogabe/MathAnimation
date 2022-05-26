@@ -13,3 +13,6 @@
 [submodule "Animations/vendor/dearimgui"]
 	path = Animations/vendor/dearimgui
 	url = https://github.com/ocornut/imgui
+[submodule "Animations/vendor/imguizmo"]
+	path = Animations/vendor/imguizmo
+	url = https://github.com/CedricGuillemet/ImGuizmo

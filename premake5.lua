@@ -58,7 +58,8 @@ project "Animations"
         "Animations/vendor/ffmpeg/include",
         "Animations/vendor/freetype/include",
         "Animations/vendor/nanovg/src",
-        "Animations/vendor/dearimgui"
+        "Animations/vendor/dearimgui",
+        "./Animations/vendor/imguizmo"
     }
 
     filter "system:windows"
@@ -151,10 +152,14 @@ project "DearImGui"
     files {
         "./Animations/vendor/dearimgui/*.hpp",
         "./Animations/vendor/dearimgui/*.cpp",
+        -- Package ImGuizmo into here as well
+        "./Animations/vendor/imguizmo/*.cpp",
+        "./Animations/vendor/imguizmo/*.hpp"
     }
 
     includedirs {
         "./Animations/vendor/dearimgui",
+        "./Animations/vendor/imguizmo"
     }
 
 project "Bootstrap"
