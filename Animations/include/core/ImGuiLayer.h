@@ -1,6 +1,8 @@
 #ifndef MATH_ANIM_IMGUI_LAYER_H
 #define MATH_ANIM_IMGUI_LAYER_H
 
+struct ImFont;
+
 namespace MathAnim
 {
 	struct Window;
@@ -16,6 +18,9 @@ namespace MathAnim
 		void mouseEvent();
 
 		void free();
+
+		ImFont* getDefaultFont();
+		ImFont* getLargeFont();
 	}
 }
 

@@ -241,6 +241,11 @@ namespace MathAnim
 			animState = state;
 		}
 
+		AnimState getEditorPlayState()
+		{
+			return animState;
+		}
+
 		float getOutputTargetAspectRatio()
 		{
 			return (float)outputWidth / (float)outputHeight;
@@ -253,7 +258,7 @@ namespace MathAnim
 
 		int getFrameIndex()
 		{
-			return (int)(timeAccumulation * 60.0f);
+			return (int)glm::round(timeAccumulation * 60.0f);
 		}
 	}
 }

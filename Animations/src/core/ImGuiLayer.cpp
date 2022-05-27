@@ -12,6 +12,9 @@ namespace MathAnim
 {
 	namespace ImGuiLayer
 	{
+		static ImFont* smallFont;
+		static ImFont* bigFont;
+
 		void init(const Window& window)
 		{
 			// Set up dear imgui
@@ -24,7 +27,8 @@ namespace MathAnim
 			io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 			//io.ConfigViewportsNoAutoMerge = true;
 			//io.ConfigViewportsNoTaskBarIcon = true;
-			io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/DejaVuSans.ttf", 24.0f);
+			smallFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/DejaVuSans.ttf", 24.0f);
+			bigFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/DejaVuSans.ttf", 36.0f);
 
 			ImGui::StyleColorsDark();
 
@@ -90,6 +94,16 @@ namespace MathAnim
 			ImGui_ImplOpenGL3_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
 			ImGui::DestroyContext();
+		}
+
+		ImFont* getDefaultFont()
+		{
+			return smallFont;
+		}
+
+		ImFont* getLargeFont()
+		{
+			return bigFont;
 		}
 	}
 }

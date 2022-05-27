@@ -22,6 +22,7 @@ namespace MathAnim
 		float getOutputTargetAspectRatio();
 
 		void setEditorPlayState(AnimState state);
+		AnimState getEditorPlayState();
 
 		void setFrameIndex(int frame);
 		int getFrameIndex();

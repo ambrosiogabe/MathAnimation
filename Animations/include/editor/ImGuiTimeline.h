@@ -4,25 +4,43 @@
 
 namespace MathAnim
 {
-	enum class ImGuiTimelineFlags : uint8
+	typedef int ImGuiTimelineFlags;
+	enum _ImGuiTimelineFlags
 	{
-		None,
+		ImGuiTimelineFlags_None                   = 0x0,
+		ImGuiTimelineFlags_FollowTimelineCursor   = 0x1
 	};
 
-	struct Segment
+	typedef int ImGuiTimelineResultFlags;
+	enum _ImGuiTimelineResultFlags
+	{
+		ImGuiTimelineResultFlags_None                = 0x0,
+		ImGuiTimelineResultFlags_FirstFrameChanged   = 0x1,
+		ImGuiTimelineResultFlags_CurrentFrameChanged = 0x2,
+		ImGuiTimelineResultFlags_AddTrackClicked     = 0x4,
+		ImGuiTimelineResultFlags_DeleteTrackClicked  = 0x8,
+	};
+
+	struct ImGuiTimelineResult
+	{
+		int trackIndex;
+		ImGuiTimelineResultFlags flags;
+	};
+
+	struct ImGuiTimeline_Segment
 	{
 		int frameStart;
 		int frameDuration;
 	};
 
-	struct Track
+	struct ImGuiTimeline_Track
 	{
 		int numSegments;
-		Segment* segments;
+		ImGuiTimeline_Segment* segments;
 		char* trackName;
 	};
 
-	bool ImGuiTimeline(Track* tracks, int numTracks, int* currentFrame, int* firstFrame, int numFrames, float* zoom = nullptr, ImGuiTimelineFlags flags = ImGuiTimelineFlags::None);
+	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* zoom = nullptr, float* scrollOffsetX = nullptr, ImGuiTimelineFlags flags = ImGuiTimelineFlags_None);
 }
 
 #endif 
