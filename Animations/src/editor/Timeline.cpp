@@ -1,6 +1,9 @@
 #include "core.h"
+
 #include "editor/Timeline.h"
 #include "editor/MathAnimSequencer.h"
+#include "editor/ImGuiTimeline.h"
+#include "core/Application.h"
 
 #include "imgui.h"
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -43,7 +46,7 @@ namespace MathAnim
 			static int selectedEntry = -1;
 			static int firstFrame = 0;
 			static bool expanded = true;
-			static int currentFrame = 100;
+			int currentFrame = Application::getFrameIndex();
 
 			ImGui::PushItemWidth(130);
 			ImGui::InputInt("Frame Min", &sequencer.frameMin);
@@ -52,7 +55,12 @@ namespace MathAnim
 			ImGui::SameLine();
 			ImGui::InputInt("Frame Max", &sequencer.frameMax);
 			ImGui::PopItemWidth();
-			ImSequencer::Sequencer(&sequencer, &currentFrame, &expanded, &selectedEntry, &firstFrame, ImSequencer::SEQUENCER_EDIT_STARTEND | ImSequencer::SEQUENCER_ADD | ImSequencer::SEQUENCER_DEL | ImSequencer::SEQUENCER_COPYPASTE | ImSequencer::SEQUENCER_CHANGE_FRAME);
+			//ImSequencer::Sequencer(&sequencer, &currentFrame, &expanded, &selectedEntry, &firstFrame, ImSequencer::SEQUENCER_EDIT_STARTEND | ImSequencer::SEQUENCER_ADD | ImSequencer::SEQUENCER_DEL | ImSequencer::SEQUENCER_COPYPASTE | ImSequencer::SEQUENCER_CHANGE_FRAME);
+			if (ImGuiTimeline(nullptr, 0, &currentFrame, &firstFrame, 12 * 60))
+			{
+				Application::setFrameIndex(currentFrame);
+			}
+
 			if (selectedEntry != -1)
 			{
 				const MathAnimSequencer::MySequenceItem& item = sequencer.myItems[selectedEntry];

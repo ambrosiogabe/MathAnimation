@@ -41,6 +41,7 @@ namespace MathAnim
 		static Framebuffer mainFramebuffer;
 		static Texture mainTexture;
 		static OrthoCamera camera;
+		static float timeAccumulation = 0.0f;
 
 		static const char* winTitle = "Math Animations";
 
@@ -117,7 +118,6 @@ namespace MathAnim
 			bool isRunning = true;
 			float previousTime = glfwGetTime() - 0.16f;
 			constexpr float fixedDeltaTime = 1.0f / 60.0f;
-			static float timeAccumulation = 0.0f;
 			while (isRunning && !window->shouldClose())
 			{
 				float deltaTime = glfwGetTime() - previousTime;
@@ -244,6 +244,16 @@ namespace MathAnim
 		float getOutputTargetAspectRatio()
 		{
 			return (float)outputWidth / (float)outputHeight;
+		}
+
+		void setFrameIndex(int frame)
+		{
+			timeAccumulation = (float)frame / 60.0f;
+		}
+
+		int getFrameIndex()
+		{
+			return (int)(timeAccumulation * 60.0f);
 		}
 	}
 }
