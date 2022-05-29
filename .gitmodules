@@ -16,3 +16,4 @@
 [submodule "Animations/vendor/ffmpeg"]
 	path = Animations/vendor/ffmpeg
 	url = https://git.ffmpeg.org/ffmpeg.git
+	ignore=dirty

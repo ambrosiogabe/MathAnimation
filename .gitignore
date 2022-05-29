@@ -13,3 +13,5 @@ _bin-int/**
 **.vcxproj
 **.filters
 **.user
+
+build/
