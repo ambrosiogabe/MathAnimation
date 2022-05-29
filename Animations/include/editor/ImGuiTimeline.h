@@ -19,11 +19,14 @@ namespace MathAnim
 		ImGuiTimelineResultFlags_CurrentFrameChanged = 0x2,
 		ImGuiTimelineResultFlags_AddTrackClicked     = 0x4,
 		ImGuiTimelineResultFlags_DeleteTrackClicked  = 0x8,
+		ImGuiTimelineResultFlags_SegmentTimeChanged  = 0x10,
+		ImGuiTimelineResultFlags_SegmentTrackChanged = 0x20,
 	};
 
 	struct ImGuiTimelineResult
 	{
 		int trackIndex;
+		int segmentIndex;
 		ImGuiTimelineResultFlags flags;
 	};
 
@@ -31,6 +34,7 @@ namespace MathAnim
 	{
 		int frameStart;
 		int frameDuration;
+		void* userData;
 	};
 
 	struct ImGuiTimeline_Track

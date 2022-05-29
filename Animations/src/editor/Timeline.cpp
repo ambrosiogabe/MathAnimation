@@ -3,6 +3,7 @@
 #include "editor/Timeline.h"
 #include "editor/ImGuiTimeline.h"
 #include "core/Application.h"
+#include "animation/Animation.h"
 
 #include "imgui.h"
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -31,12 +32,18 @@ namespace MathAnim
 			tracks = (ImGuiTimeline_Track*)g_memory_allocate(sizeof(ImGuiTimeline_Track));
 			numTracks = 0;
 
+			const std::vector<AnimObject> animObjects = AnimationManagerEx::getAnimObjects();
+
 			// Initialize some dummy data for now
 			addNewDefaultTrack();
-			tracks[0].segments = (ImGuiTimeline_Segment*)g_memory_allocate(sizeof(ImGuiTimeline_Segment));
-			tracks[0].numSegments = 1;
-			tracks[0].segments[0].frameStart = 15;
-			tracks[0].segments[0].frameDuration = 120;
+			tracks[0].numSegments = animObjects.size();
+			tracks[0].segments = (ImGuiTimeline_Segment*)g_memory_allocate(sizeof(ImGuiTimeline_Segment) * animObjects.size());
+			for (int i = 0; i < animObjects.size(); i++)
+			{
+				tracks[0].segments[i].frameStart = animObjects[i].frameStart;
+				tracks[0].segments[i].frameDuration = animObjects[i].duration;
+				tracks[0].segments[i].userData = (void*)animObjects[i].id;
+			}
 		}
 
 		void update()
@@ -72,6 +79,13 @@ namespace MathAnim
 			if (res.flags & ImGuiTimelineResultFlags_AddTrackClicked)
 			{
 				addNewDefaultTrack();
+			}
+
+			if (res.flags & ImGuiTimelineResultFlags_SegmentTimeChanged)
+			{
+				const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
+				int animationIndex = (int)segment.userData;
+				AnimationManagerEx::setAnimObjectTime(animationIndex, segment.frameStart, segment.frameDuration);
 			}
 
 			ImGui::End();

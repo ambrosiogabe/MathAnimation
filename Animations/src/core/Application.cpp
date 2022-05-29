@@ -41,7 +41,7 @@ namespace MathAnim
 		static Framebuffer mainFramebuffer;
 		static Texture mainTexture;
 		static OrthoCamera camera;
-		static float timeAccumulation = 0.0f;
+		static int currentFrame = 0;
 
 		static const char* winTitle = "Math Animations";
 
@@ -58,7 +58,6 @@ namespace MathAnim
 			Renderer::init(camera);
 			Sandbox::init();
 			ImGuiLayer::init(*window);
-			EditorGui::init();
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
@@ -88,8 +87,8 @@ namespace MathAnim
 			AnimObject textObject;
 			textObject.id = 0;
 			textObject.objectType = AnimObjectType::TextObject;
-			textObject.duration = 12.0f;
-			textObject.startTime = 3.0f;
+			textObject.duration = framerate * 12;
+			textObject.frameStart = framerate * 3;
 			textObject.as.textObject.font = baskVillFont;
 			textObject.as.textObject.fontSizePixels = 500.0f;
 			textObject.as.textObject.text = "Hello World!";
@@ -102,10 +101,12 @@ namespace MathAnim
 
 			AnimationEx animObject;
 			animObject.objectId = 0;
-			animObject.duration = 3.0f;
-			animObject.startTime = 0.0f;
+			animObject.duration = textObject.frameStart;
+			animObject.frameStart = 0;
 			animObject.type = AnimTypeEx::WriteInText;
 			AnimationManagerEx::addAnimation(animObject);
+
+			EditorGui::init();
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -154,15 +155,14 @@ namespace MathAnim
 					//AnimationManager::update(customDeltaTime);
 					//Sandbox::update(customDeltaTime);
 
-					timeAccumulation += fixedDeltaTime;
+					currentFrame++;
 				}
 				else if (animState == AnimState::PlayReverse)
 				{
-					timeAccumulation -= fixedDeltaTime;
-					timeAccumulation = glm::max(timeAccumulation, 0.0f);
+					currentFrame = glm::max(currentFrame - 1, 0);
 				}
 
-				AnimationManagerEx::render(vg, timeAccumulation);
+				AnimationManagerEx::render(vg, currentFrame);
 
 				nvgEndFrame(vg);
 
@@ -208,11 +208,11 @@ namespace MathAnim
 				else if (Input::isKeyPressed(GLFW_KEY_F4))
 				{
 					animState = AnimState::PlayForward;
-					timeAccumulation = 0.0f;
+					currentFrame = 0;
 				}
 				else if (Input::isKeyPressed(GLFW_KEY_F7) && !outputVideoFile)
 				{
-					timeAccumulation = 0.0f;
+					currentFrame = 0;
 					outputVideoFile = true;
 					AnimationManager::reset();
 					VideoWriter::startEncodingFile("output.mp4", outputWidth, outputHeight, framerate);
@@ -254,12 +254,17 @@ namespace MathAnim
 
 		void setFrameIndex(int frame)
 		{
-			timeAccumulation = (float)frame / 60.0f;
+			currentFrame = frame;
 		}
 
 		int getFrameIndex()
 		{
-			return (int)glm::round(timeAccumulation * 60.0f);
+			return currentFrame;
+		}
+
+		int getFrameratePerSecond()
+		{
+			return framerate;
 		}
 	}
 }

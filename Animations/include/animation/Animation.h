@@ -149,8 +149,8 @@ namespace MathAnim
 		AnimObjectType objectType;
 		Vec2 position;
 		int id;
-		float startTime;
-		float duration;
+		int frameStart;
+		int duration;
 
 		union
 		{
@@ -171,8 +171,8 @@ namespace MathAnim
 		AnimTypeEx type;
 		int objectId;
 		int objectIndex;
-		float startTime;
-		float duration;
+		int frameStart;
+		int duration;
 		// TODO: Add me back if endAnimation() is needed.
 		// bool animationIsAlive;
 
@@ -194,9 +194,15 @@ namespace MathAnim
 	{
 		void addAnimObject(AnimObject object);
 		void addAnimation(AnimationEx animation);
-		void render(NVGcontext* vg, float time);
+
+		bool removeAnimObject(int animObjectId);
+
+		bool setAnimObjectTime(int animObjectId, int frameStart, int duration);
+
+		void render(NVGcontext* vg, int frame);
 
 		const AnimObject* getObject(int index);
+		const std::vector<AnimObject>& getAnimObjects();
 	}
 
 	namespace AnimationManager

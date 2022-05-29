@@ -21,7 +21,7 @@ namespace MathAnim
 			for (auto iter = mObjects.begin(); iter != mObjects.end(); iter++)
 			{
 				// Insert it here. The list will always be sorted
-				if (object.startTime > iter->startTime)
+				if (object.frameStart > iter->frameStart)
 				{
 					mObjects.insert(iter, object);
 					insertedObject = true;
@@ -58,7 +58,7 @@ namespace MathAnim
 			for (auto iter = mAnimations.begin(); iter != mAnimations.end(); iter++)
 			{
 				// Insert it here. The list will always be sorted
-				if (animation.startTime > iter->startTime)
+				if (animation.frameStart > iter->frameStart)
 				{
 					mAnimations.insert(iter, animation);
 					insertedObject = true;
@@ -75,12 +75,54 @@ namespace MathAnim
 			}
 		}
 
-		void render(NVGcontext* vg, float time)
+		bool removeAnimObject(int animationId)
+		{
+			g_logger_assert(false, "TODO: Implement me.");
+
+			return false;
+		}
+
+		bool setAnimObjectTime(int animObjectId, int frameStart, int duration)
+		{
+			// Remove the animation then reinsert it. That way we make sure the list
+			// stays sorted
+			AnimObject animObjectCopy;
+			int objectIndex = -1;
+			for (int i = 0; i < mObjects.size(); i++)
+			{
+				const AnimObject& animObject = mObjects[i];
+				if (animObject.id == animObjectId)
+				{
+					if (animObject.frameStart == frameStart && animObject.duration == duration)
+					{
+						// If nothing changed, just return that the change was successful
+						return true;
+					}
+
+					animObjectCopy = animObject;
+					objectIndex = i;
+					break;
+				}
+			}
+
+			if (objectIndex != -1)
+			{
+				mObjects.erase(mObjects.begin() + objectIndex);
+				animObjectCopy.frameStart = frameStart;
+				animObjectCopy.duration = duration;
+				addAnimObject(animObjectCopy);
+				return true;
+			}
+
+			return false;
+		}
+
+		void render(NVGcontext* vg, int frame)
 		{
 			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
 			{
-				float objectDeathTime = objectIter->startTime + objectIter->duration;
-				if (objectIter->startTime <= time && time <= objectDeathTime)
+				int objectDeathTime = objectIter->frameStart + objectIter->duration;
+				if (objectIter->frameStart <= frame && frame <= objectDeathTime)
 				{
 					objectIter->render(vg);
 				}
@@ -88,10 +130,10 @@ namespace MathAnim
 
 			for (auto animIter = mAnimations.begin(); animIter != mAnimations.end(); animIter++)
 			{
-				float animDeathTime = animIter->startTime + animIter->duration;
-				if (animIter->startTime <= time && time <= animDeathTime)
+				int animDeathTime = animIter->frameStart + animIter->duration;
+				if (animIter->frameStart <= frame && frame <= animDeathTime)
 				{
-					float interpolatedT = (time - animIter->startTime) / animIter->duration;
+					float interpolatedT = ((float)frame - (float)animIter->frameStart) / (float)animIter->duration;
 					animIter->render(vg, interpolatedT);
 					// animIter->animationIsAlive = true;
 				}
@@ -111,6 +153,11 @@ namespace MathAnim
 			}
 
 			return nullptr;
+		}
+
+		const std::vector<AnimObject>& getAnimObjects()
+		{
+			return mObjects;
 		}
 	}
 

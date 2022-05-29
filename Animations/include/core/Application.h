@@ -26,6 +26,7 @@ namespace MathAnim
 
 		void setFrameIndex(int frame);
 		int getFrameIndex();
+		int getFrameratePerSecond();
 	}
 }
 

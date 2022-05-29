@@ -55,7 +55,7 @@ namespace MathAnim
 	// ----------- Internal Functions -----------
 	static bool handleLegendSplitter(const ImVec2& canvasPos, const ImVec2& canvasSize, const ImVec2& legendSize, float* legendWidth);
 	static bool handleResizeElement(float* currentValue, DragState* state, const ImVec2& valueBounds, const ImVec2& mouseBounds, const ImVec2& hoverRectStart, const ImVec2& hoverRectEnd, ResizeFlags flags);
-	static void handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
+	static bool handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
 	static void framesToTimeStr(char* strBuffer, size_t strBufferLength, int frame);
 	static float getScrollFromFrame(float amountOfTimeVisibleInTimeline, int firstFrame, const ImVec2& timelineRulerEnd, const ImVec2& timelineRulerBegin);
 	static bool handleDragState(const ImVec2& start, const ImVec2& end, DragState* state);
@@ -64,6 +64,8 @@ namespace MathAnim
 	{
 		ImGuiTimelineResult res;
 		res.flags = ImGuiTimelineResultFlags_None;
+		res.segmentIndex = -1;
+		res.trackIndex = -1;
 
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
 		ImVec2 canvasPos = ImGui::GetCursorScreenPos();            // ImDrawList API uses screen coordinates!
@@ -212,7 +214,10 @@ namespace MathAnim
 
 				float offsetX = (segment.frameStart - (float)*firstFrame) / amountOfTimeVisibleInTimeline * (canvasSize.x - legendSize.x);
 				float width = (segment.frameDuration / amountOfTimeVisibleInTimeline) * (canvasSize.x - legendSize.x);
-				if (offsetX >= 0.0f || offsetX + width > 0.0f)
+				// Check if segment intersects with the timeline
+				// We can check if:
+				//    segmentEnd >= timelineBegin && segmentBegin <= timelineEnd
+				if (segment.frameStart <= ((int)amountOfTimeVisibleInTimeline + *firstFrame) && segment.frameStart + segment.frameDuration >= *firstFrame)
 				{
 					// Clamp values as necessary
 					if (offsetX < 0.0f)
@@ -232,7 +237,13 @@ namespace MathAnim
 
 					std::string strId = "Segment_" + std::to_string(i) + "_" + std::to_string(si);
 					ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
-					handleSegment(segmentStart, segmentEnd, &segment, segmentID, timelineSize, amountOfTimeVisibleInTimeline);
+					if (handleSegment(segmentStart, segmentEnd, &segment, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
+					{
+						g_logger_assert(res.segmentIndex == -1, "Invalid result. User somehow modified two segments at once.");
+						res.flags |= ImGuiTimelineResultFlags_SegmentTimeChanged;
+						res.segmentIndex = si;
+						res.trackIndex = i;
+					}
 
 					// Draw the segment
 					drawList->AddRectFilled(segmentStart, segmentEnd, segmentColor, 10.0f);
@@ -509,7 +520,7 @@ namespace MathAnim
 		return currentValueChanged;
 	}
 
-	static void handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline)
+	static bool handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline)
 	{
 		static DragState dragState = DragState::None;
 		static DragState leftResizeState = DragState::None;
@@ -521,6 +532,7 @@ namespace MathAnim
 		static int ogFrameStart = 0;
 		static int ogFrameDuration = 0;
 
+		bool changed = false;
 		ImVec2 segmentStart_ = segmentStart + ImVec2(halfResizeDragWidth + 0.1f, 0.0f);
 		ImVec2 segmentEnd_ = segmentEnd - ImVec2(halfResizeDragWidth - 0.1f, 0.0f);
 		ImVec2 leftResizeStart = segmentStart - ImVec2(halfResizeDragWidth, 0.0f);
@@ -570,7 +582,7 @@ namespace MathAnim
 			if (dragState == DragState::None && leftResizeState == DragState::None && rightResizeState == DragState::None)
 			{
 				dragID = UINT32_MAX;
-				return;
+				return false;
 			}
 
 			// Get the mouse delta
@@ -589,6 +601,8 @@ namespace MathAnim
 				if (dragState == DragState::Active)
 				{
 					segment->frameStart = ogFrameStart + frameChange;
+					segment->frameStart = glm::max(segment->frameStart, 0);
+					changed = true;
 				}
 			}
 			// Handle left/right resize cursors
@@ -604,14 +618,36 @@ namespace MathAnim
 				{
 					segment->frameStart = ogFrameStart + frameChange;
 					segment->frameDuration = ogFrameDuration - frameChange;
+					if (segment->frameStart < 0)
+					{
+						segment->frameDuration += segment->frameStart;
+						segment->frameStart = 0;
+					}
+
+					if (segment->frameDuration <= 0)
+					{
+						segment->frameStart += segment->frameDuration;
+						segment->frameDuration = 1;
+					}
+
+					changed = true;
 				}
 
 				if (rightResizeState == DragState::Active)
 				{
 					segment->frameDuration = ogFrameDuration + frameChange;
+
+					if (segment->frameDuration <= 0)
+					{
+						segment->frameDuration = 1;
+					}
+
+					changed = true;
 				}
 			}
 		}
+
+		return changed;
 	}
 
 	static void framesToTimeStr(char* strBuffer, size_t strBufferLength, int frame)
