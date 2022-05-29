@@ -70,7 +70,7 @@ mv ./build/lib/libswscale.a ./build/lib/libswscale.lib
 popd
 ```
 
-7. Verify that you compiled everything correctly. There should be a file named `bin` in the current directory `./Animations/vendor/ffmpeg/bin`. Inside this file you should see 7 files labeled `libx.a` and they should match the name of the directories in `./Animations/vendor/ffmpeg`.
+7. Verify that you compiled everything correctly. There should be a file named `build` in the current directory `./Animations/vendor/ffmpeg/build`. Inside this file you should see several directories with and a `lib` folder with the ffmpeg binaries.
     * If this is correct, then you're done compiling ffmpeg.
 
 </details>
