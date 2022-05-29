@@ -21,27 +21,46 @@ namespace MathAnim
 		ImGuiTimelineResultFlags_DeleteTrackClicked  = 0x8,
 		ImGuiTimelineResultFlags_SegmentTimeChanged  = 0x10,
 		ImGuiTimelineResultFlags_SegmentTrackChanged = 0x20,
+		ImGuiTimelineResultFlags_SubSegmentTimeChanged  = 0x40,
+		ImGuiTimelineResultFlags_SubSegmentTrackChanged = 0x80,
 	};
 
 	struct ImGuiTimelineResult
 	{
 		int trackIndex;
 		int segmentIndex;
+		int subSegmentIndex;
 		ImGuiTimelineResultFlags flags;
+	};
+
+	struct ImGuiTimeline_SubSegment
+	{
+		int frameStart;
+		int frameDuration;
+		const char* segmentName;
+		void* userData;
 	};
 
 	struct ImGuiTimeline_Segment
 	{
 		int frameStart;
 		int frameDuration;
+		const char* segmentName;
 		void* userData;
+		bool isExpanded;
+
+		// TODO: Should I allow this to also be a track and recurse through all subtracks?
+		// If this is nullptr, then the expanded track is empty
+		ImGuiTimeline_SubSegment* subSegments;
+		int numSubSegments;
 	};
 
 	struct ImGuiTimeline_Track
 	{
 		int numSegments;
 		ImGuiTimeline_Segment* segments;
-		char* trackName;
+		const char* trackName;
+		bool isExpanded;
 	};
 
 	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* zoom = nullptr, float* scrollOffsetX = nullptr, ImGuiTimelineFlags flags = ImGuiTimelineFlags_None);

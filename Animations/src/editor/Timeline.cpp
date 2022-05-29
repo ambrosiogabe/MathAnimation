@@ -17,8 +17,17 @@ namespace MathAnim
 	namespace Timeline
 	{
 		// ------- Private variables --------
-		ImGuiTimeline_Track* tracks;
-		int numTracks;
+		static const char* animationObjectTypeNames[] = {
+			"Text Object",
+			"LaTex Object"
+		};
+
+		static const char* animationTypeNames[] = {
+			"Write In Text",
+		};
+
+		static ImGuiTimeline_Track* tracks;
+		static int numTracks;
 
 		// ------- Internal Functions --------
 		static ImGuiTimeline_Track createDefaultTrack();
@@ -33,6 +42,7 @@ namespace MathAnim
 			numTracks = 0;
 
 			const std::vector<AnimObject> animObjects = AnimationManagerEx::getAnimObjects();
+			const std::vector<AnimationEx> anims = AnimationManagerEx::getAnimations();
 
 			// Initialize some dummy data for now
 			addNewDefaultTrack();
@@ -43,11 +53,41 @@ namespace MathAnim
 				tracks[0].segments[i].frameStart = animObjects[i].frameStart;
 				tracks[0].segments[i].frameDuration = animObjects[i].duration;
 				tracks[0].segments[i].userData = (void*)animObjects[i].id;
+				tracks[0].segments[i].segmentName = animationObjectTypeNames[(int)animObjects[i].objectType];
+				tracks[0].segments[i].isExpanded = false;
+
+				int numAnimations = 0;
+				for (int j = 0; j < anims.size(); j++)
+				{
+					if (anims[j].objectId == animObjects[i].id)
+					{
+						numAnimations++;
+					}
+				}
+
+				tracks[0].segments[i].numSubSegments = numAnimations;
+				tracks[0].segments[i].subSegments = (ImGuiTimeline_SubSegment*)g_memory_allocate(sizeof(ImGuiTimeline_SubSegment) * numAnimations);
+				int animationIndexCounter = 0;
+				for (int j = 0; j < anims.size(); j++)
+				{
+					if (anims[j].objectId == animObjects[i].id)
+					{
+						ImGuiTimeline_SubSegment& subSegment = tracks[0].segments[i].subSegments[animationIndexCounter];
+						subSegment.frameStart = anims[j].frameStart;
+						subSegment.frameDuration = anims[j].duration;
+						subSegment.segmentName = animationTypeNames[(int)anims[j].type];
+						subSegment.userData = (void*)anims[j].id;
+						
+					}
+				}
 			}
 		}
 
 		void update()
 		{
+			// NOTE: For best results, it's usually a good idea to specify 0 padding for the window
+			// so that the timeline can expand to the full width/height of the window
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 			ImGui::Begin("Timeline");
 
 			static int selectedEntry = -1;
@@ -84,11 +124,19 @@ namespace MathAnim
 			if (res.flags & ImGuiTimelineResultFlags_SegmentTimeChanged)
 			{
 				const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-				int animationIndex = (int)segment.userData;
-				AnimationManagerEx::setAnimObjectTime(animationIndex, segment.frameStart, segment.frameDuration);
+				int animObjectIndex = (int)segment.userData;
+				AnimationManagerEx::setAnimObjectTime(animObjectIndex, segment.frameStart, segment.frameDuration);
+			}
+
+			if (res.flags & ImGuiTimelineResultFlags_SubSegmentTimeChanged)
+			{
+				const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
+				int animationIndex = (int)subSegment.userData;
+				AnimationManagerEx::setAnimationTime(animationIndex, subSegment.frameStart, subSegment.frameDuration);
 			}
 
 			ImGui::End();
+			ImGui::PopStyleVar();
 		}
 
 		void free()
@@ -115,22 +163,34 @@ namespace MathAnim
 			char* trackName = (char*)g_memory_allocate(sizeof(char) * defaultTrackNameLength);
 			g_memory_copyMem(trackName, (void*)defaultTrackName, sizeof(char) * defaultTrackNameLength);
 			defaultTrack.trackName = trackName;
+			defaultTrack.isExpanded = false;
 
 			return defaultTrack;
 		}
 
 		static void freeTrack(ImGuiTimeline_Track& track)
 		{
-			track.numSegments = 0;
+			track.isExpanded = false;
 			if (track.segments)
 			{
+				for (int i = 0; i < track.numSegments; i++)
+				{
+					if (track.segments[i].subSegments)
+					{
+						g_memory_free(track.segments[i].subSegments);
+						track.segments[i].subSegments = nullptr;
+						track.segments[i].numSubSegments = 0;
+					}
+				}
+
 				g_memory_free(track.segments);
 				track.segments = nullptr;
 			}
+			track.numSegments = 0;
 
 			if (track.trackName)
 			{
-				g_memory_free(track.trackName);
+				g_memory_free((void*)track.trackName);
 				track.trackName = nullptr;
 			}
 		}

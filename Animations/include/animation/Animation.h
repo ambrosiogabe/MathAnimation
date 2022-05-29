@@ -151,6 +151,7 @@ namespace MathAnim
 		int id;
 		int frameStart;
 		int duration;
+		bool isAnimating;
 
 		union
 		{
@@ -173,8 +174,7 @@ namespace MathAnim
 		int objectIndex;
 		int frameStart;
 		int duration;
-		// TODO: Add me back if endAnimation() is needed.
-		// bool animationIsAlive;
+		int id;
 
 		// Render the animation state using a interpolation t value
 		// 
@@ -183,10 +183,6 @@ namespace MathAnim
 		//      animation
 		void render(NVGcontext* vg, float t) const;
 
-		// TODO: Is this actually needed :think_face:
-		// Called once an animation completes. This should do stuff like
-		// convert the animation into a text object or anything like that
-		// void endAnimation();
 		const AnimObject* getParent() const;
 	};
 
@@ -198,11 +194,13 @@ namespace MathAnim
 		bool removeAnimObject(int animObjectId);
 
 		bool setAnimObjectTime(int animObjectId, int frameStart, int duration);
+		bool setAnimationTime(int animationId, int frameStart, int duration);
 
 		void render(NVGcontext* vg, int frame);
 
 		const AnimObject* getObject(int index);
 		const std::vector<AnimObject>& getAnimObjects();
+		const std::vector<AnimationEx>& getAnimations();
 	}
 
 	namespace AnimationManager

@@ -88,7 +88,7 @@ namespace MathAnim
 			textObject.id = 0;
 			textObject.objectType = AnimObjectType::TextObject;
 			textObject.duration = framerate * 12;
-			textObject.frameStart = framerate * 3;
+			textObject.frameStart = 0;
 			textObject.as.textObject.font = baskVillFont;
 			textObject.as.textObject.fontSizePixels = 500.0f;
 			textObject.as.textObject.text = "Hello World!";
@@ -101,9 +101,10 @@ namespace MathAnim
 
 			AnimationEx animObject;
 			animObject.objectId = 0;
-			animObject.duration = textObject.frameStart;
+			animObject.duration = framerate * 1;
 			animObject.frameStart = 0;
 			animObject.type = AnimTypeEx::WriteInText;
+			animObject.id = 5;
 			AnimationManagerEx::addAnimation(animObject);
 
 			EditorGui::init();

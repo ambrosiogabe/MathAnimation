@@ -117,31 +117,79 @@ namespace MathAnim
 			return false;
 		}
 
+		bool setAnimationTime(int animationId, int frameStart, int duration)
+		{			
+			// Remove the animation then reinsert it. That way we make sure the list
+			// stays sorted
+			AnimationEx animationCopy;
+			int animationIndex = -1;
+			for (int i = 0; i < mAnimations.size(); i++)
+			{
+				const AnimationEx& animation = mAnimations[i];
+				if (animation.id == animationId)
+				{
+					if (animation.frameStart == frameStart && animation.duration == duration)
+					{
+						// If nothing changed, just return that the change was successful
+						return true;
+					}
+
+					animationCopy = animation;
+					animationIndex = i;
+					break;
+				}
+			}
+
+			if (animationIndex != -1)
+			{
+				mAnimations.erase(mAnimations.begin() + animationIndex);
+				animationCopy.frameStart = frameStart;
+				animationCopy.duration = duration;
+				addAnimation(animationCopy);
+				return true;
+			}
+
+			return false;
+
+		}
+
 		void render(NVGcontext* vg, int frame)
 		{
 			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
 			{
-				int objectDeathTime = objectIter->frameStart + objectIter->duration;
-				if (objectIter->frameStart <= frame && frame <= objectDeathTime)
-				{
-					objectIter->render(vg);
-				}
+				objectIter->isAnimating = false;
 			}
 
 			for (auto animIter = mAnimations.begin(); animIter != mAnimations.end(); animIter++)
 			{
-				int animDeathTime = animIter->frameStart + animIter->duration;
-				if (animIter->frameStart <= frame && frame <= animDeathTime)
+				float parentFrameStart = animIter->getParent()->frameStart;
+				float absoluteFrameStart = animIter->frameStart + parentFrameStart;
+				int animDeathTime = absoluteFrameStart + animIter->duration;
+				if (absoluteFrameStart <= frame && frame <= animDeathTime)
 				{
-					float interpolatedT = ((float)frame - (float)animIter->frameStart) / (float)animIter->duration;
+					float interpolatedT = ((float)frame - absoluteFrameStart) / (float)animIter->duration;
 					animIter->render(vg, interpolatedT);
-					// animIter->animationIsAlive = true;
+
+					// TODO: This is nasty. I should probably use a hash map to store
+					// animations and anim objects
+					for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
+					{
+						if (objectIter->id == animIter->objectId)
+						{
+							objectIter->isAnimating = true;
+							break;
+						}
+					}
 				}
-				//else if (time > animDeathTime && animIter->animationIsAlive)
-				//{
-				//	animIter->endAnimation();
-				//	animIter->animationIsAlive = false;
-				//}
+			}
+
+			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
+			{
+				int objectDeathTime = objectIter->frameStart + objectIter->duration;
+				if (!objectIter->isAnimating && objectIter->frameStart <= frame && frame <= objectDeathTime)
+				{
+					objectIter->render(vg);
+				}
 			}
 		}
 
@@ -158,6 +206,11 @@ namespace MathAnim
 		const std::vector<AnimObject>& getAnimObjects()
 		{
 			return mObjects;
+		}
+
+		const std::vector<AnimationEx>& getAnimations()
+		{
+			return mAnimations;
 		}
 	}
 
