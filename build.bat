@@ -4,15 +4,6 @@ IF "%~1" == "" GOTO PrintHelp
 IF "%~1" == "help" GOTO PrintHelp
 IF "%~1" == "h" GOTO PrintHelp
 
-REM Run bootstrap if necessary
-REM TODO: Move these into the bootstrap program
-if not exist Animations\vendor\ffmpeg (
-    .\vendor\Bootstrap\Bootstrap.exe
-)
-if not exist Animations\vendor\freetype (
-    .\vendor\Bootstrap\Bootstrap.exe
-)
-
 REM Build the project files
 vendor\premake5.exe %1
 GOTO Done
@@ -32,6 +23,7 @@ echo   vs2013            Generate Visual Studio 2013 project files
 echo   vs2015            Generate Visual Studio 2015 project files
 echo   vs2017            Generate Visual Studio 2017 project files
 echo   vs2019            Generate Visual Studio 2019 project files
+echo   vs2022            Generate Visual Studio 2022 project files
 echo   xcode4            Generate Apple Xcode 4 project files
 GOTO Done
 

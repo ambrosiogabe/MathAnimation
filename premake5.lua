@@ -61,6 +61,27 @@ project "Animations"
         "./Animations/vendor/imguizmo"
     }
 
+    -- Add freetype libdirs for debug and release mode
+    filter { "configurations:Debug", "system:windows" }
+        libdirs {
+            "./Animations/vendor/freetype/build/Debug"
+        }
+
+        links {
+            -- Freetype
+            "freetyped"
+        }
+
+    filter { "configurations:Release", "system:windows" }
+        libdirs {
+            "./Animations/vendor/freetype/build/Release"
+        }
+        
+        links {
+            -- Freetype
+            "freetype"
+        }
+
     filter "system:windows"
         buildoptions { "-lgdi32" }
         systemversion "latest"
@@ -83,8 +104,7 @@ project "Animations"
         }
 
         libdirs {
-            "./Animations/vendor/ffmpeg/build/lib",
-            "\"./Animations/vendor/freetype/release dll/win64\""
+            "./Animations/vendor/ffmpeg/build/lib"
         }
 
         links {
@@ -96,8 +116,7 @@ project "Animations"
             "libavutil",
             "libswresample",
             "libswscale",
-            -- Working on this
-            "freetype.lib",
+            -- Other premake projects
             "nanovg",
             "DearImGui",
             -- Windows static libs required for ffmepg
@@ -137,11 +156,13 @@ project "nanovg"
     defines { "_CRT_SECURE_NO_WARNINGS" } --,"FONS_USE_FREETYPE" } Uncomment to compile with FreeType support
 
     filter "configurations:Debug"
+        buildoptions "/MTd"
         defines { "DEBUG", "NVG_NO_STB" }
         symbols "On"
         warnings "Extra"
 
     filter "configurations:Release"
+        buildoptions "/MT"
         defines { "NDEBUG", "NVG_NO_STB" }
         symbols "Off"
         warnings "Extra"
@@ -177,64 +198,4 @@ project "DearImGui"
         buildoptions "/MT"
         runtime "Release"
         optimize "on"
-
-project "Bootstrap"
-    kind "ConsoleApp"
-    language "C++"
-    cppdialect "C++17"
-    staticruntime "off"
-
-    targetdir("_bin/" .. outputdir .. "/%{prj.name}")
-    objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
-
-    files {
-        "Bootstrap/src/**.cpp",
-        "Bootstrap/include/**.h",
-        "Bootstrap/vendor/bit7z/include/**.hpp"
-    }
-
-    includedirs {
-        "Bootstrap/include",
-        "Bootstrap/vendor/curl/include",
-        "Animations/vendor/logger/single_include/",
-        "Animations/vendor/memory/single_include/",
-        "Bootstrap/vendor/bit7z/include/"
-    }
-
-    filter "system:windows"
-        buildoptions { "-lgdi32" }
-        systemversion "latest"
-
-        libdirs {
-            "./Bootstrap/vendor/curl/lib",
-            "./Bootstrap/vendor/bit7z/lib"
-        }
-
-        links {
-            "libcurl.dll.lib",
-            "oleaut32",
-            "user32"
-        }
-
-        filter { "configurations:Debug" }
-            links {
-                "bit7z64_d"
-            }
-        filter { "configurations:Release" }
-            links {
-                "bit7z64"
-            }
-
-        defines  {
-            "_CRT_SECURE_NO_WARNINGS"
-        }
-
-    filter { "configurations:Debug" }
-        buildoptions "/MTd"
-        runtime "Debug"
-        symbols "on"
-
-    filter { "configurations:Release" }
-        buildoptions "/MT"
-        runtime "Release"
-        optimize "on"
+        

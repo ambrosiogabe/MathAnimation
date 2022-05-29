@@ -17,3 +17,6 @@
 	path = Animations/vendor/ffmpeg
 	url = https://git.ffmpeg.org/ffmpeg.git
 	ignore=dirty
+[submodule "Animations/vendor/freetype"]
+	path = Animations/vendor/freetype
+	url = https://gitlab.freedesktop.org/freetype/freetype.git

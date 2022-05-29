@@ -28,7 +28,7 @@ Unfortunately, ffmpeg is a particularly wild beast, so compiling is non-trivial.
 
 #### Setting up Environment for ffmpeg
 
-(_The following instructions are modified from ffmpeg documentation_)
+(_The following instructions are modified from [ffmpeg documentation](https://ffmpeg.org/platform.html#Windows)_)
 
 * [MSYS2](https://www.msys2.org)
 * [NASM](https://www.msys2.org)
@@ -72,6 +72,34 @@ popd
 
 7. Verify that you compiled everything correctly. There should be a file named `build` in the current directory `./Animations/vendor/ffmpeg/build`. Inside this file you should see several directories with and a `lib` folder with the ffmpeg binaries.
     * If this is correct, then you're done compiling ffmpeg.
+
+#### Setting up Environment for freetype
+
+Thankfully, freetype is much simpler to set up than ffmpeg. To compile on windows, I'll be using cmake and MSVC. You can change use a different build system if you like, just ensure that at the end you have two directories for a release and debug version of freetype at the locations:
+
+```bash
+./Animations/vendor/freetype/build/Debug/freetyped.lib
+./Animations/vendor/freetype/build/Release/freetype.lib
+```
+
+To build with CMake and MSVC:
+
+1. Open up a command prompt for MSVC.
+2. Change into your local directory for this animations library.
+3. Run the following commands to compile freetype:
+
+```batch
+pushd .\Animations\vendor\freetype
+mkdir build
+pushd build
+cmake ..
+msbuild freetype.sln /property:Configuration=Debug
+msbuild freetype.sln /property:Configuration=Release
+popd
+popd
+```
+
+4. If this all succeeds, you should see a build directory in `./Animations/vendor/freetype` that contains a Debug directory and Release directory with the appropriate DLLs.
 
 </details>
 
