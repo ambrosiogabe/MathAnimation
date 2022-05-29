@@ -54,7 +54,7 @@ project "Animations"
         "Animations/vendor/glm/",
         "Animations/vendor/stb/",
         "Animations/vendor/vlc/include",
-        "Animations/vendor/ffmpeg/include",
+        "Animations/vendor/ffmpeg/build/include",
         "Animations/vendor/freetype/include",
         "Animations/vendor/nanovg/src",
         "Animations/vendor/dearimgui",
@@ -83,22 +83,29 @@ project "Animations"
         }
 
         libdirs {
-            "./Animations/vendor/ffmpeg/lib",
+            "./Animations/vendor/ffmpeg/build/lib",
             "\"./Animations/vendor/freetype/release dll/win64\""
         }
 
         links {
-            "avcodec.lib",
-            "avdevice.lib",
-            "avfilter.lib",
-            "avformat.lib",
-            "avutil.lib",
-            "postproc.lib",
-            "swresample.lib",
-            "swscale.lib",
+            -- ffmpeg static libs
+            "libavcodec",
+            "libavdevice",
+            "libavfilter",
+            "libavformat",
+            "libavutil",
+            "libswresample",
+            "libswscale",
+            -- Working on this
             "freetype.lib",
             "nanovg",
-            "DearImGui"
+            "DearImGui",
+            -- Windows static libs required for ffmepg
+            "Ws2_32.lib",
+            "Secur32.lib",
+            "Bcrypt.lib",
+            "Mfuuid.lib",
+            "Strmiids.lib"
         }
 
     filter { "configurations:Debug" }

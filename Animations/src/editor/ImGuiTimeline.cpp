@@ -25,6 +25,7 @@ namespace MathAnim
 	// Config Values
 	constexpr float timelineHorizontalScrollSensitivity = 12.0f;
 	constexpr int fps = 60;
+	constexpr int autoPlayFrameDelta = 50;
 
 	// Dimensional values
 	constexpr int maxHighlightedSquares = 12;
@@ -33,16 +34,23 @@ namespace MathAnim
 	constexpr float timelineRulerTickSpacing = 9.0f;
 	constexpr float minDistanceBetweenRulerTimecodes = 320.0f;
 
-	constexpr int tickWidth = 2.0f;
-	constexpr int smallTickHeight = 7.5f;
-	constexpr int mediumTickHeight = 15.0f;
-	constexpr int largeTickHeight = 30.0f;
-	constexpr int boundaryTickHeight = 45.0f;
+	constexpr int tickWidth = 2;
+	constexpr int smallTickHeight = 7;
+	constexpr int mediumTickHeight = 15;
+	constexpr int largeTickHeight = 30;
+	constexpr int boundaryTickHeight = 45;
+
+	constexpr int trackHeight = 95;
+	constexpr int trackNamePadding = 15;
+	// TODO: Implement me
+	constexpr int trackExpandedHeight = 135;
 
 	// Colors
 	constexpr ImU32 boundaryTickColor = IM_COL32(135, 135, 135, 255);
 	constexpr ImU32 largeTickColor = IM_COL32(105, 105, 105, 255);
 	constexpr ImU32 defaultTickColor = IM_COL32(85, 85, 85, 255);
+	constexpr ImU32 legendBackground = IM_COL32(30, 30, 30, 255);
+	constexpr ImU32 segmentColor = IM_COL32(133, 116, 184, 255);
 
 	// ----------- Internal Functions -----------
 	static bool handleLegendSplitter(const ImVec2& canvasPos, const ImVec2& canvasSize, const ImVec2& legendSize, float* legendWidth);
@@ -64,7 +72,6 @@ namespace MathAnim
 
 		// ---------------------- Setup and Handle Legend ------------------------------
 		static float legendWidth = 0.2f;
-		ImVec4& legendBackground = style.Colors[ImGuiCol_FrameBg];
 		ImVec2 legendSize = ImVec2{ canvasSize.x * legendWidth, canvasSize.y };
 		bool result = false;
 		handleLegendSplitter(canvasPos, canvasSize, legendSize, &legendWidth);
@@ -141,15 +148,6 @@ namespace MathAnim
 				}
 			}
 
-			{
-				ImVec2 rectStart = ImVec2(tickStart.x, canvasPos.y + timelineRulerHeight);
-				// Draw the boundary lines on the main timeline
-				drawList->AddRectFilled(
-					rectStart,
-					rectStart + ImVec2(tickWidth, canvasSize.y),
-					grayColor);
-			}
-
 			ImVec2 smallTickStart = tickStart;
 			for (int i = 0; i < numTicksBetweenBoundaries; i++)
 			{
@@ -173,7 +171,67 @@ namespace MathAnim
 		// ---------------------- End Draw Timeline Ruler ------------------------------
 
 		// ---------------------- Draw Timeline Elements ------------------------------
-		int dummy;
+		// Draw all the track backgrounds giving a light background to every other element
+		for (int i = 0; i < numTracks; i += 2)
+		{
+			float trackTop = canvasPos.y + timelineRulerHeight + (float)i * trackHeight;
+			drawList->AddRectFilled(
+				ImVec2(canvasPos.x + legendSize.x, trackTop),
+				ImVec2(canvasPos.x + canvasSize.x, trackTop + trackHeight),
+				IM_COL32(5, 5, 5, 255)
+			);
+		}
+
+		// Draw the timeline ruler tick extensions
+		for (int i = 0; i <= numTimecodesThatFit; i++)
+		{
+			ImVec2 tickStart = ImVec2(firstTimecodePosition + i * minDistanceBetweenRulerTimecodes, 0.0f);
+			tickStart += timelineRulerBegin;
+			ImVec2 tickEnd = tickStart + ImVec2(tickWidth, boundaryTickHeight);
+
+			ImVec2 rectStart = ImVec2(tickStart.x, canvasPos.y + timelineRulerHeight);
+			// Draw the boundary lines on the main timeline
+			drawList->AddRectFilled(
+				rectStart,
+				rectStart + ImVec2(tickWidth, canvasSize.y),
+				grayColor);
+		}
+
+		// Draw the segments
+		for (int i = 0; i < numTracks; i++)
+		{
+			float trackTopY = canvasPos.y + timelineRulerHeight + (float)i * trackHeight;
+			float trackBottomY = canvasPos.y + timelineRulerHeight + (float)(i + 1) * trackHeight;
+
+			for (int si = 0; si < tracks[i].numSegments; si++)
+			{
+				ImGuiTimeline_Segment& segment = tracks[i].segments[si];
+
+				float offsetX = (segment.frameStart - (float)*firstFrame) / amountOfTimeVisibleInTimeline * (canvasSize.x - legendSize.x);
+				float width = (segment.frameDuration / amountOfTimeVisibleInTimeline) * (canvasSize.x - legendSize.x);
+				if (offsetX >= 0.0f || offsetX + width > 0.0f)
+				{					
+					// Clamp values as necessary
+					if (offsetX < 0.0f)
+					{
+						width = width + offsetX;
+						offsetX = 0.0f;
+					}
+
+					// Calculate the width, and truncate if necessary
+					if (offsetX + width > canvasSize.x - legendSize.x)
+					{
+						width = canvasSize.x - legendSize.x - offsetX;
+					}
+
+
+					// Draw the segment
+					ImVec2 segmentStart = ImVec2(canvasPos.x + legendSize.x + offsetX, trackTopY);
+					ImVec2 segmentEnd = ImVec2(segmentStart.x + width, trackBottomY);
+					drawList->AddRectFilled(segmentStart, segmentEnd, segmentColor, 3.0f);
+				}
+			}
+		}
 
 		// ---------------------- End Draw Timeline Elements ------------------------------
 
@@ -292,12 +350,12 @@ namespace MathAnim
 			bool changed = false;
 			if (*currentFrame < *firstFrame)
 			{
-				*firstFrame = *currentFrame - 30;
+				*firstFrame -= autoPlayFrameDelta;
 				changed = true;
 			}
 			else if (*currentFrame > (*firstFrame + (int)amountOfTimeVisibleInTimeline))
 			{
-				*firstFrame = *currentFrame - 30;
+				*firstFrame += autoPlayFrameDelta;
 				changed = true;
 			}
 
@@ -311,7 +369,7 @@ namespace MathAnim
 
 		// ---------------------- Draw Legend ------------------------------
 		{
-			drawList->AddRectFilled(canvasPos, canvasPos + legendSize, ImColor(legendBackground.x, legendBackground.y, legendBackground.z));
+			drawList->AddRectFilled(canvasPos, canvasPos + legendSize, legendBackground);
 			// Draw the current time in hours:minutes:seconds.milliseconds
 			ImVec2 timecodeRectSize = ImVec2(legendSize.x, timelineRulerHeight);
 			drawList->AddRect(canvasPos, canvasPos + timecodeRectSize, IM_COL32(0, 0, 0, 255), 0, 0, 1.5f);
@@ -328,6 +386,36 @@ namespace MathAnim
 			drawList->AddText(textPos, ImColor(fontColor), strBuffer, strBuffer + strBufferSize - 1);
 			ImGui::PopFont();
 
+			// Draw all the track labels
+			for (int i = 0; i < numTracks; i++)
+			{
+				ImVec2 textSize = ImGui::CalcTextSize(tracks[i].trackName);
+				float offsetY = ((float)i * trackHeight) + (trackHeight - textSize.y) / 2.0f + timelineRulerHeight;
+				ImGui::SetCursorScreenPos(ImVec2(canvasPos.x + trackNamePadding, canvasPos.y + offsetY));
+				ImGui::Text("%s", tracks[i].trackName);
+
+				// Draw border top and bottom
+				float trackTop = canvasPos.y + timelineRulerHeight + (float)i * trackHeight;
+				drawList->AddRect(
+					ImVec2(canvasPos.x, trackTop),
+					ImVec2(canvasPos.x + legendSize.x, trackTop + 1.5f),
+					IM_COL32(0, 0, 0, 255)
+				);
+
+				drawList->AddRect(
+					ImVec2(canvasPos.x, trackTop + trackHeight),
+					ImVec2(canvasPos.x + legendSize.x, trackTop + trackHeight + 1.5f),
+					IM_COL32(0, 0, 0, 255)
+				);
+			}
+
+			// Draw a button to add a new track centered
+			float buttonY = canvasPos.y + numTracks * trackHeight + 10.0f + timelineRulerHeight;
+			ImGui::SetCursorScreenPos(ImVec2(canvasPos.x + 10.0f, buttonY));
+			if (ImGui::Button("Add Track"))
+			{
+				res.flags |= ImGuiTimelineResultFlags_AddTrackClicked;
+			}
 		}
 		// ---------------------- End Legend ------------------------------
 

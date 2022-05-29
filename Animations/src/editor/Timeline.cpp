@@ -26,8 +26,17 @@ namespace MathAnim
 
 		void init()
 		{
-			tracks = nullptr;
+			// I have to allocate a dummy allocation here because my memory utilities library
+			// doesn't let realloc work with nullptr *yet*
+			tracks = (ImGuiTimeline_Track*)g_memory_allocate(sizeof(ImGuiTimeline_Track));
 			numTracks = 0;
+
+			// Initialize some dummy data for now
+			addNewDefaultTrack();
+			tracks[0].segments = (ImGuiTimeline_Segment*)g_memory_allocate(sizeof(ImGuiTimeline_Segment));
+			tracks[0].numSegments = 1;
+			tracks[0].segments[0].frameStart = 15;
+			tracks[0].segments[0].frameDuration = 120;
 		}
 
 		void update()

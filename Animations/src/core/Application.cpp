@@ -229,6 +229,7 @@ namespace MathAnim
 
 		void free()
 		{
+			EditorGui::free();
 			Fonts::unloadFont(baskVillFont);
 			nvgDeleteGL3(vg);
 

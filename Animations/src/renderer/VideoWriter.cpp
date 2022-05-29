@@ -22,7 +22,7 @@ namespace MathAnim
 		static SwsContext* swsCtx = nullptr;
 		static int frameCounter = 0;
 		static AVFormatContext* ofctx = nullptr;
-		static AVOutputFormat* oformat = nullptr;
+		static const AVOutputFormat* oformat = nullptr;
 
 		// Default values
 		static int fps = 60;
@@ -41,8 +41,8 @@ namespace MathAnim
 			height = outputHeight;
 			fps = outputFramerate;
 
-			av_register_all();
-			avcodec_register_all();
+			//av_register_all();
+			//avcodec_register_all();
 
 			oformat = av_guess_format(nullptr, outputFilename, nullptr);
 			if (!oformat)
@@ -58,7 +58,7 @@ namespace MathAnim
 				return;
 			}
 
-			AVCodec* codec = avcodec_find_encoder(oformat->video_codec);
+			const AVCodec* codec = avcodec_find_encoder(oformat->video_codec);
 			if (!codec)
 			{
 				g_logger_error("can't create codec");
