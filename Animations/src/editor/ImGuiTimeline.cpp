@@ -55,8 +55,10 @@ namespace MathAnim
 	// ----------- Internal Functions -----------
 	static bool handleLegendSplitter(const ImVec2& canvasPos, const ImVec2& canvasSize, const ImVec2& legendSize, float* legendWidth);
 	static bool handleResizeElement(float* currentValue, DragState* state, const ImVec2& valueBounds, const ImVec2& mouseBounds, const ImVec2& hoverRectStart, const ImVec2& hoverRectEnd, ResizeFlags flags);
+	static void handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
 	static void framesToTimeStr(char* strBuffer, size_t strBufferLength, int frame);
 	static float getScrollFromFrame(float amountOfTimeVisibleInTimeline, int firstFrame, const ImVec2& timelineRulerEnd, const ImVec2& timelineRulerBegin);
+	static bool handleDragState(const ImVec2& start, const ImVec2& end, DragState* state);
 
 	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* inZoom, float* inScrollOffsetX, ImGuiTimelineFlags flags)
 	{
@@ -198,6 +200,7 @@ namespace MathAnim
 		}
 
 		// Draw the segments
+		ImVec2 timelineSize = (canvasPos + canvasSize) - (timelineRulerBegin + ImVec2(0.0f, timelineRulerHeight));
 		for (int i = 0; i < numTracks; i++)
 		{
 			float trackTopY = canvasPos.y + timelineRulerHeight + (float)i * trackHeight;
@@ -210,7 +213,7 @@ namespace MathAnim
 				float offsetX = (segment.frameStart - (float)*firstFrame) / amountOfTimeVisibleInTimeline * (canvasSize.x - legendSize.x);
 				float width = (segment.frameDuration / amountOfTimeVisibleInTimeline) * (canvasSize.x - legendSize.x);
 				if (offsetX >= 0.0f || offsetX + width > 0.0f)
-				{					
+				{
 					// Clamp values as necessary
 					if (offsetX < 0.0f)
 					{
@@ -224,11 +227,15 @@ namespace MathAnim
 						width = canvasSize.x - legendSize.x - offsetX;
 					}
 
-
-					// Draw the segment
 					ImVec2 segmentStart = ImVec2(canvasPos.x + legendSize.x + offsetX, trackTopY);
 					ImVec2 segmentEnd = ImVec2(segmentStart.x + width, trackBottomY);
-					drawList->AddRectFilled(segmentStart, segmentEnd, segmentColor, 3.0f);
+
+					std::string strId = "Segment_" + std::to_string(i) + "_" + std::to_string(si);
+					ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
+					handleSegment(segmentStart, segmentEnd, &segment, segmentID, timelineSize, amountOfTimeVisibleInTimeline);
+
+					// Draw the segment
+					drawList->AddRectFilled(segmentStart, segmentEnd, segmentColor, 10.0f);
 				}
 			}
 		}
@@ -502,6 +509,111 @@ namespace MathAnim
 		return currentValueChanged;
 	}
 
+	static void handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline)
+	{
+		static DragState dragState = DragState::None;
+		static DragState leftResizeState = DragState::None;
+		static DragState rightResizeState = DragState::None;
+		constexpr float resizeDragWidth = 15.0f;
+		constexpr float halfResizeDragWidth = resizeDragWidth / 2.0f;
+		static ImGuiID dragID = UINT32_MAX;
+		static ImVec2 startDragPos = ImVec2();
+		static int ogFrameStart = 0;
+		static int ogFrameDuration = 0;
+
+		ImVec2 segmentStart_ = segmentStart + ImVec2(halfResizeDragWidth + 0.1f, 0.0f);
+		ImVec2 segmentEnd_ = segmentEnd - ImVec2(halfResizeDragWidth - 0.1f, 0.0f);
+		ImVec2 leftResizeStart = segmentStart - ImVec2(halfResizeDragWidth, 0.0f);
+		ImVec2 leftResizeEnd = ImVec2(segmentStart_.x, segmentEnd_.y);
+		ImVec2 rightResizeStart = ImVec2(segmentEnd_.x, segmentStart.y);
+		ImVec2 rightResizeEnd = segmentEnd + ImVec2(halfResizeDragWidth, 0.0f);
+
+		handleDragState(segmentStart_, segmentEnd_, &dragState);
+		handleDragState(leftResizeStart, leftResizeEnd, &leftResizeState);
+		handleDragState(rightResizeStart, rightResizeEnd, &rightResizeState);
+
+		const ImGuiIO& io = ImGui::GetIO();
+
+		// If nothing is being dragged, then check all segments
+		if (dragID == UINT32_MAX)
+		{
+			if (dragState != DragState::None)
+			{
+				dragID = segmentID;
+			}
+			else if (leftResizeState != DragState::None)
+			{
+				dragID = segmentID;
+			}
+			else if (rightResizeState != DragState::None)
+			{
+				dragID = segmentID;
+			}
+		}
+
+		if (dragState == DragState::Hover)
+		{
+			startDragPos = io.MousePos;
+			ogFrameStart = segment->frameStart;
+		}
+
+		if (leftResizeState == DragState::Hover || rightResizeState == DragState::Hover)
+		{
+			startDragPos = io.MousePos;
+			ogFrameStart = segment->frameStart;
+			ogFrameDuration = segment->frameDuration;
+		}
+
+		// Then handle based on the appropriate drag states
+		if (dragID != UINT32_MAX && dragID == segmentID)
+		{
+			if (dragState == DragState::None && leftResizeState == DragState::None && rightResizeState == DragState::None)
+			{
+				dragID = UINT32_MAX;
+				return;
+			}
+
+			// Get the mouse delta
+			float delta = io.MousePos.x - startDragPos.x;
+			float normalizedMouseDelta = delta / timelineSize.x;
+			int frameChange = (int)(normalizedMouseDelta * amountOfTimeVisibleInTimeline);
+
+			// Handle drag move cursor
+			if (dragState != DragState::None)
+			{
+				if (dragState == DragState::Hover || dragState == DragState::Active)
+				{
+					ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+				}
+
+				if (dragState == DragState::Active)
+				{
+					segment->frameStart = ogFrameStart + frameChange;
+				}
+			}
+			// Handle left/right resize cursors
+			else if (leftResizeState != DragState::None || rightResizeState != DragState::None)
+			{
+				if (leftResizeState == DragState::Hover || leftResizeState == DragState::Active ||
+					rightResizeState == DragState::Hover || rightResizeState == DragState::Active)
+				{
+					ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+				}
+
+				if (leftResizeState == DragState::Active)
+				{
+					segment->frameStart = ogFrameStart + frameChange;
+					segment->frameDuration = ogFrameDuration - frameChange;
+				}
+
+				if (rightResizeState == DragState::Active)
+				{
+					segment->frameDuration = ogFrameDuration + frameChange;
+				}
+			}
+		}
+	}
+
 	static void framesToTimeStr(char* strBuffer, size_t strBufferLength, int frame)
 	{
 		int relativeFrame = frame % 60;
@@ -521,5 +633,38 @@ namespace MathAnim
 		float res = normalizedScrollDistance * (timelineRulerEnd.x - timelineRulerBegin.x);
 		res = glm::max(res, 0.0f);
 		return res;
+	}
+
+	static bool handleDragState(const ImVec2& start, const ImVec2& end, DragState* state)
+	{
+		bool changed = false;
+		if (ImGui::IsMouseHoveringRect(start, end))
+		{
+			if (*state == DragState::None && !ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
+			{
+				*state = DragState::Hover;
+				changed = true;
+			}
+
+			if (ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && *state == DragState::Hover)
+			{
+				*state = DragState::Active;
+				changed = true;
+			}
+		}
+		else if (*state == DragState::Hover)
+		{
+			*state = DragState::None;
+			changed = true;
+		}
+
+		bool currentValueChanged = false;
+		if (*state == DragState::Active && !ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
+		{
+			*state = DragState::None;
+			changed = true;
+		}
+
+		return changed;
 	}
 }
