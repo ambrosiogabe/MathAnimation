@@ -137,6 +137,10 @@ project "Animations"
         runtime "Release"
         optimize "on"
 
+        defines {
+            "_RELEASE"
+        }
+
 project "nanovg"
     language "C"
     kind "StaticLib"
@@ -198,4 +202,3 @@ project "DearImGui"
         buildoptions "/MT"
         runtime "Release"
         optimize "on"
-        

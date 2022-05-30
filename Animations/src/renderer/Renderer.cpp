@@ -8,6 +8,12 @@
 #include "animation/Styles.h"
 #include "animation/Animation.h"
 
+#ifdef _RELEASE
+#include "shaders/default.glsl.hpp"
+#include "shaders/screen.glsl.hpp"
+#include "shaders/vectorShader.glsl.hpp"
+#endif
+
 namespace MathAnim
 {
 	struct Vertex
@@ -213,9 +219,15 @@ namespace MathAnim
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			// Initialize default shader
+#ifdef _DEBUG
 			shader.compile("assets/shaders/default.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
 			vectorShader.compile("assets/shaders/vectorShader.glsl");
+#elif defined(_RELEASE)
+			shader.compileRaw(defaultShaderGlsl);
+			screenShader.compileRaw(screenShaderGlsl);
+			vectorShader.compileRaw(vectorShaderGlsl);
+#endif
 
 			setupBatchedVao();
 			setupBatchedVectorVao();

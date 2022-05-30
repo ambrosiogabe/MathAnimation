@@ -41,6 +41,19 @@ namespace MathAnim
 		g_logger_info("Compiling shader: %s", filepath.string().c_str());
 		std::string fileSource = ReadFile(filepath.string().c_str());
 
+		if (fileSource.length() <= 0)
+		{
+			// TODO: Error handling
+			return;
+		}
+
+		compileRaw(fileSource.c_str());
+	}
+
+	void Shader::compileRaw(const char* rawSource)
+	{
+		std::string fileSource = std::string(rawSource);
+
 		std::unordered_map<GLenum, std::string> shaderSources;
 
 		const char* typeToken = "#type";
@@ -95,8 +108,7 @@ namespace MathAnim
 				glDeleteShader(shader);
 
 				g_logger_error("%s", infoLog.data());
-				g_logger_assert(false, "Shader compilation failed!");
-				
+
 				programId = UINT32_MAX;
 				return;
 			}
@@ -127,7 +139,6 @@ namespace MathAnim
 				glDeleteShader(id);
 
 			g_logger_error("%s", infoLog.data());
-			g_logger_assert(false, "Shader linking failed!");
 			programId = UINT32_MAX;
 			return;
 		}
@@ -152,8 +163,8 @@ namespace MathAnim
 				GLint varLocation = glGetUniformLocation(program, charBuffer);
 				mAllShaderVariableLocations[{
 					std::string(charBuffer),
-					varLocation,
-					program
+						varLocation,
+						program
 				}] = varLocation;
 			}
 
