@@ -12,6 +12,7 @@ namespace MathAnim
 	{
 		float fontSizePixels;
 		char* text;
+		int textLength;
 		Font* font;
 
 		void render(NVGcontext* vg, const AnimObject* parent) const;

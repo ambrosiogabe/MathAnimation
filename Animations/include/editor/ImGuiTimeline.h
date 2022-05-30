@@ -23,6 +23,7 @@ namespace MathAnim
 		ImGuiTimelineResultFlags_SegmentTrackChanged = 0x20,
 		ImGuiTimelineResultFlags_SubSegmentTimeChanged  = 0x40,
 		ImGuiTimelineResultFlags_SubSegmentTrackChanged = 0x80,
+		ImGuiTimelineResultFlags_ActiveObjectChanged = 0x100
 	};
 
 	struct ImGuiTimelineResult
@@ -30,6 +31,7 @@ namespace MathAnim
 		int trackIndex;
 		int segmentIndex;
 		int subSegmentIndex;
+		bool activeObjectIsSubSegment;
 		ImGuiTimelineResultFlags flags;
 	};
 

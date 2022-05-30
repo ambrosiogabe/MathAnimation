@@ -171,7 +171,6 @@ namespace MathAnim
 	{
 		AnimTypeEx type;
 		int objectId;
-		int objectIndex;
 		int frameStart;
 		int duration;
 		int id;
@@ -198,7 +197,8 @@ namespace MathAnim
 
 		void render(NVGcontext* vg, int frame);
 
-		const AnimObject* getObject(int index);
+		const AnimObject* getObject(int animObjectId);
+		AnimObject* getMutableObject(int animObjectId);
 		const std::vector<AnimObject>& getAnimObjects();
 		const std::vector<AnimationEx>& getAnimations();
 	}

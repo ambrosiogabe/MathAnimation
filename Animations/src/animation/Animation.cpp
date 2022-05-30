@@ -40,15 +40,16 @@ namespace MathAnim
 
 		void addAnimation(AnimationEx animation)
 		{
-			animation.objectIndex = -1;
+			bool objectWithIdExists = false;
 			for (auto iter = mObjects.begin(); iter != mObjects.end(); iter++)
 			{
+				g_logger_assert(!objectWithIdExists, "Multiple anim objects have id '%d' somehow.", animation.objectId);
 				if (iter->id == animation.objectId)
 				{
-					animation.objectIndex = iter - mObjects.begin();
+					objectWithIdExists = true;
 				}
 			}
-			if (animation.objectIndex == -1)
+			if (!objectWithIdExists)
 			{
 				g_logger_error("Could not find animation object with id: %d. Not adding this animation.", animation.objectId);
 				return;
@@ -193,11 +194,19 @@ namespace MathAnim
 			}
 		}
 
-		const AnimObject* getObject(int index)
+		const AnimObject* getObject(int animObjectId)
 		{
-			if (index >= 0 && index < mObjects.size())
+			return getMutableObject(animObjectId);
+		}
+
+		AnimObject* getMutableObject(int animObjectId)
+		{
+			for (int i = 0; i < mObjects.size(); i++)
 			{
-				return &mObjects[index];
+				if (mObjects[i].id == animObjectId)
+				{
+					return &mObjects[i];
+				}
 			}
 
 			return nullptr;
@@ -231,7 +240,7 @@ namespace MathAnim
 
 	const AnimObject* AnimationEx::getParent() const
 	{
-		const AnimObject* res = AnimationManagerEx::getObject(objectIndex);
+		const AnimObject* res = AnimationManagerEx::getObject(objectId);
 		g_logger_assert(res != nullptr, "Invalid anim object.");
 		return res;
 	}

@@ -55,6 +55,7 @@ namespace MathAnim
 	constexpr ImU32 canvasColor = IM_COL32(20, 20, 20, 255);
 	constexpr ImU32 legendBackground = IM_COL32(35, 35, 35, 255);
 	constexpr ImU32 timelineTrackDark = IM_COL32(10, 10, 10, 255);
+	constexpr ImU32 cursorColor = IM_COL32(214, 118, 111, 255);
 
 	constexpr ImU32 segmentColor = IM_COL32(133, 116, 184, 255);
 	constexpr ImU32 segmentDarkColor = IM_COL32(101, 88, 138, 255);
@@ -77,6 +78,8 @@ namespace MathAnim
 		res.flags = ImGuiTimelineResultFlags_None;
 		res.segmentIndex = -1;
 		res.trackIndex = -1;
+		res.subSegmentIndex = -1;
+		res.activeObjectIsSubSegment = false;
 
 		ImGuiIO& io = ImGui::GetIO();
 		ImGuiStyle& style = ImGui::GetStyle();
@@ -273,16 +276,31 @@ namespace MathAnim
 
 						std::string strId = "Segment_" + std::to_string(i) + "_" + std::to_string(si);
 						ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
+						static ImGuiID activeSegmentID = UINT32_MAX;
 						if (handleSegment(segmentStart, segmentEnd, &segment, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
 						{
 							g_logger_assert(res.segmentIndex == -1, "Invalid result. User somehow modified two segments at once.");
 							res.flags |= ImGuiTimelineResultFlags_SegmentTimeChanged;
 							res.segmentIndex = si;
 							res.trackIndex = i;
+							if (activeSegmentID != segmentID)
+							{
+								res.flags |= ImGuiTimelineResultFlags_ActiveObjectChanged;
+								res.activeObjectIsSubSegment = false;
+								activeSegmentID = segmentID;
+							}
+						}
+						else if (activeSegmentID == segmentID && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+						{
+							activeSegmentID = UINT32_MAX;
 						}
 
 						// Draw the segment
 						drawList->AddRectFilled(segmentStart, segmentEnd, segmentColor, 10.0f);
+						if (activeSegmentID == segmentID)
+						{
+							drawList->AddRect(segmentStart, segmentEnd, cursorColor, 10.0f, 0, 4.0f);
+						}
 						ImVec2 borderStart = segmentStart + ImVec2(0.0f, trackHeight - segmentTextAreaHeight);
 						ImVec2 borderEnd = ImVec2(segmentEnd.x, borderStart.y + 3.0f);
 						drawList->AddRectFilled(borderStart, borderEnd, segmentDarkColor);
@@ -373,10 +391,24 @@ namespace MathAnim
 										res.segmentIndex = si;
 										res.subSegmentIndex = subSegmenti;
 										res.trackIndex = i;
+										if (activeSegmentID != segmentID)
+										{
+											res.flags |= ImGuiTimelineResultFlags_ActiveObjectChanged;
+											res.activeObjectIsSubSegment = true;
+											activeSegmentID = segmentID;
+										}
+									}
+									else if (activeSegmentID == segmentID && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+									{
+										activeSegmentID = UINT32_MAX;
 									}
 
 									// Draw the segment
 									drawList->AddRectFilled(subSegmentStart, subSegmentEnd, subSegmentColor, 10.0f);
+									if (activeSegmentID == segmentID)
+									{
+										drawList->AddRect(subSegmentStart, subSegmentEnd, cursorColor, 10.0f, 0, 4.0f);
+									}
 									ImVec2 borderStart = subSegmentStart + ImVec2(0.0f, trackHeight - segmentTextAreaHeight);
 									ImVec2 borderEnd = ImVec2(subSegmentEnd.x, borderStart.y + 3.0f);
 									drawList->AddRectFilled(borderStart, borderEnd, subSegmentDarkColor);
@@ -469,16 +501,6 @@ namespace MathAnim
 			}
 
 			ImVec2 cursorSize = ImVec2(5.5f, canvasSize.y);
-			ImU32 cursorColor = IM_COL32(214, 118, 111, 255);
-			if (timelineDragging == DragState::Hover)
-			{
-				cursorColor = IM_COL32(237, 113, 104, 255);
-			}
-			else if (timelineDragging == DragState::Active)
-			{
-				cursorColor = IM_COL32(237, 131, 123, 255);
-			}
-
 			ImVec2 cursorStart = timelineRulerBegin;
 			cursorStart.x += (timelineRulerEnd.x - timelineRulerBegin.x) * (((float)*currentFrame - (float)*firstFrame) / amountOfTimeVisibleInTimeline);
 

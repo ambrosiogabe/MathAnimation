@@ -91,7 +91,11 @@ namespace MathAnim
 			textObject.frameStart = 0;
 			textObject.as.textObject.font = baskVillFont;
 			textObject.as.textObject.fontSizePixels = 500.0f;
-			textObject.as.textObject.text = "Hello World!";
+			const char msg[] = "Hello World!";
+			textObject.as.textObject.text = (char*)g_memory_allocate(sizeof(char) * (sizeof(msg) / sizeof(char)));
+			g_memory_copyMem(textObject.as.textObject.text, (void*)msg, sizeof(msg));
+			textObject.as.textObject.text[sizeof(msg) / sizeof(char)] = '\0';
+			textObject.as.textObject.textLength = sizeof(msg) / sizeof(char);
 
 			glm::vec2 textSize = baskVillFont->getSizeOfString(textObject.as.textObject.text, textObject.as.textObject.fontSizePixels);
 			glm::vec2 centeredText = glm::vec2(mainFramebuffer.width / 2.0f, mainFramebuffer.height / 2.0f) - (textSize * 0.5f);

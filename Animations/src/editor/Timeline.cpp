@@ -33,6 +33,10 @@ namespace MathAnim
 		static ImGuiTimeline_Track createDefaultTrack();
 		static void freeTrack(ImGuiTimeline_Track& track);
 		static void addNewDefaultTrack();
+		static void handleAnimObjectInspector(int animObjectId);
+		static void handleAnimationInspector(int animationId);
+
+		static void handleTextObjectInspector(AnimObject* object);
 
 		void init()
 		{
@@ -135,8 +139,39 @@ namespace MathAnim
 				AnimationManagerEx::setAnimationTime(animationIndex, subSegment.frameStart, subSegment.frameDuration);
 			}
 
+			static int activeAnimObjectId = INT32_MAX;
+			static int activeAnimationId = INT32_MAX;
+			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectChanged)
+			{
+				if (res.activeObjectIsSubSegment)
+				{
+					const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
+					activeAnimationId = (int)subSegment.userData;
+					activeAnimObjectId = INT32_MAX;
+				}
+				else
+				{
+					const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
+					activeAnimObjectId = (int)segment.userData;
+					activeAnimationId = INT32_MAX;
+				}
+			}
+
 			ImGui::End();
 			ImGui::PopStyleVar();
+
+			ImGui::Begin("Inspector");
+
+			if (activeAnimObjectId != INT32_MAX)
+			{
+				handleAnimObjectInspector(activeAnimObjectId);
+			}
+			else if (activeAnimationId != INT32_MAX)
+			{
+				handleAnimationInspector(activeAnimationId);
+			}
+
+			ImGui::End();
 		}
 
 		void free()
@@ -201,6 +236,59 @@ namespace MathAnim
 			tracks = (ImGuiTimeline_Track*)g_memory_realloc(tracks, sizeof(ImGuiTimeline_Track) * numTracks);
 			tracks[numTracks - 1] = createDefaultTrack();
 			g_logger_assert(tracks != nullptr, "Failed to initialize memory for tracks.");
+		}
+
+		static void handleAnimObjectInspector(int animObjectId)
+		{
+			AnimObject* animObject = AnimationManagerEx::getMutableObject(animObjectId);
+			if (!animObject)
+			{
+				g_logger_error("No anim object with id '%d' exists", animObject);
+				return;
+			}
+
+			ImGui::DragFloat2(": Position", (float*)&animObject->position.x);
+
+			switch (animObject->objectType)
+			{
+			case AnimObjectType::TextObject:
+				handleTextObjectInspector(animObject);
+				break;
+			case AnimObjectType::LaTexObject:
+				g_logger_assert(false, "TODO: Implement me.");
+				break;
+			default:
+				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
+				break;
+			}
+		}
+
+		static void handleAnimationInspector(int animationId)
+		{
+
+		}
+
+		static void handleTextObjectInspector(AnimObject* object)
+		{
+			ImGui::DragFloat(": Font Size (Px)", &object->as.textObject.fontSizePixels);
+
+			constexpr int scratchLength = 256;
+			char scratch[scratchLength] = {};
+			if (object->as.textObject.textLength >= scratchLength)
+			{
+				g_logger_error("Text object has more than 256 characters. Tell Gabe to increase scratch length for text objects.");
+				return;
+			}
+			g_memory_copyMem(scratch, object->as.textObject.text, object->as.textObject.textLength * sizeof(char));
+			scratch[object->as.textObject.textLength] = '\0';
+			if (ImGui::InputTextMultiline(": Text", scratch, scratchLength * sizeof(char)))
+			{
+				size_t newLength = std::strlen(scratch);
+				object->as.textObject.text = (char*)g_memory_realloc(object->as.textObject.text, sizeof(char) * newLength);
+				object->as.textObject.textLength = newLength;
+				g_memory_copyMem(object->as.textObject.text, scratch, newLength * sizeof(char));
+				object->as.textObject.text[newLength] = '\0';
+			}
 		}
 	}
 }
