@@ -721,6 +721,20 @@ namespace MathAnim
 				ImGui::PopStyleVar();
 			}
 			ImGui::PopClipRect();
+
+			// Check if they right clicked in the empty area below track names
+			ImVec2 legendTrackNameTop = ImVec2(canvasPos.x, currentTrackTop);
+			ImVec2 legendTrackNameBottom = ImVec2(canvasPos.x + legendSize.x, canvasPos.y + canvasSize.y);
+			if (beginPopupContextTimelineItem("Track_Empty_Legend_Area", legendTrackNameTop, legendTrackNameBottom))
+			{
+				if (ImGui::MenuItem("Add Track"))
+				{
+					res.flags |= ImGuiTimelineResultFlags_AddTrackClicked;
+					res.trackIndex = numTracks;
+				}
+
+				ImGui::EndPopup();
+			}
 		}
 		// ---------------------- End Legend ------------------------------
 

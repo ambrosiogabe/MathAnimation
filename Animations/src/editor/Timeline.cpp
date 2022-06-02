@@ -185,7 +185,6 @@ namespace MathAnim
 				trackName[defaultTrackNameLength - 3] = counterString[0];
 				trackName[defaultTrackNameLength - 2] = counterString[1];
 				defaultTrack.trackName = trackName;
-				g_logger_info("Allocating name memory: %s", trackName);
 			}
 			defaultTrack.isExpanded = false;
 			counter++;
@@ -219,7 +218,6 @@ namespace MathAnim
 
 			if (track.trackName)
 			{
-				g_logger_info("Freeing name memory: %s", track.trackName);
 				g_memory_free((void*)track.trackName);
 				track.trackName = nullptr;
 			}
@@ -299,18 +297,9 @@ namespace MathAnim
 					tracks[track].segments = nullptr;
 					tracks[track].numSegments = 0;
 				}
-
-				if (tracks[track].trackName)
-				{
-					g_logger_info("Freeing track name: %s", tracks[track].trackName);
-					g_memory_free((void*)tracks[track].trackName);
-					tracks[track].trackName = nullptr;
-				}
 			}
 
-			int oldNumTracks = numTracks;
-			numTracks = 0;
-			setupImGuiTimelineDataFromAnimations(oldNumTracks);
+			setupImGuiTimelineDataFromAnimations(numTracks);
 		}
 
 		static void handleAnimObjectInspector(int animObjectId)
@@ -381,13 +370,21 @@ namespace MathAnim
 			{
 				maxTimelineTrack = glm::max(maxTimelineTrack, numTracksToCreate - 1);
 			}
-			g_logger_info("Max timeline track: %d", maxTimelineTrack);
+
+			// If we don't have enough memory for some reason,
+			// allocate enough new tracks to make sure we do
+			if (maxTimelineTrack + 1 > numTracks)
+			{
+				for (int i = numTracks; i < maxTimelineTrack + 1; i++)
+				{
+					addNewDefaultTrack();
+				}
+			}
+			g_logger_assert(maxTimelineTrack + 1 <= numTracks, "Invalid num tracks to create.");
 
 			// Initialize all the tracks memory
 			for (int track = 0; track < maxTimelineTrack + 1; track++)
 			{
-				addNewDefaultTrack();
-
 				// Count how many segment there are
 				int numSegments = 0;
 				for (int i = 0; i < animObjects.size(); i++)
