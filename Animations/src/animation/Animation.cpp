@@ -9,13 +9,10 @@ namespace MathAnim
 {
 	namespace AnimationManagerEx
 	{
-		// List of animations, sorted by start time
-		static std::vector<AnimationEx> mAnimations;
-
 		// List of animatable objects, sorted by start time
 		static std::vector<AnimObject> mObjects;
 
-		void addAnimObject(AnimObject object)
+		void addAnimObject(const AnimObject& object)
 		{
 			bool insertedObject = false;
 			for (auto iter = mObjects.begin(); iter != mObjects.end(); iter++)
@@ -38,30 +35,15 @@ namespace MathAnim
 			}
 		}
 
-		void addAnimation(AnimationEx animation)
+		void addAnimationTo(AnimationEx animation, AnimObject& animObject)
 		{
-			bool objectWithIdExists = false;
-			for (auto iter = mObjects.begin(); iter != mObjects.end(); iter++)
-			{
-				g_logger_assert(!objectWithIdExists, "Multiple anim objects have id '%d' somehow.", animation.objectId);
-				if (iter->id == animation.objectId)
-				{
-					objectWithIdExists = true;
-				}
-			}
-			if (!objectWithIdExists)
-			{
-				g_logger_error("Could not find animation object with id: %d. Not adding this animation.", animation.objectId);
-				return;
-			}
-
 			bool insertedObject = false;
-			for (auto iter = mAnimations.begin(); iter != mAnimations.end(); iter++)
+			for (auto iter = animObject.animations.begin(); iter != animObject.animations.end(); iter++)
 			{
 				// Insert it here. The list will always be sorted
 				if (animation.frameStart > iter->frameStart)
 				{
-					mAnimations.insert(iter, animation);
+					animObject.animations.insert(iter, animation);
 					insertedObject = true;
 					break;
 				}
@@ -72,13 +54,53 @@ namespace MathAnim
 				// If we didn't insert the animation
 				// that means it must start after all the
 				// current animation start times.
-				mAnimations.push_back(animation);
+				animObject.animations.push_back(animation);
 			}
 		}
 
-		bool removeAnimObject(int animationId)
+		bool removeAnimObject(int animObjectId)
 		{
-			g_logger_assert(false, "TODO: Implement me.");
+			// Remove the anim object
+			for (int i = 0; i < mObjects.size(); i++)
+			{
+				if (mObjects[i].id == animObjectId)
+				{
+					// Free all animations in this object
+					for (int j = 0; j < mObjects[i].animations.size(); j++)
+					{
+						g_logger_assert(mObjects[i].animations[i].objectId == animObjectId, "How did this happen?");
+						mObjects[i].animations[j].free();
+					}
+
+					mObjects[i].free();
+					mObjects.erase(mObjects.begin() + i);
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool removeAnimation(int animObjectId, int animationId)
+		{
+			// Remove the anim object
+			for (int i = 0; i < mObjects.size(); i++)
+			{
+				if (mObjects[i].id == animObjectId)
+				{
+					// Free all animations in this object
+					for (int j = 0; j < mObjects[i].animations.size(); j++)
+					{
+						if (mObjects[i].animations[j].id == animationId)
+						{
+							g_logger_assert(mObjects[i].animations[i].objectId == animObjectId, "How did this happen?");
+							mObjects[i].animations[j].free();
+							mObjects[i].animations.erase(mObjects[i].animations.begin() + j);
+							return true;
+						}
+					}
+				}
+			}
 
 			return false;
 		}
@@ -118,35 +140,50 @@ namespace MathAnim
 			return false;
 		}
 
-		bool setAnimationTime(int animationId, int frameStart, int duration)
-		{			
+		bool setAnimationTime(int animObjectId, int animationId, int frameStart, int duration)
+		{
 			// Remove the animation then reinsert it. That way we make sure the list
 			// stays sorted
 			AnimationEx animationCopy;
 			int animationIndex = -1;
-			for (int i = 0; i < mAnimations.size(); i++)
+			int animObjectIndex = -1;
+			for (int i = 0; i < mObjects.size(); i++)
 			{
-				const AnimationEx& animation = mAnimations[i];
-				if (animation.id == animationId)
+				if (mObjects[i].id == animObjectId)
 				{
-					if (animation.frameStart == frameStart && animation.duration == duration)
+					// TODO: This is nasty. I should probably use a hash map to store
+					// animations and anim objects
+					for (int j = 0; j < mObjects[i].animations.size(); j++)
 					{
-						// If nothing changed, just return that the change was successful
-						return true;
-					}
+						const AnimationEx& animation = mObjects[i].animations[j];
+						if (animation.id == animationId)
+						{
+							if (animation.frameStart == frameStart && animation.duration == duration)
+							{
+								// If nothing changed, just return that the change was successful
+								return true;
+							}
 
-					animationCopy = animation;
-					animationIndex = i;
+							animationCopy = animation;
+							animationIndex = j;
+							animObjectIndex = i;
+							break;
+						}
+					}
+				}
+
+				if (animationIndex != -1)
+				{
 					break;
 				}
 			}
 
 			if (animationIndex != -1)
 			{
-				mAnimations.erase(mAnimations.begin() + animationIndex);
+				mObjects[animObjectIndex].animations.erase(mObjects[animObjectIndex].animations.begin() + animationIndex);
 				animationCopy.frameStart = frameStart;
 				animationCopy.duration = duration;
-				addAnimation(animationCopy);
+				addAnimationTo(animationCopy, mObjects[animObjectIndex]);
 				return true;
 			}
 
@@ -154,38 +191,37 @@ namespace MathAnim
 
 		}
 
+		void setAnimObjectTrack(int animObjectId, int track)
+		{
+			for (int i = 0; i < mObjects.size(); i++)
+			{
+				if (mObjects[i].id == animObjectId)
+				{
+					mObjects[i].timelineTrack = track;
+					return;
+				}
+			}
+		}
+
 		void render(NVGcontext* vg, int frame)
 		{
 			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
 			{
 				objectIter->isAnimating = false;
-			}
-
-			for (auto animIter = mAnimations.begin(); animIter != mAnimations.end(); animIter++)
-			{
-				float parentFrameStart = animIter->getParent()->frameStart;
-				float absoluteFrameStart = animIter->frameStart + parentFrameStart;
-				int animDeathTime = absoluteFrameStart + animIter->duration;
-				if (absoluteFrameStart <= frame && frame <= animDeathTime)
+				for (auto animIter = objectIter->animations.begin(); animIter != objectIter->animations.end(); animIter++)
 				{
-					float interpolatedT = ((float)frame - absoluteFrameStart) / (float)animIter->duration;
-					animIter->render(vg, interpolatedT);
-
-					// TODO: This is nasty. I should probably use a hash map to store
-					// animations and anim objects
-					for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
+					float parentFrameStart = animIter->getParent()->frameStart;
+					float absoluteFrameStart = animIter->frameStart + parentFrameStart;
+					int animDeathTime = absoluteFrameStart + animIter->duration;
+					if (absoluteFrameStart <= frame && frame <= animDeathTime)
 					{
-						if (objectIter->id == animIter->objectId)
-						{
-							objectIter->isAnimating = true;
-							break;
-						}
+						float interpolatedT = ((float)frame - absoluteFrameStart) / (float)animIter->duration;
+						animIter->render(vg, interpolatedT);
+
+						objectIter->isAnimating = true;
 					}
 				}
-			}
 
-			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
-			{
 				int objectDeathTime = objectIter->frameStart + objectIter->duration;
 				if (!objectIter->isAnimating && objectIter->frameStart <= frame && frame <= objectDeathTime)
 				{
@@ -216,11 +252,6 @@ namespace MathAnim
 		{
 			return mObjects;
 		}
-
-		const std::vector<AnimationEx>& getAnimations()
-		{
-			return mAnimations;
-		}
 	}
 
 	void AnimationEx::render(NVGcontext* vg, float t) const
@@ -245,6 +276,11 @@ namespace MathAnim
 		return res;
 	}
 
+	void AnimationEx::free()
+	{
+		g_logger_warning("TODO; Implment me");
+	}
+
 	void AnimObject::render(NVGcontext* vg) const
 	{
 		switch (objectType)
@@ -258,6 +294,11 @@ namespace MathAnim
 			g_logger_info("Unknown animation: %d", objectType);
 			break;
 		}
+	}
+
+	void AnimObject::free()
+	{
+		g_logger_warning("TODO; Implment me");
 	}
 
 	namespace AnimationManager
@@ -286,19 +327,19 @@ namespace MathAnim
 
 		void addInterpolation(Animation& animation)
 		{
-		//	Interpolation interpolation;
-		//	interpolation.ogAnimIndex = mBezier2Animations.size() - 1;
-		//	interpolation.ogAnim = mBezier2Animations[interpolation.ogAnimIndex];
-		//	interpolation.ogP0Index = mFilledCircleAnimations.size() - 3;
-		//	interpolation.ogP1Index = mFilledCircleAnimations.size() - 2;
-		//	interpolation.ogP2Index = mFilledCircleAnimations.size() - 1;
+			//	Interpolation interpolation;
+			//	interpolation.ogAnimIndex = mBezier2Animations.size() - 1;
+			//	interpolation.ogAnim = mBezier2Animations[interpolation.ogAnimIndex];
+			//	interpolation.ogP0Index = mFilledCircleAnimations.size() - 3;
+			//	interpolation.ogP1Index = mFilledCircleAnimations.size() - 2;
+			//	interpolation.ogP2Index = mFilledCircleAnimations.size() - 1;
 
-		//	mLastAnimEndTime += animation.delay;
-		//	animation.startTime = mLastAnimEndTime;
-		//	mLastAnimEndTime += animation.duration;
+			//	mLastAnimEndTime += animation.delay;
+			//	animation.startTime = mLastAnimEndTime;
+			//	mLastAnimEndTime += animation.duration;
 
-		//	interpolation.newAnim = animation;
-		//	mInterpolations.emplace_back(interpolation);
+			//	interpolation.newAnim = animation;
+			//	mInterpolations.emplace_back(interpolation);
 		}
 
 		void popAnimation(AnimType animationType, float delay, float fadeOutTime)
@@ -315,39 +356,39 @@ namespace MathAnim
 
 		void translateAnimation(AnimType animationType, const Vec2& translation, float duration, float delay)
 		{
-		//	TranslateAnimation anim;
-		//	anim.animType = animationType;
-		//	anim.duration = duration;
-		//	anim.translation = translation;
+			//	TranslateAnimation anim;
+			//	anim.animType = animationType;
+			//	anim.duration = duration;
+			//	anim.translation = translation;
 
-		//	anim.startTime = mLastAnimEndTime + delay;
+			//	anim.startTime = mLastAnimEndTime + delay;
 
-		//	switch (animationType)
-		//	{
-		//	case AnimType::Bezier1Animation:
-		//		anim.index = mBezier1Animations.size() - 1;
-		//		break;
-		//	case AnimType::Bezier2Animation:
-		//		anim.index = mBezier2Animations.size() - 1;
-		//		break;
-		//	case AnimType::BitmapAnimation:
-		//		anim.index = mBitmapAnimations.size() - 1;
-		//		break;
-		//	case AnimType::ParametricAnimation:
-		//		anim.index = mParametricAnimations.size() - 1;
-		//		break;
-		//	case AnimType::TextAnimation:
-		//		anim.index = mTextAnimations.size() - 1;
-		//		break;
-		//	case AnimType::FilledBoxAnimation:
-		//		anim.index = mFilledBoxAnimations.size() - 1;
-		//		break;
-		//	case AnimType::FilledCircleAnimation:
-		//		anim.index = mFilledCircleAnimations.size() - 1;
-		//		break;
-		//	}
+			//	switch (animationType)
+			//	{
+			//	case AnimType::Bezier1Animation:
+			//		anim.index = mBezier1Animations.size() - 1;
+			//		break;
+			//	case AnimType::Bezier2Animation:
+			//		anim.index = mBezier2Animations.size() - 1;
+			//		break;
+			//	case AnimType::BitmapAnimation:
+			//		anim.index = mBitmapAnimations.size() - 1;
+			//		break;
+			//	case AnimType::ParametricAnimation:
+			//		anim.index = mParametricAnimations.size() - 1;
+			//		break;
+			//	case AnimType::TextAnimation:
+			//		anim.index = mTextAnimations.size() - 1;
+			//		break;
+			//	case AnimType::FilledBoxAnimation:
+			//		anim.index = mFilledBoxAnimations.size() - 1;
+			//		break;
+			//	case AnimType::FilledCircleAnimation:
+			//		anim.index = mFilledCircleAnimations.size() - 1;
+			//		break;
+			//	}
 
-		//	mTranslationAnimations.emplace_back(anim);
+			//	mTranslationAnimations.emplace_back(anim);
 		}
 
 		void drawParametricAnimation(Animation& genericAnimation, const Style& style)
@@ -376,7 +417,7 @@ namespace MathAnim
 				Vec2 coord = anim.parametricEquation(t) + anim.translation;
 				float nextT = t + granularity;
 				Vec2 nextCoord = anim.parametricEquation(nextT) + anim.translation;
-				Renderer::drawLine(Vec2{coord.x, coord.y}, Vec2{nextCoord.x, nextCoord.y}, styleToUse);
+				Renderer::drawLine(Vec2{ coord.x, coord.y }, Vec2{ nextCoord.x, nextCoord.y }, styleToUse);
 				t = nextT;
 			}
 		}
@@ -388,7 +429,7 @@ namespace MathAnim
 			TextAnimation& anim = genericAnimation.as.text;
 			std::string tmpStr = std::string(anim.text);
 			int numCharsToShow = glm::clamp((int)((mTime - genericAnimation.startTime) / anim.typingTime), 0, (int)tmpStr.length());
-			Renderer::drawString(tmpStr.substr(0, numCharsToShow), *anim.font, Vec2{anim.position.x, anim.position.y}, anim.scale, style.color);
+			Renderer::drawString(tmpStr.substr(0, numCharsToShow), *anim.font, Vec2{ anim.position.x, anim.position.y }, anim.scale, style.color);
 		}
 
 		void drawBitmapAnimation(Animation& genericAnimation, const Style& style)
@@ -408,7 +449,7 @@ namespace MathAnim
 				{
 					if (anim.bitmapState[y][x])
 					{
-						Vec2 position = anim.canvasPosition + Vec2{(float)x * gridSize.x, (float)y * gridSize.y};
+						Vec2 position = anim.canvasPosition + Vec2{ (float)x * gridSize.x, (float)y * gridSize.y };
 						Style newStyle = style;
 						newStyle.color = anim.bitmap[y][x];
 						Renderer::drawFilledSquare(position, gridSize, newStyle);
@@ -457,7 +498,7 @@ namespace MathAnim
 				Vec2 coord = CMath::bezier1(anim.p0 + Vec2{}, anim.p1 + Vec2{}, t);
 				float nextT = t + granularity;
 				Vec2 nextCoord = CMath::bezier1(anim.p0 + Vec2{}, anim.p1 + Vec2{}, nextT);
-				Renderer::drawLine(Vec2{coord.x, coord.y}, Vec2{nextCoord.x, nextCoord.y}, styleToUse);
+				Renderer::drawLine(Vec2{ coord.x, coord.y }, Vec2{ nextCoord.x, nextCoord.y }, styleToUse);
 				t = nextT;
 			}
 		}
@@ -487,24 +528,24 @@ namespace MathAnim
 				Vec2 coord = CMath::bezier2(anim.p0 + Vec2{}, anim.p1 + Vec2{}, anim.p2 + Vec2{}, t);
 				float nextT = t + granularity;
 				Vec2 nextCoord = CMath::bezier2(anim.p0 + Vec2{}, anim.p1 + Vec2{}, anim.p2 + Vec2{}, nextT);
-				Renderer::drawLine(Vec2{coord.x, coord.y}, Vec2{nextCoord.x, nextCoord.y}, styleToUse);
+				Renderer::drawLine(Vec2{ coord.x, coord.y }, Vec2{ nextCoord.x, nextCoord.y }, styleToUse);
 				t = nextT;
 			}
 		}
 
 		static void interpolate(Interpolation& anim)
 		{
-		//	if (mTime <= anim.newAnim.startTime) return;
+			//	if (mTime <= anim.newAnim.startTime) return;
 
-		//	float lerp = glm::clamp((mTime - anim.newAnim.startTime) / anim.newAnim.duration, 0.0f, 1.0f);
-		//	Bezier2Animation& ogAnim = mBezier2Animations.at(anim.ogAnimIndex);
-		//	ogAnim.p0 += (anim.newAnim.p0 - ogAnim.p0) * lerp;
-		//	ogAnim.p1 += (anim.newAnim.p1 - ogAnim.p1) * lerp;
-		//	ogAnim.p2 += (anim.newAnim.p2 - ogAnim.p2) * lerp;
+			//	float lerp = glm::clamp((mTime - anim.newAnim.startTime) / anim.newAnim.duration, 0.0f, 1.0f);
+			//	Bezier2Animation& ogAnim = mBezier2Animations.at(anim.ogAnimIndex);
+			//	ogAnim.p0 += (anim.newAnim.p0 - ogAnim.p0) * lerp;
+			//	ogAnim.p1 += (anim.newAnim.p1 - ogAnim.p1) * lerp;
+			//	ogAnim.p2 += (anim.newAnim.p2 - ogAnim.p2) * lerp;
 
-		//	mFilledCircleAnimations.at(anim.ogP0Index).position = ogAnim.p0;
-		//	mFilledCircleAnimations.at(anim.ogP1Index).position = ogAnim.p1;
-		//	mFilledCircleAnimations.at(anim.ogP2Index).position = ogAnim.p2;
+			//	mFilledCircleAnimations.at(anim.ogP0Index).position = ogAnim.p0;
+			//	mFilledCircleAnimations.at(anim.ogP1Index).position = ogAnim.p1;
+			//	mFilledCircleAnimations.at(anim.ogP2Index).position = ogAnim.p2;
 		}
 
 		void drawFilledCircleAnimation(Animation& genericAnimation, const Style& style)
@@ -524,7 +565,7 @@ namespace MathAnim
 				float nextX = anim.radius * glm::cos(glm::radians(nextT));
 				float nextY = anim.radius * glm::sin(glm::radians(nextT));
 
-				Renderer::drawFilledTriangle(anim.position + Vec2{}, anim.position + Vec2{x, y}, anim.position + Vec2{nextX, nextY}, style);
+				Renderer::drawFilledTriangle(anim.position + Vec2{}, anim.position + Vec2{ x, y }, anim.position + Vec2{ nextX, nextY }, style);
 
 				t += sectorSize;
 			}
@@ -540,18 +581,18 @@ namespace MathAnim
 			switch (anim.fillDirection)
 			{
 			case Direction::Up:
-				Renderer::drawFilledSquare(anim.center - (anim.size / 2.0f), Vec2{anim.size.x, anim.size.y * percentToDo}, style);
+				Renderer::drawFilledSquare(anim.center - (anim.size / 2.0f), Vec2{ anim.size.x, anim.size.y * percentToDo }, style);
 				break;
 			case Direction::Down:
-				Renderer::drawFilledSquare(anim.center + (anim.size / 2.0f) - Vec2{anim.size.x, anim.size.y * percentToDo},
-					Vec2{anim.size.x, anim.size.y * percentToDo}, style);
+				Renderer::drawFilledSquare(anim.center + (anim.size / 2.0f) - Vec2{ anim.size.x, anim.size.y * percentToDo },
+					Vec2{ anim.size.x, anim.size.y * percentToDo }, style);
 				break;
 			case Direction::Right:
-				Renderer::drawFilledSquare(anim.center - (anim.size / 2.0f), Vec2{anim.size.x * percentToDo, anim.size.y}, style);
+				Renderer::drawFilledSquare(anim.center - (anim.size / 2.0f), Vec2{ anim.size.x * percentToDo, anim.size.y }, style);
 				break;
 			case Direction::Left:
-				Renderer::drawFilledSquare(anim.center + (anim.size / 2.0f) - Vec2{anim.size.x * percentToDo, anim.size.y},
-					Vec2{anim.size.x * percentToDo, anim.size.y}, style);
+				Renderer::drawFilledSquare(anim.center + (anim.size / 2.0f) - Vec2{ anim.size.x * percentToDo, anim.size.y },
+					Vec2{ anim.size.x * percentToDo, anim.size.y }, style);
 				break;
 			}
 		}

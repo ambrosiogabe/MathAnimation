@@ -138,30 +138,6 @@ namespace MathAnim
 		} as;
 	};
 
-	enum class AnimObjectType
-	{
-		TextObject,
-		LaTexObject,
-	};
-
-	struct AnimObject
-	{
-		AnimObjectType objectType;
-		Vec2 position;
-		int id;
-		int frameStart;
-		int duration;
-		bool isAnimating;
-
-		union
-		{
-			TextObject textObject;
-			LaTexObject laTexObject;
-		} as;
-
-		void render(NVGcontext* vg) const;
-	};
-
 	enum class AnimTypeEx
 	{
 		WriteInText,
@@ -183,24 +159,53 @@ namespace MathAnim
 		void render(NVGcontext* vg, float t) const;
 
 		const AnimObject* getParent() const;
+		void free();
+	};
+
+	enum class AnimObjectType
+	{
+		TextObject,
+		LaTexObject,
+	};
+
+	struct AnimObject
+	{
+		AnimObjectType objectType;
+		Vec2 position;
+		int id;
+		int frameStart;
+		int duration;
+		int timelineTrack;
+		bool isAnimating;
+		std::vector<AnimationEx> animations;
+
+		union
+		{
+			TextObject textObject;
+			LaTexObject laTexObject;
+		} as;
+
+		void render(NVGcontext* vg) const;
+		void free();
 	};
 
 	namespace AnimationManagerEx
 	{
-		void addAnimObject(AnimObject object);
-		void addAnimation(AnimationEx animation);
+		void addAnimObject(const AnimObject& object);
+		void addAnimationTo(AnimationEx animation, AnimObject& animObject);
 
 		bool removeAnimObject(int animObjectId);
+		bool removeAnimation(int animObjectId, int animationId);
 
 		bool setAnimObjectTime(int animObjectId, int frameStart, int duration);
-		bool setAnimationTime(int animationId, int frameStart, int duration);
+		bool setAnimationTime(int animObjectId, int animationId, int frameStart, int duration);
+		void setAnimObjectTrack(int animObjectId, int track);
 
 		void render(NVGcontext* vg, int frame);
 
 		const AnimObject* getObject(int animObjectId);
 		AnimObject* getMutableObject(int animObjectId);
 		const std::vector<AnimObject>& getAnimObjects();
-		const std::vector<AnimationEx>& getAnimations();
 	}
 
 	namespace AnimationManager

@@ -85,6 +85,7 @@ namespace MathAnim
 				.generate();
 
 			AnimObject textObject;
+			textObject.timelineTrack = 0;
 			textObject.id = 0;
 			textObject.objectType = AnimObjectType::TextObject;
 			textObject.duration = framerate * 12;
@@ -101,7 +102,6 @@ namespace MathAnim
 			glm::vec2 centeredText = glm::vec2(mainFramebuffer.width / 2.0f, mainFramebuffer.height / 2.0f) - (textSize * 0.5f);
 
 			textObject.position = Vec2{ centeredText.x, centeredText.y };
-			AnimationManagerEx::addAnimObject(textObject);
 
 			AnimationEx animObject;
 			animObject.objectId = 0;
@@ -109,7 +109,9 @@ namespace MathAnim
 			animObject.frameStart = 0;
 			animObject.type = AnimTypeEx::WriteInText;
 			animObject.id = 5;
-			AnimationManagerEx::addAnimation(animObject);
+			AnimationManagerEx::addAnimationTo(animObject, textObject);
+
+			AnimationManagerEx::addAnimObject(textObject);
 
 			EditorGui::init();
 

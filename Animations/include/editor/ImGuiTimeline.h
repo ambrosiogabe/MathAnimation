@@ -65,7 +65,7 @@ namespace MathAnim
 		bool isExpanded;
 	};
 
-	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* zoom = nullptr, float* scrollOffsetX = nullptr, ImGuiTimelineFlags flags = ImGuiTimelineFlags_None);
+	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* zoom = nullptr, ImGuiTimelineFlags flags = ImGuiTimelineFlags_None);
 }
 
 #endif 
