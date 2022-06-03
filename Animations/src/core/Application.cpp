@@ -84,34 +84,35 @@ namespace MathAnim
 				.includeDepthStencil()
 				.generate();
 
-			AnimObject textObject;
-			textObject.timelineTrack = 0;
-			textObject.id = 0;
-			textObject.objectType = AnimObjectType::TextObject;
-			textObject.duration = framerate * 12;
-			textObject.frameStart = 0;
-			textObject.as.textObject.font = baskVillFont;
-			textObject.as.textObject.fontSizePixels = 500.0f;
-			const char msg[] = "Hello World!";
-			textObject.as.textObject.text = (char*)g_memory_allocate(sizeof(char) * (sizeof(msg) / sizeof(char)));
-			g_memory_copyMem(textObject.as.textObject.text, (void*)msg, sizeof(msg));
-			textObject.as.textObject.text[sizeof(msg) / sizeof(char)] = '\0';
-			textObject.as.textObject.textLength = sizeof(msg) / sizeof(char);
+			//AnimObject textObject;
+			//textObject.timelineTrack = 0;
+			//textObject.id = 0;
+			//textObject.objectType = AnimObjectType::TextObject;
+			//textObject.duration = framerate * 12;
+			//textObject.frameStart = 0;
+			//textObject.as.textObject.font = baskVillFont;
+			//textObject.as.textObject.fontSizePixels = 500.0f;
+			//const char msg[] = "Hello World!";
+			//textObject.as.textObject.text = (char*)g_memory_allocate(sizeof(char) * (sizeof(msg) / sizeof(char)));
+			//g_memory_copyMem(textObject.as.textObject.text, (void*)msg, sizeof(msg));
+			//textObject.as.textObject.text[sizeof(msg) / sizeof(char)] = '\0';
+			//textObject.as.textObject.textLength = (sizeof(msg) / sizeof(char)) - 1;
 
-			glm::vec2 textSize = baskVillFont->getSizeOfString(textObject.as.textObject.text, textObject.as.textObject.fontSizePixels);
-			glm::vec2 centeredText = glm::vec2(mainFramebuffer.width / 2.0f, mainFramebuffer.height / 2.0f) - (textSize * 0.5f);
+			//glm::vec2 textSize = baskVillFont->getSizeOfString(textObject.as.textObject.text, textObject.as.textObject.fontSizePixels);
+			//glm::vec2 centeredText = glm::vec2(mainFramebuffer.width / 2.0f, mainFramebuffer.height / 2.0f) - (textSize * 0.5f);
 
-			textObject.position = Vec2{ centeredText.x, centeredText.y };
+			//textObject.position = Vec2{ centeredText.x, centeredText.y };
 
-			AnimationEx animObject;
-			animObject.objectId = 0;
-			animObject.duration = framerate * 1;
-			animObject.frameStart = 0;
-			animObject.type = AnimTypeEx::WriteInText;
-			animObject.id = 5;
-			AnimationManagerEx::addAnimationTo(animObject, textObject);
+			//AnimationEx animObject;
+			//animObject.objectId = 0;
+			//animObject.duration = framerate * 1;
+			//animObject.frameStart = 0;
+			//animObject.type = AnimTypeEx::WriteInText;
+			//animObject.id = 5;
+			//AnimationManagerEx::addAnimationTo(animObject, textObject);
 
-			AnimationManagerEx::addAnimObject(textObject);
+			//AnimationManagerEx::addAnimObject(textObject);
+			AnimationManagerEx::deserialize("./myScene.bin");
 
 			EditorGui::init();
 
@@ -236,6 +237,8 @@ namespace MathAnim
 
 		void free()
 		{
+			AnimationManagerEx::serialize("./myScene.bin");
+
 			EditorGui::free();
 			Fonts::unloadFont(baskVillFont);
 			nvgDeleteGL3(vg);

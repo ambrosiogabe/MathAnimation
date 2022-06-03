@@ -66,3 +66,67 @@ MathAnim::Vec4 operator""_hex(const char* rawHexColor, size_t inputLength)
 		color1, color2, color3, 1.0f
 	};
 }
+
+void RawMemory::init(size_t initialSize)
+{
+	size = initialSize;
+	data = (uint8*)g_memory_allocate(initialSize);
+	offset = 0;
+}
+
+void RawMemory::free()
+{
+	if (data)
+	{
+		g_memory_free(data);
+		size = 0;
+		data = nullptr;
+		offset = 0;
+	}
+}
+
+void RawMemory::shrinkToFit()
+{
+	data = (uint8*)g_memory_realloc(data, offset);
+	size = offset;
+}
+
+void RawMemory::resetReadWriteCursor()
+{
+	offset = 0;
+}
+
+void RawMemory::setCursor(size_t offset)
+{
+	this->offset = offset;
+}
+
+void RawMemory::writeDangerous(const uint8* data, size_t dataSize)
+{
+	if (this->offset + dataSize >= this->size)
+	{
+		// Reallocate
+		size_t newSize = (this->offset + dataSize) * 2;
+		uint8* newData = (uint8*)g_memory_realloc(this->data, newSize);
+		g_logger_assert(newData != nullptr, "Failed to reallocate more memory.");
+		this->data = newData;
+		this->size = newSize;
+	}
+
+	g_memory_copyMem(this->data + this->offset, (uint8*)(data), dataSize);
+	this->offset += dataSize;
+}
+
+void RawMemory::readDangerous(uint8* data, size_t dataSize)
+{
+	if (this->offset + dataSize > this->size)
+	{
+		g_logger_error("Deserialized bad data. Read boundary out of bounds, cannot access '%zu' bytes in memory of size '%zu' bytes",
+			this->offset + dataSize,
+			this->size);
+		return;
+	}
+
+	g_memory_copyMem((uint8*)data, this->data + this->offset, dataSize);
+	this->offset += dataSize;
+}

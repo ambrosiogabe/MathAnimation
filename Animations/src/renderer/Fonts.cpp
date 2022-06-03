@@ -21,7 +21,7 @@ namespace MathAnim
 			return iter->second;
 		}
 
-		g_logger_error("Glyph index '%d' does not exist in font '%s'.", glyphIndex, filepath.c_str());
+		g_logger_error("Glyph index '%d' does not exist in font '%s'.", glyphIndex, vgFontFace.c_str());
 		return {};
 	}
 
@@ -97,7 +97,7 @@ namespace MathAnim
 
 		int createOutline(Font* font, uint32 character, GlyphOutline* outlineResult)
 		{
-			g_logger_assert(font->fontFace != nullptr, "Cannot create outline for uninitialized font '%s'.", font->filepath.c_str());
+			g_logger_assert(font->fontFace != nullptr, "Cannot create outline for uninitialized font '%s'.", font->vgFontFace.c_str());
 
 			FT_Face fontFace = font->fontFace;
 			FT_UInt glyphIndex = FT_Get_Char_Index(fontFace, character);
@@ -148,6 +148,12 @@ namespace MathAnim
 		{
 			g_logger_assert(initialized, "Font library must be initialized to load a font.");
 
+			std::string filepathStr = std::string(filepath);
+			if (loadedFonts.find(filepathStr) != loadedFonts.end())
+			{
+				return &loadedFonts[filepathStr];
+			}
+
 			// Load the new font into freetype.
 			FT_Face face;
 			int error = FT_New_Face(library, filepath, 0, &face);
@@ -164,6 +170,7 @@ namespace MathAnim
 
 			// Generate a texture for the font and initialize the font structure
 			Font font;
+			font.vgFontFace = filepathStr;
 			font.fontFace = face;
 			font.unitsPerEM = (float)face->units_per_EM;
 			font.lineHeight = (float)face->height / font.unitsPerEM;
@@ -171,8 +178,6 @@ namespace MathAnim
 			// TODO: Turn the preset characters into a parameter
 			generateDefaultCharset(font, defaultCharset);
 
-			std::string filepathStr = std::string(filepath);
-			font.vgFontFace = filepathStr;
 			int vgFontError = nvgCreateFont(vg, font.vgFontFace.c_str(), font.vgFontFace.c_str());
 			if (vgFontError)
 			{
@@ -192,17 +197,17 @@ namespace MathAnim
 				return;
 			}
 
-			std::string formattedPath = font->filepath;
+			std::string formattedPath = font->vgFontFace;
 			for (std::pair<const uint32, GlyphOutline>& kv : font->glyphMap)
 			{
 				GlyphOutline& outline = kv.second;
 				outline.free();
 			}
 
-			loadedFonts.erase(formattedPath);
-
 			FT_Done_Face(font->fontFace);
 			font->fontFace = nullptr;
+
+			loadedFonts.erase(formattedPath);
 		}
 
 		void unloadFont(const char* filepath)

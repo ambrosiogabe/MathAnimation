@@ -1,4 +1,5 @@
 #include "animation/Animation.h"
+#include "core.h"
 
 #include "renderer/Renderer.h"
 #include "animation/Styles.h"
@@ -7,10 +8,22 @@
 
 namespace MathAnim
 {
+	// ----------------------------- Internal Functions -----------------------------
+	static AnimObject deserializeAnimObjectV1(RawMemory& memory);
+
+	static AnimationEx deserializeAnimationExV1(RawMemory& memory);
+
+	// Constants
+	constexpr uint32 SERIALIZER_VERSION = 1;
+	constexpr uint32 MAGIC_NUMBER = 0xDEADBEEF;
+
 	namespace AnimationManagerEx
 	{
 		// List of animatable objects, sorted by start time
 		static std::vector<AnimObject> mObjects;
+
+		// Internal Functions
+		static void deserializeAnimationManagerExV1(RawMemory& memory);
 
 		void addAnimObject(const AnimObject& object)
 		{
@@ -252,6 +265,96 @@ namespace MathAnim
 		{
 			return mObjects;
 		}
+
+		void serialize(const char* savePath)
+		{
+			// This data should always be present regardless of file version
+			// Container data layout
+			// magicNumber   -> uint32
+			// version       -> uint32
+			RawMemory memory;
+			memory.init(sizeof(uint32) + sizeof(uint32));
+			memory.write<uint32>(&MAGIC_NUMBER);
+			memory.write<uint32>(&SERIALIZER_VERSION);
+
+			// Custom data starts here. Subject to change from version to version
+			// numAnimations -> uint32
+			// animObjects   -> dynamic
+			uint32 numAnimations = (uint32)mObjects.size();
+			memory.write<uint32>(&numAnimations);
+
+			// Write out each animation followed by 0xDEADBEEF
+			for (int i = 0; i < mObjects.size(); i++)
+			{
+				mObjects[i].serialize(memory);
+				memory.write<uint32>(&MAGIC_NUMBER);
+			}
+			memory.shrinkToFit();
+
+			FILE* fp = fopen(savePath, "wb");
+			fwrite(memory.data, memory.size, 1, fp);
+			fclose(fp);
+
+			memory.free();
+		}
+
+		void deserialize(const char* loadPath)
+		{
+			FILE* fp = fopen(loadPath, "rb");
+			fseek(fp, 0, SEEK_END);
+			size_t fileSize = ftell(fp);
+			fseek(fp, 0, SEEK_SET);
+
+			RawMemory memory;
+			memory.init(fileSize);
+			fread(memory.data, fileSize, 1, fp);
+			fclose(fp);
+
+			// Read magic number and version then dispatch to appropraite
+			// deserializer
+			// magicNumber   -> uint32
+			// version       -> uint32
+			uint32 magicNumber;
+			memory.read<uint32>(&magicNumber);
+			uint32 serializerVersion;
+			memory.read<uint32>(&serializerVersion);
+
+			g_logger_assert(magicNumber == MAGIC_NUMBER, "File '%s' had invalid magic number '0x%8x. File must have been corrupted.", loadPath, magicNumber);
+			g_logger_assert((serializerVersion != 0 && serializerVersion <= SERIALIZER_VERSION), "File '%s' saved with invalid version '%d'. Looks like corrupted data.", loadPath, serializerVersion);
+
+			if (serializerVersion == 1)
+			{
+				deserializeAnimationManagerExV1(memory);
+			}
+			else
+			{
+				g_logger_error("AnimationManagerEx serialized with unknown version '%d'.", serializerVersion);
+			}
+
+			memory.free();
+		}
+
+		// Internal Functions
+		static void deserializeAnimationManagerExV1(RawMemory& memory)
+		{
+			// We're in function V1 so this is a version 1 for sure
+			constexpr uint32 version = 1;
+
+			// numAnimations -> uint32
+			// animObjects   -> dynamic
+			uint32 numAnimations;
+			memory.read<uint32>(&numAnimations);
+
+			// Write out each animation followed by 0xDEADBEEF
+			for (int i = 0; i < numAnimations; i++)
+			{
+				AnimObject animObject = AnimObject::deserialize(memory, version);
+				mObjects.push_back(animObject);
+				uint32 magicNumber;
+				memory.read<uint32>(&magicNumber);
+				g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+			}
+		}
 	}
 
 	void AnimationEx::render(NVGcontext* vg, float t) const
@@ -281,6 +384,43 @@ namespace MathAnim
 		g_logger_warning("TODO; Implment me");
 	}
 
+	void AnimationEx::serialize(RawMemory& memory) const
+	{
+		// type         -> uint32
+		// objectId     -> int32
+		// frameStart   -> int32
+		// duration     -> int32
+		// id           -> int32
+		uint32 animType = (uint32)this->type;
+		memory.write<uint32>(&animType);
+		memory.write<int32>(&objectId);
+		memory.write<int32>(&frameStart);
+		memory.write<int32>(&duration);
+		memory.write<int32>(&id);
+	}
+
+	AnimationEx AnimationEx::deserialize(RawMemory& memory, uint32 version)
+	{
+		// type         -> uint32
+		// objectId     -> int32
+		// frameStart   -> int32
+		// duration     -> int32
+		// id           -> int32
+		if (version == 1)
+		{
+			return deserializeAnimationExV1(memory);
+		}
+
+		g_logger_error("AnimationEx serialized with unknown version '%d'. Memory potentially corrupted.", version);
+		AnimationEx res;
+		res.id = -1;
+		res.objectId = -1;
+		res.type = AnimTypeEx::None;
+		res.duration = 0;
+		res.frameStart = 0;
+		return res;
+	}
+
 	void AnimObject::render(NVGcontext* vg) const
 	{
 		switch (objectType)
@@ -299,6 +439,139 @@ namespace MathAnim
 	void AnimObject::free()
 	{
 		g_logger_warning("TODO; Implment me");
+	}
+
+	void AnimObject::serialize(RawMemory& memory) const
+	{
+		//   AnimObjectType     -> uint32
+		//   Position
+		//     X                -> f32
+		//     Y                -> f32
+		//   Id                 -> int32
+		//   FrameStart         -> int32
+		//   Duration           -> int32
+		//   TimelineTrack      -> int32
+		//   AnimationTypeSpecificData (This data will change depending on AnimObjectType)
+		uint32 animObjectType = (uint32)objectType;
+		memory.write<uint32>(&animObjectType);
+		memory.write<float>(&position.x);
+		memory.write<float>(&position.y);
+		memory.write<int32>(&id);
+		memory.write<int32>(&frameStart);
+		memory.write<int32>(&duration);
+		memory.write<int32>(&timelineTrack);
+
+		switch (objectType)
+		{
+		case AnimObjectType::TextObject:
+			this->as.textObject.serialize(memory);
+			break;
+		case AnimObjectType::LaTexObject:
+			this->as.laTexObject.serialize(memory);
+			break;
+		}
+
+		// NumAnimations  -> uint32
+		// Animations     -> dynamic
+		uint32 numAnimations = (uint32)this->animations.size();
+		memory.write<uint32>(&numAnimations);
+		for (int i = 0; i < numAnimations; i++)
+		{
+			animations[i].serialize(memory);
+		}
+	}
+
+	AnimObject AnimObject::deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			return deserializeAnimObjectV1(memory);
+		}
+
+		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
+		AnimObject res;
+		res.animations = {};
+		res.frameStart = 0;
+		res.duration = 0;
+		res.id = -1;
+		res.objectType = AnimObjectType::None;
+		res.position = {};
+		res.timelineTrack = -1;
+		return res;
+	}
+
+	// ----------------------------- Internal Functions -----------------------------
+	static AnimObject deserializeAnimObjectV1(RawMemory& memory)
+	{
+		AnimObject res;
+
+		// AnimObjectType     -> uint32
+		// Position
+		//   X                -> f32
+		//   Y                -> f32
+		// Id                 -> int32
+		// FrameStart         -> int32
+		// Duration           -> int32
+		// TimelineTrack      -> int32
+		// AnimationTypeDataSize -> uint64
+		// AnimationTypeSpecificData (This data will change depending on AnimObjectType)
+		uint32 animObjectType;
+		memory.read<uint32>(&animObjectType);
+		g_logger_assert(animObjectType < (uint32)AnimObjectType::Length, "Invalid AnimObjectType '%d' from memory. Must be corrupted memory.", animObjectType);
+		res.objectType = (AnimObjectType)animObjectType;
+		memory.read<float>(&res.position.x);
+		memory.read<float>(&res.position.y);
+		memory.read<int32>(&res.id);
+		memory.read<int32>(&res.frameStart);
+		memory.read<int32>(&res.duration);
+		memory.read<int32>(&res.timelineTrack);
+
+		// We're in V1 so this is version 1
+		constexpr uint32 version = 1;
+		switch (res.objectType)
+		{
+		case AnimObjectType::TextObject:
+			res.as.textObject = TextObject::deserialize(memory, version);
+			break;
+		case AnimObjectType::LaTexObject:
+			res.as.laTexObject = LaTexObject::deserialize(memory, version);
+			break;
+		default:
+			g_logger_error("Unknown anim object type: %d. Corrupted memory.", res.objectType);
+			break;
+		}
+
+		// NumAnimations  -> uint32
+		// Animations     -> dynamic
+		uint32 numAnimations;
+		memory.read<uint32>(&numAnimations);
+		for (int i = 0; i < numAnimations; i++)
+		{
+			AnimationEx animation = AnimationEx::deserialize(memory, SERIALIZER_VERSION);
+			res.animations.push_back(animation);
+		}
+
+		return res;
+	}
+
+	AnimationEx deserializeAnimationExV1(RawMemory& memory)
+	{
+		// type         -> uint32
+		// objectId     -> int32
+		// frameStart   -> int32
+		// duration     -> int32
+		// id           -> int32
+		AnimationEx res;
+		uint32 animType;
+		memory.read<uint32>(&animType);
+		g_logger_assert(animType < (uint32)AnimTypeEx::Length, "Invalid animation type '%d' from memory. Must be corrupted memory.", animType);
+		res.type = (AnimTypeEx)animType;
+		memory.read<int32>(&res.objectId);
+		memory.read<int32>(&res.frameStart);
+		memory.read<int32>(&res.duration);
+		memory.read<int32>(&res.id);
+
+		return res;
 	}
 
 	namespace AnimationManager

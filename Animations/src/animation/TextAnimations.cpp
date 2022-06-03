@@ -8,6 +8,8 @@ namespace MathAnim
 {
 	// ------------- Internal Functions -------------
 	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos);
+	
+	static TextObject deserializeTextV1(RawMemory& memory);
 
 	void TextObject::render(NVGcontext* vg, const AnimObject* parent) const
 	{
@@ -58,6 +60,63 @@ namespace MathAnim
 				break;
 			}
 		}
+	}
+
+	void TextObject::serialize(RawMemory& memory) const
+	{
+		// fontSizePixels       -> float
+		// textLength           -> int32
+		// text                 -> char[textLength]
+		// fontFilepathLength   -> int32
+		// fontFilepath         -> char[fontFilepathLength]
+		memory.write<float>(&fontSizePixels);
+
+		// TODO: Specialize std::string or const char* in template so
+		// we don't have to write out text char by char
+		memory.write<int32>(&textLength);
+		for (int i = 0; i < textLength; i++)
+		{
+			memory.write<char>(&text[i]);
+		}
+		constexpr char nullByte = '\0';
+		memory.write<char>(&nullByte);
+
+		// TODO: Overflow error checking would be good here
+		int32 fontFilepathLength = font->vgFontFace.size();
+		memory.write<int32>(&fontFilepathLength);
+		for (int i = 0; i < fontFilepathLength; i++)
+		{
+			memory.write<char>(&font->vgFontFace[i]);
+		}
+	}
+
+	TextObject TextObject::deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			return deserializeTextV1(memory);
+		}
+
+		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		TextObject res;
+		g_memory_zeroMem(&res, sizeof(TextObject));
+		return res;
+	}
+
+	void LaTexObject::render(NVGcontext* vg, const AnimObject* parent) const
+	{
+		g_logger_warning("TODO: Implement me");
+	}
+
+	void LaTexObject::serialize(RawMemory& memory) const
+	{
+		g_logger_warning("TODO: Implement me");
+	}
+
+	LaTexObject LaTexObject::deserialize(RawMemory& memory, uint32 version)
+	{
+		g_logger_warning("TODO: Implement me");
+		return {};
 	}
 
 	// ------------- Internal Functions -------------
@@ -236,5 +295,42 @@ namespace MathAnim
 			nvgFontSize(vg, fontScale);
 			nvgText(vg, glyphPos.x, fontScale + glyphPos.y, str.c_str(), NULL);
 		}
+	}
+
+	static TextObject deserializeTextV1(RawMemory& memory)
+	{
+		TextObject res;
+
+		// fontSizePixels       -> float
+		// textLength           -> int32
+		// text                 -> char[textLength]
+		// fontFilepathLength   -> int32
+		// fontFilepath         -> char[fontFilepathLength]
+		memory.read<float>(&res.fontSizePixels);
+
+		// TODO: Specialize std::string or const char* in template so
+		// we don't have to read in text char by char
+		memory.read<int32>(&res.textLength);
+		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
+		for (int i = 0; i < res.textLength; i++)
+		{
+			memory.read<char>(&res.text[i]);
+		}
+		memory.read<char>(&res.text[res.textLength]);
+
+		// TODO: Error checking would be good here
+		int32 fontFilepathLength;
+		memory.read<int32>(&fontFilepathLength);
+		// Initialize filepath to XXXX...
+		std::string fontFilepath = std::string(fontFilepathLength, 'X');
+		for (int i = 0; i < fontFilepathLength; i++)
+		{
+			memory.read<char>(&fontFilepath[i]);
+		}
+
+		// Now load the font somehow...? :think_face:
+		res.font = Fonts::getFont(fontFilepath.c_str());
+
+		return res;
 	}
 }

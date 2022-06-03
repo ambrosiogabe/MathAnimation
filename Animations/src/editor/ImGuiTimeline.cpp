@@ -663,6 +663,7 @@ namespace MathAnim
 			// Draw all the track labels
 			float currentTrackTop = canvasPos.y + timelineRulerHeight - scrollOffsetY;
 			ImGui::PushClipRect(canvasPos + ImVec2(0.0f, timelineRulerHeight), canvasPos + legendSize, true);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16, 16));
 			for (int i = 0; i < numTracks; i++)
 			{
 				ImVec2 textSize = ImGui::CalcTextSize(tracks[i].trackName);
@@ -693,7 +694,6 @@ namespace MathAnim
 				currentTrackTop += trackHeight;
 
 				// Handle right clicking on the legend by popping up context menu
-				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16, 16));
 				std::string id = std::string("TrackName_") + std::to_string(i) + tracks[i].trackName;
 				if (beginPopupContextTimelineItem(id.c_str(), legendTrackNameTop, legendTrackNameBottom))
 				{
@@ -718,7 +718,6 @@ namespace MathAnim
 
 					ImGui::EndPopup();
 				}
-				ImGui::PopStyleVar();
 			}
 			ImGui::PopClipRect();
 
@@ -735,6 +734,7 @@ namespace MathAnim
 
 				ImGui::EndPopup();
 			}
+			ImGui::PopStyleVar();
 		}
 		// ---------------------- End Legend ------------------------------
 

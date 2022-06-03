@@ -44,7 +44,6 @@ namespace MathAnim
 	{
 		FT_Face fontFace;
 		std::unordered_map<uint32, GlyphOutline> glyphMap;
-		std::string filepath;
 		std::string vgFontFace;
 		float unitsPerEM;
 		float lineHeight;

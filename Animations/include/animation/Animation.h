@@ -138,18 +138,20 @@ namespace MathAnim
 		} as;
 	};
 
-	enum class AnimTypeEx
+	enum class AnimTypeEx : uint32
 	{
+		None = 0,
 		WriteInText,
+		Length
 	};
 
 	struct AnimationEx
 	{
 		AnimTypeEx type;
-		int objectId;
-		int frameStart;
-		int duration;
-		int id;
+		int32 objectId;
+		int32 frameStart;
+		int32 duration;
+		int32 id;
 
 		// Render the animation state using a interpolation t value
 		// 
@@ -160,22 +162,26 @@ namespace MathAnim
 
 		const AnimObject* getParent() const;
 		void free();
+		void serialize(RawMemory& memory) const;
+		static AnimationEx deserialize(RawMemory& memory, uint32 version);
 	};
 
-	enum class AnimObjectType
+	enum class AnimObjectType : uint32
 	{
+		None = 0,
 		TextObject,
 		LaTexObject,
+		Length
 	};
 
 	struct AnimObject
 	{
 		AnimObjectType objectType;
 		Vec2 position;
-		int id;
-		int frameStart;
-		int duration;
-		int timelineTrack;
+		int32 id;
+		int32 frameStart;
+		int32 duration;
+		int32 timelineTrack;
 		bool isAnimating;
 		std::vector<AnimationEx> animations;
 
@@ -187,6 +193,8 @@ namespace MathAnim
 
 		void render(NVGcontext* vg) const;
 		void free();
+		void serialize(RawMemory& memory) const;
+		static AnimObject deserialize(RawMemory& memory, uint32 version);
 	};
 
 	namespace AnimationManagerEx
@@ -206,6 +214,9 @@ namespace MathAnim
 		const AnimObject* getObject(int animObjectId);
 		AnimObject* getMutableObject(int animObjectId);
 		const std::vector<AnimObject>& getAnimObjects();
+
+		void serialize(const char* savePath = nullptr);
+		void deserialize(const char* loadPath = nullptr);
 	}
 
 	namespace AnimationManager
