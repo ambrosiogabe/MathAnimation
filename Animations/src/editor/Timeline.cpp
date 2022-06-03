@@ -18,12 +18,16 @@ namespace MathAnim
 	{
 		// ------- Private variables --------
 		static const char* animationObjectTypeNames[] = {
+			"None",
 			"Text Object",
-			"LaTex Object"
+			"LaTex Object",
+			"Length"
 		};
 
 		static const char* animationTypeNames[] = {
+			"None",
 			"Write In Text",
+			"Length",
 		};
 
 		static ImGuiTimeline_Track* tracks;

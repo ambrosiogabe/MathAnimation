@@ -369,6 +369,12 @@ namespace MathAnim
 								res.activeObjectIsSubSegment = false;
 								activeSegmentID = segmentID;
 							}
+
+							// Adjust the segment start and end to the new positions
+							offsetX = (segment.frameStart - (float)*firstFrame) / amountOfTimeVisibleInTimeline * (canvasSize.x - legendSize.x);
+							width = (segment.frameDuration / amountOfTimeVisibleInTimeline) * (canvasSize.x - legendSize.x);
+							segmentStart = ImVec2(canvasPos.x + legendSize.x + offsetX, trackTopY);
+							segmentEnd = ImVec2(segmentStart.x + width, trackBottomY);
 						}
 						else if (activeSegmentID == segmentID && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
 						{
