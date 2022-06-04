@@ -17,19 +17,6 @@ namespace MathAnim
 	namespace Timeline
 	{
 		// ------- Private variables --------
-		static const char* animationObjectTypeNames[] = {
-			"None",
-			"Text Object",
-			"LaTex Object",
-			"Length"
-		};
-
-		static const char* animationTypeNames[] = {
-			"None",
-			"Write In Text",
-			"Length",
-		};
-
 		static ImGuiTimeline_Track* tracks;
 		static int numTracks;
 
@@ -41,7 +28,7 @@ namespace MathAnim
 		static void handleAnimObjectInspector(int animObjectId);
 		static void handleAnimationInspector(int animationId);
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate = INT32_MAX);
-		static void shiftAnimationTimelineTracks(int delta);
+		static void resetImGuiData();
 
 		static void handleTextObjectInspector(AnimObject* object);
 
@@ -97,6 +84,37 @@ namespace MathAnim
 			if (res.flags & ImGuiTimelineResultFlags_DeleteTrackClicked)
 			{
 				deleteTrack(res.trackIndex);
+			}
+
+			if (res.flags & ImGuiTimelineResultFlags_DragDropPayloadHit)
+			{
+				g_logger_assert(res.dragDropPayloadDataSize == sizeof(TimelinePayload), "Invalid payload.");
+				res.trackIndex;
+				res.dragDropPayloadFirstFrame;
+				res.dragDropPayloadData;
+				TimelinePayload* payloadData = (TimelinePayload*)res.dragDropPayloadData;
+				if (payloadData->isAnimObject)
+				{
+					if (!res.activeObjectIsSubSegment)
+					{
+						AnimObject object = AnimObject::createDefault(payloadData->objectType, res.dragDropPayloadFirstFrame, 120);
+						object.timelineTrack = res.trackIndex;
+						AnimationManagerEx::addAnimObject(object);
+					}
+				}
+				else
+				{
+					if (res.activeObjectIsSubSegment)
+					{
+						g_logger_info("Dropped payload\nname: '%s'\ntrackIndex: %d\nfirstFrame: %d\nIs Subtrack: %d",
+							AnimationManagerEx::getAnimationName(payloadData->animType),
+							res.trackIndex,
+							res.dragDropPayloadFirstFrame,
+							res.activeObjectIsSubSegment);
+					}
+				}
+
+				resetImGuiData();
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_SegmentTimeChanged)
@@ -283,27 +301,7 @@ namespace MathAnim
 			}
 
 			// After we delete the track, we have to reset our ImGui data
-			for (int track = 0; track < numTracks; track++)
-			{
-				if (tracks[track].segments)
-				{
-					for (int i = 0; i < tracks[track].numSegments; i++)
-					{
-						if (tracks[track].segments[i].subSegments)
-						{
-							g_memory_free(tracks[track].segments[i].subSegments);
-							tracks[track].segments[i].subSegments = nullptr;
-							tracks[track].segments[i].numSubSegments = 0;
-						}
-					}
-
-					g_memory_free(tracks[track].segments);
-					tracks[track].segments = nullptr;
-					tracks[track].numSegments = 0;
-				}
-			}
-
-			setupImGuiTimelineDataFromAnimations(numTracks);
+			resetImGuiData();
 		}
 
 		static void handleAnimObjectInspector(int animObjectId)
@@ -405,6 +403,10 @@ namespace MathAnim
 				{
 					tracks[track].segments = (ImGuiTimeline_Segment*)g_memory_allocate(sizeof(ImGuiTimeline_Segment) * numSegments);
 				}
+				else
+				{
+					tracks[track].segments = nullptr;
+				}
 
 				// Count how many subsegments there are for each segment
 				int segment = 0;
@@ -420,11 +422,14 @@ namespace MathAnim
 						{
 							tracks[track].segments[segment].subSegments = (ImGuiTimeline_SubSegment*)g_memory_allocate(sizeof(ImGuiTimeline_SubSegment) * numAnimations);
 						}
+						else
+						{
+							tracks[track].segments[segment].subSegments = nullptr;
+						}
 						segment++;
 					}
 				}
 			}
-
 
 			// Initialize tracks data
 			for (int track = 0; track < maxTimelineTrack + 1; track++)
@@ -437,7 +442,7 @@ namespace MathAnim
 						tracks[track].segments[segment].frameStart = animObjects[i].frameStart;
 						tracks[track].segments[segment].frameDuration = animObjects[i].duration;
 						tracks[track].segments[segment].userData = (void*)animObjects[i].id;
-						tracks[track].segments[segment].segmentName = animationObjectTypeNames[(int)animObjects[i].objectType];
+						tracks[track].segments[segment].segmentName = AnimationManagerEx::getAnimObjectName(animObjects[i].objectType);
 						tracks[track].segments[segment].isExpanded = false;
 
 						for (int j = 0; j < animObjects[i].animations.size(); j++)
@@ -447,7 +452,7 @@ namespace MathAnim
 							ImGuiTimeline_SubSegment& subSegment = tracks[track].segments[segment].subSegments[j];
 							subSegment.frameStart = animObjects[i].animations[j].frameStart;
 							subSegment.frameDuration = animObjects[i].animations[j].duration;
-							subSegment.segmentName = animationTypeNames[(int)animObjects[i].animations[j].type];
+							subSegment.segmentName = AnimationManagerEx::getAnimationName(animObjects[i].animations[j].type);
 							subSegment.userData = (void*)animObjects[i].animations[j].id;
 						}
 
@@ -455,6 +460,31 @@ namespace MathAnim
 					}
 				}
 			}
+		}
+
+		static void resetImGuiData()
+		{
+			for (int track = 0; track < numTracks; track++)
+			{
+				if (tracks[track].segments)
+				{
+					for (int i = 0; i < tracks[track].numSegments; i++)
+					{
+						if (tracks[track].segments[i].subSegments)
+						{
+							g_memory_free(tracks[track].segments[i].subSegments);
+							tracks[track].segments[i].subSegments = nullptr;
+							tracks[track].segments[i].numSubSegments = 0;
+						}
+					}
+
+					g_memory_free(tracks[track].segments);
+					tracks[track].segments = nullptr;
+					tracks[track].numSegments = 0;
+				}
+			}
+
+			setupImGuiTimelineDataFromAnimations(numTracks);
 		}
 	}
 }

@@ -20,6 +20,7 @@ namespace MathAnim
 		void renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent) const;
 		void serialize(RawMemory& memory) const;
 		static TextObject deserialize(RawMemory& memory, uint32 version);
+		static TextObject createDefault();
 	};
 
 	// TODO: Create some sort of layout machine using MicroTex
@@ -31,6 +32,7 @@ namespace MathAnim
 		void render(NVGcontext* vg, const AnimObject* parent) const;
 		void serialize(RawMemory& memory) const;
 		static LaTexObject deserialize(RawMemory& memory, uint32 version);
+		static LaTexObject createDefault();
 	};
 }
 

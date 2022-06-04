@@ -8,6 +8,22 @@
 
 namespace MathAnim
 {
+	// ------- Private variables --------
+	static const char* animationObjectTypeNames[] = {
+		"None",
+		"Text Object",
+		"LaTex Object",
+		"Length"
+	};
+
+	static const char* animationTypeNames[] = {
+		"None",
+		"Write In Text",
+		"Length",
+	};
+	
+	static int animObjectUidCounter = 0;
+
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(RawMemory& memory);
 
@@ -301,6 +317,12 @@ namespace MathAnim
 		void deserialize(const char* loadPath)
 		{
 			FILE* fp = fopen(loadPath, "rb");
+			if (!fp)
+			{
+				g_logger_warning("Could not load '%s', does not exist.", loadPath);
+				return;
+			}
+
 			fseek(fp, 0, SEEK_END);
 			size_t fileSize = ftell(fp);
 			fseek(fp, 0, SEEK_SET);
@@ -332,6 +354,18 @@ namespace MathAnim
 			}
 
 			memory.free();
+		}
+
+		const char* getAnimObjectName(AnimObjectType type)
+		{
+			g_logger_assert((int)type < (int)AnimObjectType::Length && (int)type >= 0, "Invalid type '%d'.", (int)type);
+			return animationObjectTypeNames[(int)type];
+		}
+
+		const char* getAnimationName(AnimTypeEx type)
+		{
+			g_logger_assert((int)type < (int)AnimTypeEx::Length && (int)type >= 0, "Invalid type '%d'.", (int)type);
+			return animationTypeNames[(int)type];
 		}
 
 		// Internal Functions
@@ -500,6 +534,30 @@ namespace MathAnim
 		return res;
 	}
 
+	AnimObject AnimObject::createDefault(AnimObjectType type, int32 frameStart, int32 duration)
+	{
+		AnimObject res;
+		res.id = animObjectUidCounter++;
+		res.animations = {};
+		res.frameStart = frameStart;
+		res.duration = duration;
+		res.isAnimating = false;
+		res.objectType = type;
+		res.position = { 0, 0 };
+		
+		switch (type)
+		{
+		case AnimObjectType::TextObject:
+			res.as.textObject = TextObject::createDefault();
+			break;
+		case AnimObjectType::LaTexObject:
+			res.as.laTexObject = LaTexObject::createDefault();
+			break;
+		}
+
+		return res;
+	}
+
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(RawMemory& memory)
 	{
@@ -525,6 +583,7 @@ namespace MathAnim
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);
 		memory.read<int32>(&res.timelineTrack);
+		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
 
 		// We're in V1 so this is version 1
 		constexpr uint32 version = 1;

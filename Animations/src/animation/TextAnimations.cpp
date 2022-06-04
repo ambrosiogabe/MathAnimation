@@ -103,6 +103,20 @@ namespace MathAnim
 		return res;
 	}
 
+	TextObject TextObject::createDefault()
+	{
+		TextObject res;
+		// TODO: Come up with application default font
+		res.font = Fonts::getFont("C:/Windows/Fonts/BASKVILL.TTF");
+		res.fontSizePixels = 128;
+		static const char defaultText[] = "Text Object";
+		res.text = (char*)g_memory_allocate(sizeof(defaultText) / sizeof(char));
+		g_memory_copyMem(res.text, (void*)defaultText, sizeof(defaultText) / sizeof(char));
+		res.textLength = (sizeof(defaultText) / sizeof(char)) - 1;
+		res.text[res.textLength] = '\0';
+		return res;
+	}
+
 	void LaTexObject::render(NVGcontext* vg, const AnimObject* parent) const
 	{
 		g_logger_warning("TODO: Implement me");
@@ -114,6 +128,12 @@ namespace MathAnim
 	}
 
 	LaTexObject LaTexObject::deserialize(RawMemory& memory, uint32 version)
+	{
+		g_logger_warning("TODO: Implement me");
+		return {};
+	}
+
+	LaTexObject LaTexObject::createDefault()
 	{
 		g_logger_warning("TODO: Implement me");
 		return {};

@@ -195,6 +195,7 @@ namespace MathAnim
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimObject deserialize(RawMemory& memory, uint32 version);
+		static AnimObject AnimObject::createDefault(AnimObjectType type, int32 frameStart, int32 duration);
 	};
 
 	namespace AnimationManagerEx
@@ -217,6 +218,9 @@ namespace MathAnim
 
 		void serialize(const char* savePath = nullptr);
 		void deserialize(const char* loadPath = nullptr);
+
+		const char* getAnimObjectName(AnimObjectType type);
+		const char* getAnimationName(AnimTypeEx type);
 	}
 
 	namespace AnimationManager

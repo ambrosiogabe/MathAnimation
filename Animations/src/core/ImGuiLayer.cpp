@@ -1,5 +1,6 @@
 #include "core/ImGuiLayer.h"
 #include "core/Window.h"
+#include "utils/FontAwesome.h"
 
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
@@ -27,8 +28,25 @@ namespace MathAnim
 			io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 			//io.ConfigViewportsNoAutoMerge = true;
 			//io.ConfigViewportsNoTaskBarIcon = true;
-			smallFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/DejaVuSans.ttf", 24.0f);
+
+			int fontSize = 24.0f;
+			smallFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/DejaVuSans.ttf", fontSize);
+
+			static const ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+			ImFontConfig config; 
+			config.MergeMode = true;
+			//config.GlyphMinAdvanceX = fontSize; // Use this if you want the icon to be monospaced
+			// TODO: Optimize ram usage here...
+			config.SizePixels = fontSize * 3;
+			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-regular-400.ttf", fontSize * 3, &config, iconRanges);
+			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 3, &config, iconRanges);
+
 			bigFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/DejaVuSans.ttf", 36.0f);
+
+			// Add this font separately
+			//config.MergeMode = false;
+			//const ImWchar iconRangesBrands[] = { ICON_MIN_FAB, ICON_MAX_FAB, 0 };
+			//io.Fonts->AddFontFromFileTTF("assets/fonts/fa-brands-400.ttf", fontSize, &config, iconRanges);
 
 			ImGui::StyleColorsDark();
 

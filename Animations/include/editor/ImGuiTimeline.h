@@ -23,11 +23,15 @@ namespace MathAnim
 		ImGuiTimelineResultFlags_SegmentTrackChanged = 0x20,
 		ImGuiTimelineResultFlags_SubSegmentTimeChanged  = 0x40,
 		ImGuiTimelineResultFlags_SubSegmentTrackChanged = 0x80,
-		ImGuiTimelineResultFlags_ActiveObjectChanged = 0x100
+		ImGuiTimelineResultFlags_ActiveObjectChanged = 0x100,
+		ImGuiTimelineResultFlags_DragDropPayloadHit  = 0x200
 	};
 
 	struct ImGuiTimelineResult
 	{
+		void* dragDropPayloadData;
+		size_t dragDropPayloadDataSize;
+		int dragDropPayloadFirstFrame;
 		int trackIndex;
 		int segmentIndex;
 		int subSegmentIndex;
@@ -66,6 +70,7 @@ namespace MathAnim
 	};
 
 	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* zoom = nullptr, ImGuiTimelineFlags flags = ImGuiTimelineFlags_None);
+	const char* ImGuiTimeline_DragDropPayloadId();
 }
 
 #endif 
