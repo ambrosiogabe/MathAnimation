@@ -33,7 +33,7 @@ namespace MathAnim
 					payloadData.objectType = (AnimObjectType)i;
 					payloadData.animType = AnimTypeEx::None;
 					payloadData.isAnimObject = true;
-					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);
+					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropSegmentPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);
 					ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
 					ImGui::EndDragDropSource();
 				}
@@ -56,7 +56,7 @@ namespace MathAnim
 					payloadData.animType = (AnimTypeEx)i;
 					payloadData.objectType = AnimObjectType::None;
 					payloadData.isAnimObject = false;
-					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);
+					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropSubSegmentPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);
 					ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
 					ImGui::EndDragDropSource();
 				}

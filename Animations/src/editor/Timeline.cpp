@@ -106,11 +106,16 @@ namespace MathAnim
 				{
 					if (res.activeObjectIsSubSegment)
 					{
-						g_logger_info("Dropped payload\nname: '%s'\ntrackIndex: %d\nfirstFrame: %d\nIs Subtrack: %d",
+						g_logger_info("Dropped payload\nname: '%s'\ntrackIndex: %d\nsegmentIndex: %d\nfirstFrame: %d\nIs Subtrack: %d",
 							AnimationManagerEx::getAnimationName(payloadData->animType),
 							res.trackIndex,
+							res.segmentIndex,
 							res.dragDropPayloadFirstFrame,
 							res.activeObjectIsSubSegment);
+						const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
+						int animObjectId = (int)segment.userData;
+						AnimationEx animation = AnimationEx::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 30, animObjectId);
+						AnimationManagerEx::addAnimationTo(animation, animObjectId);
 					}
 				}
 
@@ -350,7 +355,7 @@ namespace MathAnim
 			if (ImGui::InputTextMultiline(": Text", scratch, scratchLength * sizeof(char)))
 			{
 				size_t newLength = std::strlen(scratch);
-				object->as.textObject.text = (char*)g_memory_realloc(object->as.textObject.text, sizeof(char) * newLength);
+				object->as.textObject.text = (char*)g_memory_realloc(object->as.textObject.text, sizeof(char) * (newLength + 1));
 				object->as.textObject.textLength = newLength;
 				g_memory_copyMem(object->as.textObject.text, scratch, newLength * sizeof(char));
 				object->as.textObject.text[newLength] = '\0';

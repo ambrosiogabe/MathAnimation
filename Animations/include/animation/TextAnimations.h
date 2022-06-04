@@ -19,6 +19,8 @@ namespace MathAnim
 		void render(NVGcontext* vg, const AnimObject* parent) const;
 		void renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent) const;
 		void serialize(RawMemory& memory) const;
+		void free();
+
 		static TextObject deserialize(RawMemory& memory, uint32 version);
 		static TextObject createDefault();
 	};
@@ -31,6 +33,8 @@ namespace MathAnim
 
 		void render(NVGcontext* vg, const AnimObject* parent) const;
 		void serialize(RawMemory& memory) const;
+		void free();
+
 		static LaTexObject deserialize(RawMemory& memory, uint32 version);
 		static LaTexObject createDefault();
 	};

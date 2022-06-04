@@ -164,6 +164,7 @@ namespace MathAnim
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimationEx deserialize(RawMemory& memory, uint32 version);
+		static AnimationEx createDefault(AnimTypeEx type, int32 frameStart, int32 duration, int32 animObjectId);
 	};
 
 	enum class AnimObjectType : uint32
@@ -195,13 +196,14 @@ namespace MathAnim
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimObject deserialize(RawMemory& memory, uint32 version);
-		static AnimObject AnimObject::createDefault(AnimObjectType type, int32 frameStart, int32 duration);
+		static AnimObject createDefault(AnimObjectType type, int32 frameStart, int32 duration);
 	};
 
 	namespace AnimationManagerEx
 	{
 		void addAnimObject(const AnimObject& object);
 		void addAnimationTo(AnimationEx animation, AnimObject& animObject);
+		void addAnimationTo(AnimationEx animation, int animObjectId);
 
 		bool removeAnimObject(int animObjectId);
 		bool removeAnimation(int animObjectId, int animationId);

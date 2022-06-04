@@ -21,8 +21,9 @@ namespace MathAnim
 		"Write In Text",
 		"Length",
 	};
-	
+
 	static int animObjectUidCounter = 0;
+	static int animationUidCounter = 0;
 
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(RawMemory& memory);
@@ -66,24 +67,47 @@ namespace MathAnim
 
 		void addAnimationTo(AnimationEx animation, AnimObject& animObject)
 		{
-			bool insertedObject = false;
 			for (auto iter = animObject.animations.begin(); iter != animObject.animations.end(); iter++)
 			{
 				// Insert it here. The list will always be sorted
 				if (animation.frameStart > iter->frameStart)
 				{
 					animObject.animations.insert(iter, animation);
-					insertedObject = true;
-					break;
+					return;
 				}
 			}
 
-			if (!insertedObject)
+			// If we didn't insert the animation
+			// that means it must start after all the
+			// current animation start times.
+			animObject.animations.push_back(animation);
+		}
+
+		void addAnimationTo(AnimationEx animation, int animObjectId)
+		{
+			for (int ai = 0; ai < mObjects.size(); ai++)
 			{
+				AnimObject& animObject = mObjects[ai];
+				if (animObject.id != animObjectId)
+				{
+					continue;
+				}
+
+				for (auto iter = animObject.animations.begin(); iter != animObject.animations.end(); iter++)
+				{
+					// Insert it here. The list will always be sorted
+					if (animation.frameStart > iter->frameStart)
+					{
+						animObject.animations.insert(iter, animation);
+						return;
+					}
+				}
+
 				// If we didn't insert the animation
 				// that means it must start after all the
 				// current animation start times.
 				animObject.animations.push_back(animation);
+				return;
 			}
 		}
 
@@ -97,7 +121,7 @@ namespace MathAnim
 					// Free all animations in this object
 					for (int j = 0; j < mObjects[i].animations.size(); j++)
 					{
-						g_logger_assert(mObjects[i].animations[i].objectId == animObjectId, "How did this happen?");
+						g_logger_assert(mObjects[i].animations[j].objectId == animObjectId, "How did this happen?");
 						mObjects[i].animations[j].free();
 					}
 
@@ -415,7 +439,7 @@ namespace MathAnim
 
 	void AnimationEx::free()
 	{
-		g_logger_warning("TODO; Implment me");
+		// TODO: Place any animation freeing in here
 	}
 
 	void AnimationEx::serialize(RawMemory& memory) const
@@ -455,6 +479,18 @@ namespace MathAnim
 		return res;
 	}
 
+	AnimationEx AnimationEx::createDefault(AnimTypeEx type, int32 frameStart, int32 duration, int32 animObjectId)
+	{
+		AnimationEx res;
+		res.id = animationUidCounter++;
+		res.frameStart = frameStart;
+		res.duration = duration;
+		res.objectId = animObjectId;
+		res.type = type;
+
+		return res;
+	}
+
 	void AnimObject::render(NVGcontext* vg) const
 	{
 		switch (objectType)
@@ -472,7 +508,15 @@ namespace MathAnim
 
 	void AnimObject::free()
 	{
-		g_logger_warning("TODO; Implment me");
+		switch (this->objectType)
+		{
+		case AnimObjectType::TextObject:
+			this->as.textObject.free();
+			break;
+		case AnimObjectType::LaTexObject:
+			this->as.laTexObject.free();
+			break;
+		}
 	}
 
 	void AnimObject::serialize(RawMemory& memory) const
@@ -544,7 +588,7 @@ namespace MathAnim
 		res.isAnimating = false;
 		res.objectType = type;
 		res.position = { 0, 0 };
-		
+
 		switch (type)
 		{
 		case AnimObjectType::TextObject:
@@ -607,6 +651,7 @@ namespace MathAnim
 		for (int i = 0; i < numAnimations; i++)
 		{
 			AnimationEx animation = AnimationEx::deserialize(memory, SERIALIZER_VERSION);
+			animationUidCounter = glm::max(animationUidCounter, animation.id + 1);
 			res.animations.push_back(animation);
 		}
 

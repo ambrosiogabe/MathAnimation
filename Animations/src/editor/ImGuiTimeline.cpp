@@ -37,7 +37,8 @@ namespace MathAnim
 	constexpr float timelineVerticalScrollSensitivity = 10.0f;
 	constexpr int fps = 60;
 	constexpr int autoPlayFrameDelta = 50;
-	const char* TIMELINE_DRAG_DROP_PAYLOAD_ID = "IMGUI_TIMELINE_PAYLOAD_ID";
+	const char* TIMELINE_DRAG_DROP_SEGMENT_PAYLOAD_ID = "TIMELINE_SEGMENT_PAYLOAD_ID";
+	const char* TIMELINE_DRAG_DROP_SUB_SEGMENT_PAYLOAD_ID = "TIMELINE_SUB_SEGMENT_PAYLOAD_ID";
 
 	// Dimensional values
 	constexpr int maxHighlightedSquares = 12;
@@ -84,6 +85,7 @@ namespace MathAnim
 	static float getScrollFromFrame(float amountOfTimeVisibleInTimeline, int firstFrame, const ImVec2& timelineRulerEnd, const ImVec2& timelineRulerBegin);
 	static bool handleDragState(const ImVec2& start, const ImVec2& end, DragState* state);
 	static bool beginPopupContextTimelineItem(const char* str_id, const ImVec2& rectBegin, const ImVec2& rectEnd, ImGuiPopupFlags popup_flags = 1);
+	static int findSegmentFromFrame(const ImGuiTimeline_Track* tracks, int trackIndex, int firstAbsoluteFrame);
 
 	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* inZoom, ImGuiTimelineFlags flags)
 	{
@@ -311,7 +313,7 @@ namespace MathAnim
 			for (int i = 0; i < numTracks; i++)
 			{
 				float trackTopY = currentTrackTop;
-				float trackBottomY = canvasPos.y + timelineRulerHeight + ((float)(i + 1) * trackHeight) - scrollOffsetY;
+				float trackBottomY = currentTrackTop + trackHeight;
 
 				bool shouldDrawTrack = true;
 				if (trackBottomY <= absTracksTop)
@@ -752,7 +754,7 @@ namespace MathAnim
 			for (int i = 0; i < numTracks; i++)
 			{
 				float trackTopY = currentTrackTop;
-				float trackBottomY = canvasPos.y + timelineRulerHeight + ((float)(i + 1) * trackHeight) - scrollOffsetY;
+				float trackBottomY = currentTrackTop + (float)trackHeight;
 
 				bool shouldDrawTrack = true;
 				if (trackBottomY <= absTracksTop)
@@ -774,13 +776,13 @@ namespace MathAnim
 					ImGui::SetLastItemData(id, ImGuiItemFlags_None, ImGuiItemStatusFlags_HoveredRect, ImRect(trackTopLeft, trackBottomRight));
 					if (ImGui::BeginDragDropTarget())
 					{
-						if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(TIMELINE_DRAG_DROP_PAYLOAD_ID))
+						if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(TIMELINE_DRAG_DROP_SEGMENT_PAYLOAD_ID))
 						{
 							res.flags |= ImGuiTimelineResultFlags_DragDropPayloadHit;
 							res.dragDropPayloadData = payload->Data;
 							res.dragDropPayloadDataSize = payload->DataSize;
 							float normalizedMousePos = (ImGui::GetMousePos().x - canvasPos.x - legendSize.x) / (timelineRulerEnd.x - timelineRulerBegin.x);
-							res.dragDropPayloadFirstFrame = (int)(amountOfTimeVisibleInTimeline * normalizedMousePos) - *firstFrame;
+							res.dragDropPayloadFirstFrame = (int)(amountOfTimeVisibleInTimeline * normalizedMousePos) + *firstFrame;
 							res.trackIndex = i;
 							res.activeObjectIsSubSegment = false;
 						}
@@ -813,15 +815,22 @@ namespace MathAnim
 						ImGui::SetLastItemData(id, ImGuiItemFlags_None, ImGuiItemStatusFlags_HoveredRect, ImRect(subTrackTopLeft, subTrackBottomRight));
 						if (ImGui::BeginDragDropTarget())
 						{
-							if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(TIMELINE_DRAG_DROP_PAYLOAD_ID))
+							if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(TIMELINE_DRAG_DROP_SUB_SEGMENT_PAYLOAD_ID))
 							{
 								res.flags |= ImGuiTimelineResultFlags_DragDropPayloadHit;
 								res.dragDropPayloadData = payload->Data;
 								res.dragDropPayloadDataSize = payload->DataSize;
-								float normalizedMousePos = (ImGui::GetMousePos().x - canvasPos.x) / (timelineRulerEnd.x - timelineRulerBegin.x);
-								res.dragDropPayloadFirstFrame = (int)(amountOfTimeVisibleInTimeline * normalizedMousePos) - *firstFrame;
+								float normalizedMousePos = (ImGui::GetMousePos().x - canvasPos.x - legendSize.x) / (timelineRulerEnd.x - timelineRulerBegin.x);
+								int firstAbsoluteFrame = (int)(amountOfTimeVisibleInTimeline * normalizedMousePos) + *firstFrame;
 
+								// Find the segment this is a part of
 								res.trackIndex = i;
+								int segmentIndex = findSegmentFromFrame(tracks, res.trackIndex, firstAbsoluteFrame);
+								if (segmentIndex != -1)
+								{
+									res.segmentIndex = segmentIndex;
+									res.dragDropPayloadFirstFrame = firstAbsoluteFrame - tracks[i].segments[segmentIndex].frameStart;
+								}
 								res.activeObjectIsSubSegment = true;
 							}
 							ImGui::EndDragDropTarget();
@@ -867,9 +876,14 @@ namespace MathAnim
 		return state == DragState::Active;
 	}
 
-	const char* ImGuiTimeline_DragDropPayloadId()
+	const char* ImGuiTimeline_DragDropSegmentPayloadId()
 	{
-		return TIMELINE_DRAG_DROP_PAYLOAD_ID;
+		return TIMELINE_DRAG_DROP_SEGMENT_PAYLOAD_ID;
+	}
+
+	const char* ImGuiTimeline_DragDropSubSegmentPayloadId()
+	{
+		return TIMELINE_DRAG_DROP_SUB_SEGMENT_PAYLOAD_ID;
 	}
 
 	static bool handleResizeElement(float* currentValue, DragState* state, const ImVec2& valueBounds, const ImVec2& mouseBounds, const ImVec2& hoverRectStart, const ImVec2& hoverRectEnd, ResizeFlags flags)
@@ -1276,5 +1290,20 @@ namespace MathAnim
 		if (ImGui::IsMouseReleased(mouse_button) && ImGui::IsMouseHoveringRect(rectBegin, rectEnd))
 			ImGui::OpenPopupEx(id, popup_flags);
 		return ImGui::BeginPopupEx(id, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings);
+	}
+
+	static int findSegmentFromFrame(const ImGuiTimeline_Track* tracks, int trackIndex, int firstAbsoluteFrame)
+	{
+		for (int si = 0; si < tracks[trackIndex].numSegments; si++)
+		{
+			const ImGuiTimeline_Segment& segment = tracks[trackIndex].segments[si];
+			if (firstAbsoluteFrame >= segment.frameStart &&
+				segment.frameStart + segment.frameDuration > firstAbsoluteFrame)
+			{
+				return si;
+			}
+		}
+
+		return -1;
 	}
 }

@@ -90,6 +90,16 @@ namespace MathAnim
 		}
 	}
 
+	void TextObject::free()
+	{
+		if (this->text)
+		{
+			g_memory_free(this->text);
+			this->text = nullptr;
+			this->textLength = 0;
+		}
+	}
+
 	TextObject TextObject::deserialize(RawMemory& memory, uint32 version)
 	{
 		if (version == 1)
@@ -123,6 +133,11 @@ namespace MathAnim
 	}
 
 	void LaTexObject::serialize(RawMemory& memory) const
+	{
+		g_logger_warning("TODO: Implement me");
+	}
+
+	void LaTexObject::free()
 	{
 		g_logger_warning("TODO: Implement me");
 	}
