@@ -20,3 +20,6 @@
 [submodule "Animations/vendor/freetype"]
 	path = Animations/vendor/freetype
 	url = https://gitlab.freedesktop.org/freetype/freetype.git
+[submodule "Animations/vendor/GLFW"]
+	path = Animations/vendor/GLFW
+	url = https://github.com/glfw/glfw.git
