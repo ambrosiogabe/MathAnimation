@@ -116,7 +116,7 @@ namespace MathAnim
 							res.dragDropPayloadFirstFrame,
 							res.activeObjectIsSubSegment);
 						const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-						int animObjectId = (int)segment.userData;
+						int animObjectId = segment.userData.as.intData;
 						Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 30, animObjectId);
 						AnimationManager::addAnimationTo(animation, animObjectId);
 					}
@@ -128,15 +128,15 @@ namespace MathAnim
 			if (res.flags & ImGuiTimelineResultFlags_SegmentTimeChanged)
 			{
 				const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-				int animObjectIndex = (int)segment.userData;
+				int animObjectIndex = segment.userData.as.intData;
 				AnimationManager::setAnimObjectTime(animObjectIndex, segment.frameStart, segment.frameDuration);
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_SubSegmentTimeChanged)
 			{
 				const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
-				int animationId = (int)subSegment.userData;
-				int animObjectId = (int)tracks[res.trackIndex].segments[res.segmentIndex].userData;
+				int animationId = (int)(uintptr_t)subSegment.userData;
+				int animObjectId = tracks[res.trackIndex].segments[res.segmentIndex].userData.as.intData;
 				AnimationManager::setAnimationTime(animObjectId, animationId, subSegment.frameStart, subSegment.frameDuration);
 			}
 
@@ -147,13 +147,13 @@ namespace MathAnim
 				if (res.activeObjectIsSubSegment)
 				{
 					const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
-					activeAnimationId = (int)subSegment.userData;
+					activeAnimationId = (int)(uintptr_t)subSegment.userData;
 					activeAnimObjectId = INT32_MAX;
 				}
 				else
 				{
 					const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-					activeAnimObjectId = (int)segment.userData;
+					activeAnimObjectId = segment.userData.as.intData;
 					activeAnimationId = INT32_MAX;
 				}
 			}
@@ -230,7 +230,7 @@ namespace MathAnim
 				for (int i = 0; i < track.numSegments; i++)
 				{
 					// Free all the animations and anim objects associated with this track
-					int animObjectId = (int)track.segments[i].userData;
+					int animObjectId = track.segments[i].userData.as.intData;
 					AnimationManager::removeAnimObject(animObjectId);
 
 					if (track.segments[i].subSegments)
@@ -275,7 +275,7 @@ namespace MathAnim
 			{
 				for (int segment = 0; segment < tracks[track].numSegments; segment++)
 				{
-					int animObjectId = (int)tracks[track].segments[segment].userData;
+					int animObjectId = tracks[track].segments[segment].userData.as.intData;
 					AnimationManager::setAnimObjectTrack(animObjectId, track);
 				}
 			}
@@ -303,7 +303,7 @@ namespace MathAnim
 			{
 				for (int segment = 0; segment < tracks[track].numSegments; segment++)
 				{
-					int animObjectId = (int)tracks[track].segments[segment].userData;
+					int animObjectId = tracks[track].segments[segment].userData.as.intData;
 					AnimationManager::setAnimObjectTrack(animObjectId, track);
 				}
 			}
@@ -376,7 +376,7 @@ namespace MathAnim
 			{
 				size_t newLength = std::strlen(scratch);
 				object->as.textObject.text = (char*)g_memory_realloc(object->as.textObject.text, sizeof(char) * (newLength + 1));
-				object->as.textObject.textLength = newLength;
+				object->as.textObject.textLength = (int32_t)newLength;
 				g_memory_copyMem(object->as.textObject.text, scratch, newLength * sizeof(char));
 				object->as.textObject.text[newLength] = '\0';
 			}
@@ -445,7 +445,7 @@ namespace MathAnim
 					if (animObjects[i].timelineTrack == track)
 					{
 						// Initialize the subsegment memory
-						int numAnimations = animObjects[i].animations.size();
+						int numAnimations = (int)animObjects[i].animations.size();
 						g_logger_assert(tracks[track].numSegments > segment, "Somehow we didn't allocate memory for this track.");
 						tracks[track].segments[segment].numSubSegments = numAnimations;
 						if (numAnimations > 0)
@@ -471,7 +471,7 @@ namespace MathAnim
 					{
 						tracks[track].segments[segment].frameStart = animObjects[i].frameStart;
 						tracks[track].segments[segment].frameDuration = animObjects[i].duration;
-						tracks[track].segments[segment].userData = (void*)animObjects[i].id;
+						tracks[track].segments[segment].userData.as.intData = animObjects[i].id;
 						tracks[track].segments[segment].segmentName = AnimationManager::getAnimObjectName(animObjects[i].objectType);
 						tracks[track].segments[segment].isExpanded = false;
 
@@ -483,7 +483,7 @@ namespace MathAnim
 							subSegment.frameStart = animObjects[i].animations[j].frameStart;
 							subSegment.frameDuration = animObjects[i].animations[j].duration;
 							subSegment.segmentName = AnimationManager::getAnimationName(animObjects[i].animations[j].type);
-							subSegment.userData = (void*)animObjects[i].animations[j].id;
+							subSegment.userData = (void*)(uintptr_t)animObjects[i].animations[j].id;
 						}
 
 						segment++;

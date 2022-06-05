@@ -94,11 +94,11 @@ namespace MathAnim
 			// Run game loop
 			// Start with a 60 fps frame rate
 			bool isRunning = true;
-			float previousTime = glfwGetTime() - 0.16f;
+			double previousTime = glfwGetTime() - 0.16f;
 			constexpr float fixedDeltaTime = 1.0f / 60.0f;
 			while (isRunning && !window->shouldClose())
 			{
-				float deltaTime = glfwGetTime() - previousTime;
+				float deltaTime = (float)(glfwGetTime() - previousTime);
 				previousTime = glfwGetTime();
 
 				window->pollInput();

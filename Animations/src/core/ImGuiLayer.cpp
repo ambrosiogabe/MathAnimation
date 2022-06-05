@@ -29,7 +29,7 @@ namespace MathAnim
 			//io.ConfigViewportsNoAutoMerge = true;
 			//io.ConfigViewportsNoTaskBarIcon = true;
 
-			int fontSize = 24.0f;
+			float fontSize = 24.0f;
 			smallFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/DejaVuSans.ttf", fontSize);
 
 			static const ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
@@ -37,9 +37,9 @@ namespace MathAnim
 			config.MergeMode = true;
 			//config.GlyphMinAdvanceX = fontSize; // Use this if you want the icon to be monospaced
 			// TODO: Optimize ram usage here...
-			config.SizePixels = fontSize * 3;
-			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-regular-400.ttf", fontSize * 3, &config, iconRanges);
-			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 3, &config, iconRanges);
+			config.SizePixels = fontSize * 3.0f;
+			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-regular-400.ttf", fontSize * 3.0f, &config, iconRanges);
+			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 3.0f, &config, iconRanges);
 
 			bigFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/DejaVuSans.ttf", 36.0f);
 

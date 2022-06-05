@@ -82,7 +82,7 @@ namespace MathAnim
 		memory.write<char>(&nullByte);
 
 		// TODO: Overflow error checking would be good here
-		int32 fontFilepathLength = font->vgFontFace.size();
+		int32 fontFilepathLength = (int32)font->vgFontFace.size();
 		memory.write<int32>(&fontFilepathLength);
 		for (int i = 0; i < fontFilepathLength; i++)
 		{

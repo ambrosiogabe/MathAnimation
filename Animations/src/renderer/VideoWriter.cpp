@@ -165,7 +165,7 @@ namespace MathAnim
 			// From RGB to YUV
 			sws_scale(swsCtx, (const uint8* const*)&pixels, inLinesize, 0, cctx->height, videoFrame->data, videoFrame->linesize);
 
-			videoFrame->pts = (1.0 / fps) * 90000 * (frameCounter++);
+			videoFrame->pts = (int64)((1.0 / (double)fps) * 90000.0 * (double)(frameCounter++));
 
 			if (frameCounter % 60 == 0)
 			{

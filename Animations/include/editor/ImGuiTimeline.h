@@ -52,7 +52,14 @@ namespace MathAnim
 		int frameStart;
 		int frameDuration;
 		const char* segmentName;
-		void* userData;
+		struct
+		{
+			union
+			{
+				void* ptrData;
+				int intData;
+			} as;
+		} userData;
 		bool isExpanded;
 
 		// TODO: Should I allow this to also be a track and recurse through all subtracks?

@@ -101,7 +101,7 @@ namespace MathAnim
 		uint32 hashString(const char* str)
 		{
 			uint32 hash = 2166136261u;
-			int length = strlen(str);
+			int length = (int)std::strlen(str);
 
 			for (int i = 0; i < length; i++)
 			{
@@ -124,7 +124,7 @@ namespace MathAnim
 
 		// Easing functions
 		float easeInOutCubic(float t) {
-			return t < 0.5 ? 4 * t * t * t : 1 - glm::pow(-2 * t + 2, 3) / 2;
+			return t < 0.5f ? 4.0f * t * t * t : 1.0f - glm::pow(-2.0f * t + 2.0f, 3.0f) / 2.0f;
 		}
 	}
 }

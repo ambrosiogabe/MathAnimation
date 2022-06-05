@@ -176,7 +176,7 @@ namespace MathAnim
 
 		float firstTimecodePosition = glm::floor((scrollOffsetX / minDistanceBetweenRulerTimecodes)) * minDistanceBetweenRulerTimecodes - scrollOffsetX;
 		// Zoom will effect this soon
-		int numTimecodesThatFit = glm::ceil((timelineRulerEnd.x - timelineRulerBegin.x) / minDistanceBetweenRulerTimecodes);
+		int numTimecodesThatFit = (int)glm::ceil((timelineRulerEnd.x - timelineRulerBegin.x) / minDistanceBetweenRulerTimecodes);
 		for (int i = 0; i <= numTimecodesThatFit; i++)
 		{
 			ImVec2 tickStart = ImVec2(firstTimecodePosition + i * minDistanceBetweenRulerTimecodes, 0.0f);

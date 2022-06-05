@@ -4,32 +4,32 @@ namespace MathAnim
 {
 	namespace Input
 	{
-		int mouseX = 0;
-		int mouseY = 0;
-		int deltaMouseX = 0;
-		int deltaMouseY = 0;
+		float mouseX = 0;
+		float mouseY = 0;
+		float deltaMouseX = 0;
+		float deltaMouseY = 0;
 
 		bool keyPressed[GLFW_KEY_LAST];
 		
-		static int mLastMouseX;
-		static int mLastMouseY;
+		static float mLastMouseX;
+		static float mLastMouseY;
         static bool mFirstMouse = true;
 		
 		void mouseCallback(GLFWwindow* window, double xpos, double ypos)
 		{
-			mouseX = xpos;
-			mouseY = ypos;
+			mouseX = (float)xpos;
+			mouseY = (float)ypos;
             if (mFirstMouse)
             {
-                mLastMouseX = xpos;
-                mLastMouseY = ypos;
+                mLastMouseX = (float)xpos;
+                mLastMouseY = (float)ypos;
                 mFirstMouse = false;
             }
 
-            deltaMouseX = xpos - mLastMouseX;
-            deltaMouseY = mLastMouseY - ypos;
-            mLastMouseX = xpos;
-            mLastMouseY = ypos;
+            deltaMouseX = (float)xpos - mLastMouseX;
+            deltaMouseY = mLastMouseY - (float)ypos;
+            mLastMouseX = (float)xpos;
+            mLastMouseY = (float)ypos;
 		}
 
 		void endFrame()

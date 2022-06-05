@@ -22,7 +22,8 @@ namespace MathAnim
 		}
 
 		g_logger_error("Glyph index '%d' does not exist in font '%s'.", glyphIndex, vgFontFace.c_str());
-		return {};
+		static GlyphOutline defaultGlyph = {};
+		return defaultGlyph;
 	}
 
 	float Font::getKerning(uint32 leftCodepoint, uint32 rightCodepoint) const

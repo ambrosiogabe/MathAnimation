@@ -248,9 +248,9 @@ namespace MathAnim
 				objectIter->isAnimating = false;
 				for (auto animIter = objectIter->animations.begin(); animIter != objectIter->animations.end(); animIter++)
 				{
-					float parentFrameStart = animIter->getParent()->frameStart;
+					float parentFrameStart = (float)animIter->getParent()->frameStart;
 					float absoluteFrameStart = animIter->frameStart + parentFrameStart;
-					int animDeathTime = absoluteFrameStart + animIter->duration;
+					int animDeathTime = (int)absoluteFrameStart + animIter->duration;
 					if (absoluteFrameStart <= frame)
 					{
 						if (frame <= animDeathTime)
@@ -435,7 +435,7 @@ namespace MathAnim
 			memory.read<uint32>(&numAnimations);
 
 			// Write out each animation followed by 0xDEADBEEF
-			for (int i = 0; i < numAnimations; i++)
+			for (uint32 i = 0; i < numAnimations; i++)
 			{
 				AnimObject animObject = AnimObject::deserialize(memory, version);
 				mObjects.push_back(animObject);

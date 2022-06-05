@@ -208,7 +208,7 @@ namespace MathAnim
 		// Animations     -> dynamic
 		uint32 numAnimations = (uint32)this->animations.size();
 		memory.write<uint32>(&numAnimations);
-		for (int i = 0; i < numAnimations; i++)
+		for (uint32 i = 0; i < numAnimations; i++)
 		{
 			animations[i].serialize(memory);
 		}
@@ -333,7 +333,7 @@ namespace MathAnim
 		// Animations     -> dynamic
 		uint32 numAnimations;
 		memory.read<uint32>(&numAnimations);
-		for (int i = 0; i < numAnimations; i++)
+		for (uint32 i = 0; i < numAnimations; i++)
 		{
 			Animation animation = Animation::deserialize(memory, SERIALIZER_VERSION);
 			animationUidCounter = glm::max(animationUidCounter, animation.id + 1);

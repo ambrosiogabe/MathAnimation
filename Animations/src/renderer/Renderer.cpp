@@ -64,8 +64,8 @@ namespace MathAnim
 		};
 
 		static uint32 screenVao;
-		static const uint32 numTextureGraphicsIds = 8;
-		static uint32 numFontTextures = 0;
+		static const int32 numTextureGraphicsIds = 8;
+		static int32 numFontTextures = 0;
 		static Texture textureGraphicIds[numTextureGraphicsIds];
 		static int32 uTextures[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 

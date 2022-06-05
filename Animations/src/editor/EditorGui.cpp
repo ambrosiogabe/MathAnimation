@@ -49,7 +49,8 @@ namespace MathAnim
 			ImVec2 viewportSize, viewportOffset;
 			getLargestSizeForViewport(&viewportSize, &viewportOffset);
 			ImGui::SetCursorPos(viewportOffset);
-			ImGui::Image((ImTextureID)sceneTextureId, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
+			ImTextureID textureId = (void*)(uintptr_t)sceneTextureId;
+			ImGui::Image(textureId, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
 
 			ImGui::End();
 

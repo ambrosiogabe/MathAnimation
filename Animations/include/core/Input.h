@@ -7,10 +7,10 @@ namespace MathAnim
 {
 	namespace Input
 	{
-		extern int mouseX;
-		extern int mouseY;
-		extern int deltaMouseX;
-		extern int deltaMouseY;
+		extern float mouseX;
+		extern float mouseY;
+		extern float deltaMouseX;
+		extern float deltaMouseY;
 		extern bool keyPressed[GLFW_KEY_LAST];
 
 		void mouseCallback(GLFWwindow* window, double xpos, double ypos);
