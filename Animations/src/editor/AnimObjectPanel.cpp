@@ -3,6 +3,7 @@
 #include "editor/ImGuiTimeline.h"
 #include "editor/Timeline.h"
 #include "animation/Animation.h"
+#include "animation/AnimationManager.h"
 #include "utils/FontAwesome.h"
 
 #include <imgui.h>
@@ -24,14 +25,14 @@ namespace MathAnim
 
 			for (uint32 i = 1; i < (uint32)AnimObjectTypeV1::Length; i++)
 			{
-				const char* name = AnimationManagerEx::getAnimObjectName((AnimObjectTypeV1)i);
+				const char* name = AnimationManager::getAnimObjectName((AnimObjectTypeV1)i);
 				ImGui::PushID(name);
 				ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
 				if (ImGui::BeginDragDropSource())
 				{
 					static TimelinePayload payloadData;
 					payloadData.objectType = (AnimObjectTypeV1)i;
-					payloadData.animType = AnimTypeExV1::None;
+					payloadData.animType = AnimTypeV1::None;
 					payloadData.isAnimObject = true;
 					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropSegmentPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);
 					ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
@@ -45,15 +46,15 @@ namespace MathAnim
 
 			ImGui::Begin("Animations");
 
-			for (uint32 i = 1; i < (uint32)AnimTypeExV1::Length; i++)
+			for (uint32 i = 1; i < (uint32)AnimTypeV1::Length; i++)
 			{
-				const char* name = AnimationManagerEx::getAnimationName((AnimTypeExV1)i);
+				const char* name = AnimationManager::getAnimationName((AnimTypeV1)i);
 				ImGui::PushID(name);
 				ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
 				if (ImGui::BeginDragDropSource())
 				{
 					static TimelinePayload payloadData;
-					payloadData.animType = (AnimTypeExV1)i;
+					payloadData.animType = (AnimTypeV1)i;
 					payloadData.objectType = AnimObjectTypeV1::None;
 					payloadData.isAnimObject = false;
 					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropSubSegmentPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);

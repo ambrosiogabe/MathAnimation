@@ -7,7 +7,7 @@ namespace MathAnim
 	struct TimelinePayload
 	{
 		AnimObjectTypeV1 objectType;
-		AnimTypeExV1 animType;
+		AnimTypeV1 animType;
 		bool isAnimObject;
 	};
 

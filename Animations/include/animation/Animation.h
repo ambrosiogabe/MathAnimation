@@ -6,138 +6,30 @@
 
 namespace MathAnim
 {
-	struct Style;
 	struct Font;
 
-	enum class Direction
+	// Constants
+	constexpr uint32 SERIALIZER_VERSION = 1;
+	constexpr uint32 MAGIC_NUMBER = 0xDEADBEEF;
+
+	// Types
+	enum class AnimObjectTypeV1 : uint32
 	{
-		Up,
-		Down,
-		Right,
-		Left
+		None = 0,
+		TextObject,
+		LaTexObject,
+		Length
 	};
 
-	typedef Vec2(*ParametricFunction)(float t);
-
-	struct FilledCircleAnimation
+	enum class AnimTypeV1 : uint32
 	{
-		Vec2 position;
-		int numSegments;
-		float radius;
+		None = 0,
+		WriteInText,
+		MoveTo,
+		Length
 	};
 
-	struct FilledBoxAnimation
-	{
-		Vec2 center;
-		Vec2 size;
-		Direction fillDirection;
-	};
-
-	struct ParametricAnimation
-	{
-		int32 granularity;
-		float startT;
-		float endT;
-		Vec2 translation;
-		ParametricFunction parametricEquation;
-	};
-
-	struct TextAnimation
-	{
-		float typingTime;
-		float scale;
-		Vec2 position;
-		Font* font;
-		const char* text;
-	};
-
-	struct BitmapAnimation
-	{
-		Vec4 bitmap[16][16];
-		bool bitmapState[16][16];
-		float revealTime;
-		int32 bitmapSquaresShowing;
-		Vec2 canvasPosition;
-		Vec2 canvasSize;
-	};
-
-	struct Bezier1Animation
-	{
-		Vec2 p0;
-		Vec2 p1;
-		float granularity;
-		bool withPoints;
-	};
-
-	struct Bezier2Animation
-	{
-		Vec2 p0;
-		Vec2 p1;
-		Vec2 p2;
-		float granularity;
-		bool withPoints;
-	};
-
-	enum class AnimType
-	{
-		ParametricAnimation,
-		Bezier1Animation,
-		Bezier2Animation,
-		BitmapAnimation,
-		TextAnimation,
-		FilledCircleAnimation,
-		FilledBoxAnimation
-	};
-
-	struct PopAnimation
-	{
-		AnimType animType;
-		float startTime;
-		float fadeOutTime;
-		int index;
-	};
-
-	struct TranslateAnimation
-	{
-		AnimType animType;
-		float startTime;
-		int index;
-		float duration;
-		Vec2 translation;
-	};
-
-	struct Interpolation
-	{
-		int ogAnimIndex;
-		int ogP0Index;
-		int ogP1Index;
-		int ogP2Index;
-		Bezier2Animation ogAnim;
-		Bezier2Animation newAnim;
-	};
-
-	struct Animation;
-	typedef void(*DrawAnimationFn)(Animation& animation, const Style& style);
-
-	struct Animation
-	{
-		AnimType type;
-		float startTime;
-		float delay;
-		float duration;
-		DrawAnimationFn drawAnimation;
-		union
-		{
-			Bezier1Animation bezier1;
-			Bezier2Animation bezier2;
-			FilledCircleAnimation filledCircle;
-			FilledBoxAnimation filledBox;
-			ParametricAnimation parametric;
-			TextAnimation text;
-			BitmapAnimation bitmap;
-		} as;
-	};
-
+	// Animation Structs
 	struct MoveToAnimData
 	{
 		Vec2 target;
@@ -146,17 +38,10 @@ namespace MathAnim
 		static MoveToAnimData deserialize(RawMemory& memory, uint32 version);
 	};
 
-	enum class AnimTypeExV1 : uint32
+	// Base Structs
+	struct Animation
 	{
-		None = 0,
-		WriteInText,
-		MoveTo,
-		Length
-	};
-
-	struct AnimationEx
-	{
-		AnimTypeExV1 type;
+		AnimTypeV1 type;
 		int32 objectId;
 		int32 frameStart;
 		int32 duration;
@@ -180,16 +65,8 @@ namespace MathAnim
 		AnimObject* getMutableParent() const;
 		void free();
 		void serialize(RawMemory& memory) const;
-		static AnimationEx deserialize(RawMemory& memory, uint32 version);
-		static AnimationEx createDefault(AnimTypeExV1 type, int32 frameStart, int32 duration, int32 animObjectId);
-	};
-
-	enum class AnimObjectTypeV1 : uint32
-	{
-		None = 0,
-		TextObject,
-		LaTexObject,
-		Length
+		static Animation deserialize(RawMemory& memory, uint32 version);
+		static Animation createDefault(AnimTypeV1 type, int32 frameStart, int32 duration, int32 animObjectId);
 	};
 
 	struct AnimObject
@@ -203,7 +80,7 @@ namespace MathAnim
 		int32 duration;
 		int32 timelineTrack;
 		bool isAnimating;
-		std::vector<AnimationEx> animations;
+		std::vector<Animation> animations;
 
 		union
 		{
@@ -218,55 +95,6 @@ namespace MathAnim
 		static AnimObject deserialize(RawMemory& memory, uint32 version);
 		static AnimObject createDefault(AnimObjectTypeV1 type, int32 frameStart, int32 duration);
 	};
-
-	namespace AnimationManagerEx
-	{
-		void addAnimObject(const AnimObject& object);
-		void addAnimationTo(AnimationEx animation, AnimObject& animObject);
-		void addAnimationTo(AnimationEx animation, int animObjectId);
-
-		bool removeAnimObject(int animObjectId);
-		bool removeAnimation(int animObjectId, int animationId);
-
-		bool setAnimObjectTime(int animObjectId, int frameStart, int duration);
-		bool setAnimationTime(int animObjectId, int animationId, int frameStart, int duration);
-		void setAnimObjectTrack(int animObjectId, int track);
-
-		void render(NVGcontext* vg, int frame);
-
-		const AnimObject* getObject(int animObjectId);
-		AnimObject* getMutableObject(int animObjectId);
-		AnimationEx* getMutableAnimation(int animationId);
-		const std::vector<AnimObject>& getAnimObjects();
-
-		void serialize(const char* savePath = nullptr);
-		void deserialize(const char* loadPath = nullptr);
-		void sortAnimObjects();
-
-		const char* getAnimObjectName(AnimObjectTypeV1 type);
-		const char* getAnimationName(AnimTypeExV1 type);
-	}
-
-	namespace AnimationManager
-	{
-		void addAnimation(Animation& animation, const Style& style);
-
-		// TODO: Make all these functions one templated function
-		void addInterpolation(Animation& animation);
-
-		void drawParametricAnimation(Animation& genericAnimation, const Style& style);
-		void drawTextAnimation(Animation& genericAnimation, const Style& style);
-		void drawBitmapAnimation(Animation& genericAnimation, const Style& style);
-		void drawBezier1Animation(Animation& genericAnimation, const Style& style);
-		void drawBezier2Animation(Animation& genericAnimation, const Style& style);
-		void drawFilledCircleAnimation(Animation& genericAnimation, const Style& style);
-		void drawFilledBoxAnimation(Animation& genericAnimation, const Style& style);
-
-		void popAnimation(AnimType animationType, float delay, float fadeOutTime = 0.32f);
-		void translateAnimation(AnimType animationType, const Vec2& translation, float duration, float delay);
-		void update(float dt);
-		void reset();
-	}
 }
 
 #endif
