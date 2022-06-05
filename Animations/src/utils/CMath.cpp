@@ -121,5 +121,10 @@ namespace MathAnim
 		{
 			return (1 - t) * ((1 - t) * p0 + t * p1) + t * ((1 - t) * p1 + t * p2);
 		}
+
+		// Easing functions
+		float easeInOutCubic(float t) {
+			return t < 0.5 ? 4 * t * t * t : 1 - glm::pow(-2 * t + 2, 3) / 2;
+		}
 	}
 }

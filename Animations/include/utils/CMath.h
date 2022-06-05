@@ -47,6 +47,9 @@ namespace MathAnim
 		// Other stuff
 		Vec2 bezier1(const Vec2& p0, const Vec2& p1, float t);
 		Vec2 bezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t);
+
+		// Easing functions
+		float easeInOutCubic(float t);
 	}
 }
 

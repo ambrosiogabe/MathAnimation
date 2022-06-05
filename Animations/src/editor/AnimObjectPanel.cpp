@@ -22,16 +22,16 @@ namespace MathAnim
 		{
 			ImGui::Begin("Animation Objects");
 
-			for (uint32 i = 1; i < (uint32)AnimObjectType::Length; i++)
+			for (uint32 i = 1; i < (uint32)AnimObjectTypeV1::Length; i++)
 			{
-				const char* name = AnimationManagerEx::getAnimObjectName((AnimObjectType)i);
+				const char* name = AnimationManagerEx::getAnimObjectName((AnimObjectTypeV1)i);
 				ImGui::PushID(name);
 				ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
 				if (ImGui::BeginDragDropSource())
 				{
 					static TimelinePayload payloadData;
-					payloadData.objectType = (AnimObjectType)i;
-					payloadData.animType = AnimTypeEx::None;
+					payloadData.objectType = (AnimObjectTypeV1)i;
+					payloadData.animType = AnimTypeExV1::None;
 					payloadData.isAnimObject = true;
 					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropSegmentPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);
 					ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
@@ -45,16 +45,16 @@ namespace MathAnim
 
 			ImGui::Begin("Animations");
 
-			for (uint32 i = 1; i < (uint32)AnimTypeEx::Length; i++)
+			for (uint32 i = 1; i < (uint32)AnimTypeExV1::Length; i++)
 			{
-				const char* name = AnimationManagerEx::getAnimationName((AnimTypeEx)i);
+				const char* name = AnimationManagerEx::getAnimationName((AnimTypeExV1)i);
 				ImGui::PushID(name);
 				ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
 				if (ImGui::BeginDragDropSource())
 				{
 					static TimelinePayload payloadData;
-					payloadData.animType = (AnimTypeEx)i;
-					payloadData.objectType = AnimObjectType::None;
+					payloadData.animType = (AnimTypeExV1)i;
+					payloadData.objectType = AnimObjectTypeV1::None;
 					payloadData.isAnimObject = false;
 					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropSubSegmentPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);
 					ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);

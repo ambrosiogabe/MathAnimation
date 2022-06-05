@@ -19,6 +19,7 @@ namespace MathAnim
 	static const char* animationTypeNames[] = {
 		"None",
 		"Write In Text",
+		"Move To",
 		"Length",
 	};
 
@@ -70,7 +71,7 @@ namespace MathAnim
 			for (auto iter = animObject.animations.begin(); iter != animObject.animations.end(); iter++)
 			{
 				// Insert it here. The list will always be sorted
-				if (animation.frameStart > iter->frameStart)
+				if (animation.frameStart < iter->frameStart)
 				{
 					animObject.animations.insert(iter, animation);
 					return;
@@ -96,7 +97,7 @@ namespace MathAnim
 				for (auto iter = animObject.animations.begin(); iter != animObject.animations.end(); iter++)
 				{
 					// Insert it here. The list will always be sorted
-					if (animation.frameStart > iter->frameStart)
+					if (animation.frameStart < iter->frameStart)
 					{
 						animObject.animations.insert(iter, animation);
 						return;
@@ -260,18 +261,26 @@ namespace MathAnim
 		{
 			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
 			{
+				objectIter->position = objectIter->_positionStart;
 				objectIter->isAnimating = false;
 				for (auto animIter = objectIter->animations.begin(); animIter != objectIter->animations.end(); animIter++)
 				{
 					float parentFrameStart = animIter->getParent()->frameStart;
 					float absoluteFrameStart = animIter->frameStart + parentFrameStart;
 					int animDeathTime = absoluteFrameStart + animIter->duration;
-					if (absoluteFrameStart <= frame && frame <= animDeathTime)
+					if (absoluteFrameStart <= frame)
 					{
-						float interpolatedT = ((float)frame - absoluteFrameStart) / (float)animIter->duration;
-						animIter->render(vg, interpolatedT);
+						if (frame <= animDeathTime)
+						{
+							float interpolatedT = ((float)frame - absoluteFrameStart) / (float)animIter->duration;
+							animIter->render(vg, interpolatedT);
 
-						objectIter->isAnimating = true;
+							objectIter->isAnimating = true;
+						}
+						else
+						{
+							animIter->applyAnimation(vg);
+						}
 					}
 				}
 
@@ -295,6 +304,22 @@ namespace MathAnim
 				if (mObjects[i].id == animObjectId)
 				{
 					return &mObjects[i];
+				}
+			}
+
+			return nullptr;
+		}
+
+		AnimationEx* getMutableAnimation(int animationId)
+		{
+			for (int i = 0; i < mObjects.size(); i++)
+			{
+				for (int ai = 0; ai < mObjects[i].animations.size(); ai++)
+				{
+					if (mObjects[i].animations[ai].id == animationId)
+					{
+						return &mObjects[i].animations[ai];
+					}
 				}
 			}
 
@@ -378,17 +403,40 @@ namespace MathAnim
 			}
 
 			memory.free();
+
+			// Need to sort animation objects to ensure they get animations 
+			// applied in the correct order
+			sortAnimObjects();
 		}
 
-		const char* getAnimObjectName(AnimObjectType type)
+		static bool compareAnimObject(const AnimObject& ob1, const AnimObject& ob2)
 		{
-			g_logger_assert((int)type < (int)AnimObjectType::Length && (int)type >= 0, "Invalid type '%d'.", (int)type);
+			return ob1.frameStart < ob2.frameStart;
+		}
+
+		static bool compareAnimation(const AnimationEx& a1, const AnimationEx& a2)
+		{
+			return a1.frameStart < a2.frameStart;
+		}
+
+		void sortAnimObjects()
+		{
+			std::sort(mObjects.begin(), mObjects.end(), compareAnimObject);
+			for (int i = 0; i < mObjects.size(); i++)
+			{
+				std::sort(mObjects[i].animations.begin(), mObjects[i].animations.end(), compareAnimation);
+			}
+		}
+
+		const char* getAnimObjectName(AnimObjectTypeV1 type)
+		{
+			g_logger_assert((int)type < (int)AnimObjectTypeV1::Length && (int)type >= 0, "Invalid type '%d'.", (int)type);
 			return animationObjectTypeNames[(int)type];
 		}
 
-		const char* getAnimationName(AnimTypeEx type)
+		const char* getAnimationName(AnimTypeExV1 type)
 		{
-			g_logger_assert((int)type < (int)AnimTypeEx::Length && (int)type >= 0, "Invalid type '%d'.", (int)type);
+			g_logger_assert((int)type < (int)AnimTypeExV1::Length && (int)type >= 0, "Invalid type '%d'.", (int)type);
 			return animationTypeNames[(int)type];
 		}
 
@@ -419,8 +467,30 @@ namespace MathAnim
 	{
 		switch (type)
 		{
-		case AnimTypeEx::WriteInText:
+		case AnimTypeExV1::WriteInText:
 			getParent()->as.textObject.renderWriteInAnimation(vg, t, getParent());
+			break;
+		case AnimTypeExV1::MoveTo:
+			getMutableParent()->renderMoveToAnimation(vg, t, this->as.moveTo.target);
+			getParent()->render(vg);
+			break;
+		default:
+			// TODO: Add magic_enum
+			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
+			g_logger_info("Unknown animation: %d", type);
+			break;
+		}
+	}
+
+	void AnimationEx::applyAnimation(NVGcontext* vg) const
+	{
+		switch (type)
+		{
+		case AnimTypeExV1::WriteInText:
+			// NOP
+			break;
+		case AnimTypeExV1::MoveTo:
+			getMutableParent()->position = this->as.moveTo.target;
 			break;
 		default:
 			// TODO: Add magic_enum
@@ -433,6 +503,13 @@ namespace MathAnim
 	const AnimObject* AnimationEx::getParent() const
 	{
 		const AnimObject* res = AnimationManagerEx::getObject(objectId);
+		g_logger_assert(res != nullptr, "Invalid anim object.");
+		return res;
+	}
+
+	AnimObject* AnimationEx::getMutableParent() const
+	{
+		AnimObject* res = AnimationManagerEx::getMutableObject(objectId);
 		g_logger_assert(res != nullptr, "Invalid anim object.");
 		return res;
 	}
@@ -455,6 +532,19 @@ namespace MathAnim
 		memory.write<int32>(&frameStart);
 		memory.write<int32>(&duration);
 		memory.write<int32>(&id);
+
+		switch (this->type)
+		{
+		case AnimTypeExV1::WriteInText:
+			// NOP
+			break;
+		case AnimTypeExV1::MoveTo:
+			this->as.moveTo.serialize(memory);
+			break;
+		default:
+			g_logger_warning("Unknown animation type: %d", (int)this->type);
+			break;
+		}
 	}
 
 	AnimationEx AnimationEx::deserialize(RawMemory& memory, uint32 version)
@@ -473,13 +563,13 @@ namespace MathAnim
 		AnimationEx res;
 		res.id = -1;
 		res.objectId = -1;
-		res.type = AnimTypeEx::None;
+		res.type = AnimTypeExV1::None;
 		res.duration = 0;
 		res.frameStart = 0;
 		return res;
 	}
 
-	AnimationEx AnimationEx::createDefault(AnimTypeEx type, int32 frameStart, int32 duration, int32 animObjectId)
+	AnimationEx AnimationEx::createDefault(AnimTypeExV1 type, int32 frameStart, int32 duration, int32 animObjectId)
 	{
 		AnimationEx res;
 		res.id = animationUidCounter++;
@@ -495,7 +585,7 @@ namespace MathAnim
 	{
 		switch (objectType)
 		{
-		case AnimObjectType::TextObject:
+		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.render(vg, this);
 			break;
 		default:
@@ -506,14 +596,24 @@ namespace MathAnim
 		}
 	}
 
+	void AnimObject::renderMoveToAnimation(NVGcontext* vg, float t, const Vec2& target)
+	{
+		float transformedT = CMath::easeInOutCubic(t);
+		Vec2 pos = Vec2{
+			((target.x - position.x) * transformedT) + position.x,
+			((target.y - position.y) * transformedT) + position.y
+		};
+		this->position = pos;
+	}
+
 	void AnimObject::free()
 	{
 		switch (this->objectType)
 		{
-		case AnimObjectType::TextObject:
+		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.free();
 			break;
-		case AnimObjectType::LaTexObject:
+		case AnimObjectTypeV1::LaTexObject:
 			this->as.laTexObject.free();
 			break;
 		}
@@ -522,7 +622,7 @@ namespace MathAnim
 	void AnimObject::serialize(RawMemory& memory) const
 	{
 		//   AnimObjectType     -> uint32
-		//   Position
+		//   _PositionStart
 		//     X                -> f32
 		//     Y                -> f32
 		//   Id                 -> int32
@@ -532,8 +632,8 @@ namespace MathAnim
 		//   AnimationTypeSpecificData (This data will change depending on AnimObjectType)
 		uint32 animObjectType = (uint32)objectType;
 		memory.write<uint32>(&animObjectType);
-		memory.write<float>(&position.x);
-		memory.write<float>(&position.y);
+		memory.write<float>(&_positionStart.x);
+		memory.write<float>(&_positionStart.y);
 		memory.write<int32>(&id);
 		memory.write<int32>(&frameStart);
 		memory.write<int32>(&duration);
@@ -541,10 +641,10 @@ namespace MathAnim
 
 		switch (objectType)
 		{
-		case AnimObjectType::TextObject:
+		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.serialize(memory);
 			break;
-		case AnimObjectType::LaTexObject:
+		case AnimObjectTypeV1::LaTexObject:
 			this->as.laTexObject.serialize(memory);
 			break;
 		}
@@ -572,13 +672,14 @@ namespace MathAnim
 		res.frameStart = 0;
 		res.duration = 0;
 		res.id = -1;
-		res.objectType = AnimObjectType::None;
+		res.objectType = AnimObjectTypeV1::None;
 		res.position = {};
+		res._positionStart = {};
 		res.timelineTrack = -1;
 		return res;
 	}
 
-	AnimObject AnimObject::createDefault(AnimObjectType type, int32 frameStart, int32 duration)
+	AnimObject AnimObject::createDefault(AnimObjectTypeV1 type, int32 frameStart, int32 duration)
 	{
 		AnimObject res;
 		res.id = animObjectUidCounter++;
@@ -588,18 +689,45 @@ namespace MathAnim
 		res.isAnimating = false;
 		res.objectType = type;
 		res.position = { 0, 0 };
+		res._positionStart = { 0, 0 };
 
 		switch (type)
 		{
-		case AnimObjectType::TextObject:
+		case AnimObjectTypeV1::TextObject:
 			res.as.textObject = TextObject::createDefault();
 			break;
-		case AnimObjectType::LaTexObject:
+		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::createDefault();
 			break;
 		}
 
 		return res;
+	}
+
+	void MoveToAnimData::serialize(RawMemory& memory) const
+	{
+		// Target
+		//   X    -> float
+		//   Y    -> float
+		memory.write<float>(&this->target.x);
+		memory.write<float>(&this->target.y);
+	}
+
+	MoveToAnimData MoveToAnimData::deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			// Target
+			//   X    -> float
+			//   Y    -> float
+			MoveToAnimData res;
+			memory.read<float>(&res.target.x);
+			memory.read<float>(&res.target.y);
+			return res;
+		}
+
+		g_logger_warning("Unhandled version for MoveToAnimData %d", version);
+		return {};
 	}
 
 	// ----------------------------- Internal Functions -----------------------------
@@ -608,7 +736,7 @@ namespace MathAnim
 		AnimObject res;
 
 		// AnimObjectType     -> uint32
-		// Position
+		// _PositionStart
 		//   X                -> f32
 		//   Y                -> f32
 		// Id                 -> int32
@@ -619,10 +747,10 @@ namespace MathAnim
 		// AnimationTypeSpecificData (This data will change depending on AnimObjectType)
 		uint32 animObjectType;
 		memory.read<uint32>(&animObjectType);
-		g_logger_assert(animObjectType < (uint32)AnimObjectType::Length, "Invalid AnimObjectType '%d' from memory. Must be corrupted memory.", animObjectType);
-		res.objectType = (AnimObjectType)animObjectType;
-		memory.read<float>(&res.position.x);
-		memory.read<float>(&res.position.y);
+		g_logger_assert(animObjectType < (uint32)AnimObjectTypeV1::Length, "Invalid AnimObjectType '%d' from memory. Must be corrupted memory.", animObjectType);
+		res.objectType = (AnimObjectTypeV1)animObjectType;
+		memory.read<float>(&res._positionStart.x);
+		memory.read<float>(&res._positionStart.y);
 		memory.read<int32>(&res.id);
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);
@@ -633,10 +761,10 @@ namespace MathAnim
 		constexpr uint32 version = 1;
 		switch (res.objectType)
 		{
-		case AnimObjectType::TextObject:
+		case AnimObjectTypeV1::TextObject:
 			res.as.textObject = TextObject::deserialize(memory, version);
 			break;
-		case AnimObjectType::LaTexObject:
+		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::deserialize(memory, version);
 			break;
 		default:
@@ -665,15 +793,29 @@ namespace MathAnim
 		// frameStart   -> int32
 		// duration     -> int32
 		// id           -> int32
+		// Custom animation data -> dynamic
 		AnimationEx res;
 		uint32 animType;
 		memory.read<uint32>(&animType);
-		g_logger_assert(animType < (uint32)AnimTypeEx::Length, "Invalid animation type '%d' from memory. Must be corrupted memory.", animType);
-		res.type = (AnimTypeEx)animType;
+		g_logger_assert(animType < (uint32)AnimTypeExV1::Length, "Invalid animation type '%d' from memory. Must be corrupted memory.", animType);
+		res.type = (AnimTypeExV1)animType;
 		memory.read<int32>(&res.objectId);
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);
 		memory.read<int32>(&res.id);
+
+		switch (res.type)
+		{
+		case AnimTypeExV1::WriteInText:
+			// NOP
+			break;
+		case AnimTypeExV1::MoveTo:
+			res.as.moveTo = MoveToAnimData::deserialize(memory, 1);
+			break;
+		default:
+			g_logger_warning("Unhandled animation deserialize for type %d", res.type);
+			break;
+		}
 
 		return res;
 	}

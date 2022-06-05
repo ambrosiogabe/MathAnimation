@@ -6,8 +6,8 @@ namespace MathAnim
 {
 	struct TimelinePayload
 	{
-		AnimObjectType objectType;
-		AnimTypeEx animType;
+		AnimObjectTypeV1 objectType;
+		AnimTypeExV1 animType;
 		bool isAnimObject;
 	};
 

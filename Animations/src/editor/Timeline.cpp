@@ -27,10 +27,12 @@ namespace MathAnim
 		static void deleteTrack(int index);
 		static void handleAnimObjectInspector(int animObjectId);
 		static void handleAnimationInspector(int animationId);
+		static void handleTextObjectInspector(AnimObject* object);
+		static void handleMoveToAnimationInspector(AnimationEx* animation);
+
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate = INT32_MAX);
 		static void resetImGuiData();
 
-		static void handleTextObjectInspector(AnimObject* object);
 
 		void init()
 		{
@@ -318,14 +320,14 @@ namespace MathAnim
 				return;
 			}
 
-			ImGui::DragFloat2(": Position", (float*)&animObject->position.x);
+			ImGui::DragFloat2(": Position", (float*)&animObject->_positionStart.x);
 
 			switch (animObject->objectType)
 			{
-			case AnimObjectType::TextObject:
+			case AnimObjectTypeV1::TextObject:
 				handleTextObjectInspector(animObject);
 				break;
-			case AnimObjectType::LaTexObject:
+			case AnimObjectTypeV1::LaTexObject:
 				g_logger_assert(false, "TODO: Implement me.");
 				break;
 			default:
@@ -336,11 +338,28 @@ namespace MathAnim
 
 		static void handleAnimationInspector(int animationId)
 		{
+			AnimationEx* animation = AnimationManagerEx::getMutableAnimation(animationId);
+			if (!animation)
+			{
+				g_logger_error("No animation with id '%d' exists", animationId);
+				return;
+			}
 
+			switch (animation->type)
+			{
+			case AnimTypeExV1::WriteInText:
+				// NOP
+				break;
+			case AnimTypeExV1::MoveTo:
+				handleMoveToAnimationInspector(animation);
+				break;
+			default:
+				break;
+			}
 		}
 
 		static void handleTextObjectInspector(AnimObject* object)
-		{
+		{ 
 			ImGui::DragFloat(": Font Size (Px)", &object->as.textObject.fontSizePixels);
 
 			constexpr int scratchLength = 256;
@@ -360,6 +379,11 @@ namespace MathAnim
 				g_memory_copyMem(object->as.textObject.text, scratch, newLength * sizeof(char));
 				object->as.textObject.text[newLength] = '\0';
 			}
+		}
+
+		static void handleMoveToAnimationInspector(AnimationEx* animation)
+		{
+			ImGui::DragFloat2(": Target", &animation->as.moveTo.target.x);
 		}
 
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate)

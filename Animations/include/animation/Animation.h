@@ -138,20 +138,34 @@ namespace MathAnim
 		} as;
 	};
 
-	enum class AnimTypeEx : uint32
+	struct MoveToAnimData
+	{
+		Vec2 target;
+
+		void serialize(RawMemory& memory) const;
+		static MoveToAnimData deserialize(RawMemory& memory, uint32 version);
+	};
+
+	enum class AnimTypeExV1 : uint32
 	{
 		None = 0,
 		WriteInText,
+		MoveTo,
 		Length
 	};
 
 	struct AnimationEx
 	{
-		AnimTypeEx type;
+		AnimTypeExV1 type;
 		int32 objectId;
 		int32 frameStart;
 		int32 duration;
 		int32 id;
+
+		union
+		{
+			MoveToAnimData moveTo;
+		} as;
 
 		// Render the animation state using a interpolation t value
 		// 
@@ -159,15 +173,18 @@ namespace MathAnim
 		//      beginning of the animation and 1 is the end of the
 		//      animation
 		void render(NVGcontext* vg, float t) const;
+		// Set the animation to the end state without rendering it
+		void applyAnimation(NVGcontext* vg) const;
 
 		const AnimObject* getParent() const;
+		AnimObject* getMutableParent() const;
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimationEx deserialize(RawMemory& memory, uint32 version);
-		static AnimationEx createDefault(AnimTypeEx type, int32 frameStart, int32 duration, int32 animObjectId);
+		static AnimationEx createDefault(AnimTypeExV1 type, int32 frameStart, int32 duration, int32 animObjectId);
 	};
 
-	enum class AnimObjectType : uint32
+	enum class AnimObjectTypeV1 : uint32
 	{
 		None = 0,
 		TextObject,
@@ -177,8 +194,10 @@ namespace MathAnim
 
 	struct AnimObject
 	{
-		AnimObjectType objectType;
+		AnimObjectTypeV1 objectType;
 		Vec2 position;
+		// This is the position before any animations are applied
+		Vec2 _positionStart;
 		int32 id;
 		int32 frameStart;
 		int32 duration;
@@ -193,10 +212,11 @@ namespace MathAnim
 		} as;
 
 		void render(NVGcontext* vg) const;
+		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec2& target);
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimObject deserialize(RawMemory& memory, uint32 version);
-		static AnimObject createDefault(AnimObjectType type, int32 frameStart, int32 duration);
+		static AnimObject createDefault(AnimObjectTypeV1 type, int32 frameStart, int32 duration);
 	};
 
 	namespace AnimationManagerEx
@@ -216,13 +236,15 @@ namespace MathAnim
 
 		const AnimObject* getObject(int animObjectId);
 		AnimObject* getMutableObject(int animObjectId);
+		AnimationEx* getMutableAnimation(int animationId);
 		const std::vector<AnimObject>& getAnimObjects();
 
 		void serialize(const char* savePath = nullptr);
 		void deserialize(const char* loadPath = nullptr);
+		void sortAnimObjects();
 
-		const char* getAnimObjectName(AnimObjectType type);
-		const char* getAnimationName(AnimTypeEx type);
+		const char* getAnimObjectName(AnimObjectTypeV1 type);
+		const char* getAnimationName(AnimTypeExV1 type);
 	}
 
 	namespace AnimationManager
