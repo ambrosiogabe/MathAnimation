@@ -3,10 +3,12 @@
 #include "core.h"
 
 #include "animation/TextAnimations.h"
+#include "animation/Shapes.h"
 
 namespace MathAnim
 {
 	struct Font;
+	struct SvgObject;
 
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;
@@ -18,6 +20,7 @@ namespace MathAnim
 		None = 0,
 		TextObject,
 		LaTexObject,
+		Square,
 		Length
 	};
 
@@ -26,6 +29,7 @@ namespace MathAnim
 		None = 0,
 		WriteInText,
 		MoveTo,
+		Create,
 		Length
 	};
 
@@ -79,6 +83,7 @@ namespace MathAnim
 		int32 frameStart;
 		int32 duration;
 		int32 timelineTrack;
+		SvgObject* svgObject;
 		bool isAnimating;
 		std::vector<Animation> animations;
 
@@ -86,6 +91,7 @@ namespace MathAnim
 		{
 			TextObject textObject;
 			LaTexObject laTexObject;
+			Square square;
 		} as;
 
 		void render(NVGcontext* vg) const;

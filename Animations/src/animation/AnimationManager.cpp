@@ -13,6 +13,7 @@ namespace MathAnim
 			"None",
 			"Text Object",
 			"LaTex Object",
+			"Square",
 			"Length"
 		};
 
@@ -20,6 +21,7 @@ namespace MathAnim
 			"None",
 			"Write In Text",
 			"Move To",
+			"Create",
 			"Length",
 		};
 

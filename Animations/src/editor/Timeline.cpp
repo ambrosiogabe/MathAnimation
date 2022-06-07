@@ -5,6 +5,7 @@
 #include "core/Application.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
+#include "animation/Svg.h"
 
 #include "imgui.h"
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -30,6 +31,7 @@ namespace MathAnim
 		static void handleAnimationInspector(int animationId);
 		static void handleTextObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
+		static void handleSquareInspector(AnimObject* object);
 
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate = INT32_MAX);
 		static void resetImGuiData();
@@ -109,12 +111,6 @@ namespace MathAnim
 				{
 					if (res.activeObjectIsSubSegment)
 					{
-						g_logger_info("Dropped payload\nname: '%s'\ntrackIndex: %d\nsegmentIndex: %d\nfirstFrame: %d\nIs Subtrack: %d",
-							AnimationManager::getAnimationName(payloadData->animType),
-							res.trackIndex,
-							res.segmentIndex,
-							res.dragDropPayloadFirstFrame,
-							res.activeObjectIsSubSegment);
 						const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
 						int animObjectId = segment.userData.as.intData;
 						Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 30, animObjectId);
@@ -331,6 +327,9 @@ namespace MathAnim
 			case AnimObjectTypeV1::LaTexObject:
 				g_logger_assert(false, "TODO: Implement me.");
 				break;
+			case AnimObjectTypeV1::Square:
+				handleSquareInspector(animObject);
+				break;
 			default:
 				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
 				break;
@@ -349,12 +348,14 @@ namespace MathAnim
 			switch (animation->type)
 			{
 			case AnimTypeV1::WriteInText:
+			case AnimTypeV1::Create:
 				// NOP
 				break;
 			case AnimTypeV1::MoveTo:
 				handleMoveToAnimationInspector(animation);
 				break;
 			default:
+				g_logger_error("Unknown animation type: %d", (int)animation->type);
 				break;
 			}
 		}
@@ -385,6 +386,17 @@ namespace MathAnim
 		static void handleMoveToAnimationInspector(Animation* animation)
 		{
 			ImGui::DragFloat2(": Target", &animation->as.moveTo.target.x);
+		}
+
+		static void handleSquareInspector(AnimObject* object)
+		{
+			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength))
+			{
+				object->svgObject->free();
+				g_memory_free(object->svgObject);
+				object->svgObject = nullptr;
+				object->as.square.init(object);
+			}
 		}
 
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate)

@@ -1,5 +1,6 @@
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
+#include "animation/Svg.h"
 #include "core.h"
 
 #include "renderer/Renderer.h"
@@ -7,7 +8,7 @@
 #include "utils/CMath.h"
 
 namespace MathAnim
-{	
+{
 	// ------- Private variables --------
 	static int animObjectUidCounter = 0;
 	static int animationUidCounter = 0;
@@ -21,6 +22,10 @@ namespace MathAnim
 	{
 		switch (type)
 		{
+		case AnimTypeV1::Create:
+			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render create animation for SVG object that is nullptr.");
+			getParent()->svgObject->renderCreateAnimation(vg, t, getParent());
+			break;
 		case AnimTypeV1::WriteInText:
 			getParent()->as.textObject.renderWriteInAnimation(vg, t, getParent());
 			break;
@@ -41,6 +46,7 @@ namespace MathAnim
 		switch (type)
 		{
 		case AnimTypeV1::WriteInText:
+		case AnimTypeV1::Create:
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
@@ -132,6 +138,20 @@ namespace MathAnim
 		res.objectId = animObjectId;
 		res.type = type;
 
+		switch (type)
+		{
+		case AnimTypeV1::Create:
+		case AnimTypeV1::WriteInText:
+			// NOP
+			break;
+		case AnimTypeV1::MoveTo:
+			res.as.moveTo.target = Vec2{ 0.0f, 0.0f };
+			break;
+		default:
+			g_logger_error("Cannot create default animation of type %d", (int)type);
+			break;
+		}
+
 		return res;
 	}
 
@@ -139,6 +159,11 @@ namespace MathAnim
 	{
 		switch (objectType)
 		{
+		case AnimObjectTypeV1::Square:
+			// Default SVG objects will just render the svgObject component
+			g_logger_assert(this->svgObject != nullptr, "Cannot render SVG object that is nullptr.");
+			this->svgObject->render(vg, this);
+			break;
 		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.render(vg, this);
 			break;
@@ -163,13 +188,26 @@ namespace MathAnim
 
 	void AnimObject::free()
 	{
+		if (this->svgObject)
+		{
+			this->svgObject->free();
+			g_memory_free(this->svgObject);
+			this->svgObject = nullptr;
+		}
+
 		switch (this->objectType)
 		{
+		case AnimObjectTypeV1::Square:
+			// NOP
+			break;
 		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.free();
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			this->as.laTexObject.free();
+			break;
+		default:
+			g_logger_error("Cannot free unknown animation object of type %d", (int)objectType);
 			break;
 		}
 	}
@@ -245,6 +283,7 @@ namespace MathAnim
 		res.objectType = type;
 		res.position = { 0, 0 };
 		res._positionStart = { 0, 0 };
+		res.svgObject = nullptr;
 
 		switch (type)
 		{
@@ -253,6 +292,13 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::createDefault();
+			break;
+		case AnimObjectTypeV1::Square:
+			res.as.square.sideLength = 50.0f;
+			res.as.square.init(&res);
+			break;
+		default:
+			g_logger_error("Cannot create default animation object of type %d", (int)type);
 			break;
 		}
 
@@ -314,6 +360,9 @@ namespace MathAnim
 		memory.read<int32>(&res.timelineTrack);
 		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
 
+		res.position = res._positionStart;
+		res.svgObject = nullptr;
+
 		// We're in V1 so this is version 1
 		constexpr uint32 version = 1;
 		switch (res.objectType)
@@ -323,6 +372,12 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::deserialize(memory, version);
+			break;
+		case AnimObjectTypeV1::Square:
+			g_logger_warning("TODO: IMPLEMENT ME");
+			// res.as.square = Square::deserialize(memory, version);
+			res.as.square.sideLength = 50.0f;
+			res.as.square.init(&res);
 			break;
 		default:
 			g_logger_error("Unknown anim object type: %d. Corrupted memory.", res.objectType);
