@@ -32,6 +32,7 @@ namespace MathAnim
 		static void handleTextObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
 		static void handleSquareInspector(AnimObject* object);
+		static void handleCircleInspector(AnimObject* object);
 
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate = INT32_MAX);
 		static void resetImGuiData();
@@ -330,6 +331,9 @@ namespace MathAnim
 			case AnimObjectTypeV1::Square:
 				handleSquareInspector(animObject);
 				break;
+			case AnimObjectTypeV1::Circle:
+				handleCircleInspector(animObject);
+				break;
 			default:
 				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
 				break;
@@ -349,6 +353,7 @@ namespace MathAnim
 			{
 			case AnimTypeV1::WriteInText:
 			case AnimTypeV1::Create:
+			case AnimTypeV1::Transform:
 				// NOP
 				break;
 			case AnimTypeV1::MoveTo:
@@ -392,10 +397,32 @@ namespace MathAnim
 		{
 			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength))
 			{
+				// TODO: Do something better than this
 				object->svgObject->free();
 				g_memory_free(object->svgObject);
 				object->svgObject = nullptr;
+
+				object->_svgObjectStart->free();
+				g_memory_free(object->_svgObjectStart);
+				object->_svgObjectStart = nullptr;
+
 				object->as.square.init(object);
+			}
+		}
+
+		static void handleCircleInspector(AnimObject* object)
+		{
+			if (ImGui::DragFloat(": Radius", &object->as.circle.radius))
+			{
+				object->svgObject->free();
+				g_memory_free(object->svgObject);
+				object->svgObject = nullptr;
+
+				object->_svgObjectStart->free();
+				g_memory_free(object->_svgObjectStart);
+				object->_svgObjectStart = nullptr;
+
+				object->as.circle.init(object);
 			}
 		}
 

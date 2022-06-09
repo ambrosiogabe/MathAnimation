@@ -1,5 +1,6 @@
 #include "animation/AnimationManager.h"
 #include "animation/Animation.h"
+#include "animation/Svg.h"
 
 namespace MathAnim
 {
@@ -14,6 +15,7 @@ namespace MathAnim
 			"Text Object",
 			"LaTex Object",
 			"Square",
+			"Circle",
 			"Length"
 		};
 
@@ -22,6 +24,7 @@ namespace MathAnim
 			"Write In Text",
 			"Move To",
 			"Create",
+			"Replacement Transform",
 			"Length",
 		};
 
@@ -246,8 +249,14 @@ namespace MathAnim
 		{
 			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
 			{
+				// Reset to original state and apply animations in order
+				if (objectIter->_svgObjectStart != nullptr && objectIter->svgObject != nullptr)
+				{
+					Svg::copy(objectIter->svgObject, objectIter->_svgObjectStart);
+				}
 				objectIter->position = objectIter->_positionStart;
 				objectIter->isAnimating = false;
+
 				for (auto animIter = objectIter->animations.begin(); animIter != objectIter->animations.end(); animIter++)
 				{
 					float parentFrameStart = (float)animIter->getParent()->frameStart;
@@ -314,6 +323,34 @@ namespace MathAnim
 		const std::vector<AnimObject>& getAnimObjects()
 		{
 			return mObjects;
+		}
+
+		const AnimObject* getNextAnimObject(int animObjectId)
+		{
+			int timelineTrack = -1;
+			int frameStart = -1;
+			int objIndex = -1;
+			for (int i = 0; i < mObjects.size(); i++)
+			{
+				if (objIndex != -1)
+				{
+					if (mObjects[i].timelineTrack == timelineTrack && mObjects[i].frameStart > mObjects[objIndex].frameStart)
+					{
+						g_logger_assert(mObjects[i].frameStart >= mObjects[objIndex].frameStart + mObjects[objIndex].duration, "These two objects are intersecting.");
+						return &mObjects[i];
+					}
+				}
+
+				if (mObjects[i].id == animObjectId)
+				{
+					g_logger_assert(objIndex == -1, "Multiple objects found with object id %d", animObjectId);
+					timelineTrack = mObjects[i].timelineTrack;
+					frameStart = mObjects[i].frameStart;
+					objIndex = i;
+				}
+			}
+
+			return nullptr;
 		}
 
 		void serialize(const char* savePath)

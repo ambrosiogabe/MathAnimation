@@ -30,6 +30,8 @@ namespace MathAnim
 		Animation* getMutableAnimation(int animationId);
 		const std::vector<AnimObject>& getAnimObjects();
 
+		const AnimObject* getNextAnimObject(int animObjectId);
+
 		void serialize(const char* savePath = nullptr);
 		void deserialize(const char* loadPath = nullptr);
 		void sortAnimObjects();

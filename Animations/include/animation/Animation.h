@@ -21,6 +21,7 @@ namespace MathAnim
 		TextObject,
 		LaTexObject,
 		Square,
+		Circle,
 		Length
 	};
 
@@ -30,6 +31,7 @@ namespace MathAnim
 		WriteInText,
 		MoveTo,
 		Create,
+		Transform,
 		Length
 	};
 
@@ -83,6 +85,7 @@ namespace MathAnim
 		int32 frameStart;
 		int32 duration;
 		int32 timelineTrack;
+		SvgObject* _svgObjectStart;
 		SvgObject* svgObject;
 		bool isAnimating;
 		std::vector<Animation> animations;
@@ -92,6 +95,7 @@ namespace MathAnim
 			TextObject textObject;
 			LaTexObject laTexObject;
 			Square square;
+			Circle circle;
 		} as;
 
 		void render(NVGcontext* vg) const;

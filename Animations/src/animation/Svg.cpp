@@ -1,5 +1,6 @@
 #include "animation/Svg.h"
 #include "animation/Animation.h"
+#include "utils/CMath.h"
 
 #include <nanovg.h>
 
@@ -103,6 +104,227 @@ namespace MathAnim
 			contour.curves[contour.numCurves - 1].as.bezier3.p2 = control1;
 			contour.curves[contour.numCurves - 1].as.bezier3.p3 = dest;
 			contour.curves[contour.numCurves - 1].type = CurveType::Bezier3;
+		}
+
+		void copy(SvgObject* dest, const SvgObject* src)
+		{
+			if (dest->numContours != src->numContours)
+			{
+				// Free any extra contours the destination has
+				// If the destination has less, this loop doesn't run
+				for (int contouri = src->numContours; contouri < dest->numContours; contouri++)
+				{
+					g_memory_free(dest->contours[contouri].curves);
+					dest->contours[contouri].curves = nullptr;
+					dest->contours[contouri].numCurves = 0;
+					dest->contours[contouri].maxCapacity = 0;
+				}
+
+				// Then reallocate memory. If dest had less, this will acquire enough new memory
+				// If dest had more, this will get rid of the extra memory
+				dest->contours = (Contour*)g_memory_realloc(dest->contours, sizeof(Contour) * src->numContours);
+
+				// Go through and initialize the curves for any new curves that were added
+				for (int contouri = dest->numContours; contouri < src->numContours; contouri++)
+				{
+					dest->contours[contouri].curves = (Curve*)g_memory_allocate(sizeof(Curve) * initialMaxCapacity);
+					dest->contours[contouri].maxCapacity = initialMaxCapacity;
+					dest->contours[contouri].numCurves = 0;
+				}
+
+				// Then set the number of contours equal
+				dest->numContours = src->numContours;
+			}
+
+			g_logger_assert(dest->numContours == src->numContours, "How did this happen?");
+
+			// Finally we can just go through and set all the data equal to each other
+			for (int contouri = 0; contouri < src->numContours; contouri++)
+			{
+				Contour& dstContour = dest->contours[contouri];
+				dstContour.numCurves = 0;
+
+				for (int curvei = 0; curvei < src->contours[contouri].numCurves; curvei++)
+				{
+					const Curve& srcCurve = src->contours[contouri].curves[curvei];
+
+					dstContour.numCurves++;
+					checkResize(dstContour);
+
+					// Copy the data
+					Curve& dstCurve = dstContour.curves[curvei];
+					dstCurve.p0 = srcCurve.p0;
+					dstCurve.as = srcCurve.as;
+					dstCurve.type = srcCurve.type;
+				}
+
+				g_logger_assert(dstContour.numCurves == src->contours[contouri].numCurves, "How did this happen?");
+			}
+
+			dest->calculateApproximatePerimeter();
+		}
+
+		void renderInterpolation(NVGcontext* vg, const Vec2& srcPos, const SvgObject* interpolationSrc, const Vec2& dstPos, const SvgObject* interpolationDst, float t)
+		{
+			// 0%-20% of animation fadeout (if needed)
+			// 10%-90% of animation interpolate curves
+			// 80%-100% of animation fade back in (if needed)
+			NVGcolor color = nvgRGBA(255, 255, 255, 255);
+			//if (t <= 0.2f)
+			//{
+			//	// Fade alpha down
+			//	float colorInterp = ((0.2f - t) / 0.2f);
+			//	color = nvgRGBA(255, 255, 255, (unsigned char)(255.0f * colorInterp));
+			//}
+			//else if (t >= 0.8f)
+			//{
+			//	// Fade alpha up
+			//	float colorInterp = (t - 0.8f) / 0.2f;
+			//	color = nvgRGBA(255, 255, 255, (unsigned char)(255.0f * colorInterp));
+			//}
+
+			t = glm::max(glm::min((t - 0.1f) / 0.9f, 1.0f), 0.0f);
+
+			glm::vec2 interpolatedPos = glm::vec2(
+				(dstPos.x - srcPos.x) * t + srcPos.x,
+				(dstPos.y - srcPos.y) * t + srcPos.y
+			);
+
+			// If one object has more contours than the other object,
+			// then we'll just skip every other contour for the object
+			// with less contours and hopefully it looks cool
+			const SvgObject* lessContours = interpolationSrc->numContours <= interpolationDst->numContours
+				? interpolationSrc
+				: interpolationDst;
+			const SvgObject* moreContours = interpolationSrc->numContours > interpolationDst->numContours
+				? interpolationSrc
+				: interpolationDst;
+			int numContoursToSkip = glm::max(moreContours->numContours / lessContours->numContours, 1);
+			int lessContouri = 0;
+			int moreContouri = 0;
+			while (lessContouri < lessContours->numContours)
+			{
+				nvgBeginPath(vg);
+				nvgFillColor(vg, color);
+				nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 255));
+				nvgStrokeWidth(vg, 5.0f);
+
+				const Contour& lessCurves = lessContours->contours[lessContouri];
+				const Contour& moreCurves = moreContours->contours[moreContouri];
+
+				// It's undefined to interpolate between two contours if one of the contours has no curves
+				bool shouldLoop = moreCurves.numCurves > 0 && lessCurves.numCurves > 0;
+				if (shouldLoop)
+				{
+					// Move to the start, which is the interpolation between both of the
+					// first vertices
+					const Vec2& p0a = lessCurves.curves[0].p0;
+					const Vec2& p0b = moreCurves.curves[0].p0;
+					Vec2 interpP0 = {
+						(p0b.x - p0a.x) * t + p0a.x,
+						(p0b.y - p0a.y) * t + p0a.y
+					};
+
+					nvgMoveTo(vg, interpP0.x + interpolatedPos.x, interpP0.y + interpolatedPos.y);
+				}
+
+				int maxNumCurves = glm::max(lessCurves.numCurves, moreCurves.numCurves);
+				for (int curvei = 0; curvei < maxNumCurves; curvei++)
+				{
+					// Interpolate between the two curves, treat both curves
+					// as bezier3 curves no matter what to make it easier
+					glm::vec2 p1a, p2a, p3a;
+					glm::vec2 p1b, p2b, p3b;
+
+					if (curvei > lessCurves.numCurves || curvei > moreCurves.numCurves)
+					{
+						g_logger_error("Cannot interpolate between two contours with different number of curves yet.");
+						break;
+					}
+					const Curve& lessCurve = lessCurves.curves[curvei];
+					const Curve& moreCurve = moreCurves.curves[curvei];
+
+					// First get the control points depending on the type of the curve
+					switch (lessCurve.type)
+					{
+					case CurveType::Bezier3:
+						p1a = glm::vec2(lessCurve.as.bezier3.p1.x, lessCurve.as.bezier3.p1.y);
+						p2a = glm::vec2(lessCurve.as.bezier3.p2.x, lessCurve.as.bezier3.p2.y);
+						p3a = glm::vec2(lessCurve.as.bezier3.p3.x, lessCurve.as.bezier3.p3.y);
+						break;
+					case CurveType::Bezier2:
+					{
+						glm::vec2 p0 = glm::vec2(lessCurve.p0.x, lessCurve.p0.y);
+						glm::vec2 p1 = glm::vec2(lessCurve.as.bezier2.p1.x, lessCurve.as.bezier2.p1.y);
+						glm::vec2 p2 = glm::vec2(lessCurve.as.bezier2.p2.x, lessCurve.as.bezier2.p2.y);
+
+						// Degree elevated quadratic bezier curve
+						p1a = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
+						p2a = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+						p3a = p2;
+					}
+						break;
+					case CurveType::Line:
+						p1a = glm::vec2(lessCurve.p0.x, lessCurve.p0.y);
+						p2a = glm::vec2(lessCurve.as.line.p1.x, lessCurve.as.line.p1.y);
+						p3a = p2a;
+						break;
+					default:
+						g_logger_warning("Unknown curve type %d", lessCurve.type);
+						break;
+					}
+
+					switch (moreCurve.type)
+					{
+					case CurveType::Bezier3:
+						p1b = glm::vec2(moreCurve.as.bezier3.p1.x, moreCurve.as.bezier3.p1.y);
+						p2b = glm::vec2(moreCurve.as.bezier3.p2.x, moreCurve.as.bezier3.p2.y);
+						p3b = glm::vec2(moreCurve.as.bezier3.p3.x, moreCurve.as.bezier3.p3.y);
+						break;
+					case CurveType::Bezier2:
+					{
+						glm::vec2 p0 = glm::vec2(moreCurve.p0.x, moreCurve.p0.y);
+						glm::vec2 p1 = glm::vec2(moreCurve.as.bezier2.p1.x, moreCurve.as.bezier2.p1.y);
+						glm::vec2 p2 = glm::vec2(moreCurve.as.bezier2.p2.x, moreCurve.as.bezier2.p2.y);
+
+						// Degree elevated quadratic bezier curve
+						p1b = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
+						p2b = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+						p3b = p2;
+					}
+					break;
+					case CurveType::Line:
+						p1b = glm::vec2(moreCurve.p0.x, moreCurve.p0.y);
+						p2b = glm::vec2(moreCurve.as.line.p1.x, moreCurve.as.line.p1.y);
+						p3b = p2b;
+						break;
+					default:
+						g_logger_warning("Unknown curve type %d", moreCurve.type);
+						break;
+					}
+
+					// Then interpolate between the control points
+					glm::vec2 interpP1 = (p1b - p1a) * t + p1a;
+					glm::vec2 interpP2 = (p2b - p2a) * t + p2a;
+					glm::vec2 interpP3 = (p3b - p3a) * t + p3a;
+
+					// Then draw
+					nvgBezierTo(vg,
+						interpP1.x + interpolatedPos.x, interpP1.y + interpolatedPos.y,
+						interpP2.x + interpolatedPos.x, interpP2.y + interpolatedPos.y,
+						interpP3.x + interpolatedPos.x, interpP3.y + interpolatedPos.y);
+				}
+
+				nvgFill(vg);
+				nvgClosePath(vg);
+
+				lessContouri++;
+				moreContouri += numContoursToSkip;
+				if (moreContouri >= moreContours->numContours)
+				{
+					moreContouri = moreContours->numContours - 1;
+				}
+			}
 		}
 
 		// ----------------- Internal functions -----------------
@@ -250,8 +472,11 @@ namespace MathAnim
 		nvgFill(vg);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent) const
+	void SvgObject::renderCreateAnimation(NVGcontext* vg, float inT, const AnimObject* parent) const
 	{
+		// TODO: Make this configurable based on the animation
+		float t = CMath::easeInOutCubic(inT);
+
 		// Start the fade in after 80% of the svg object is drawn
 		constexpr float fadeInStart = 0.8f;
 		const glm::vec2 position = { parent->position.x, parent->position.y };

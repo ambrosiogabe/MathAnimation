@@ -1,7 +1,9 @@
 #ifndef MATH_ANIM_SHAPES_H
 #define MATH_ANIM_SHAPES_H
+#include "core.h"
 
 struct NVGcontext;
+struct RawMemory;
 
 namespace MathAnim
 {
@@ -12,6 +14,19 @@ namespace MathAnim
 		float sideLength;
 
 		void init(AnimObject* parent);
+		void serialize(RawMemory& memory) const;
+
+		static Square deserialize(RawMemory& memory, uint32 version);
+	};
+
+	struct Circle
+	{
+		float radius;
+
+		void init(AnimObject* parent);
+		void serialize(RawMemory& memory) const;
+
+		static Circle deserialize(RawMemory& memory, uint32 version);
 	};
 }
 

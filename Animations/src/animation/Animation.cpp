@@ -33,6 +33,21 @@ namespace MathAnim
 			getMutableParent()->renderMoveToAnimation(vg, t, this->as.moveTo.target);
 			getParent()->render(vg);
 			break;
+		case AnimTypeV1::Transform:
+		{
+			const SvgObject* obj1 = getParent()->svgObject;
+			const AnimObject* nextObj = AnimationManager::getNextAnimObject(getParent()->id);
+			const SvgObject* obj2 = nextObj->svgObject;
+			if (obj1 != nullptr && obj2 != nullptr)
+			{
+				Svg::renderInterpolation(vg, getParent()->position, obj1, nextObj->position, obj2, t);
+			}
+			else
+			{
+				g_logger_warning("One or more null svg objects in transform animation.");
+			}
+		}
+		break;
 		default:
 			// TODO: Add magic_enum
 			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
@@ -47,6 +62,7 @@ namespace MathAnim
 		{
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
+		case AnimTypeV1::Transform:
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
@@ -96,6 +112,8 @@ namespace MathAnim
 		switch (this->type)
 		{
 		case AnimTypeV1::WriteInText:
+		case AnimTypeV1::Create:
+		case AnimTypeV1::Transform:
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
@@ -142,6 +160,7 @@ namespace MathAnim
 		{
 		case AnimTypeV1::Create:
 		case AnimTypeV1::WriteInText:
+		case AnimTypeV1::Transform:
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
@@ -160,6 +179,7 @@ namespace MathAnim
 		switch (objectType)
 		{
 		case AnimObjectTypeV1::Square:
+		case AnimObjectTypeV1::Circle:
 			// Default SVG objects will just render the svgObject component
 			g_logger_assert(this->svgObject != nullptr, "Cannot render SVG object that is nullptr.");
 			this->svgObject->render(vg, this);
@@ -195,9 +215,17 @@ namespace MathAnim
 			this->svgObject = nullptr;
 		}
 
+		if (this->_svgObjectStart)
+		{
+			this->_svgObjectStart->free();
+			g_memory_free(this->_svgObjectStart);
+			this->_svgObjectStart = nullptr;
+		}
+
 		switch (this->objectType)
 		{
 		case AnimObjectTypeV1::Square:
+		case AnimObjectTypeV1::Circle:
 			// NOP
 			break;
 		case AnimObjectTypeV1::TextObject:
@@ -239,6 +267,15 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			this->as.laTexObject.serialize(memory);
+			break;
+		case AnimObjectTypeV1::Square:
+			this->as.square.serialize(memory);
+			break;
+		case AnimObjectTypeV1::Circle:
+			this->as.circle.serialize(memory);
+			break;
+		default:
+			g_logger_warning("Unknown object type %d when serializing.", (int)objectType);
 			break;
 		}
 
@@ -294,8 +331,12 @@ namespace MathAnim
 			res.as.laTexObject = LaTexObject::createDefault();
 			break;
 		case AnimObjectTypeV1::Square:
-			res.as.square.sideLength = 50.0f;
+			res.as.square.sideLength = 150.0f;
 			res.as.square.init(&res);
+			break;
+		case AnimObjectTypeV1::Circle:
+			res.as.circle.radius = 75.0f;
+			res.as.circle.init(&res);
 			break;
 		default:
 			g_logger_error("Cannot create default animation object of type %d", (int)type);
@@ -362,6 +403,7 @@ namespace MathAnim
 
 		res.position = res._positionStart;
 		res.svgObject = nullptr;
+		res._svgObjectStart = nullptr;
 
 		// We're in V1 so this is version 1
 		constexpr uint32 version = 1;
@@ -374,10 +416,12 @@ namespace MathAnim
 			res.as.laTexObject = LaTexObject::deserialize(memory, version);
 			break;
 		case AnimObjectTypeV1::Square:
-			g_logger_warning("TODO: IMPLEMENT ME");
-			// res.as.square = Square::deserialize(memory, version);
-			res.as.square.sideLength = 50.0f;
+			res.as.square = Square::deserialize(memory, version);
 			res.as.square.init(&res);
+			break;
+		case AnimObjectTypeV1::Circle:
+			res.as.circle = Circle::deserialize(memory, version);
+			res.as.circle.init(&res);
 			break;
 		default:
 			g_logger_error("Unknown anim object type: %d. Corrupted memory.", res.objectType);
@@ -419,6 +463,8 @@ namespace MathAnim
 		switch (res.type)
 		{
 		case AnimTypeV1::WriteInText:
+		case AnimTypeV1::Transform:
+		case AnimTypeV1::Create:
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
