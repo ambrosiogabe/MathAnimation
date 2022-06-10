@@ -31,15 +31,16 @@ namespace MathAnim
 			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), true);
 			break;
 		case AnimTypeV1::FadeIn:
+			getMutableParent()->renderFadeInAnimation(vg, t);
+			break;
 		case AnimTypeV1::FadeOut:
-			g_logger_warning("TODO: Implement me!");
+			getMutableParent()->renderFadeOutAnimation(vg, t);
 			break;
 		case AnimTypeV1::WriteInText:
 			getParent()->as.textObject.renderWriteInAnimation(vg, t, getParent());
 			break;
 		case AnimTypeV1::MoveTo:
 			getMutableParent()->renderMoveToAnimation(vg, t, this->as.moveTo.target);
-			getParent()->render(vg);
 			break;
 		case AnimTypeV1::Transform:
 		{
@@ -75,8 +76,13 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::FadeIn:
+			g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
+			getMutableParent()->fillColor.a = 255;
+			getMutableParent()->strokeColor.a = 255;
+			break;
 		case AnimTypeV1::FadeOut:
-			g_logger_warning("TODO: Implement me!");
+			getMutableParent()->fillColor.a = 0;
+			getMutableParent()->strokeColor.a = 0;
 			break;
 		case AnimTypeV1::MoveTo:
 			getMutableParent()->position = this->as.moveTo.target;
@@ -223,6 +229,23 @@ namespace MathAnim
 			((target.y - position.y) * transformedT) + position.y
 		};
 		this->position = pos;
+		this->render(vg);
+	}
+
+	void AnimObject::renderFadeInAnimation(NVGcontext* vg, float t)
+	{
+		float transformedT = CMath::easeInOutCubic(t);
+		this->fillColor.a = this->fillColor.a * t;
+		this->strokeColor.a = this->strokeColor.a * t;
+		this->render(vg);
+	}
+
+	void AnimObject::renderFadeOutAnimation(NVGcontext* vg, float t)
+	{
+		float transformedT = CMath::easeInOutCubic(t);
+		this->fillColor.a = this->fillColor.a * (1.0f - t);
+		this->strokeColor.a = this->strokeColor.a * (1.0f - t);
+		this->render(vg);
 	}
 
 	void AnimObject::free()

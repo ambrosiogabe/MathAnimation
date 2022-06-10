@@ -109,6 +109,8 @@ namespace MathAnim
 
 		void render(NVGcontext* vg) const;
 		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec2& target);
+		void renderFadeInAnimation(NVGcontext* vg, float t);
+		void renderFadeOutAnimation(NVGcontext* vg, float t);
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimObject deserialize(RawMemory& memory, uint32 version);
