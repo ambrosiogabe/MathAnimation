@@ -10,6 +10,8 @@ namespace MathAnim
 	namespace ImGuiExtended
 	{
 		bool IconButton(const char* icon, const char* string, const ImVec2& size = ImVec2(0, 0));
+
+		void Icon(const char* icon, bool solid = true, float lineHeight = 0.0f);
 	}
 }
 

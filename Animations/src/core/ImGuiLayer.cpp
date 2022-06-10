@@ -15,6 +15,7 @@ namespace MathAnim
 	{
 		static ImFont* smallFont;
 		static ImFont* bigFont;
+		static ImFont* regularIconFont;
 
 		void init(const Window& window)
 		{
@@ -37,14 +38,17 @@ namespace MathAnim
 			config.MergeMode = true;
 			//config.GlyphMinAdvanceX = fontSize; // Use this if you want the icon to be monospaced
 			// TODO: Optimize ram usage here...
-			config.SizePixels = fontSize * 3.0f;
-			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-regular-400.ttf", fontSize * 3.0f, &config, iconRanges);
-			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 3.0f, &config, iconRanges);
-
+			config.SizePixels = fontSize * 2.0f;
+			config.PixelSnapH = true;
+			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 2.0f, &config, iconRanges);
 			bigFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/DejaVuSans.ttf", 36.0f);
 
 			// Add this font separately
-			//config.MergeMode = false;
+			config.MergeMode = false;
+			config.SizePixels = fontSize * 1.5f;
+			regularIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-regular-400.ttf", fontSize * 1.5f, &config, iconRanges);
+			
+			// config.MergeMode = false;
 			//const ImWchar iconRangesBrands[] = { ICON_MIN_FAB, ICON_MAX_FAB, 0 };
 			//io.Fonts->AddFontFromFileTTF("assets/fonts/fa-brands-400.ttf", fontSize, &config, iconRanges);
 
@@ -108,6 +112,10 @@ namespace MathAnim
 
 		void free()
 		{
+			smallFont = nullptr;
+			bigFont = nullptr;
+			regularIconFont = nullptr;
+
 			// Cleanup
 			ImGui_ImplOpenGL3_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
@@ -122,6 +130,11 @@ namespace MathAnim
 		ImFont* getLargeFont()
 		{
 			return bigFont;
+		}
+
+		ImFont* getRegularIconFont()
+		{
+			return regularIconFont;
 		}
 	}
 }

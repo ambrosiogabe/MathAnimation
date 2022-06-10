@@ -12,7 +12,8 @@ namespace MathAnim
 {
 	namespace AnimObjectPanel
 	{
-		constexpr ImVec2 buttonSize = ImVec2(120, 120);
+		constexpr float buttonHeight = 90.0f;
+		constexpr float animPreviewIconWidth = 115.0f;
 
 		void init()
 		{
@@ -23,11 +24,14 @@ namespace MathAnim
 		{
 			ImGui::Begin("Animation Objects");
 
+			ImVec2 availableRegion = ImGui::GetContentRegionAvail();
 			for (uint32 i = 1; i < (uint32)AnimObjectTypeV1::Length; i++)
 			{
 				const char* name = AnimationManager::getAnimObjectName((AnimObjectTypeV1)i);
 				ImGui::PushID(name);
-				ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
+
+				ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name, ImVec2(availableRegion.x - animPreviewIconWidth, 0.0f));
+
 				if (ImGui::BeginDragDropSource())
 				{
 					static TimelinePayload payloadData;
@@ -35,10 +39,21 @@ namespace MathAnim
 					payloadData.animType = AnimTypeV1::None;
 					payloadData.isAnimObject = true;
 					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropSegmentPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);
-					ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
+					ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name, ImVec2(availableRegion.x - animPreviewIconWidth, 0.0f));
 					ImGui::EndDragDropSource();
 				}
 				ImGui::PopID();
+
+				// Get button size
+				ImVec2 buttonSize = ImGui::GetItemRectSize();
+				ImGui::SameLine();
+				ImGuiExtended::Icon(ICON_FA_QUESTION_CIRCLE, false, buttonSize.y);
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::BeginTooltip();
+					ImGui::Text("TODO: Implement a preview window to show what this does.");
+					ImGui::EndTooltip();
+				}
 			}
 
 			ImGui::End();
@@ -50,7 +65,8 @@ namespace MathAnim
 			{
 				const char* name = AnimationManager::getAnimationName((AnimTypeV1)i);
 				ImGui::PushID(name);
-				ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
+				ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name, ImVec2(availableRegion.x - animPreviewIconWidth, 0.0f));
+
 				if (ImGui::BeginDragDropSource())
 				{
 					static TimelinePayload payloadData;
@@ -58,10 +74,21 @@ namespace MathAnim
 					payloadData.objectType = AnimObjectTypeV1::None;
 					payloadData.isAnimObject = false;
 					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropSubSegmentPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);
-					ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name);
+					ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name, ImVec2(availableRegion.x - animPreviewIconWidth, 0.0f));
 					ImGui::EndDragDropSource();
 				}
 				ImGui::PopID();
+
+				// Get button size
+				ImVec2 buttonSize = ImGui::GetItemRectSize();
+				ImGui::SameLine();
+				ImGuiExtended::Icon(ICON_FA_QUESTION_CIRCLE, false, buttonSize.y);
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::BeginTooltip();
+					ImGui::Text("TODO: Implement a preview window to show what this does.");
+					ImGui::EndTooltip();
+				}
 			}
 
 			ImGui::End();
