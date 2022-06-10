@@ -184,7 +184,7 @@ namespace MathAnim
 			);
 			glm::vec4 fillColorInterp = (fillColorDst - fillColorSrc) * t + fillColorSrc;
 			NVGcolor fillColor = nvgRGBA(
-				(uint8)(fillColorInterp.r * 255.0f), 
+				(uint8)(fillColorInterp.r * 255.0f),
 				(uint8)(fillColorInterp.g * 255.0f),
 				(uint8)(fillColorInterp.b * 255.0f),
 				(uint8)(fillColorInterp.a * 255.0f)
@@ -211,12 +211,30 @@ namespace MathAnim
 				(uint8)(strokeColorInterp.a * 255.0f)
 			);
 
-			const Vec2& dstPos = animObjectDst->position;
-			const Vec2& srcPos = animObjectSrc->position;
-			glm::vec2 interpolatedPos = glm::vec2(
+			// Interpolate position
+			const Vec3& dstPos = animObjectDst->position;
+			const Vec3& srcPos = animObjectSrc->position;
+			glm::vec3 interpolatedPos = glm::vec3(
 				(dstPos.x - srcPos.x) * t + srcPos.x,
-				(dstPos.y - srcPos.y) * t + srcPos.y
+				(dstPos.y - srcPos.y) * t + srcPos.y,
+				(dstPos.z - srcPos.z) * t + srcPos.z
 			);
+
+			// Interpolate rotation
+			const Vec3& dstRotation = animObjectDst->rotation;
+			const Vec3& srcRotation = animObjectSrc->rotation;
+			glm::vec3 interpolatedRotation = glm::vec3(
+				(dstRotation.x - srcRotation.x) * t + srcRotation.x,
+				(dstRotation.x - srcRotation.y) * t + srcRotation.y,
+				(dstRotation.x - srcRotation.z) * t + srcRotation.z
+			);
+
+			// Apply transformations
+			nvgTranslate(vg, interpolatedPos.x, interpolatedPos.y);
+			if (interpolatedRotation.z != 0.0f)
+			{
+				nvgRotate(vg, glm::radians(interpolatedRotation.z));
+			}
 
 			// Interpolate stroke width
 			float dstStrokeWidth = animObjectDst->strokeWidth;
@@ -246,6 +264,7 @@ namespace MathAnim
 			while (lessContouri < lessContours->numContours)
 			{
 				nvgBeginPath(vg);
+
 				nvgFillColor(vg, fillColor);
 				nvgStrokeColor(vg, strokeColor);
 				nvgStrokeWidth(vg, strokeWidth);
@@ -266,7 +285,7 @@ namespace MathAnim
 						(p0b.y - p0a.y) * t + p0a.y
 					};
 
-					nvgMoveTo(vg, interpP0.x + interpolatedPos.x, interpP0.y + interpolatedPos.y);
+					nvgMoveTo(vg, interpP0.x, interpP0.y);
 				}
 
 				int maxNumCurves = glm::max(lessCurves.numCurves, moreCurves.numCurves);
@@ -351,9 +370,9 @@ namespace MathAnim
 
 					// Then draw
 					nvgBezierTo(vg,
-						interpP1.x + interpolatedPos.x, interpP1.y + interpolatedPos.y,
-						interpP2.x + interpolatedPos.x, interpP2.y + interpolatedPos.y,
-						interpP3.x + interpolatedPos.x, interpP3.y + interpolatedPos.y);
+						interpP1.x, interpP1.y,
+						interpP2.x, interpP2.y,
+						interpP3.x, interpP3.y);
 				}
 
 				nvgStroke(vg);
@@ -367,6 +386,8 @@ namespace MathAnim
 					moreContouri = moreContours->numContours - 1;
 				}
 			}
+
+			nvgResetTransform(vg);
 		}
 
 		// ----------------- Internal functions -----------------
@@ -448,6 +469,12 @@ namespace MathAnim
 		float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
 		float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
 
+		nvgTranslate(vg, position.x, position.y);
+		if (parent->rotation.z != 0.0f)
+		{
+			nvgRotate(vg, glm::radians(parent->rotation.z));
+		}
+
 		if (lengthToDraw > 0)
 		{
 			float lengthDrawn = 0.0f;
@@ -456,6 +483,7 @@ namespace MathAnim
 				if (contours[contouri].numCurves > 0)
 				{
 					nvgBeginPath(vg);
+
 					// Fade the stroke out as the svg fades in
 					const glm::u8vec4& strokeColor = parent->strokeColor;
 					if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
@@ -470,8 +498,8 @@ namespace MathAnim
 					}
 
 					nvgMoveTo(vg,
-						contours[contouri].curves[0].p0.x + parent->position.x,
-						contours[contouri].curves[0].p0.y + parent->position.y
+						contours[contouri].curves[0].p0.x,
+						contours[contouri].curves[0].p0.y
 					);
 
 					for (int curvei = 0; curvei < contours[contouri].numCurves; curvei++)
@@ -484,8 +512,8 @@ namespace MathAnim
 
 						const Curve& curve = contours[contouri].curves[curvei];
 						glm::vec4 p0 = glm::vec4(
-							curve.p0.x + position.x,
-							curve.p0.y + position.y,
+							curve.p0.x,
+							curve.p0.y,
 							0.0f,
 							1.0f
 						);
@@ -494,9 +522,9 @@ namespace MathAnim
 						{
 						case CurveType::Bezier3:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x + position.x, curve.as.bezier3.p1.y + position.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x + position.x, curve.as.bezier3.p2.y + position.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x + position.x, curve.as.bezier3.p3.y + position.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, 0.0f, 1.0f };
 
 							float chordLength = glm::length(p3 - p0);
 							float controlNetLength = glm::length(p1 - p0) + glm::length(p2 - p1) + glm::length(p3 - p2);
@@ -546,9 +574,9 @@ namespace MathAnim
 						break;
 						case CurveType::Bezier2:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x + position.x, curve.as.bezier2.p1.y + position.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x + position.x, curve.as.bezier2.p1.y + position.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x + position.x, curve.as.bezier2.p2.y + position.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, 0.0f, 1.0f };
 
 							// Degree elevated quadratic bezier curve
 							glm::vec4 pr0 = p0;
@@ -609,8 +637,8 @@ namespace MathAnim
 						case CurveType::Line:
 						{
 							glm::vec4 p1 = glm::vec4(
-								curve.as.line.p1.x + position.x,
-								curve.as.line.p1.y + position.y,
+								curve.as.line.p1.x,
+								curve.as.line.p1.y,
 								0.0f,
 								1.0f
 							);
@@ -655,16 +683,16 @@ namespace MathAnim
 					nvgPathWinding(vg, contours[contouri].clockwiseFill ? NVG_CW : NVG_CCW);
 
 					nvgMoveTo(vg,
-						contours[contouri].curves[0].p0.x + parent->position.x,
-						contours[contouri].curves[0].p0.y + parent->position.y
+						contours[contouri].curves[0].p0.x,
+						contours[contouri].curves[0].p0.y
 					);
 
 					for (int curvei = 0; curvei < contours[contouri].numCurves; curvei++)
 					{
 						const Curve& curve = contours[contouri].curves[curvei];
 						glm::vec4 p0 = glm::vec4(
-							curve.p0.x + position.x,
-							curve.p0.y + position.y,
+							curve.p0.x,
+							curve.p0.y,
 							0.0f,
 							1.0f
 						);
@@ -673,9 +701,9 @@ namespace MathAnim
 						{
 						case CurveType::Bezier3:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x + position.x, curve.as.bezier3.p1.y + position.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x + position.x, curve.as.bezier3.p2.y + position.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x + position.x, curve.as.bezier3.p3.y + position.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, 0.0f, 1.0f };
 
 							nvgBezierTo(
 								vg,
@@ -687,9 +715,9 @@ namespace MathAnim
 						break;
 						case CurveType::Bezier2:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x + position.x, curve.as.bezier2.p1.y + position.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x + position.x, curve.as.bezier2.p1.y + position.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x + position.x, curve.as.bezier2.p2.y + position.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, 0.0f, 1.0f };
 
 							// Degree elevated quadratic bezier curve
 							glm::vec4 pr0 = p0;
@@ -708,8 +736,8 @@ namespace MathAnim
 						case CurveType::Line:
 						{
 							glm::vec4 p1 = glm::vec4(
-								curve.as.line.p1.x + position.x,
-								curve.as.line.p1.y + position.y,
+								curve.as.line.p1.x,
+								curve.as.line.p1.y,
 								0.0f,
 								1.0f
 							);
@@ -729,6 +757,8 @@ namespace MathAnim
 
 			nvgFill(vg);
 		}
+
+		nvgResetTransform(vg);
 	}
 
 	void SvgObject::free()

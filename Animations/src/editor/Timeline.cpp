@@ -318,7 +318,8 @@ namespace MathAnim
 				return;
 			}
 
-			ImGui::DragFloat2(": Position", (float*)&animObject->_positionStart.x);
+			ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x);
+			ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
 
 			ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart);
 			float strokeColor[4] = {

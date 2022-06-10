@@ -258,6 +258,7 @@ namespace MathAnim
 					Svg::copy(objectIter->svgObject, objectIter->_svgObjectStart);
 				}
 				objectIter->position = objectIter->_positionStart;
+				objectIter->rotation = objectIter->_rotationStart;
 				objectIter->fillColor = objectIter->_fillColorStart;
 				objectIter->strokeColor = objectIter->_strokeColorStart;
 				objectIter->strokeWidth = objectIter->_strokeWidthStart;

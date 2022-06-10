@@ -189,7 +189,7 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
-			res.as.moveTo.target = Vec2{ 0.0f, 0.0f };
+			res.as.moveTo.target = Vec3{ 0.0f, 0.0f, 0.0f };
 			break;
 		default:
 			g_logger_error("Cannot create default animation of type %d", (int)type);
@@ -221,12 +221,13 @@ namespace MathAnim
 	}
 
 	// ----------------------------- AnimObject Functions -----------------------------
-	void AnimObject::renderMoveToAnimation(NVGcontext* vg, float t, const Vec2& target)
+	void AnimObject::renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target)
 	{
 		float transformedT = CMath::easeInOutCubic(t);
-		Vec2 pos = Vec2{
+		Vec3 pos = Vec3{
 			((target.x - position.x) * transformedT) + position.x,
-			((target.y - position.y) * transformedT) + position.y
+			((target.y - position.y) * transformedT) + position.y,
+			((target.z - position.z) * transformedT) + position.z,
 		};
 		this->position = pos;
 		this->render(vg);
@@ -288,6 +289,11 @@ namespace MathAnim
 		//   _PositionStart
 		//     X                -> f32
 		//     Y                -> f32
+		//     Z                -> f32
+		//  _RotationStart
+		//     X                -> f32
+		//     Y                -> f32
+		//     Z                -> f32
 		//   _FillColorStart
 		//     R                -> u8
 		//     G                -> u8
@@ -308,15 +314,24 @@ namespace MathAnim
 		memory.write<uint32>(&animObjectType);
 		memory.write<float>(&_positionStart.x);
 		memory.write<float>(&_positionStart.y);
+		memory.write<float>(&_positionStart.z);
+
+		memory.write<float>(&_rotationStart.x);
+		memory.write<float>(&_rotationStart.y);
+		memory.write<float>(&_rotationStart.z);
+
 		memory.write<uint8>(&_fillColorStart.r);
 		memory.write<uint8>(&_fillColorStart.g);
 		memory.write<uint8>(&_fillColorStart.b);
 		memory.write<uint8>(&_fillColorStart.a);
+
 		memory.write<uint8>(&_strokeColorStart.r);
 		memory.write<uint8>(&_strokeColorStart.g);
 		memory.write<uint8>(&_strokeColorStart.b);
 		memory.write<uint8>(&_strokeColorStart.a);
+
 		memory.write<float>(&_strokeWidthStart);
+
 		memory.write<int32>(&id);
 		memory.write<int32>(&frameStart);
 		memory.write<int32>(&duration);
@@ -380,10 +395,17 @@ namespace MathAnim
 		res.duration = duration;
 		res.isAnimating = false;
 		res.objectType = type;
+
 		res.position = { 0, 0 };
 		res._positionStart = { 0, 0 };
+
+		res.rotation = { 0, 0 };
+		res._rotationStart = { 0, 0 };
+
 		res.svgObject = nullptr;
 		res._svgObjectStart = nullptr;
+
+		res.strokeWidth = 0.0f;
 		res.strokeColor = glm::u8vec4(255);
 		res._strokeColorStart = glm::u8vec4(255);
 		res.fillColor = glm::u8vec4(255);
@@ -419,8 +441,10 @@ namespace MathAnim
 		// Target
 		//   X    -> float
 		//   Y    -> float
+		//   Z    -> float
 		memory.write<float>(&this->target.x);
 		memory.write<float>(&this->target.y);
+		memory.write<float>(&this->target.z);
 	}
 
 	MoveToAnimData MoveToAnimData::deserialize(RawMemory& memory, uint32 version)
@@ -430,9 +454,11 @@ namespace MathAnim
 			// Target
 			//   X    -> float
 			//   Y    -> float
+			//   Z    -> float
 			MoveToAnimData res;
 			memory.read<float>(&res.target.x);
 			memory.read<float>(&res.target.y);
+			memory.read<float>(&res.target.z);
 			return res;
 		}
 
@@ -450,6 +476,11 @@ namespace MathAnim
 		// _PositionStart
 		//   X                -> f32
 		//   Y                -> f32
+		//   Z                -> f32
+		// _RotationStart
+		//   X				  -> f32
+		//   Y				  -> f32
+		//   Z                -> f32
 		// _FillColorStart
 		//   R                -> u8
 		//   G                -> u8
@@ -474,15 +505,24 @@ namespace MathAnim
 		res.objectType = (AnimObjectTypeV1)animObjectType;
 		memory.read<float>(&res._positionStart.x);
 		memory.read<float>(&res._positionStart.y);
+		memory.read<float>(&res._positionStart.z);
+
+		memory.read<float>(&res._rotationStart.x);
+		memory.read<float>(&res._rotationStart.y);
+		memory.read<float>(&res._rotationStart.z);
+
 		memory.read<uint8>(&res._fillColorStart.r);
 		memory.read<uint8>(&res._fillColorStart.g);
 		memory.read<uint8>(&res._fillColorStart.b);
 		memory.read<uint8>(&res._fillColorStart.a);
+
 		memory.read<uint8>(&res._strokeColorStart.r);
 		memory.read<uint8>(&res._strokeColorStart.g);
 		memory.read<uint8>(&res._strokeColorStart.b);
 		memory.read<uint8>(&res._strokeColorStart.a);
+
 		memory.read<float>(&res._strokeWidthStart);
+
 		memory.read<int32>(&res.id);
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);

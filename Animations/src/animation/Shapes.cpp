@@ -1,6 +1,7 @@
 #include "animation/Shapes.h"
 #include "animation/Animation.h"
 #include "animation/Svg.h"
+#include "utils/CMath.h"
 
 namespace MathAnim
 {
@@ -18,6 +19,7 @@ namespace MathAnim
 		*parent->svgObject = Svg::createDefault();
 
 		float halfLength = sideLength / 2.0f;
+		
 		Svg::beginContour(parent->_svgObjectStart, { -halfLength, halfLength }, true);
 		Svg::lineTo(parent->_svgObjectStart, { halfLength, halfLength });
 		Svg::lineTo(parent->_svgObjectStart, { halfLength, -halfLength });

@@ -41,7 +41,7 @@ namespace MathAnim
 	// Animation Structs
 	struct MoveToAnimData
 	{
-		Vec2 target;
+		Vec3 target;
 
 		void serialize(RawMemory& memory) const;
 		static MoveToAnimData deserialize(RawMemory& memory, uint32 version);
@@ -81,9 +81,12 @@ namespace MathAnim
 	struct AnimObject
 	{
 		AnimObjectTypeV1 objectType;
-		Vec2 position;
+		Vec3 position;
+		Vec3 rotation;
+		// Rotation is stored by rotX, rotY, rotZ order of rotations
+		Vec3 _rotationStart;
 		// This is the position before any animations are applied
-		Vec2 _positionStart;
+		Vec3 _positionStart;
 		int32 id;
 		int32 frameStart;
 		int32 duration;
@@ -108,7 +111,7 @@ namespace MathAnim
 		} as;
 
 		void render(NVGcontext* vg) const;
-		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec2& target);
+		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target);
 		void renderFadeInAnimation(NVGcontext* vg, float t);
 		void renderFadeOutAnimation(NVGcontext* vg, float t);
 		void free();
