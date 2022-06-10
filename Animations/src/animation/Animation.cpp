@@ -48,7 +48,7 @@ namespace MathAnim
 			const SvgObject* obj2 = nextObj->svgObject;
 			if (obj1 != nullptr && obj2 != nullptr)
 			{
-				Svg::renderInterpolation(vg, getParent()->position, obj1, nextObj->position, obj2, t);
+				Svg::renderInterpolation(vg, getParent(), obj1, nextObj, obj2, t);
 			}
 			else
 			{
@@ -265,6 +265,17 @@ namespace MathAnim
 		//   _PositionStart
 		//     X                -> f32
 		//     Y                -> f32
+		//   _FillColorStart
+		//     R                -> u8
+		//     G                -> u8
+		//     B                -> u8
+		//     A                -> u8
+		//   _StrokeColorStart 
+		//     R                -> u8
+		//     G                -> u8
+		//     B                -> u8
+		//     A                -> u8
+		//   _StrokeWidthStart  -> f32
 		//   Id                 -> int32
 		//   FrameStart         -> int32
 		//   Duration           -> int32
@@ -274,6 +285,15 @@ namespace MathAnim
 		memory.write<uint32>(&animObjectType);
 		memory.write<float>(&_positionStart.x);
 		memory.write<float>(&_positionStart.y);
+		memory.write<uint8>(&_fillColorStart.r);
+		memory.write<uint8>(&_fillColorStart.g);
+		memory.write<uint8>(&_fillColorStart.b);
+		memory.write<uint8>(&_fillColorStart.a);
+		memory.write<uint8>(&_strokeColorStart.r);
+		memory.write<uint8>(&_strokeColorStart.g);
+		memory.write<uint8>(&_strokeColorStart.b);
+		memory.write<uint8>(&_strokeColorStart.a);
+		memory.write<float>(&_strokeWidthStart);
 		memory.write<int32>(&id);
 		memory.write<int32>(&frameStart);
 		memory.write<int32>(&duration);
@@ -341,6 +361,10 @@ namespace MathAnim
 		res._positionStart = { 0, 0 };
 		res.svgObject = nullptr;
 		res._svgObjectStart = nullptr;
+		res.strokeColor = glm::u8vec4(255);
+		res._strokeColorStart = glm::u8vec4(255);
+		res.fillColor = glm::u8vec4(255);
+		res._fillColorStart = glm::u8vec4(255);
 
 		switch (type)
 		{
@@ -403,9 +427,21 @@ namespace MathAnim
 		// _PositionStart
 		//   X                -> f32
 		//   Y                -> f32
+		// _FillColorStart
+		//   R                -> u8
+		//   G                -> u8
+		//   B                -> u8
+		//   A                -> u8
+		// _StrokeColorStart 
+		//   R                -> u8
+		//   G                -> u8
+		//   B                -> u8
+		//   A                -> u8
+		// _StrokeWidthStart  -> f32
 		// Id                 -> int32
 		// FrameStart         -> int32
 		// Duration           -> int32
+		// TimelineTrack      -> int32
 		// TimelineTrack      -> int32
 		// AnimationTypeDataSize -> uint64
 		// AnimationTypeSpecificData (This data will change depending on AnimObjectType)
@@ -415,6 +451,15 @@ namespace MathAnim
 		res.objectType = (AnimObjectTypeV1)animObjectType;
 		memory.read<float>(&res._positionStart.x);
 		memory.read<float>(&res._positionStart.y);
+		memory.read<uint8>(&res._fillColorStart.r);
+		memory.read<uint8>(&res._fillColorStart.g);
+		memory.read<uint8>(&res._fillColorStart.b);
+		memory.read<uint8>(&res._fillColorStart.a);
+		memory.read<uint8>(&res._strokeColorStart.r);
+		memory.read<uint8>(&res._strokeColorStart.g);
+		memory.read<uint8>(&res._strokeColorStart.b);
+		memory.read<uint8>(&res._strokeColorStart.a);
+		memory.read<float>(&res._strokeWidthStart);
 		memory.read<int32>(&res.id);
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);
@@ -422,6 +467,9 @@ namespace MathAnim
 		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
 
 		res.position = res._positionStart;
+		res.strokeColor = res._strokeColorStart;
+		res.fillColor = res._fillColorStart;
+		res.strokeWidth = res._strokeWidthStart;
 		res.svgObject = nullptr;
 		res._svgObjectStart = nullptr;
 

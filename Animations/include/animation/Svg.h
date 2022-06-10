@@ -79,7 +79,7 @@ namespace MathAnim
 		void bezier3To(SvgObject* object, const Vec2& control0, const Vec2& control1, const Vec2& dest);
 
 		void copy(SvgObject* dest, const SvgObject* src);
-		void renderInterpolation(NVGcontext* vg, const Vec2& srcPos, const SvgObject* interpolationSrc, const Vec2& dstPos, const SvgObject* interpolationDst, float t);
+		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
 	}
 }
 

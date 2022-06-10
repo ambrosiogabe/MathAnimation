@@ -7,16 +7,30 @@
 namespace MathAnim
 {
 	// ------------- Internal Functions -------------
-	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos);
-	
+	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos, const AnimObject* parent);
+
 	static TextObject deserializeTextV1(RawMemory& memory);
 
 	void TextObject::render(NVGcontext* vg, const AnimObject* parent) const
 	{
-		nvgFillColor(vg, nvgRGBA(255, 255, 255, 255));
-		nvgFontFace(vg, font->vgFontFace.c_str());
-		nvgFontSize(vg, fontSizePixels);
-		nvgText(vg, parent->position.x, (font->lineHeight * 0.5f * fontSizePixels) + parent->position.y, text, NULL);
+		//const glm::u8vec4& fillColor = parent->fillColor;
+		//const glm::u8vec4& strokeColor = parent->strokeColor;
+		//nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, fillColor.a));
+		//if (!glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
+		//{
+		//	nvgStrokeWidth(vg, parent->strokeWidth);
+		//	nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, strokeColor.a));
+		//}
+		//nvgFontFace(vg, font->vgFontFace.c_str());
+		//nvgFontSize(vg, fontSizePixels);
+		//nvgText(vg, parent->position.x, (font->lineHeight * 0.5f * fontSizePixels) + parent->position.y, text, NULL);
+
+		// TODO: This may lead to performance degradation with larger projects because
+		// we can't just stroke an object we have to manually draw the svg curves
+		// then do a stroke, then repeat with a fill. I should consider looking into
+		// caching this stuff with nvgSave() or something which looks like it might cache
+		// drawings
+		renderWriteInAnimation(vg, 1.01f, parent);
 	}
 
 	void TextObject::renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent) const
@@ -45,7 +59,7 @@ namespace MathAnim
 			// The bounding box of the text's top left corner should
 			// be where the text gets positioned from
 			glyphPos.y -= (font->lineHeight / 2.0f) * fontSizePixels;
-			renderWriteInCodepointAnimation(vg, codepoint, percentOfLetterToDraw, font, fontSizePixels, glyphPos);
+			renderWriteInCodepointAnimation(vg, codepoint, percentOfLetterToDraw, font, fontSizePixels, glyphPos, parent);
 
 			// TODO: I may have to add kerning info here
 			cursorPos += glm::vec4(glyphOutline.advanceX * fontSizePixels, 0.0f, 0.0f, 1.0f);
@@ -155,7 +169,7 @@ namespace MathAnim
 	}
 
 	// ------------- Internal Functions -------------
-	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos)
+	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos, const AnimObject* parent)
 	{
 		const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
 
@@ -171,9 +185,18 @@ namespace MathAnim
 			for (int c = 0; c < glyphOutline.numContours; c++)
 			{
 				nvgBeginPath(vg);
-				// Fade the stroke out as the font fades in
-				nvgStrokeColor(vg, nvgRGBA(255, 255, 255, (unsigned char)(255.0f * (1.0f - percentToFadeIn))));
-				nvgStrokeWidth(vg, 5.0f);
+				const glm::u8vec4& strokeColor = parent->strokeColor;
+				if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
+				{
+					// Fade the stroke out as the font fades in
+					nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, (unsigned char)((float)strokeColor.a * (1.0f - percentToFadeIn))));
+					nvgStrokeWidth(vg, 5.0f);
+				}
+				else
+				{
+					nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, strokeColor.a));
+					nvgStrokeWidth(vg, parent->strokeWidth);
+				}
 
 				if (glyphOutline.contours[c].numVertices > 0)
 				{
@@ -325,7 +348,8 @@ namespace MathAnim
 		if (amountToFadeIn > 0)
 		{
 			std::string str = std::string("") + (char)codepoint;
-			nvgFillColor(vg, nvgRGBA(255, 255, 255, (unsigned char)(255.0f * percentToFadeIn)));
+			const glm::u8vec4& fillColor = parent->fillColor;
+			nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)((float)fillColor.a * percentToFadeIn)));
 			nvgFontFace(vg, font->vgFontFace.c_str());
 			nvgFontSize(vg, fontScale);
 			nvgText(vg, glyphPos.x, fontScale + glyphPos.y, str.c_str(), NULL);

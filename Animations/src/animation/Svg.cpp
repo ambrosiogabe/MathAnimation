@@ -164,31 +164,72 @@ namespace MathAnim
 			dest->calculateApproximatePerimeter();
 		}
 
-		void renderInterpolation(NVGcontext* vg, const Vec2& srcPos, const SvgObject* interpolationSrc, const Vec2& dstPos, const SvgObject* interpolationDst, float t)
+		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t)
 		{
-			// 0%-20% of animation fadeout (if needed)
-			// 10%-90% of animation interpolate curves
-			// 80%-100% of animation fade back in (if needed)
-			NVGcolor color = nvgRGBA(255, 255, 255, 255);
-			//if (t <= 0.2f)
-			//{
-			//	// Fade alpha down
-			//	float colorInterp = ((0.2f - t) / 0.2f);
-			//	color = nvgRGBA(255, 255, 255, (unsigned char)(255.0f * colorInterp));
-			//}
-			//else if (t >= 0.8f)
-			//{
-			//	// Fade alpha up
-			//	float colorInterp = (t - 0.8f) / 0.2f;
-			//	color = nvgRGBA(255, 255, 255, (unsigned char)(255.0f * colorInterp));
-			//}
+			// TODO: Make this configurable
+			t = CMath::easeInOutCubic(t);
 
-			t = glm::max(glm::min((t - 0.1f) / 0.9f, 1.0f), 0.0f);
+			// Interpolate fill color
+			glm::vec4 fillColorSrc = glm::vec4(
+				(float)animObjectSrc->fillColor.r / 255.0f,
+				(float)animObjectSrc->fillColor.g / 255.0f,
+				(float)animObjectSrc->fillColor.b / 255.0f,
+				(float)animObjectSrc->fillColor.a / 255.0f
+			);
+			glm::vec4 fillColorDst = glm::vec4(
+				(float)animObjectDst->fillColor.r / 255.0f,
+				(float)animObjectDst->fillColor.g / 255.0f,
+				(float)animObjectDst->fillColor.b / 255.0f,
+				(float)animObjectDst->fillColor.a / 255.0f
+			);
+			glm::vec4 fillColorInterp = (fillColorDst - fillColorSrc) * t + fillColorSrc;
+			NVGcolor fillColor = nvgRGBA(
+				(uint8)(fillColorInterp.r * 255.0f), 
+				(uint8)(fillColorInterp.g * 255.0f),
+				(uint8)(fillColorInterp.b * 255.0f),
+				(uint8)(fillColorInterp.a * 255.0f)
+			);
 
+			// Interpolate stroke color
+			glm::vec4 strokeColorSrc = glm::vec4(
+				(float)animObjectSrc->strokeColor.r / 255.0f,
+				(float)animObjectSrc->strokeColor.g / 255.0f,
+				(float)animObjectSrc->strokeColor.b / 255.0f,
+				(float)animObjectSrc->strokeColor.a / 255.0f
+			);
+			glm::vec4 strokeColorDst = glm::vec4(
+				(float)animObjectDst->strokeColor.r / 255.0f,
+				(float)animObjectDst->strokeColor.g / 255.0f,
+				(float)animObjectDst->strokeColor.b / 255.0f,
+				(float)animObjectDst->strokeColor.a / 255.0f
+			);
+			glm::vec4 strokeColorInterp = (strokeColorDst - strokeColorSrc) * t + strokeColorSrc;
+			NVGcolor strokeColor = nvgRGBA(
+				(uint8)(strokeColorInterp.r * 255.0f),
+				(uint8)(strokeColorInterp.g * 255.0f),
+				(uint8)(strokeColorInterp.b * 255.0f),
+				(uint8)(strokeColorInterp.a * 255.0f)
+			);
+
+			const Vec2& dstPos = animObjectDst->position;
+			const Vec2& srcPos = animObjectSrc->position;
 			glm::vec2 interpolatedPos = glm::vec2(
 				(dstPos.x - srcPos.x) * t + srcPos.x,
 				(dstPos.y - srcPos.y) * t + srcPos.y
 			);
+
+			// Interpolate stroke width
+			float dstStrokeWidth = animObjectDst->strokeWidth;
+			if (glm::epsilonEqual(dstStrokeWidth, 0.0f, 0.01f))
+			{
+				dstStrokeWidth = 5.0f;
+			}
+			float srcStrokeWidth = animObjectSrc->strokeWidth;
+			if (glm::epsilonEqual(srcStrokeWidth, 0.0f, 0.01f))
+			{
+				srcStrokeWidth = 5.0f;
+			}
+			float strokeWidth = (dstStrokeWidth - srcStrokeWidth) * t + srcStrokeWidth;
 
 			// If one object has more contours than the other object,
 			// then we'll just skip every other contour for the object
@@ -205,9 +246,9 @@ namespace MathAnim
 			while (lessContouri < lessContours->numContours)
 			{
 				nvgBeginPath(vg);
-				nvgFillColor(vg, color);
-				nvgStrokeColor(vg, nvgRGBA(255, 255, 255, 255));
-				nvgStrokeWidth(vg, 5.0f);
+				nvgFillColor(vg, fillColor);
+				nvgStrokeColor(vg, strokeColor);
+				nvgStrokeWidth(vg, strokeWidth);
 
 				const Contour& lessCurves = lessContours->contours[lessContouri];
 				const Contour& moreCurves = moreContours->contours[moreContouri];
@@ -315,6 +356,7 @@ namespace MathAnim
 						interpP3.x + interpolatedPos.x, interpP3.y + interpolatedPos.y);
 				}
 
+				nvgStroke(vg);
 				nvgFill(vg);
 				nvgClosePath(vg);
 
@@ -387,89 +429,7 @@ namespace MathAnim
 
 	void SvgObject::render(NVGcontext* vg, const AnimObject* parent) const
 	{
-		nvgFillColor(vg, nvgRGBA(255, 255, 255, 255));
-		for (int contouri = 0; contouri < numContours; contouri++)
-		{
-			if (contours[contouri].numCurves > 0)
-			{
-				nvgBeginPath(vg);
-				nvgStrokeWidth(vg, 5.0f);
-				nvgPathWinding(vg, contours[contouri].clockwiseFill ? NVG_CW : NVG_CCW);
-
-				nvgMoveTo(vg,
-					contours[contouri].curves[0].p0.x + parent->position.x,
-					contours[contouri].curves[0].p0.y + parent->position.y
-				);
-
-				for (int curvei = 0; curvei < contours[contouri].numCurves; curvei++)
-				{
-					const Curve& curve = contours[contouri].curves[curvei];
-					glm::vec4 p0 = glm::vec4(
-						curve.p0.x + parent->position.x,
-						curve.p0.y + parent->position.y,
-						0.0f,
-						1.0f
-					);
-
-					switch (curve.type)
-					{
-					case CurveType::Bezier3:
-					{
-						glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x + parent->position.x, curve.as.bezier3.p1.y + parent->position.y, 0.0f, 1.0f };
-						glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x + parent->position.x, curve.as.bezier3.p2.y + parent->position.y, 0.0f, 1.0f };
-						glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x + parent->position.x, curve.as.bezier3.p3.y + parent->position.y, 0.0f, 1.0f };
-
-						nvgBezierTo(
-							vg,
-							p1.x, p1.y,
-							p2.x, p2.y,
-							p3.x, p3.y
-						);
-					}
-					break;
-					case CurveType::Bezier2:
-					{
-						glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x + parent->position.x, curve.as.bezier2.p1.y + parent->position.y, 0.0f, 1.0f };
-						glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x + parent->position.x, curve.as.bezier2.p1.y + parent->position.y, 0.0f, 1.0f };
-						glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x + parent->position.x, curve.as.bezier2.p2.y + parent->position.y, 0.0f, 1.0f };
-
-						// Degree elevated quadratic bezier curve
-						glm::vec4 pr0 = p0;
-						glm::vec4 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-						glm::vec4 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-						glm::vec4 pr3 = p2;
-
-						nvgBezierTo(
-							vg,
-							pr1.x, pr1.y,
-							pr2.x, pr2.y,
-							pr3.x, pr3.y
-						);
-					}
-					break;
-					case CurveType::Line:
-					{
-						glm::vec4 p1 = glm::vec4(
-							curve.as.line.p1.x + parent->position.x,
-							curve.as.line.p1.y + parent->position.y,
-							0.0f,
-							1.0f
-						);
-
-						nvgLineTo(vg, p1.x, p1.y);
-					}
-					break;
-					default:
-						g_logger_warning("Unknown curve type in render %d", (int)curve.type);
-						break;
-					}
-				}
-			}
-
-			nvgClosePath(vg);
-		}
-
-		nvgFill(vg);
+		renderCreateAnimation(vg, 1.01f, parent);
 	}
 
 	void SvgObject::renderCreateAnimation(NVGcontext* vg, float inT, const AnimObject* parent, bool reverse) const
@@ -496,9 +456,18 @@ namespace MathAnim
 				if (contours[contouri].numCurves > 0)
 				{
 					nvgBeginPath(vg);
-					// Fade the stroke out as the font fades in
-					nvgStrokeColor(vg, nvgRGBA(255, 255, 255, (unsigned char)(255.0f * (1.0f - percentToFadeIn))));
-					nvgStrokeWidth(vg, 5.0f);
+					// Fade the stroke out as the svg fades in
+					const glm::u8vec4& strokeColor = parent->strokeColor;
+					if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
+					{
+						nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, (unsigned char)((float)strokeColor.a * (1.0f - percentToFadeIn))));
+						nvgStrokeWidth(vg, 5.0f);
+					}
+					else
+					{
+						nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, strokeColor.a));
+						nvgStrokeWidth(vg, parent->strokeWidth);
+					}
 
 					nvgMoveTo(vg,
 						contours[contouri].curves[0].p0.x + parent->position.x,
@@ -680,9 +649,9 @@ namespace MathAnim
 				if (contours[contouri].numCurves > 0)
 				{
 					// TODO: De-deuplicate this by just calling render
-					nvgFillColor(vg, nvgRGBA(255, 255, 255, (unsigned char)(255.0f * percentToFadeIn)));
+					const glm::u8vec4& fillColor = parent->fillColor;
+					nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)(fillColor.a * percentToFadeIn)));
 					nvgBeginPath(vg);
-					nvgStrokeWidth(vg, 5.0f);
 					nvgPathWinding(vg, contours[contouri].clockwiseFill ? NVG_CW : NVG_CCW);
 
 					nvgMoveTo(vg,

@@ -320,6 +320,35 @@ namespace MathAnim
 
 			ImGui::DragFloat2(": Position", (float*)&animObject->_positionStart.x);
 
+			ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart);
+			float strokeColor[4] = {
+				(float)animObject->_strokeColorStart.r / 255.0f,
+				(float)animObject->_strokeColorStart.g / 255.0f,
+				(float)animObject->_strokeColorStart.b / 255.0f,
+				(float)animObject->_strokeColorStart.a / 255.0f,
+			};
+			if (ImGui::ColorEdit4(": Stroke Color", strokeColor))
+			{
+				animObject->_strokeColorStart.r = (uint8)(strokeColor[0] * 255.0f);
+				animObject->_strokeColorStart.g = (uint8)(strokeColor[1] * 255.0f);
+				animObject->_strokeColorStart.b = (uint8)(strokeColor[2] * 255.0f);
+				animObject->_strokeColorStart.a = (uint8)(strokeColor[3] * 255.0f);
+			}
+
+			float fillColor[4] = {
+				(float)animObject->_fillColorStart.r / 255.0f,
+				(float)animObject->_fillColorStart.g / 255.0f,
+				(float)animObject->_fillColorStart.b / 255.0f,
+				(float)animObject->_fillColorStart.a / 255.0f,
+			};
+			if (ImGui::ColorEdit4(": Fill Color", fillColor))
+			{
+				animObject->_fillColorStart.r = (uint8)(fillColor[0] * 255.0f);
+				animObject->_fillColorStart.g = (uint8)(fillColor[1] * 255.0f);
+				animObject->_fillColorStart.b = (uint8)(fillColor[2] * 255.0f);
+				animObject->_fillColorStart.a = (uint8)(fillColor[3] * 255.0f);
+			}
+
 			switch (animObject->objectType)
 			{
 			case AnimObjectTypeV1::TextObject:

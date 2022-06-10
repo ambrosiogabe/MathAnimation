@@ -91,6 +91,12 @@ namespace MathAnim
 		SvgObject* _svgObjectStart;
 		SvgObject* svgObject;
 		bool isAnimating;
+		float _strokeWidthStart;
+		float strokeWidth;
+		glm::u8vec4 _strokeColorStart;
+		glm::u8vec4 strokeColor;
+		glm::u8vec4 _fillColorStart;
+		glm::u8vec4 fillColor;
 		std::vector<Animation> animations;
 
 		union
