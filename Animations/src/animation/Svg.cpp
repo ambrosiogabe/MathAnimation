@@ -263,7 +263,7 @@ namespace MathAnim
 						p2a = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
 						p3a = p2;
 					}
-						break;
+					break;
 					case CurveType::Line:
 						p1a = glm::vec2(lessCurve.p0.x, lessCurve.p0.y);
 						p2a = glm::vec2(lessCurve.as.line.p1.x, lessCurve.as.line.p1.y);
@@ -396,8 +396,8 @@ namespace MathAnim
 				nvgStrokeWidth(vg, 5.0f);
 				nvgPathWinding(vg, contours[contouri].clockwiseFill ? NVG_CW : NVG_CCW);
 
-				nvgMoveTo(vg, 
-					contours[contouri].curves[0].p0.x + parent->position.x, 
+				nvgMoveTo(vg,
+					contours[contouri].curves[0].p0.x + parent->position.x,
 					contours[contouri].curves[0].p0.y + parent->position.y
 				);
 
@@ -472,8 +472,12 @@ namespace MathAnim
 		nvgFill(vg);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float inT, const AnimObject* parent) const
+	void SvgObject::renderCreateAnimation(NVGcontext* vg, float inT, const AnimObject* parent, bool reverse) const
 	{
+		if (reverse)
+		{
+			inT = 1.0f - inT;
+		}
 		// TODO: Make this configurable based on the animation
 		float t = CMath::easeInOutCubic(inT);
 
@@ -535,9 +539,32 @@ namespace MathAnim
 								// Interpolate the curve
 								float percentOfCurveToDraw = lengthLeft / approxLength;
 
-								p1 = (p1 - p0) * percentOfCurveToDraw + p0;
-								p2 = (p2 - p1) * percentOfCurveToDraw + p1;
-								p3 = (p3 - p2) * percentOfCurveToDraw + p2;
+								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+								float t0 = 0.0f;
+								float t1 = percentOfCurveToDraw;
+								float u0 = 1.0f;
+								float u1 = (1.0f - t1);
+
+								glm::vec4 q0 = ((u0 * u0 * u0) * p0) +
+									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
+									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
+									((t0 * t0 * t0) * p3);
+								glm::vec4 q1 = ((u0 * u0 * u1) * p0) +
+									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
+									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
+									((t0 * t0 * t1) * p3);
+								glm::vec4 q2 = ((u0 * u1 * u1) * p0) +
+									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
+									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
+									((t0 * t1 * t1) * p3);
+								glm::vec4 q3 = ((u1 * u1 * u1) * p0) +
+									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
+									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
+									((t1 * t1 * t1) * p3);
+
+								p1 = q1;
+								p2 = q2;
+								p3 = q3;
 							}
 
 							nvgBezierTo(
@@ -570,9 +597,36 @@ namespace MathAnim
 								// Interpolate the curve
 								float percentOfCurveToDraw = lengthLeft / approxLength;
 
-								pr1 = (pr1 - pr0) * percentOfCurveToDraw + pr0;
-								pr2 = (pr2 - pr1) * percentOfCurveToDraw + pr1;
-								pr3 = (pr3 - pr2) * percentOfCurveToDraw + pr2;
+								p1 = (pr1 - pr0) * percentOfCurveToDraw + pr0;
+								p2 = (pr2 - pr1) * percentOfCurveToDraw + pr1;
+								p3 = (pr3 - pr2) * percentOfCurveToDraw + pr2;
+
+								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+								float t0 = 0.0f;
+								float t1 = percentOfCurveToDraw;
+								float u0 = 1.0f;
+								float u1 = (1.0f - t1);
+
+								glm::vec4 q0 = ((u0 * u0 * u0) * p0) +
+									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
+									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
+									((t0 * t0 * t0) * p3);
+								glm::vec4 q1 = ((u0 * u0 * u1) * p0) +
+									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
+									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
+									((t0 * t0 * t1) * p3);
+								glm::vec4 q2 = ((u0 * u1 * u1) * p0) +
+									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
+									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
+									((t0 * t1 * t1) * p3);
+								glm::vec4 q3 = ((u1 * u1 * u1) * p0) +
+									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
+									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
+									((t1 * t1 * t1) * p3);
+
+								pr1 = q1;
+								pr2 = q2;
+								pr3 = q3;
 							}
 
 							nvgBezierTo(

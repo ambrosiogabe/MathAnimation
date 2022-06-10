@@ -32,6 +32,9 @@ namespace MathAnim
 		MoveTo,
 		Create,
 		Transform,
+		UnCreate,
+		FadeIn,
+		FadeOut,
 		Length
 	};
 

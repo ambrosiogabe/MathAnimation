@@ -26,6 +26,14 @@ namespace MathAnim
 			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render create animation for SVG object that is nullptr.");
 			getParent()->svgObject->renderCreateAnimation(vg, t, getParent());
 			break;
+		case AnimTypeV1::UnCreate:
+			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
+			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), true);
+			break;
+		case AnimTypeV1::FadeIn:
+		case AnimTypeV1::FadeOut:
+			g_logger_warning("TODO: Implement me!");
+			break;
 		case AnimTypeV1::WriteInText:
 			getParent()->as.textObject.renderWriteInAnimation(vg, t, getParent());
 			break;
@@ -63,7 +71,12 @@ namespace MathAnim
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
 		case AnimTypeV1::Transform:
+		case AnimTypeV1::UnCreate:
 			// NOP
+			break;
+		case AnimTypeV1::FadeIn:
+		case AnimTypeV1::FadeOut:
+			g_logger_warning("TODO: Implement me!");
 			break;
 		case AnimTypeV1::MoveTo:
 			getMutableParent()->position = this->as.moveTo.target;
@@ -114,6 +127,9 @@ namespace MathAnim
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
 		case AnimTypeV1::Transform:
+		case AnimTypeV1::UnCreate:
+		case AnimTypeV1::FadeIn:
+		case AnimTypeV1::FadeOut:
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
@@ -161,6 +177,9 @@ namespace MathAnim
 		case AnimTypeV1::Create:
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Transform:
+		case AnimTypeV1::UnCreate:
+		case AnimTypeV1::FadeIn:
+		case AnimTypeV1::FadeOut:
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
@@ -321,6 +340,7 @@ namespace MathAnim
 		res.position = { 0, 0 };
 		res._positionStart = { 0, 0 };
 		res.svgObject = nullptr;
+		res._svgObjectStart = nullptr;
 
 		switch (type)
 		{
@@ -465,6 +485,9 @@ namespace MathAnim
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Transform:
 		case AnimTypeV1::Create:
+		case AnimTypeV1::UnCreate:
+		case AnimTypeV1::FadeIn:
+		case AnimTypeV1::FadeOut:
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:

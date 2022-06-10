@@ -63,7 +63,7 @@ namespace MathAnim
 
 		void calculateApproximatePerimeter();
 		void render(NVGcontext* vg, const AnimObject* parent) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse = false) const;
 		void free();
 	};
 

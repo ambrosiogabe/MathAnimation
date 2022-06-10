@@ -25,6 +25,9 @@ namespace MathAnim
 			"Move To",
 			"Create",
 			"Replacement Transform",
+			"Un-Create",
+			"Fade In",
+			"Fade Out",
 			"Length",
 		};
 
@@ -37,7 +40,7 @@ namespace MathAnim
 			for (auto iter = mObjects.begin(); iter != mObjects.end(); iter++)
 			{
 				// Insert it here. The list will always be sorted
-				if (object.frameStart > iter->frameStart)
+				if (object.frameStart < iter->frameStart)
 				{
 					mObjects.insert(iter, object);
 					insertedObject = true;

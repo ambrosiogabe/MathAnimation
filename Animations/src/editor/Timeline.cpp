@@ -354,6 +354,9 @@ namespace MathAnim
 			case AnimTypeV1::WriteInText:
 			case AnimTypeV1::Create:
 			case AnimTypeV1::Transform:
+			case AnimTypeV1::UnCreate:
+			case AnimTypeV1::FadeIn:
+			case AnimTypeV1::FadeOut:
 				// NOP
 				break;
 			case AnimTypeV1::MoveTo:
