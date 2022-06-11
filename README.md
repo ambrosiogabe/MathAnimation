@@ -152,3 +152,7 @@ This library is planned to support
 
 * If you leave it running for awhile, you can't click on segments
     * I deleted a segment and a subsegment and that's when it started
+
+## Licensing
+
+Please see the attached EULA for information on what is and isn't allowed. I'm not opposed to people forking this library and continuing solo development on a new project based off of this source code, however reach out through Github issues or other communication methods with me before doing so. This library is free for you to compile and modify for your own personal use, but it is not free for you to distribute any binary copies (paid or free). If you have any questions, please reach out to me through Github issues, Discord, or any other communication method you find appropriate.
