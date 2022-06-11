@@ -129,3 +129,9 @@ This library is planned to support
 * Draw arbitrary shapes
 * Draw textured quads
 * Animate camera movements
+
+## Bugs
+
+* If you leave it running for awhile, you can't click on segments
+    * I deleted a segment and a subsegment and that's when it started
+    

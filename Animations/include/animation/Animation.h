@@ -36,16 +36,32 @@ namespace MathAnim
 		UnCreate,
 		FadeIn,
 		FadeOut,
+		RotateTo,
+		AnimateStrokeColor,
+		AnimateFillColor,
+		AnimateStrokeWidth,
 		Length
 	};
 
 	// Animation Structs
-	struct MoveToAnimData
+	struct ModifyVec4AnimData
+	{
+		Vec4 target;
+	};
+
+	struct ModifyU8Vec4AnimData
+	{
+		glm::u8vec4 target;
+	};
+
+	struct ModifyVec3AnimData
 	{
 		Vec3 target;
+	};
 
-		void serialize(RawMemory& memory) const;
-		static MoveToAnimData deserialize(RawMemory& memory, uint32 version);
+	struct ModifyVec2AnimData
+	{
+		Vec2 target;
 	};
 
 	// Base Structs
@@ -61,7 +77,10 @@ namespace MathAnim
 
 		union
 		{
-			MoveToAnimData moveTo;
+			ModifyVec4AnimData modifyVec4;
+			ModifyVec3AnimData modifyVec3;
+			ModifyVec2AnimData modifyVec2;
+			ModifyU8Vec4AnimData modifyU8Vec4;
 		} as;
 
 		// Render the animation state using a interpolation t value
@@ -117,6 +136,7 @@ namespace MathAnim
 		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target);
 		void renderFadeInAnimation(NVGcontext* vg, float t);
 		void renderFadeOutAnimation(NVGcontext* vg, float t);
+		
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimObject deserialize(RawMemory& memory, uint32 version);

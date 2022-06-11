@@ -33,6 +33,9 @@ namespace MathAnim
 		static void handleAnimationInspector(int animationId);
 		static void handleTextObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
+		static void handleRotateToAnimationInspector(Animation* animation);
+		static void handleAnimateStrokeColorAnimationInspector(Animation* animation);
+		static void handleAnimateFillColorAnimationInspector(Animation* animation);
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
 
@@ -441,6 +444,15 @@ namespace MathAnim
 			case AnimTypeV1::MoveTo:
 				handleMoveToAnimationInspector(animation);
 				break;
+			case AnimTypeV1::RotateTo:
+				handleRotateToAnimationInspector(animation);
+				break;
+			case AnimTypeV1::AnimateFillColor:
+				handleAnimateFillColorAnimationInspector(animation);
+				break;
+			case AnimTypeV1::AnimateStrokeColor:
+				handleAnimateStrokeColorAnimationInspector(animation);
+				break;
 			default:
 				g_logger_error("Unknown animation type: %d", (int)animation->type);
 				break;
@@ -472,7 +484,46 @@ namespace MathAnim
 
 		static void handleMoveToAnimationInspector(Animation* animation)
 		{
-			ImGui::DragFloat2(": Target", &animation->as.moveTo.target.x);
+			ImGui::DragFloat3(": Target Position", &animation->as.modifyVec3.target.x);
+		}
+
+		static void handleRotateToAnimationInspector(Animation* animation)
+		{
+			ImGui::DragFloat3(": Target Rotation", &animation->as.modifyVec3.target.x);
+		}
+
+		static void handleAnimateStrokeColorAnimationInspector(Animation* animation)
+		{
+			float strokeColor[4] = {
+				(float)animation->as.modifyU8Vec4.target.r / 255.0f,
+				(float)animation->as.modifyU8Vec4.target.g / 255.0f,
+				(float)animation->as.modifyU8Vec4.target.b / 255.0f,
+				(float)animation->as.modifyU8Vec4.target.a / 255.0f,
+			};
+			if (ImGui::ColorEdit4(": Stroke Color", strokeColor))
+			{
+				animation->as.modifyU8Vec4.target.r = (uint8)(strokeColor[0] * 255.0f);
+				animation->as.modifyU8Vec4.target.g = (uint8)(strokeColor[1] * 255.0f);
+				animation->as.modifyU8Vec4.target.b = (uint8)(strokeColor[2] * 255.0f);
+				animation->as.modifyU8Vec4.target.a = (uint8)(strokeColor[3] * 255.0f);
+			}
+		}
+
+		static void handleAnimateFillColorAnimationInspector(Animation* animation)
+		{
+			float strokeColor[4] = {
+				(float)animation->as.modifyU8Vec4.target.r / 255.0f,
+				(float)animation->as.modifyU8Vec4.target.g / 255.0f,
+				(float)animation->as.modifyU8Vec4.target.b / 255.0f,
+				(float)animation->as.modifyU8Vec4.target.a / 255.0f,
+			};
+			if (ImGui::ColorEdit4(": Fill Color", strokeColor))
+			{
+				animation->as.modifyU8Vec4.target.r = (uint8)(strokeColor[0] * 255.0f);
+				animation->as.modifyU8Vec4.target.g = (uint8)(strokeColor[1] * 255.0f);
+				animation->as.modifyU8Vec4.target.b = (uint8)(strokeColor[2] * 255.0f);
+				animation->as.modifyU8Vec4.target.a = (uint8)(strokeColor[3] * 255.0f);
+			}
 		}
 
 		static void handleSquareInspector(AnimObject* object)

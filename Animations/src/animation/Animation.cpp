@@ -43,16 +43,23 @@ namespace MathAnim
 			getParent()->as.textObject.renderWriteInAnimation(vg, t, getParent());
 			break;
 		case AnimTypeV1::MoveTo:
-			getMutableParent()->renderMoveToAnimation(vg, t, this->as.moveTo.target);
+			getMutableParent()->renderMoveToAnimation(vg, t, this->as.modifyVec3.target);
 			break;
 		case AnimTypeV1::Transform:
 		{
 			const SvgObject* obj1 = getParent()->svgObject;
 			const AnimObject* nextObj = AnimationManager::getNextAnimObject(getParent()->id);
-			const SvgObject* obj2 = nextObj->svgObject;
-			if (obj1 != nullptr && obj2 != nullptr)
+			if (obj1 != nullptr && nextObj != nullptr)
 			{
-				Svg::renderInterpolation(vg, getParent(), obj1, nextObj, obj2, t);
+				const SvgObject* obj2 = nextObj->svgObject;
+				if (obj2 != nullptr)
+				{
+					Svg::renderInterpolation(vg, getParent(), obj1, nextObj, obj2, t);
+				}
+				else
+				{
+					g_logger_warning("One or more null svg objects in transform animation.");
+				}
 			}
 			else
 			{
@@ -60,6 +67,21 @@ namespace MathAnim
 			}
 		}
 		break;
+		case AnimTypeV1::RotateTo:
+			getMutableParent()->rotation = CMath::interpolate(t, getParent()->rotation, as.modifyVec3.target);
+			getParent()->render(vg);
+			break;
+		case AnimTypeV1::AnimateStrokeColor:
+			getMutableParent()->strokeColor = CMath::interpolate(t, getParent()->strokeColor, as.modifyU8Vec4.target);
+			getParent()->render(vg);
+			break;
+		case AnimTypeV1::AnimateFillColor:
+			getMutableParent()->fillColor = CMath::interpolate(t, getParent()->fillColor, as.modifyU8Vec4.target);
+			getParent()->render(vg);
+			break;
+		case AnimTypeV1::AnimateStrokeWidth:
+			g_logger_warning("TODO: Implement me.");
+			break;
 		default:
 			// TODO: Add magic_enum
 			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
@@ -88,7 +110,19 @@ namespace MathAnim
 			getMutableParent()->strokeColor.a = 0;
 			break;
 		case AnimTypeV1::MoveTo:
-			getMutableParent()->position = this->as.moveTo.target;
+			getMutableParent()->position = this->as.modifyVec3.target;
+			break;
+		case AnimTypeV1::RotateTo:
+			getMutableParent()->rotation = this->as.modifyVec3.target;
+			break;
+		case AnimTypeV1::AnimateFillColor:
+			getMutableParent()->fillColor = this->as.modifyU8Vec4.target;
+			break;
+		case AnimTypeV1::AnimateStrokeColor:
+			getMutableParent()->strokeColor = this->as.modifyU8Vec4.target;
+			break;
+		case AnimTypeV1::AnimateStrokeWidth:
+			g_logger_warning("TODO: Implement me");
 			break;
 		default:
 			// TODO: Add magic_enum
@@ -148,7 +182,15 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
-			this->as.moveTo.serialize(memory);
+		case AnimTypeV1::RotateTo:
+			CMath::serialize(memory, this->as.modifyVec3.target);
+			break;
+		case AnimTypeV1::AnimateFillColor:
+		case AnimTypeV1::AnimateStrokeColor:
+			CMath::serialize(memory, this->as.modifyU8Vec4.target);
+			break;
+		case AnimTypeV1::AnimateStrokeWidth:
+			g_logger_warning("TODO: implement me");
 			break;
 		default:
 			g_logger_warning("Unknown animation type: %d", (int)this->type);
@@ -195,7 +237,15 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
-			res.as.moveTo.target = Vec3{ 0.0f, 0.0f, 0.0f };
+		case AnimTypeV1::RotateTo:
+			res.as.modifyVec3.target = Vec3{ 0.0f, 0.0f, 0.0f };
+			break;
+		case AnimTypeV1::AnimateFillColor:
+		case AnimTypeV1::AnimateStrokeColor:
+			res.as.modifyU8Vec4.target = glm::u8vec4(0);
+			break;
+		case AnimTypeV1::AnimateStrokeWidth:
+			g_logger_warning("TODO: Implement me");
 			break;
 		default:
 			g_logger_error("Cannot create default animation of type %d", (int)type);
@@ -453,38 +503,6 @@ namespace MathAnim
 		return res;
 	}
 
-	// ----------------------------- MoveToAnimData Functions -----------------------------
-	void MoveToAnimData::serialize(RawMemory& memory) const
-	{
-		// Target
-		//   X    -> float
-		//   Y    -> float
-		//   Z    -> float
-		memory.write<float>(&this->target.x);
-		memory.write<float>(&this->target.y);
-		memory.write<float>(&this->target.z);
-	}
-
-	MoveToAnimData MoveToAnimData::deserialize(RawMemory& memory, uint32 version)
-	{
-		if (version == 1)
-		{
-			// Target
-			//   X    -> float
-			//   Y    -> float
-			//   Z    -> float
-			MoveToAnimData res;
-			memory.read<float>(&res.target.x);
-			memory.read<float>(&res.target.y);
-			memory.read<float>(&res.target.z);
-			return res;
-		}
-
-		g_logger_warning("Unhandled version for MoveToAnimData %d", version);
-		return {};
-	}
-
-
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(RawMemory& memory)
 	{
@@ -631,7 +649,18 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
-			res.as.moveTo = MoveToAnimData::deserialize(memory, 1);
+		case AnimTypeV1::RotateTo:
+			// TODO: How do I really feel about this?
+			// It's not explicit what the data structure looks like
+			// but since it's just a vec3 I don't think I care
+			res.as.modifyVec3.target = CMath::deserializeVec3(memory);
+			break;
+		case AnimTypeV1::AnimateFillColor:
+		case AnimTypeV1::AnimateStrokeColor:
+			res.as.modifyU8Vec4.target = CMath::deserializeU8Vec4(memory);
+			break;
+		case AnimTypeV1::AnimateStrokeWidth:
+			g_logger_warning("TODO: implement me");
 			break;
 		default:
 			g_logger_warning("Unhandled animation deserialize for type %d", res.type);

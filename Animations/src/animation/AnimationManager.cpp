@@ -28,6 +28,10 @@ namespace MathAnim
 			"Un-Create",
 			"Fade In",
 			"Fade Out",
+			"Rotate To",
+			"Animate Stroke Color",
+			"Animate Fill Color",
+			"Animate Stroke Width",
 			"Length",
 		};
 

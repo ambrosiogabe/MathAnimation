@@ -98,6 +98,26 @@ namespace MathAnim
 
 		// Easing functions
 		float ease(float t, EaseType type, EaseDirection direction);
+
+		// Animation functions
+		Vec4 interpolate(float t, const Vec4& src, const Vec4& target);
+		Vec3 interpolate(float t, const Vec3& src, const Vec3& target);
+		Vec2 interpolate(float t, const Vec2& src, const Vec2& target);
+		glm::u8vec4 interpolate(float t, const glm::u8vec4& src, const glm::u8vec4& target);
+		float interpolate(float t, float src, float target);
+
+		// (de)Serialization functions
+		void serialize(RawMemory& memory, const Vec4& vec);
+		void serialize(RawMemory& memory, const Vec3& vec);
+		void serialize(RawMemory& memory, const Vec2& vec);
+
+		void serialize(RawMemory& memory, const glm::u8vec4& vec);
+
+		Vec4 deserializeVec4(RawMemory& memory);
+		Vec3 deserializeVec3(RawMemory& memory);
+		Vec2 deserializeVec2(RawMemory& memory);
+
+		glm::u8vec4 deserializeU8Vec4(RawMemory& memory);
 	}
 }
 

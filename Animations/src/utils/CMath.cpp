@@ -245,6 +245,164 @@ namespace MathAnim
 			return t;
 		}
 
+		// Animation functions
+		Vec4 interpolate(float t, const Vec4& src, const Vec4& target) 
+		{
+			return Vec4{
+				(target.w - src.w) * t + src.w,
+				(target.x - src.x) * t + src.x,
+				(target.y - src.y) * t + src.y,
+				(target.z - src.z) * t + src.z
+			};
+		}
+
+		Vec3 interpolate(float t, const Vec3& src, const Vec3& target) 
+		{
+			return Vec3{
+				(target.x - src.x) * t + src.x,
+				(target.y - src.y) * t + src.y,
+				(target.z - src.z) * t + src.z
+			};
+		}
+
+		Vec2 interpolate(float t, const Vec2& src, const Vec2& target) 
+		{
+			return Vec2{
+				(target.x - src.x) * t + src.x,
+				(target.y - src.y) * t + src.y
+			};
+		}
+
+		glm::u8vec4 interpolate(float t, const glm::u8vec4& src, const glm::u8vec4& target)
+		{
+			glm::vec4 normalSrc = glm::vec4{
+				(float)src.r / 255.0f,
+				(float)src.g / 255.0f,
+				(float)src.b / 255.0f,
+				(float)src.a / 255.0f
+			};
+			glm::vec4 normalTarget = glm::vec4{
+				(float)target.r / 255.0f,
+				(float)target.g / 255.0f,
+				(float)target.b / 255.0f,
+				(float)target.a / 255.0f
+			};
+			glm::vec4 res = (normalTarget - normalSrc) * t + normalSrc;
+
+			return glm::u8vec4(
+				(uint8)(res.r * 255.0f),
+				(uint8)(res.g * 255.0f),
+				(uint8)(res.b * 255.0f),
+				(uint8)(res.a * 255.0f)
+			);
+		}
+		
+		float interpolate(float t, float src, float target)
+		{
+			return (target - src) * t + src;
+		}
+
+		// (de)Serialization functions
+		void serialize(RawMemory& memory, const Vec4& vec) 
+		{
+			// Target
+			//   W    -> float
+			//   X    -> float
+			//   Y    -> float
+			//   Z    -> float
+			memory.write<float>(&vec.w);
+			memory.write<float>(&vec.x);
+			memory.write<float>(&vec.y);
+			memory.write<float>(&vec.z);
+		}
+
+		void serialize(RawMemory& memory, const Vec3& vec) 
+		{
+			// Target
+			//   X    -> float
+			//   Y    -> float
+			//   Z    -> float
+			memory.write<float>(&vec.x);
+			memory.write<float>(&vec.y);
+			memory.write<float>(&vec.z);
+		}
+
+		void serialize(RawMemory& memory, const Vec2& vec) 
+		{
+			// Target
+			//   X    -> float
+			//   Y    -> float
+			memory.write<float>(&vec.x);
+			memory.write<float>(&vec.y);
+		}
+
+		void serialize(RawMemory& memory, const glm::u8vec4& vec)
+		{
+			// Target 
+			//  R -> u8
+			//  G -> u8
+			//  B -> u8
+			//  A -> u8
+			memory.write<uint8>(&vec.r);
+			memory.write<uint8>(&vec.g);
+			memory.write<uint8>(&vec.b);
+			memory.write<uint8>(&vec.a);
+		}
+
+		Vec4 deserializeVec4(RawMemory& memory) 
+		{
+			// Target
+			//   W    -> float
+			//   X    -> float
+			//   Y    -> float
+			//   Z    -> float
+			Vec4 res;
+			memory.read<float>(&res.w);
+			memory.read<float>(&res.x);
+			memory.read<float>(&res.y);
+			memory.read<float>(&res.z);
+			return res;
+		}
+
+		Vec3 deserializeVec3(RawMemory& memory) 
+		{
+			// Target
+			//   X    -> float
+			//   Y    -> float
+			//   Z    -> float
+			Vec3 res;
+			memory.read<float>(&res.x);
+			memory.read<float>(&res.y);
+			memory.read<float>(&res.z);
+			return res;
+		}
+
+		Vec2 deserializeVec2(RawMemory& memory) 
+		{
+			// Target
+			//   X    -> float
+			//   Y    -> float
+			Vec2 res;
+			memory.read<float>(&res.x);
+			memory.read<float>(&res.y);
+			return res;
+		}
+
+		glm::u8vec4 deserializeU8Vec4(RawMemory& memory)
+		{
+			// Target 
+			//  R -> u8
+			//  G -> u8
+			//  B -> u8
+			//  A -> u8
+			glm::u8vec4 res;
+			memory.read<uint8>(&res.r);
+			memory.read<uint8>(&res.g);
+			memory.read<uint8>(&res.b);
+			memory.read<uint8>(&res.a);
+			return res;
+		}
+
 		// ------------------ Internal Functions ------------------
 		// These are all taken from here https://easings.net
 		static float easeInSine(float t)
