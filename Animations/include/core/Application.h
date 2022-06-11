@@ -2,6 +2,8 @@
 #define MATH_ANIM_APPLICATION_H
 #include "core.h"
 
+struct NVGcontext;
+
 namespace MathAnim
 {
 	enum class AnimState : uint8
@@ -28,6 +30,8 @@ namespace MathAnim
 		void setFrameIndex(int frame);
 		int getFrameIndex();
 		int getFrameratePerSecond();
+
+		NVGcontext* getNvgContext();
 	}
 }
 

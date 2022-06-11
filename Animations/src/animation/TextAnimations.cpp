@@ -1,6 +1,7 @@
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
 #include "renderer/Fonts.h"
+#include "core/Application.h"
 
 #include "nanovg.h"
 
@@ -35,6 +36,11 @@ namespace MathAnim
 
 	void TextObject::renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent) const
 	{
+		if (parent->as.textObject.font == nullptr)
+		{
+			return;
+		}
+
 		std::string textStr = std::string(text);
 		glm::vec4 cursorPos = glm::vec4(parent->position.x, parent->position.y, 0.0f, 1.0f);
 		int numNonWhitespaceCharacters = 0;
@@ -131,7 +137,7 @@ namespace MathAnim
 	{
 		TextObject res;
 		// TODO: Come up with application default font
-		res.font = Fonts::getFont("C:/Windows/Fonts/BASKVILL.TTF");
+		res.font = nullptr;
 		res.fontSizePixels = 128;
 		static const char defaultText[] = "Text Object";
 		res.text = (char*)g_memory_allocate(sizeof(defaultText) / sizeof(char));
@@ -171,6 +177,11 @@ namespace MathAnim
 	// ------------- Internal Functions -------------
 	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos, const AnimObject* parent)
 	{
+		if (font == nullptr)
+		{
+			return;
+		}
+
 		const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
 
 		// Start the fade in after 80% of the codepoint is drawn
@@ -387,8 +398,7 @@ namespace MathAnim
 			memory.read<char>(&fontFilepath[i]);
 		}
 
-		// Now load the font somehow...? :think_face:
-		res.font = Fonts::getFont(fontFilepath.c_str());
+		res.font = Fonts::loadFont(fontFilepath.c_str(), Application::getNvgContext());
 
 		return res;
 	}

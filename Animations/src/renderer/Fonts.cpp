@@ -180,7 +180,7 @@ namespace MathAnim
 			generateDefaultCharset(font, defaultCharset);
 
 			int vgFontError = nvgCreateFont(vg, font.vgFontFace.c_str(), font.vgFontFace.c_str());
-			if (vgFontError)
+			if (vgFontError == -1)
 			{
 				g_logger_error("Failed to create vgFont for font '%s'.", filepathStr.c_str());
 				font.vgFontFace = "";
@@ -217,6 +217,25 @@ namespace MathAnim
 			if (font)
 			{
 				unloadFont(font);
+			}
+		}
+
+		void unloadAllFonts()
+		{
+			for (auto iter = loadedFonts.begin(); iter != loadedFonts.end();)
+			{
+				Font& font = iter->second;
+				std::string formattedPath = font.vgFontFace;
+				for (std::pair<const uint32, GlyphOutline>& kv : font.glyphMap)
+				{
+					GlyphOutline& outline = kv.second;
+					outline.free();
+				}
+
+				FT_Done_Face(font.fontFace);
+				font.fontFace = nullptr;
+
+				iter = loadedFonts.erase(iter);
 			}
 		}
 

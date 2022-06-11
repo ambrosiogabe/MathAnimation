@@ -64,6 +64,7 @@ namespace MathAnim
 		Font* loadFont(const char* filepath, NVGcontext* vg, CharRange defaultCharset = CharRange::Ascii);
 		void unloadFont(Font* font);
 		void unloadFont(const char* filepath);
+		void unloadAllFonts();
 
 		Font* getFont(const char* filepath);
 	}

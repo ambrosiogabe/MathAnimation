@@ -1,11 +1,12 @@
 #include "core.h"
-
+#include "core/Application.h"
+#include "core/Platform.h"
 #include "editor/Timeline.h"
 #include "editor/ImGuiTimeline.h"
-#include "core/Application.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "animation/Svg.h"
+#include "renderer/Fonts.h"
 
 #include "imgui.h"
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -461,6 +462,57 @@ namespace MathAnim
 
 		static void handleTextObjectInspector(AnimObject* object)
 		{
+			const std::vector<std::string>& fonts = Platform::getAvailableFonts();
+			int fontIndex = -1;
+			if (object->as.textObject.font != nullptr)
+			{
+				std::filesystem::path fontFilepath = object->as.textObject.font->vgFontFace;
+				fontFilepath.make_preferred();
+				int index = 0;
+				for (const auto& font : fonts)
+				{
+					std::filesystem::path f1 = std::filesystem::path(font);
+					f1.make_preferred();
+					if (fontFilepath == f1)
+					{
+						fontIndex = index;
+						break;
+					}
+					index++;
+				}
+			}
+			const char* previewValue = "No Font Selected";
+			if (fontIndex != -1)
+			{
+				previewValue = fonts[fontIndex].c_str();
+			}
+			else
+			{
+				if (object->as.textObject.font != nullptr)
+				{
+					g_logger_warning("Could not find font %s", object->as.textObject.font->vgFontFace.c_str());
+				}
+			}
+
+			if (ImGui::BeginCombo(": Font", previewValue))
+			{
+				for (int n = 0; n < fonts.size(); n++)
+				{
+					const bool is_selected = (fontIndex == n);
+					if (ImGui::Selectable(fonts[n].c_str(), is_selected))
+					{
+						object->as.textObject.font = Fonts::loadFont(fonts[n].c_str(), Application::getNvgContext());
+					}
+
+					// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+					if (is_selected)
+					{
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+				ImGui::EndCombo();
+			}
+
 			ImGui::DragFloat(": Font Size (Px)", &object->as.textObject.fontSizePixels);
 
 			constexpr int scratchLength = 256;
@@ -752,7 +804,7 @@ namespace MathAnim
 			AnimationManager::removeAnimObject(segment.userData.as.intData);
 
 			// Unset active object if needed
-			if (segment.userData.as.intData == activeAnimObjectId) 
+			if (segment.userData.as.intData == activeAnimObjectId)
 			{
 				activeAnimObjectId = INT32_MAX;
 			}

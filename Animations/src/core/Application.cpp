@@ -33,7 +33,6 @@ namespace MathAnim
 		static int outputWidth = 3840;
 		static int outputHeight = 2160;
 		static NVGcontext* vg = NULL;
-		Font* baskVillFont;
 
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
@@ -60,13 +59,6 @@ namespace MathAnim
 			if (vg == NULL)
 			{
 				g_logger_error("Failed to initialize nanovg.");
-				return;
-			}
-
-			baskVillFont = Fonts::loadFont("C:/Windows/Fonts/BASKVILL.TTF", vg);
-			if (baskVillFont == nullptr)
-			{
-				g_logger_error("Failed to load BASKVILL.ttf");
 				return;
 			}
 
@@ -200,8 +192,8 @@ namespace MathAnim
 		{
 			AnimationManager::serialize("./myScene.bin");
 
+			Fonts::unloadAllFonts();
 			EditorGui::free();
-			Fonts::unloadFont(baskVillFont);
 			nvgDeleteGL3(vg);
 
 			ImGuiLayer::free();
@@ -241,6 +233,11 @@ namespace MathAnim
 		int getFrameratePerSecond()
 		{
 			return framerate;
+		}
+
+		NVGcontext* getNvgContext()
+		{
+			return vg;
 		}
 	}
 }
