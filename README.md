@@ -121,32 +121,32 @@ Right now this library can
 
 This library is planned to support
 
-[ ] Export arbitrary video formats (currently only H264 MP4 is supported)
-[ ] View audio waveform preview
-  [ ] View an audio wave form at the bottom of the timeline editor(and hear the audio as the clip is played) to sync
+- [ ] Export arbitrary video formats (currently only H264 MP4 is supported)
+- [ ] View audio waveform preview
+  - [ ] View an audio wave form at the bottom of the timeline editor(and hear the audio as the clip is played) to sync
     animations up with an audio clip
-[ ] 3D Lines and Bezier curve approximations
-[ ] 3D animation objects
-[ ] Gizmos
-[ ] Textured 2D objects
-[ ] Textured 3D objects
-[ ] Animatable Camera movements
-[ ] Scriptable Animations
-[ ] Multiple Animations on one animation segment
-> I may need to rethink the entire architecture here in order to get this to work
-[ ] Rethink the architecture
-> Right now the way rendering works is I go through each animation up until the current
-  frame. If the animation was already completed, I "apply" the animation to the object.
-  If an animation is in progress at the current frame, I send an interpolated t value to
-  the animation, and it figures out how to render itself. This means that if your at frame
-  60,000 in a video, then it must loop through all the previous objects and apply the animations
-  before it can render this particular frame. This may or may not be a performance issue, it   remains to be seen
-[ ] Export/Import custom scenes (the plumbing is all there, I just need a file picker UI)
-[ ] Project hub when starting the app
-> Kind of like DaVinci Resolve's startup project display. This way you can just click into the most recent
-  project and create a new one without having to do anything complicated
-[ ] Font previews when selecting a font
-[ ] Animation preview when hovering over a question mark
+- [ ] 3D Lines and Bezier curve approximations
+- [ ] 3D animation objects
+- [ ] Gizmos
+- [ ] Textured 2D objects
+- [ ] Textured 3D objects
+- [ ] Animatable Camera movements
+- [ ] Scriptable Animations
+- [ ] Multiple Animations on one animation segment
+  > I may need to rethink the entire architecture here in order to get this to work
+- [ ] Rethink the architecture
+  > Right now the way rendering works is I go through each animation up until the current
+    frame. If the animation was already completed, I "apply" the animation to the object.
+    If an animation is in progress at the current frame, I send an interpolated t value to
+    the animation, and it figures out how to render itself. This means that if your at frame
+    60,000 in a video, then it must loop through all the previous objects and apply the animations
+    before it can render this particular frame. This may or may not be a performance issue, it   remains to be seen
+- [ ] Export/Import custom scenes (the plumbing is all there, I just need a file picker UI)
+- [ ] Project hub when starting the app
+  > Kind of like DaVinci Resolve's startup project display. This way you can just click into the most recent
+    project and create a new one without having to do anything complicated
+- [ ] Font previews when selecting a font
+- [ ] Animation preview when hovering over a question mark
 
 ## Bugs
 
