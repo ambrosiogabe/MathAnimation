@@ -389,6 +389,14 @@ namespace MathAnim
 						if (activeSegmentID == segmentID)
 						{
 							drawList->AddRect(segmentStart, segmentEnd, cursorColor, 10.0f, 0, 4.0f);
+
+							if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+							{
+								res.flags |= ImGuiTimelineResultFlags_DeleteActiveObject;
+								res.activeObjectIsSubSegment = false;
+								res.segmentIndex = si;
+								res.trackIndex = i;
+							}
 						}
 						ImVec2 borderStart = segmentStart + ImVec2(0.0f, realTrackHeight - segmentTextAreaHeight);
 						ImVec2 borderEnd = ImVec2(segmentEnd.x, borderStart.y + 3.0f);
@@ -438,7 +446,7 @@ namespace MathAnim
 						}
 					} // End segment intersects with timeline check
 
-					if (segment.isExpanded)
+					if (tracks[i].isExpanded)
 					{
 						float subTrackTopY = trackTopY + (float)realTrackHeight;
 						float subTrackBottomY = subTrackTopY + (float)trackHeight;
@@ -514,6 +522,15 @@ namespace MathAnim
 									if (activeSegmentID == segmentID)
 									{
 										drawList->AddRect(subSegmentStart, subSegmentEnd, cursorColor, 10.0f, 0, 4.0f);
+
+										if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+										{
+											res.flags |= ImGuiTimelineResultFlags_DeleteActiveObject;
+											res.activeObjectIsSubSegment = true;
+											res.segmentIndex = si;
+											res.subSegmentIndex = subSegmenti;
+											res.trackIndex = i;
+										}
 									}
 									ImVec2 borderStart = subSegmentStart + ImVec2(0.0f, realSubTrackHeight - segmentTextAreaHeight);
 									ImVec2 borderEnd = ImVec2(subSegmentEnd.x, borderStart.y + 3.0f);

@@ -106,19 +106,19 @@ namespace MathAnim
 		bool removeAnimObject(int animObjectId)
 		{
 			// Remove the anim object
-			for (int i = 0; i < mObjects.size(); i++)
+			for (int obji = 0; obji < mObjects.size(); obji++)
 			{
-				if (mObjects[i].id == animObjectId)
+				if (mObjects[obji].id == animObjectId)
 				{
 					// Free all animations in this object
-					for (int j = 0; j < mObjects[i].animations.size(); j++)
+					for (int animi = 0; animi < mObjects[obji].animations.size(); animi++)
 					{
-						g_logger_assert(mObjects[i].animations[j].objectId == animObjectId, "How did this happen?");
-						mObjects[i].animations[j].free();
+						g_logger_assert(mObjects[obji].animations[animi].objectId == animObjectId, "How did this happen?");
+						mObjects[obji].animations[animi].free();
 					}
 
-					mObjects[i].free();
-					mObjects.erase(mObjects.begin() + i);
+					mObjects[obji].free();
+					mObjects.erase(mObjects.begin() + obji);
 					return true;
 				}
 			}
@@ -129,18 +129,18 @@ namespace MathAnim
 		bool removeAnimation(int animObjectId, int animationId)
 		{
 			// Remove the anim object
-			for (int i = 0; i < mObjects.size(); i++)
+			for (int obji = 0; obji < mObjects.size(); obji++)
 			{
-				if (mObjects[i].id == animObjectId)
+				if (mObjects[obji].id == animObjectId)
 				{
 					// Free all animations in this object
-					for (int j = 0; j < mObjects[i].animations.size(); j++)
+					for (int animi = 0; animi < mObjects[obji].animations.size(); animi++)
 					{
-						if (mObjects[i].animations[j].id == animationId)
+						if (mObjects[obji].animations[animi].id == animationId)
 						{
-							g_logger_assert(mObjects[i].animations[i].objectId == animObjectId, "How did this happen?");
-							mObjects[i].animations[j].free();
-							mObjects[i].animations.erase(mObjects[i].animations.begin() + j);
+							g_logger_assert(mObjects[obji].animations[animi].objectId == animObjectId, "How did this happen?");
+							mObjects[obji].animations[animi].free();
+							mObjects[obji].animations.erase(mObjects[obji].animations.begin() + animi);
 							return true;
 						}
 					}

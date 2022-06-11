@@ -20,6 +20,7 @@ namespace MathAnim
 		void free();
 
 		float getOutputTargetAspectRatio();
+		glm::vec2 getOutputSize();
 
 		void setEditorPlayState(AnimState state);
 		AnimState getEditorPlayState();

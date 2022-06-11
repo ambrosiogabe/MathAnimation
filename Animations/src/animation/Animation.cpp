@@ -1,11 +1,12 @@
 #include "animation/Animation.h"
+#include "core.h"
 #include "animation/AnimationManager.h"
 #include "animation/Svg.h"
-#include "core.h"
-
-#include "renderer/Renderer.h"
 #include "animation/Styles.h"
+#include "renderer/Renderer.h"
+#include "renderer/Fonts.h"
 #include "utils/CMath.h"
+#include "core/Application.h"
 
 namespace MathAnim
 {
@@ -406,26 +407,41 @@ namespace MathAnim
 		res._svgObjectStart = nullptr;
 
 		res.strokeWidth = 0.0f;
+		res._strokeWidthStart = 0.0f;
 		res.strokeColor = glm::u8vec4(255);
 		res._strokeColorStart = glm::u8vec4(255);
 		res.fillColor = glm::u8vec4(255);
 		res._fillColorStart = glm::u8vec4(255);
 
+		constexpr float defaultSquareLength = 400.0f;
+		constexpr float defaultCircleRadius = 200.0f;
+		glm::vec2 outputSize = Application::getOutputSize();
+
 		switch (type)
 		{
 		case AnimObjectTypeV1::TextObject:
 			res.as.textObject = TextObject::createDefault();
+			// TODO: Center on the screen
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::createDefault();
+			// TODO: Center on the screen
 			break;
 		case AnimObjectTypeV1::Square:
-			res.as.square.sideLength = 150.0f;
+			res.as.square.sideLength = defaultSquareLength;
 			res.as.square.init(&res);
+			res._positionStart = {
+				outputSize.x / 2.0f,
+				outputSize.y / 2.0f
+			};
 			break;
 		case AnimObjectTypeV1::Circle:
-			res.as.circle.radius = 75.0f;
+			res.as.circle.radius = defaultCircleRadius;
 			res.as.circle.init(&res);
+			res._positionStart = {
+				outputSize.x / 2.0f,
+				outputSize.y / 2.0f
+			};
 			break;
 		default:
 			g_logger_error("Cannot create default animation object of type %d", (int)type);

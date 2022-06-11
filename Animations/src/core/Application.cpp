@@ -223,6 +223,11 @@ namespace MathAnim
 			return (float)outputWidth / (float)outputHeight;
 		}
 
+		glm::vec2 getOutputSize()
+		{
+			return glm::vec2((float)outputWidth, (float)outputHeight);
+		}
+
 		void setFrameIndex(int frame)
 		{
 			currentFrame = frame;

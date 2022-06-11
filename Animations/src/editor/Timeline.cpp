@@ -21,6 +21,8 @@ namespace MathAnim
 		// ------- Private variables --------
 		static ImGuiTimeline_Track* tracks;
 		static int numTracks;
+		static int activeAnimObjectId = INT32_MAX;
+		static int activeAnimationId = INT32_MAX;
 
 		// ------- Internal Functions --------
 		static ImGuiTimeline_Track createDefaultTrack(char* trackName = nullptr);
@@ -35,6 +37,10 @@ namespace MathAnim
 		static void handleCircleInspector(AnimObject* object);
 
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate = INT32_MAX);
+		static void addAnimObject(const AnimObject& object);
+		static void addAnimation(const Animation& animation, int animObjectId);
+		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex);
+		static void deleteSubSegment(ImGuiTimeline_Segment& segment, int subSegmentIndex);
 		static void resetImGuiData();
 
 
@@ -56,9 +62,7 @@ namespace MathAnim
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 			ImGui::Begin("Timeline");
 
-			static int selectedEntry = -1;
 			static int firstFrame = 0;
-			static bool expanded = true;
 			int currentFrame = Application::getFrameIndex();
 
 			ImGui::PushItemWidth(180);
@@ -92,6 +96,20 @@ namespace MathAnim
 				deleteTrack(res.trackIndex);
 			}
 
+			if (res.flags & ImGuiTimelineResultFlags_DeleteActiveObject)
+			{
+				if (res.activeObjectIsSubSegment)
+				{
+					ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
+					deleteSubSegment(segment, res.subSegmentIndex);
+				}
+				else
+				{
+					ImGuiTimeline_Track& track = tracks[res.trackIndex];
+					deleteSegment(track, res.segmentIndex);
+				}
+			}
+
 			if (res.flags & ImGuiTimelineResultFlags_DragDropPayloadHit)
 			{
 				g_logger_assert(res.dragDropPayloadDataSize == sizeof(TimelinePayload), "Invalid payload.");
@@ -106,6 +124,7 @@ namespace MathAnim
 						AnimObject object = AnimObject::createDefault(payloadData->objectType, res.dragDropPayloadFirstFrame, 120);
 						object.timelineTrack = res.trackIndex;
 						AnimationManager::addAnimObject(object);
+						addAnimObject(object);
 					}
 				}
 				else
@@ -116,10 +135,9 @@ namespace MathAnim
 						int animObjectId = segment.userData.as.intData;
 						Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 30, animObjectId);
 						AnimationManager::addAnimationTo(animation, animObjectId);
+						addAnimation(animation, animObjectId);
 					}
 				}
-
-				resetImGuiData();
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_SegmentTimeChanged)
@@ -137,8 +155,6 @@ namespace MathAnim
 				AnimationManager::setAnimationTime(animObjectId, animationId, subSegment.frameStart, subSegment.frameDuration);
 			}
 
-			static int activeAnimObjectId = INT32_MAX;
-			static int activeAnimationId = INT32_MAX;
 			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectChanged)
 			{
 				if (res.activeObjectIsSubSegment)
@@ -228,10 +244,24 @@ namespace MathAnim
 				{
 					// Free all the animations and anim objects associated with this track
 					int animObjectId = track.segments[i].userData.as.intData;
+
+					if (animObjectId == activeAnimObjectId)
+					{
+						activeAnimObjectId = INT32_MAX;
+					}
+
 					AnimationManager::removeAnimObject(animObjectId);
 
 					if (track.segments[i].subSegments)
 					{
+						for (int subi = 0; subi < track.segments[i].numSubSegments; subi++)
+						{
+							if ((uintptr_t)track.segments[i].subSegments[subi].userData == activeAnimationId)
+							{
+								activeAnimationId = INT32_MAX;
+							}
+						}
+
 						g_memory_free(track.segments[i].subSegments);
 						track.segments[i].subSegments = nullptr;
 						track.segments[i].numSubSegments = 0;
@@ -305,8 +335,11 @@ namespace MathAnim
 				}
 			}
 
+			// TODO: It seems to work fine without this... 
+			// debug this a bit more and make sure this isn't actually needed
+			// DEPRECATED:
 			// After we delete the track, we have to reset our ImGui data
-			resetImGuiData();
+			// resetImGuiData();
 		}
 
 		static void handleAnimObjectInspector(int animObjectId)
@@ -315,6 +348,7 @@ namespace MathAnim
 			if (!animObject)
 			{
 				g_logger_error("No anim object with id '%d' exists", animObject);
+				activeAnimObjectId = INT32_MAX;
 				return;
 			}
 
@@ -376,6 +410,7 @@ namespace MathAnim
 			if (!animation)
 			{
 				g_logger_error("No animation with id '%d' exists", animationId);
+				activeAnimationId = INT32_MAX;
 				return;
 			}
 
@@ -399,7 +434,7 @@ namespace MathAnim
 		}
 
 		static void handleTextObjectInspector(AnimObject* object)
-		{ 
+		{
 			ImGui::DragFloat(": Font Size (Px)", &object->as.textObject.fontSizePixels);
 
 			constexpr int scratchLength = 256;
@@ -561,6 +596,156 @@ namespace MathAnim
 						segment++;
 					}
 				}
+			}
+		}
+
+		static void addAnimObject(const AnimObject& object)
+		{
+			g_logger_assert(object.timelineTrack < numTracks, "This shouldn't be happening");
+
+			ImGuiTimeline_Track& track = tracks[object.timelineTrack];
+
+			track.numSegments++;
+			if (track.segments != nullptr)
+			{
+				track.segments = (ImGuiTimeline_Segment*)g_memory_realloc(track.segments, sizeof(ImGuiTimeline_Segment) * track.numSegments);
+			}
+			else
+			{
+				g_logger_assert(track.numSegments == 1, "Should not have had null segments if there was a non-zero number of segments.");
+				track.segments = (ImGuiTimeline_Segment*)g_memory_allocate(sizeof(ImGuiTimeline_Segment) * track.numSegments);
+			}
+			g_logger_assert(track.segments != nullptr, "Ran out of RAM.");
+
+			track.segments[track.numSegments - 1].frameDuration = object.duration;
+			track.segments[track.numSegments - 1].frameStart = object.frameStart;
+			track.segments[track.numSegments - 1].isExpanded = false;
+			track.segments[track.numSegments - 1].segmentName = AnimationManager::getAnimObjectName(object.objectType);
+			track.segments[track.numSegments - 1].userData.as.intData = object.id;
+
+			if (object.animations.size() == 0)
+			{
+				track.segments[track.numSegments - 1].numSubSegments = 0;
+				track.segments[track.numSegments - 1].subSegments = nullptr;
+			}
+			else
+			{
+				ImGuiTimeline_SubSegment* subSegments = (ImGuiTimeline_SubSegment*)g_memory_allocate(sizeof(ImGuiTimeline_SubSegment) * object.animations.size());
+				int numSubSegments = object.animations.size();
+				for (int i = 0; i < numSubSegments; i++)
+				{
+					subSegments[i].frameStart = object.animations[i].frameStart;
+					subSegments[i].frameDuration = object.animations[i].duration;
+					subSegments[i].segmentName = AnimationManager::getAnimationName(object.animations[i].type);
+					subSegments[i].userData = (void*)(uintptr_t)object.animations[i].id;
+				}
+
+				track.segments[track.numSegments - 1].subSegments = subSegments;
+				track.segments[track.numSegments - 1].numSubSegments = numSubSegments;
+			}
+		}
+
+		static void addAnimation(const Animation& animation, int animObjectId)
+		{
+			for (int tracki = 0; tracki < numTracks; tracki++)
+			{
+				const ImGuiTimeline_Track& track = tracks[tracki];
+				for (int segmenti = 0; segmenti < track.numSegments; segmenti++)
+				{
+					ImGuiTimeline_Segment& segment = track.segments[segmenti];
+					if (segment.userData.as.intData == animObjectId)
+					{
+						// Add subsegment here
+						segment.numSubSegments++;
+						if (segment.subSegments == nullptr)
+						{
+							g_logger_assert(segment.numSubSegments == 1, "Should not have had null sub segment data for non-zero subsegemnt size.");
+							segment.subSegments = (ImGuiTimeline_SubSegment*)g_memory_allocate(sizeof(ImGuiTimeline_SubSegment) * segment.numSubSegments);
+						}
+						else
+						{
+							segment.subSegments = (ImGuiTimeline_SubSegment*)g_memory_realloc(segment.subSegments, sizeof(ImGuiTimeline_SubSegment) * segment.numSubSegments);
+						}
+						g_logger_assert(segment.subSegments != nullptr, "Ran out of RAM.");
+
+						segment.subSegments[segment.numSubSegments - 1].frameStart = animation.frameStart;
+						segment.subSegments[segment.numSubSegments - 1].frameDuration = animation.duration;
+						segment.subSegments[segment.numSubSegments - 1].segmentName = AnimationManager::getAnimationName(animation.type);
+						segment.subSegments[segment.numSubSegments - 1].userData = (void*)(uintptr_t)animation.id;
+						return;
+					}
+				}
+			}
+
+			g_logger_assert(false, "Failed to find animation object with id %d.\nCould not add animation.", animObjectId);
+		}
+
+		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex)
+		{
+			// First delete it from our animations
+			ImGuiTimeline_Segment& segment = track.segments[segmentIndex];
+			AnimationManager::removeAnimObject(segment.userData.as.intData);
+
+			// Unset active object if needed
+			if (segment.userData.as.intData == activeAnimObjectId) 
+			{
+				activeAnimObjectId = INT32_MAX;
+			}
+
+			// Then free the memory
+			if (segment.subSegments)
+			{
+				g_memory_free(segment.subSegments);
+				segment.subSegments = nullptr;
+			}
+			g_memory_zeroMem(&segment, sizeof(ImGuiTimeline_Segment));
+
+			// Then move the animation objects over it to "delete" it
+			// If it's the last entry, this will effectively move 0 elements
+			std::memmove(&track.segments[segmentIndex], &track.segments[segmentIndex + 1], sizeof(ImGuiTimeline_Segment) * (track.numSegments - segmentIndex - 1));
+
+			track.numSegments--;
+			if (track.numSegments > 0)
+			{
+				track.segments = (ImGuiTimeline_Segment*)g_memory_realloc(track.segments, sizeof(ImGuiTimeline_Segment) * track.numSegments);
+			}
+			else
+			{
+				g_logger_assert(track.numSegments == 0, "That shouldn't happen.");
+				g_memory_free(track.segments);
+				track.segments = nullptr;
+			}
+		}
+
+		static void deleteSubSegment(ImGuiTimeline_Segment& segment, int subSegmentIndex)
+		{
+			// First delete it from our animations
+			ImGuiTimeline_SubSegment& subSegment = segment.subSegments[subSegmentIndex];
+			AnimationManager::removeAnimation(segment.userData.as.intData, (uintptr_t)subSegment.userData);
+
+			// Unset active object if needed
+			if ((uintptr_t)subSegment.userData == activeAnimationId)
+			{
+				activeAnimationId = INT32_MAX;
+			}
+
+			// Then zero the memory
+			g_memory_zeroMem(&subSegment, sizeof(ImGuiTimeline_SubSegment));
+
+			// Then move the animations over it to "delete" it
+			// If it's the last entry, this will effectively move 0 elements
+			std::memmove(&segment.subSegments[subSegmentIndex], &segment.subSegments[subSegmentIndex + 1], sizeof(ImGuiTimeline_SubSegment) * (segment.numSubSegments - subSegmentIndex - 1));
+
+			segment.numSubSegments--;
+			if (segment.numSubSegments > 0)
+			{
+				segment.subSegments = (ImGuiTimeline_SubSegment*)g_memory_realloc(segment.subSegments, sizeof(ImGuiTimeline_SubSegment) * segment.numSubSegments);
+			}
+			else
+			{
+				g_logger_assert(segment.numSubSegments == 0, "That shouldn't happen.");
+				g_memory_free(segment.subSegments);
+				segment.subSegments = nullptr;
 			}
 		}
 

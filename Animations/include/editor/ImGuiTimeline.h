@@ -24,7 +24,8 @@ namespace MathAnim
 		ImGuiTimelineResultFlags_SubSegmentTimeChanged  = 0x40,
 		ImGuiTimelineResultFlags_SubSegmentTrackChanged = 0x80,
 		ImGuiTimelineResultFlags_ActiveObjectChanged = 0x100,
-		ImGuiTimelineResultFlags_DragDropPayloadHit  = 0x200
+		ImGuiTimelineResultFlags_DragDropPayloadHit  = 0x200,
+		ImGuiTimelineResultFlags_DeleteActiveObject  = 0x400,
 	};
 
 	struct ImGuiTimelineResult
