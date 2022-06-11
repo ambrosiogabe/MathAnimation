@@ -14,7 +14,7 @@ git clone --recursive https://github.com/ambrosiogabe/MathAnimation
 
 These instructions only need to be followed the first time you ever compile this library.
 
-<details open>
+<details>
 
 <summary>
 Click to See First Time Setup Instructions
