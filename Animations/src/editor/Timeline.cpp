@@ -414,6 +414,20 @@ namespace MathAnim
 				return;
 			}
 
+			int currentType = (int)(animation->easeType) - 1;
+			if (ImGui::Combo(": Ease Type", &currentType, &easeTypeNames[1], (int)EaseType::Length - 1))
+			{
+				g_logger_assert(currentType >= 0 && currentType + 1 < (int)EaseType::Length, "How did this happen?");
+				animation->easeType = (EaseType)(currentType + 1);
+			}
+
+			int currentDirection = (int)(animation->easeDirection) - 1;
+			if (ImGui::Combo(": Ease Direction", &currentDirection, &easeDirectionNames[1], (int)EaseDirection::Length - 1))
+			{
+				g_logger_assert(currentDirection >= 0 && currentDirection + 1 < (int)EaseDirection::Length, "How did this happen?");
+				animation->easeDirection = (EaseDirection)(currentDirection + 1);
+			}
+
 			switch (animation->type)
 			{
 			case AnimTypeV1::WriteInText:

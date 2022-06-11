@@ -21,6 +21,8 @@ namespace MathAnim
 	// ----------------------------- Animation Functions -----------------------------
 	void Animation::render(NVGcontext* vg, float t) const
 	{
+		t = CMath::ease(t, this->easeType, this->easeDirection);
+
 		switch (type)
 		{
 		case AnimTypeV1::Create:
@@ -117,17 +119,23 @@ namespace MathAnim
 
 	void Animation::serialize(RawMemory& memory) const
 	{
-		// type         -> uint32
-		// objectId     -> int32
-		// frameStart   -> int32
-		// duration     -> int32
-		// id           -> int32
+		// type           -> uint32
+		// objectId       -> int32
+		// frameStart     -> int32
+		// duration       -> int32
+		// id             -> int32
+		// easeType       -> uint8
+		// easeDirection  -> uint8
 		uint32 animType = (uint32)this->type;
 		memory.write<uint32>(&animType);
 		memory.write<int32>(&objectId);
 		memory.write<int32>(&frameStart);
 		memory.write<int32>(&duration);
 		memory.write<int32>(&id);
+		uint8 easeTypeInt = (uint8)easeType;
+		memory.write<uint8>(&easeTypeInt);
+		uint8 easeDirectionInt = (uint8)easeDirection;
+		memory.write<uint8>(&easeDirectionInt);
 
 		switch (this->type)
 		{
@@ -150,11 +158,6 @@ namespace MathAnim
 
 	Animation Animation::deserialize(RawMemory& memory, uint32 version)
 	{
-		// type         -> uint32
-		// objectId     -> int32
-		// frameStart   -> int32
-		// duration     -> int32
-		// id           -> int32
 		if (version == 1)
 		{
 			return deserializeAnimationExV1(memory);
@@ -178,6 +181,8 @@ namespace MathAnim
 		res.duration = duration;
 		res.objectId = animObjectId;
 		res.type = type;
+		res.easeType = EaseType::Cubic;
+		res.easeDirection = EaseDirection::InOut;
 
 		switch (type)
 		{
@@ -224,11 +229,10 @@ namespace MathAnim
 	// ----------------------------- AnimObject Functions -----------------------------
 	void AnimObject::renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target)
 	{
-		float transformedT = CMath::easeInOutCubic(t);
 		Vec3 pos = Vec3{
-			((target.x - position.x) * transformedT) + position.x,
-			((target.y - position.y) * transformedT) + position.y,
-			((target.z - position.z) * transformedT) + position.z,
+			((target.x - position.x) * t) + position.x,
+			((target.y - position.y) * t) + position.y,
+			((target.z - position.z) * t) + position.z,
 		};
 		this->position = pos;
 		this->render(vg);
@@ -236,7 +240,6 @@ namespace MathAnim
 
 	void AnimObject::renderFadeInAnimation(NVGcontext* vg, float t)
 	{
-		float transformedT = CMath::easeInOutCubic(t);
 		this->fillColor.a = this->fillColor.a * t;
 		this->strokeColor.a = this->strokeColor.a * t;
 		this->render(vg);
@@ -244,7 +247,6 @@ namespace MathAnim
 
 	void AnimObject::renderFadeOutAnimation(NVGcontext* vg, float t)
 	{
-		float transformedT = CMath::easeInOutCubic(t);
 		this->fillColor.a = this->fillColor.a * (1.0f - t);
 		this->strokeColor.a = this->strokeColor.a * (1.0f - t);
 		this->render(vg);
@@ -591,11 +593,13 @@ namespace MathAnim
 
 	Animation deserializeAnimationExV1(RawMemory& memory)
 	{
-		// type         -> uint32
-		// objectId     -> int32
-		// frameStart   -> int32
-		// duration     -> int32
-		// id           -> int32
+		// type           -> uint32
+		// objectId       -> int32
+		// frameStart     -> int32
+		// duration       -> int32
+		// id             -> int32
+		// easeType       -> uint8
+		// easeDirection  -> uint8
 		// Custom animation data -> dynamic
 		Animation res;
 		uint32 animType;
@@ -606,6 +610,15 @@ namespace MathAnim
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);
 		memory.read<int32>(&res.id);
+		uint8 easeTypeInt, easeDirectionInt;
+		res.easeType = EaseType::Cubic;
+		res.easeDirection = EaseDirection::InOut;
+		memory.read<uint8>(&easeTypeInt);
+		memory.read<uint8>(&easeDirectionInt);
+		g_logger_assert(easeTypeInt < (uint8)EaseType::Length, "Corrupted memory. Ease type was %d which is out of bounds.", easeTypeInt);
+		res.easeType = (EaseType)easeTypeInt;
+		g_logger_assert(easeDirectionInt < (uint8)EaseDirection::Length, "Corrupted memory. Ease direction was %d which is out of bounds", easeDirectionInt);
+		res.easeDirection = (EaseDirection)easeDirectionInt;
 
 		switch (res.type)
 		{

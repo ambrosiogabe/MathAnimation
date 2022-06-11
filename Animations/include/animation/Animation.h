@@ -1,6 +1,7 @@
 #ifndef MATH_ANIM_ANIMATION_H
 #define MATH_ANIM_ANIMATION_H
 #include "core.h"
+#include "utils/CMath.h"
 
 #include "animation/TextAnimations.h"
 #include "animation/Shapes.h"
@@ -55,6 +56,8 @@ namespace MathAnim
 		int32 frameStart;
 		int32 duration;
 		int32 id;
+		EaseType easeType;
+		EaseDirection easeDirection;
 
 		union
 		{

@@ -13,6 +13,54 @@
 
 namespace MathAnim
 {
+	enum class EaseType : uint8
+	{
+		None,
+		Linear,
+		Sine,
+		Quad,
+		Cubic,
+		Quart,
+		Quint,
+		Exponential,
+		Circular,
+		Back,
+		Elastic,
+		Bounce,
+		Length
+	};
+
+	constexpr const char* easeTypeNames[(uint8)EaseType::Length] = {
+		"None",
+		"Linear",
+		"Sine",
+		"Quad",
+		"Cubic",
+		"Quart",
+		"Quint",
+		"Exponential",
+		"Circular",
+		"Back",
+		"Elastic",
+		"Bounce"
+	};
+
+	enum class EaseDirection : uint8
+	{
+		None,
+		In,
+		Out,
+		InOut,
+		Length
+	};
+
+	constexpr const char* easeDirectionNames[(uint8)EaseDirection::Length] = {
+		"None",
+		"In",
+		"Out",
+		"In-Out"
+	};
+
 	namespace CMath
 	{
 		// Float Comparison functions, using custom epsilon
@@ -49,7 +97,7 @@ namespace MathAnim
 		Vec2 bezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t);
 
 		// Easing functions
-		float easeInOutCubic(float t);
+		float ease(float t, EaseType type, EaseDirection direction);
 	}
 }
 

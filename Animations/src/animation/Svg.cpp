@@ -166,9 +166,6 @@ namespace MathAnim
 
 		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t)
 		{
-			// TODO: Make this configurable
-			t = CMath::easeInOutCubic(t);
-
 			// Interpolate fill color
 			glm::vec4 fillColorSrc = glm::vec4(
 				(float)animObjectSrc->fillColor.r / 255.0f,
@@ -453,14 +450,12 @@ namespace MathAnim
 		renderCreateAnimation(vg, 1.01f, parent);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float inT, const AnimObject* parent, bool reverse) const
+	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse) const
 	{
 		if (reverse)
 		{
-			inT = 1.0f - inT;
+			t = 1.0f - t;
 		}
-		// TODO: Make this configurable based on the animation
-		float t = CMath::easeInOutCubic(inT);
 
 		// Start the fade in after 80% of the svg object is drawn
 		constexpr float fadeInStart = 0.8f;
