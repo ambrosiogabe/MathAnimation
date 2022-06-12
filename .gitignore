@@ -15,3 +15,8 @@ _bin-int/**
 **.user
 
 build/
+
+project.4coder
+msbuild-build.bat
+run.bat
+myScene.bin
