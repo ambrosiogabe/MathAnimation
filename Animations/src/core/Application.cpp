@@ -14,6 +14,7 @@
 #include "animation/Styles.h"
 #include "animation/AnimationManager.h"
 #include "editor/EditorGui.h"
+#include "audio/Audio.h"
 
 #include "nanovg.h"
 #define NANOVG_GL3_IMPLEMENTATION
@@ -54,6 +55,7 @@ namespace MathAnim
 			Fonts::init();
 			Renderer::init(camera);
 			ImGuiLayer::init(*window);
+			Audio::init();
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
@@ -195,6 +197,7 @@ namespace MathAnim
 			Fonts::unloadAllFonts();
 			EditorGui::free();
 			nvgDeleteGL3(vg);
+			Audio::free();
 
 			ImGuiLayer::free();
 			Window::cleanup();

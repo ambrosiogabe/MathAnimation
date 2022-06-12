@@ -58,28 +58,33 @@ project "Animations"
         "Animations/vendor/freetype/include",
         "Animations/vendor/nanovg/src",
         "Animations/vendor/dearimgui",
-        "./Animations/vendor/imguizmo"
+        "./Animations/vendor/imguizmo",
+        "Animations/vendor/openal/include"
     }
 
     -- Add freetype libdirs for debug and release mode
     filter { "configurations:Debug", "system:windows" }
         libdirs {
-            "./Animations/vendor/freetype/build/Debug"
+            "./Animations/vendor/freetype/build/Debug",
+            "./Animations/vendor/openal/build/Debug"
         }
 
         links {
             -- Freetype
-            "freetyped"
+            "freetyped",
+            "OpenAL32"
         }
 
     filter { "configurations:Release", "system:windows" }
         libdirs {
-            "./Animations/vendor/freetype/build/Release"
+            "./Animations/vendor/freetype/build/Release",
+            "./Animations/vendor/openal/build/Release"
         }
         
         links {
             -- Freetype
-            "freetype"
+            "freetype",
+            "OpenAL32"
         }
 
     filter "system:windows"

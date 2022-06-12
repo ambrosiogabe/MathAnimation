@@ -23,3 +23,6 @@
 [submodule "Animations/vendor/GLFW"]
 	path = Animations/vendor/GLFW
 	url = https://github.com/glfw/glfw.git
+[submodule "Animations/vendor/openal"]
+	path = Animations/vendor/openal
+	url = https://github.com/kcat/openal-soft

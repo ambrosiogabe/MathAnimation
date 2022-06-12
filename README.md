@@ -84,7 +84,7 @@ Thankfully, freetype is much simpler to set up than ffmpeg. To compile on window
 
 To build with CMake and MSVC:
 
-1. Open up a command prompt for MSVC.
+1. Open up a developer command prompt for MSVC.
 2. Change into your local directory for this animations library.
 3. Run the following commands to compile freetype:
 
@@ -101,13 +101,44 @@ popd
 
 4. If this all succeeds, you should see a build directory in `./Animations/vendor/freetype` that contains a Debug directory and Release directory with the appropriate DLLs.
 
+#### Setting up Environment for OpenAL
+
+To compile OpenAL on windows, I'll be using cmake and MSVC. You can change use a different build system if you like, just ensure that at the end you have two directories for a release and debug version of freetype at the locations:
+
+```bash
+./Animations/vendor/openal/build/Debug/OpenAL32.dll
+./Animations/vendor/openal/build/Release/OpenAL32.dll
+```
+
+To build with CMake and MSVC:
+
+1. Open up a developer command prompt for MSVC.
+2. Change into your local directory for this animations library.
+3. Run the following commands to compile freetype:
+
+```batch
+pushd .\Animations\vendor\openal\build
+cmake ..
+msbuild OpenAL.sln /property:Configuration=Debug
+msbuild OpenAL.sln /property:Configuration=Release
+popd
+```
+
 </details>
 
 ### Compiling
 
 _NOTE:_ Make sure that you have completed the first time setup instructions if this is your first time compiling this project. Click the dropdown above to get the full instructions.
 
-Some more stuff...
+Build the VisualStudio project using premake:
+
+```batch
+build.bat vs2022
+```
+
+Then open the project or compile it from the command line using MSVC developer's prompt.
+
+_NOTE_: For a more comprehensive list of the build options supported, just type `build.bat`.
 
 ## Current Features
 
