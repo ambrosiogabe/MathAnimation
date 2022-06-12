@@ -31,7 +31,8 @@ namespace MathAnim
 			//io.ConfigViewportsNoTaskBarIcon = true;
             
             // NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
-			float fontSize = window.width / 128.f;
+			glm::ivec2 monitor_size = Window::getMonitorWorkingSize();
+            float fontSize = monitor_size.x / 128.f;
 			smallFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize);
             
 			static const ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
