@@ -7,13 +7,16 @@
 #include "animation/AnimationManager.h"
 #include "animation/Svg.h"
 #include "renderer/Fonts.h"
+#include "audio/Audio.h"
 
-#include "imgui.h"
+#include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include "imgui_internal.h"
-#include "ImGuizmo.h"
-#include "ImSequencer.h"
-#include "ImCurveEdit.h"
+#include <imgui_internal.h>
+#include <ImGuizmo.h>
+#include <ImSequencer.h>
+#include <ImCurveEdit.h>
+
+#include <nfd.h>
 
 namespace MathAnim
 {
@@ -24,6 +27,7 @@ namespace MathAnim
 		static int numTracks;
 		static int activeAnimObjectId = INT32_MAX;
 		static int activeAnimationId = INT32_MAX;
+		static AudioSource audioSource;
 
 		// ------- Internal Functions --------
 		static ImGuiTimeline_Track createDefaultTrack(char* trackName = nullptr);
@@ -50,6 +54,8 @@ namespace MathAnim
 
 		void init()
 		{
+			audioSource = Audio::defaultAudioSource();
+
 			// I have to allocate a dummy allocation here because my memory utilities library
 			// doesn't let realloc work with nullptr *yet*
 			tracks = (ImGuiTimeline_Track*)g_memory_allocate(sizeof(ImGuiTimeline_Track));
@@ -81,6 +87,18 @@ namespace MathAnim
 				Application::getEditorPlayState() == AnimState::PlayReverse)
 			{
 				flags |= ImGuiTimelineFlags_FollowTimelineCursor;
+
+				if (!audioSource.isPlaying)
+				{
+					Audio::play(audioSource);
+				}
+			}
+			else
+			{
+				if (audioSource.isPlaying)
+				{
+					Audio::stop(audioSource);
+				}
 			}
 
 
@@ -98,6 +116,27 @@ namespace MathAnim
 			if (res.flags & ImGuiTimelineResultFlags_DeleteTrackClicked)
 			{
 				deleteTrack(res.trackIndex);
+			}
+
+			if (res.flags & ImGuiTimelineResultFlags_AddAudioSource)
+			{
+				nfdchar_t* outPath = NULL;
+				nfdresult_t result = NFD_OpenDialog("wav", NULL, &outPath);
+
+				if (result == NFD_OKAY)
+				{
+					Audio::free(audioSource);
+					audioSource = Audio::loadWavFile(outPath);
+					std::free(outPath);
+				}
+				else if (result == NFD_CANCEL)
+				{
+					g_logger_info("User cancelled adding audio source.");
+				}
+				else
+				{
+					g_logger_error("Error opening audio source:\n\t%s", NFD_GetError());
+				}
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_DeleteActiveObject)
@@ -202,6 +241,8 @@ namespace MathAnim
 				}
 				g_memory_free(tracks);
 			}
+
+			Audio::free(audioSource);
 		}
 
 		// ------- Internal Functions --------

@@ -26,3 +26,6 @@
 [submodule "Animations/vendor/openal"]
 	path = Animations/vendor/openal
 	url = https://github.com/kcat/openal-soft
+[submodule "Animations/vendor/nativeFileDialog"]
+	path = Animations/vendor/nativeFileDialog
+	url = https://github.com/mlabbe/nativefiledialog

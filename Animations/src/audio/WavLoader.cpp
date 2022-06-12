@@ -69,6 +69,7 @@ namespace MathAnim
 			uint8 amtRead = fread(audioData, sizeof(uint8) * header.dataHeader.dataSize, 1, fp);
 			g_logger_assert(amtRead == 1, "Failed to read all the audio data.");
 			fclose(fp);
+			res.audioData = audioData;
 
 			g_logger_assert(res.audioChannelType != AudioChannelType::None, "Unknown audio channel format '%d'. Should be 1 or 2 for mono or dual audio channels.", header.dataHeader.audioChannelType);
 

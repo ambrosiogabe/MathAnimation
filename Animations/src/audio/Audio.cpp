@@ -1,14 +1,24 @@
 #include "audio/Audio.h"
+#include "audio/WavLoader.h"
 
 #include <AL/al.h>
 #include <AL/alext.h>
 
 namespace MathAnim
 {
+	// TODO: Come up with an error handling macro or something for 
+	// OpenAL calls
 	namespace Audio
 	{
+		// -------------- Internal Variables --------------
 		static ALCdevice* device;
 		static ALCcontext* context;
+		static const ALCchar* currentDeviceName;
+		static std::vector<std::string> friendlyDeviceNames;
+		static uint32 error;
+
+		// -------------- Internal Functions --------------
+		static void displayError(uint32 error);
 
 		void init()
 		{
@@ -22,10 +32,193 @@ namespace MathAnim
 			context = alcCreateContext(device, NULL);
 			alcMakeContextCurrent(context);
 
-			// Check for EAX 2.0 support
+			// Collect all the available audio playback device names and store them
+			const ALCchar* devices = alcGetString(NULL, ALC_ALL_DEVICES_SPECIFIER);
+			currentDeviceName = alcGetString(device, ALC_ALL_DEVICES_SPECIFIER);
+			g_logger_info("Audio Output Device: '%s'", currentDeviceName);
+			{
+				std::string logMessage = "Available Output Devices:\n";
+				const ALCchar* device = devices;
+				// This should iterate until it encounters \0\0 which is the termination of 
+				// the list of strings
+				int deviceIndex = 0;
+				while (*device != '\0')
+				{
+					std::string deviceName = std::string(device);
+					// TODO: Provide a drop down in the audio preview so the user can select
+					// which output device to use
+					friendlyDeviceNames.push_back(deviceName);
 
-			const ALCchar* devices = alcGetString(device, ALC_DEVICE_SPECIFIER);
-			g_logger_info("%s", devices);
+					logMessage += std::string("\tDevice[") + std::to_string(deviceIndex) + "]: " + deviceName + "\n";
+					while (*device != '\0')
+					{
+						device++;
+					}
+					deviceIndex++;
+				}
+
+				g_logger_info("%s", logMessage.c_str());
+			}
+		}
+
+		AudioSource loadWavFile(const char* filename)
+		{
+			AudioSource res = defaultAudioSource();
+			alGenBuffers(1, &res.bufferId);
+			if ((error = alGetError()) != AL_NO_ERROR)
+			{
+				displayError(error);
+				alDeleteBuffers(1, &res.bufferId);
+				res.bufferId = UINT32_MAX;
+				return res;
+			}
+
+			WavData data = WavLoader::loadWavFile(filename);
+			uint32 format = AL_INVALID_ENUM;
+			switch (data.audioChannelType)
+			{
+			case AudioChannelType::Mono:
+				if (data.bitsPerSample == 8)
+				{
+					format = AL_FORMAT_MONO8;
+				}
+				else if (data.bitsPerSample == 16)
+				{
+					format = AL_FORMAT_MONO16;
+				}
+				break;
+			case AudioChannelType::Dual:
+				if (data.bitsPerSample == 8)
+				{
+					format = AL_FORMAT_STEREO8;
+				}
+				else if (data.bitsPerSample == 16)
+				{
+					format = AL_FORMAT_STEREO16;
+				}
+				break;
+			}
+
+			if (format == AL_INVALID_ENUM)
+			{
+				g_logger_error("Unable to map WAV file with format %d channels and %d bits/sample to AL format.", (int)data.audioChannelType, data.bitsPerSample);
+				alDeleteBuffers(1, &res.bufferId);
+				res.bufferId = UINT32_MAX;
+				return res;
+			}
+
+			alBufferData(res.bufferId, format, data.audioData, data.dataSize, data.sampleRate);
+			if ((error = alGetError()) != AL_NO_ERROR)
+			{
+				displayError(error);
+				alDeleteBuffers(1, &res.bufferId);
+				res.bufferId = UINT32_MAX;
+				return res;
+			}
+
+			WavLoader::free(data);
+
+			alGenSources(1, &res.sourceId);
+			if ((error = alGetError()) != AL_NO_ERROR)
+			{
+				alDeleteBuffers(1, &res.bufferId);
+				alDeleteSources(1, &res.sourceId);
+				displayError(error);
+				res.sourceId = UINT32_MAX;
+				res.bufferId = UINT32_MAX;
+				return res;
+			}
+
+			alSourcef(res.sourceId, AL_PITCH, 1.0f);
+			if ((error = alGetError()) != AL_NO_ERROR)
+			{
+				alDeleteBuffers(1, &res.bufferId);
+				alDeleteSources(1, &res.sourceId);
+				displayError(error);
+				res.sourceId = UINT32_MAX;
+				res.bufferId = UINT32_MAX;
+				return res;
+			}
+
+			alSourcef(res.sourceId, AL_GAIN, 1.0f);
+			if ((error = alGetError()) != AL_NO_ERROR)
+			{
+				alDeleteBuffers(1, &res.bufferId);
+				alDeleteSources(1, &res.sourceId);
+				displayError(error);
+				res.sourceId = UINT32_MAX;
+				res.bufferId = UINT32_MAX;
+				return res;
+			}
+
+			alSource3f(res.sourceId, AL_POSITION, 0.0f, 0.0f, 0.0f);
+			if ((error = alGetError()) != AL_NO_ERROR)
+			{
+				alDeleteBuffers(1, &res.bufferId);
+				alDeleteSources(1, &res.sourceId);
+				displayError(error);
+				res.sourceId = UINT32_MAX;
+				res.bufferId = UINT32_MAX;
+				return res;
+			}
+
+			alSource3f(res.sourceId, AL_VELOCITY, 0, 0, 0);
+			if ((error = alGetError()) != AL_NO_ERROR)
+			{
+				alDeleteBuffers(1, &res.bufferId);
+				alDeleteSources(1, &res.sourceId);
+				displayError(error);
+				res.sourceId = UINT32_MAX;
+				res.bufferId = UINT32_MAX;
+				return res;
+			}
+
+			alSourcei(res.sourceId, AL_LOOPING, AL_FALSE);
+			if ((error = alGetError()) != AL_NO_ERROR)
+			{
+				alDeleteBuffers(1, &res.bufferId);
+				alDeleteSources(1, &res.sourceId);
+				displayError(error);
+				res.sourceId = UINT32_MAX;
+				res.bufferId = UINT32_MAX;
+				return res;
+			}
+
+			alSourcei(res.sourceId, AL_BUFFER, res.bufferId);
+			if ((error = alGetError()) != AL_NO_ERROR)
+			{
+				alDeleteBuffers(1, &res.bufferId);
+				alDeleteSources(1, &res.sourceId);
+				displayError(error);
+				res.sourceId = UINT32_MAX;
+				res.bufferId = UINT32_MAX;
+				return res;
+			}
+
+			return res;
+		}
+
+		AudioSource defaultAudioSource()
+		{
+			AudioSource res;
+			res.bufferId = UINT32_MAX;
+			res.sourceId = UINT32_MAX;
+			res.isPlaying = false;
+			return res;
+		}
+
+		void play(AudioSource& source)
+		{
+			g_logger_assert(source.sourceId != UINT32_MAX, "Tried to play null audio source.");
+			alSourcePlay(source.sourceId);
+			source.isPlaying = true;
+		}
+
+		void stop(AudioSource& source)
+		{
+			g_logger_assert(source.sourceId != UINT32_MAX, "Tried to stop null audio source.");
+			alSourceStop(source.sourceId);
+			source.isPlaying = false;
 		}
 
 		void free()
@@ -45,6 +238,59 @@ namespace MathAnim
 				if (!res)
 				{
 					g_logger_error("Failed to free openAL device.");
+				}
+			}
+		}
+
+		void free(AudioSource& source)
+		{
+			if (source.sourceId != UINT32_MAX)
+			{
+				alDeleteSources(1, &source.sourceId);
+				if ((error = alGetError()) != AL_NO_ERROR)
+				{
+					displayError(error);
+				}
+				source.sourceId = UINT32_MAX;
+			}
+
+			if (source.bufferId != UINT32_MAX)
+			{
+				alDeleteBuffers(1, &source.bufferId);
+				if ((error = alGetError()) != AL_NO_ERROR)
+				{
+					displayError(error);
+				}
+				source.bufferId = UINT32_MAX;
+			}
+
+			source.isPlaying = false;
+		}
+
+		// -------------- Internal Functions --------------
+		static void displayError(uint32 error)
+		{
+			if (error != ALC_NO_ERROR)
+			{
+				switch (error)
+				{
+				case ALC_INVALID_VALUE:
+					g_logger_error("ALC_INVALID_VALUE: an invalid value was passed to an OpenAL function");
+					break;
+				case ALC_INVALID_DEVICE:
+					g_logger_error("ALC_INVALID_DEVICE: a bad device was passed to an OpenAL function");
+					break;
+				case ALC_INVALID_CONTEXT:
+					g_logger_error("ALC_INVALID_CONTEXT: a bad context was passed to an OpenAL function");
+					break;
+				case ALC_INVALID_ENUM:
+					g_logger_error("ALC_INVALID_ENUM: an unknown enum value was passed to an OpenAL function");
+					break;
+				case ALC_OUT_OF_MEMORY:
+					g_logger_error("ALC_OUT_OF_MEMORY: an unknown enum value was passed to an OpenAL function");
+					break;
+				default:
+					g_logger_error("UNKNOWN ALC ERROR: %u", error);
 				}
 			}
 		}

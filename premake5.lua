@@ -43,7 +43,10 @@ project "Animations"
         "./Animations/vendor/dearimgui/backends/imgui_impl_opengl3.cpp",
         "./Animations/vendor/dearimgui/backends/imgui_impl_opengl3.h",
         "./Animations/vendor/dearimgui/backends/imgui_impl_glfw.cpp",
-        "./Animations/vendor/dearimgui/backends/imgui_impl_glfw.h"
+        "./Animations/vendor/dearimgui/backends/imgui_impl_glfw.h",
+        "./Animations/vendor/nativeFileDialog/src/*.h",
+        "./Animations/vendor/nativeFileDialog/src/include/*.h",
+        "./Animations/vendor/nativeFileDialog/src/nfd_common.c",
     }
 
     includedirs {
@@ -58,8 +61,10 @@ project "Animations"
         "Animations/vendor/freetype/include",
         "Animations/vendor/nanovg/src",
         "Animations/vendor/dearimgui",
+        -- TODO: Remove this
         "./Animations/vendor/imguizmo",
-        "Animations/vendor/openal/include"
+        "Animations/vendor/openal/include",
+        "Animations/vendor/nativeFileDialog/src/include"
     }
 
     -- Add freetype libdirs for debug and release mode
@@ -101,6 +106,8 @@ project "Animations"
             "Animations/vendor/GLFW/src/wgl_context.c",
             "Animations/vendor/GLFW/src/egl_context.c",
             "Animations/vendor/GLFW/src/osmesa_context.c",
+            -- NFD
+            "./Animations/vendor/nativeFileDialog/src/nfd_win.cpp"
         }
 
         defines  {

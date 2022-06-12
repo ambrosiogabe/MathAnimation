@@ -767,6 +767,13 @@ namespace MathAnim
 					res.flags |= ImGuiTimelineResultFlags_AddTrackClicked;
 					res.trackIndex = numTracks;
 				}
+
+				ImGui::Separator();
+
+				if (ImGui::MenuItem("Add Audio Source"))
+				{
+					res.flags |= ImGuiTimelineResultFlags_AddAudioSource;
+				}
                 
 				ImGui::EndPopup();
 			}
