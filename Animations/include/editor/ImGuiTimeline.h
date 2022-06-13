@@ -78,7 +78,18 @@ namespace MathAnim
 		bool isExpanded;
 	};
 
-	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* zoom = nullptr, ImGuiTimelineFlags flags = ImGuiTimelineFlags_None);
+	struct ImGuiTimeline_AudioData
+	{
+		uint32 sampleRate;
+		uint32 bytesPerSec;
+		uint16 blockAlignment;
+		uint16 bitsPerSample;
+		int32 numAudioChannels;
+		uint32 dataSize;
+		uint8* data;
+	};
+
+	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* zoom = nullptr, const ImGuiTimeline_AudioData* audioData = nullptr, ImGuiTimelineFlags flags = ImGuiTimelineFlags_None);
 	const char* ImGuiTimeline_DragDropSegmentPayloadId();
 	const char* ImGuiTimeline_DragDropSubSegmentPayloadId();
 }

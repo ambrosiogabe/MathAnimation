@@ -4,6 +4,7 @@
 
 namespace MathAnim
 {
+	struct WavData;
 	struct AudioSource
 	{
 		uint32 bufferId;
@@ -16,9 +17,11 @@ namespace MathAnim
 		void init();
 
 		AudioSource loadWavFile(const char* filename);
+		AudioSource loadWavFile(const WavData& wav);
 		AudioSource defaultAudioSource();
 
-		void play(AudioSource& source);
+		bool isNull(const AudioSource& wav);
+		void play(AudioSource& source, float offsetInSeconds = 0.0f);
 		void stop(AudioSource& source);
 
 		void free(AudioSource& source);

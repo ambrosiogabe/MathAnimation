@@ -63,6 +63,15 @@ namespace MathAnim
 
 		AudioSource loadWavFile(const char* filename)
 		{
+			WavData data = WavLoader::loadWavFile(filename);
+			AudioSource res = loadWavFile(data);
+			WavLoader::free(data);
+
+			return res;
+		}
+
+		AudioSource loadWavFile(const WavData& wav)
+		{
 			AudioSource res = defaultAudioSource();
 			alGenBuffers(1, &res.bufferId);
 			if ((error = alGetError()) != AL_NO_ERROR)
@@ -73,26 +82,25 @@ namespace MathAnim
 				return res;
 			}
 
-			WavData data = WavLoader::loadWavFile(filename);
 			uint32 format = AL_INVALID_ENUM;
-			switch (data.audioChannelType)
+			switch (wav.audioChannelType)
 			{
 			case AudioChannelType::Mono:
-				if (data.bitsPerSample == 8)
+				if (wav.bitsPerSample == 8)
 				{
 					format = AL_FORMAT_MONO8;
 				}
-				else if (data.bitsPerSample == 16)
+				else if (wav.bitsPerSample == 16)
 				{
 					format = AL_FORMAT_MONO16;
 				}
 				break;
 			case AudioChannelType::Dual:
-				if (data.bitsPerSample == 8)
+				if (wav.bitsPerSample == 8)
 				{
 					format = AL_FORMAT_STEREO8;
 				}
-				else if (data.bitsPerSample == 16)
+				else if (wav.bitsPerSample == 16)
 				{
 					format = AL_FORMAT_STEREO16;
 				}
@@ -101,13 +109,13 @@ namespace MathAnim
 
 			if (format == AL_INVALID_ENUM)
 			{
-				g_logger_error("Unable to map WAV file with format %d channels and %d bits/sample to AL format.", (int)data.audioChannelType, data.bitsPerSample);
+				g_logger_error("Unable to map WAV file with format %d channels and %d bits/sample to AL format.", (int)wav.audioChannelType, wav.bitsPerSample);
 				alDeleteBuffers(1, &res.bufferId);
 				res.bufferId = UINT32_MAX;
 				return res;
 			}
 
-			alBufferData(res.bufferId, format, data.audioData, data.dataSize, data.sampleRate);
+			alBufferData(res.bufferId, format, wav.audioData, wav.dataSize, wav.sampleRate);
 			if ((error = alGetError()) != AL_NO_ERROR)
 			{
 				displayError(error);
@@ -115,8 +123,6 @@ namespace MathAnim
 				res.bufferId = UINT32_MAX;
 				return res;
 			}
-
-			WavLoader::free(data);
 
 			alGenSources(1, &res.sourceId);
 			if ((error = alGetError()) != AL_NO_ERROR)
@@ -207,9 +213,18 @@ namespace MathAnim
 			return res;
 		}
 
-		void play(AudioSource& source)
+		bool isNull(const AudioSource& source)
+		{
+			return source.bufferId == UINT32_MAX && source.sourceId == UINT32_MAX;
+		}
+
+		void play(AudioSource& source, float offsetInSeconds)
 		{
 			g_logger_assert(source.sourceId != UINT32_MAX, "Tried to play null audio source.");
+			if (offsetInSeconds != 0.0f)
+			{
+				alSourcef(source.sourceId, AL_SEC_OFFSET, offsetInSeconds);
+			}
 			alSourcePlay(source.sourceId);
 			source.isPlaying = true;
 		}

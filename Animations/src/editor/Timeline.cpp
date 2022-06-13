@@ -8,6 +8,7 @@
 #include "animation/Svg.h"
 #include "renderer/Fonts.h"
 #include "audio/Audio.h"
+#include "audio/WavLoader.h"
 
 #include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -28,6 +29,8 @@ namespace MathAnim
 		static int activeAnimObjectId = INT32_MAX;
 		static int activeAnimationId = INT32_MAX;
 		static AudioSource audioSource;
+		static WavData audioData;
+		static ImGuiTimeline_AudioData imguiAudioData;
 
 		// ------- Internal Functions --------
 		static ImGuiTimeline_Track createDefaultTrack(char* trackName = nullptr);
@@ -88,21 +91,28 @@ namespace MathAnim
 			{
 				flags |= ImGuiTimelineFlags_FollowTimelineCursor;
 
-				if (!audioSource.isPlaying)
+				if (!Audio::isNull(audioSource) && !audioSource.isPlaying)
 				{
-					Audio::play(audioSource);
+					float offset = 0.0f;
+					if (currentFrame > 0)
+					{
+						offset = currentFrame / 60.0f;
+					}
+					Audio::play(audioSource, offset);
 				}
 			}
 			else
 			{
-				if (audioSource.isPlaying)
+				if (!Audio::isNull(audioSource) && audioSource.isPlaying)
 				{
 					Audio::stop(audioSource);
 				}
 			}
 
-
-			ImGuiTimelineResult res = ImGuiTimeline(tracks, numTracks, &currentFrame, &firstFrame, nullptr, flags);
+			ImGuiTimeline_AudioData* imguiAudioDataPtr = Audio::isNull(audioSource)
+				? nullptr
+				: &imguiAudioData;
+			ImGuiTimelineResult res = ImGuiTimeline(tracks, numTracks, &currentFrame, &firstFrame, nullptr, imguiAudioDataPtr, flags);
 			if (res.flags & ImGuiTimelineResultFlags_CurrentFrameChanged)
 			{
 				Application::setFrameIndex(currentFrame);
@@ -126,8 +136,23 @@ namespace MathAnim
 				if (result == NFD_OKAY)
 				{
 					Audio::free(audioSource);
-					audioSource = Audio::loadWavFile(outPath);
+					WavLoader::free(audioData);
+					audioData = WavLoader::loadWavFile(outPath);
+					audioSource = Audio::loadWavFile(audioData);
 					std::free(outPath);
+
+					// TODO: Popup an error if loading fails to let the user know
+					if (!Audio::isNull(audioSource))
+					{
+						// Copy data to imgui struct if success
+						imguiAudioData.bitsPerSample = audioData.bitsPerSample;
+						imguiAudioData.blockAlignment = audioData.blockAlignment;
+						imguiAudioData.bytesPerSec = audioData.bytesPerSec;
+						imguiAudioData.data = audioData.audioData;
+						imguiAudioData.dataSize = audioData.dataSize;
+						imguiAudioData.numAudioChannels = audioData.audioChannelType == AudioChannelType::Dual ? 2 : 1;
+						imguiAudioData.sampleRate = audioData.sampleRate;
+					}
 				}
 				else if (result == NFD_CANCEL)
 				{
@@ -243,6 +268,7 @@ namespace MathAnim
 			}
 
 			Audio::free(audioSource);
+			WavLoader::free(audioData);
 		}
 
 		// ------- Internal Functions --------
