@@ -32,6 +32,7 @@ namespace MathAnim
 			"Animate Stroke Color",
 			"Animate Fill Color",
 			"Animate Stroke Width",
+			"Move Camera To",
 			"Length",
 		};
 

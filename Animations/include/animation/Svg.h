@@ -1,6 +1,7 @@
 #ifndef MATH_ANIM_SVG_OBJECT_H
 #define MATH_ANIM_SVG_OBJECT_H
 #include "core.h"
+#include "renderer/OrthoCamera.h"
 
 struct NVGcontext;
 
@@ -70,7 +71,8 @@ namespace MathAnim
 	namespace Svg
 	{
 		SvgObject createDefault();
-
+		
+		void init(OrthoCamera& camera);
 		void beginContour(SvgObject* object, const Vec2& firstPoint, bool clockwiseFill);
 		void closeContour(SvgObject* object);
 

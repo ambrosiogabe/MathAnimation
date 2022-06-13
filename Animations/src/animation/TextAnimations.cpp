@@ -11,6 +11,16 @@ namespace MathAnim
 	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos, const AnimObject* parent);
 
 	static TextObject deserializeTextV1(RawMemory& memory);
+	
+	namespace TextAnimations
+	{
+		static OrthoCamera* camera;
+		void init(OrthoCamera& sceneCamera)
+		{
+			camera = &sceneCamera;
+		}
+	}
+	
 
 	void TextObject::render(NVGcontext* vg, const AnimObject* parent) const
 	{
@@ -192,6 +202,7 @@ namespace MathAnim
 
 		if (lengthToDraw > 0)
 		{
+			nvgTranslate(vg, -TextAnimations::camera->position.x, -TextAnimations::camera->position.y);
 			float lengthDrawn = 0.0f;
 			for (int c = 0; c < glyphOutline.numContours; c++)
 			{
@@ -365,6 +376,8 @@ namespace MathAnim
 			nvgFontSize(vg, fontScale);
 			nvgText(vg, glyphPos.x, fontScale + glyphPos.y, str.c_str(), NULL);
 		}
+		
+		nvgResetTransform(vg);
 	}
 
 	static TextObject deserializeTextV1(RawMemory& memory)

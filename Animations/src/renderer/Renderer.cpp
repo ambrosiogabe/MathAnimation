@@ -198,6 +198,7 @@ namespace MathAnim
 		void init(OrthoCamera& sceneCamera)
 		{
 			camera = &sceneCamera;
+			fflush(stdout);
 			numVertices = 0;
 
 			// Load OpenGL functions using Glad
@@ -741,7 +742,17 @@ namespace MathAnim
 			//	x += renderableChar.advance.x * scale * font.fontSize;
 			//}
 		}
-
+		
+		const OrthoCamera* getCamera()
+		{
+			return camera;
+		}
+		
+		OrthoCamera* getMutableCamera()
+		{
+			return camera;
+		}
+		
 		void flushBatch()
 		{
 			glBindBuffer(GL_ARRAY_BUFFER, vbo);

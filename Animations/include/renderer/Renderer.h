@@ -45,7 +45,10 @@ namespace MathAnim
 		void drawBezier(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Style& style);
 
 		void drawCubicBezier(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, const Style& style);
-
+		
+		const OrthoCamera* getCamera();
+		OrthoCamera* getMutableCamera();
+		
 		void flushBatch();
 
 		void flushVectorBatch();

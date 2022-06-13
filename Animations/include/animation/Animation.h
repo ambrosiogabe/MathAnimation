@@ -5,12 +5,13 @@
 
 #include "animation/TextAnimations.h"
 #include "animation/Shapes.h"
+#include "renderer/OrthoCamera.h"
 
 namespace MathAnim
 {
 	struct Font;
 	struct SvgObject;
-
+	
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;
 	constexpr uint32 MAGIC_NUMBER = 0xDEADBEEF;
@@ -40,6 +41,7 @@ namespace MathAnim
 		AnimateStrokeColor,
 		AnimateFillColor,
 		AnimateStrokeWidth,
+        CameraMoveTo,
 		Length
 	};
 
