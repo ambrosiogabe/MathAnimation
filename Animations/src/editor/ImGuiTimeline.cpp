@@ -575,6 +575,8 @@ namespace MathAnim
 			g_logger_assert(bytesPerSample == 1 || bytesPerSample == 2, "Need 1 or 2 bytes per sample for audio data. Instead got %d bytes per sample", bytesPerSample);
 
 			constexpr float distanceBetweenLineSegments = 1.0f;
+			// TODO: Make this configurable
+			constexpr float amplitudeAdjustment = 1.3f;
 			float amtTimeVisibleInLineSegment = amountOfSecondsVisibleInTimeline * (distanceBetweenLineSegments / (timelineRulerEnd.x - timelineRulerBegin.x));
 			uint32 numBytesVisibleInLineSegment = (uint32)((float)amtTimeVisibleInLineSegment * (float)audioData->bytesPerSec);
 
@@ -605,6 +607,9 @@ namespace MathAnim
 					maxSample = glm::max(maxSample, normalizedSample);
 					minSample = glm::min(normalizedSample, minSample);
 				}
+
+				maxSample = glm::clamp(amplitudeAdjustment * maxSample, 0.0f, 1.0f);
+				minSample = glm::clamp(amplitudeAdjustment * minSample, -1.0f, 0.0f);
 
 				maxSample = 1.0f - ((maxSample + 1.0f) / 2.0f);
 				minSample = 1.0f - ((minSample + 1.0f) / 2.0f);
