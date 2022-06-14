@@ -1,13 +1,13 @@
 #ifndef MATH_ANIM_SVG_OBJECT_H
 #define MATH_ANIM_SVG_OBJECT_H
 #include "core.h"
-#include "renderer/OrthoCamera.h"
 
 struct NVGcontext;
 
 namespace MathAnim
 {
 	struct AnimObject;
+	struct OrthoCamera;
 
 	enum class CurveType : uint8
 	{

@@ -198,7 +198,6 @@ namespace MathAnim
 		void init(OrthoCamera& sceneCamera)
 		{
 			camera = &sceneCamera;
-			fflush(stdout);
 			numVertices = 0;
 
 			// Load OpenGL functions using Glad
