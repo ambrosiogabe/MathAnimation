@@ -1,6 +1,7 @@
 #ifndef MATH_ANIM_TEXT_ANIMATIONS_H
 #define MATH_ANIM_TEXT_ANIMATIONS_H
 #include "core.h"
+#include "renderer/OrthoCamera.h"
 
 struct NVGcontext;
 
@@ -8,6 +9,11 @@ namespace MathAnim
 {
 	struct Font;
 	struct AnimObject;
+	
+	namespace TextAnimations
+	{
+		void init(OrthoCamera& sceneCamera);
+	}
 
 	struct TextObject
 	{

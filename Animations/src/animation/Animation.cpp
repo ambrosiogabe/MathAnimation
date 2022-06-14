@@ -82,6 +82,11 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me.");
 			break;
+		case AnimTypeV1::CameraMoveTo:
+			Renderer::getMutableCamera()->position = CMath::interpolate(t, Renderer::getCamera()->position, as.modifyVec2.target);
+			// We also need to call render here, I know it's not the most intuitive haha
+			getParent()->render(vg);
+			break;
 		default:
 			// TODO: Add magic_enum
 			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
@@ -123,6 +128,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me");
+			break;
+		case AnimTypeV1::CameraMoveTo:
+			Renderer::getMutableCamera()->position = this->as.modifyVec2.target;
 			break;
 		default:
 			// TODO: Add magic_enum
@@ -188,9 +196,12 @@ namespace MathAnim
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
 			CMath::serialize(memory, this->as.modifyU8Vec4.target);
-			break;
+			break;	
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
+			break;
+		case AnimTypeV1::CameraMoveTo:
+			CMath::serialize(memory, this->as.modifyVec2.target);
 			break;
 		default:
 			g_logger_warning("Unknown animation type: %d", (int)this->type);
@@ -246,6 +257,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me");
+			break;
+		case AnimTypeV1::CameraMoveTo:
+			res.as.modifyVec2.target = Vec2 { 0.f, 0.f };
 			break;
 		default:
 			g_logger_error("Cannot create default animation of type %d", (int)type);
@@ -661,6 +675,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
+			break;
+		case AnimTypeV1::CameraMoveTo:
+			res.as.modifyVec2.target = CMath::deserializeVec2(memory);
 			break;
 		default:
 			g_logger_warning("Unhandled animation deserialize for type %d", res.type);

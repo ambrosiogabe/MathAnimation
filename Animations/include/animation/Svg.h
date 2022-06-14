@@ -7,6 +7,7 @@ struct NVGcontext;
 namespace MathAnim
 {
 	struct AnimObject;
+	struct OrthoCamera;
 
 	enum class CurveType : uint8
 	{
@@ -70,7 +71,8 @@ namespace MathAnim
 	namespace Svg
 	{
 		SvgObject createDefault();
-
+		
+		void init(OrthoCamera& camera);
 		void beginContour(SvgObject* object, const Vec2& firstPoint, bool clockwiseFill);
 		void closeContour(SvgObject* object);
 

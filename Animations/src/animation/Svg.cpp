@@ -10,7 +10,8 @@ namespace MathAnim
 	{
 		// ----------------- Private Variables -----------------
 		constexpr int initialMaxCapacity = 5;
-
+		static OrthoCamera* camera;
+		
 		// ----------------- Internal functions -----------------
 		static void checkResize(Contour& contour);
 
@@ -24,7 +25,12 @@ namespace MathAnim
 			res.numContours = 0;
 			return res;
 		}
-
+		
+		void init(OrthoCamera& sceneCamera)
+		{
+			camera = &sceneCamera;
+		}
+		
 		void beginContour(SvgObject* object, const Vec2& firstPoint, bool clockwiseFill)
 		{
 			object->numContours++;
@@ -227,7 +233,7 @@ namespace MathAnim
 			);
 
 			// Apply transformations
-			nvgTranslate(vg, interpolatedPos.x, interpolatedPos.y);
+			nvgTranslate(vg, interpolatedPos.x - Svg::camera->position.x, interpolatedPos.y - Svg::camera->position.y);
 			if (interpolatedRotation.z != 0.0f)
 			{
 				nvgRotate(vg, glm::radians(interpolatedRotation.z));
@@ -463,8 +469,9 @@ namespace MathAnim
 		float lengthToDraw = t * (float)approximatePerimeter;
 		float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
 		float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
-
-		nvgTranslate(vg, position.x, position.y);
+		
+		// NOTE(voxel): Quick and Dirty
+		nvgTranslate(vg, position.x - Svg::camera->position.x, position.y - Svg::camera->position.y);
 		if (parent->rotation.z != 0.0f)
 		{
 			nvgRotate(vg, glm::radians(parent->rotation.z));

@@ -741,7 +741,17 @@ namespace MathAnim
 			//	x += renderableChar.advance.x * scale * font.fontSize;
 			//}
 		}
-
+		
+		const OrthoCamera* getCamera()
+		{
+			return camera;
+		}
+		
+		OrthoCamera* getMutableCamera()
+		{
+			return camera;
+		}
+		
 		void flushBatch()
 		{
 			glBindBuffer(GL_ARRAY_BUFFER, vbo);

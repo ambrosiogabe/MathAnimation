@@ -44,6 +44,7 @@ namespace MathAnim
 		static void handleRotateToAnimationInspector(Animation* animation);
 		static void handleAnimateStrokeColorAnimationInspector(Animation* animation);
 		static void handleAnimateFillColorAnimationInspector(Animation* animation);
+		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation);
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
 
@@ -81,6 +82,7 @@ namespace MathAnim
 			ImGui::PushItemWidth(180);
 			if (ImGui::InputInt("Frame ", &currentFrame))
 			{
+				if (currentFrame < 0) currentFrame = 0;
 				Application::setFrameIndex(currentFrame);
 			}
 			ImGui::PopItemWidth();
@@ -521,6 +523,9 @@ namespace MathAnim
 			case AnimTypeV1::AnimateStrokeColor:
 				handleAnimateStrokeColorAnimationInspector(animation);
 				break;
+			case AnimTypeV1::CameraMoveTo:
+				handleAnimateCameraMoveToAnimationInspector(animation);
+				break;
 			default:
 				g_logger_error("Unknown animation type: %d", (int)animation->type);
 				break;
@@ -644,7 +649,12 @@ namespace MathAnim
 				animation->as.modifyU8Vec4.target.a = (uint8)(strokeColor[3] * 255.0f);
 			}
 		}
-
+		
+		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation)
+		{
+			ImGui::DragFloat2(": Camera Target Position", &animation->as.modifyVec2.target.x);
+		}
+		
 		static void handleSquareInspector(AnimObject* object)
 		{
 			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength))

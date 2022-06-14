@@ -10,6 +10,8 @@
 #include "renderer/Texture.h"
 #include "renderer/VideoWriter.h"
 #include "renderer/Fonts.h"
+#include "animation/Svg.h"
+#include "animation/TextAnimations.h"
 #include "animation/Animation.h"
 #include "animation/Styles.h"
 #include "animation/AnimationManager.h"
@@ -57,6 +59,9 @@ namespace MathAnim
 			Renderer::init(camera);
 			ImGuiLayer::init(*window);
 			Audio::init();
+			// NOTE(voxel): Just to initialize the camera
+			Svg::init(camera);
+			TextAnimations::init(camera);
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
