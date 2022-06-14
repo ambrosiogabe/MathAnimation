@@ -13,8 +13,6 @@ namespace MathAnim
 	// ------- Private variables --------
 	static int animObjectUidCounter = 0;
 	static int animationUidCounter = 0;
-	// NOTE(voxel): For now using this, maybe it'd be better to make Camera an animation object but I don't wanna do some major rework that ends up breaking stuff :P
-	static Vec2 cameraStartPosition = {};
 
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(RawMemory& memory);
@@ -85,8 +83,9 @@ namespace MathAnim
 			g_logger_warning("TODO: Implement me.");
 			break;
 		case AnimTypeV1::CameraMoveTo:
-			if (t == 0.0f) cameraStartPosition = Renderer::getCamera()->position;
-			Renderer::getMutableCamera()->position = CMath::interpolate(t, cameraStartPosition, as.modifyVec2.target);
+			Renderer::getMutableCamera()->position = CMath::interpolate(t, Renderer::getCamera()->position, as.modifyVec2.target);
+			// We also need to call render here, I know it's not the most intuitive haha
+			getParent()->render(vg);
 			break;
 		default:
 			// TODO: Add magic_enum

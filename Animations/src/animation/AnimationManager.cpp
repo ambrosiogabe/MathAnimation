@@ -1,6 +1,7 @@
 #include "animation/AnimationManager.h"
 #include "animation/Animation.h"
 #include "animation/Svg.h"
+#include "renderer/Renderer.h"
 
 namespace MathAnim
 {
@@ -35,6 +36,11 @@ namespace MathAnim
 			"Move Camera To",
 			"Length",
 		};
+
+		// NOTE(gabe): So this is due to my whacky architecture, but at the beginning of rendering
+		// each frame we actually need to reset the camera position to its start position. I really
+		// need to figure out a better architecture for this haha
+		static Vec2 cameraStartPosition = {};
 
 		// Internal Functions
 		static void deserializeAnimationManagerExV1(RawMemory& memory);
@@ -255,6 +261,8 @@ namespace MathAnim
 
 		void render(NVGcontext* vg, int frame)
 		{
+			Renderer::getMutableCamera()->position = cameraStartPosition;
+
 			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
 			{
 				// Reset to original state and apply animations in order
