@@ -82,6 +82,7 @@ namespace MathAnim
 			ImGui::PushItemWidth(180);
 			if (ImGui::InputInt("Frame ", &currentFrame))
 			{
+				if (currentFrame < 0) currentFrame = 0;
 				Application::setFrameIndex(currentFrame);
 			}
 			ImGui::PopItemWidth();
