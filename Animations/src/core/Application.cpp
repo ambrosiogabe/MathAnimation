@@ -42,6 +42,7 @@ namespace MathAnim
 		static Texture mainTexture;
 		static OrthoCamera camera;
 		static int currentFrame = 0;
+		static float accumulatedTime = 0.0f;
 
 		static const char* winTitle = "Math Animations";
 
@@ -113,10 +114,8 @@ namespace MathAnim
 				// Update components
 				if (animState == AnimState::PlayForward)
 				{
-					float customDeltaTime = deltaTime;
 					if (outputVideoFile)
 					{
-						customDeltaTime = 1.0f / 60.0f;
 						if (numFramesWritten % 60 == 0)
 						{
 							g_logger_info("Number of seconds rendered: %d", numFramesWritten / 60);
@@ -124,7 +123,8 @@ namespace MathAnim
 						numFramesWritten++;
 					}
 
-					currentFrame++;
+					accumulatedTime += deltaTime;
+					currentFrame = (int)(accumulatedTime * 60.0f);
 				}
 				else if (animState == AnimState::PlayReverse)
 				{
@@ -158,28 +158,7 @@ namespace MathAnim
 					mainFramebuffer.freePixels(pixels);
 				}
 
-				if (Input::isKeyPressed(GLFW_KEY_ESCAPE))
-				{
-					isRunning = false;
-				}
-				else if (Input::isKeyPressed(GLFW_KEY_F1))
-				{
-					animState = AnimState::PlayReverse;
-				}
-				else if (Input::isKeyPressed(GLFW_KEY_F2))
-				{
-					animState = AnimState::PlayForward;
-				}
-				else if (Input::isKeyPressed(GLFW_KEY_F3))
-				{
-					animState = AnimState::Pause;
-				}
-				else if (Input::isKeyPressed(GLFW_KEY_F4))
-				{
-					animState = AnimState::PlayForward;
-					currentFrame = 0;
-				}
-				else if (Input::isKeyPressed(GLFW_KEY_F7) && !outputVideoFile)
+				if (Input::isKeyPressed(GLFW_KEY_F7) && !outputVideoFile)
 				{
 					currentFrame = 0;
 					outputVideoFile = true;
@@ -210,6 +189,10 @@ namespace MathAnim
 
 		void setEditorPlayState(AnimState state)
 		{
+			if (state == AnimState::PlayForward || state == AnimState::PlayReverse)
+			{
+				accumulatedTime = (float)currentFrame / 60.0f;
+			}
 			animState = state;
 		}
 
