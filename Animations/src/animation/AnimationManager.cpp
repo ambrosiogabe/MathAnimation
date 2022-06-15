@@ -261,7 +261,7 @@ namespace MathAnim
 
 		void render(NVGcontext* vg, int frame)
 		{
-			Renderer::getMutableCamera()->position = cameraStartPosition;
+			Renderer::getMutableOrthoCamera()->position = cameraStartPosition;
 
 			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
 			{

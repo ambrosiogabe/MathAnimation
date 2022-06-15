@@ -2,7 +2,6 @@
 #include "core.h"
 #include "animation/AnimationManager.h"
 #include "animation/Svg.h"
-#include "animation/Styles.h"
 #include "renderer/Renderer.h"
 #include "renderer/Fonts.h"
 #include "utils/CMath.h"
@@ -83,7 +82,8 @@ namespace MathAnim
 			g_logger_warning("TODO: Implement me.");
 			break;
 		case AnimTypeV1::CameraMoveTo:
-			Renderer::getMutableCamera()->position = CMath::interpolate(t, Renderer::getCamera()->position, as.modifyVec2.target);
+			Renderer::getMutableOrthoCamera()->position = 
+				CMath::interpolate(t, Renderer::getOrthoCamera()->position, as.modifyVec2.target);
 			// We also need to call render here, I know it's not the most intuitive haha
 			getParent()->render(vg);
 			break;
@@ -130,7 +130,7 @@ namespace MathAnim
 			g_logger_warning("TODO: Implement me");
 			break;
 		case AnimTypeV1::CameraMoveTo:
-			Renderer::getMutableCamera()->position = this->as.modifyVec2.target;
+			Renderer::getMutableOrthoCamera()->position = this->as.modifyVec2.target;
 			break;
 		default:
 			// TODO: Add magic_enum

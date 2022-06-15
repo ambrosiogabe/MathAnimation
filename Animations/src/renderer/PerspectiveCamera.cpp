@@ -1,4 +1,5 @@
 #include "renderer/PerspectiveCamera.h"
+#include "core/Application.h"
 
 namespace MathAnim
 {
@@ -23,8 +24,8 @@ namespace MathAnim
 	glm::mat4 PerspectiveCamera::calculateProjectionMatrix() const
 	{
 		return glm::perspective(
-			glm::radians(fov),
-			1920.0f / 1080.0f,
+			fov,
+			Application::getOutputTargetAspectRatio(),
 			0.1f,
 			100.0f
 		);

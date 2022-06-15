@@ -5,11 +5,17 @@
 namespace MathAnim
 {
 	struct OrthoCamera;
+	struct PerspectiveCamera;
 	struct Shader;
-	struct Style;
 	struct Framebuffer;
 	struct Texture;
 	struct Font;
+
+	enum class CapType
+	{
+		Flat,
+		Arrow
+	};
 
 	struct RenderableTexture
 	{
@@ -22,36 +28,46 @@ namespace MathAnim
 
 	namespace Renderer
 	{
-		void init(OrthoCamera& sceneCamera);
+		void init(OrthoCamera& sceneCamera, PerspectiveCamera& camera);
 
+		// ----------- Render calls ----------- 
 		void render();
-
 		void renderFramebuffer(const Framebuffer& framebuffer);
 
-		void drawSquare(const Vec2& start, const Vec2& size, const Style& style);
+		// ----------- Styles ----------- 
+		// TODO: Should this be push/pop calls, or more like nvgStroke calls with implicit pops?
+		void pushStrokeWidth(float strokeWidth);
+		void pushColor(const glm::vec4& color);
+		void pushColor(const Vec4& color);
+		void pushLineEnding(CapType lineEnding);
 
-		void drawFilledSquare(const Vec2& start, const Vec2& size, const Style& style);
+		void popStrokeWidth(int numToPop = 1);
+		void popColor(int numToPop = 1);
+		void popLineEnding(int numToPop = 1);
 
-		void drawLine(const Vec2& start, const Vec2& end, const Style& style);
-
+		// ----------- 2D stuff ----------- 
+		// TODO: Switch to using this when drawing completed objects to potentially
+		// batch draw calls together and improve performance
+		void drawSquare(const Vec2& start, const Vec2& size);
+		void drawFilledSquare(const Vec2& start, const Vec2& size);
+		void drawLine(const Vec2& start, const Vec2& end);
 		void drawTexture(const RenderableTexture& renderable, const Vec4& color);
-
 		void drawString(const std::string& string, const Font& font, const Vec2& start, float scale, const Vec4& color);
+		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
+		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 
-		void drawFilledCircle(const Vec2& position, float radius, int numSegments, const Style& style);
+		// ----------- 3D stuff ----------- 
+		void drawLine3D(const Vec3& start, const Vec3& end);
 
-		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Style& style);
+		// ----------- Miscellaneous ----------- 
+		const OrthoCamera* getOrthoCamera();
+		OrthoCamera* getMutableOrthoCamera();
 
-		void drawBezier(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Style& style);
-
-		void drawCubicBezier(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, const Style& style);
-		
-		const OrthoCamera* getCamera();
-		OrthoCamera* getMutableCamera();
+		const PerspectiveCamera* get3DCamera();
+		PerspectiveCamera* getMutable3DCamera();
 		
 		void flushBatch();
-
-		void flushVectorBatch();
+		void flushBatch3D();
 
 		void clearColor(const Vec4& color);
 	}

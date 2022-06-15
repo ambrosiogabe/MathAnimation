@@ -5,15 +5,16 @@
 #include "core/ImGuiLayer.h"
 #include "renderer/Renderer.h"
 #include "renderer/OrthoCamera.h"
+#include "renderer/PerspectiveCamera.h"
 #include "renderer/Shader.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
 #include "renderer/VideoWriter.h"
 #include "renderer/Fonts.h"
+#include "renderer/Colors.h"
 #include "animation/Svg.h"
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
-#include "animation/Styles.h"
 #include "animation/AnimationManager.h"
 #include "editor/EditorGui.h"
 #include "audio/Audio.h"
@@ -40,7 +41,8 @@ namespace MathAnim
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
 		static Texture mainTexture;
-		static OrthoCamera camera;
+		static OrthoCamera camera2D;
+		static PerspectiveCamera camera3D;
 		static int currentFrame = 0;
 		static float accumulatedTime = 0.0f;
 
@@ -52,16 +54,21 @@ namespace MathAnim
 			window = new Window(1920, 1080, winTitle);
 			window->setVSync(true);
 
-			camera.position = Vec2{ 0, 0 };
-			camera.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
+			camera2D.position = Vec2{ 0, 0 };
+			camera2D.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
+			
+			camera3D.forward = glm::vec3(0, 0, 1);
+			camera3D.fov = 70.0f;
+			camera3D.orientation = glm::vec3(0, 45.0f, 0);
+			camera3D.position = glm::vec3(0, 0, -10);
 
 			Fonts::init();
-			Renderer::init(camera);
+			Renderer::init(camera2D, camera3D);
 			ImGuiLayer::init(*window);
 			Audio::init();
 			// NOTE(voxel): Just to initialize the camera
-			Svg::init(camera);
-			TextAnimations::init(camera);
+			Svg::init(camera2D);
+			TextAnimations::init(camera2D);
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
@@ -107,7 +114,7 @@ namespace MathAnim
 				// Bind main framebuffer
 				mainFramebuffer.bind();
 				glViewport(0, 0, mainFramebuffer.width, mainFramebuffer.height);
-				Renderer::clearColor(Colors::greenBrown);
+				Renderer::clearColor(colors[(uint8)Color::GreenBrown]);
 
 				nvgBeginFrame(vg, (float)mainFramebuffer.width, (float)mainFramebuffer.height, 1.0f);
 
@@ -131,11 +138,18 @@ namespace MathAnim
 					currentFrame = glm::max(currentFrame - 1, 0);
 				}
 
+				// Render to main framebuffer
 				AnimationManager::render(vg, currentFrame);
-
 				nvgEndFrame(vg);
 
-				// Render to main framebuffer
+				Renderer::pushColor(colors[(int)Color::Red]);
+				Renderer::drawLine3D(Vec3{ 0.1f, 0, 0 }, Vec3{ 0, 15, -5 });
+				Renderer::popColor();
+
+				Renderer::pushColor(colors[(int)Color::Blue]);
+				Renderer::drawLine3D(Vec3{ 0, -1, 0 }, Vec3{ 0, -15, -3 });
+				Renderer::popColor();
+
 				Renderer::render();
 
 				// Render to screen

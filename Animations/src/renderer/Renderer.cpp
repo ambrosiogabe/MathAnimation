@@ -1,17 +1,16 @@
 #include "core.h"
 #include "renderer/Renderer.h"
 #include "renderer/OrthoCamera.h"
+#include "renderer/PerspectiveCamera.h"
 #include "renderer/Shader.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
 #include "renderer/Fonts.h"
-#include "animation/Styles.h"
 #include "animation/Animation.h"
 
 #ifdef _RELEASE
 #include "shaders/default.glsl.hpp"
 #include "shaders/screen.glsl.hpp"
-#include "shaders/vectorShader.glsl.hpp"
 #endif
 
 namespace MathAnim
@@ -24,12 +23,12 @@ namespace MathAnim
 		Vec2 textureCoords;
 	};
 
-	struct VectorVertex
+	struct Vertex3D
 	{
-		Vec2 position;
-		Vec4 color;
-		Vec2 uv;
-		int32 isConcave;
+		Vec3 position;
+		uint32 color;
+		uint32 textureId;
+		Vec2 textureCoords;
 	};
 
 	namespace Renderer
@@ -39,18 +38,35 @@ namespace MathAnim
 		static uint32 vbo;
 		static uint32 numVertices;
 
-		static uint32 vectorVao;
-		static uint32 vectorVbo;
-		static uint32 vectorNumVertices;
+		static uint32 vao3D;
+		static uint32 vbo3D;
+		static uint32 numVertices3D;
 
-		static const int maxNumTrianglesPerBatch = 100;
-		static const int maxNumVerticesPerBatch = maxNumTrianglesPerBatch * 3;
+		static constexpr int maxNumTrianglesPerBatch = 100;
+		static constexpr int maxNumVerticesPerBatch = maxNumTrianglesPerBatch * 3;
 		static Vertex vertices[maxNumVerticesPerBatch];
-		static VectorVertex vectorVertices[maxNumVerticesPerBatch];
-		static OrthoCamera* camera;
+		static Vertex3D vertices3D[maxNumVerticesPerBatch];
+
+		static OrthoCamera* orthoCamera;
+		static PerspectiveCamera* perspCamera;
+
 		static Shader shader;
-		static Shader vectorShader;
+		static Shader shader3D;
 		static Shader screenShader;
+
+		static constexpr int MAX_STACK_SIZE = 64;
+
+		static glm::vec4 colorStack[MAX_STACK_SIZE];
+		static float strokeWidthStack[MAX_STACK_SIZE];
+		static CapType lineEndingStack[MAX_STACK_SIZE];
+
+		static int colorStackPtr;
+		static int strokeWidthStackPtr;
+		static int lineEndingStackPtr;
+
+		static constexpr glm::vec4 defaultColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+		static constexpr float defaultStrokeWidth = 0.1f;
+		static constexpr CapType defaultLineEnding = CapType::Flat;
 
 		// Default screen rectangle
 		static float defaultScreenQuad[] = {
@@ -69,6 +85,609 @@ namespace MathAnim
 		static Texture textureGraphicIds[numTextureGraphicsIds];
 		static int32 uTextures[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 
+		// ---------------------- Internal Functions ----------------------
+		static uint32 getTexId(const Texture& texture);
+		static void setupScreenVao();
+		static void setupBatchedVao();
+		static void setupVao3D();
+		static void GLAPIENTRY messageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+
+		void init(OrthoCamera& inOrthoCamera, PerspectiveCamera& inPerspCamera)
+		{
+			orthoCamera = &inOrthoCamera;
+			perspCamera = &inPerspCamera;
+			numVertices = 0;
+
+			strokeWidthStackPtr = 0;
+			colorStackPtr = 0;
+			lineEndingStackPtr = 0;
+
+			// Load OpenGL functions using Glad
+			if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+			{
+				g_logger_error("Failed to initialize glad.");
+				return;
+			}
+			g_logger_info("GLAD initialized.");
+			g_logger_info("Hello OpenGL %d.%d", GLVersion.major, GLVersion.minor);
+
+#ifdef _DEBUG
+			glEnable(GL_DEBUG_OUTPUT);
+			glDebugMessageCallback(messageCallback, 0);
+#endif
+
+			// Enable blending
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			// Initialize default shader
+#ifdef _DEBUG
+			shader.compile("assets/shaders/default.glsl");
+			screenShader.compile("assets/shaders/screen.glsl");
+			shader3D.compile("assets/shaders/shader3D.glsl");
+#elif defined(_RELEASE)
+			shader.compileRaw(defaultShaderGlsl);
+			screenShader.compileRaw(screenShaderGlsl);
+#endif
+
+			setupBatchedVao();
+			setupScreenVao();
+			setupVao3D();
+
+			for (int i = 0; i < numTextureGraphicsIds; i++)
+			{
+				textureGraphicIds[i] = { 0 };
+			}
+		}
+
+		// ----------- Render calls ----------- 
+		void render()
+		{
+			if (numVertices > 0)
+			{
+				flushBatch();
+			}
+
+			if (numVertices3D > 0)
+			{
+				flushBatch3D();
+			}
+
+			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
+			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
+			g_logger_assert(strokeWidthStackPtr == 0, "Missing popStrokeWidth() call.");
+		}
+
+		void renderFramebuffer(const Framebuffer& framebuffer)
+		{
+			screenShader.bind();
+
+			const Texture& texture = framebuffer.getColorAttachment(0);
+			glActiveTexture(GL_TEXTURE0);
+			texture.bind();
+			screenShader.uploadInt("uTexture", 0);
+
+			glBindVertexArray(screenVao);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+		}
+
+		// ----------- Styles ----------- 
+		void pushStrokeWidth(float strokeWidth)
+		{
+			g_logger_assert(strokeWidthStackPtr < MAX_STACK_SIZE, "Ran out of room on the stroke width stack.");
+			strokeWidthStack[strokeWidthStackPtr] = strokeWidth;
+			strokeWidthStackPtr++;
+		}
+
+		void pushColor(const glm::vec4& color)
+		{
+			g_logger_assert(colorStackPtr < MAX_STACK_SIZE, "Ran out of room on the color stack.");
+			colorStack[colorStackPtr] = color;
+			colorStackPtr++;
+		}
+
+		void pushColor(const Vec4& color)
+		{
+			g_logger_assert(colorStackPtr < MAX_STACK_SIZE, "Ran out of room on the color stack.");
+			colorStack[colorStackPtr] = glm::vec4(
+				color.r, color.g, color.b, color.a
+			);
+			colorStackPtr++;
+		}
+
+		void pushLineEnding(CapType lineEnding)
+		{
+			g_logger_assert(lineEndingStackPtr < MAX_STACK_SIZE, "Ran out of room on the line ending stack.");
+			lineEndingStack[lineEndingStackPtr] = lineEnding;
+			lineEndingStackPtr++;
+		}
+
+		void popStrokeWidth(int numToPop)
+		{
+			strokeWidthStackPtr -= numToPop;
+			g_logger_assert(strokeWidthStackPtr >= 0, "Popped to many values off of stroke width stack: %d", strokeWidthStackPtr);
+		}
+
+		void popColor(int numToPop)
+		{
+			colorStackPtr -= numToPop;
+			g_logger_assert(colorStackPtr >= 0, "Popped to many values off of color stack: %d", colorStackPtr);
+		}
+
+		void popLineEnding(int numToPop)
+		{
+			lineEndingStackPtr -= numToPop;
+			g_logger_assert(lineEndingStackPtr >= 0, "Popped to many values off of line ending stack: %d", lineEndingStackPtr);
+		}
+
+		// ----------- 2D stuff ----------- 
+		void drawSquare(const Vec2& start, const Vec2& size)
+		{
+			drawLine(start, start + Vec2{ size.x, 0 });
+			drawLine(start + Vec2{ 0, size.y }, start + size);
+			drawLine(start, start + Vec2{ 0, size.y });
+			drawLine(start + Vec2{ size.x, 0 }, start + size);
+		}
+
+		void drawFilledSquare(const Vec2& start, const Vec2& size)
+		{
+			if (numVertices + 6 >= maxNumVerticesPerBatch)
+			{
+				flushBatch();
+			}
+
+			glm::vec4 vColor = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+			Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
+
+			// Triangle 1
+			// "Bottom-left" corner of line
+			vertices[numVertices].position = start;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Top-Left" corner of line
+			vertices[numVertices].position = start + Vec2{ 0, size.y };
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Top-Right" corner of line
+			vertices[numVertices].position = start + size;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// Triangle 2
+			// "Bottom-left" corner of line
+			vertices[numVertices].position = start;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Bottom-Right" corner of line
+			vertices[numVertices].position = start + Vec2{ size.x, 0 };
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Top-Right" corner of line
+			vertices[numVertices].position = start + size;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+		}
+
+		void drawLine(const Vec2& start, const Vec2& end)
+		{
+			CapType lineEnding = lineEndingStackPtr > 0
+				? lineEndingStack[lineEndingStackPtr - 1]
+				: defaultLineEnding;
+			if ((lineEnding == CapType::Flat && numVertices + 6 >= maxNumVerticesPerBatch) ||
+				(lineEnding == CapType::Arrow && numVertices + 15 >= maxNumVerticesPerBatch))
+			{
+				flushBatch();
+			}
+
+			glm::vec4 vColor = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+			Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
+			float strokeWidth = strokeWidthStackPtr > 0
+				? strokeWidthStack[strokeWidthStackPtr - 1]
+				: defaultStrokeWidth;
+
+			Vec2 direction = end - start;
+			Vec2 normalDirection = CMath::normalize(direction);
+			Vec2 perpVector = CMath::normalize(Vec2{ normalDirection.y, -normalDirection.x });
+
+			// Triangle 1
+			// "Bottom-left" corner of line
+			vertices[numVertices].position = start + (perpVector * strokeWidth * 0.5f);
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Top-Left" corner of line
+			vertices[numVertices].position = vertices[numVertices - 1].position + direction;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Top-Right" corner of line
+			vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * strokeWidth);
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// Triangle 2
+			// "Bottom-left" corner of line
+			vertices[numVertices].position = start + (perpVector * strokeWidth * 0.5f);
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Bottom-Right" corner of line
+			vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * strokeWidth);
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			// "Top-Right" corner of line
+			vertices[numVertices].position = vertices[numVertices - 1].position + direction;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			if (lineEnding == CapType::Arrow)
+			{
+				// Add arrow tip
+				Vec2 centerDot = end + (normalDirection * strokeWidth * 0.5f);
+				Vec2 vectorToCenter = CMath::normalize(centerDot - (end - perpVector * strokeWidth * 0.5f));
+				Vec2 oVectorToCenter = CMath::normalize(centerDot - (end + perpVector * strokeWidth * 0.5f));
+				Vec2 bottomLeft = centerDot - vectorToCenter * strokeWidth * 4.0f;
+				Vec2 bottomRight = centerDot - oVectorToCenter * strokeWidth * 4.0f;
+				Vec2 top = centerDot + normalDirection * strokeWidth * 4.0f;
+
+				// Left Triangle
+				vertices[numVertices].position = centerDot;
+				vertices[numVertices].color = color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = bottomLeft;
+				vertices[numVertices].color = color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = top;
+				vertices[numVertices].color = color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				// Right triangle
+				vertices[numVertices].position = top;
+				vertices[numVertices].color = color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = centerDot;
+				vertices[numVertices].color = color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = bottomRight;
+				vertices[numVertices].color = color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				// Center triangle
+				vertices[numVertices].position = centerDot;
+				vertices[numVertices].color = color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = end + perpVector * strokeWidth * 0.5f;
+				vertices[numVertices].color = color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+
+				vertices[numVertices].position = end - perpVector * strokeWidth * 0.5f;
+				vertices[numVertices].color = color;
+				vertices[numVertices].textureId = 0;
+				numVertices++;
+			}
+		}
+
+		void drawTexture(const RenderableTexture& renderable, const Vec4& color)
+		{
+			if (numVertices + 6 >= maxNumVerticesPerBatch)
+			{
+				flushBatch();
+			}
+
+			uint32 texId = getTexId(*renderable.texture);
+
+			// Triangle 1
+			// "Bottom-left" corner
+			vertices[numVertices].position = renderable.start;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = renderable.texCoordStart;
+			numVertices++;
+
+			// "Top-Left" corner
+			vertices[numVertices].position = renderable.start + Vec2{ 0, renderable.size.y };
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ 0, renderable.texCoordSize.y };
+			numVertices++;
+
+			// "Top-Right" corner of line
+			vertices[numVertices].position = renderable.start + renderable.size;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
+			numVertices++;
+
+			// Triangle 2
+			// "Bottom-left" corner of line
+			vertices[numVertices].position = renderable.start;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = renderable.texCoordStart;
+			numVertices++;
+
+			// "Bottom-Right" corner of line
+			vertices[numVertices].position = renderable.start + Vec2{ renderable.size.x, 0 };
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ renderable.texCoordSize.x, 0 };
+			numVertices++;
+
+			// "Top-Right" corner of line
+			vertices[numVertices].position = renderable.start + renderable.size;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = texId;
+			vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
+			numVertices++;
+		}
+
+		void drawString(const std::string& string, const Font& font, const Vec2& position, float scale, const Vec4& color)
+		{
+			float x = position.x;
+			float y = position.y;
+
+			g_logger_warning("TODO: Not implemented.");
+
+			//for (int i = 0; i < string.length(); i++)
+			//{
+			//	char c = string[i];
+			//	RenderableChar renderableChar = font.getCharInfo(c);
+			//	float charWidth = renderableChar.texCoordSize.x * font.fontSize * scale;
+			//	float charHeight = renderableChar.texCoordSize.y * font.fontSize * scale;
+			//	float adjustedY = y - renderableChar.bearingY * font.fontSize * scale;
+
+			//	drawTexture(RenderableTexture{
+			//		&font.texture,
+			//		{ x, adjustedY },
+			//		{ charWidth, charHeight },
+			//		renderableChar.texCoordStart,
+			//		renderableChar.texCoordSize
+			//		}, color);
+
+			//	char nextC = i < string.length() - 1 ? string[i + 1] : '\0';
+			//	//x += font.getKerning(c, nextC) * scale * font.fontSize;
+			//	x += renderableChar.advance.x * scale * font.fontSize;
+			//}
+		}
+
+		void drawFilledCircle(const Vec2& position, float radius, int numSegments)
+		{
+			float t = 0;
+			float sectorSize = 360.0f / (float)numSegments;
+			for (int i = 0; i < numSegments; i++)
+			{
+				float x = radius * glm::cos(glm::radians(t));
+				float y = radius * glm::sin(glm::radians(t));
+				float nextT = t + sectorSize;
+				float nextX = radius * glm::cos(glm::radians(nextT));
+				float nextY = radius * glm::sin(glm::radians(nextT));
+
+				drawFilledTriangle(position, position + Vec2{ x, y }, position + Vec2{ nextX, nextY });
+
+				t += sectorSize;
+			}
+		}
+
+		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2)
+		{
+			if (numVertices + 3 >= maxNumVerticesPerBatch)
+			{
+				flushBatch();
+			}
+
+			glm::vec4 vColor = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+			Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
+
+			vertices[numVertices].position = p0;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			vertices[numVertices].position = p1;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+
+			vertices[numVertices].position = p2;
+			vertices[numVertices].color = color;
+			vertices[numVertices].textureId = 0;
+			numVertices++;
+		}
+
+		// ----------- 3D stuff ----------- 
+		// TODO: Consider just making these glm::vec3's. I'm not sure what kind
+		// of impact, if any that will have
+		void drawLine3D(const Vec3& inStart, const Vec3& inEnd)
+		{
+			if (numVertices + 6 >= maxNumVerticesPerBatch)
+			{
+				flushBatch3D();
+			}
+
+			float strokeWidth = strokeWidthStackPtr > 0
+				? strokeWidthStack[strokeWidthStackPtr - 1]
+				: defaultStrokeWidth;
+			float halfStrokeWidth = strokeWidth / 2.0f;
+			glm::vec4 color = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+			CapType lineEnding = lineEndingStackPtr > 0
+				? lineEndingStack[lineEndingStackPtr - 1]
+				: defaultLineEnding;
+
+			uint32 packedColor =
+				((uint32)(color.r * 255.0f) << 24) |
+				((uint32)(color.g * 255.0f) << 16) |
+				((uint32)(color.b * 255.0f) << 8) |
+				((uint32)(color.a * 255.0f));
+
+			glm::vec3 start = glm::vec3(inStart.x, inStart.y, inStart.z);
+			glm::vec3 end = glm::vec3(inEnd.x, inEnd.y, inEnd.z);
+
+			// TODO: What to do about lines that vec3(0)?
+			// Can't take the perpendicular of that
+			// Also what do we do about cross products that end up as 0?
+			glm::vec3 perp = glm::cross(start, end);
+
+			glm::vec3 p0 = start + (perp * halfStrokeWidth);
+			glm::vec3 p1 = start - (perp * halfStrokeWidth);
+			glm::vec3 p2 = p0 + (start - end);
+			glm::vec3 p3 = p1 + (start - end);
+
+			Vec3 vP0 = Vec3{ p0.x, p0.y, p0.z };
+			Vec3 vP1 = Vec3{ p1.x, p1.y, p1.z };
+			Vec3 vP2 = Vec3{ p2.x, p2.y, p2.z };
+			Vec3 vP3 = Vec3{ p3.x, p3.y, p3.z };
+
+			// Triangle 1
+			vertices3D[numVertices3D].position = vP0;
+			vertices3D[numVertices3D].color = packedColor;
+			// TODO: Add me somehow
+			//vertices3D[numVertices3D].textureId = texture;
+			//vertices3D[numVertices3D].textureCoords = textureCoords;
+			numVertices3D++;
+
+			vertices3D[numVertices3D].position = vP1;
+			vertices3D[numVertices3D].color = packedColor;
+			numVertices3D++;
+
+			vertices3D[numVertices3D].position = vP3;
+			vertices3D[numVertices3D].color = packedColor;
+			numVertices3D++;
+
+			// Triangle 2
+			vertices3D[numVertices3D].position = vP0;
+			vertices3D[numVertices3D].color = packedColor;
+			numVertices3D++;
+
+			vertices3D[numVertices3D].position = vP3;
+			vertices3D[numVertices3D].color = packedColor;
+			numVertices3D++;
+
+			vertices3D[numVertices3D].position = vP2;
+			vertices3D[numVertices3D].color = packedColor;
+			numVertices3D++;
+		}
+
+		// ----------- Miscellaneous ----------- 
+		const OrthoCamera* getOrthoCamera()
+		{
+			return orthoCamera;
+		}
+
+		OrthoCamera* getMutableOrthoCamera()
+		{
+			return orthoCamera;
+		}
+
+		const PerspectiveCamera* get3DCamera()
+		{
+			return perspCamera;
+		}
+
+		PerspectiveCamera* getMutable3DCamera()
+		{
+			return perspCamera;
+		}
+
+		void flushBatch()
+		{
+			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+
+			shader.bind();
+			shader.uploadMat4("uProjection", orthoCamera->calculateProjectionMatrix());
+			shader.uploadMat4("uView", orthoCamera->calculateViewMatrix());
+
+			for (int i = 0; i < numTextureGraphicsIds; i++)
+			{
+				if (textureGraphicIds[i].graphicsId != 0)
+				{
+					glActiveTexture(GL_TEXTURE0 + i);
+					textureGraphicIds[i].bind();
+				}
+			}
+			shader.uploadIntArray("uFontTextures[0]", 8, uTextures);
+
+			glBindVertexArray(vao);
+			glDrawElements(GL_TRIANGLES, maxNumVerticesPerBatch, GL_UNSIGNED_INT, NULL);
+
+			// Clear the batch
+			memset(&vertices, 0, sizeof(Vertex) * maxNumVerticesPerBatch);
+			numVertices = 0;
+			numFontTextures = 0;
+		}
+
+		void flushBatch3D()
+		{
+			glBindBuffer(GL_ARRAY_BUFFER, vbo3D);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices3D), vertices3D, GL_DYNAMIC_DRAW);
+
+			shader3D.bind();
+			shader3D.uploadMat4("uProjection", perspCamera->calculateProjectionMatrix());
+			shader3D.uploadMat4("uView", perspCamera->calculateViewMatrix());
+
+			//for (int i = 0; i < numTextureGraphicsIds; i++)
+			//{
+			//	if (textureGraphicIds[i].graphicsId != 0)
+			//	{
+			//		glActiveTexture(GL_TEXTURE0 + i);
+			//		textureGraphicIds[i].bind();
+			//	}
+			//}
+			//shader.uploadIntArray("uFontTextures[0]", 8, uTextures);
+
+			glBindVertexArray(vao3D);
+			glDrawElements(GL_TRIANGLES, maxNumVerticesPerBatch, GL_UNSIGNED_INT, NULL);
+
+			// Clear the batch
+			memset(&vertices3D, 0, sizeof(Vertex3D) * maxNumVerticesPerBatch);
+			numVertices3D = 0;
+		}
+
+		void clearColor(const Vec4& color)
+		{
+			glClearColor(color.r, color.g, color.b, color.a);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		}
+
+		// ---------------------- Internal Functions ----------------------
 		static uint32 getTexId(const Texture& texture)
 		{
 			for (int i = 0; i < numTextureGraphicsIds; i++)
@@ -146,29 +765,42 @@ namespace MathAnim
 			glEnableVertexAttribArray(3);
 		}
 
-		static void setupBatchedVectorVao()
+		static void setupVao3D()
 		{
-			// Create the batched vector vao
-			glCreateVertexArrays(1, &vectorVao);
-			glBindVertexArray(vectorVao);
+			// Create the batched vao
+			glCreateVertexArrays(1, &vao3D);
+			glBindVertexArray(vao3D);
 
-			glGenBuffers(1, &vectorVbo);
+			glGenBuffers(1, &vbo3D);
 
-			// Allocate space for the batched vector vao
-			glBindBuffer(GL_ARRAY_BUFFER, vectorVbo);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(VectorVertex) * maxNumVerticesPerBatch, NULL, GL_DYNAMIC_DRAW);
+			// Allocate space for the batched vao
+			glBindBuffer(GL_ARRAY_BUFFER, vbo3D);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3D) * maxNumVerticesPerBatch, NULL, GL_DYNAMIC_DRAW);
 
-			// Set up the batched vector vao attributes
-			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VectorVertex), (void*)(offsetof(VectorVertex, position)));
+			uint32 ebo;
+			glGenBuffers(1, &ebo);
+
+			std::array<uint32, maxNumTrianglesPerBatch * 3> elements;
+			for (int i = 0; i < elements.size(); i += 3)
+			{
+				elements[i] = i + 0;
+				elements[i + 1] = i + 1;
+				elements[i + 2] = i + 2;
+			}
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * maxNumTrianglesPerBatch * 3, elements.data(), GL_DYNAMIC_DRAW);
+
+			// Set up the batched vao attributes
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, position)));
 			glEnableVertexAttribArray(0);
 
-			glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(VectorVertex), (void*)(offsetof(VectorVertex, color)));
+			glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, color)));
 			glEnableVertexAttribArray(1);
 
-			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VectorVertex), (void*)(offsetof(VectorVertex, uv)));
+			glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, textureId)));
 			glEnableVertexAttribArray(2);
 
-			glVertexAttribIPointer(3, 1, GL_INT, sizeof(VectorVertex), (void*)(offsetof(VectorVertex, isConcave)));
+			glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, textureCoords)));
 			glEnableVertexAttribArray(3);
 		}
 
@@ -193,621 +825,6 @@ namespace MathAnim
 					g_logger_error("Error Code: 0x%8x", err);
 				}
 			}
-		}
-
-		void init(OrthoCamera& sceneCamera)
-		{
-			camera = &sceneCamera;
-			numVertices = 0;
-
-			// Load OpenGL functions using Glad
-			if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-			{
-				g_logger_error("Failed to initialize glad.");
-				return;
-			}
-			g_logger_info("GLAD initialized.");
-			g_logger_info("Hello OpenGL %d.%d", GLVersion.major, GLVersion.minor);
-
-#ifdef _DEBUG
-			glEnable(GL_DEBUG_OUTPUT);
-			glDebugMessageCallback(messageCallback, 0);
-#endif
-
-			// Enable blending
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-			// Initialize default shader
-#ifdef _DEBUG
-			shader.compile("assets/shaders/default.glsl");
-			screenShader.compile("assets/shaders/screen.glsl");
-			vectorShader.compile("assets/shaders/vectorShader.glsl");
-#elif defined(_RELEASE)
-			shader.compileRaw(defaultShaderGlsl);
-			screenShader.compileRaw(screenShaderGlsl);
-			vectorShader.compileRaw(vectorShaderGlsl);
-#endif
-
-			setupBatchedVao();
-			setupBatchedVectorVao();
-			setupScreenVao();
-
-			for (int i = 0; i < numTextureGraphicsIds; i++)
-			{
-				textureGraphicIds[i] = { 0 };
-			}
-		}
-
-		void render()
-		{
-			flushBatch();
-			flushVectorBatch();
-		}
-
-		void renderFramebuffer(const Framebuffer& framebuffer)
-		{
-			screenShader.bind();
-
-			const Texture& texture = framebuffer.getColorAttachment(0);
-			glActiveTexture(GL_TEXTURE0);
-			texture.bind();
-			screenShader.uploadInt("uTexture", 0);
-
-			glBindVertexArray(screenVao);
-			glDrawArrays(GL_TRIANGLES, 0, 6);
-		}
-
-		void drawSquare(const Vec2& start, const Vec2& size, const Style& style)
-		{
-			drawLine(start, start + Vec2{ size.x, 0 }, style);
-			drawLine(start + Vec2{ 0, size.y }, start + size, style);
-			drawLine(start, start + Vec2{ 0, size.y }, style);
-			drawLine(start + Vec2{ size.x, 0 }, start + size, style);
-		}
-
-		void drawFilledSquare(const Vec2& start, const Vec2& size, const Style& style)
-		{
-			if (numVertices + 6 >= maxNumVerticesPerBatch)
-			{
-				flushBatch();
-			}
-
-			// Triangle 1
-			// "Bottom-left" corner of line
-			vertices[numVertices].position = start;
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			// "Top-Left" corner of line
-			vertices[numVertices].position = start + Vec2{ 0, size.y };
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			// "Top-Right" corner of line
-			vertices[numVertices].position = start + size;
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			// Triangle 2
-			// "Bottom-left" corner of line
-			vertices[numVertices].position = start;
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			// "Bottom-Right" corner of line
-			vertices[numVertices].position = start + Vec2{ size.x, 0 };
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			// "Top-Right" corner of line
-			vertices[numVertices].position = start + size;
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-		}
-
-		void drawLine(const Vec2& start, const Vec2& end, const Style& style)
-		{
-			if ((style.lineEnding == CapType::Flat && numVertices + 6 >= maxNumVerticesPerBatch) ||
-				(style.lineEnding == CapType::Arrow && numVertices + 15 >= maxNumVerticesPerBatch))
-			{
-				flushBatch();
-			}
-
-			Vec2 direction = end - start;
-			Vec2 normalDirection = CMath::normalize(direction);
-			Vec2 perpVector = CMath::normalize(Vec2{ normalDirection.y, -normalDirection.x });
-
-			// Triangle 1
-			// "Bottom-left" corner of line
-			vertices[numVertices].position = start + (perpVector * style.strokeWidth * 0.5f);
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			// "Top-Left" corner of line
-			vertices[numVertices].position = vertices[numVertices - 1].position + direction;
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			// "Top-Right" corner of line
-			vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * style.strokeWidth);
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			// Triangle 2
-			// "Bottom-left" corner of line
-			vertices[numVertices].position = start + (perpVector * style.strokeWidth * 0.5f);
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			// "Bottom-Right" corner of line
-			vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * style.strokeWidth);
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			// "Top-Right" corner of line
-			vertices[numVertices].position = vertices[numVertices - 1].position + direction;
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			if (style.lineEnding == CapType::Arrow)
-			{
-				// Add arrow tip
-				Vec2 centerDot = end + (normalDirection * style.strokeWidth * 0.5f);
-				Vec2 vectorToCenter = CMath::normalize(centerDot - (end - perpVector * style.strokeWidth * 0.5f));
-				Vec2 oVectorToCenter = CMath::normalize(centerDot - (end + perpVector * style.strokeWidth * 0.5f));
-				Vec2 bottomLeft = centerDot - vectorToCenter * style.strokeWidth * 4.0f;
-				Vec2 bottomRight = centerDot - oVectorToCenter * style.strokeWidth * 4.0f;
-				Vec2 top = centerDot + normalDirection * style.strokeWidth * 4.0f;
-
-				// Left Triangle
-				vertices[numVertices].position = centerDot;
-				vertices[numVertices].color = style.color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
-
-				vertices[numVertices].position = bottomLeft;
-				vertices[numVertices].color = style.color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
-
-				vertices[numVertices].position = top;
-				vertices[numVertices].color = style.color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
-
-				// Right triangle
-				vertices[numVertices].position = top;
-				vertices[numVertices].color = style.color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
-
-				vertices[numVertices].position = centerDot;
-				vertices[numVertices].color = style.color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
-
-				vertices[numVertices].position = bottomRight;
-				vertices[numVertices].color = style.color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
-
-				// Center triangle
-				vertices[numVertices].position = centerDot;
-				vertices[numVertices].color = style.color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
-
-				vertices[numVertices].position = end + perpVector * style.strokeWidth * 0.5f;
-				vertices[numVertices].color = style.color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
-
-				vertices[numVertices].position = end - perpVector * style.strokeWidth * 0.5f;
-				vertices[numVertices].color = style.color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
-			}
-		}
-
-		void drawFilledCircle(const Vec2& position, float radius, int numSegments, const Style& style)
-		{
-			float t = 0;
-			float sectorSize = 360.0f / (float)numSegments;
-			for (int i = 0; i < numSegments; i++)
-			{
-				float x = radius * glm::cos(glm::radians(t));
-				float y = radius * glm::sin(glm::radians(t));
-				float nextT = t + sectorSize;
-				float nextX = radius * glm::cos(glm::radians(nextT));
-				float nextY = radius * glm::sin(glm::radians(nextT));
-
-				drawFilledTriangle(position, position + Vec2{ x, y }, position + Vec2{ nextX, nextY }, style);
-
-				t += sectorSize;
-			}
-		}
-
-		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Style& style)
-		{
-			if (numVertices + 3 >= maxNumVerticesPerBatch)
-			{
-				flushBatch();
-			}
-
-			// One triangle per sector
-			vertices[numVertices].position = p0;
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			vertices[numVertices].position = p1;
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-
-			vertices[numVertices].position = p2;
-			vertices[numVertices].color = style.color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
-		}
-
-		void drawBezier(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Style& style)
-		{
-			if (vectorNumVertices + 6 >= maxNumVerticesPerBatch)
-			{
-				flushVectorBatch();
-			}
-
-			glm::vec2 triangleCenter = (glm::vec2(p0.x, p0.y) + glm::vec2(p1.x, p1.y) + glm::vec2(p2.x, p2.y)) / 3.0f;
-
-			float halfStrokeWidth = style.strokeWidth / 2.0f;
-
-			glm::vec2 localP0 = glm::vec2(p0.x, p0.y) - triangleCenter;
-			glm::vec2 localP0Dir = glm::normalize(localP0);
-			glm::vec2 outerP0 = localP0 + (localP0Dir * halfStrokeWidth);
-			glm::vec2 innerP0 = localP0 - (localP0Dir * halfStrokeWidth);
-			outerP0 += triangleCenter;
-			innerP0 += triangleCenter;
-
-			glm::vec2 localP1 = glm::vec2(p1.x, p1.y) - triangleCenter;
-			glm::vec2 localP1Dir = glm::normalize(localP1);
-			glm::vec2 outerP1 = localP1 + (localP1Dir * halfStrokeWidth);
-			glm::vec2 innerP1 = localP1 - (localP1Dir * halfStrokeWidth);
-			outerP1 += triangleCenter;
-			innerP1 += triangleCenter;
-
-			glm::vec2 localP2 = glm::vec2(p2.x, p2.y) - triangleCenter;
-			glm::vec2 localP2Dir = glm::normalize(localP2);
-			glm::vec2 outerP2 = localP2 + (localP2Dir * halfStrokeWidth);
-			glm::vec2 innerP2 = localP2 - (localP2Dir * halfStrokeWidth);
-			outerP2 += triangleCenter;
-			innerP2 += triangleCenter;
-
-			// Do two triangles, one for the outer stroke and one for inner stroke
-			vectorVertices[vectorNumVertices].position = { outerP0.x, outerP0.y };
-			vectorVertices[vectorNumVertices].color = style.color;
-			vectorVertices[vectorNumVertices].uv = { 0.0f, 0.0f };
-			vectorVertices[vectorNumVertices].isConcave = false;
-			vectorNumVertices++;
-
-			vectorVertices[vectorNumVertices].position = { outerP1.x, outerP1.y };
-			vectorVertices[vectorNumVertices].color = style.color;
-			vectorVertices[vectorNumVertices].uv = { 0.5f, 0.0f };
-			vectorVertices[vectorNumVertices].isConcave = false;
-			vectorNumVertices++;
-
-			vectorVertices[vectorNumVertices].position = { outerP2.x, outerP2.y };
-			vectorVertices[vectorNumVertices].color = style.color;
-			vectorVertices[vectorNumVertices].uv = { 1.0f, 1.0f };
-			vectorVertices[vectorNumVertices].isConcave = false;
-			vectorNumVertices++;
-
-			// Inner triangle
-			vectorVertices[vectorNumVertices].position = { innerP0.x, innerP0.y };
-			vectorVertices[vectorNumVertices].color = style.color;
-			vectorVertices[vectorNumVertices].uv = { 0.0f, 0.0f };
-			vectorVertices[vectorNumVertices].isConcave = true;
-			vectorNumVertices++;
-
-			vectorVertices[vectorNumVertices].position = { innerP1.x, innerP1.y };
-			vectorVertices[vectorNumVertices].color = style.color;
-			vectorVertices[vectorNumVertices].uv = { 0.5f, 0.0f };
-			vectorVertices[vectorNumVertices].isConcave = true;
-			vectorNumVertices++;
-
-			vectorVertices[vectorNumVertices].position = { innerP2.x, innerP2.y };
-			vectorVertices[vectorNumVertices].color = style.color;
-			vectorVertices[vectorNumVertices].uv = { 1.0f, 1.0f };
-			vectorVertices[vectorNumVertices].isConcave = true;
-			vectorNumVertices++;
-		}
-
-		void drawCubicBezier(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, const Style& style)
-		{
-			float maxX = glm::max(p0.x, glm::max(p1.x, glm::max(p2.x, p3.x)));
-			float minX = glm::min(p0.x, glm::min(p1.x, glm::min(p2.x, p3.x)));
-			float maxY = glm::max(p0.y, glm::max(p1.y, glm::max(p2.y, p3.y)));
-			float minY = glm::min(p0.y, glm::min(p1.y, glm::min(p2.y, p3.y)));
-
-			const glm::vec3 b0 = glm::vec3((p0.x - minX) / (maxX - minX), (p0.y - minY) / (maxY - minY), 1.0f);
-			const glm::vec3 b1 = glm::vec3((p1.x - minX) / (maxX - minX), (p1.y - minY) / (maxY - minY), 1.0f);
-			const glm::vec3 b2 = glm::vec3((p2.x - minX) / (maxX - minX), (p2.y - minY) / (maxY - minY), 1.0f);
-			const glm::vec3 b3 = glm::vec3((p3.x - minX) / (maxX - minX), (p3.y - minY) / (maxY - minY), 1.0f);
-
-			//const glm::mat4 matrixBasis3 = glm::transpose(glm::mat4(
-			//	glm::vec4(1, 0, 0, 0),
-			//	glm::vec4(-3, 3, 0, 0),
-			//	glm::vec4(3, -6, 3, 0),
-			//	glm::vec4(-1, 3, -3, 1)
-			//));
-
-			//const glm::mat4 matrixBasis3Inverse = glm::transpose(glm::mat4(
-			//	glm::vec4(1, 0, 0, 0),
-			//	glm::vec4(1, 1.0f / 3.0f, 0, 0),
-			//	glm::vec4(1, 2.0f / 3.0f, 1.0f / 3.0f, 0),
-			//	glm::vec4(1, 1, 1, 1)
-			//));
-
-			//// NOTE: For now all w's are implicitly 1
-			//glm::vec3 powerBasis0 = glm::vec3(matrixBasis3 * glm::vec4(p0.x, p0.y, 1.0f, 1.0f));
-			//glm::vec3 powerBasis1 = glm::vec3(matrixBasis3 * glm::vec4(p1.x, p1.y, 1.0f, 1.0f));
-			//glm::vec3 powerBasis2 = glm::vec3(matrixBasis3 * glm::vec4(p2.x, p2.y, 1.0f, 1.0f));
-			//glm::vec3 powerBasis3 = glm::vec3(matrixBasis3 * glm::vec4(p3.x, p3.y, 1.0f, 1.0f));
-
-			//glm::mat3 determinantMatrix0 = glm::transpose(glm::mat3(
-			//	powerBasis3,
-			//	powerBasis2,
-			//	powerBasis1
-			//));
-
-			//glm::mat3 determinantMatrix1 = glm::transpose(glm::mat3(
-			//	powerBasis3,
-			//	powerBasis2,
-			//	powerBasis0
-			//));
-
-			//glm::mat3 determinantMatrix2 = glm::transpose(glm::mat3(
-			//	powerBasis3,
-			//	powerBasis1,
-			//	powerBasis0
-			//));
-
-			//glm::mat3 determinantMatrix3 = glm::transpose(glm::mat3(
-			//	powerBasis2,
-			//	powerBasis1,
-			//	powerBasis0
-			//));
-
-			//float d0 = glm::determinant(determinantMatrix0);
-			//float d1 = -glm::determinant(determinantMatrix1);
-			//float d2 = glm::determinant(determinantMatrix2);
-			//float d3 = -glm::determinant(determinantMatrix3);
-
-			float a1 = glm::dot(b0, glm::cross(b3, b2));
-			float a2 = glm::dot(b1, glm::cross(b0, b3));
-			float a3 = glm::dot(b2, glm::cross(b1, b1));
-
-			float delta1 = a1 - (2.0f * a2) + (3.0f * a3);
-			float delta2 = -a2 + (3.0f * a3);
-			float delta3 = 3.0f * a3;
-
-			// Determine the number of real roots this cubic bezier curve has
-			//float delta1 = d0 * d2 - d1 * d1;
-			//float delta2 = d1 * d2 - d0 * d3;
-			//float delta3 = d1 * d3 - d2 * d2;
-			//float discriminant = 4 * delta1 * delta3 - delta2 * delta2;
-			float discriminant = (delta1 * delta1) * ((3.0f * delta2 * delta2) - (4.0f * delta1 * delta3));
-
-			// First check for quadratic or line or point
-			constexpr float epsilonComparison = 0.01f;
-			if (glm::epsilonEqual(delta1, delta2, epsilonComparison) &&
-				glm::epsilonEqual(delta2, 0.0f, epsilonComparison))
-			{
-				// d1 = d2 = 0.0
-
-				if (glm::all(glm::epsilonEqual(b0, b1, epsilonComparison)) &&
-					glm::all(glm::epsilonEqual(b1, b2, epsilonComparison)) &&
-					glm::all(glm::epsilonEqual(b2, b3, epsilonComparison)))
-				{
-					// Case 6: Point
-					// b0 = b1 = b2 = b3
-					g_logger_info("We have a point.");
-					return;
-				}
-				else if (glm::epsilonEqual(delta1, delta2, epsilonComparison) &&
-					glm::epsilonEqual(delta2, delta3, epsilonComparison) &&
-					glm::epsilonEqual(delta3, 0.0f, epsilonComparison))
-				{
-					// Case 5: Line
-					// d1 = d2 = d3 = 0
-					g_logger_info("We have a line.");
-					return;
-				}
-				else
-				{
-					// Case 4: Quadratic
-					// d1 = d2 = 0.0
-					g_logger_info("We have a quadratic.");
-					return;
-				}
-			}
-			else if (discriminant > 0.0f)
-			{
-				// Case 1: The Serpentine
-				g_logger_info("We have a serpentine.");
-			}
-			else if (discriminant < 0.0f)
-			{
-				// Case 2: The Loop
-				g_logger_info("We have a loop.");
-			}
-			else if (glm::epsilonEqual(discriminant, 0.0f, epsilonComparison))
-			{
-				// Case 3: Cusp
-				g_logger_info("We have a cusp.");
-			}
-		}
-
-		void drawTexture(const RenderableTexture& renderable, const Vec4& color)
-		{
-			if (numVertices + 6 >= maxNumVerticesPerBatch)
-			{
-				flushBatch();
-			}
-
-			uint32 texId = getTexId(*renderable.texture);
-
-			// Triangle 1
-			// "Bottom-left" corner
-			vertices[numVertices].position = renderable.start;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart;
-			numVertices++;
-
-			// "Top-Left" corner
-			vertices[numVertices].position = renderable.start + Vec2{ 0, renderable.size.y };
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ 0, renderable.texCoordSize.y };
-			numVertices++;
-
-			// "Top-Right" corner of line
-			vertices[numVertices].position = renderable.start + renderable.size;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
-			numVertices++;
-
-			// Triangle 2
-			// "Bottom-left" corner of line
-			vertices[numVertices].position = renderable.start;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart;
-			numVertices++;
-
-			// "Bottom-Right" corner of line
-			vertices[numVertices].position = renderable.start + Vec2{ renderable.size.x, 0 };
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ renderable.texCoordSize.x, 0 };
-			numVertices++;
-
-			// "Top-Right" corner of line
-			vertices[numVertices].position = renderable.start + renderable.size;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
-			numVertices++;
-		}
-
-		void drawString(const std::string& string, const Font& font, const Vec2& position, float scale, const Vec4& color)
-		{
-			float x = position.x;
-			float y = position.y;
-
-			//for (int i = 0; i < string.length(); i++)
-			//{
-			//	char c = string[i];
-			//	RenderableChar renderableChar = font.getCharInfo(c);
-			//	float charWidth = renderableChar.texCoordSize.x * font.fontSize * scale;
-			//	float charHeight = renderableChar.texCoordSize.y * font.fontSize * scale;
-			//	float adjustedY = y - renderableChar.bearingY * font.fontSize * scale;
-
-			//	drawTexture(RenderableTexture{
-			//		&font.texture,
-			//		{ x, adjustedY },
-			//		{ charWidth, charHeight },
-			//		renderableChar.texCoordStart,
-			//		renderableChar.texCoordSize
-			//		}, color);
-
-			//	char nextC = i < string.length() - 1 ? string[i + 1] : '\0';
-			//	//x += font.getKerning(c, nextC) * scale * font.fontSize;
-			//	x += renderableChar.advance.x * scale * font.fontSize;
-			//}
-		}
-		
-		const OrthoCamera* getCamera()
-		{
-			return camera;
-		}
-		
-		OrthoCamera* getMutableCamera()
-		{
-			return camera;
-		}
-		
-		void flushBatch()
-		{
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
-
-			shader.bind();
-			shader.uploadMat4("uProjection", camera->calculateProjectionMatrix());
-			shader.uploadMat4("uView", camera->calculateViewMatrix());
-
-			for (int i = 0; i < numTextureGraphicsIds; i++)
-			{
-				if (textureGraphicIds[i].graphicsId != 0)
-				{
-					glActiveTexture(GL_TEXTURE0 + i);
-					textureGraphicIds[i].bind();
-				}
-			}
-			shader.uploadIntArray("uFontTextures[0]", 8, uTextures);
-
-			glBindVertexArray(vao);
-			glDrawElements(GL_TRIANGLES, maxNumTrianglesPerBatch * 3, GL_UNSIGNED_INT, NULL);
-
-			// Clear the batch
-			memset(&vertices, 0, sizeof(Vertex) * maxNumVerticesPerBatch);
-			numVertices = 0;
-			numFontTextures = 0;
-		}
-
-		void flushVectorBatch()
-		{
-			// Flush the vector batch
-			glBindBuffer(GL_ARRAY_BUFFER, vectorVbo);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(vectorVertices), vectorVertices, GL_DYNAMIC_DRAW);
-
-			vectorShader.bind();
-			vectorShader.uploadMat4("uProjection", camera->calculateProjectionMatrix());
-			vectorShader.uploadMat4("uView", camera->calculateViewMatrix());
-
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			glBlendEquation(GL_FUNC_SUBTRACT);
-
-			glBindVertexArray(vectorVao);
-			glDrawArrays(GL_TRIANGLES, 0, maxNumTrianglesPerBatch * 3);
-
-			// Clear the batch
-			memset(&vectorVertices, 0, sizeof(VectorVertex) * maxNumVerticesPerBatch);
-			vectorNumVertices = 0;
-
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			glBlendEquation(GL_FUNC_ADD);
-		}
-
-		void clearColor(const Vec4& color)
-		{
-			glClearColor(color.r, color.g, color.b, color.a);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		}
 	}
 }
