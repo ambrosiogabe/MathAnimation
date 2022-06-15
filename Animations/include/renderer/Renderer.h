@@ -57,7 +57,9 @@ namespace MathAnim
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 
 		// ----------- 3D stuff ----------- 
-		void drawLine3D(const Vec3& start, const Vec3& end);
+		void beginPath3D(const Vec3& start);
+		void lineTo3D(const Vec3& point);
+		void endPath3D();
 
 		// ----------- Miscellaneous ----------- 
 		const OrthoCamera* getOrthoCamera();

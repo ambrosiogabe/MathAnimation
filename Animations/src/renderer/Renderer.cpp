@@ -7,6 +7,7 @@
 #include "renderer/Texture.h"
 #include "renderer/Fonts.h"
 #include "animation/Animation.h"
+#include "core/Application.h"
 
 #ifdef _RELEASE
 #include "shaders/default.glsl.hpp"
@@ -23,12 +24,13 @@ namespace MathAnim
 		Vec2 textureCoords;
 	};
 
-	struct Vertex3D
+	struct Vertex3DLine
 	{
-		Vec3 position;
+		Vec3 currentPos;
+		Vec3 previousPos;
+		Vec3 nextPos;
+		float thickness;
 		uint32 color;
-		uint32 textureId;
-		Vec2 textureCoords;
 	};
 
 	namespace Renderer
@@ -38,20 +40,20 @@ namespace MathAnim
 		static uint32 vbo;
 		static uint32 numVertices;
 
-		static uint32 vao3D;
-		static uint32 vbo3D;
-		static uint32 numVertices3D;
+		static uint32 vao3DLines;
+		static uint32 vbo3DLines;
+		static uint32 numVertices3DLines;
 
 		static constexpr int maxNumTrianglesPerBatch = 100;
 		static constexpr int maxNumVerticesPerBatch = maxNumTrianglesPerBatch * 3;
 		static Vertex vertices[maxNumVerticesPerBatch];
-		static Vertex3D vertices3D[maxNumVerticesPerBatch];
+		static Vertex3DLine vertices3DLines[maxNumVerticesPerBatch];
 
 		static OrthoCamera* orthoCamera;
 		static PerspectiveCamera* perspCamera;
 
 		static Shader shader;
-		static Shader shader3D;
+		static Shader shader3DLine;
 		static Shader screenShader;
 
 		static constexpr int MAX_STACK_SIZE = 64;
@@ -67,6 +69,10 @@ namespace MathAnim
 		static constexpr glm::vec4 defaultColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 		static constexpr float defaultStrokeWidth = 0.1f;
 		static constexpr CapType defaultLineEnding = CapType::Flat;
+
+		static bool isDrawing3DPath;
+		static Vec3 pathFirstPoint;
+		static bool isOnFirstSegment;
 
 		// Default screen rectangle
 		static float defaultScreenQuad[] = {
@@ -89,7 +95,7 @@ namespace MathAnim
 		static uint32 getTexId(const Texture& texture);
 		static void setupScreenVao();
 		static void setupBatchedVao();
-		static void setupVao3D();
+		static void setupVao3DLines();
 		static void GLAPIENTRY messageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 
 		void init(OrthoCamera& inOrthoCamera, PerspectiveCamera& inPerspCamera)
@@ -101,6 +107,9 @@ namespace MathAnim
 			strokeWidthStackPtr = 0;
 			colorStackPtr = 0;
 			lineEndingStackPtr = 0;
+			isDrawing3DPath = false;
+			pathFirstPoint = Vec3{0, 0, 0};
+			isOnFirstSegment = false;
 
 			// Load OpenGL functions using Glad
 			if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -124,7 +133,7 @@ namespace MathAnim
 #ifdef _DEBUG
 			shader.compile("assets/shaders/default.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
-			shader3D.compile("assets/shaders/shader3D.glsl");
+			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 #elif defined(_RELEASE)
 			shader.compileRaw(defaultShaderGlsl);
 			screenShader.compileRaw(screenShaderGlsl);
@@ -132,7 +141,7 @@ namespace MathAnim
 
 			setupBatchedVao();
 			setupScreenVao();
-			setupVao3D();
+			setupVao3DLines();
 
 			for (int i = 0; i < numTextureGraphicsIds; i++)
 			{
@@ -148,7 +157,7 @@ namespace MathAnim
 				flushBatch();
 			}
 
-			if (numVertices3D > 0)
+			if (numVertices3DLines > 0)
 			{
 				flushBatch3D();
 			}
@@ -533,8 +542,18 @@ namespace MathAnim
 		// ----------- 3D stuff ----------- 
 		// TODO: Consider just making these glm::vec3's. I'm not sure what kind
 		// of impact, if any that will have
-		void drawLine3D(const Vec3& inStart, const Vec3& inEnd)
+		void beginPath3D(const Vec3& start)
 		{
+			g_logger_assert(!isDrawing3DPath, "beginPath3D() cannot be called while a path is being drawn. Did you miss a call to endPath3D()?");
+			isDrawing3DPath = true;
+
+			pathFirstPoint = start;
+			isOnFirstSegment = true;
+		}
+
+		void lineTo3D(const Vec3& point)
+		{
+			g_logger_assert(isDrawing3DPath, "lineTo3D() cannot be called without calling beginPath3D(...) first.");
 			if (numVertices + 6 >= maxNumVerticesPerBatch)
 			{
 				flushBatch3D();
@@ -557,52 +576,67 @@ namespace MathAnim
 				((uint32)(color.b * 255.0f) << 8) |
 				((uint32)(color.a * 255.0f));
 
-			glm::vec3 start = glm::vec3(inStart.x, inStart.y, inStart.z);
-			glm::vec3 end = glm::vec3(inEnd.x, inEnd.y, inEnd.z);
+			Vec3 start;
+			if (isOnFirstSegment)
+			{
+				start = pathFirstPoint;
+				isOnFirstSegment = false;
+			}
+			else
+			{
+				g_logger_assert(numVertices3DLines >= 6, "How did this happen? Num of verts %d", numVertices3DLines);
+				start = vertices3DLines[numVertices3DLines - 6].nextPos;
+			}
 
-			// TODO: What to do about lines that vec3(0)?
-			// Can't take the perpendicular of that
-			// Also what do we do about cross products that end up as 0?
-			glm::vec3 perp = glm::cross(start, end);
+			// ----------- Triangle 1 (gets expanded in vertex shader) -----------
+			vertices3DLines[numVertices3DLines].currentPos = start;
+			vertices3DLines[numVertices3DLines].previousPos = start;
+			vertices3DLines[numVertices3DLines].nextPos = point;
+			vertices3DLines[numVertices3DLines].thickness = -strokeWidth;
+			vertices3DLines[numVertices3DLines].color = packedColor;
+			numVertices3DLines++;
 
-			glm::vec3 p0 = start + (perp * halfStrokeWidth);
-			glm::vec3 p1 = start - (perp * halfStrokeWidth);
-			glm::vec3 p2 = p0 + (start - end);
-			glm::vec3 p3 = p1 + (start - end);
+			vertices3DLines[numVertices3DLines].currentPos = start;
+			vertices3DLines[numVertices3DLines].previousPos = start;
+			vertices3DLines[numVertices3DLines].nextPos = point;
+			vertices3DLines[numVertices3DLines].thickness = strokeWidth;
+			vertices3DLines[numVertices3DLines].color = packedColor;
+			numVertices3DLines++;
 
-			Vec3 vP0 = Vec3{ p0.x, p0.y, p0.z };
-			Vec3 vP1 = Vec3{ p1.x, p1.y, p1.z };
-			Vec3 vP2 = Vec3{ p2.x, p2.y, p2.z };
-			Vec3 vP3 = Vec3{ p3.x, p3.y, p3.z };
+			vertices3DLines[numVertices3DLines].currentPos = point;
+			vertices3DLines[numVertices3DLines].previousPos = start;
+			vertices3DLines[numVertices3DLines].nextPos = point;
+			vertices3DLines[numVertices3DLines].thickness = strokeWidth;
+			vertices3DLines[numVertices3DLines].color = packedColor;
+			numVertices3DLines++;
 
-			// Triangle 1
-			vertices3D[numVertices3D].position = vP0;
-			vertices3D[numVertices3D].color = packedColor;
-			// TODO: Add me somehow
-			//vertices3D[numVertices3D].textureId = texture;
-			//vertices3D[numVertices3D].textureCoords = textureCoords;
-			numVertices3D++;
+			// ----------- Triangle 2 (gets expanded in vertex shader) -----------
+			vertices3DLines[numVertices3DLines].currentPos = start;
+			vertices3DLines[numVertices3DLines].previousPos = start;
+			vertices3DLines[numVertices3DLines].nextPos = point;
+			vertices3DLines[numVertices3DLines].thickness = -strokeWidth;
+			vertices3DLines[numVertices3DLines].color = packedColor;
+			numVertices3DLines++;
 
-			vertices3D[numVertices3D].position = vP1;
-			vertices3D[numVertices3D].color = packedColor;
-			numVertices3D++;
+			vertices3DLines[numVertices3DLines].currentPos = point;
+			vertices3DLines[numVertices3DLines].previousPos = start;
+			vertices3DLines[numVertices3DLines].nextPos = point;
+			vertices3DLines[numVertices3DLines].thickness = strokeWidth;
+			vertices3DLines[numVertices3DLines].color = packedColor;
+			numVertices3DLines++;
 
-			vertices3D[numVertices3D].position = vP3;
-			vertices3D[numVertices3D].color = packedColor;
-			numVertices3D++;
+			vertices3DLines[numVertices3DLines].currentPos = point;
+			vertices3DLines[numVertices3DLines].previousPos = start;
+			vertices3DLines[numVertices3DLines].nextPos = point;
+			vertices3DLines[numVertices3DLines].thickness = -strokeWidth;
+			vertices3DLines[numVertices3DLines].color = packedColor;
+			numVertices3DLines++;
+		}
 
-			// Triangle 2
-			vertices3D[numVertices3D].position = vP0;
-			vertices3D[numVertices3D].color = packedColor;
-			numVertices3D++;
-
-			vertices3D[numVertices3D].position = vP3;
-			vertices3D[numVertices3D].color = packedColor;
-			numVertices3D++;
-
-			vertices3D[numVertices3D].position = vP2;
-			vertices3D[numVertices3D].color = packedColor;
-			numVertices3D++;
+		void endPath3D()
+		{
+			isDrawing3DPath = false;
+			isOnFirstSegment = false;
 		}
 
 		// ----------- Miscellaneous ----------- 
@@ -656,29 +690,24 @@ namespace MathAnim
 
 		void flushBatch3D()
 		{
-			glBindBuffer(GL_ARRAY_BUFFER, vbo3D);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices3D), vertices3D, GL_DYNAMIC_DRAW);
+			glEnable(GL_DEPTH_TEST);
 
-			shader3D.bind();
-			shader3D.uploadMat4("uProjection", perspCamera->calculateProjectionMatrix());
-			shader3D.uploadMat4("uView", perspCamera->calculateViewMatrix());
+			glBindBuffer(GL_ARRAY_BUFFER, vbo3DLines);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * numVertices3DLines, vertices3DLines, GL_DYNAMIC_DRAW);
 
-			//for (int i = 0; i < numTextureGraphicsIds; i++)
-			//{
-			//	if (textureGraphicIds[i].graphicsId != 0)
-			//	{
-			//		glActiveTexture(GL_TEXTURE0 + i);
-			//		textureGraphicIds[i].bind();
-			//	}
-			//}
-			//shader.uploadIntArray("uFontTextures[0]", 8, uTextures);
+			shader3DLine.bind();
+			shader3DLine.uploadMat4("uProjection", perspCamera->calculateProjectionMatrix());
+			shader3DLine.uploadMat4("uView", perspCamera->calculateViewMatrix());
+			shader3DLine.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
 
-			glBindVertexArray(vao3D);
-			glDrawElements(GL_TRIANGLES, maxNumVerticesPerBatch, GL_UNSIGNED_INT, NULL);
+			glBindVertexArray(vao3DLines);
+			glDrawElements(GL_TRIANGLES, numVertices3DLines, GL_UNSIGNED_INT, NULL);
 
 			// Clear the batch
-			memset(&vertices3D, 0, sizeof(Vertex3D) * maxNumVerticesPerBatch);
-			numVertices3D = 0;
+			memset(&vertices3DLines, 0, sizeof(Vertex3DLine) * numVertices3DLines);
+			numVertices3DLines = 0;
+
+			glDisable(GL_DEPTH_TEST);
 		}
 
 		void clearColor(const Vec4& color)
@@ -765,17 +794,17 @@ namespace MathAnim
 			glEnableVertexAttribArray(3);
 		}
 
-		static void setupVao3D()
+		static void setupVao3DLines()
 		{
 			// Create the batched vao
-			glCreateVertexArrays(1, &vao3D);
-			glBindVertexArray(vao3D);
+			glCreateVertexArrays(1, &vao3DLines);
+			glBindVertexArray(vao3DLines);
 
-			glGenBuffers(1, &vbo3D);
+			glGenBuffers(1, &vbo3DLines);
 
 			// Allocate space for the batched vao
-			glBindBuffer(GL_ARRAY_BUFFER, vbo3D);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3D) * maxNumVerticesPerBatch, NULL, GL_DYNAMIC_DRAW);
+			glBindBuffer(GL_ARRAY_BUFFER, vbo3DLines);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * maxNumVerticesPerBatch, NULL, GL_DYNAMIC_DRAW);
 
 			uint32 ebo;
 			glGenBuffers(1, &ebo);
@@ -791,17 +820,20 @@ namespace MathAnim
 			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * maxNumTrianglesPerBatch * 3, elements.data(), GL_DYNAMIC_DRAW);
 
 			// Set up the batched vao attributes
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, position)));
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, currentPos)));
 			glEnableVertexAttribArray(0);
 
-			glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, color)));
+			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, previousPos)));
 			glEnableVertexAttribArray(1);
 
-			glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, textureId)));
+			glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, nextPos)));
 			glEnableVertexAttribArray(2);
 
-			glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, textureCoords)));
+			glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, thickness)));
 			glEnableVertexAttribArray(3);
+
+			glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, color)));
+			glEnableVertexAttribArray(4);
 		}
 
 		static void GLAPIENTRY

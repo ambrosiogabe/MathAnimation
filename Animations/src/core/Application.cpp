@@ -60,7 +60,7 @@ namespace MathAnim
 			camera3D.forward = glm::vec3(0, 0, 1);
 			camera3D.fov = 70.0f;
 			camera3D.orientation = glm::vec3(0, 45.0f, 0);
-			camera3D.position = glm::vec3(0, 0, -10);
+			camera3D.position = glm::vec3(0, 1, -10);
 
 			Fonts::init();
 			Renderer::init(camera2D, camera3D);
@@ -142,13 +142,49 @@ namespace MathAnim
 				AnimationManager::render(vg, currentFrame);
 				nvgEndFrame(vg);
 
+				Renderer::pushStrokeWidth(0.1f);
+
 				Renderer::pushColor(colors[(int)Color::Red]);
-				Renderer::drawLine3D(Vec3{ 0.1f, 0, 0 }, Vec3{ 0, 15, -5 });
+				Renderer::beginPath3D(Vec3{ 0, 0, 0 });
+				Renderer::lineTo3D(Vec3{ 0, 1, 0 });
+				Renderer::lineTo3D(Vec3{ 1, 1, 0 });
+				Renderer::lineTo3D(Vec3{ 1, 0, 0 });
+				Renderer::lineTo3D(Vec3{ 0, 0, 0 });
+				Renderer::endPath3D();
 				Renderer::popColor();
 
 				Renderer::pushColor(colors[(int)Color::Blue]);
-				Renderer::drawLine3D(Vec3{ 0, -1, 0 }, Vec3{ 0, -15, -3 });
+				Renderer::beginPath3D(Vec3{ 0, 0, 0 });
+				Renderer::lineTo3D(Vec3{ 0, 1, 0 });
+				Renderer::lineTo3D(Vec3{ 0, 1, 1 });
+				Renderer::lineTo3D(Vec3{ 0, 0, 1 });
+				Renderer::lineTo3D(Vec3{ 0, 0, 0 });
+				Renderer::endPath3D();
 				Renderer::popColor();
+
+				Renderer::pushColor(colors[(int)Color::Green]);
+				Renderer::beginPath3D(Vec3{ 1, 0, 1 });
+				Renderer::lineTo3D(Vec3{ 1, 1, 1 });
+				Renderer::lineTo3D(Vec3{ 1, 1, 0 });
+				Renderer::lineTo3D(Vec3{ 1, 0, 0 });
+				Renderer::lineTo3D(Vec3{ 1, 0, 1 });
+				Renderer::endPath3D();
+				Renderer::popColor();
+
+				Renderer::pushColor(colors[(int)Color::Orange]);
+				Renderer::beginPath3D(Vec3{ 1, 0, 1 });
+				Renderer::lineTo3D(Vec3{ 1, 1, 1 });
+				Renderer::lineTo3D(Vec3{ 0, 1, 1 });
+				Renderer::lineTo3D(Vec3{ 0, 0, 1 });
+				Renderer::lineTo3D(Vec3{ 1, 0, 1 });
+				Renderer::endPath3D();
+				Renderer::popColor();
+
+				Renderer::popStrokeWidth();
+
+				camera3D.orientation.y += 30.0f * deltaTime;
+				camera3D.position.x = -glm::cos(glm::radians(-camera3D.orientation.y)) * 10.0f;
+				camera3D.position.z = glm::sin(glm::radians(-camera3D.orientation.y)) * 10.0f;
 
 				Renderer::render();
 
