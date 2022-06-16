@@ -47,8 +47,8 @@ void main()
     } else {
         // This is a point in the middle of the path
         //get directions from (C - B) and (B - A)
-        vec2 dirA = normalize((currentPosScreen - prevPosScreen));
-        vec2 dirB = normalize((nextPosScreen - currentPosScreen));
+        vec2 dirA = normalize(currentPosScreen - prevPosScreen);
+        vec2 dirB = normalize(nextPosScreen - currentPosScreen);
         //now compute the miter join normal and length
         vec2 tangent = normalize(dirA + dirB);
         vec2 perp = vec2(-dirA.y, dirA.x);
@@ -56,6 +56,12 @@ void main()
         lineNormal = tangent;
         float miterDotPerp = dot(miter, perp);
         thick = thickness / dot(miter, perp);
+        // TODO: Right now we're limiting the thickness so that 
+        // we don't get artifacts when one of the lines has 0
+        // thickness because it's perpendicular to the camera's
+        // view angle. In the future, we can switch to a bevel
+        // join here to fix that instead.
+        thick = max(min(abs(thickness), thick), -abs(thickness));
     }
     vec2 linePerpendicular = vec2(-lineNormal.y, lineNormal.x);
     linePerpendicular *= (thick / 2.0);

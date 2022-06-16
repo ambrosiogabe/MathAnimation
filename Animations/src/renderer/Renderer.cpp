@@ -591,13 +591,20 @@ namespace MathAnim
 			numVertsIn3DPath++;
 		}
 
-		void endPath3D()
+		void endPath3D(bool closePath)
 		{
-			for (int vert = 0; vert < numVertsIn3DPath - 1; vert++)
+			int endPoint = closePath
+				? numVertsIn3DPath
+				: numVertsIn3DPath - 1;
+			for (int vert = 0; vert < endPoint; vert++)
 			{
 				Vec3 currentPos = current3DPath[vert].currentPos;
-				Vec3 nextPos = current3DPath[vert + 1].currentPos;
-				Vec3 nextNextPos = nextPos;
+				Vec3 nextPos = closePath
+					? current3DPath[(vert + 1) % numVertsIn3DPath].currentPos
+					: current3DPath[vert + 1].currentPos;
+				Vec3 nextNextPos = closePath
+					? current3DPath[(vert + 2) % numVertsIn3DPath].currentPos
+					: nextPos;
 				Vec3 previousPos = currentPos;
 				uint32 packedColor = current3DPath[vert].color;
 				float thickness = current3DPath[vert].thickness;
@@ -605,6 +612,10 @@ namespace MathAnim
 				if (vert > 0)
 				{
 					previousPos = current3DPath[vert - 1].currentPos;
+				}
+				else if (vert == 0 && closePath)
+				{
+					previousPos = current3DPath[numVertsIn3DPath - 1].currentPos;
 				}
 
 				if (vert < numVertsIn3DPath - 2)

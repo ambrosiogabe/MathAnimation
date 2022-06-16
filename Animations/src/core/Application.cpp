@@ -143,43 +143,33 @@ namespace MathAnim
 				nvgEndFrame(vg);
 
 				Renderer::pushStrokeWidth(0.1f);
-
 				Renderer::pushColor(colors[(int)Color::Red]);
+
 				Renderer::beginPath3D(Vec3{ 0, 0, 0 });
 				Renderer::lineTo3D(Vec3{ 0, 1, 0 });
 				Renderer::lineTo3D(Vec3{ 1, 1, 0 });
 				Renderer::lineTo3D(Vec3{ 1, 0, 0 });
-				Renderer::lineTo3D(Vec3{ 0, 0, 0 });
 				Renderer::endPath3D();
-				Renderer::popColor();
 
-				Renderer::pushColor(colors[(int)Color::Blue]);
 				Renderer::beginPath3D(Vec3{ 0, 0, 0 });
 				Renderer::lineTo3D(Vec3{ 0, 1, 0 });
 				Renderer::lineTo3D(Vec3{ 0, 1, 1 });
 				Renderer::lineTo3D(Vec3{ 0, 0, 1 });
-				Renderer::lineTo3D(Vec3{ 0, 0, 0 });
 				Renderer::endPath3D();
-				Renderer::popColor();
 
-				Renderer::pushColor(colors[(int)Color::Green]);
 				Renderer::beginPath3D(Vec3{ 1, 0, 1 });
 				Renderer::lineTo3D(Vec3{ 1, 1, 1 });
 				Renderer::lineTo3D(Vec3{ 1, 1, 0 });
 				Renderer::lineTo3D(Vec3{ 1, 0, 0 });
-				Renderer::lineTo3D(Vec3{ 1, 0, 1 });
 				Renderer::endPath3D();
-				Renderer::popColor();
 
-				Renderer::pushColor(colors[(int)Color::Orange]);
 				Renderer::beginPath3D(Vec3{ 1, 0, 1 });
 				Renderer::lineTo3D(Vec3{ 1, 1, 1 });
 				Renderer::lineTo3D(Vec3{ 0, 1, 1 });
 				Renderer::lineTo3D(Vec3{ 0, 0, 1 });
-				Renderer::lineTo3D(Vec3{ 1, 0, 1 });
 				Renderer::endPath3D();
-				Renderer::popColor();
 
+				Renderer::popColor();
 				Renderer::popStrokeWidth();
 
 				camera3D.orientation.y += 30.0f * deltaTime;
