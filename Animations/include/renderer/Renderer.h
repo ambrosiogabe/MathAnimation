@@ -58,8 +58,11 @@ namespace MathAnim
 
 		// ----------- 3D stuff ----------- 
 		void beginPath3D(const Vec3& start);
-		void lineTo3D(const Vec3& point);
 		void endPath3D(bool closePath = true);
+
+		void lineTo3D(const Vec3& point);
+		void bezier2To3D(const Vec3& p1, const Vec3& p2);
+		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3);
 
 		// ----------- Miscellaneous ----------- 
 		const OrthoCamera* getOrthoCamera();

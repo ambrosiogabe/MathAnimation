@@ -570,30 +570,6 @@ namespace MathAnim
 			numVertsIn3DPath++;
 		}
 
-		void lineTo3D(const Vec3& point)
-		{
-			g_logger_assert(isDrawing3DPath, "lineTo3D() cannot be called without calling beginPath3D(...) first.");
-			g_logger_assert(numVertsIn3DPath < max3DPathSize, "Max path size exceeded. A 3D Path can only have up to %d points.", max3DPathSize);
-			
-			float strokeWidth = strokeWidthStackPtr > 0
-				? strokeWidthStack[strokeWidthStackPtr - 1]
-				: defaultStrokeWidth;
-
-			glm::vec4 color = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-			uint32 packedColor =
-				((uint32)(color.r * 255.0f) << 24) |
-				((uint32)(color.g * 255.0f) << 16) |
-				((uint32)(color.b * 255.0f) << 8) |
-				((uint32)(color.a * 255.0f));
-
-			current3DPath[numVertsIn3DPath].currentPos = point;
-			current3DPath[numVertsIn3DPath].color = packedColor;
-			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
-			numVertsIn3DPath++;
-		}
-
 		void endPath3D(bool closePath)
 		{
 			int endPoint = closePath
@@ -681,6 +657,40 @@ namespace MathAnim
 
 			isDrawing3DPath = false;
 			numVertsIn3DPath = 0;
+		}
+
+		void lineTo3D(const Vec3& point)
+		{
+			g_logger_assert(isDrawing3DPath, "lineTo3D() cannot be called without calling beginPath3D(...) first.");
+			g_logger_assert(numVertsIn3DPath < max3DPathSize, "Max path size exceeded. A 3D Path can only have up to %d points.", max3DPathSize);
+			
+			float strokeWidth = strokeWidthStackPtr > 0
+				? strokeWidthStack[strokeWidthStackPtr - 1]
+				: defaultStrokeWidth;
+
+			glm::vec4 color = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+			uint32 packedColor =
+				((uint32)(color.r * 255.0f) << 24) |
+				((uint32)(color.g * 255.0f) << 16) |
+				((uint32)(color.b * 255.0f) << 8) |
+				((uint32)(color.a * 255.0f));
+
+			current3DPath[numVertsIn3DPath].currentPos = point;
+			current3DPath[numVertsIn3DPath].color = packedColor;
+			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
+			numVertsIn3DPath++;
+		}
+
+		void bezier2To3D(const Vec3& p1, const Vec3& p2)
+		{
+
+		}
+
+		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3)
+		{
+
 		}
 
 		// ----------- Miscellaneous ----------- 

@@ -11,6 +11,7 @@ namespace MathAnim
 {
 	struct Font;
 	struct SvgObject;
+	struct SvgObject3D;
 	
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;

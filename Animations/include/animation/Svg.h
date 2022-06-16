@@ -19,27 +19,27 @@ namespace MathAnim
 
 	struct Line
 	{
-		Vec2 p1;
+		Vec3 p1;
 	};
 
 	struct Bezier2
 	{
-		Vec2 p1;
-		Vec2 p2;
+		Vec3 p1;
+		Vec3 p2;
 	};
 
 	struct Bezier3
 	{
-		Vec2 p1;
-		Vec2 p2;
-		Vec2 p3;
+		Vec3 p1;
+		Vec3 p2;
+		Vec3 p3;
 	};
 
 	struct Curve
 	{
 		CurveType type;
 		// Every curve has at least one point
-		Vec2 p0;
+		Vec3 p0;
 		union
 		{
 			Line line;
@@ -61,6 +61,7 @@ namespace MathAnim
 		Contour* contours;
 		int numContours;
 		float approximatePerimeter;
+		bool is3D;
 
 		void calculateApproximatePerimeter();
 		void render(NVGcontext* vg, const AnimObject* parent) const;
@@ -73,12 +74,15 @@ namespace MathAnim
 		SvgObject createDefault();
 		
 		void init(OrthoCamera& camera);
-		void beginContour(SvgObject* object, const Vec2& firstPoint, bool clockwiseFill);
+
+		void beginContour3D(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill);
+		void closeContour3D(SvgObject* object);
+		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill);
 		void closeContour(SvgObject* object);
 
-		void lineTo(SvgObject* object, const Vec2& point);
-		void bezier2To(SvgObject* object, const Vec2& control, const Vec2& dest);
-		void bezier3To(SvgObject* object, const Vec2& control0, const Vec2& control1, const Vec2& dest);
+		void lineTo(SvgObject* object, const Vec3& point);
+		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest);
+		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest);
 
 		void copy(SvgObject* dest, const SvgObject* src);
 		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
