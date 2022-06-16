@@ -70,9 +70,10 @@ namespace MathAnim
 		static constexpr float defaultStrokeWidth = 0.1f;
 		static constexpr CapType defaultLineEnding = CapType::Flat;
 
+		static constexpr int max3DPathSize = 100;
 		static bool isDrawing3DPath;
-		static Vec3 pathFirstPoint;
-		static bool isOnFirstSegment;
+		static Vertex3DLine current3DPath[max3DPathSize];
+		static int numVertsIn3DPath;
 
 		// Default screen rectangle
 		static float defaultScreenQuad[] = {
@@ -108,8 +109,7 @@ namespace MathAnim
 			colorStackPtr = 0;
 			lineEndingStackPtr = 0;
 			isDrawing3DPath = false;
-			pathFirstPoint = Vec3{0, 0, 0};
-			isOnFirstSegment = false;
+			numVertsIn3DPath = 0;
 
 			// Load OpenGL functions using Glad
 			if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -545,98 +545,128 @@ namespace MathAnim
 		void beginPath3D(const Vec3& start)
 		{
 			g_logger_assert(!isDrawing3DPath, "beginPath3D() cannot be called while a path is being drawn. Did you miss a call to endPath3D()?");
+			g_logger_assert(numVertsIn3DPath == 0, "Invalid 3D path. Path began with non-zero number of vertices. Did you forget to call endPath3D()?");
 			isDrawing3DPath = true;
-
-			pathFirstPoint = start;
-			isOnFirstSegment = true;
-		}
-
-		void lineTo3D(const Vec3& point)
-		{
-			g_logger_assert(isDrawing3DPath, "lineTo3D() cannot be called without calling beginPath3D(...) first.");
-			if (numVertices + 6 >= maxNumVerticesPerBatch)
-			{
-				flushBatch3D();
-			}
 
 			float strokeWidth = strokeWidthStackPtr > 0
 				? strokeWidthStack[strokeWidthStackPtr - 1]
 				: defaultStrokeWidth;
-			float halfStrokeWidth = strokeWidth / 2.0f;
+
 			glm::vec4 color = colorStackPtr > 0
 				? colorStack[colorStackPtr - 1]
 				: defaultColor;
-			CapType lineEnding = lineEndingStackPtr > 0
-				? lineEndingStack[lineEndingStackPtr - 1]
-				: defaultLineEnding;
-
 			uint32 packedColor =
 				((uint32)(color.r * 255.0f) << 24) |
 				((uint32)(color.g * 255.0f) << 16) |
 				((uint32)(color.b * 255.0f) << 8) |
 				((uint32)(color.a * 255.0f));
 
-			Vec3 start;
-			if (isOnFirstSegment)
-			{
-				start = pathFirstPoint;
-				isOnFirstSegment = false;
-			}
-			else
-			{
-				g_logger_assert(numVertices3DLines >= 6, "How did this happen? Num of verts %d", numVertices3DLines);
-				start = vertices3DLines[numVertices3DLines - 6].nextPos;
-			}
+			current3DPath[numVertsIn3DPath].currentPos = start;
+			current3DPath[numVertsIn3DPath].color = packedColor;
+			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
+			numVertsIn3DPath++;
+		}
 
-			// ----------- Triangle 1 (gets expanded in vertex shader) -----------
-			vertices3DLines[numVertices3DLines].currentPos = start;
-			vertices3DLines[numVertices3DLines].previousPos = start;
-			vertices3DLines[numVertices3DLines].nextPos = point;
-			vertices3DLines[numVertices3DLines].thickness = -strokeWidth;
-			vertices3DLines[numVertices3DLines].color = packedColor;
-			numVertices3DLines++;
+		void lineTo3D(const Vec3& point)
+		{
+			g_logger_assert(isDrawing3DPath, "lineTo3D() cannot be called without calling beginPath3D(...) first.");
+			g_logger_assert(numVertsIn3DPath < max3DPathSize, "Max path size exceeded. A 3D Path can only have up to %d points.", max3DPathSize);
+			
+			float strokeWidth = strokeWidthStackPtr > 0
+				? strokeWidthStack[strokeWidthStackPtr - 1]
+				: defaultStrokeWidth;
 
-			vertices3DLines[numVertices3DLines].currentPos = start;
-			vertices3DLines[numVertices3DLines].previousPos = start;
-			vertices3DLines[numVertices3DLines].nextPos = point;
-			vertices3DLines[numVertices3DLines].thickness = strokeWidth;
-			vertices3DLines[numVertices3DLines].color = packedColor;
-			numVertices3DLines++;
+			glm::vec4 color = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+			uint32 packedColor =
+				((uint32)(color.r * 255.0f) << 24) |
+				((uint32)(color.g * 255.0f) << 16) |
+				((uint32)(color.b * 255.0f) << 8) |
+				((uint32)(color.a * 255.0f));
 
-			vertices3DLines[numVertices3DLines].currentPos = point;
-			vertices3DLines[numVertices3DLines].previousPos = start;
-			vertices3DLines[numVertices3DLines].nextPos = point;
-			vertices3DLines[numVertices3DLines].thickness = strokeWidth;
-			vertices3DLines[numVertices3DLines].color = packedColor;
-			numVertices3DLines++;
-
-			// ----------- Triangle 2 (gets expanded in vertex shader) -----------
-			vertices3DLines[numVertices3DLines].currentPos = start;
-			vertices3DLines[numVertices3DLines].previousPos = start;
-			vertices3DLines[numVertices3DLines].nextPos = point;
-			vertices3DLines[numVertices3DLines].thickness = -strokeWidth;
-			vertices3DLines[numVertices3DLines].color = packedColor;
-			numVertices3DLines++;
-
-			vertices3DLines[numVertices3DLines].currentPos = point;
-			vertices3DLines[numVertices3DLines].previousPos = start;
-			vertices3DLines[numVertices3DLines].nextPos = point;
-			vertices3DLines[numVertices3DLines].thickness = strokeWidth;
-			vertices3DLines[numVertices3DLines].color = packedColor;
-			numVertices3DLines++;
-
-			vertices3DLines[numVertices3DLines].currentPos = point;
-			vertices3DLines[numVertices3DLines].previousPos = start;
-			vertices3DLines[numVertices3DLines].nextPos = point;
-			vertices3DLines[numVertices3DLines].thickness = -strokeWidth;
-			vertices3DLines[numVertices3DLines].color = packedColor;
-			numVertices3DLines++;
+			current3DPath[numVertsIn3DPath].currentPos = point;
+			current3DPath[numVertsIn3DPath].color = packedColor;
+			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
+			numVertsIn3DPath++;
 		}
 
 		void endPath3D()
 		{
+			for (int vert = 0; vert < numVertsIn3DPath - 1; vert++)
+			{
+				Vec3 currentPos = current3DPath[vert].currentPos;
+				Vec3 nextPos = current3DPath[vert + 1].currentPos;
+				Vec3 nextNextPos = nextPos;
+				Vec3 previousPos = currentPos;
+				uint32 packedColor = current3DPath[vert].color;
+				float thickness = current3DPath[vert].thickness;
+
+				if (vert > 0)
+				{
+					previousPos = current3DPath[vert - 1].currentPos;
+				}
+
+				if (vert < numVertsIn3DPath - 2)
+				{
+					nextNextPos = current3DPath[vert + 2].currentPos;
+				}
+
+				if (numVertices3DLines + 6 >= maxNumVerticesPerBatch)
+				{
+					flushBatch3D();
+				}
+
+				// Triangle 1
+				vertices3DLines[numVertices3DLines].previousPos = previousPos;
+				vertices3DLines[numVertices3DLines].nextPos = nextPos;
+				vertices3DLines[numVertices3DLines].currentPos = currentPos;
+				vertices3DLines[numVertices3DLines].color = packedColor;
+				vertices3DLines[numVertices3DLines].thickness = -thickness;
+				numVertices3DLines++;
+
+				vertices3DLines[numVertices3DLines].previousPos = previousPos;
+				vertices3DLines[numVertices3DLines].nextPos = nextPos;
+				vertices3DLines[numVertices3DLines].currentPos = currentPos;
+				vertices3DLines[numVertices3DLines].color = packedColor;
+				vertices3DLines[numVertices3DLines].thickness = thickness;
+				numVertices3DLines++;
+
+				// NOTE: This uses nextNextPos to get the second half of the line segment
+				vertices3DLines[numVertices3DLines].previousPos = currentPos;
+				vertices3DLines[numVertices3DLines].nextPos = nextNextPos;
+				vertices3DLines[numVertices3DLines].currentPos = nextPos;
+				vertices3DLines[numVertices3DLines].color = packedColor;
+				vertices3DLines[numVertices3DLines].thickness = thickness;
+				numVertices3DLines++;
+
+				// Triangle 2
+				vertices3DLines[numVertices3DLines].previousPos = previousPos;
+				vertices3DLines[numVertices3DLines].nextPos = nextPos;
+				vertices3DLines[numVertices3DLines].currentPos = currentPos;
+				vertices3DLines[numVertices3DLines].color = packedColor;
+				vertices3DLines[numVertices3DLines].thickness = -thickness;
+				numVertices3DLines++;
+
+				// NOTE: This uses nextNextPos to get the second half of the line segment
+				vertices3DLines[numVertices3DLines].previousPos = currentPos;
+				vertices3DLines[numVertices3DLines].nextPos = nextNextPos;
+				vertices3DLines[numVertices3DLines].currentPos = nextPos;
+				vertices3DLines[numVertices3DLines].color = packedColor;
+				vertices3DLines[numVertices3DLines].thickness = thickness;
+				numVertices3DLines++;
+
+				// NOTE: This uses nextNextPos to get the second half of the line segment
+				vertices3DLines[numVertices3DLines].previousPos = currentPos;
+				vertices3DLines[numVertices3DLines].nextPos = nextNextPos;
+				vertices3DLines[numVertices3DLines].currentPos = nextPos;
+				vertices3DLines[numVertices3DLines].color = packedColor;
+				vertices3DLines[numVertices3DLines].thickness = -thickness;
+				numVertices3DLines++;
+			}
+
 			isDrawing3DPath = false;
-			isOnFirstSegment = false;
+			numVertsIn3DPath = 0;
 		}
 
 		// ----------- Miscellaneous ----------- 
@@ -701,7 +731,7 @@ namespace MathAnim
 			shader3DLine.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
 
 			glBindVertexArray(vao3DLines);
-			glDrawElements(GL_TRIANGLES, numVertices3DLines, GL_UNSIGNED_INT, NULL);
+			glDrawArrays(GL_TRIANGLES, 0, numVertices3DLines);
 
 			// Clear the batch
 			memset(&vertices3DLines, 0, sizeof(Vertex3DLine) * numVertices3DLines);
@@ -805,19 +835,6 @@ namespace MathAnim
 			// Allocate space for the batched vao
 			glBindBuffer(GL_ARRAY_BUFFER, vbo3DLines);
 			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * maxNumVerticesPerBatch, NULL, GL_DYNAMIC_DRAW);
-
-			uint32 ebo;
-			glGenBuffers(1, &ebo);
-
-			std::array<uint32, maxNumTrianglesPerBatch * 3> elements;
-			for (int i = 0; i < elements.size(); i += 3)
-			{
-				elements[i] = i + 0;
-				elements[i + 1] = i + 1;
-				elements[i + 2] = i + 2;
-			}
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * maxNumTrianglesPerBatch * 3, elements.data(), GL_DYNAMIC_DRAW);
 
 			// Set up the batched vao attributes
 			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, currentPos)));
