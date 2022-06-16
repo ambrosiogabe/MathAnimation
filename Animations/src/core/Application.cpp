@@ -79,6 +79,8 @@ namespace MathAnim
 
 			mainTexture = TextureBuilder()
 				.setFormat(ByteFormat::RGBA8_UI)
+				.setMinFilter(FilterMode::Linear)
+				.setMagFilter(FilterMode::Linear)
 				.setWidth(outputWidth)
 				.setHeight(outputHeight)
 				.build();
