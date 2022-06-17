@@ -8,6 +8,7 @@ namespace MathAnim
 	// ------------------ Internal Functions ------------------
 	static Square deserializeSquareV1(RawMemory& memory);
 	static Circle deserializeCircleV1(RawMemory& memory);
+	static Cube deserializeCubeV1(RawMemory& memory);
 
 	void Square::init(AnimObject* parent)
 	{
@@ -106,6 +107,71 @@ namespace MathAnim
 		return {};
 	}
 
+	void Cube::init(AnimObject* parent)
+	{
+		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Square object initialized twice.");
+
+		parent->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		*parent->_svgObjectStart = Svg::createDefault();
+		parent->_svgObjectStart->is3D = true;
+		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		*parent->svgObject = Svg::createDefault();
+		parent->svgObject->is3D = true;
+
+		float halfLength = sideLength / 2.0f;
+
+		Svg::beginContour3D(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, -halfLength }, true);
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, -halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, -halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, -halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, -halfLength });
+		Svg::closeContour3D(parent->_svgObjectStart);
+
+		Svg::beginContour3D(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, -halfLength }, true);
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, -halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, -halfLength });
+		Svg::closeContour3D(parent->_svgObjectStart);
+
+		Svg::beginContour3D(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, halfLength }, true);
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, halfLength });
+		Svg::closeContour3D(parent->_svgObjectStart);
+
+		Svg::beginContour3D(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, halfLength }, true);
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, -halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, -halfLength });
+		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, halfLength });
+		Svg::closeContour3D(parent->_svgObjectStart);
+
+		parent->_svgObjectStart->calculateApproximatePerimeter();
+	}
+
+	void Cube::serialize(RawMemory& memory) const
+	{
+		// sideLength       -> float
+		memory.write<float>(&sideLength);
+	}
+
+	Cube Cube::deserialize(RawMemory& memory, uint32 version)
+	{
+		switch (version)
+		{
+		case 1:
+			return deserializeCubeV1(memory);
+			break;
+		default:
+			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
+			break;
+		}
+
+		return {};
+	}
+
 	// ------------------ Internal Functions ------------------
 	static Square deserializeSquareV1(RawMemory& memory)
 	{
@@ -120,6 +186,14 @@ namespace MathAnim
 		// radius   -> float
 		Circle res;
 		memory.read<float>(&res.radius);
+		return res;
+	}
+
+	static Cube deserializeCubeV1(RawMemory& memory)
+	{
+		// sideLength       -> float
+		Cube res;
+		memory.read<float>(&res.sideLength);
 		return res;
 	}
 }

@@ -26,6 +26,7 @@ namespace MathAnim
 			// TODO: Fix the dang memory allocation library so I don't have to do this!
 			res.contours = (Contour*)g_memory_allocate(sizeof(Contour));
 			res.numContours = 0;
+			res.is3D = false;
 			return res;
 		}
 		
@@ -1117,24 +1118,27 @@ namespace MathAnim
 				{
 					// Fade the stroke out as the svg fades in
 					const glm::u8vec4& strokeColor = parent->strokeColor;
+					glm::vec4 unpackedStrokeColor = glm::vec4(strokeColor) / 255.0f;
 					if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
 					{
-						Renderer::pushColor(strokeColor);
-						Renderer::pushStrokeWidth(5.0f);
+						Renderer::pushColor(unpackedStrokeColor);
+						Renderer::pushStrokeWidth(0.2f);
 					}
 					else
 					{
-						Renderer::pushColor(strokeColor);
+						Renderer::pushColor(unpackedStrokeColor);
 						Renderer::pushStrokeWidth(parent->strokeWidth);
 					}
 
 					Renderer::beginPath3D(obj->contours[contouri].curves[0].p0);
 
+					bool completedPath = true;
 					for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
 					{
 						float lengthLeft = lengthToDraw - lengthDrawn;
 						if (lengthLeft < 0.0f)
 						{
+							completedPath = false;
 							break;
 						}
 
@@ -1142,7 +1146,7 @@ namespace MathAnim
 						glm::vec4 p0 = glm::vec4(
 							curve.p0.x,
 							curve.p0.y,
-							0.0f,
+							curve.p0.z,
 							1.0f
 						);
 
@@ -1150,9 +1154,9 @@ namespace MathAnim
 						{
 						case CurveType::Bezier3:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, curve.as.bezier3.p1.z, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, curve.as.bezier3.p2.z, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, curve.as.bezier3.p3.z, 1.0f };
 
 							float chordLength = glm::length(p3 - p0);
 							float controlNetLength = glm::length(p1 - p0) + glm::length(p2 - p1) + glm::length(p3 - p2);
@@ -1161,6 +1165,8 @@ namespace MathAnim
 
 							if (lengthLeft < approxLength)
 							{
+								completedPath = false;
+
 								// Interpolate the curve
 								float percentOfCurveToDraw = lengthLeft / approxLength;
 
@@ -1201,9 +1207,9 @@ namespace MathAnim
 						break;
 						case CurveType::Bezier2:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, curve.as.bezier2.p1.z, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, curve.as.bezier2.p1.z, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, curve.as.bezier2.p2.z, 1.0f };
 
 							// Degree elevated quadratic bezier curve
 							glm::vec4 pr0 = p0;
@@ -1218,6 +1224,8 @@ namespace MathAnim
 
 							if (lengthLeft < approxLength)
 							{
+								completedPath = false;
+
 								// Interpolate the curve
 								float percentOfCurveToDraw = lengthLeft / approxLength;
 
@@ -1266,7 +1274,7 @@ namespace MathAnim
 							glm::vec4 p1 = glm::vec4(
 								curve.as.line.p1.x,
 								curve.as.line.p1.y,
-								0.0f,
+								curve.as.line.p1.z,
 								1.0f
 							);
 							float curveLength = glm::length(p1 - p0);
@@ -1274,6 +1282,7 @@ namespace MathAnim
 
 							if (lengthLeft < curveLength)
 							{
+								completedPath = false;
 								float percentOfCurveToDraw = lengthLeft / curveLength;
 								p1 = (p1 - p0) * percentOfCurveToDraw + p0;
 							}
@@ -1288,12 +1297,12 @@ namespace MathAnim
 							break;
 						}
 					}
+					bool shouldClosePath = completedPath;
+					Renderer::endPath3D(shouldClosePath);
+					
+					Renderer::popColor();
+					Renderer::popStrokeWidth();
 				}
-
-				Renderer::endPath3D();
-
-				Renderer::popColor();
-				Renderer::popStrokeWidth();
 
 				if (lengthDrawn > lengthToDraw)
 				{

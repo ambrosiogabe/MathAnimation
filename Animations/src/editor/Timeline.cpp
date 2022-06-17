@@ -47,6 +47,7 @@ namespace MathAnim
 		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation);
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
+		static void handleCubeInspector(AnimObject* object);
 
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate = INT32_MAX);
 		static void addAnimObject(const AnimObject& object);
@@ -471,6 +472,9 @@ namespace MathAnim
 			case AnimObjectTypeV1::Circle:
 				handleCircleInspector(animObject);
 				break;
+			case AnimObjectTypeV1::Cube:
+				handleCubeInspector(animObject);
+				break;
 			default:
 				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
 				break;
@@ -685,6 +689,22 @@ namespace MathAnim
 				object->_svgObjectStart = nullptr;
 
 				object->as.circle.init(object);
+			}
+		}
+
+		static void handleCubeInspector(AnimObject* object)
+		{
+			if (ImGui::DragFloat(": Side Length", &object->as.cube.sideLength))
+			{
+				object->svgObject->free();
+				g_memory_free(object->svgObject);
+				object->svgObject = nullptr;
+
+				object->_svgObjectStart->free();
+				g_memory_free(object->_svgObjectStart);
+				object->_svgObjectStart = nullptr;
+
+				object->as.cube.init(object);
 			}
 		}
 

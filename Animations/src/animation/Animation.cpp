@@ -275,6 +275,7 @@ namespace MathAnim
 		{
 		case AnimObjectTypeV1::Square:
 		case AnimObjectTypeV1::Circle:
+		case AnimObjectTypeV1::Cube:
 			// Default SVG objects will just render the svgObject component
 			g_logger_assert(this->svgObject != nullptr, "Cannot render SVG object that is nullptr.");
 			this->svgObject->render(vg, this);
@@ -336,6 +337,7 @@ namespace MathAnim
 		{
 		case AnimObjectTypeV1::Square:
 		case AnimObjectTypeV1::Circle:
+		case AnimObjectTypeV1::Cube:
 			// NOP
 			break;
 		case AnimObjectTypeV1::TextObject:
@@ -418,6 +420,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::Circle:
 			this->as.circle.serialize(memory);
 			break;
+		case AnimObjectTypeV1::Cube:
+			this->as.cube.serialize(memory);
+			break;
 		default:
 			g_logger_warning("Unknown object type %d when serializing.", (int)objectType);
 			break;
@@ -481,6 +486,7 @@ namespace MathAnim
 
 		constexpr float defaultSquareLength = 400.0f;
 		constexpr float defaultCircleRadius = 200.0f;
+		constexpr float defaultCubeLength = 2.0f;
 		glm::vec2 outputSize = Application::getOutputSize();
 
 		switch (type)
@@ -508,6 +514,10 @@ namespace MathAnim
 				outputSize.x / 2.0f,
 				outputSize.y / 2.0f
 			};
+			break;
+		case AnimObjectTypeV1::Cube:
+			res.as.cube.sideLength = defaultCubeLength;
+			res.as.cube.init(&res);
 			break;
 		default:
 			g_logger_error("Cannot create default animation object of type %d", (int)type);
@@ -603,6 +613,10 @@ namespace MathAnim
 		case AnimObjectTypeV1::Circle:
 			res.as.circle = Circle::deserialize(memory, version);
 			res.as.circle.init(&res);
+			break;
+		case AnimObjectTypeV1::Cube:
+			res.as.cube = Cube::deserialize(memory, version);
+			res.as.cube.init(&res);
 			break;
 		default:
 			g_logger_error("Unknown anim object type: %d. Corrupted memory.", res.objectType);

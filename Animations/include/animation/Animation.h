@@ -11,7 +11,6 @@ namespace MathAnim
 {
 	struct Font;
 	struct SvgObject;
-	struct SvgObject3D;
 	
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;
@@ -25,6 +24,7 @@ namespace MathAnim
 		LaTexObject,
 		Square,
 		Circle,
+		Cube,
 		Length
 	};
 
@@ -133,6 +133,7 @@ namespace MathAnim
 			LaTexObject laTexObject;
 			Square square;
 			Circle circle;
+			Cube cube;
 		} as;
 
 		void render(NVGcontext* vg) const;

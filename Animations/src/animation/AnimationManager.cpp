@@ -17,6 +17,7 @@ namespace MathAnim
 			"LaTex Object",
 			"Square",
 			"Circle",
+			"Cube",
 			"Length"
 		};
 

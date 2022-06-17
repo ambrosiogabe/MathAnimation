@@ -7,9 +7,6 @@ layout (location = 3) in float thickness;
 layout (location = 4) in uint aColor;
 
 out vec4 fColor;
-out vec2 fPos;
-out vec2 fCenter;
-flat out float fThickness;
 
 uniform mat4 uProjection;
 uniform mat4 uView;
@@ -69,9 +66,6 @@ void main()
 
     // Calculate the final vertex position
     gl_Position = currentPosProjected + vec4(linePerpendicular, 0.0, 0.0);
-    fCenter = currentPosProjected.xy;
-    fPos = gl_Position.xy;
-    fThickness = abs(thick);
 }
 
 #type fragment
@@ -79,12 +73,8 @@ void main()
 out vec4 FragColor;
 
 in vec4 fColor;
-in vec2 fPos;
-in vec2 fCenter;
-flat in float fThickness;
 
 void main()
 {
-    float d = pow(length(fPos - fCenter) / fThickness, 4);
-    FragColor = fColor;//vec4(fColor.rgb, (1.0 - d) * fColor.a);
+    FragColor = fColor;
 }
