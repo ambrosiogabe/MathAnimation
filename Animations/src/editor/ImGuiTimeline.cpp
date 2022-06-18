@@ -100,6 +100,10 @@ namespace MathAnim
 	static ImVec2 canvasSize;
 	static ImVec2 legendSize;
 
+	static ImVec2* audioCache = nullptr;
+	static int lengthAudioCache = 0;
+	static int maxLengthAudioCache = 0;
+
 	// ----------- Internal Functions -----------
 	static bool handleLegendSplitter(float* legendWidth);
 	static bool handleResizeElement(float* currentValue, DragState* state, const ImVec2& valueBounds, const ImVec2& mouseBounds, const ImVec2& hoverRectStart, const ImVec2& hoverRectEnd, ResizeFlags flags);
@@ -113,6 +117,7 @@ namespace MathAnim
 	static void snapToCursor(int* currentFrame, int* firstFrame, int* segmentFrameStart, int* segmentFrameDuration, float* offsetX, float* width, float amountOfTimeVisibleInTimeline, SegmentChangeType changeType);
 	static void snapToPreviousSegment(int* firstFrame, float* offsetX, int* segmentFrameStart, int* segmentFrameDuration, int lastSegmentFrameStart, int lastSegmentFrameDuration, SegmentChangeType changeType, float amountOfTimeVisibleInTimeline);
 	static void snapToNextSegment(int* firstFrame, float* offsetX, float* width, int* segmentFrameStart, int* segmentFrameDuration, int nextSegmentFrameStart, int nextSegmentFrameDuration, SegmentChangeType changeType, float amountOfTimeVisibleInTimeline);
+	static void checkAudioCacheResize(int numElementsToAdd);
 
 	static inline float calculateSegmentOffset(int segmentFrameStart, int firstFrame, float amountOfTimeVisibleInTimeline)
 	{
@@ -720,10 +725,8 @@ namespace MathAnim
 			float amtTimeVisibleInLineSegment = amountOfSecondsVisibleInTimeline * (distanceBetweenLineSegments / (timelineRulerEnd.x - timelineRulerBegin.x));
 			uint32 numBytesVisibleInLineSegment = (uint32)((float)amtTimeVisibleInLineSegment * (float)audioData->bytesPerSec);
 
-			ImVec2 lastMaxSegmentPos = (canvasPos + canvasSize) - ImVec2(timelineRulerEnd.x - timelineRulerBegin.x, (float)trackHeight / 2.0f);
+			ImVec2 lastMaxSegmentPos = ImVec2(0.0f, (float)trackHeight / 2.0f);
 			ImVec2 lastMinSegmentPos = lastMaxSegmentPos;
-			float audioPreviewTop = canvasPos.y + canvasSize.y - trackHeight;
-			bool firstLine = true;
 
 			// Draw background for the audio track preview
 			drawList->AddRectFilled(
@@ -732,68 +735,150 @@ namespace MathAnim
 				canvasColor
 			);
 
-			// TODO: Cache this and only recalculate when the first frame changes
-			for (uint32 byte = firstSampleByte; byte < end; byte += audioData->blockAlignment)
+			// TODO: Spreading out the processing of audio data is pretty complex
+			// maybe I should come up with some sort of multithreading promise system?
+			// That way I could process in the background and when the promise is ready
+			// switch to the new cache
+			static int cachedFirstFrame = -1;
+			static float cachedZoomLevel = -1.0f;
+			static float cachedAmtTimeVisibleInTimeline = -1.0f;
+			static bool isProcessingAudioWaveform = false;
+			static ImVec2 lastMaxSegmentPosPrevFrame;
+			static ImVec2 lastMinSegmentPosPrevFrame;
+			static uint32 byteFromLastFrame;
+			bool firstLine = !isProcessingAudioWaveform;
+
+			if (cachedFirstFrame != *firstFrame || cachedZoomLevel != *zoom || cachedAmtTimeVisibleInTimeline != amountOfTimeVisibleInTimeline)
 			{
-				uint32 endByte = glm::min(byte + numBytesVisibleInLineSegment, audioData->dataSize);
-				float maxSample = 0.0f;
-				float minSample = 0.0f;
-				for (; byte < endByte; byte += audioData->blockAlignment)
+				isProcessingAudioWaveform = true;
+				cachedFirstFrame = *firstFrame;
+				cachedAmtTimeVisibleInTimeline = amountOfTimeVisibleInTimeline;
+				cachedZoomLevel = *zoom;
+				lengthAudioCache = 0;
+				byteFromLastFrame = firstSampleByte;
+			}
+			else if (isProcessingAudioWaveform)
+			{
+				lastMaxSegmentPos = lastMaxSegmentPosPrevFrame;
+				lastMinSegmentPos = lastMinSegmentPosPrevFrame;
+			}
+
+			if (isProcessingAudioWaveform)
+			{
+				bool processedAllData = true;
+
+				//g_logger_info("Recaching audio data.");
+				// When we cache the data, if there's a lot of audio to process
+				// spread the processing over a few frames to minimize lag
+				constexpr int maxBytesToProcessInOneFrame = 500'000;
+				int numBytesProcessed = 0;
+
+				// Average the sound samples over the preview period and cache the results
+				for (uint32 byte = byteFromLastFrame; byte < end; byte += audioData->blockAlignment)
 				{
-					int16 sample = bytesPerSample == 1
-						? (int16)(audioData->data[byte])
-						: *(int16*)(&audioData->data[byte]);
-					float normalizedSample = (float)(sample) / (float)(INT16_MAX);
-					maxSample = glm::max(maxSample, normalizedSample);
-					minSample = glm::min(normalizedSample, minSample);
-				}
-
-				maxSample = glm::clamp(amplitudeAdjustment * maxSample, 0.0f, 1.0f);
-				minSample = glm::clamp(amplitudeAdjustment * minSample, -1.0f, 0.0f);
-
-				maxSample = 1.0f - ((maxSample + 1.0f) / 2.0f);
-				minSample = 1.0f - ((minSample + 1.0f) / 2.0f);
-
-				// Draw the line segment
-				ImVec2 nextMaxPos = ImVec2(lastMaxSegmentPos.x + distanceBetweenLineSegments, maxSample * (trackHeight / 1.2f));
-				ImVec2 nextMinPos = ImVec2(lastMinSegmentPos.x + distanceBetweenLineSegments, minSample * (trackHeight / 1.2f));
-				if (firstLine)
-				{
-					lastMaxSegmentPos.y = nextMaxPos.y;
-					lastMinSegmentPos.y = nextMinPos.y;
-					firstLine = false;
-				}
-
-				// Get all the points necessary to fill the shape
-				float baselineY = audioPreviewTop + ((trackHeight / 1.2f) / 2.0f);
-				// Draw max waveform point triangles
-				{
-					ImVec2 p1 = lastMaxSegmentPos + ImVec2(0.0f, audioPreviewTop);
-					ImVec2 p2 = nextMaxPos + ImVec2(0.0f, audioPreviewTop);
-					if (p1.y < baselineY && p2.y < baselineY && !glm::epsilonEqual(p1.y, baselineY, 1.0f) && !glm::epsilonEqual(p2.y, baselineY, 1.0f))
+					uint32 endByte = glm::min(byte + numBytesVisibleInLineSegment, audioData->dataSize);
+					float maxSample = 0.0f;
+					float minSample = 0.0f;
+					for (; byte < endByte; byte += audioData->blockAlignment)
 					{
-						ImVec2 p0 = ImVec2(lastMaxSegmentPos.x, baselineY);
-						ImVec2 p3 = ImVec2(nextMaxPos.x, baselineY);
-						drawList->AddTriangleFilled(p0, p1, p2, subSegmentColor);
-						drawList->AddTriangleFilled(p0, p2, p3, subSegmentColor);
+						int16 sample = bytesPerSample == 1
+							? (int16)(audioData->data[byte])
+							: *(int16*)(&audioData->data[byte]);
+						float normalizedSample = (float)(sample) / (float)(INT16_MAX);
+						maxSample = glm::max(maxSample, normalizedSample);
+						minSample = glm::min(normalizedSample, minSample);
+
+						numBytesProcessed += audioData->blockAlignment;
+					}
+
+					maxSample = glm::clamp(amplitudeAdjustment * maxSample, 0.0f, 1.0f);
+					minSample = glm::clamp(amplitudeAdjustment * minSample, -1.0f, 0.0f);
+
+					maxSample = 1.0f - ((maxSample + 1.0f) / 2.0f);
+					minSample = 1.0f - ((minSample + 1.0f) / 2.0f);
+
+					// Draw the line segment
+					ImVec2 nextMaxPos = ImVec2(lastMaxSegmentPos.x + distanceBetweenLineSegments, maxSample * (trackHeight / 1.2f));
+					ImVec2 nextMinPos = ImVec2(lastMinSegmentPos.x + distanceBetweenLineSegments, minSample * (trackHeight / 1.2f));
+					if (firstLine)
+					{
+						lastMaxSegmentPos.y = nextMaxPos.y;
+						lastMinSegmentPos.y = nextMinPos.y;
+						firstLine = false;
+					}
+
+					// Get all the points necessary to fill the shape
+					float baselineY = ((trackHeight / 1.2f) / 2.0f);
+					// Draw max waveform point triangles
+					{
+						ImVec2 p1 = lastMaxSegmentPos;
+						ImVec2 p2 = nextMaxPos;
+						if (p1.y < baselineY && p2.y < baselineY && !glm::epsilonEqual(p1.y, baselineY, 1.0f) && !glm::epsilonEqual(p2.y, baselineY, 1.0f))
+						{
+							ImVec2 p0 = ImVec2(lastMaxSegmentPos.x, baselineY);
+							ImVec2 p3 = ImVec2(nextMaxPos.x, baselineY);
+
+							checkAudioCacheResize(6);
+							audioCache[lengthAudioCache + 0] = p0;
+							audioCache[lengthAudioCache + 1] = p1;
+							audioCache[lengthAudioCache + 2] = p2;
+
+							audioCache[lengthAudioCache + 3] = p0;
+							audioCache[lengthAudioCache + 4] = p2;
+							audioCache[lengthAudioCache + 5] = p3;
+							lengthAudioCache += 6;
+						}
+					}
+					// Draw min waveform point triangles
+					{
+						ImVec2 p1 = lastMinSegmentPos;
+						ImVec2 p2 = nextMinPos;
+						if (p1.y > baselineY && p2.y > baselineY && !glm::epsilonEqual(p1.y, baselineY, 1.0f) && !glm::epsilonEqual(p2.y, baselineY, 1.0f))
+						{
+							ImVec2 p0 = ImVec2(lastMinSegmentPos.x, baselineY);
+							ImVec2 p3 = ImVec2(nextMinPos.x, baselineY);
+
+							checkAudioCacheResize(6);
+							audioCache[lengthAudioCache + 0] = p2;
+							audioCache[lengthAudioCache + 1] = p1;
+							audioCache[lengthAudioCache + 2] = p0;
+
+							audioCache[lengthAudioCache + 3] = p3;
+							audioCache[lengthAudioCache + 4] = p2;
+							audioCache[lengthAudioCache + 5] = p0;
+							lengthAudioCache += 6;
+						}
+					}
+
+					// Keep track of the last points
+					lastMaxSegmentPos = nextMaxPos;
+					lastMinSegmentPos = nextMinPos;
+
+					if (numBytesProcessed >= maxBytesToProcessInOneFrame)
+					{
+						lastMaxSegmentPosPrevFrame = lastMaxSegmentPos;
+						lastMinSegmentPosPrevFrame = lastMinSegmentPos;
+						processedAllData = false;
+						byteFromLastFrame = byte + audioData->blockAlignment;
+						break;
 					}
 				}
-				// Draw min waveform point triangles
-				{
-					ImVec2 p1 = lastMinSegmentPos + ImVec2(0.0f, audioPreviewTop);
-					ImVec2 p2 = nextMinPos + ImVec2(0.0f, audioPreviewTop);
-					if (p1.y > baselineY && p2.y > baselineY && !glm::epsilonEqual(p1.y, baselineY, 1.0f) && !glm::epsilonEqual(p2.y, baselineY, 1.0f))
-					{
-						ImVec2 p0 = ImVec2(lastMinSegmentPos.x, baselineY);
-						ImVec2 p3 = ImVec2(nextMinPos.x, baselineY);
-						drawList->AddTriangleFilled(p2, p1, p0, subSegmentColor);
-						drawList->AddTriangleFilled(p3, p2, p0, subSegmentColor);
-					}
-				}
 
-				// Keep track of the last points
-				lastMaxSegmentPos = nextMaxPos;
-				lastMinSegmentPos = nextMinPos;
+				isProcessingAudioWaveform = !processedAllData;
+			}
+
+			// Draw the cache 
+			// TODO: I'm not sure if it looks cool or weird drawing the half-cached audio data
+			// Should we display a loading screen here instead while it's loading the cache?
+			ImVec2 audioTrackPos = (canvasPos + canvasSize) - ImVec2(timelineRulerEnd.x - timelineRulerBegin.x, trackHeight);
+			for (int audioi = 0; audioi < lengthAudioCache - 3; audioi++)
+			{
+				drawList->AddTriangleFilled(
+					audioTrackPos + audioCache[audioi],
+					audioTrackPos + audioCache[audioi + 1],
+					audioTrackPos + audioCache[audioi + 2],
+					subSegmentColor
+				);
 			}
 		}
 		// ---------------------- End Draw Preview Audio Waveform ------------------------------
@@ -1714,6 +1799,29 @@ namespace MathAnim
 				// to make sure it doesn't change
 				*segmentFrameDuration = nextSegmentFrameStart - *segmentFrameStart;
 			}
+		}
+	}
+
+	static void checkAudioCacheResize(int numElementsToAdd)
+	{
+		if (numElementsToAdd + lengthAudioCache >= maxLengthAudioCache)
+		{
+			if (maxLengthAudioCache == 0)
+			{
+				maxLengthAudioCache = numElementsToAdd;
+			}
+
+			maxLengthAudioCache *= 2;
+			if (audioCache != nullptr)
+			{
+				audioCache = (ImVec2*)g_memory_realloc(audioCache, sizeof(ImVec2) * maxLengthAudioCache);
+			}
+			else
+			{
+				audioCache = (ImVec2*)g_memory_allocate(sizeof(ImVec2) * maxLengthAudioCache);
+			}
+
+			g_logger_assert(audioCache != nullptr, "Ran out of RAM.");
 		}
 	}
 }
