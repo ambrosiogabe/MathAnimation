@@ -11,7 +11,7 @@ namespace MathAnim
 	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos, const AnimObject* parent);
 
 	static TextObject deserializeTextV1(RawMemory& memory);
-	
+
 	namespace TextAnimations
 	{
 		static OrthoCamera* camera;
@@ -20,7 +20,7 @@ namespace MathAnim
 			camera = &sceneCamera;
 		}
 	}
-	
+
 
 	void TextObject::render(NVGcontext* vg, const AnimObject* parent) const
 	{
@@ -112,11 +112,26 @@ namespace MathAnim
 		memory.write<char>(&nullByte);
 
 		// TODO: Overflow error checking would be good here
-		int32 fontFilepathLength = (int32)font->vgFontFace.size();
-		memory.write<int32>(&fontFilepathLength);
-		for (int i = 0; i < fontFilepathLength; i++)
+		if (font != nullptr)
 		{
-			memory.write<char>(&font->vgFontFace[i]);
+			int32 fontFilepathLength = (int32)font->vgFontFace.size();
+			memory.write<int32>(&fontFilepathLength);
+			for (int i = 0; i < fontFilepathLength; i++)
+			{
+				memory.write<char>(&font->vgFontFace[i]);
+			}
+		}
+		else
+		{
+			const char stringToWrite[] = "nullFont";
+			int32 fontFilepathLength = (sizeof(stringToWrite) / sizeof(char));
+			// Subtract null byte
+			fontFilepathLength -= 1;
+			memory.write<int32>(&fontFilepathLength);
+			for (int i = 0; i < fontFilepathLength; i++)
+			{
+				memory.write<char>(&stringToWrite[i]);
+			}
 		}
 	}
 
@@ -376,7 +391,7 @@ namespace MathAnim
 			nvgFontSize(vg, fontScale);
 			nvgText(vg, glyphPos.x, fontScale + glyphPos.y, str.c_str(), NULL);
 		}
-		
+
 		nvgResetTransform(vg);
 	}
 

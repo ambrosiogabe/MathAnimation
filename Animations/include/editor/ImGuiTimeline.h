@@ -8,7 +8,9 @@ namespace MathAnim
 	enum _ImGuiTimelineFlags
 	{
 		ImGuiTimelineFlags_None                   = 0x0,
-		ImGuiTimelineFlags_FollowTimelineCursor   = 0x1
+		ImGuiTimelineFlags_FollowTimelineCursor   = 0x1,
+		ImGuiTimelineFlags_EnableMagnetControl    = 0x2,
+		ImGuiTimelineFlags_EnableZoomControl      = 0x4,
 	};
 
 	typedef int ImGuiTimelineResultFlags;
@@ -27,6 +29,7 @@ namespace MathAnim
 		ImGuiTimelineResultFlags_DragDropPayloadHit  = 0x200,
 		ImGuiTimelineResultFlags_DeleteActiveObject  = 0x400,
 		ImGuiTimelineResultFlags_AddAudioSource      = 0x800,
+		ImGuiTimelineResultFlags_ActiveObjectDeselected = 0x1000,
 	};
 
 	struct ImGuiTimelineResult
@@ -62,7 +65,6 @@ namespace MathAnim
 				int intData;
 			} as;
 		} userData;
-		bool isExpanded;
 
 		// TODO: Should I allow this to also be a track and recurse through all subtracks?
 		// If this is nullptr, then the expanded track is empty

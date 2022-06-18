@@ -89,6 +89,9 @@ namespace MathAnim
 			ImGui::PopItemWidth();
 
 			ImGuiTimelineFlags flags = ImGuiTimelineFlags_None;
+			flags |= ImGuiTimelineFlags_EnableZoomControl;
+			flags |= ImGuiTimelineFlags_EnableMagnetControl;
+
 			if (Application::getEditorPlayState() == AnimState::PlayForward ||
 				Application::getEditorPlayState() == AnimState::PlayReverse)
 			{
@@ -224,6 +227,12 @@ namespace MathAnim
 				int animationId = (int)(uintptr_t)subSegment.userData;
 				int animObjectId = tracks[res.trackIndex].segments[res.segmentIndex].userData.as.intData;
 				AnimationManager::setAnimationTime(animObjectId, animationId, subSegment.frameStart, subSegment.frameDuration);
+			}
+
+			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectDeselected)
+			{
+				activeAnimationId = INT32_MAX;
+				activeAnimObjectId = INT32_MAX;
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectChanged)
@@ -794,7 +803,6 @@ namespace MathAnim
 						tracks[track].segments[segment].frameDuration = animObjects[i].duration;
 						tracks[track].segments[segment].userData.as.intData = animObjects[i].id;
 						tracks[track].segments[segment].segmentName = AnimationManager::getAnimObjectName(animObjects[i].objectType);
-						tracks[track].segments[segment].isExpanded = false;
 
 						for (int j = 0; j < animObjects[i].animations.size(); j++)
 						{
@@ -833,7 +841,6 @@ namespace MathAnim
 
 			track.segments[track.numSegments - 1].frameDuration = object.duration;
 			track.segments[track.numSegments - 1].frameStart = object.frameStart;
-			track.segments[track.numSegments - 1].isExpanded = false;
 			track.segments[track.numSegments - 1].segmentName = AnimationManager::getAnimObjectName(object.objectType);
 			track.segments[track.numSegments - 1].userData.as.intData = object.id;
 

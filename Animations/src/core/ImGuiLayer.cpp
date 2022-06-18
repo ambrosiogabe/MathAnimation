@@ -40,9 +40,9 @@ namespace MathAnim
 			config.MergeMode = true;
 			//config.GlyphMinAdvanceX = fontSize; // Use this if you want the icon to be monospaced
 			// TODO: Optimize ram usage here...
-			config.SizePixels = fontSize * 2.0f;
+			config.SizePixels = fontSize * 1.5f;
 			config.PixelSnapH = true;
-			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 2.0f, &config, iconRanges);
+			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 1.5f, &config, iconRanges);
 			bigFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize * 1.5f);
             
 			// Add this font separately

@@ -2,6 +2,7 @@
 #include "core/ImGuiLayer.h"
 
 #include "imgui.h"
+#include "utils/FontAwesome.h"
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui_internal.h"
@@ -36,7 +37,6 @@ namespace MathAnim
 	constexpr float timelineHorizontalScrollSensitivity = 12.0f;
 	constexpr float timelineVerticalScrollSensitivity = 10.0f;
 	constexpr int fps = 60;
-	constexpr int autoPlayFrameDelta = 50;
 	const char* TIMELINE_DRAG_DROP_SEGMENT_PAYLOAD_ID = "TIMELINE_SEGMENT_PAYLOAD_ID";
 	const char* TIMELINE_DRAG_DROP_SUB_SEGMENT_PAYLOAD_ID = "TIMELINE_SUB_SEGMENT_PAYLOAD_ID";
 
@@ -57,13 +57,20 @@ namespace MathAnim
 	constexpr int trackNamePadding = 15;
 
 	constexpr ImVec2 segmentTextAreaPadding = ImVec2(10.0f, 10.0f);
-	constexpr ImVec2 expandButtonSize = ImVec2(20.0f, 12.0f);
+	constexpr ImVec2 expandButtonSize = ImVec2(18.0f, 10.0f);
 	constexpr int segmentTextAreaHeight = 40;
+
+	constexpr float ZOOM_MIN = 0.1f;
+	constexpr float ZOOM_MAX = 5.0f;
 
 	// Colors
 	constexpr ImU32 boundaryTickColor = IM_COL32(135, 135, 135, 255);
 	constexpr ImU32 largeTickColor = IM_COL32(105, 105, 105, 255);
 	constexpr ImU32 defaultTickColor = IM_COL32(85, 85, 85, 255);
+
+	constexpr ImU32 dropdownArrowColor = IM_COL32(220, 230, 223, 255);
+	constexpr ImU32 legendBorderColor = IM_COL32(5, 5, 5, 255);
+	constexpr ImU32 legendBorderHighlightColor = IM_COL32(94, 97, 94, 255);
 
 	constexpr ImU32 canvasColor = IM_COL32(20, 20, 20, 255);
 	constexpr ImU32 legendBackground = IM_COL32(35, 35, 35, 255);
@@ -89,6 +96,82 @@ namespace MathAnim
 
 	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* inZoom, const ImGuiTimeline_AudioData* audioData, ImGuiTimelineFlags flags)
 	{
+		static float defaultZoom = 1.0f;
+		float* zoom = inZoom == nullptr
+			? &defaultZoom
+			: inZoom;
+		static bool magnetEnabled = false;
+
+		// --------------------------- Handle Timeline Controls ---------------------------
+		{
+			// Draw any enabled controls first
+			static float totalControlsWidth = 0.0f;
+			float controlsBeginX = ImGui::GetCursorPos().x;
+
+			ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - totalControlsWidth) / 2.0f);
+
+			if (flags & ImGuiTimelineFlags_EnableMagnetControl)
+			{
+				bool popColor = false;
+				if (magnetEnabled)
+				{
+					ImGui::PushStyleColor(ImGuiCol_Text, cursorColor);
+					popColor = true;
+				}
+
+				ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(0, 0, 0, 0));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 0, 0, 0));
+				if (ImGui::Button(ICON_FA_MAGNET))
+				{
+					magnetEnabled = !magnetEnabled;
+				}
+				ImGui::PopStyleColor(3);
+				ImGui::SameLine();
+
+				if (popColor)
+				{
+					ImGui::PopStyleColor();
+				}
+			}
+
+			if (flags & ImGuiTimelineFlags_EnableZoomControl)
+			{
+				if (ImGui::Button("-"))
+				{
+					*zoom -= 0.5f;
+					*zoom = glm::clamp(*zoom, ZOOM_MIN, ZOOM_MAX);
+				}
+				ImGui::SameLine();
+
+				ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.1f);
+				if (ImGui::SliderFloat("##ImGuiTimeline_ZoomControl", zoom, ZOOM_MIN, ZOOM_MAX, "%2.3f", ImGuiSliderFlags_Logarithmic))
+				{
+
+				}
+				ImGui::SameLine();
+
+				if (ImGui::Button("+"))
+				{
+					*zoom += 0.5f;
+				}
+				ImGui::SameLine();
+
+				ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(0, 0, 0, 0));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 0, 0, 0));
+				if (ImGui::Button(ICON_FA_REPLY_ALL))
+				{
+					*zoom = 1.0f;
+				}
+				ImGui::PopStyleColor(3);
+			}
+
+			float controlsEndX = ImGui::GetCursorPos().x;
+			totalControlsWidth = controlsEndX - controlsBeginX;
+		}
+		// --------------------------- End Handle Timeline Controls ---------------------------
+
 		ImGuiTimelineResult res;
 		res.flags = ImGuiTimelineResultFlags_None;
 		res.segmentIndex = -1;
@@ -137,12 +220,8 @@ namespace MathAnim
 		handleLegendSplitter(canvasPos, canvasSize, legendSize, &legendWidth);
 		// ---------------------- Setup and Handle Legend ------------------------------
 
-		// ---------------------- Draw Timeline Ruler ------------------------------		
-		// Zoom ranges from [1.0 - 10.0]
-		static float defaultZoom = 3.0f;
-		float* zoom = inZoom == nullptr
-			? &defaultZoom
-			: inZoom;
+		// ---------------------- Draw Timeline Ruler ------------------------------	
+		// TODO: Abstract this into one of the colors
 		ImU32 grayColor = IM_COL32(32, 32, 32, 255);
 
 		float scrollOffsetX = data->Scroll.x;
@@ -171,8 +250,9 @@ namespace MathAnim
 
 		constexpr int numTicksBetweenBoundaries = fps / 2;
 		constexpr int tickMidpoint = numTicksBetweenBoundaries / 2;
-		constexpr float distanceBetweenSmallTicks = minDistanceBetweenRulerTimecodes / (float)numTicksBetweenBoundaries;
-		float amountOfTimeVisibleInTimeline = ((timelineRulerEnd.x - timelineRulerBegin.x) / (float)distanceBetweenSmallTicks);
+		float distanceBetweenSmallTicks = minDistanceBetweenRulerTimecodes / (float)numTicksBetweenBoundaries;
+		float amountOfTimeVisibleInTimeline = (*zoom) * ((timelineRulerEnd.x - timelineRulerBegin.x) / (float)distanceBetweenSmallTicks);
+		float amountOfFramesVisibleBetweenSmallTicks = (*zoom);
 
 		float firstTimecodePosition = glm::floor((scrollOffsetX / minDistanceBetweenRulerTimecodes)) * minDistanceBetweenRulerTimecodes - scrollOffsetX;
 		// Zoom will effect this soon
@@ -190,7 +270,7 @@ namespace MathAnim
 			{
 				// Draw the time code string
 				int firstTickPos = (int)glm::floor((scrollOffsetX / minDistanceBetweenRulerTimecodes));
-				int numFramesToThisPos = (firstTickPos + i) * numTicksBetweenBoundaries;
+				int numFramesToThisPos = (int)((float)((firstTickPos + i) * numTicksBetweenBoundaries) * amountOfFramesVisibleBetweenSmallTicks);
 
 				// Max formatted string length is HH:MM:SS:ff
 				static char strBuffer[] = "HH:MM:SS:ff";
@@ -262,17 +342,6 @@ namespace MathAnim
 			{
 				currentTrackTop += trackHeight;
 
-				// Figure out if the track is expanded
-				tracks[i].isExpanded = false;
-				for (int si = 0; si < tracks[i].numSegments; si++)
-				{
-					if (tracks[i].segments[si].isExpanded)
-					{
-						tracks[i].isExpanded = true;
-						break;
-					}
-				}
-
 				if (tracks[i].isExpanded)
 				{
 					if (currentTrackTop + trackHeight > absTracksTop)
@@ -308,6 +377,12 @@ namespace MathAnim
 		ImVec2 timelineSize = (canvasPos + canvasSize) - (timelineRulerBegin + ImVec2(0.0f, timelineRulerHeight));
 		drawList->PushClipRect(timelineRulerBegin + ImVec2(0.0f, timelineRulerHeight), canvasPos + canvasSize, true);
 		{
+			bool mouseClickedSomewhereOnTimeline = ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+				ImGui::IsMouseHoveringRect(
+					timelineRulerBegin + ImVec2(0.0f, timelineRulerHeight),
+					canvasPos + canvasSize
+				);
+
 			float absTracksTop = canvasPos.y + timelineRulerHeight;
 			float currentTrackTop = canvasPos.y + timelineRulerHeight - scrollOffsetY;
 			for (int i = 0; i < numTracks; i++)
@@ -379,8 +454,9 @@ namespace MathAnim
 							segmentStart = ImVec2(canvasPos.x + legendSize.x + offsetX, trackTopY);
 							segmentEnd = ImVec2(segmentStart.x + width, trackBottomY);
 						}
-						else if (activeSegmentID == segmentID && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+						else if (activeSegmentID == segmentID && mouseClickedSomewhereOnTimeline)
 						{
+							res.flags |= ImGuiTimelineResultFlags_ActiveObjectDeselected;
 							activeSegmentID = UINT32_MAX;
 						}
 
@@ -406,44 +482,6 @@ namespace MathAnim
 						ImVec2 segmentTextSize = ImGui::CalcTextSize(segment.segmentName);
 						textPosition.y += (segmentTextAreaHeight - segmentTextSize.y - segmentTextAreaPadding.y * 2.0f) / 2.0f;
 						drawList->AddText(textPosition, ImColor(fontColor), segment.segmentName);
-
-						// Draw expansion triangle
-						constexpr ImVec2 expandArrowRectPadding = ImVec2(6.0f, 6.0f);
-						ImVec2 expandButtonStart = (segmentEnd - segmentTextAreaPadding - expandButtonSize);
-						ImVec2 expandArrowRectStart = expandButtonStart - expandArrowRectPadding;
-						ImVec2 expandArrowRectEnd = expandButtonStart + expandButtonSize + expandArrowRectPadding;
-						if (segment.isExpanded)
-						{
-							drawList->AddRectFilled(
-								expandArrowRectStart,
-								expandArrowRectEnd,
-								ImColor(fontColor),
-								5.0f
-							);
-							drawList->AddTriangle(
-								expandButtonStart,
-								expandButtonStart + ImVec2(expandButtonSize.x, 0.0f),
-								expandButtonStart + ImVec2(expandButtonSize.x / 2.0f, expandButtonSize.y),
-								segmentColor,
-								3.0f
-							);
-						}
-						else
-						{
-							drawList->AddTriangle(
-								expandButtonStart,
-								expandButtonStart + ImVec2(expandButtonSize.x, 0.0f),
-								expandButtonStart + ImVec2(expandButtonSize.x / 2.0f, expandButtonSize.y),
-								segmentBoldColor,
-								3.0f
-							);
-						}
-
-						// Check if the user clicked the segment arrow to expand or un-expand it
-						if (ImGui::IsMouseHoveringRect(expandArrowRectStart, expandArrowRectEnd) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-						{
-							segment.isExpanded = !segment.isExpanded;
-						}
 					} // End segment intersects with timeline check
 
 					if (tracks[i].isExpanded)
@@ -510,8 +548,9 @@ namespace MathAnim
 										activeSegmentID = segmentID;
 									}
 								}
-								else if (activeSegmentID == segmentID && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+								else if (activeSegmentID == segmentID && mouseClickedSomewhereOnTimeline)
 								{
+									res.flags |= ImGuiTimelineResultFlags_ActiveObjectDeselected;
 									activeSegmentID = UINT32_MAX;
 								}
 
@@ -519,6 +558,7 @@ namespace MathAnim
 								{
 									// Draw the segment
 									drawList->AddRectFilled(subSegmentStart, subSegmentEnd, subSegmentColor, 10.0f);
+									drawList->AddRect(subSegmentStart, subSegmentEnd, subSegmentDarkColor, 10.0f);
 									if (activeSegmentID == segmentID)
 									{
 										drawList->AddRect(subSegmentStart, subSegmentEnd, cursorColor, 10.0f, 0, 4.0f);
@@ -690,14 +730,14 @@ namespace MathAnim
 
 				if (*currentFrame < *firstFrame)
 				{
-					*firstFrame -= 3;
+					*firstFrame -= glm::max((int)(3.0f * (*zoom)), 1);
 					*firstFrame = glm::max(*firstFrame, 0);
 					scrollOffsetX = getScrollFromFrame(amountOfTimeVisibleInTimeline, *firstFrame, timelineRulerEnd, timelineRulerBegin);
 					res.flags |= ImGuiTimelineResultFlags_FirstFrameChanged;
 				}
 				else if (*currentFrame > *firstFrame + (int)amountOfTimeVisibleInTimeline)
 				{
-					*firstFrame += 3;
+					*firstFrame += glm::max((int)(3.0f * (*zoom)), 1);
 					scrollOffsetX = getScrollFromFrame(amountOfTimeVisibleInTimeline, *firstFrame, timelineRulerEnd, timelineRulerBegin);
 					res.flags |= ImGuiTimelineResultFlags_FirstFrameChanged;
 				}
@@ -747,14 +787,16 @@ namespace MathAnim
 		if ((uint8)flags & ImGuiTimelineFlags_FollowTimelineCursor)
 		{
 			bool changed = false;
+			// Advance 3/4 every time
+			int numFramesToAdvance = (int)(amountOfTimeVisibleInTimeline * 3.0f / 4.0f);
 			if (*currentFrame < *firstFrame)
 			{
-				*firstFrame -= autoPlayFrameDelta;
+				*firstFrame -= numFramesToAdvance;
 				changed = true;
 			}
 			else if (*currentFrame > (*firstFrame + (int)amountOfTimeVisibleInTimeline))
 			{
-				*firstFrame += autoPlayFrameDelta;
+				*firstFrame += numFramesToAdvance;
 				changed = true;
 			}
 
@@ -794,17 +836,19 @@ namespace MathAnim
 				ImVec2 textSize = ImGui::CalcTextSize(tracks[i].trackName);
 				float offsetY = currentTrackTop + (trackHeight - textSize.y) / 2.0f;
 
-
 				drawList->AddText(ImVec2(canvasPos.x + trackNamePadding, offsetY), ImColor(fontColor), tracks[i].trackName);
 
-				float thisTrackHeight = tracks[i].isExpanded ? trackHeight * 2.0f : trackHeight;
 				ImVec2 legendTrackNameTop = ImVec2(canvasPos.x, currentTrackTop);
-				ImVec2 legendTrackNameBottom = ImVec2(canvasPos.x + legendSize.x, currentTrackTop + thisTrackHeight + 1.5f);
+				ImVec2 legendTrackNameBottom = ImVec2(
+					canvasPos.x + legendSize.x - trackNamePadding * 2.0f - expandButtonSize.x,
+					currentTrackTop + trackHeight + 1.5f
+				);
+				ImVec2 fullTracknameBottom = legendTrackNameBottom + ImVec2(trackNamePadding * 2.0f + expandButtonSize.x, 0.0f);
 
-				if (ImGui::IsMouseHoveringRect(legendTrackNameTop, legendTrackNameBottom))
+				if (ImGui::IsMouseHoveringRect(legendTrackNameTop, fullTracknameBottom))
 				{
 					// NOTE(voxel): Very Subtle Hover Highlight
-					drawList->AddRect(legendTrackNameTop, legendTrackNameBottom, IM_COL32(255, 255, 255, 255));
+					drawList->AddRect(legendTrackNameTop, fullTracknameBottom, legendBorderHighlightColor);
 				}
 				else
 				{
@@ -812,16 +856,48 @@ namespace MathAnim
 					drawList->AddRect(
 						legendTrackNameTop,
 						ImVec2(canvasPos.x + legendSize.x, currentTrackTop + 1.5f),
-						IM_COL32(0, 0, 0, 255)
+						legendBorderColor
 					);
 
 					drawList->AddRect(
-						ImVec2(canvasPos.x, currentTrackTop + thisTrackHeight),
-						legendTrackNameBottom,
-						IM_COL32(0, 0, 0, 255)
+						ImVec2(canvasPos.x, currentTrackTop + trackHeight),
+						fullTracknameBottom,
+						legendBorderColor
 					);
 				}
 
+				// Handle dropdown arrow logic
+				float legendTrackNameWidth = legendTrackNameBottom.x - legendTrackNameTop.x;
+				ImVec2 expandArrowRectStart = legendTrackNameTop + ImVec2(legendTrackNameWidth, 0.0f);
+				ImVec2 expandArrowRectEnd = legendTrackNameTop + ImVec2(legendSize.x, trackHeight);
+				ImVec2 expandArrowRectSize = expandArrowRectEnd - expandArrowRectStart;
+				ImVec2 expandButtonStart = expandArrowRectStart + (expandArrowRectSize - expandButtonSize) / 2.0f;
+				if (tracks[i].isExpanded)
+				{
+					drawList->AddTriangleFilled(
+						expandButtonStart + ImVec2(0.0f, expandButtonSize.y),
+						expandButtonStart + expandButtonSize,
+						expandButtonStart + ImVec2(expandButtonSize.x / 2.0f, 0.0f),
+						dropdownArrowColor
+					);
+				}
+				else
+				{
+					drawList->AddTriangleFilled(
+						expandButtonStart,
+						expandButtonStart + ImVec2(expandButtonSize.x, 0.0f),
+						expandButtonStart + ImVec2(expandButtonSize.x / 2.0f, expandButtonSize.y),
+						dropdownArrowColor
+					);
+				}
+
+				// Check if the user clicked the segment arrow to expand or un-expand it
+				if (ImGui::IsMouseHoveringRect(legendTrackNameTop, fullTracknameBottom) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+				{
+					tracks[i].isExpanded = !tracks[i].isExpanded;
+				}
+
+				// Do this check *after* handling logic so there's no frame lagging when you click
 				if (tracks[i].isExpanded)
 				{
 					currentTrackTop += trackHeight;
@@ -1364,13 +1440,22 @@ namespace MathAnim
 	{
 		int relativeFrame = frame % 60;
 		int numSeconds = frame / 60;
+		int numRelativeSeconds = numSeconds % 60;
 		int numMinutes = numSeconds / 60;
+		int numRelativeMinutes = numMinutes % 60;
 		int numHours = numMinutes / 60;
 		// Max formatted string length is HH:MM:SS:ff
 		constexpr char requiredBuffer[] = "HH:MM:SS:ff";
 		constexpr size_t requiredBufferSize = sizeof(requiredBuffer) / sizeof(strBuffer[0]);
 		g_logger_assert(strBufferLength >= requiredBufferSize, "String buffer length must be at least '%d' characters.", requiredBufferSize);
-		sprintf_s(strBuffer, strBufferLength, "%02d:%02d:%02d.%02d", numHours, numMinutes, numSeconds, relativeFrame);
+		if (numHours < 100 && numHours >= 0)
+		{
+			sprintf_s(strBuffer, strBufferLength, "%02d:%02d:%02d.%02d", numHours, numRelativeMinutes, numRelativeSeconds, relativeFrame);
+		}
+		else
+		{
+			g_logger_error("Uh oh.");
+		}
 	}
 
 	static float getScrollFromFrame(float amountOfTimeVisibleInTimeline, int firstFrame, const ImVec2& timelineRulerEnd, const ImVec2& timelineRulerBegin)
