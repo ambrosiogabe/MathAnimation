@@ -14,6 +14,13 @@ enum class DragState : uint8
 	Active,
 };
 
+enum class SegmentChangeType : uint8
+{
+	None,
+	Resized,
+	Moved
+};
+
 enum class ResizeFlags : uint8
 {
 	EastWest = 0x1,
@@ -46,6 +53,8 @@ namespace MathAnim
 	constexpr float timelineRulerBorderHeight = 3.0f;
 	constexpr float timelineRulerTickSpacing = 9.0f;
 	constexpr float minDistanceBetweenRulerTimecodes = 320.0f;
+	// If a segment is 20 pixels next to another segment while dragging it, snap them together
+	constexpr float magnetThreshold = 30.0f;
 
 	constexpr int tickWidth = 2;
 	constexpr int smallTickHeight = 7;
@@ -61,7 +70,8 @@ namespace MathAnim
 	constexpr int segmentTextAreaHeight = 40;
 
 	constexpr float ZOOM_MIN = 0.1f;
-	constexpr float ZOOM_MAX = 5.0f;
+	constexpr float ZOOM_MAX = 300.0f;
+	constexpr float ZOOM_DEFAULT = 3.0f;
 
 	// Colors
 	constexpr ImU32 boundaryTickColor = IM_COL32(135, 135, 135, 255);
@@ -83,20 +93,45 @@ namespace MathAnim
 	constexpr ImU32 subSegmentColor = IM_COL32(119, 186, 122, 255);
 	constexpr ImU32 subSegmentDarkColor = IM_COL32(87, 135, 85, 255);
 
+	// Commonly used vars
+	static ImVec2 timelineRulerEnd;
+	static ImVec2 timelineRulerBegin;
+	static ImVec2 canvasPos;
+	static ImVec2 canvasSize;
+	static ImVec2 legendSize;
+
 	// ----------- Internal Functions -----------
-	static bool handleLegendSplitter(const ImVec2& canvasPos, const ImVec2& canvasSize, const ImVec2& legendSize, float* legendWidth);
+	static bool handleLegendSplitter(float* legendWidth);
 	static bool handleResizeElement(float* currentValue, DragState* state, const ImVec2& valueBounds, const ImVec2& mouseBounds, const ImVec2& hoverRectStart, const ImVec2& hoverRectEnd, ResizeFlags flags);
-	static bool handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
-	static bool handleSubSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_SubSegment* segment, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
+	static bool handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, SegmentChangeType* changeType, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
+	static bool handleSubSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_SubSegment* segment, SegmentChangeType* changeType, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
 	static void framesToTimeStr(char* strBuffer, size_t strBufferLength, int frame);
-	static float getScrollFromFrame(float amountOfTimeVisibleInTimeline, int firstFrame, const ImVec2& timelineRulerEnd, const ImVec2& timelineRulerBegin);
+	static float getScrollFromFrame(float amountOfTimeVisibleInTimeline, int firstFrame);
 	static bool handleDragState(const ImVec2& start, const ImVec2& end, DragState* state);
 	static bool beginPopupContextTimelineItem(const char* str_id, const ImVec2& rectBegin, const ImVec2& rectEnd, ImGuiPopupFlags popup_flags = 1);
 	static int findSegmentFromFrame(const ImGuiTimeline_Track* tracks, int trackIndex, int firstAbsoluteFrame);
+	static void snapToCursor(int* currentFrame, int* firstFrame, int* segmentFrameStart, int* segmentFrameDuration, float* offsetX, float* width, float amountOfTimeVisibleInTimeline, SegmentChangeType changeType);
+	static void snapToPreviousSegment(int* firstFrame, float* offsetX, int* segmentFrameStart, int* segmentFrameDuration, int lastSegmentFrameStart, int lastSegmentFrameDuration, SegmentChangeType changeType, float amountOfTimeVisibleInTimeline);
+	static void snapToNextSegment(int* firstFrame, float* offsetX, float* width, int* segmentFrameStart, int* segmentFrameDuration, int nextSegmentFrameStart, int nextSegmentFrameDuration, SegmentChangeType changeType, float amountOfTimeVisibleInTimeline);
+
+	static inline float calculateSegmentOffset(int segmentFrameStart, int firstFrame, float amountOfTimeVisibleInTimeline)
+	{
+		return (segmentFrameStart - (float)firstFrame) / amountOfTimeVisibleInTimeline * (canvasSize.x - legendSize.x);
+	}
+
+	static inline float calculateSegmentWidth(int segmentFrameDuration, float amountOfTimeVisibleInTimeline)
+	{
+		return (segmentFrameDuration / amountOfTimeVisibleInTimeline) * (canvasSize.x - legendSize.x);
+	}
+
+	static inline float calculateCursorOffset(int currentFrame, int firstFrame, float amountOfTimeVisibleInTimeline)
+	{
+		return (timelineRulerEnd.x - timelineRulerBegin.x) * (((float)currentFrame - (float)firstFrame) / amountOfTimeVisibleInTimeline);
+	}
 
 	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* inZoom, const ImGuiTimeline_AudioData* audioData, ImGuiTimelineFlags flags)
 	{
-		static float defaultZoom = 1.0f;
+		static float defaultZoom = ZOOM_DEFAULT;
 		float* zoom = inZoom == nullptr
 			? &defaultZoom
 			: inZoom;
@@ -144,11 +179,8 @@ namespace MathAnim
 				}
 				ImGui::SameLine();
 
-				ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.1f);
-				if (ImGui::SliderFloat("##ImGuiTimeline_ZoomControl", zoom, ZOOM_MIN, ZOOM_MAX, "%2.3f", ImGuiSliderFlags_Logarithmic))
-				{
-
-				}
+				ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.3f);
+				ImGui::SliderFloat("##ImGuiTimeline_ZoomControl", zoom, ZOOM_MIN, ZOOM_MAX, "%2.3f", ImGuiSliderFlags_Logarithmic);
 				ImGui::SameLine();
 
 				if (ImGui::Button("+"))
@@ -162,7 +194,7 @@ namespace MathAnim
 				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 0, 0, 0));
 				if (ImGui::Button(ICON_FA_REPLY_ALL))
 				{
-					*zoom = 1.0f;
+					*zoom = ZOOM_DEFAULT;
 				}
 				ImGui::PopStyleColor(3);
 			}
@@ -184,8 +216,8 @@ namespace MathAnim
 		ImVec4& fontColor = style.Colors[ImGuiCol_Text];
 
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
-		ImVec2 canvasPos = ImGui::GetCursorScreenPos();            // ImDrawList API uses screen coordinates!
-		ImVec2 canvasSize = ImGui::GetContentRegionAvail();        // Resize canvas to what's available
+		canvasPos = ImGui::GetCursorScreenPos();            // ImDrawList API uses screen coordinates!
+		canvasSize = ImGui::GetContentRegionAvail();        // Resize canvas to what's available
 
 		// ---------------------- Check if timeline has been added to timeline data ------------------------------
 		ImTimelineWindowData* data = nullptr;
@@ -215,9 +247,9 @@ namespace MathAnim
 
 		// ---------------------- Setup and Handle Legend ------------------------------
 		static float legendWidth = 0.2f;
-		ImVec2 legendSize = ImVec2{ canvasSize.x * legendWidth, canvasSize.y };
+		legendSize = ImVec2{ canvasSize.x * legendWidth, canvasSize.y };
 		bool result = false;
-		handleLegendSplitter(canvasPos, canvasSize, legendSize, &legendWidth);
+		handleLegendSplitter(&legendWidth);
 		// ---------------------- Setup and Handle Legend ------------------------------
 
 		// ---------------------- Draw Timeline Ruler ------------------------------	
@@ -227,8 +259,8 @@ namespace MathAnim
 		float scrollOffsetX = data->Scroll.x;
 		float scrollOffsetY = data->Scroll.y;
 
-		ImVec2 timelineRulerBegin = canvasPos + ImVec2(legendSize.x, 0.0f);
-		ImVec2 timelineRulerEnd = canvasPos + ImVec2(canvasSize.x, timelineRulerHeight);
+		timelineRulerBegin = canvasPos + ImVec2(legendSize.x, 0.0f);
+		timelineRulerEnd = canvasPos + ImVec2(canvasSize.x, timelineRulerHeight);
 		drawList->AddRectFilled(
 			timelineRulerBegin + ImVec2(0.0f, timelineRulerHeight),
 			timelineRulerEnd + ImVec2(0.0f, timelineRulerBorderHeight),
@@ -410,8 +442,8 @@ namespace MathAnim
 					ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
 					static ImGuiID activeSegmentID = UINT32_MAX;
 
-					float offsetX = (segment.frameStart - (float)*firstFrame) / amountOfTimeVisibleInTimeline * (canvasSize.x - legendSize.x);
-					float width = (segment.frameDuration / amountOfTimeVisibleInTimeline) * (canvasSize.x - legendSize.x);
+					float offsetX = calculateSegmentOffset(segment.frameStart, *firstFrame, amountOfTimeVisibleInTimeline);
+					float width = calculateSegmentWidth(segment.frameDuration, amountOfTimeVisibleInTimeline);
 					// Check if segment intersects with the timeline
 					// We can check if:
 					//    segmentEnd >= timelineBegin && segmentBegin <= timelineEnd
@@ -434,9 +466,39 @@ namespace MathAnim
 
 						ImVec2 segmentStart = ImVec2(canvasPos.x + legendSize.x + offsetX, trackTopY);
 						ImVec2 segmentEnd = ImVec2(segmentStart.x + width, trackBottomY);
-
-						if (handleSegment(segmentStart, segmentEnd, &segment, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
+						SegmentChangeType changeType;
+						if (handleSegment(segmentStart, segmentEnd, &segment, &changeType, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
 						{
+							offsetX = calculateSegmentOffset(segment.frameStart, *firstFrame, amountOfTimeVisibleInTimeline);
+							width = calculateSegmentWidth(segment.frameDuration, amountOfTimeVisibleInTimeline);
+
+							// ------------ Handle magnet snapping segments ------------
+							if (magnetEnabled && si > 0)
+							{
+								const ImGuiTimeline_Segment& lastSegment = tracks[i].segments[si - 1];
+								snapToPreviousSegment(firstFrame, &offsetX,
+									&segment.frameStart, &segment.frameDuration,
+									lastSegment.frameStart, lastSegment.frameDuration,
+									changeType, amountOfTimeVisibleInTimeline);
+							}
+
+							if (magnetEnabled && si < tracks[i].numSegments - 1)
+							{
+								const ImGuiTimeline_Segment& nextSegment = tracks[i].segments[si + 1];
+								snapToNextSegment(firstFrame, &offsetX, &width,
+									&segment.frameStart, &segment.frameDuration,
+									nextSegment.frameStart, nextSegment.frameDuration,
+									changeType, amountOfTimeVisibleInTimeline);
+							}
+
+							if (magnetEnabled)
+							{
+								snapToCursor(currentFrame, firstFrame,
+									&segment.frameStart, &segment.frameDuration,
+									&offsetX, &width, amountOfTimeVisibleInTimeline, changeType);
+							}
+							// ------------ End Magnet handling stuff ------------
+
 							g_logger_assert(res.segmentIndex == -1, "Invalid result. User somehow modified two segments at once.");
 							res.flags |= ImGuiTimelineResultFlags_SegmentTimeChanged;
 							res.segmentIndex = si;
@@ -449,8 +511,8 @@ namespace MathAnim
 							}
 
 							// Adjust the segment start and end to the new positions
-							offsetX = (segment.frameStart - (float)*firstFrame) / amountOfTimeVisibleInTimeline * (canvasSize.x - legendSize.x);
-							width = (segment.frameDuration / amountOfTimeVisibleInTimeline) * (canvasSize.x - legendSize.x);
+							offsetX = calculateSegmentOffset(segment.frameStart, *firstFrame, amountOfTimeVisibleInTimeline);
+							width = calculateSegmentWidth(segment.frameDuration, amountOfTimeVisibleInTimeline);
 							segmentStart = ImVec2(canvasPos.x + legendSize.x + offsetX, trackTopY);
 							segmentEnd = ImVec2(segmentStart.x + width, trackBottomY);
 						}
@@ -534,8 +596,46 @@ namespace MathAnim
 
 								std::string strId = std::string("Track_") + std::to_string(i) + "_SubSegment_" + std::to_string(si) + "_" + std::to_string(subSegmenti);
 								ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
-								if (handleSubSegment(subSegmentStart, subSegmentEnd, &subSegment, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
+								SegmentChangeType subChangeType;
+								if (handleSubSegment(subSegmentStart, subSegmentEnd, &subSegment, &subChangeType, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
 								{
+									float subOffsetX = calculateSegmentOffset(subSegment.frameStart, *firstFrame, amountOfTimeVisibleInTimeline);
+									float subWidth = calculateSegmentWidth(subSegment.frameDuration, amountOfTimeVisibleInTimeline);
+
+									// ------------ Handle magnet snapping segments ------------
+									if (magnetEnabled && subSegmenti > 0)
+									{
+										const ImGuiTimeline_SubSegment& lastSubSegment = tracks[i].segments[si].subSegments[subSegmenti - 1];
+										snapToPreviousSegment(firstFrame, &subOffsetX,
+											&subSegment.frameStart, &subSegment.frameDuration,
+											lastSubSegment.frameStart, lastSubSegment.frameDuration,
+											subChangeType, amountOfTimeVisibleInTimeline);
+									}
+
+									if (magnetEnabled && subSegmenti < tracks[i].segments[si].numSubSegments - 1)
+									{
+										const ImGuiTimeline_SubSegment& nextSubSegment = tracks[i].segments[si].subSegments[subSegmenti + 1];
+										snapToNextSegment(firstFrame, &subOffsetX, &subWidth,
+											&subSegment.frameStart, &subSegment.frameDuration,
+											nextSubSegment.frameStart, nextSubSegment.frameDuration,
+											subChangeType, amountOfTimeVisibleInTimeline);
+									}
+
+									if (magnetEnabled)
+									{
+										snapToCursor(currentFrame, firstFrame,
+											&subSegment.frameStart, &subSegment.frameDuration,
+											&subOffsetX, &subWidth, amountOfTimeVisibleInTimeline, subChangeType);
+									}
+									// ------------ End Magnet handling stuff ------------
+
+									// If subsegment is dragged beyond the end of it's parent segment, re-adjust the start
+									// so that it clamps it to the end
+									if (subSegment.frameStart + subSegment.frameDuration > segment.frameDuration)
+									{
+										subSegment.frameStart = segment.frameDuration - subSegment.frameDuration;
+									}
+
 									g_logger_assert(res.segmentIndex == -1, "Invalid result. User somehow modified two segments at once.");
 									res.flags |= ImGuiTimelineResultFlags_SubSegmentTimeChanged;
 									res.segmentIndex = si;
@@ -732,13 +832,13 @@ namespace MathAnim
 				{
 					*firstFrame -= glm::max((int)(3.0f * (*zoom)), 1);
 					*firstFrame = glm::max(*firstFrame, 0);
-					scrollOffsetX = getScrollFromFrame(amountOfTimeVisibleInTimeline, *firstFrame, timelineRulerEnd, timelineRulerBegin);
+					scrollOffsetX = getScrollFromFrame(amountOfTimeVisibleInTimeline, *firstFrame);
 					res.flags |= ImGuiTimelineResultFlags_FirstFrameChanged;
 				}
 				else if (*currentFrame > *firstFrame + (int)amountOfTimeVisibleInTimeline)
 				{
 					*firstFrame += glm::max((int)(3.0f * (*zoom)), 1);
-					scrollOffsetX = getScrollFromFrame(amountOfTimeVisibleInTimeline, *firstFrame, timelineRulerEnd, timelineRulerBegin);
+					scrollOffsetX = getScrollFromFrame(amountOfTimeVisibleInTimeline, *firstFrame);
 					res.flags |= ImGuiTimelineResultFlags_FirstFrameChanged;
 				}
 
@@ -752,7 +852,7 @@ namespace MathAnim
 
 			ImVec2 cursorSize = ImVec2(5.5f, canvasSize.y);
 			ImVec2 cursorStart = timelineRulerBegin;
-			cursorStart.x += (timelineRulerEnd.x - timelineRulerBegin.x) * (((float)*currentFrame - (float)*firstFrame) / amountOfTimeVisibleInTimeline);
+			cursorStart.x += calculateCursorOffset(*currentFrame, *firstFrame, amountOfTimeVisibleInTimeline);
 
 			float triangleWidth = 15.0f;
 			float triangleHeight = 15.0f;
@@ -802,7 +902,7 @@ namespace MathAnim
 
 			if (changed)
 			{
-				scrollOffsetX = getScrollFromFrame(amountOfTimeVisibleInTimeline, *firstFrame, timelineRulerEnd, timelineRulerBegin);
+				scrollOffsetX = getScrollFromFrame(amountOfTimeVisibleInTimeline, *firstFrame);
 				res.flags |= ImGuiTimelineResultFlags_FirstFrameChanged;
 			}
 		}
@@ -1062,7 +1162,7 @@ namespace MathAnim
 		return res;
 	}
 
-	static bool handleLegendSplitter(const ImVec2& canvasPos, const ImVec2& canvasSize, const ImVec2& legendSize, float* legendWidth)
+	static bool handleLegendSplitter(float* legendWidth)
 	{
 		static DragState state = DragState::None;
 
@@ -1152,7 +1252,7 @@ namespace MathAnim
 		return currentValueChanged;
 	}
 
-	static bool handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline)
+	static bool handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, SegmentChangeType* changeType, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline)
 	{
 		static DragState dragState = DragState::None;
 		static DragState leftResizeState = DragState::None;
@@ -1165,6 +1265,7 @@ namespace MathAnim
 		static int ogFrameDuration = 0;
 
 		bool changed = false;
+		*changeType = SegmentChangeType::None;
 		ImVec2 segmentStart_ = segmentStart + ImVec2(halfResizeDragWidth + 0.1f, 0.0f);
 		ImVec2 segmentEnd_ = segmentEnd - ImVec2(halfResizeDragWidth - 0.1f, 0.0f);
 		ImVec2 leftResizeStart = segmentStart - ImVec2(halfResizeDragWidth, 0.0f);
@@ -1247,6 +1348,7 @@ namespace MathAnim
 					segment->frameStart = ogFrameStart + frameChange;
 					segment->frameStart = glm::max(segment->frameStart, 0);
 					changed = true;
+					*changeType = SegmentChangeType::Moved;
 				}
 			}
 			// Handle left/right resize cursors
@@ -1275,6 +1377,7 @@ namespace MathAnim
 					}
 
 					changed = true;
+					*changeType = SegmentChangeType::Resized;
 				}
 
 				if (rightResizeState == DragState::Active)
@@ -1287,6 +1390,7 @@ namespace MathAnim
 					}
 
 					changed = true;
+					*changeType = SegmentChangeType::Resized;
 				}
 			}
 		}
@@ -1294,7 +1398,7 @@ namespace MathAnim
 		return changed;
 	}
 
-	static bool handleSubSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_SubSegment* segment, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline)
+	static bool handleSubSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_SubSegment* segment, SegmentChangeType* changeType, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline)
 	{
 		static DragState dragState = DragState::None;
 		static DragState leftResizeState = DragState::None;
@@ -1307,6 +1411,7 @@ namespace MathAnim
 		static int ogFrameDuration = 0;
 
 		bool changed = false;
+		*changeType = SegmentChangeType::None;
 		ImVec2 segmentStart_ = segmentStart + ImVec2(halfResizeDragWidth + 0.1f, 0.0f);
 		ImVec2 segmentEnd_ = segmentEnd - ImVec2(halfResizeDragWidth - 0.1f, 0.0f);
 		ImVec2 leftResizeStart = segmentStart - ImVec2(halfResizeDragWidth, 0.0f);
@@ -1389,6 +1494,7 @@ namespace MathAnim
 					segment->frameStart = ogFrameStart + frameChange;
 					segment->frameStart = glm::max(segment->frameStart, 0);
 					changed = true;
+					*changeType = SegmentChangeType::Moved;
 				}
 			}
 			// Handle left/right resize cursors
@@ -1417,6 +1523,7 @@ namespace MathAnim
 					}
 
 					changed = true;
+					*changeType = SegmentChangeType::Resized;
 				}
 
 				if (rightResizeState == DragState::Active)
@@ -1429,6 +1536,7 @@ namespace MathAnim
 					}
 
 					changed = true;
+					*changeType = SegmentChangeType::Resized;
 				}
 			}
 		}
@@ -1458,7 +1566,7 @@ namespace MathAnim
 		}
 	}
 
-	static float getScrollFromFrame(float amountOfTimeVisibleInTimeline, int firstFrame, const ImVec2& timelineRulerEnd, const ImVec2& timelineRulerBegin)
+	static float getScrollFromFrame(float amountOfTimeVisibleInTimeline, int firstFrame)
 	{
 		float normalizedScrollDistance = (float)firstFrame / amountOfTimeVisibleInTimeline;
 		float res = normalizedScrollDistance * (timelineRulerEnd.x - timelineRulerBegin.x);
@@ -1526,5 +1634,86 @@ namespace MathAnim
 		}
 
 		return -1;
+	}
+
+	static void snapToCursor(int* currentFrame, int* firstFrame, int* segmentFrameStart, int* segmentFrameDuration, float* offsetX, float* width, float amountOfTimeVisibleInTimeline, SegmentChangeType changeType)
+	{
+		*offsetX = calculateSegmentOffset(*segmentFrameStart, *firstFrame, amountOfTimeVisibleInTimeline);
+		*width = calculateSegmentWidth(*segmentFrameDuration, amountOfTimeVisibleInTimeline);
+
+		// Handle the beginning of the segment snapping to the cursor
+		float cursorOffset = calculateCursorOffset(*currentFrame, *firstFrame, amountOfTimeVisibleInTimeline);
+		if (cursorOffset >= *offsetX - magnetThreshold && cursorOffset <= *offsetX + magnetThreshold)
+		{
+			// If we snap it, then we have to adjust the width to make sure it doesn't change
+			int oldFrameStart = *segmentFrameStart;
+			*segmentFrameStart = *currentFrame;
+			int delta = oldFrameStart - *segmentFrameStart;
+
+			// If the user was resizing, we need to adjust the frame duration to make sure
+			// the segment doesn't look like it moved suddenly. Comment this out with the magnet
+			// enabled and resize a segment to snap against another segment to see what this does
+			// in more detail.
+			if (changeType == SegmentChangeType::Resized)
+			{
+				*segmentFrameDuration += delta;
+			}
+		}
+
+		// Handle the end of the segment snapping to the cursor
+		if (cursorOffset >= *offsetX + *width - magnetThreshold && cursorOffset <= *offsetX + *width + magnetThreshold)
+		{
+			if (changeType == SegmentChangeType::Moved)
+			{
+				*segmentFrameStart = *currentFrame - *segmentFrameDuration;
+			}
+			else
+			{
+				// If we snap it while resizing, then we have to adjust the width 
+				// to make sure it doesn't change
+				*segmentFrameDuration = *currentFrame - *segmentFrameStart;
+			}
+		}
+	}
+
+	static void snapToPreviousSegment(int* firstFrame, float* offsetX, int* segmentFrameStart, int* segmentFrameDuration, int lastSegmentFrameStart, int lastSegmentFrameDuration, SegmentChangeType changeType, float amountOfTimeVisibleInTimeline)
+	{
+		float lastOffset = calculateSegmentOffset(lastSegmentFrameStart, *firstFrame, amountOfTimeVisibleInTimeline);
+		float lastWidth = calculateSegmentWidth(lastSegmentFrameDuration, amountOfTimeVisibleInTimeline);
+		if (lastOffset + lastWidth >= *offsetX - magnetThreshold && lastOffset + lastWidth <= *offsetX + magnetThreshold)
+		{
+			// If we snap it, then we have to adjust the width to make sure it doesn't change
+			int oldFrameStart = *segmentFrameStart;
+			*segmentFrameStart = lastSegmentFrameStart + lastSegmentFrameDuration;
+			int delta = oldFrameStart - *segmentFrameStart;
+
+			// If the user was resizing, we need to adjust the frame duration to make sure
+			// the segment doesn't look like it moved suddenly. Comment this out with the magnet
+			// enabled and resize a segment to snap against another segment to see what this does
+			// in more detail.
+			if (changeType == SegmentChangeType::Resized)
+			{
+				*segmentFrameDuration += delta;
+			}
+		}
+	}
+
+	static void snapToNextSegment(int* firstFrame, float* offsetX, float* width, int* segmentFrameStart, int* segmentFrameDuration, int nextSegmentFrameStart, int nextSegmentFrameDuration, SegmentChangeType changeType, float amountOfTimeVisibleInTimeline)
+	{
+		float nextOffset = calculateSegmentOffset(nextSegmentFrameStart, *firstFrame, amountOfTimeVisibleInTimeline);
+		float nextWidth = calculateSegmentWidth(nextSegmentFrameDuration, amountOfTimeVisibleInTimeline);
+		if (nextOffset >= *offsetX + *width - magnetThreshold && nextOffset <= *offsetX + *width + magnetThreshold)
+		{
+			if (changeType == SegmentChangeType::Moved)
+			{
+				*segmentFrameStart = nextSegmentFrameStart - *segmentFrameDuration;
+			}
+			else
+			{
+				// If we snap it while resizing, then we have to adjust the width 
+				// to make sure it doesn't change
+				*segmentFrameDuration = nextSegmentFrameStart - *segmentFrameStart;
+			}
+		}
 	}
 }
