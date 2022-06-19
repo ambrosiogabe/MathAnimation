@@ -281,6 +281,7 @@ namespace MathAnim
 
 			Audio::free(audioSource);
 			WavLoader::free(audioData);
+			ImGuiTimeline_free();
 		}
 
 		// ------- Internal Functions --------

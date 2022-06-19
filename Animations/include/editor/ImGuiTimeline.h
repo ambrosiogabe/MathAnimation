@@ -94,6 +94,8 @@ namespace MathAnim
 	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* zoom = nullptr, const ImGuiTimeline_AudioData* audioData = nullptr, ImGuiTimelineFlags flags = ImGuiTimelineFlags_None);
 	const char* ImGuiTimeline_DragDropSegmentPayloadId();
 	const char* ImGuiTimeline_DragDropSubSegmentPayloadId();
+
+	void ImGuiTimeline_free();
 }
 
 #endif 

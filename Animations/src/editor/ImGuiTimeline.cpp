@@ -1283,6 +1283,18 @@ namespace MathAnim
 		return TIMELINE_DRAG_DROP_SUB_SEGMENT_PAYLOAD_ID;
 	}
 
+	void ImGuiTimeline_free()
+	{
+		if (audioCache != nullptr)
+		{
+			g_memory_free(audioCache);
+			audioCache = nullptr;
+		}
+
+		maxLengthAudioCache = 0;
+		lengthAudioCache = 0;
+	}
+
 	static bool handleResizeElement(float* currentValue, DragState* state, const ImVec2& valueBounds, const ImVec2& mouseBounds, const ImVec2& hoverRectStart, const ImVec2& hoverRectEnd, ResizeFlags flags)
 	{
 		float normalizedPos = ((float)(*currentValue) - (float)valueBounds.x) / ((float)valueBounds.y - (float)valueBounds.x);
