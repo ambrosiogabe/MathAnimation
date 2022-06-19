@@ -147,17 +147,26 @@ Right now this library can
 * Animate any parametric equation over time
 * Draw a grid of arbitrary width
 * Draw basic lines
+* And much more. One of my TODO's is to update this list with some cool GIF's and/or pictures of the features currently available.
 
 ## Planned Features
 
 This library is planned to support
 
-- [ ] Export arbitrary video formats (currently only H264 MP4 is supported)
-- [ ] View audio waveform preview
-  - [ ] View an audio wave form at the bottom of the timeline editor(and hear the audio as the clip is played) to sync
-    animations up with an audio clip
-- [ ] 3D Lines and Bezier curve approximations
+- [ ] Add LaTex support using MicroTex (https://github.com/NanoMichael/MicroTeX)    
+- [ ] Export arbitrary video formats (currently only H264 MP4 is supported right now)
+- [ ] Swap to st AV1 instead of ffmpeg for video encoding (they have much nicer licensing and they are the future of video codecs)
+  > https://gitlab.com/AOMediaCodec/SVT-AV1
+- [ ] Add cascade effects when editing timeline
+  > For example, if you move a segment to the right, it should "push" the other segments further to the right if the cascade effect is enabled
+- [ ] Add a split segment mode
+- [ ] Add support for interpolating between SVG objects with different number of paths and contours
+  > To do this, I'll have to auto generate the in between points for the contours and then interpolate regularly from there
+- [ ] Add follow path animation. Should allow you to plot a custom path and the object will follow that
+- [ ] Add math grid animation. Should create a numbered grid.
+- [ ] 3D Bezier curve approximations
 - [ ] 3D animation objects
+- [ ] 3D blending (potentially OIT)
 - [ ] Gizmos
 - [ ] Textured 2D objects
 - [ ] Textured 3D objects
@@ -176,8 +185,17 @@ This library is planned to support
 - [ ] Project hub when starting the app
   > Kind of like DaVinci Resolve's startup project display. This way you can just click into the most recent
     project and create a new one without having to do anything complicated
-- [ ] Font previews when selecting a font
 - [ ] Animation preview when hovering over a question mark
+- [x] ~~Font previews when selecting a font~~
+- [x] ~~View audio waveform preview~~
+  - [x] ~~View an audio wave form at the bottom of the timeline editor(and hear the audio as the clip is played) to sync~~
+    ~~animations up with an audio clip~~
+- [x] ~~3D Lines~~
+
+### Planned Features (nice-to-have, but not necessary)
+
+- [ ] Offload rendering to background thread so that event processing doesn't block render
+- [ ] Improve styling for the whole editor. Make it all cohesive and add option to export/import themes.
 
 ## Bugs
 
