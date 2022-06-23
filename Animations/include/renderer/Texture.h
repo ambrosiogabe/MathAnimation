@@ -21,11 +21,13 @@ namespace MathAnim
 	{
 		None = 0,
 		RGBA8_UI,
+		RGBA16_F,
 
 		RGB8_UI,
 
 		R32_UI,
 		R8_UI,
+		R8_F,
 	};
 
 	enum class ColorChannel

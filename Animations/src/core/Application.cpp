@@ -40,7 +40,6 @@ namespace MathAnim
 
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
-		static Texture mainTexture;
 		static OrthoCamera camera2D;
 		static PerspectiveCamera camera3D;
 		static int currentFrame = 0;
@@ -77,18 +76,7 @@ namespace MathAnim
 				return;
 			}
 
-			mainTexture = TextureBuilder()
-				.setFormat(ByteFormat::RGBA8_UI)
-				.setMinFilter(FilterMode::Linear)
-				.setMagFilter(FilterMode::Linear)
-				.setWidth(outputWidth)
-				.setHeight(outputHeight)
-				.build();
-
-			mainFramebuffer = FramebufferBuilder(outputWidth, outputHeight)
-				.addColorAttachment(mainTexture)
-				.includeDepthStencil()
-				.generate();
+			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
 			AnimationManager::deserialize("./myScene.bin");
 
@@ -141,24 +129,21 @@ namespace MathAnim
 				}
 
 				// Render to main framebuffer
-				AnimationManager::render(vg, currentFrame);
-				nvgEndFrame(vg);
-
-				Renderer::render();
-
-				// Render to screen
+				Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);
 				mainFramebuffer.unbind();
+
+				// Render to window
 				glViewport(0, 0, window->width, window->height);
 				Renderer::renderFramebuffer(mainFramebuffer);
 
-				ImGuiLayer::beginFrame();
-
 				// Do ImGui stuff
+				ImGuiLayer::beginFrame();
 				ImGui::ShowDemoWindow();
 				EditorGui::update(mainFramebuffer.getColorAttachment(0).graphicsId);
-
 				ImGuiLayer::endFrame();
 
+				// Miscellaneous
+				// TODO: Abstract this stuff out of here
 				if (outputVideoFile)
 				{
 					Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
@@ -189,6 +174,7 @@ namespace MathAnim
 			Fonts::unloadAllFonts();
 			EditorGui::free();
 			nvgDeleteGL3(vg);
+			Renderer::free();
 			Audio::free();
 
 			ImGuiLayer::free();

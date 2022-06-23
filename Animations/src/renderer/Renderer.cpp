@@ -7,7 +7,10 @@
 #include "renderer/Texture.h"
 #include "renderer/Fonts.h"
 #include "animation/Animation.h"
+#include "animation/AnimationManager.h"
 #include "core/Application.h"
+
+#include <nanovg.h>
 
 #ifdef _RELEASE
 #include "shaders/default.glsl.hpp"
@@ -16,12 +19,110 @@
 
 namespace MathAnim
 {
-	struct Vertex
+	template<typename T>
+	struct SimpleVector
+	{
+		T* data;
+		int32 numElements;
+		int32 maxCapacity;
+
+		void init(int32 initialCapacity = 8)
+		{
+			numElements = 0;
+			maxCapacity = initialCapacity;
+			data = (T*)g_memory_allocate(sizeof(T) * initialCapacity);
+		}
+
+		void push(const T& t)
+		{
+			checkGrow();
+			data[numElements] = t;
+			numElements++;
+		}
+
+		T pop()
+		{
+			T res = data[numElements - 1];
+			numElements--;
+			return res;
+		}
+
+		inline int32 size() const
+		{
+			return numElements;
+		}
+
+		void softClear()
+		{
+			numElements = 0;
+		}
+
+		void hardClear()
+		{
+			numElements = 0;
+			maxCapacity = 0;
+			if (data)
+			{
+				g_memory_free(data);
+			}
+			data = nullptr;
+		}
+
+		void checkGrow(int numElementsToAdd = 1)
+		{
+			if (numElements + numElementsToAdd < maxCapacity)
+			{
+				return;
+			}
+
+			maxCapacity = (numElements + numElementsToAdd) * 2;
+			if (!data)
+			{
+				data = (T*)g_memory_allocate(sizeof(T) * maxCapacity);
+			}
+			else
+			{
+				data = (T*)g_memory_realloc(data, sizeof(T) * maxCapacity);
+			}
+			g_logger_assert(data != nullptr, "Ran out of RAM.");
+		}
+	};
+
+	struct DrawCmd
+	{
+		uint32 textureId;
+		uint32 vertexOffset;
+		uint32 indexOffset;
+		uint32 elementCount;
+	};
+
+	struct Vertex2D
 	{
 		Vec2 position;
 		Vec4 color;
-		uint32 textureId;
 		Vec2 textureCoords;
+	};
+
+	struct DrawList2D
+	{
+		SimpleVector<Vertex2D> vertices;
+		SimpleVector<uint16> indices;
+		SimpleVector<DrawCmd> drawCommands;
+		SimpleVector<uint32> textureIdStack;
+
+		uint32 vao;
+		uint32 vbo;
+		uint32 ebo;
+
+		void init();
+
+		// TODO: Add a bunch of methods like this...
+		// void addRect();
+
+		void setupGraphicsBuffers();
+		void render(const Shader& shader) const;
+		void reset();
+		void free();
 	};
 
 	struct Vertex3DLine
@@ -33,26 +134,57 @@ namespace MathAnim
 		uint32 color;
 	};
 
+	struct DrawList3DLine
+	{
+		SimpleVector<Vertex3DLine> vertices;
+
+		uint32 vao;
+		uint32 vbo;
+
+		void init();
+
+		void addLine(const Vec3& previousPos, const Vec3& currentPos, const Vec3& nextPos, const Vec3& nextNextPos, uint32 packedColor, float thickness);
+
+		void setupGraphicsBuffers();
+		void render(const Shader& shader) const;
+		void reset();
+		void free();
+	};
+
+	struct Vertex3D
+	{
+		Vec3 position;
+		Vec4 color;
+		Vec2 textureCoords;
+	};
+
+	struct DrawList3D
+	{
+		SimpleVector<Vertex3D> vertices;
+		SimpleVector<uint16> indices;
+		SimpleVector<DrawCmd> drawCommands;
+		SimpleVector<uint32> textureIdStack;
+
+		uint32 vao;
+		uint32 ebo;
+		uint32 vbo;
+
+		void init();
+		void setupGraphicsBuffers();
+		void free();
+	};
+
 	namespace Renderer
 	{
 		// Internal variables
-		static uint32 vao;
-		static uint32 vbo;
-		static uint32 numVertices;
-
-		static uint32 vao3DLines;
-		static uint32 vbo3DLines;
-		static uint32 numVertices3DLines;
-
-		static constexpr int maxNumTrianglesPerBatch = 100;
-		static constexpr int maxNumVerticesPerBatch = maxNumTrianglesPerBatch * 3;
-		static Vertex vertices[maxNumVerticesPerBatch];
-		static Vertex3DLine vertices3DLines[maxNumVerticesPerBatch];
+		static DrawList2D drawList2D;
+		static DrawList3DLine drawList3DLine;
+		static DrawList3D drawList3D;
 
 		static OrthoCamera* orthoCamera;
 		static PerspectiveCamera* perspCamera;
 
-		static Shader shader;
+		static Shader shader2D;
 		static Shader shader3DLine;
 		static Shader screenShader;
 
@@ -87,23 +219,18 @@ namespace MathAnim
 		};
 
 		static uint32 screenVao;
-		static const int32 numTextureGraphicsIds = 8;
-		static int32 numFontTextures = 0;
-		static Texture textureGraphicIds[numTextureGraphicsIds];
-		static int32 uTextures[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 
 		// ---------------------- Internal Functions ----------------------
-		static uint32 getTexId(const Texture& texture);
 		static void setupScreenVao();
-		static void setupBatchedVao();
-		static void setupVao3DLines();
 		static void GLAPIENTRY messageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+		static uint32 getColorCompressed();
+		static const glm::vec4& getColor();
+		static float getStrokeWidth();
 
 		void init(OrthoCamera& inOrthoCamera, PerspectiveCamera& inPerspCamera)
 		{
 			orthoCamera = &inOrthoCamera;
 			perspCamera = &inPerspCamera;
-			numVertices = 0;
 
 			strokeWidthStackPtr = 0;
 			colorStackPtr = 0;
@@ -134,7 +261,7 @@ namespace MathAnim
 
 			// Initialize default shader
 #ifdef _DEBUG
-			shader.compile("assets/shaders/default.glsl");
+			shader2D.compile("assets/shaders/default.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 #elif defined(_RELEASE)
@@ -142,28 +269,32 @@ namespace MathAnim
 			screenShader.compileRaw(screenShaderGlsl);
 #endif
 
-			setupBatchedVao();
+			drawList2D.init();
+			drawList3DLine.init();
+			drawList3D.init();
 			setupScreenVao();
-			setupVao3DLines();
+		}
 
-			for (int i = 0; i < numTextureGraphicsIds; i++)
-			{
-				textureGraphicIds[i] = { 0 };
-			}
+		void free()
+		{
+			drawList2D.free();
+			drawList3DLine.free();
+			drawList3D.free();
 		}
 
 		// ----------- Render calls ----------- 
-		void render()
+		void renderToFramebuffer(NVGcontext* vg, int frame, Framebuffer& framebuffer)
 		{
-			if (numVertices > 0)
-			{
-				flushBatch();
-			}
+			framebuffer.bind();
 
-			if (numVertices3DLines > 0)
-			{
-				flushBatch3D();
-			}
+			AnimationManager::render(vg, frame, framebuffer);
+			nvgEndFrame(vg);
+
+			drawList2D.render(shader2D);
+			drawList2D.reset();
+
+			drawList3DLine.render(shader3DLine);
+			drawList3DLine.reset();
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
 			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
@@ -243,228 +374,234 @@ namespace MathAnim
 
 		void drawFilledSquare(const Vec2& start, const Vec2& size)
 		{
-			if (numVertices + 6 >= maxNumVerticesPerBatch)
-			{
-				flushBatch();
-			}
+			// TODO: Move this into the drawList2D
+			//if (numVertices + 6 >= maxNumVerticesPerBatch)
+			//{
+			//	flushBatch();
+			//}
 
-			glm::vec4 vColor = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-			Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
+			//glm::vec4 vColor = colorStackPtr > 0
+			//	? colorStack[colorStackPtr - 1]
+			//	: defaultColor;
+			//Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
 
-			// Triangle 1
-			// "Bottom-left" corner of line
-			vertices[numVertices].position = start;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// Triangle 1
+			//// "Bottom-left" corner of line
+			//vertices[numVertices].position = start;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			// "Top-Left" corner of line
-			vertices[numVertices].position = start + Vec2{ 0, size.y };
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// "Top-Left" corner of line
+			//vertices[numVertices].position = start + Vec2{ 0, size.y };
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			// "Top-Right" corner of line
-			vertices[numVertices].position = start + size;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// "Top-Right" corner of line
+			//vertices[numVertices].position = start + size;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			// Triangle 2
-			// "Bottom-left" corner of line
-			vertices[numVertices].position = start;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// Triangle 2
+			//// "Bottom-left" corner of line
+			//vertices[numVertices].position = start;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			// "Bottom-Right" corner of line
-			vertices[numVertices].position = start + Vec2{ size.x, 0 };
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// "Bottom-Right" corner of line
+			//vertices[numVertices].position = start + Vec2{ size.x, 0 };
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			// "Top-Right" corner of line
-			vertices[numVertices].position = start + size;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// "Top-Right" corner of line
+			//vertices[numVertices].position = start + size;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 		}
 
 		void drawLine(const Vec2& start, const Vec2& end)
 		{
-			CapType lineEnding = lineEndingStackPtr > 0
-				? lineEndingStack[lineEndingStackPtr - 1]
-				: defaultLineEnding;
-			if ((lineEnding == CapType::Flat && numVertices + 6 >= maxNumVerticesPerBatch) ||
-				(lineEnding == CapType::Arrow && numVertices + 15 >= maxNumVerticesPerBatch))
-			{
-				flushBatch();
-			}
+			// TODO: Move this into DrawList2D
+			//CapType lineEnding = lineEndingStackPtr > 0
+			//	? lineEndingStack[lineEndingStackPtr - 1]
+			//	: defaultLineEnding;
+			//if ((lineEnding == CapType::Flat && numVertices + 6 >= maxNumVerticesPerBatch) ||
+			//	(lineEnding == CapType::Arrow && numVertices + 15 >= maxNumVerticesPerBatch))
+			//{
+			//	flushBatch();
+			//}
 
-			glm::vec4 vColor = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-			Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
-			float strokeWidth = strokeWidthStackPtr > 0
-				? strokeWidthStack[strokeWidthStackPtr - 1]
-				: defaultStrokeWidth;
+			//glm::vec4 vColor = colorStackPtr > 0
+			//	? colorStack[colorStackPtr - 1]
+			//	: defaultColor;
+			//Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
+			//float strokeWidth = strokeWidthStackPtr > 0
+			//	? strokeWidthStack[strokeWidthStackPtr - 1]
+			//	: defaultStrokeWidth;
 
-			Vec2 direction = end - start;
-			Vec2 normalDirection = CMath::normalize(direction);
-			Vec2 perpVector = CMath::normalize(Vec2{ normalDirection.y, -normalDirection.x });
+			//Vec2 direction = end - start;
+			//Vec2 normalDirection = CMath::normalize(direction);
+			//Vec2 perpVector = CMath::normalize(Vec2{ normalDirection.y, -normalDirection.x });
 
-			// Triangle 1
-			// "Bottom-left" corner of line
-			vertices[numVertices].position = start + (perpVector * strokeWidth * 0.5f);
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// Triangle 1
+			//// "Bottom-left" corner of line
+			//vertices[numVertices].position = start + (perpVector * strokeWidth * 0.5f);
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			// "Top-Left" corner of line
-			vertices[numVertices].position = vertices[numVertices - 1].position + direction;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// "Top-Left" corner of line
+			//vertices[numVertices].position = vertices[numVertices - 1].position + direction;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			// "Top-Right" corner of line
-			vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * strokeWidth);
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// "Top-Right" corner of line
+			//vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * strokeWidth);
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			// Triangle 2
-			// "Bottom-left" corner of line
-			vertices[numVertices].position = start + (perpVector * strokeWidth * 0.5f);
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// Triangle 2
+			//// "Bottom-left" corner of line
+			//vertices[numVertices].position = start + (perpVector * strokeWidth * 0.5f);
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			// "Bottom-Right" corner of line
-			vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * strokeWidth);
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// "Bottom-Right" corner of line
+			//vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * strokeWidth);
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			// "Top-Right" corner of line
-			vertices[numVertices].position = vertices[numVertices - 1].position + direction;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//// "Top-Right" corner of line
+			//vertices[numVertices].position = vertices[numVertices - 1].position + direction;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			if (lineEnding == CapType::Arrow)
-			{
-				// Add arrow tip
-				Vec2 centerDot = end + (normalDirection * strokeWidth * 0.5f);
-				Vec2 vectorToCenter = CMath::normalize(centerDot - (end - perpVector * strokeWidth * 0.5f));
-				Vec2 oVectorToCenter = CMath::normalize(centerDot - (end + perpVector * strokeWidth * 0.5f));
-				Vec2 bottomLeft = centerDot - vectorToCenter * strokeWidth * 4.0f;
-				Vec2 bottomRight = centerDot - oVectorToCenter * strokeWidth * 4.0f;
-				Vec2 top = centerDot + normalDirection * strokeWidth * 4.0f;
+			//if (lineEnding == CapType::Arrow)
+			//{
+			//	// Add arrow tip
+			//	Vec2 centerDot = end + (normalDirection * strokeWidth * 0.5f);
+			//	Vec2 vectorToCenter = CMath::normalize(centerDot - (end - perpVector * strokeWidth * 0.5f));
+			//	Vec2 oVectorToCenter = CMath::normalize(centerDot - (end + perpVector * strokeWidth * 0.5f));
+			//	Vec2 bottomLeft = centerDot - vectorToCenter * strokeWidth * 4.0f;
+			//	Vec2 bottomRight = centerDot - oVectorToCenter * strokeWidth * 4.0f;
+			//	Vec2 top = centerDot + normalDirection * strokeWidth * 4.0f;
 
-				// Left Triangle
-				vertices[numVertices].position = centerDot;
-				vertices[numVertices].color = color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
+			//	// Left Triangle
+			//	vertices[numVertices].position = centerDot;
+			//	vertices[numVertices].color = color;
+			//	vertices[numVertices].textureId = 0;
+			//	numVertices++;
 
-				vertices[numVertices].position = bottomLeft;
-				vertices[numVertices].color = color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
+			//	vertices[numVertices].position = bottomLeft;
+			//	vertices[numVertices].color = color;
+			//	vertices[numVertices].textureId = 0;
+			//	numVertices++;
 
-				vertices[numVertices].position = top;
-				vertices[numVertices].color = color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
+			//	vertices[numVertices].position = top;
+			//	vertices[numVertices].color = color;
+			//	vertices[numVertices].textureId = 0;
+			//	numVertices++;
 
-				// Right triangle
-				vertices[numVertices].position = top;
-				vertices[numVertices].color = color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
+			//	// Right triangle
+			//	vertices[numVertices].position = top;
+			//	vertices[numVertices].color = color;
+			//	vertices[numVertices].textureId = 0;
+			//	numVertices++;
 
-				vertices[numVertices].position = centerDot;
-				vertices[numVertices].color = color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
+			//	vertices[numVertices].position = centerDot;
+			//	vertices[numVertices].color = color;
+			//	vertices[numVertices].textureId = 0;
+			//	numVertices++;
 
-				vertices[numVertices].position = bottomRight;
-				vertices[numVertices].color = color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
+			//	vertices[numVertices].position = bottomRight;
+			//	vertices[numVertices].color = color;
+			//	vertices[numVertices].textureId = 0;
+			//	numVertices++;
 
-				// Center triangle
-				vertices[numVertices].position = centerDot;
-				vertices[numVertices].color = color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
+			//	// Center triangle
+			//	vertices[numVertices].position = centerDot;
+			//	vertices[numVertices].color = color;
+			//	vertices[numVertices].textureId = 0;
+			//	numVertices++;
 
-				vertices[numVertices].position = end + perpVector * strokeWidth * 0.5f;
-				vertices[numVertices].color = color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
+			//	vertices[numVertices].position = end + perpVector * strokeWidth * 0.5f;
+			//	vertices[numVertices].color = color;
+			//	vertices[numVertices].textureId = 0;
+			//	numVertices++;
 
-				vertices[numVertices].position = end - perpVector * strokeWidth * 0.5f;
-				vertices[numVertices].color = color;
-				vertices[numVertices].textureId = 0;
-				numVertices++;
-			}
+			//	vertices[numVertices].position = end - perpVector * strokeWidth * 0.5f;
+			//	vertices[numVertices].color = color;
+			//	vertices[numVertices].textureId = 0;
+			//	numVertices++;
+			//}
 		}
 
 		void drawTexture(const RenderableTexture& renderable, const Vec4& color)
 		{
-			if (numVertices + 6 >= maxNumVerticesPerBatch)
-			{
-				flushBatch();
-			}
+			// TODO: Move this into DrawList2D
+			// And make it something like pushTexture(texture);
+			// Then drawRect(pos, size, uvPos, uvSize);
 
-			uint32 texId = getTexId(*renderable.texture);
+			//if (numVertices + 6 >= maxNumVerticesPerBatch)
+			//{
+			//	flushBatch();
+			//}
 
-			// Triangle 1
-			// "Bottom-left" corner
-			vertices[numVertices].position = renderable.start;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart;
-			numVertices++;
+			//uint32 texId = getTexId(*renderable.texture);
 
-			// "Top-Left" corner
-			vertices[numVertices].position = renderable.start + Vec2{ 0, renderable.size.y };
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ 0, renderable.texCoordSize.y };
-			numVertices++;
+			//// Triangle 1
+			//// "Bottom-left" corner
+			//vertices[numVertices].position = renderable.start;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = texId;
+			//vertices[numVertices].textureCoords = renderable.texCoordStart;
+			//numVertices++;
 
-			// "Top-Right" corner of line
-			vertices[numVertices].position = renderable.start + renderable.size;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
-			numVertices++;
+			//// "Top-Left" corner
+			//vertices[numVertices].position = renderable.start + Vec2{ 0, renderable.size.y };
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = texId;
+			//vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ 0, renderable.texCoordSize.y };
+			//numVertices++;
 
-			// Triangle 2
-			// "Bottom-left" corner of line
-			vertices[numVertices].position = renderable.start;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart;
-			numVertices++;
+			//// "Top-Right" corner of line
+			//vertices[numVertices].position = renderable.start + renderable.size;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = texId;
+			//vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
+			//numVertices++;
 
-			// "Bottom-Right" corner of line
-			vertices[numVertices].position = renderable.start + Vec2{ renderable.size.x, 0 };
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ renderable.texCoordSize.x, 0 };
-			numVertices++;
+			//// Triangle 2
+			//// "Bottom-left" corner of line
+			//vertices[numVertices].position = renderable.start;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = texId;
+			//vertices[numVertices].textureCoords = renderable.texCoordStart;
+			//numVertices++;
 
-			// "Top-Right" corner of line
-			vertices[numVertices].position = renderable.start + renderable.size;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = texId;
-			vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
-			numVertices++;
+			//// "Bottom-Right" corner of line
+			//vertices[numVertices].position = renderable.start + Vec2{ renderable.size.x, 0 };
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = texId;
+			//vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ renderable.texCoordSize.x, 0 };
+			//numVertices++;
+
+			//// "Top-Right" corner of line
+			//vertices[numVertices].position = renderable.start + renderable.size;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = texId;
+			//vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
+			//numVertices++;
 		}
 
 		void drawString(const std::string& string, const Font& font, const Vec2& position, float scale, const Vec4& color)
@@ -516,30 +653,32 @@ namespace MathAnim
 
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2)
 		{
-			if (numVertices + 3 >= maxNumVerticesPerBatch)
-			{
-				flushBatch();
-			}
+			// TODO: Move this into DrawList2D
 
-			glm::vec4 vColor = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-			Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
+			//if (numVertices + 3 >= maxNumVerticesPerBatch)
+			//{
+			//	flushBatch();
+			//}
 
-			vertices[numVertices].position = p0;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//glm::vec4 vColor = colorStackPtr > 0
+			//	? colorStack[colorStackPtr - 1]
+			//	: defaultColor;
+			//Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
 
-			vertices[numVertices].position = p1;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//vertices[numVertices].position = p0;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 
-			vertices[numVertices].position = p2;
-			vertices[numVertices].color = color;
-			vertices[numVertices].textureId = 0;
-			numVertices++;
+			//vertices[numVertices].position = p1;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
+
+			//vertices[numVertices].position = p2;
+			//vertices[numVertices].color = color;
+			//vertices[numVertices].textureId = 0;
+			//numVertices++;
 		}
 
 		// ----------- 3D stuff ----------- 
@@ -602,57 +741,8 @@ namespace MathAnim
 					nextNextPos = current3DPath[vert + 2].currentPos;
 				}
 
-				if (numVertices3DLines + 6 >= maxNumVerticesPerBatch)
-				{
-					flushBatch3D();
-				}
-
 				// Triangle 1
-				vertices3DLines[numVertices3DLines].previousPos = previousPos;
-				vertices3DLines[numVertices3DLines].nextPos = nextPos;
-				vertices3DLines[numVertices3DLines].currentPos = currentPos;
-				vertices3DLines[numVertices3DLines].color = packedColor;
-				vertices3DLines[numVertices3DLines].thickness = -thickness;
-				numVertices3DLines++;
-
-				vertices3DLines[numVertices3DLines].previousPos = previousPos;
-				vertices3DLines[numVertices3DLines].nextPos = nextPos;
-				vertices3DLines[numVertices3DLines].currentPos = currentPos;
-				vertices3DLines[numVertices3DLines].color = packedColor;
-				vertices3DLines[numVertices3DLines].thickness = thickness;
-				numVertices3DLines++;
-
-				// NOTE: This uses nextNextPos to get the second half of the line segment
-				vertices3DLines[numVertices3DLines].previousPos = currentPos;
-				vertices3DLines[numVertices3DLines].nextPos = nextNextPos;
-				vertices3DLines[numVertices3DLines].currentPos = nextPos;
-				vertices3DLines[numVertices3DLines].color = packedColor;
-				vertices3DLines[numVertices3DLines].thickness = thickness;
-				numVertices3DLines++;
-
-				// Triangle 2
-				vertices3DLines[numVertices3DLines].previousPos = previousPos;
-				vertices3DLines[numVertices3DLines].nextPos = nextPos;
-				vertices3DLines[numVertices3DLines].currentPos = currentPos;
-				vertices3DLines[numVertices3DLines].color = packedColor;
-				vertices3DLines[numVertices3DLines].thickness = -thickness;
-				numVertices3DLines++;
-
-				// NOTE: This uses nextNextPos to get the second half of the line segment
-				vertices3DLines[numVertices3DLines].previousPos = currentPos;
-				vertices3DLines[numVertices3DLines].nextPos = nextNextPos;
-				vertices3DLines[numVertices3DLines].currentPos = nextPos;
-				vertices3DLines[numVertices3DLines].color = packedColor;
-				vertices3DLines[numVertices3DLines].thickness = thickness;
-				numVertices3DLines++;
-
-				// NOTE: This uses nextNextPos to get the second half of the line segment
-				vertices3DLines[numVertices3DLines].previousPos = currentPos;
-				vertices3DLines[numVertices3DLines].nextPos = nextNextPos;
-				vertices3DLines[numVertices3DLines].currentPos = nextPos;
-				vertices3DLines[numVertices3DLines].color = packedColor;
-				vertices3DLines[numVertices3DLines].thickness = -thickness;
-				numVertices3DLines++;
+				drawList3DLine.addLine(previousPos, currentPos, nextPos, nextNextPos, packedColor, thickness);
 			}
 
 			isDrawing3DPath = false;
@@ -663,7 +753,7 @@ namespace MathAnim
 		{
 			g_logger_assert(isDrawing3DPath, "lineTo3D() cannot be called without calling beginPath3D(...) first.");
 			g_logger_assert(numVertsIn3DPath < max3DPathSize, "Max path size exceeded. A 3D Path can only have up to %d points.", max3DPathSize);
-			
+
 			float strokeWidth = strokeWidthStackPtr > 0
 				? strokeWidthStack[strokeWidthStackPtr - 1]
 				: defaultStrokeWidth;
@@ -714,79 +804,13 @@ namespace MathAnim
 			return perspCamera;
 		}
 
-		void flushBatch()
-		{
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
-
-			shader.bind();
-			shader.uploadMat4("uProjection", orthoCamera->calculateProjectionMatrix());
-			shader.uploadMat4("uView", orthoCamera->calculateViewMatrix());
-
-			for (int i = 0; i < numTextureGraphicsIds; i++)
-			{
-				if (textureGraphicIds[i].graphicsId != 0)
-				{
-					glActiveTexture(GL_TEXTURE0 + i);
-					textureGraphicIds[i].bind();
-				}
-			}
-			shader.uploadIntArray("uFontTextures[0]", 8, uTextures);
-
-			glBindVertexArray(vao);
-			glDrawElements(GL_TRIANGLES, maxNumVerticesPerBatch, GL_UNSIGNED_INT, NULL);
-
-			// Clear the batch
-			memset(&vertices, 0, sizeof(Vertex) * maxNumVerticesPerBatch);
-			numVertices = 0;
-			numFontTextures = 0;
-		}
-
-		void flushBatch3D()
-		{
-			glEnable(GL_DEPTH_TEST);
-
-			glBindBuffer(GL_ARRAY_BUFFER, vbo3DLines);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * numVertices3DLines, vertices3DLines, GL_DYNAMIC_DRAW);
-
-			shader3DLine.bind();
-			shader3DLine.uploadMat4("uProjection", perspCamera->calculateProjectionMatrix());
-			shader3DLine.uploadMat4("uView", perspCamera->calculateViewMatrix());
-			shader3DLine.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
-
-			glBindVertexArray(vao3DLines);
-			glDrawArrays(GL_TRIANGLES, 0, numVertices3DLines);
-
-			// Clear the batch
-			memset(&vertices3DLines, 0, sizeof(Vertex3DLine) * numVertices3DLines);
-			numVertices3DLines = 0;
-
-			glDisable(GL_DEPTH_TEST);
-		}
-
 		void clearColor(const Vec4& color)
 		{
 			glClearColor(color.r, color.g, color.b, color.a);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		}
 
-		// ---------------------- Internal Functions ----------------------
-		static uint32 getTexId(const Texture& texture)
-		{
-			for (int i = 0; i < numTextureGraphicsIds; i++)
-			{
-				if (texture.graphicsId == textureGraphicIds[i].graphicsId || i >= numFontTextures)
-				{
-					textureGraphicIds[i].graphicsId = texture.graphicsId;
-					numFontTextures++;
-					return i + 1;
-				}
-			}
-
-			g_logger_warning("Could not find texture id in Renderer::drawTexture.");
-			return 0;
-		}
-
+		// ---------------------- Begin Internal Functions ----------------------
 		static void setupScreenVao()
 		{
 			// Create the screen vao
@@ -807,74 +831,6 @@ namespace MathAnim
 
 			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(sizeof(float) * 2));
 			glEnableVertexAttribArray(1);
-		}
-
-		static void setupBatchedVao()
-		{
-			// Create the batched vao
-			glCreateVertexArrays(1, &vao);
-			glBindVertexArray(vao);
-
-			glGenBuffers(1, &vbo);
-
-			// Allocate space for the batched vao
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * maxNumVerticesPerBatch, NULL, GL_DYNAMIC_DRAW);
-
-			uint32 ebo;
-			glGenBuffers(1, &ebo);
-
-			std::array<uint32, maxNumTrianglesPerBatch * 3> elements;
-			for (int i = 0; i < elements.size(); i += 3)
-			{
-				elements[i] = i + 0;
-				elements[i + 1] = i + 1;
-				elements[i + 2] = i + 2;
-			}
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * maxNumTrianglesPerBatch * 3, elements.data(), GL_DYNAMIC_DRAW);
-
-			// Set up the batched vao attributes
-			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(offsetof(Vertex, position)));
-			glEnableVertexAttribArray(0);
-
-			glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(offsetof(Vertex, color)));
-			glEnableVertexAttribArray(1);
-
-			glVertexAttribIPointer(2, 1, GL_UNSIGNED_INT, sizeof(Vertex), (void*)(offsetof(Vertex, textureId)));
-			glEnableVertexAttribArray(2);
-
-			glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(offsetof(Vertex, textureCoords)));
-			glEnableVertexAttribArray(3);
-		}
-
-		static void setupVao3DLines()
-		{
-			// Create the batched vao
-			glCreateVertexArrays(1, &vao3DLines);
-			glBindVertexArray(vao3DLines);
-
-			glGenBuffers(1, &vbo3DLines);
-
-			// Allocate space for the batched vao
-			glBindBuffer(GL_ARRAY_BUFFER, vbo3DLines);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * maxNumVerticesPerBatch, NULL, GL_DYNAMIC_DRAW);
-
-			// Set up the batched vao attributes
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, currentPos)));
-			glEnableVertexAttribArray(0);
-
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, previousPos)));
-			glEnableVertexAttribArray(1);
-
-			glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, nextPos)));
-			glEnableVertexAttribArray(2);
-
-			glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, thickness)));
-			glEnableVertexAttribArray(3);
-
-			glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, color)));
-			glEnableVertexAttribArray(4);
 		}
 
 		static void GLAPIENTRY
@@ -899,5 +855,322 @@ namespace MathAnim
 				}
 			}
 		}
+
+		static uint32 getColorCompressed()
+		{
+			const glm::vec4& color = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+			uint32 packedColor =
+				((uint32)(color.r * 255.0f) << 24) |
+				((uint32)(color.g * 255.0f) << 16) |
+				((uint32)(color.b * 255.0f) << 8) |
+				((uint32)(color.a * 255.0f));
+			return packedColor;
+		}
+
+		static const glm::vec4& getColor()
+		{
+			const glm::vec4& color = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+			return color;
+		}
+
+		static float getStrokeWidth()
+		{
+			float strokeWidth = strokeWidthStackPtr > 0
+				? strokeWidthStack[strokeWidthStackPtr - 1]
+				: defaultStrokeWidth;
+			return strokeWidth;
+		}
+		// ---------------------- End Internal Functions ----------------------
 	}
+
+	// ---------------------- Begin DrawList2D Functions ----------------------
+	void DrawList2D::init()
+	{
+		vao = UINT32_MAX;
+		ebo = UINT32_MAX;
+		vbo = UINT32_MAX;
+
+		vertices.init();
+		indices.init();
+		drawCommands.init();
+		textureIdStack.init();
+		setupGraphicsBuffers();
+	}
+
+	// TODO: Add a bunch of methods like this...
+	// void addRect();
+	void DrawList2D::setupGraphicsBuffers()
+	{
+		// Create the batched vao
+		glCreateVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+
+		glGenBuffers(1, &vbo);
+
+		// Allocate space for the batched vao
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+
+		uint32 ebo;
+		glGenBuffers(1, &ebo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+
+		// Set up the batched vao attributes
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, position)));
+		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, color)));
+		glEnableVertexAttribArray(1);
+
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, textureCoords)));
+		glEnableVertexAttribArray(2);
+	}
+
+	void DrawList2D::render(const Shader& shader) const
+	{
+		if (vertices.size() == 0)
+		{
+			return;
+		}
+
+		// TODO: Upload a list of draw commands and do one render call
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D) * vertices.size(), vertices.data, GL_DYNAMIC_DRAW);
+
+		shader.bind();
+		shader.uploadMat4("uProjection", Renderer::orthoCamera->calculateProjectionMatrix());
+		shader.uploadMat4("uView", Renderer::orthoCamera->calculateViewMatrix());
+
+		glBindVertexArray(vao);
+		glDrawElements(GL_TRIANGLES, vertices.size(), GL_UNSIGNED_INT, NULL);
+	}
+
+	void DrawList2D::reset()
+	{
+		vertices.softClear();
+		indices.softClear();
+		drawCommands.softClear();
+		g_logger_assert(textureIdStack.size() == 0, "Mismatched texture ID stack. Are you missing a drawList2D.popTexture()?");
+	}
+
+	void DrawList2D::free()
+	{
+		if (vbo != UINT32_MAX)
+		{
+			glDeleteBuffers(1, &vbo);
+		}
+
+		if (ebo != UINT32_MAX)
+		{
+			glDeleteBuffers(1, &ebo);
+		}
+
+		if (vao != UINT32_MAX)
+		{
+			glDeleteVertexArrays(1, &vao);
+		}
+
+		vbo = UINT32_MAX;
+		ebo = UINT32_MAX;
+		vao = UINT32_MAX;
+
+		vertices.hardClear();
+		indices.hardClear();
+		drawCommands.hardClear();
+		textureIdStack.hardClear();
+	}
+	// ---------------------- End DrawList2D Functions ----------------------
+
+	// ---------------------- Begin DrawList3DLine Functions ----------------------
+	void DrawList3DLine::init()
+	{
+		vao = UINT32_MAX;
+		vbo = UINT32_MAX;
+
+		vertices.init();
+		setupGraphicsBuffers();
+	}
+
+	void DrawList3DLine::addLine(const Vec3& previousPos, const Vec3& currentPos, const Vec3& nextPos, const Vec3& nextNextPos, uint32 packedColor, float thickness)
+	{
+		vertices.push(Vertex3DLine{
+			currentPos,
+			previousPos,
+			nextPos,
+			-thickness,
+			packedColor
+			});
+
+		vertices.push(Vertex3DLine{
+			currentPos,
+			previousPos,
+			nextPos,
+			thickness,
+			packedColor
+			});
+
+		// NOTE: This uses nextNextPos to get the second half of the line segment
+		vertices.push(Vertex3DLine{
+			nextPos,
+			currentPos,
+			nextNextPos,
+			thickness,
+			packedColor
+			});
+
+		// Triangle 2
+		vertices.push(Vertex3DLine{
+			currentPos,
+			previousPos,
+			nextPos,
+			-thickness,
+			packedColor
+			});
+
+		// NOTE: This uses nextNextPos to get the second half of the line segment
+		vertices.push(Vertex3DLine{
+			nextPos,
+			currentPos,
+			nextNextPos,
+			thickness,
+			packedColor
+			});
+
+		// NOTE: This uses nextNextPos to get the second half of the line segment
+		vertices.push(Vertex3DLine{
+			nextPos,
+			currentPos,
+			nextNextPos,
+			-thickness,
+			packedColor
+			});
+	}
+
+	void DrawList3DLine::setupGraphicsBuffers()
+	{
+		// Create the batched vao
+		glCreateVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+
+		glGenBuffers(1, &vbo);
+
+		// Allocate space for the batched vao
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+
+		// Set up the batched vao attributes
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, currentPos)));
+		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, previousPos)));
+		glEnableVertexAttribArray(1);
+
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, nextPos)));
+		glEnableVertexAttribArray(2);
+
+		glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, thickness)));
+		glEnableVertexAttribArray(3);
+
+		glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, color)));
+		glEnableVertexAttribArray(4);
+	}
+
+	void DrawList3DLine::render(const Shader& shader) const
+	{
+		if (vertices.size() == 0)
+		{
+			return;
+		}
+
+		glEnable(GL_DEPTH_TEST);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.size(), vertices.data, GL_DYNAMIC_DRAW);
+
+		shader.bind();
+		shader.uploadMat4("uProjection", Renderer::perspCamera->calculateProjectionMatrix());
+		shader.uploadMat4("uView", Renderer::perspCamera->calculateViewMatrix());
+		shader.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
+
+		glBindVertexArray(vao);
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+		glDisable(GL_DEPTH_TEST);
+	}
+
+	void DrawList3DLine::reset()
+	{
+		vertices.softClear();
+	}
+
+	void DrawList3DLine::free()
+	{
+		if (vbo != UINT32_MAX)
+		{
+			glDeleteBuffers(1, &vbo);
+		}
+
+		if (vao != UINT32_MAX)
+		{
+			glDeleteVertexArrays(1, &vao);
+		}
+
+		vbo = UINT32_MAX;
+		vao = UINT32_MAX;
+
+		vertices.hardClear();
+	}
+	// ---------------------- End DrawList3DLine Functions ----------------------
+
+	// ---------------------- Begin DrawList3D Functions ----------------------
+	void DrawList3D::init()
+	{
+		vao = UINT32_MAX;
+		ebo = UINT32_MAX;
+		vbo = UINT32_MAX;
+
+		vertices.init();
+		indices.init();
+		drawCommands.init();
+		textureIdStack.init();
+		setupGraphicsBuffers();
+	}
+
+	void DrawList3D::setupGraphicsBuffers()
+	{
+
+	}
+
+	void DrawList3D::free()
+	{
+		if (vbo != UINT32_MAX)
+		{
+			glDeleteBuffers(1, &vbo);
+		}
+
+		if (ebo != UINT32_MAX)
+		{
+			glDeleteBuffers(1, &ebo);
+		}
+
+		if (vao != UINT32_MAX)
+		{
+			glDeleteVertexArrays(1, &vao);
+		}
+
+		vbo = UINT32_MAX;
+		ebo = UINT32_MAX;
+		vao = UINT32_MAX;
+
+		vertices.hardClear();
+		indices.hardClear();
+		drawCommands.hardClear();
+		textureIdStack.hardClear();
+	}
+	// ---------------------- End DrawList3D Functions ----------------------
 }

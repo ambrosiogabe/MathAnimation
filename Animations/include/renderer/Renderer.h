@@ -2,6 +2,8 @@
 #define MATH_ANIM_RENDERER_H
 #include "core.h"
 
+struct NVGcontext;
+
 namespace MathAnim
 {
 	struct OrthoCamera;
@@ -29,9 +31,10 @@ namespace MathAnim
 	namespace Renderer
 	{
 		void init(OrthoCamera& sceneCamera, PerspectiveCamera& camera);
+		void free();
 
 		// ----------- Render calls ----------- 
-		void render();
+		void renderToFramebuffer(NVGcontext* vg, int frame, Framebuffer& framebuffer);
 		void renderFramebuffer(const Framebuffer& framebuffer);
 
 		// ----------- Styles ----------- 
@@ -70,9 +73,6 @@ namespace MathAnim
 
 		const PerspectiveCamera* get3DCamera();
 		PerspectiveCamera* getMutable3DCamera();
-		
-		void flushBatch();
-		void flushBatch3D();
 
 		void clearColor(const Vec4& color);
 	}
