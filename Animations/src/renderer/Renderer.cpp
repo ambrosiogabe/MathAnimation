@@ -6,6 +6,7 @@
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
 #include "renderer/Fonts.h"
+#include "renderer/Colors.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
@@ -156,7 +157,8 @@ namespace MathAnim
 		Vec3 position;
 		Vec4 color;
 		Vec2 textureCoords;
-	};
+		Vec3 normal;
+	}; 
 
 	struct DrawList3D
 	{
@@ -170,7 +172,14 @@ namespace MathAnim
 		uint32 vbo;
 
 		void init();
+
+		void addCubeFilled(const Vec3& position, const Vec3& size, const Vec4& color);
+		// void addCubeFilledMulticolor(const Vec3& position, const Vec3& size, const Vec4* colors, int numColors);
+		// void addCubeFilledMulticolor(const Vec3& position, const Vec3& size, Vec4 colors[6]);
+
 		void setupGraphicsBuffers();
+		void render(const Shader& opaqueShader, const Shader& transparentShader, const Shader& compositeShader, const Framebuffer& framebuffer) const;
+		void reset();
 		void free();
 	};
 
@@ -187,6 +196,9 @@ namespace MathAnim
 		static Shader shader2D;
 		static Shader shader3DLine;
 		static Shader screenShader;
+		static Shader shader3DOpaque;
+		static Shader shader3DTransparent;
+		static Shader shader3DComposite;
 
 		static constexpr int MAX_STACK_SIZE = 64;
 
@@ -264,6 +276,9 @@ namespace MathAnim
 			shader2D.compile("assets/shaders/default.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
+			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
+			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
+			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
 #elif defined(_RELEASE)
 			shader.compileRaw(defaultShaderGlsl);
 			screenShader.compileRaw(screenShaderGlsl);
@@ -286,15 +301,29 @@ namespace MathAnim
 		void renderToFramebuffer(NVGcontext* vg, int frame, Framebuffer& framebuffer)
 		{
 			framebuffer.bind();
+			glViewport(0, 0, framebuffer.width, framebuffer.height);
 
+			framebuffer.clearColorAttachmentRgba(0, colors[(uint8)Color::GreenBrown]);
+			framebuffer.clearDepthStencil();
+
+			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
+			glDrawBuffers(3, compositeDrawBuffers);
+
+			nvgBeginFrame(vg, (float)framebuffer.width, (float)framebuffer.height, 1.0f);
 			AnimationManager::render(vg, frame, framebuffer);
 			nvgEndFrame(vg);
 
+			// These should be blended appropriately
 			drawList2D.render(shader2D);
 			drawList2D.reset();
 
 			drawList3DLine.render(shader3DLine);
 			drawList3DLine.reset();
+
+			// Draw the 3D objects last. We should blend all opaque objects
+			// with transparent 3D objects in this step using OIT
+			drawList3D.render(shader3DOpaque, shader3DTransparent, shader3DComposite, framebuffer);
+			drawList3D.reset();
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
 			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
@@ -320,6 +349,19 @@ namespace MathAnim
 			g_logger_assert(strokeWidthStackPtr < MAX_STACK_SIZE, "Ran out of room on the stroke width stack.");
 			strokeWidthStack[strokeWidthStackPtr] = strokeWidth;
 			strokeWidthStackPtr++;
+		}
+
+		void pushColor(const glm::u8vec4& color)
+		{
+			g_logger_assert(colorStackPtr < MAX_STACK_SIZE, "Ran out of room on the color stack.");
+			glm::vec4 normalizedColor = glm::vec4{
+				(float)color.r / 255.0f,
+				(float)color.g / 255.0f,
+				(float)color.b / 255.0f,
+				(float)color.a / 255.0f
+			};
+			colorStack[colorStackPtr] = normalizedColor;
+			colorStackPtr++;
 		}
 
 		void pushColor(const glm::vec4& color)
@@ -783,6 +825,13 @@ namespace MathAnim
 
 		}
 
+		// ----------- 3D stuff ----------- 
+		void drawFilledCube(const Vec3& center, const Vec3& size)
+		{
+			const glm::vec4& color = getColor();
+			drawList3D.addCubeFilled(center, size, Vec4{color.r, color.g, color.b, color.a});
+		}
+
 		// ----------- Miscellaneous ----------- 
 		const OrthoCamera* getOrthoCamera()
 		{
@@ -915,7 +964,6 @@ namespace MathAnim
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
-		uint32 ebo;
 		glGenBuffers(1, &ebo);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
@@ -1141,9 +1189,222 @@ namespace MathAnim
 		setupGraphicsBuffers();
 	}
 
+	void DrawList3D::addCubeFilled(const Vec3& position, const Vec3& size, const Vec4& color)
+	{
+		// Check if this can merge with the previous draw call
+		// drawCommands.data[drawCommands.size() - 1]
+
+		// First add the 8 unique vertices
+		Vec3 halfSize = size / 2.0f;
+		Vec3 backBottomLeft = position - halfSize;
+		Vec3 backBottomRight = backBottomLeft + Vec3{size.x, 0, 0};
+		Vec3 frontBottomLeft = backBottomLeft + Vec3{ 0, 0, size.z };
+		Vec3 frontBottomRight = frontBottomLeft + Vec3{ size.x, 0, 0 };
+
+		Vec3 backTopLeft = backBottomLeft + Vec3{ 0, size.y, 0 };
+		Vec3 backTopRight = backBottomRight + Vec3{ 0, size.y, 0 };
+		Vec3 frontTopLeft = frontBottomLeft + Vec3{ 0, size.y, 0 };
+		Vec3 frontTopRight = frontBottomRight + Vec3{ 0, size.y, 0 };
+
+		Vertex3D vertToAdd;
+		vertToAdd.color = color;
+		vertToAdd.textureCoords = { 0, 0 };
+		int indexStart = vertices.size();
+
+		// Bottom Face
+		vertToAdd.position = backBottomLeft;
+		vertToAdd.normal = Vec3{ 0, -1, 0 };
+		vertices.push(vertToAdd);
+		vertToAdd.position = backBottomRight;
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontBottomRight;
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontBottomLeft;
+		vertices.push(vertToAdd);
+
+		// Top Face
+		vertToAdd.position = backTopLeft;
+		vertToAdd.normal = Vec3{ 0, 1, 0 };
+		vertices.push(vertToAdd);
+		vertToAdd.position = backTopRight;
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontTopRight;
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontTopLeft;
+		vertices.push(vertToAdd);
+
+		// Left Face
+		vertToAdd.position = backTopLeft;
+		vertToAdd.normal = Vec3{ -1, 0, 0 };
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontTopLeft;
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontBottomLeft;
+		vertices.push(vertToAdd);
+		vertToAdd.position = backBottomLeft;
+		vertices.push(vertToAdd);
+
+		// Right Face
+		vertToAdd.position = backTopRight;
+		vertToAdd.normal = Vec3{ 1, 0, 0 };
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontTopRight;
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontBottomRight;
+		vertices.push(vertToAdd);
+		vertToAdd.position = backBottomRight;
+		vertices.push(vertToAdd);
+
+		// Back Face
+		vertToAdd.position = backTopLeft;
+		vertToAdd.normal = Vec3{ 0, 0, -1 };
+		vertices.push(vertToAdd);
+		vertToAdd.position = backTopRight;
+		vertices.push(vertToAdd);
+		vertToAdd.position = backBottomRight;
+		vertices.push(vertToAdd);
+		vertToAdd.position = backBottomLeft;
+		vertices.push(vertToAdd);
+
+		// Front Face
+		vertToAdd.position = frontTopLeft;
+		vertToAdd.normal = Vec3{ 0, 0, 1 };
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontTopRight;
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontBottomRight;
+		vertices.push(vertToAdd);
+		vertToAdd.position = frontBottomLeft;
+		vertices.push(vertToAdd);
+
+		// Add the indices. Gonna be 36 of them, very fun...
+		for (int face = 0; face < 6; face++)
+		{
+			int faceIndex = indexStart + (face * 4);
+			indices.push(faceIndex + 0); indices.push(faceIndex + 1); indices.push(faceIndex + 2);
+			indices.push(faceIndex + 0); indices.push(faceIndex + 2); indices.push(faceIndex + 3);
+		}
+	}
+
 	void DrawList3D::setupGraphicsBuffers()
 	{
+		// Vec3 position;
+		// Vec4 color;
+		// Vec2 textureCoords;
+		// Create the batched vao
+		glCreateVertexArrays(1, &vao);
+		glBindVertexArray(vao);
 
+		// Allocate space for the batched vbo
+		glGenBuffers(1, &vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3D) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+
+		glGenBuffers(1, &ebo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+
+		// Set up the batched vao attributes
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, position)));
+		glEnableVertexAttribArray(0);
+
+		// TODO: Change me to a packed color in 1 uint32
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, color)));
+		glEnableVertexAttribArray(1);
+
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, textureCoords)));
+		glEnableVertexAttribArray(2);
+
+		glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, normal)));
+		glEnableVertexAttribArray(3);
+	}
+	
+	void DrawList3D::render(const Shader& opaqueShader, const Shader& transparentShader, 
+		const Shader& compositeShader, const Framebuffer& framebuffer) const
+	{
+		if (vertices.size() == 0)
+		{
+			return;
+		}
+
+		// TODO: Upload a list of draw commands and do one render call
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3D) * vertices.size(), vertices.data, GL_DYNAMIC_DRAW);
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16) * indices.size(), indices.data, GL_DYNAMIC_DRAW);
+
+		framebuffer.bind();
+
+		// Set up the transparent draw buffers
+		GLenum drawBuffers[] = { GL_NONE, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+		glDrawBuffers(3, drawBuffers);
+
+		// Set up GL state for transparent pass
+		// Disable writing to the depth buffer
+		glDepthMask(GL_FALSE);
+		glEnable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+		glEnable(GL_BLEND);
+
+		// These values are obtained from http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html
+		// Under the 3D transparency pass table
+		glBlendEquation(GL_FUNC_ADD);
+		glBlendFunci(1, GL_ONE, GL_ONE);
+		glBlendFunci(2, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
+
+		// Clear the buffers
+		float accumulationClear[4] = { 0, 0, 0, 0 };
+		float revealageClear[4] = { 1, 0, 0, 0 };
+		glClearBufferfv(GL_COLOR, 1, accumulationClear);
+		glClearBufferfv(GL_COLOR, 2, revealageClear);
+
+		transparentShader.bind();
+		transparentShader.uploadMat4("uProjection", Renderer::perspCamera->calculateProjectionMatrix());
+		transparentShader.uploadMat4("uView", Renderer::perspCamera->calculateViewMatrix());
+		transparentShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
+		Vec4 sunColor = "#edc253"_hex;
+		transparentShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
+
+		glBindVertexArray(vao);
+		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, NULL);
+
+		// Composite the accumulation and revealage textures together
+		// Render to the composite framebuffer attachment
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		compositeShader.bind();
+
+		const Texture& accumulationTexture = framebuffer.getColorAttachment(1);
+		const Texture& revealageTexture = framebuffer.getColorAttachment(2);
+
+		glActiveTexture(GL_TEXTURE0);
+		accumulationTexture.bind();
+		compositeShader.uploadInt("uAccumTexture", 0);
+
+		glActiveTexture(GL_TEXTURE1);
+		revealageTexture.bind();
+		compositeShader.uploadInt("uRevealageTexture", 1);
+
+		// Set up the composite draw buffers
+		GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
+		glDrawBuffers(3, compositeDrawBuffers);
+
+		glBindVertexArray(Renderer::screenVao);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+
+		// Reset GL state
+		// Enable writing to the depth buffer again
+		glDepthMask(GL_TRUE);
+		glEnable(GL_CULL_FACE);
+	}
+
+	void DrawList3D::reset()
+	{
+		vertices.softClear();
+		indices.softClear();
+		drawCommands.softClear();
+		g_logger_assert(textureIdStack.size() == 0, "Mismatched texture ID stack. Are you missing a drawList2D.popTexture()?");
 	}
 
 	void DrawList3D::free()

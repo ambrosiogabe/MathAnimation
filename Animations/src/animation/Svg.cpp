@@ -1096,12 +1096,8 @@ namespace MathAnim
 			t = 1.0f - t;
 		}
 
-		// Start the fade in after 80% of the svg object is drawn
-		constexpr float fadeInStart = 0.8f;
 		const glm::vec2 position = { parent->position.x, parent->position.y };
 		float lengthToDraw = t * (float)obj->approximatePerimeter;
-		float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
-		float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
 
 		// TODO: Add rotation to 3D lines somehow...
 		//if (parent->rotation.z != 0.0f)
@@ -1310,94 +1306,5 @@ namespace MathAnim
 				}
 			}
 		}
-
-		// TODO: Implement fill
-		//if (amountToFadeIn > 0)
-		//{
-		//	for (int contouri = 0; contouri < obj->numContours; contouri++)
-		//	{
-		//		if (obj->contours[contouri].numCurves > 0)
-		//		{
-		//			// TODO: De-deuplicate this by just calling render
-		//			const glm::u8vec4& fillColor = parent->fillColor;
-		//			nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)(fillColor.a * percentToFadeIn)));
-		//			nvgBeginPath(vg);
-		//			nvgPathWinding(vg, obj->contours[contouri].clockwiseFill ? NVG_CW : NVG_CCW);
-
-		//			nvgMoveTo(vg,
-		//				obj->contours[contouri].curves[0].p0.x,
-		//				obj->contours[contouri].curves[0].p0.y
-		//			);
-
-		//			for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
-		//			{
-		//				const Curve& curve = obj->contours[contouri].curves[curvei];
-		//				glm::vec4 p0 = glm::vec4(
-		//					curve.p0.x,
-		//					curve.p0.y,
-		//					0.0f,
-		//					1.0f
-		//				);
-
-		//				switch (curve.type)
-		//				{
-		//				case CurveType::Bezier3:
-		//				{
-		//					glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, 0.0f, 1.0f };
-		//					glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, 0.0f, 1.0f };
-		//					glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, 0.0f, 1.0f };
-
-		//					nvgBezierTo(
-		//						vg,
-		//						p1.x, p1.y,
-		//						p2.x, p2.y,
-		//						p3.x, p3.y
-		//					);
-		//				}
-		//				break;
-		//				case CurveType::Bezier2:
-		//				{
-		//					glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
-		//					glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
-		//					glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, 0.0f, 1.0f };
-
-		//					// Degree elevated quadratic bezier curve
-		//					glm::vec4 pr0 = p0;
-		//					glm::vec4 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-		//					glm::vec4 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-		//					glm::vec4 pr3 = p2;
-
-		//					nvgBezierTo(
-		//						vg,
-		//						pr1.x, pr1.y,
-		//						pr2.x, pr2.y,
-		//						pr3.x, pr3.y
-		//					);
-		//				}
-		//				break;
-		//				case CurveType::Line:
-		//				{
-		//					glm::vec4 p1 = glm::vec4(
-		//						curve.as.line.p1.x,
-		//						curve.as.line.p1.y,
-		//						0.0f,
-		//						1.0f
-		//					);
-
-		//					nvgLineTo(vg, p1.x, p1.y);
-		//				}
-		//				break;
-		//				default:
-		//					g_logger_warning("Unknown curve type in render %d", (int)curve.type);
-		//					break;
-		//				}
-		//			}
-
-		//			nvgClosePath(vg);
-		//		}
-		//	}
-
-		//	nvgFill(vg);
-		//}
 	}
 }

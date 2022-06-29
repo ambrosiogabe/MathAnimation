@@ -26,7 +26,10 @@ namespace MathAnim
 		void bind() const;
 		void unbind() const;
 		void clearColorAttachmentUint32(int colorAttachment, uint32 clearColor) const;
-		void clearColorAttachmentRgb(int colorAttachment, glm::vec3 clearColor) const;
+		void clearColorAttachmentRgb(int colorAttachment, const glm::vec3& clearColor) const;
+		void clearColorAttachmentRgb(int colorAttachment, const Vec3& clearColor) const;
+		void clearColorAttachmentRgba(int colorAttachment, const Vec4& clearColor) const;
+		void clearDepthStencil() const;
 
 		uint32 readPixelUint32(int colorAttachment, int x, int y) const;
 		Pixel* readAllPixelsRgb8(int colorAttachment) const;

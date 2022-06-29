@@ -40,6 +40,7 @@ namespace MathAnim
 		// ----------- Styles ----------- 
 		// TODO: Should this be push/pop calls, or more like nvgStroke calls with implicit pops?
 		void pushStrokeWidth(float strokeWidth);
+		void pushColor(const glm::u8vec4& color);
 		void pushColor(const glm::vec4& color);
 		void pushColor(const Vec4& color);
 		void pushLineEnding(CapType lineEnding);
@@ -59,13 +60,16 @@ namespace MathAnim
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 
-		// ----------- 3D stuff ----------- 
+		// ----------- 3D Line stuff ----------- 
 		void beginPath3D(const Vec3& start);
 		void endPath3D(bool closePath = true);
 
 		void lineTo3D(const Vec3& point);
 		void bezier2To3D(const Vec3& p1, const Vec3& p2);
 		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3);
+
+		// ----------- 3D stuff ----------- 
+		void drawFilledCube(const Vec3& center, const Vec3& size);
 
 		// ----------- Miscellaneous ----------- 
 		const OrthoCamera* getOrthoCamera();

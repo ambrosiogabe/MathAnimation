@@ -11,7 +11,6 @@
 #include "renderer/Texture.h"
 #include "renderer/VideoWriter.h"
 #include "renderer/Fonts.h"
-#include "renderer/Colors.h"
 #include "animation/Svg.h"
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
@@ -55,11 +54,15 @@ namespace MathAnim
 
 			camera2D.position = Vec2{ 0, 0 };
 			camera2D.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
-			
+
 			camera3D.forward = glm::vec3(0, 0, 1);
 			camera3D.fov = 70.0f;
-			camera3D.orientation = glm::vec3(-15.0f, 45.0f, 0);
-			camera3D.position = glm::vec3(-10.0f * glm::cos(glm::radians(-45.0f)), 2.5f, 10.0f * glm::sin(glm::radians(-45.0f)));
+			camera3D.orientation = glm::vec3(-15.0f, 80.0f, 0);
+			camera3D.position = glm::vec3(
+				-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)), 
+				2.5f, 
+				10.0f * glm::sin(glm::radians(-camera3D.orientation.y))
+			);
 
 			Fonts::init();
 			Renderer::init(camera2D, camera3D);
@@ -101,13 +104,6 @@ namespace MathAnim
 				window->pollInput();
 				window->setTitle(winTitle + std::string(" -- ") + std::to_string(deltaTime));
 
-				// Bind main framebuffer
-				mainFramebuffer.bind();
-				glViewport(0, 0, mainFramebuffer.width, mainFramebuffer.height);
-				Renderer::clearColor(colors[(uint8)Color::GreenBrown]);
-
-				nvgBeginFrame(vg, (float)mainFramebuffer.width, (float)mainFramebuffer.height, 1.0f);
-
 				// Update components
 				if (animState == AnimState::PlayForward)
 				{
@@ -128,13 +124,17 @@ namespace MathAnim
 					currentFrame = glm::max(currentFrame - 1, 0);
 				}
 
+				//camera3D.orientation.y += 45.0f * deltaTime;
+				//camera3D.position.x = glm::cos(-glm::radians(camera3D.orientation.y)) * -10.0f;
+				//camera3D.position.z = glm::sin(-glm::radians(camera3D.orientation.y)) * 10.0f;
+
 				// Render to main framebuffer
 				Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);
-				mainFramebuffer.unbind();
 
 				// Render to window
+				mainFramebuffer.unbind();
 				glViewport(0, 0, window->width, window->height);
-				Renderer::renderFramebuffer(mainFramebuffer);
+				Renderer::clearColor(Vec4{ 0, 0, 0, 0 });
 
 				// Do ImGui stuff
 				ImGuiLayer::beginFrame();

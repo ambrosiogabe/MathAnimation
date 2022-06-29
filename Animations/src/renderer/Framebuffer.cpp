@@ -33,15 +33,38 @@ namespace MathAnim
 		glClearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
 	}
 
-	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, glm::vec3 clearColor) const
+	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, const glm::vec3& clearColor) const
 	{
 		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
 
-		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
-		uint32 formatType = TextureUtil::toGlDataType(texture.format);
-		glClearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
+		glClearBufferfv(GL_COLOR, colorAttachment, glm::value_ptr(clearColor));
+	}
+
+	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, const Vec3& clearColor) const
+	{
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		const Texture& texture = colorAttachments[colorAttachment];
+		g_logger_assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
+
+		glClearBufferfv(GL_COLOR, colorAttachment, &clearColor.r);
+	}
+
+	void Framebuffer::clearColorAttachmentRgba(int colorAttachment, const Vec4& clearColor) const
+	{
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		const Texture& texture = colorAttachments[colorAttachment];
+		g_logger_assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
+
+		glClearBufferfv(GL_COLOR, colorAttachment, &clearColor.r);
+	}
+
+	void Framebuffer::clearDepthStencil() const
+	{
+		float depthValue = 1.0f;
+		int stencilValue = 0;
+		glClearBufferfi(GL_DEPTH_STENCIL, 0, depthValue, stencilValue);
 	}
 
 	uint32 Framebuffer::readPixelUint32(int colorAttachment, int x, int y) const

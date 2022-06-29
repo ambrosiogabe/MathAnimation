@@ -281,7 +281,7 @@ namespace MathAnim
 				.build();
 
 			Texture revelageTexture = TextureBuilder()
-				.setFormat(ByteFormat::R8_UI)
+				.setFormat(ByteFormat::R8_F)
 				.setMinFilter(FilterMode::Linear)
 				.setMagFilter(FilterMode::Linear)
 				.setWidth(outputWidth)
@@ -326,10 +326,9 @@ namespace MathAnim
 					{
 						if (frame <= animDeathTime)
 						{
+							objectIter->isAnimating = true;
 							float interpolatedT = ((float)frame - absoluteFrameStart) / (float)animIter->duration;
 							animIter->render(vg, interpolatedT);
-
-							objectIter->isAnimating = true;
 						}
 						else
 						{
