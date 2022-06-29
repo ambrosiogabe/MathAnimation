@@ -2,6 +2,8 @@
 #define MATH_ANIM_RENDERER_H
 #include "core.h"
 
+struct NVGcontext;
+
 namespace MathAnim
 {
 	struct OrthoCamera;
@@ -29,14 +31,16 @@ namespace MathAnim
 	namespace Renderer
 	{
 		void init(OrthoCamera& sceneCamera, PerspectiveCamera& camera);
+		void free();
 
 		// ----------- Render calls ----------- 
-		void render();
+		void renderToFramebuffer(NVGcontext* vg, int frame, Framebuffer& framebuffer);
 		void renderFramebuffer(const Framebuffer& framebuffer);
 
 		// ----------- Styles ----------- 
 		// TODO: Should this be push/pop calls, or more like nvgStroke calls with implicit pops?
 		void pushStrokeWidth(float strokeWidth);
+		void pushColor(const glm::u8vec4& color);
 		void pushColor(const glm::vec4& color);
 		void pushColor(const Vec4& color);
 		void pushLineEnding(CapType lineEnding);
@@ -56,7 +60,7 @@ namespace MathAnim
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 
-		// ----------- 3D stuff ----------- 
+		// ----------- 3D Line stuff ----------- 
 		void beginPath3D(const Vec3& start);
 		void endPath3D(bool closePath = true);
 
@@ -64,15 +68,15 @@ namespace MathAnim
 		void bezier2To3D(const Vec3& p1, const Vec3& p2);
 		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3);
 
+		// ----------- 3D stuff ----------- 
+		void drawFilledCube(const Vec3& center, const Vec3& size);
+
 		// ----------- Miscellaneous ----------- 
 		const OrthoCamera* getOrthoCamera();
 		OrthoCamera* getMutableOrthoCamera();
 
 		const PerspectiveCamera* get3DCamera();
 		PerspectiveCamera* getMutable3DCamera();
-		
-		void flushBatch();
-		void flushBatch3D();
 
 		void clearColor(const Vec4& color);
 	}

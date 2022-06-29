@@ -27,10 +27,26 @@ namespace MathAnim
 		case AnimTypeV1::Create:
 			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render create animation for SVG object that is nullptr.");
 			getParent()->svgObject->renderCreateAnimation(vg, t, getParent());
+			if (getParent()->svgObject->is3D)
+			{
+				// Only fade in in for t = [0.8-1.0] 
+				if (t >= 0.8f)
+				{
+					getMutableParent()->renderFadeInAnimation(vg, (t - 0.8f) / 0.2f);
+				}
+			}
 			break;
 		case AnimTypeV1::UnCreate:
 			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
 			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), true);
+			if (getParent()->svgObject->is3D)
+			{
+				// Only fade out for t = [0.0-0.2]
+				if (t < 0.2f)
+				{
+					getMutableParent()->renderFadeOutAnimation(vg, t / 0.2f);
+				}
+			}
 			break;
 		case AnimTypeV1::FadeIn:
 			getMutableParent()->renderFadeInAnimation(vg, t);
@@ -82,7 +98,7 @@ namespace MathAnim
 			g_logger_warning("TODO: Implement me.");
 			break;
 		case AnimTypeV1::CameraMoveTo:
-			Renderer::getMutableOrthoCamera()->position = 
+			Renderer::getMutableOrthoCamera()->position =
 				CMath::interpolate(t, Renderer::getOrthoCamera()->position, as.modifyVec2.target);
 			// We also need to call render here, I know it's not the most intuitive haha
 			getParent()->render(vg);
@@ -196,7 +212,7 @@ namespace MathAnim
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
 			CMath::serialize(memory, this->as.modifyU8Vec4.target);
-			break;	
+			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
 			break;
@@ -259,7 +275,7 @@ namespace MathAnim
 			g_logger_warning("TODO: Implement me");
 			break;
 		case AnimTypeV1::CameraMoveTo:
-			res.as.modifyVec2.target = Vec2 { 0.f, 0.f };
+			res.as.modifyVec2.target = Vec2{ 0.f, 0.f };
 			break;
 		default:
 			g_logger_error("Cannot create default animation of type %d", (int)type);
@@ -275,11 +291,23 @@ namespace MathAnim
 		{
 		case AnimObjectTypeV1::Square:
 		case AnimObjectTypeV1::Circle:
-		case AnimObjectTypeV1::Cube:
 			// Default SVG objects will just render the svgObject component
 			g_logger_assert(this->svgObject != nullptr, "Cannot render SVG object that is nullptr.");
 			this->svgObject->render(vg, this);
 			break;
+		case AnimObjectTypeV1::Cube:
+		{
+			if (!this->isAnimating)
+			{
+				g_logger_assert(this->svgObject != nullptr, "Cannot render SVG object that is nullptr.");
+				this->svgObject->render(vg, this);
+			}
+			float sideLength = this->as.cube.sideLength - 0.01f;
+			Renderer::pushColor(this->fillColor);
+			Renderer::drawFilledCube(this->position, Vec3{sideLength, sideLength, sideLength});
+			Renderer::popColor();
+		}
+		break;
 		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.render(vg, this);
 			break;

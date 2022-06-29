@@ -13,7 +13,7 @@ void main()
 
 #type fragment
 #version 330 core
-out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
 
 in vec2 fTexCoords;
 

@@ -9,6 +9,7 @@ namespace MathAnim
 {
 	struct AnimObject;
 	struct Animation;
+	struct Framebuffer;
 
 	namespace AnimationManager
 	{
@@ -23,7 +24,8 @@ namespace MathAnim
 		bool setAnimationTime(int animObjectId, int animationId, int frameStart, int duration);
 		void setAnimObjectTrack(int animObjectId, int track);
 
-		void render(NVGcontext* vg, int frame);
+		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight);
+		void render(NVGcontext* vg, int frame, Framebuffer& framebuffer);
 
 		const AnimObject* getObject(int animObjectId);
 		AnimObject* getMutableObject(int animObjectId);

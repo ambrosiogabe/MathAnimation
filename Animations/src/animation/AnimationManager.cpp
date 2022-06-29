@@ -2,6 +2,8 @@
 #include "animation/Animation.h"
 #include "animation/Svg.h"
 #include "renderer/Renderer.h"
+#include "renderer/Texture.h"
+#include "renderer/Framebuffer.h"
 
 namespace MathAnim
 {
@@ -260,7 +262,43 @@ namespace MathAnim
 			}
 		}
 
-		void render(NVGcontext* vg, int frame)
+		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight)
+		{
+			Texture compositeTexture = TextureBuilder()
+				.setFormat(ByteFormat::RGBA8_UI)
+				.setMinFilter(FilterMode::Linear)
+				.setMagFilter(FilterMode::Linear)
+				.setWidth(outputWidth)
+				.setHeight(outputHeight)
+				.build();
+
+			Texture accumulationTexture = TextureBuilder()
+				.setFormat(ByteFormat::RGBA16_F)
+				.setMinFilter(FilterMode::Linear)
+				.setMagFilter(FilterMode::Linear)
+				.setWidth(outputWidth)
+				.setHeight(outputHeight)
+				.build();
+
+			Texture revelageTexture = TextureBuilder()
+				.setFormat(ByteFormat::R8_F)
+				.setMinFilter(FilterMode::Linear)
+				.setMagFilter(FilterMode::Linear)
+				.setWidth(outputWidth)
+				.setHeight(outputHeight)
+				.build();
+
+			Framebuffer res = FramebufferBuilder(outputWidth, outputHeight)
+				.addColorAttachment(compositeTexture)
+				.addColorAttachment(accumulationTexture)
+				.addColorAttachment(revelageTexture)
+				.includeDepthStencil()
+				.generate();
+
+			return res;
+		}
+
+		void render(NVGcontext* vg, int frame, Framebuffer& framebuffer)
 		{
 			Renderer::getMutableOrthoCamera()->position = cameraStartPosition;
 
@@ -288,10 +326,9 @@ namespace MathAnim
 					{
 						if (frame <= animDeathTime)
 						{
+							objectIter->isAnimating = true;
 							float interpolatedT = ((float)frame - absoluteFrameStart) / (float)animIter->duration;
 							animIter->render(vg, interpolatedT);
-
-							objectIter->isAnimating = true;
 						}
 						else
 						{
