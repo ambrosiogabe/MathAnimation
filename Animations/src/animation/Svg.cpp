@@ -1096,15 +1096,15 @@ namespace MathAnim
 			t = 1.0f - t;
 		}
 
-		const glm::vec2 position = { parent->position.x, parent->position.y };
-		float lengthToDraw = t * (float)obj->approximatePerimeter;
 
 		// TODO: Add rotation to 3D lines somehow...
+		Renderer::translate3D(parent->position);
 		//if (parent->rotation.z != 0.0f)
 		//{
 		//	nvgRotate(vg, glm::radians(parent->rotation.z));
 		//}
 
+		float lengthToDraw = t * (float)obj->approximatePerimeter;
 		if (lengthToDraw > 0)
 		{
 			float lengthDrawn = 0.0f;
@@ -1306,5 +1306,7 @@ namespace MathAnim
 				}
 			}
 		}
+
+		Renderer::resetTransform3D();
 	}
 }

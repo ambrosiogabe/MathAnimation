@@ -68,6 +68,9 @@ namespace MathAnim
 		void bezier2To3D(const Vec3& p1, const Vec3& p2);
 		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3);
 
+		void translate3D(const Vec3& translation);
+		void resetTransform3D();
+
 		// ----------- 3D stuff ----------- 
 		void drawFilledCube(const Vec3& center, const Vec3& size);
 

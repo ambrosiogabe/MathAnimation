@@ -214,6 +214,7 @@ namespace MathAnim
 		static constexpr float defaultStrokeWidth = 0.1f;
 		static constexpr CapType defaultLineEnding = CapType::Flat;
 
+		static glm::mat4 transform3D;
 		static constexpr int max3DPathSize = 100;
 		static bool isDrawing3DPath;
 		static Vertex3DLine current3DPath[max3DPathSize];
@@ -300,30 +301,41 @@ namespace MathAnim
 		// ----------- Render calls ----------- 
 		void renderToFramebuffer(NVGcontext* vg, int frame, Framebuffer& framebuffer)
 		{
+			g_logger_assert(framebuffer.colorAttachments.size() == 3, "Invalid framebuffer. Should have 3 color attachments.");
+			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
+
+			// Clear the framebuffer attachments and set it up
 			framebuffer.bind();
 			glViewport(0, 0, framebuffer.width, framebuffer.height);
-
 			framebuffer.clearColorAttachmentRgba(0, colors[(uint8)Color::GreenBrown]);
 			framebuffer.clearDepthStencil();
 
+			// Reset the draw buffers to draw to FB_attachment_0
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
 			glDrawBuffers(3, compositeDrawBuffers);
 
+			// Collect all the render commands
 			nvgBeginFrame(vg, (float)framebuffer.width, (float)framebuffer.height, 1.0f);
 			AnimationManager::render(vg, frame, framebuffer);
-			nvgEndFrame(vg);
 
-			// These should be blended appropriately
-			drawList2D.render(shader2D);
-			drawList2D.reset();
-
+			// Do all the draw calls
 			drawList3DLine.render(shader3DLine);
 			drawList3DLine.reset();
 
-			// Draw the 3D objects last. We should blend all opaque objects
-			// with transparent 3D objects in this step using OIT
+			// Draw 3D objects after the lines so that we can do appropriate blending
+			// using OIT
 			drawList3D.render(shader3DOpaque, shader3DTransparent, shader3DComposite, framebuffer);
 			drawList3D.reset();
+
+			// Reset the draw buffers to draw to FB_attachment_0
+			glDrawBuffers(3, compositeDrawBuffers);
+
+			// Draw 2D stuff over 3D stuff so that 3D stuff is always "behind" the
+			// 2D stuff like a HUD
+			// These should be blended appropriately
+			drawList2D.render(shader2D);
+			drawList2D.reset();
+			nvgEndFrame(vg);
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
 			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
@@ -745,7 +757,10 @@ namespace MathAnim
 				((uint32)(color.b * 255.0f) << 8) |
 				((uint32)(color.a * 255.0f));
 
-			current3DPath[numVertsIn3DPath].currentPos = start;
+			glm::vec4 translatedPos = glm::vec4(start.x, start.y, start.z, 1.0f);
+			translatedPos = transform3D * translatedPos;
+
+			current3DPath[numVertsIn3DPath].currentPos = Vec3{ translatedPos.x, translatedPos.y, translatedPos.z };
 			current3DPath[numVertsIn3DPath].color = packedColor;
 			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
 			numVertsIn3DPath++;
@@ -809,7 +824,10 @@ namespace MathAnim
 				((uint32)(color.b * 255.0f) << 8) |
 				((uint32)(color.a * 255.0f));
 
-			current3DPath[numVertsIn3DPath].currentPos = point;
+			glm::vec4 translatedPos = glm::vec4(point.x, point.y, point.z, 1.0f);
+			translatedPos = transform3D * translatedPos;
+
+			current3DPath[numVertsIn3DPath].currentPos = Vec3{ translatedPos.x, translatedPos.y, translatedPos.z };
 			current3DPath[numVertsIn3DPath].color = packedColor;
 			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
 			numVertsIn3DPath++;
@@ -823,6 +841,16 @@ namespace MathAnim
 		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3)
 		{
 
+		}
+
+		void translate3D(const Vec3& translation)
+		{
+			transform3D = glm::translate(transform3D, glm::vec3(translation.x, translation.y, translation.z));
+		}
+
+		void resetTransform3D()
+		{
+			transform3D = glm::identity<glm::mat4>();
 		}
 
 		// ----------- 3D stuff ----------- 
@@ -1136,6 +1164,7 @@ namespace MathAnim
 		}
 
 		glEnable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.size(), vertices.data, GL_DYNAMIC_DRAW);
