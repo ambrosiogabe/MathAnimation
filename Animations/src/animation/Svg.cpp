@@ -12,6 +12,8 @@ namespace MathAnim
 		// ----------------- Private Variables -----------------
 		constexpr int initialMaxCapacity = 5;
 		static OrthoCamera* camera;
+		static Vec3 cursor;
+		static bool moveToP0 = false;
 		
 		// ----------------- Internal functions -----------------
 		static void checkResize(Contour& contour);
@@ -48,6 +50,8 @@ namespace MathAnim
 			object->contours[object->numContours - 1].numCurves = 0;
 
 			object->contours[object->numContours - 1].curves[0].p0 = firstPoint;
+			cursor = firstPoint;
+			moveToP0 = false;
 		}
 
 		void closeContour(SvgObject* object)
@@ -55,30 +59,16 @@ namespace MathAnim
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot close contour when no contour exists.");
 			g_logger_assert(object->contours[object->numContours - 1].numCurves > 0, "contour->numCurves == 0. Cannot close contour with 0 vertices. There must be at least one vertex to close a contour.");
 
+			cursor = Vec3{ 0, 0, 0 };
+
 			// NOP
 			// We'll let nanovg handle closing of contours
-			// Fix all the p0's in the curves
-			Vec3 lastP0 = object->contours[object->numContours - 1].curves[0].p0;
-			for (int curvei = 0; curvei < object->contours[object->numContours - 1].numCurves; curvei++)
-			{
-				Curve& curve = object->contours[object->numContours - 1].curves[curvei];
-				curve.p0 = lastP0;
-				switch (curve.type)
-				{
-				case CurveType::Bezier3:
-					lastP0 = curve.as.bezier3.p3;
-					break;
-				case CurveType::Bezier2:
-					lastP0 = curve.as.bezier2.p2;
-					break;
-				case CurveType::Line:
-					lastP0 = curve.as.line.p1;
-					break;
-				default:
-					g_logger_error("Unknown curve type %d", (int)curve.type);
-					break;
-				}
-			}
+		}
+
+		void moveTo(const SvgObject* object, const Vec3& point)
+		{
+			cursor = point;
+			moveToP0 = true;
 		}
 
 		void lineTo(SvgObject* object, const Vec3& point)
@@ -88,8 +78,13 @@ namespace MathAnim
 			contour.numCurves++;
 			checkResize(contour);
 
+			contour.curves[contour.numCurves - 1].p0 = cursor;
 			contour.curves[contour.numCurves - 1].as.line.p1 = point;
 			contour.curves[contour.numCurves - 1].type = CurveType::Line;
+			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
+
+			cursor = point;
+			moveToP0 = false;
 		}
 
 		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest)
@@ -99,9 +94,14 @@ namespace MathAnim
 			contour.numCurves++;
 			checkResize(contour);
 
+			contour.curves[contour.numCurves - 1].p0 = cursor;
 			contour.curves[contour.numCurves - 1].as.bezier2.p1 = control;
 			contour.curves[contour.numCurves - 1].as.bezier2.p2 = dest;
 			contour.curves[contour.numCurves - 1].type = CurveType::Bezier2;
+			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
+
+			cursor = dest;
+			moveToP0 = false;
 		}
 
 		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest)
@@ -111,10 +111,15 @@ namespace MathAnim
 			contour.numCurves++;
 			checkResize(contour);
 
+			contour.curves[contour.numCurves - 1].p0 = cursor;
 			contour.curves[contour.numCurves - 1].as.bezier3.p1 = control0;
 			contour.curves[contour.numCurves - 1].as.bezier3.p2 = control1;
 			contour.curves[contour.numCurves - 1].as.bezier3.p3 = dest;
 			contour.curves[contour.numCurves - 1].type = CurveType::Bezier3;
+			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
+
+			cursor = dest;
+			moveToP0 = false;
 		}
 
 		void copy(SvgObject* dest, const SvgObject* src)
@@ -168,6 +173,7 @@ namespace MathAnim
 					dstCurve.p0 = srcCurve.p0;
 					dstCurve.as = srcCurve.as;
 					dstCurve.type = srcCurve.type;
+					dstCurve.moveToP0 = srcCurve.moveToP0;
 				}
 
 				g_logger_assert(dstContour.numCurves == src->contours[contouri].numCurves, "How did this happen?");
@@ -194,8 +200,8 @@ namespace MathAnim
 		{
 			if (contour.numCurves > contour.maxCapacity)
 			{
-				contour.numCurves *= 2;
-				contour.curves = (Curve*)g_memory_realloc(contour.curves, sizeof(Curve) * contour.numCurves);
+				contour.maxCapacity *= 2;
+				contour.curves = (Curve*)g_memory_realloc(contour.curves, sizeof(Curve) * contour.maxCapacity);
 				g_logger_assert(contour.curves != nullptr, "Ran out of RAM.");
 			}
 		}
@@ -801,6 +807,10 @@ namespace MathAnim
 							0.0f,
 							1.0f
 						);
+						if (curve.moveToP0)
+						{
+							nvgMoveTo(vg, p0.x, p0.y);
+						}
 
 						switch (curve.type)
 						{

@@ -71,12 +71,12 @@ namespace MathAnim
 
 		Vec2 vector2From3(const Vec3& vec)
 		{
-			return Vec2{vec.x, vec.y};
+			return Vec2{ vec.x, vec.y };
 		}
 
 		Vec3 vector3From2(const Vec2& vec)
 		{
-			return Vec3{vec.x, vec.y, 0.0f};
+			return Vec3{ vec.x, vec.y, 0.0f };
 		}
 
 		float toRadians(float degrees)
@@ -186,8 +186,8 @@ namespace MathAnim
 
 		Vec3 bezier3(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t)
 		{
-			return 
-				glm::pow(1.0f - t, 3) * p0 + 
+			return
+				glm::pow(1.0f - t, 3) * p0 +
 				3.0f * (1.0f - t) * (1.0f - t) * t * p1 +
 				(3.0f * (1.0f - t) * t * t) * p2 +
 				t * t * t * p3;
@@ -274,7 +274,7 @@ namespace MathAnim
 		}
 
 		// Animation functions
-		Vec4 interpolate(float t, const Vec4& src, const Vec4& target) 
+		Vec4 interpolate(float t, const Vec4& src, const Vec4& target)
 		{
 			return Vec4{
 				(target.w - src.w) * t + src.w,
@@ -284,7 +284,7 @@ namespace MathAnim
 			};
 		}
 
-		Vec3 interpolate(float t, const Vec3& src, const Vec3& target) 
+		Vec3 interpolate(float t, const Vec3& src, const Vec3& target)
 		{
 			return Vec3{
 				(target.x - src.x) * t + src.x,
@@ -293,7 +293,7 @@ namespace MathAnim
 			};
 		}
 
-		Vec2 interpolate(float t, const Vec2& src, const Vec2& target) 
+		Vec2 interpolate(float t, const Vec2& src, const Vec2& target)
 		{
 			return Vec2{
 				(target.x - src.x) * t + src.x,
@@ -324,14 +324,14 @@ namespace MathAnim
 				(uint8)(res.a * 255.0f)
 			);
 		}
-		
+
 		float interpolate(float t, float src, float target)
 		{
 			return (target - src) * t + src;
 		}
 
 		// (de)Serialization functions
-		void serialize(RawMemory& memory, const Vec4& vec) 
+		void serialize(RawMemory& memory, const Vec4& vec)
 		{
 			// Target
 			//   W    -> float
@@ -344,7 +344,7 @@ namespace MathAnim
 			memory.write<float>(&vec.z);
 		}
 
-		void serialize(RawMemory& memory, const Vec3& vec) 
+		void serialize(RawMemory& memory, const Vec3& vec)
 		{
 			// Target
 			//   X    -> float
@@ -355,13 +355,46 @@ namespace MathAnim
 			memory.write<float>(&vec.z);
 		}
 
-		void serialize(RawMemory& memory, const Vec2& vec) 
+		void serialize(RawMemory& memory, const Vec2& vec)
 		{
 			// Target
 			//   X    -> float
 			//   Y    -> float
 			memory.write<float>(&vec.x);
 			memory.write<float>(&vec.y);
+		}
+
+		void serialize(RawMemory& memory, const Vec4i& vec)
+		{
+			// Target
+			//   W    -> i32
+			//   X    -> i32
+			//   Y    -> i32
+			//   Z    -> i32
+			memory.write<int32>(&vec.w);
+			memory.write<int32>(&vec.x);
+			memory.write<int32>(&vec.y);
+			memory.write<int32>(&vec.z);
+		}
+
+		void serialize(RawMemory& memory, const Vec3i& vec)
+		{
+			// Target
+			//   X    -> i32
+			//   Y    -> i32
+			//   Z    -> i32
+			memory.write<int32>(&vec.x);
+			memory.write<int32>(&vec.y);
+			memory.write<int32>(&vec.z);
+		}
+
+		void serialize(RawMemory& memory, const Vec2i& vec)
+		{
+			// Target
+			//   X    -> i32
+			//   Y    -> i32
+			memory.write<int32>(&vec.x);
+			memory.write<int32>(&vec.y);
 		}
 
 		void serialize(RawMemory& memory, const glm::u8vec4& vec)
@@ -377,7 +410,7 @@ namespace MathAnim
 			memory.write<uint8>(&vec.a);
 		}
 
-		Vec4 deserializeVec4(RawMemory& memory) 
+		Vec4 deserializeVec4(RawMemory& memory)
 		{
 			// Target
 			//   W    -> float
@@ -392,7 +425,7 @@ namespace MathAnim
 			return res;
 		}
 
-		Vec3 deserializeVec3(RawMemory& memory) 
+		Vec3 deserializeVec3(RawMemory& memory)
 		{
 			// Target
 			//   X    -> float
@@ -405,7 +438,7 @@ namespace MathAnim
 			return res;
 		}
 
-		Vec2 deserializeVec2(RawMemory& memory) 
+		Vec2 deserializeVec2(RawMemory& memory)
 		{
 			// Target
 			//   X    -> float
@@ -413,6 +446,45 @@ namespace MathAnim
 			Vec2 res;
 			memory.read<float>(&res.x);
 			memory.read<float>(&res.y);
+			return res;
+		}
+
+		Vec4i deserializeVec4i(RawMemory& memory)
+		{
+			// Target
+			//   W    -> i32
+			//   X    -> i32
+			//   Y    -> i32
+			//   Z    -> i32
+			Vec4i res;
+			memory.read<int32>(&res.w);
+			memory.read<int32>(&res.x);
+			memory.read<int32>(&res.y);
+			memory.read<int32>(&res.z);
+			return res;
+		}
+
+		Vec3i deserializeVec3i(RawMemory& memory)
+		{
+			// Target
+			//   X    -> i32
+			//   Y    -> i32
+			//   Z    -> i32
+			Vec3i res;
+			memory.read<int32>(&res.x);
+			memory.read<int32>(&res.y);
+			memory.read<int32>(&res.z);
+			return res;
+		}
+
+		Vec2i deserializeVec2i(RawMemory& memory)
+		{
+			// Target
+			//   X    -> i32
+			//   Y    -> i32
+			Vec2i res;
+			memory.read<int32>(&res.x);
+			memory.read<int32>(&res.y);
 			return res;
 		}
 
@@ -460,8 +532,8 @@ namespace MathAnim
 
 		static float easeInOutQuad(float t)
 		{
-			return t < 0.5f 
-				? 2.0f * t * t 
+			return t < 0.5f
+				? 2.0f * t * t
 				: 1.0f - glm::pow(-2.0f * t + 2.0f, 2.0f) / 2.0f;
 		}
 
@@ -492,8 +564,8 @@ namespace MathAnim
 
 		static float easeInOutQuart(float t)
 		{
-			return t < 0.5f 
-				? 8.0f * t * t * t * t 
+			return t < 0.5f
+				? 8.0f * t * t * t * t
 				: 1.0f - glm::pow(-2.0f * t + 2.0f, 4.0f) / 2.0f;
 		}
 
@@ -509,22 +581,22 @@ namespace MathAnim
 
 		static float easeInOutQuint(float t)
 		{
-			return t < 0.5f 
-				? 16.0f * t * t * t * t * t 
+			return t < 0.5f
+				? 16.0f * t * t * t * t * t
 				: 1.0f - glm::pow(-2.0f * t + 2.0f, 5.0f) / 2.0f;
 		}
 
 		static float easeInExpo(float t)
 		{
 			return glm::epsilonEqual(t, 0.0f, 0.01f)
-				? 0.0f 
+				? 0.0f
 				: glm::pow(2.0f, 10.0f * t - 10.0f);
 		}
 
 		static float easeOutExpo(float t)
 		{
 			return glm::epsilonEqual(t, 1.0f, 0.01f)
-				? 1.0f 
+				? 1.0f
 				: 1.0f - glm::pow(2.0f, -10.0f * t);
 		}
 
@@ -534,9 +606,9 @@ namespace MathAnim
 				? 0.0f
 				: glm::epsilonEqual(t, 1.0f, 0.01f)
 				? 1.0f
-				: t < 0.5f 
-					? glm::pow(2.0f, 20.0f * t - 10.0f) / 2.0f
-					: (2.0f - glm::pow(2.0f, -20.0f * t + 10.0f)) / 2.0f;
+				: t < 0.5f
+				? glm::pow(2.0f, 20.0f * t - 10.0f) / 2.0f
+				: (2.0f - glm::pow(2.0f, -20.0f * t + 10.0f)) / 2.0f;
 		}
 
 		static float easeInCirc(float t)

@@ -5,6 +5,7 @@
 
 #include "animation/TextAnimations.h"
 #include "animation/Shapes.h"
+#include "animation/Axis.h"
 #include "renderer/OrthoCamera.h"
 
 namespace MathAnim
@@ -25,6 +26,7 @@ namespace MathAnim
 		Square,
 		Circle,
 		Cube,
+		Axis,
 		Length
 	};
 
@@ -134,6 +136,7 @@ namespace MathAnim
 			Square square;
 			Circle circle;
 			Cube cube;
+			Axis axis;
 		} as;
 
 		void render(NVGcontext* vg) const;

@@ -48,6 +48,7 @@ namespace MathAnim
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
 		static void handleCubeInspector(AnimObject* object);
+		static void handleAxisInspector(AnimObject* object);
 
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate = INT32_MAX);
 		static void addAnimObject(const AnimObject& object);
@@ -485,6 +486,9 @@ namespace MathAnim
 			case AnimObjectTypeV1::Cube:
 				handleCubeInspector(animObject);
 				break;
+			case AnimObjectTypeV1::Axis:
+				handleAxisInspector(animObject);
+				break;
 			default:
 				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
 				break;
@@ -721,6 +725,67 @@ namespace MathAnim
 				object->_svgObjectStart = nullptr;
 
 				object->as.cube.init(object);
+			}
+		}
+
+		static void handleAxisInspector(AnimObject* object)
+		{
+			bool reInitObject = false;
+
+			int xVals[2] = { object->as.axis.xRange.min, object->as.axis.xRange.max };
+			if (ImGui::DragInt2(": X-Range", xVals, 1.0f))
+			{
+				// Make sure it's in strictly increasing order
+				if (xVals[0] < xVals[1])
+				{
+					object->as.axis.xRange.min = xVals[0];
+					object->as.axis.xRange.max = xVals[1];
+					reInitObject = true;
+				}
+			}
+
+			int yVals[2] = { object->as.axis.yRange.min, object->as.axis.yRange.max };
+			if (ImGui::DragInt2(": Y-Range", yVals, 1.0f))
+			{
+				// Make sure it's in strictly increasing order
+				if (yVals[0] < yVals[1])
+				{
+					object->as.axis.yRange.min = yVals[0];
+					object->as.axis.yRange.max = yVals[1];
+					reInitObject = true;
+				}
+			}
+
+			int zVals[2] = { object->as.axis.zRange.min, object->as.axis.zRange.max };
+			if (ImGui::DragInt2(": Z-Range", zVals, 1.0f))
+			{
+				// Make sure it's in strictly increasing order
+				if (zVals[0] < zVals[1])
+				{
+					object->as.axis.zRange.min = zVals[0];
+					object->as.axis.zRange.max = zVals[1];
+					reInitObject = true;
+				}
+			}
+
+			reInitObject = reInitObject || ImGui::DragFloat(": X-Increment", &object->as.axis.xIncrement);
+			reInitObject = reInitObject || ImGui::DragFloat(": Y-Increment", &object->as.axis.yIncrement);
+			reInitObject = reInitObject || ImGui::DragFloat(": Z-Increment", &object->as.axis.zIncrement);
+			reInitObject = reInitObject || ImGui::DragFloat(": Tick Width", &object->as.axis.tickWidth);
+			reInitObject = reInitObject || ImGui::Checkbox(": Draw Labels", &object->as.axis.drawNumbers);
+			reInitObject = reInitObject || ImGui::Checkbox(": Is 3D", &object->as.axis.is3D);
+
+			if (reInitObject)
+			{
+				object->svgObject->free();
+				g_memory_free(object->svgObject);
+				object->svgObject = nullptr;
+
+				object->_svgObjectStart->free();
+				g_memory_free(object->_svgObjectStart);
+				object->_svgObjectStart = nullptr;
+
+				object->as.axis.init(object);
 			}
 		}
 

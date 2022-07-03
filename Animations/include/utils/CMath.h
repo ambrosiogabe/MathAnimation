@@ -115,11 +115,19 @@ namespace MathAnim
 		void serialize(RawMemory& memory, const Vec3& vec);
 		void serialize(RawMemory& memory, const Vec2& vec);
 
+		void serialize(RawMemory& memory, const Vec4i& vec);
+		void serialize(RawMemory& memory, const Vec3i& vec);
+		void serialize(RawMemory& memory, const Vec2i& vec);
+
 		void serialize(RawMemory& memory, const glm::u8vec4& vec);
 
 		Vec4 deserializeVec4(RawMemory& memory);
 		Vec3 deserializeVec3(RawMemory& memory);
 		Vec2 deserializeVec2(RawMemory& memory);
+
+		Vec4i deserializeVec4i(RawMemory& memory);
+		Vec3i deserializeVec3i(RawMemory& memory);
+		Vec2i deserializeVec2i(RawMemory& memory);
 
 		glm::u8vec4 deserializeU8Vec4(RawMemory& memory);
 	}

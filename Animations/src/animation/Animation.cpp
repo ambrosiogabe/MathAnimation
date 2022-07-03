@@ -308,6 +308,11 @@ namespace MathAnim
 			Renderer::popColor();
 		}
 		break;
+		case AnimObjectTypeV1::Axis:
+			g_logger_assert(this->svgObject != nullptr, "Cannot render axis with null SVG object.");
+			this->svgObject->render(vg, this);
+			// TODO: Render the numbers
+			break;
 		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.render(vg, this);
 			break;
@@ -367,6 +372,10 @@ namespace MathAnim
 		case AnimObjectTypeV1::Circle:
 		case AnimObjectTypeV1::Cube:
 			// NOP
+			break;
+		case AnimObjectTypeV1::Axis:
+			// NOP
+			// TODO: Free any text objecty stuff with the numbers
 			break;
 		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.free();
@@ -450,6 +459,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Cube:
 			this->as.cube.serialize(memory);
+			break;
+		case AnimObjectTypeV1::Axis:
+			this->as.axis.serialize(memory);
 			break;
 		default:
 			g_logger_warning("Unknown object type %d when serializing.", (int)objectType);
@@ -547,6 +559,23 @@ namespace MathAnim
 		case AnimObjectTypeV1::Cube:
 			res.as.cube.sideLength = defaultCubeLength;
 			res.as.cube.init(&res);
+			break;
+		case AnimObjectTypeV1::Axis:
+			res.as.axis.xRange = { 0, 1'500 };
+			res.as.axis.yRange = { 0, 1'500 };
+			res.as.axis.zRange = { 0, 1'500 };
+			res.as.axis.xIncrement = 150.0f;
+			res.as.axis.yIncrement = 150.0f;
+			res.as.axis.zIncrement = 150.0f;
+			res.as.axis.tickWidth = 75.0f;
+			res.as.axis.drawNumbers = true;
+			res.as.axis.is3D = false;
+			res._strokeWidthStart = 7.5f;
+			res._positionStart = {
+				outputSize.x / 2.0f,
+				outputSize.y / 2.0f
+			};
+			res.as.axis.init(&res);
 			break;
 		default:
 			g_logger_error("Cannot create default animation object of type %d", (int)type);
@@ -646,6 +675,10 @@ namespace MathAnim
 		case AnimObjectTypeV1::Cube:
 			res.as.cube = Cube::deserialize(memory, version);
 			res.as.cube.init(&res);
+			break;
+		case AnimObjectTypeV1::Axis:
+			res.as.axis = Axis::deserialize(memory, version);
+			res.as.axis.init(&res);
 			break;
 		default:
 			g_logger_error("Unknown anim object type: %d. Corrupted memory.", res.objectType);

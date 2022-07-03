@@ -37,6 +37,7 @@ namespace MathAnim
 
 	struct Curve
 	{
+		bool moveToP0;
 		CurveType type;
 		// Every curve has at least one point
 		Vec3 p0;
@@ -78,6 +79,7 @@ namespace MathAnim
 		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D = false);
 		void closeContour(SvgObject* object);
 
+		void moveTo(const SvgObject* object, const Vec3& point);
 		void lineTo(SvgObject* object, const Vec3& point);
 		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest);
 		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest);

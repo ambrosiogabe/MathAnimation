@@ -20,6 +20,7 @@ namespace MathAnim
 			"Square",
 			"Circle",
 			"Cube",
+			"Axis",
 			"Length"
 		};
 
