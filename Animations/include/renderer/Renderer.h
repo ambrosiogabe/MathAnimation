@@ -69,6 +69,7 @@ namespace MathAnim
 		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3);
 
 		void translate3D(const Vec3& translation);
+		void rotate3D(const Vec3& eulerAngles);
 		void resetTransform3D();
 
 		// ----------- 3D stuff ----------- 

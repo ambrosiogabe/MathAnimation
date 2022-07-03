@@ -1059,6 +1059,7 @@ namespace MathAnim
 
 
 		// TODO: Add rotation to 3D lines somehow...
+		Renderer::rotate3D(parent->rotation);
 		Renderer::translate3D(parent->position);
 		//if (parent->rotation.z != 0.0f)
 		//{
@@ -1158,7 +1159,8 @@ namespace MathAnim
 							Renderer::bezier3To3D(
 								Vec3{p1.x, p1.y, p1.z},
 								Vec3{p2.x, p2.y, p2.z},
-								Vec3{p3.x, p3.y, p3.z});
+								Vec3{p3.x, p3.y, p3.z}
+							);
 						}
 						break;
 						case CurveType::Bezier2:

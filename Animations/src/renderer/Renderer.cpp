@@ -913,6 +913,11 @@ namespace MathAnim
 			transform3D = glm::translate(transform3D, glm::vec3(translation.x, translation.y, translation.z));
 		}
 
+		void rotate3D(const Vec3& eulerAngles)
+		{
+			transform3D *= glm::orientate4(glm::radians(glm::vec3(eulerAngles.x, eulerAngles.y, eulerAngles.z)));
+		}
+
 		void resetTransform3D()
 		{
 			transform3D = glm::identity<glm::mat4>();
