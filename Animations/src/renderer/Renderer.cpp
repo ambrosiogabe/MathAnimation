@@ -158,7 +158,7 @@ namespace MathAnim
 		Vec4 color;
 		Vec2 textureCoords;
 		Vec3 normal;
-	}; 
+	};
 
 	struct DrawList3D
 	{
@@ -214,7 +214,8 @@ namespace MathAnim
 		static constexpr float defaultStrokeWidth = 0.1f;
 		static constexpr CapType defaultLineEnding = CapType::Flat;
 
-		static constexpr int max3DPathSize = 100;
+		static glm::mat4 transform3D;
+		static constexpr int max3DPathSize = 1'000;
 		static bool isDrawing3DPath;
 		static Vertex3DLine current3DPath[max3DPathSize];
 		static int numVertsIn3DPath;
@@ -300,30 +301,41 @@ namespace MathAnim
 		// ----------- Render calls ----------- 
 		void renderToFramebuffer(NVGcontext* vg, int frame, Framebuffer& framebuffer)
 		{
+			g_logger_assert(framebuffer.colorAttachments.size() == 3, "Invalid framebuffer. Should have 3 color attachments.");
+			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
+
+			// Clear the framebuffer attachments and set it up
 			framebuffer.bind();
 			glViewport(0, 0, framebuffer.width, framebuffer.height);
-
 			framebuffer.clearColorAttachmentRgba(0, colors[(uint8)Color::GreenBrown]);
 			framebuffer.clearDepthStencil();
 
+			// Reset the draw buffers to draw to FB_attachment_0
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
 			glDrawBuffers(3, compositeDrawBuffers);
 
+			// Collect all the render commands
 			nvgBeginFrame(vg, (float)framebuffer.width, (float)framebuffer.height, 1.0f);
 			AnimationManager::render(vg, frame, framebuffer);
-			nvgEndFrame(vg);
 
-			// These should be blended appropriately
-			drawList2D.render(shader2D);
-			drawList2D.reset();
-
+			// Do all the draw calls
 			drawList3DLine.render(shader3DLine);
 			drawList3DLine.reset();
 
-			// Draw the 3D objects last. We should blend all opaque objects
-			// with transparent 3D objects in this step using OIT
+			// Draw 3D objects after the lines so that we can do appropriate blending
+			// using OIT
 			drawList3D.render(shader3DOpaque, shader3DTransparent, shader3DComposite, framebuffer);
 			drawList3D.reset();
+
+			// Reset the draw buffers to draw to FB_attachment_0
+			glDrawBuffers(3, compositeDrawBuffers);
+
+			// Draw 2D stuff over 3D stuff so that 3D stuff is always "behind" the
+			// 2D stuff like a HUD
+			// These should be blended appropriately
+			drawList2D.render(shader2D);
+			drawList2D.reset();
+			nvgEndFrame(vg);
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
 			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
@@ -745,7 +757,10 @@ namespace MathAnim
 				((uint32)(color.b * 255.0f) << 8) |
 				((uint32)(color.a * 255.0f));
 
-			current3DPath[numVertsIn3DPath].currentPos = start;
+			glm::vec4 translatedPos = glm::vec4(start.x, start.y, start.z, 1.0f);
+			translatedPos = transform3D * translatedPos;
+
+			current3DPath[numVertsIn3DPath].currentPos = Vec3{ translatedPos.x, translatedPos.y, translatedPos.z };
 			current3DPath[numVertsIn3DPath].color = packedColor;
 			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
 			numVertsIn3DPath++;
@@ -791,7 +806,7 @@ namespace MathAnim
 			numVertsIn3DPath = 0;
 		}
 
-		void lineTo3D(const Vec3& point)
+		void lineTo3D(const Vec3& point, bool applyTransform)
 		{
 			g_logger_assert(isDrawing3DPath, "lineTo3D() cannot be called without calling beginPath3D(...) first.");
 			g_logger_assert(numVertsIn3DPath < max3DPathSize, "Max path size exceeded. A 3D Path can only have up to %d points.", max3DPathSize);
@@ -809,7 +824,13 @@ namespace MathAnim
 				((uint32)(color.b * 255.0f) << 8) |
 				((uint32)(color.a * 255.0f));
 
-			current3DPath[numVertsIn3DPath].currentPos = point;
+			glm::vec4 translatedPos = glm::vec4(point.x, point.y, point.z, 1.0f);
+			if (applyTransform)
+			{
+				translatedPos = transform3D * translatedPos;
+			}
+
+			current3DPath[numVertsIn3DPath].currentPos = Vec3{ translatedPos.x, translatedPos.y, translatedPos.z };
 			current3DPath[numVertsIn3DPath].color = packedColor;
 			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
 			numVertsIn3DPath++;
@@ -817,19 +838,96 @@ namespace MathAnim
 
 		void bezier2To3D(const Vec3& p1, const Vec3& p2)
 		{
+			g_logger_assert(numVertsIn3DPath > 0, "Cannot use bezier2To3D without beginning a path.");
 
+			glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, p1.z, 1.0f);
+			glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, p2.z, 1.0f);
+
+			tmpP1 = transform3D * tmpP1;
+			tmpP2 = transform3D * tmpP2;
+
+			const Vec3& translatedP0 = current3DPath[numVertsIn3DPath - 1].currentPos;
+			Vec3 translatedP1 = Vec3{ tmpP1.x, tmpP1.y, tmpP1.z };
+			Vec3 translatedP2 = Vec3{ tmpP2.x, tmpP2.y, tmpP2.z };
+
+			// Estimate the length of the bezier curve to get an approximate for the
+			// number of line segments to use
+			Vec3 chord1 = translatedP1 - translatedP0;
+			Vec3 chord2 = translatedP2 - translatedP1;
+			float chordLengthSq = CMath::lengthSquared(chord1) + CMath::lengthSquared(chord2);
+			float lineLengthSq = CMath::lengthSquared(translatedP2 - translatedP0);
+			float approxLength = glm::sqrt(lineLengthSq + chordLengthSq) / 2.0f;
+			int numSegments = (int)(approxLength * 10.0f);
+			float tInc = 1.0f / (float)numSegments;
+			float t = 0.0f;
+			for (int i = 0; i < numSegments; i++)
+			{
+				Vec3 interpPoint = CMath::bezier2(translatedP0, translatedP1, translatedP2, t);
+				lineTo3D(interpPoint, false);
+				t += tInc;
+			}
+
+			lineTo3D(translatedP2, false);
 		}
 
 		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3)
 		{
+			g_logger_assert(numVertsIn3DPath > 0, "Cannot use bezier2To3D without beginning a path.");
 
+			glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, p1.z, 1.0f);
+			glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, p2.z, 1.0f);
+			glm::vec4 tmpP3 = glm::vec4(p3.x, p3.y, p3.z, 1.0f);
+
+			tmpP1 = transform3D * tmpP1;
+			tmpP2 = transform3D * tmpP2;
+			tmpP3 = transform3D * tmpP3;
+
+			const Vec3& translatedP0 = current3DPath[numVertsIn3DPath - 1].currentPos;
+			Vec3 translatedP1 = Vec3{ tmpP1.x, tmpP1.y, tmpP1.z };
+			Vec3 translatedP2 = Vec3{ tmpP2.x, tmpP2.y, tmpP2.z };
+			Vec3 translatedP3 = Vec3{ tmpP3.x, tmpP3.y, tmpP3.z };
+
+			// Estimate the length of the bezier curve to get an approximate for the
+			// number of line segments to use
+			Vec3 chord1 = translatedP1 - translatedP0;
+			Vec3 chord2 = translatedP2 - translatedP1;
+			Vec3 chord3 = translatedP3 - translatedP2;
+			float chordLengthSq = CMath::lengthSquared(chord1) + CMath::lengthSquared(chord2) + CMath::lengthSquared(chord3);
+			float lineLengthSq = CMath::lengthSquared(translatedP3 - translatedP0);
+			float approxLength = glm::sqrt(lineLengthSq + chordLengthSq) / 2.0f;
+			int numSegments = (int)(approxLength * 10.0f);
+			float tInc = 1.0f / (float)numSegments;
+			float t = tInc;
+			for (int i = 1; i < numSegments; i++)
+			{
+				Vec3 interpPoint = CMath::bezier3(translatedP0, translatedP1, translatedP2, translatedP3, t);
+				lineTo3D(interpPoint, false);
+				t += tInc;
+			}
+
+			lineTo3D(translatedP3, false);
+		}
+
+		void translate3D(const Vec3& translation)
+		{
+			transform3D = glm::translate(transform3D, glm::vec3(translation.x, translation.y, translation.z));
+		}
+
+		void rotate3D(const Vec3& eulerAngles)
+		{
+			transform3D *= glm::orientate4(glm::radians(glm::vec3(eulerAngles.x, eulerAngles.y, eulerAngles.z)));
+		}
+
+		void resetTransform3D()
+		{
+			transform3D = glm::identity<glm::mat4>();
 		}
 
 		// ----------- 3D stuff ----------- 
 		void drawFilledCube(const Vec3& center, const Vec3& size)
 		{
 			const glm::vec4& color = getColor();
-			drawList3D.addCubeFilled(center, size, Vec4{color.r, color.g, color.b, color.a});
+			drawList3D.addCubeFilled(center, size, Vec4{ color.r, color.g, color.b, color.a });
 		}
 
 		// ----------- Miscellaneous ----------- 
@@ -1136,6 +1234,7 @@ namespace MathAnim
 		}
 
 		glEnable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.size(), vertices.data, GL_DYNAMIC_DRAW);
@@ -1197,7 +1296,7 @@ namespace MathAnim
 		// First add the 8 unique vertices
 		Vec3 halfSize = size / 2.0f;
 		Vec3 backBottomLeft = position - halfSize;
-		Vec3 backBottomRight = backBottomLeft + Vec3{size.x, 0, 0};
+		Vec3 backBottomRight = backBottomLeft + Vec3{ size.x, 0, 0 };
 		Vec3 frontBottomLeft = backBottomLeft + Vec3{ 0, 0, size.z };
 		Vec3 frontBottomRight = frontBottomLeft + Vec3{ size.x, 0, 0 };
 
@@ -1318,8 +1417,8 @@ namespace MathAnim
 		glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, normal)));
 		glEnableVertexAttribArray(3);
 	}
-	
-	void DrawList3D::render(const Shader& opaqueShader, const Shader& transparentShader, 
+
+	void DrawList3D::render(const Shader& opaqueShader, const Shader& transparentShader,
 		const Shader& compositeShader, const Framebuffer& framebuffer) const
 	{
 		if (vertices.size() == 0)

@@ -22,6 +22,7 @@ namespace MathAnim
 	struct Circle
 	{
 		float radius;
+		bool is3D;
 
 		void init(AnimObject* parent);
 		void serialize(RawMemory& memory) const;
