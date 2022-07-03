@@ -64,7 +64,7 @@ namespace MathAnim
 		void beginPath3D(const Vec3& start);
 		void endPath3D(bool closePath = true);
 
-		void lineTo3D(const Vec3& point);
+		void lineTo3D(const Vec3& point, bool applyTransform = true);
 		void bezier2To3D(const Vec3& p1, const Vec3& p2);
 		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3);
 

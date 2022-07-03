@@ -34,48 +34,10 @@ namespace MathAnim
 		{
 			camera = &sceneCamera;
 		}
-
-		void beginContour3D(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill)
-		{
-			// Just reusing some code here
-			beginContour(object, firstPoint, clockwiseFill);
-			object->is3D = true;
-		}
-
-		void closeContour3D(SvgObject* object)
-		{
-			g_logger_assert(object->is3D, "Cannot close 2D svg object with function closeContour3D(). Did you mean to call closeContour()?");
-			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot close 3D contour when no contour exists.");
-			g_logger_assert(object->contours[object->numContours - 1].numCurves > 0, "contour->numCurves == 0. Cannot close 3D contour with 0 vertices. There must be at least one vertex to close a contour.");
-
-			// We'll let the renderer handle closing of contours
-			// Fix all the p0's in the curves
-			Vec3 lastP0 = object->contours[object->numContours - 1].curves[0].p0;
-			for (int curvei = 0; curvei < object->contours[object->numContours - 1].numCurves; curvei++)
-			{
-				Curve& curve = object->contours[object->numContours - 1].curves[curvei];
-				curve.p0 = lastP0;
-				switch (curve.type)
-				{
-				case CurveType::Bezier3:
-					lastP0 = curve.as.bezier3.p3;
-					break;
-				case CurveType::Bezier2:
-					lastP0 = curve.as.bezier2.p2;
-					break;
-				case CurveType::Line:
-					lastP0 = curve.as.line.p1;
-					break;
-				default:
-					g_logger_error("Unknown curve type %d", (int)curve.type);
-					break;
-				}
-			}
-		}
 		
-		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill)
+		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D)
 		{
-			object->is3D = false;
+			object->is3D = is3D;
 			object->numContours++;
 			object->contours = (Contour*)g_memory_realloc(object->contours, sizeof(Contour) * object->numContours);
 			g_logger_assert(object->contours != nullptr, "Ran out of RAM.");
@@ -90,7 +52,6 @@ namespace MathAnim
 
 		void closeContour(SvgObject* object)
 		{
-			g_logger_assert(!object->is3D, "Cannot close 3D svg object with function closeContour(). Did you mean to call closeContour3D()?");
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot close contour when no contour exists.");
 			g_logger_assert(object->contours[object->numContours - 1].numCurves > 0, "contour->numCurves == 0. Cannot close contour with 0 vertices. There must be at least one vertex to close a contour.");
 
@@ -1195,10 +1156,9 @@ namespace MathAnim
 							}
 
 							Renderer::bezier3To3D(
-								Vec3{ p1.x, p1.y, p1.z },
-								Vec3{ p2.x, p2.y, p2.y },
-								Vec3{ p3.x, p3.y, p3.z }
-							);
+								Vec3{p1.x, p1.y, p1.z},
+								Vec3{p2.x, p2.y, p2.z},
+								Vec3{p3.x, p3.y, p3.z});
 						}
 						break;
 						case CurveType::Bezier2:

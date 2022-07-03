@@ -700,6 +700,12 @@ namespace MathAnim
 
 				object->as.circle.init(object);
 			}
+
+			if (ImGui::Checkbox(": Is 3D", &object->as.circle.is3D))
+			{
+				object->svgObject->is3D = object->as.circle.is3D;
+				object->_svgObjectStart->is3D = object->as.circle.is3D;
+			}
 		}
 
 		static void handleCubeInspector(AnimObject* object)

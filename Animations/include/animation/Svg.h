@@ -75,9 +75,7 @@ namespace MathAnim
 		
 		void init(OrthoCamera& camera);
 
-		void beginContour3D(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill);
-		void closeContour3D(SvgObject* object);
-		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill);
+		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D = false);
 		void closeContour(SvgObject* object);
 
 		void lineTo(SvgObject* object, const Vec3& point);

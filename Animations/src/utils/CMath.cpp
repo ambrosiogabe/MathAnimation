@@ -162,7 +162,35 @@ namespace MathAnim
 
 		Vec2 bezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t)
 		{
-			return (1 - t) * ((1 - t) * p0 + t * p1) + t * ((1 - t) * p1 + t * p2);
+			return (1.0f - t) * ((1.0f - t) * p0 + t * p1) + t * ((1.0f - t) * p1 + t * p2);
+		}
+
+		Vec2 bezier3(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float t)
+		{
+			return
+				glm::pow(1.0f - t, 3) * p0 +
+				3.0f * (1.0f - t) * (1.0f - t) * t * p1 +
+				(3.0f * (1.0f - t) * t * t) * p2 +
+				t * t * t * p3;
+		}
+
+		Vec3 bezier1(const Vec3& p0, const Vec3& p1, float t)
+		{
+			return (1.0f - t) * p0 + t * p1;
+		}
+
+		Vec3 bezier2(const Vec3& p0, const Vec3& p1, const Vec3& p2, float t)
+		{
+			return (1.0f - t) * ((1.0f - t) * p0 + t * p1) + t * ((1.0f - t) * p1 + t * p2);
+		}
+
+		Vec3 bezier3(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t)
+		{
+			return 
+				glm::pow(1.0f - t, 3) * p0 + 
+				3.0f * (1.0f - t) * (1.0f - t) * t * p1 +
+				(3.0f * (1.0f - t) * t * t) * p2 +
+				t * t * t * p3;
 		}
 
 		// Easing functions

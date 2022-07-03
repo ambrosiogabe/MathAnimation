@@ -537,6 +537,7 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Circle:
 			res.as.circle.radius = defaultCircleRadius;
+			res.as.circle.is3D = false;
 			res.as.circle.init(&res);
 			res._positionStart = {
 				outputSize.x / 2.0f,

@@ -92,9 +92,13 @@ namespace MathAnim
 		// Hash Strings
 		uint32 hashString(const char* str);
 
-		// Other stuff
+		// Bezier stuff
 		Vec2 bezier1(const Vec2& p0, const Vec2& p1, float t);
 		Vec2 bezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t);
+		Vec2 bezier3(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float t);
+		Vec3 bezier1(const Vec3& p0, const Vec3& p1, float t);
+		Vec3 bezier2(const Vec3& p0, const Vec3& p1, const Vec3& p2, float t);
+		Vec3 bezier3(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t);
 
 		// Easing functions
 		float ease(float t, EaseType type, EaseDirection direction);
