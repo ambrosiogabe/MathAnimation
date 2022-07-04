@@ -124,9 +124,9 @@ namespace MathAnim
 					currentFrame = glm::max(currentFrame - 1, 0);
 				}
 
-				//camera3D.orientation.y += 45.0f * deltaTime;
-				//camera3D.position.x = glm::cos(-glm::radians(camera3D.orientation.y)) * -10.0f;
-				//camera3D.position.z = glm::sin(-glm::radians(camera3D.orientation.y)) * 10.0f;
+				camera3D.orientation.y += 45.0f * deltaTime;
+				camera3D.position.x = glm::cos(-glm::radians(camera3D.orientation.y)) * -10.0f;
+				camera3D.position.z = glm::sin(-glm::radians(camera3D.orientation.y)) * 10.0f;
 
 				// Render to main framebuffer
 				Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);

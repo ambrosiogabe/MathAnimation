@@ -561,16 +561,18 @@ namespace MathAnim
 			res.as.cube.init(&res);
 			break;
 		case AnimObjectTypeV1::Axis:
-			res.as.axis.xRange = { 0, 1'500 };
-			res.as.axis.yRange = { 0, 1'500 };
-			res.as.axis.zRange = { 0, 1'500 };
-			res.as.axis.xIncrement = 150.0f;
-			res.as.axis.yIncrement = 150.0f;
-			res.as.axis.zIncrement = 150.0f;
+			res.as.axis.axesLength = Vec3{ 3'000.0f, 1'700.0f, 1.0f };
+			res.as.axis.xRange = { 0, 18 };
+			res.as.axis.yRange = { 0, 10 };
+			res.as.axis.zRange = { 0, 10 };
+			res.as.axis.xStep = 1.0f;
+			res.as.axis.yStep = 1.0f;
+			res.as.axis.zStep = 1.0f;
 			res.as.axis.tickWidth = 75.0f;
 			res.as.axis.drawNumbers = true;
 			res.as.axis.is3D = false;
 			res._strokeWidthStart = 7.5f;
+			res._fillColorStart.a = 0;
 			res._positionStart = {
 				outputSize.x / 2.0f,
 				outputSize.y / 2.0f

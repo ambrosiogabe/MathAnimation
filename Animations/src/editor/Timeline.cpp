@@ -732,6 +732,8 @@ namespace MathAnim
 		{
 			bool reInitObject = false;
 
+			reInitObject = ImGui::DragFloat3(": Axes Length", object->as.axis.axesLength.values) || reInitObject;
+
 			int xVals[2] = { object->as.axis.xRange.min, object->as.axis.xRange.max };
 			if (ImGui::DragInt2(": X-Range", xVals, 1.0f))
 			{
@@ -768,12 +770,37 @@ namespace MathAnim
 				}
 			}
 
-			reInitObject = reInitObject || ImGui::DragFloat(": X-Increment", &object->as.axis.xIncrement);
-			reInitObject = reInitObject || ImGui::DragFloat(": Y-Increment", &object->as.axis.yIncrement);
-			reInitObject = reInitObject || ImGui::DragFloat(": Z-Increment", &object->as.axis.zIncrement);
-			reInitObject = reInitObject || ImGui::DragFloat(": Tick Width", &object->as.axis.tickWidth);
-			reInitObject = reInitObject || ImGui::Checkbox(": Draw Labels", &object->as.axis.drawNumbers);
-			reInitObject = reInitObject || ImGui::Checkbox(": Is 3D", &object->as.axis.is3D);
+			reInitObject = ImGui::DragFloat(": X-Increment", &object->as.axis.xStep) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Y-Increment", &object->as.axis.yStep) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Z-Increment", &object->as.axis.zStep) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Tick Width", &object->as.axis.tickWidth) || reInitObject;
+			reInitObject = ImGui::Checkbox(": Draw Labels", &object->as.axis.drawNumbers) || reInitObject;
+			if (ImGui::Checkbox(": Is 3D", &object->as.axis.is3D))
+			{
+				// Reset to default values if we toggle 3D on or off
+				if (object->as.axis.is3D)
+				{
+					object->_positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
+					object->as.axis.axesLength = Vec3{ 8.0f, 5.0f, 8.0f };
+					object->as.axis.xRange = { 0, 8 };
+					object->as.axis.yRange = { 0, 5 };
+					object->as.axis.zRange = { 0, 8 };
+					object->as.axis.tickWidth = 0.2f;
+					object->_strokeWidthStart = 0.05f;
+				}
+				else
+				{
+					glm::vec2 outputSize = Application::getOutputSize();
+					object->_positionStart = Vec3{ outputSize.x / 2.0f, outputSize.y / 2.0f, 0.0f };
+					object->as.axis.axesLength = Vec3{ 3'000.0f, 1'700.0f, 1.0f };
+					object->as.axis.xRange = { 0, 18 };
+					object->as.axis.yRange = { 0, 10 };
+					object->as.axis.zRange = { 0, 10 };
+					object->as.axis.tickWidth = 75.0f;
+					object->_strokeWidthStart = 7.5f;
+				}
+				reInitObject = true;
+			}
 
 			if (reInitObject)
 			{

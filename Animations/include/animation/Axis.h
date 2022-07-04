@@ -8,12 +8,13 @@ namespace MathAnim
 
 	struct Axis
 	{
+		Vec3 axesLength;
 		Vec2i xRange;
 		Vec2i yRange;
 		Vec2i zRange;
-		float xIncrement;
-		float yIncrement;
-		float zIncrement;
+		float xStep;
+		float yStep;
+		float zStep;
 		float tickWidth;
 		bool is3D;
 		bool drawNumbers;

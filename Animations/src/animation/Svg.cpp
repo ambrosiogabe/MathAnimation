@@ -1117,6 +1117,12 @@ namespace MathAnim
 							curve.p0.z,
 							1.0f
 						);
+						if (curve.moveToP0)
+						{
+							// TODO: Add built-in moveTo support for the 3D paths
+							Renderer::endPath3D(false);
+							Renderer::beginPath3D(curve.p0);
+						}
 
 						switch (curve.type)
 						{
