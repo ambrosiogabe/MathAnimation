@@ -46,6 +46,9 @@ namespace MathAnim
 
 		static const char* winTitle = "Math Animations";
 
+		// TODO: Remove me
+		SizedFont* testFont;
+
 		void init()
 		{
 			// Initiaize GLFW/Glad
@@ -53,7 +56,8 @@ namespace MathAnim
 			window->setVSync(true);
 
 			camera2D.position = Vec2{ 0, 0 };
-			camera2D.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
+			//camera2D.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
+			camera2D.projectionSize = Vec2{ 3840.0f, 2160.0f };
 
 			camera3D.forward = glm::vec3(0, 0, 1);
 			camera3D.fov = 70.0f;
@@ -87,6 +91,9 @@ namespace MathAnim
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			// Test fonts
+			testFont = Fonts::loadSizedFont("C:/Windows/Fonts/ariblk.ttf", 128);
 		}
 
 		void run()
@@ -127,6 +134,12 @@ namespace MathAnim
 				camera3D.orientation.y += 45.0f * deltaTime;
 				camera3D.position.x = glm::cos(-glm::radians(camera3D.orientation.y)) * -10.0f;
 				camera3D.position.z = glm::sin(-glm::radians(camera3D.orientation.y)) * 10.0f;
+
+				Renderer::pushFont(testFont);
+				Renderer::pushColor("#4a6a9e"_hex);
+				Renderer::drawString("Hello World!", Vec2{ 64.0f, 64.0f });
+				Renderer::popColor();
+				Renderer::popFont();
 
 				// Render to main framebuffer
 				Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);

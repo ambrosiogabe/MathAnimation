@@ -556,7 +556,7 @@ namespace MathAnim
 			int fontIndex = -1;
 			if (object->as.textObject.font != nullptr)
 			{
-				std::filesystem::path fontFilepath = object->as.textObject.font->vgFontFace;
+				std::filesystem::path fontFilepath = object->as.textObject.font->fontFilepath;
 				fontFilepath.make_preferred();
 				int index = 0;
 				for (const auto& font : fonts)
@@ -580,7 +580,7 @@ namespace MathAnim
 			{
 				if (object->as.textObject.font != nullptr)
 				{
-					g_logger_warning("Could not find font %s", object->as.textObject.font->vgFontFace.c_str());
+					g_logger_warning("Could not find font %s", object->as.textObject.font->fontFilepath.c_str());
 				}
 			}
 

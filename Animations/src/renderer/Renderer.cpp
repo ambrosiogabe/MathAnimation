@@ -7,6 +7,7 @@
 #include "renderer/Texture.h"
 #include "renderer/Fonts.h"
 #include "renderer/Colors.h"
+#include "renderer/Fonts.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
@@ -126,6 +127,27 @@ namespace MathAnim
 		void free();
 	};
 
+	struct DrawListFont2D
+	{
+		SimpleVector<Vertex2D> vertices;
+		SimpleVector<uint16> indices;
+		SimpleVector<DrawCmd> drawCommands;
+		SimpleVector<uint32> textureIdStack;
+
+		uint32 vao;
+		uint32 vbo;
+		uint32 ebo;
+
+		void init();
+
+		void addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, int textureId);
+
+		void setupGraphicsBuffers();
+		void render(const Shader& shader);
+		void reset();
+		void free();
+	};
+
 	struct Vertex3DLine
 	{
 		Vec3 currentPos;
@@ -187,6 +209,7 @@ namespace MathAnim
 	{
 		// Internal variables
 		static DrawList2D drawList2D;
+		static DrawListFont2D drawListFont2D;
 		static DrawList3DLine drawList3DLine;
 		static DrawList3D drawList3D;
 
@@ -194,6 +217,7 @@ namespace MathAnim
 		static PerspectiveCamera* perspCamera;
 
 		static Shader shader2D;
+		static Shader shaderFont2D;
 		static Shader shader3DLine;
 		static Shader screenShader;
 		static Shader shader3DOpaque;
@@ -205,10 +229,12 @@ namespace MathAnim
 		static glm::vec4 colorStack[MAX_STACK_SIZE];
 		static float strokeWidthStack[MAX_STACK_SIZE];
 		static CapType lineEndingStack[MAX_STACK_SIZE];
+		static const SizedFont* fontStack[MAX_STACK_SIZE];
 
 		static int colorStackPtr;
 		static int strokeWidthStackPtr;
 		static int lineEndingStackPtr;
+		static int fontStackPtr;
 
 		static constexpr glm::vec4 defaultColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 		static constexpr float defaultStrokeWidth = 0.1f;
@@ -275,6 +301,7 @@ namespace MathAnim
 			// Initialize default shader
 #ifdef _DEBUG
 			shader2D.compile("assets/shaders/default.glsl");
+			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
@@ -286,6 +313,7 @@ namespace MathAnim
 #endif
 
 			drawList2D.init();
+			drawListFont2D.init();
 			drawList3DLine.init();
 			drawList3D.init();
 			setupScreenVao();
@@ -293,7 +321,15 @@ namespace MathAnim
 
 		void free()
 		{
+			shaderFont2D.destroy();
+			screenShader.destroy();
+			shader3DLine.destroy();
+			shader3DOpaque.destroy();
+			shader3DTransparent.destroy();
+			shader3DComposite.destroy();
+
 			drawList2D.free();
+			drawListFont2D.free();
 			drawList3DLine.free();
 			drawList3D.free();
 		}
@@ -322,6 +358,9 @@ namespace MathAnim
 			drawList3DLine.render(shader3DLine);
 			drawList3DLine.reset();
 
+			drawListFont2D.render(shaderFont2D);
+			drawListFont2D.reset();
+
 			// Draw 3D objects after the lines so that we can do appropriate blending
 			// using OIT
 			drawList3D.render(shader3DOpaque, shader3DTransparent, shader3DComposite, framebuffer);
@@ -340,6 +379,7 @@ namespace MathAnim
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
 			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
 			g_logger_assert(strokeWidthStackPtr == 0, "Missing popStrokeWidth() call.");
+			g_logger_assert(fontStackPtr == 0, "Missing popFont() call.");
 		}
 
 		void renderFramebuffer(const Framebuffer& framebuffer)
@@ -399,6 +439,13 @@ namespace MathAnim
 			lineEndingStackPtr++;
 		}
 
+		void pushFont(const SizedFont* font)
+		{
+			g_logger_assert(fontStackPtr < MAX_STACK_SIZE, "Ran out of room on the font stack.");
+			fontStack[fontStackPtr] = font;
+			fontStackPtr++;
+		}
+
 		void popStrokeWidth(int numToPop)
 		{
 			strokeWidthStackPtr -= numToPop;
@@ -415,6 +462,12 @@ namespace MathAnim
 		{
 			lineEndingStackPtr -= numToPop;
 			g_logger_assert(lineEndingStackPtr >= 0, "Popped to many values off of line ending stack: %d", lineEndingStackPtr);
+		}
+
+		void popFont(int numToPop)
+		{
+			fontStackPtr -= numToPop;
+			g_logger_assert(fontStackPtr >= 0, "Popped to many values off of font stack: %d", fontStackPtr);
 		}
 
 		// ----------- 2D stuff ----------- 
@@ -658,33 +711,37 @@ namespace MathAnim
 			//numVertices++;
 		}
 
-		void drawString(const std::string& string, const Font& font, const Vec2& position, float scale, const Vec4& color)
+		void drawString(const std::string& string, const Vec2& start)
 		{
-			float x = position.x;
-			float y = position.y;
+			g_logger_assert(fontStackPtr > 0, "Cannot draw string without a font provided. Did you forget a pushFont() call?");
 
-			g_logger_warning("TODO: Not implemented.");
+			const SizedFont* font = fontStack[fontStackPtr - 1];
+			const glm::vec4& colorGlm = getColor();
+			Vec4 color = Vec4{ colorGlm.r, colorGlm.g, colorGlm.b, colorGlm.a };
 
-			//for (int i = 0; i < string.length(); i++)
-			//{
-			//	char c = string[i];
-			//	RenderableChar renderableChar = font.getCharInfo(c);
-			//	float charWidth = renderableChar.texCoordSize.x * font.fontSize * scale;
-			//	float charHeight = renderableChar.texCoordSize.y * font.fontSize * scale;
-			//	float adjustedY = y - renderableChar.bearingY * font.fontSize * scale;
+			Vec2 cursorPos = start;
+			for (int i = 0; i < string.length(); i++)
+			{
+				char c = string[i];
+				const GlyphTexture& glyphTexture = font->getGlyphTexture(c);
+				const GlyphOutline& glyphOutline = font->getGlyphInfo(c);
+				float charWidth = (glyphTexture.uvMax.x - glyphTexture.uvMin.x) * font->texture.width;
+				float charHeight = (glyphTexture.uvMax.y - glyphTexture.uvMin.y) * font->texture.height;
+				float bearingX = glyphOutline.bearingX * font->fontSizePixels;
+				float descentY = -(font->unsizedFont->lineHeight / 2.0f) * font->fontSizePixels;
+				descentY -= glyphOutline.descentY * font->fontSizePixels;
 
-			//	drawTexture(RenderableTexture{
-			//		&font.texture,
-			//		{ x, adjustedY },
-			//		{ charWidth, charHeight },
-			//		renderableChar.texCoordStart,
-			//		renderableChar.texCoordSize
-			//		}, color);
+				drawListFont2D.addGlyph(
+					cursorPos + Vec2{ bearingX, descentY },
+					cursorPos + Vec2{ charWidth, charHeight }, 
+					glyphTexture.uvMin, 
+					glyphTexture.uvMax, 
+					color, 
+					font->texture.graphicsId
+				);
 
-			//	char nextC = i < string.length() - 1 ? string[i + 1] : '\0';
-			//	//x += font.getKerning(c, nextC) * scale * font.fontSize;
-			//	x += renderableChar.advance.x * scale * font.fontSize;
-			//}
+				cursorPos.x += glyphOutline.advanceX * font->fontSizePixels;
+			}
 		}
 
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments)
@@ -1131,6 +1188,174 @@ namespace MathAnim
 		textureIdStack.hardClear();
 	}
 	// ---------------------- End DrawList2D Functions ----------------------
+
+	// ---------------------- End DrawListFont2D Functions ----------------------
+	void DrawListFont2D::init()
+	{
+		vao = UINT32_MAX;
+		ebo = UINT32_MAX;
+		vbo = UINT32_MAX;
+
+		vertices.init();
+		indices.init();
+		drawCommands.init();
+		textureIdStack.init();
+		setupGraphicsBuffers();
+	}
+
+	void DrawListFont2D::addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, int textureId)
+	{
+		// Check if we need to switch to a new batch
+		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != textureId)
+		{
+			DrawCmd newCommand;
+			newCommand.elementCount = 0;
+			newCommand.indexOffset = indices.size();
+			newCommand.vertexOffset = vertices.size();
+			newCommand.textureId = textureId;
+			drawCommands.push(newCommand);
+		}
+
+		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
+		
+		int rectStartIndex = cmd.elementCount / 6 * 4;
+		// Tri 1 indices
+		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
+		// Tri 2 indices
+		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
+		cmd.elementCount += 6;
+
+		Vertex2D vert;
+		vert.color = color;
+
+		// Verts
+		vert.position = posMin;
+		vert.textureCoords = uvMin;
+		vertices.push(vert);
+
+		vert.position = Vec2{ posMin.x, posMax.y };
+		vert.textureCoords = Vec2{ uvMin.x, uvMax.y };
+		vertices.push(vert);
+
+		vert.position = posMax;
+		vert.textureCoords = uvMax;
+		vertices.push(vert);
+
+		vert.position = Vec2{ posMax.x, posMin.y };
+		vert.textureCoords = Vec2{ uvMax.x, uvMin.y };
+		vertices.push(vert);
+	}
+
+	// TODO: This is literally the exact same thing as the DrawList2D::setupGraphicsBuffers() function
+	// maybe I should come up with some sort of CreateVao abstraction?
+	void DrawListFont2D::setupGraphicsBuffers()
+	{
+		// Create the batched vao
+		glCreateVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+
+		glGenBuffers(1, &vbo);
+
+		// Allocate space for the batched vao
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+
+		glGenBuffers(1, &ebo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+
+		// Set up the batched vao attributes
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, position)));
+		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, color)));
+		glEnableVertexAttribArray(1);
+
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, textureCoords)));
+		glEnableVertexAttribArray(2);
+	}
+
+	void DrawListFont2D::render(const Shader& shader)
+	{
+		shader.bind();
+		shader.uploadMat4("uProjection", Renderer::orthoCamera->calculateProjectionMatrix());
+		shader.uploadMat4("uView", Renderer::orthoCamera->calculateViewMatrix());
+
+		for (int i = 0; i < drawCommands.size(); i++)
+		{
+			// Bind the texture
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
+			shader.uploadInt("uTexture", 0);
+
+			// Upload the verts
+			// TODO: Figure out how to correctly do this stuff
+			// I think this is crashing the GPU right now
+			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			int numVerts = drawCommands.data[i].elementCount / 6 * 4;
+			glBufferData(
+				GL_ARRAY_BUFFER,
+				sizeof(Vertex2D) * numVerts,
+				vertices.data + drawCommands.data[i].vertexOffset,
+				GL_DYNAMIC_DRAW
+			);
+
+			// Buffer the elements
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+			glBufferData(
+				GL_ELEMENT_ARRAY_BUFFER,
+				sizeof(uint16) * drawCommands.data[i].elementCount,
+				indices.data + drawCommands.data[i].indexOffset,
+				GL_DYNAMIC_DRAW
+			);
+
+			// TODO: Swap this with glMultiDraw...
+			// Make the draw call
+			glBindVertexArray(vao);
+			glDrawElements(
+				GL_TRIANGLES, 
+				drawCommands.data[i].elementCount, 
+				GL_UNSIGNED_SHORT, 
+				nullptr
+			);
+		}
+	}
+
+	void DrawListFont2D::reset()
+	{
+		vertices.softClear();
+		indices.softClear();
+		drawCommands.softClear();
+		g_logger_assert(textureIdStack.size() == 0, "Mismatched texture ID stack. Are you missing a drawListFont2D.popTexture()?");
+	}
+
+	void DrawListFont2D::free()
+	{
+		if (vbo != UINT32_MAX)
+		{
+			glDeleteBuffers(1, &vbo);
+		}
+
+		if (ebo != UINT32_MAX)
+		{
+			glDeleteBuffers(1, &ebo);
+		}
+
+		if (vao != UINT32_MAX)
+		{
+			glDeleteVertexArrays(1, &vao);
+		}
+
+		vbo = UINT32_MAX;
+		ebo = UINT32_MAX;
+		vao = UINT32_MAX;
+
+		vertices.hardClear();
+		indices.hardClear();
+		drawCommands.hardClear();
+		textureIdStack.hardClear();
+	}
+	// ---------------------- End DrawListFont2D Functions ----------------------
 
 	// ---------------------- Begin DrawList3DLine Functions ----------------------
 	void DrawList3DLine::init()

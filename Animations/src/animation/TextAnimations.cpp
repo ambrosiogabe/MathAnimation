@@ -114,11 +114,11 @@ namespace MathAnim
 		// TODO: Overflow error checking would be good here
 		if (font != nullptr)
 		{
-			int32 fontFilepathLength = (int32)font->vgFontFace.size();
+			int32 fontFilepathLength = (int32)font->fontFilepath.size();
 			memory.write<int32>(&fontFilepathLength);
 			for (int i = 0; i < fontFilepathLength; i++)
 			{
-				memory.write<char>(&font->vgFontFace[i]);
+				memory.write<char>(&font->fontFilepath[i]);
 			}
 		}
 		else
@@ -387,7 +387,7 @@ namespace MathAnim
 			std::string str = std::string("") + (char)codepoint;
 			const glm::u8vec4& fillColor = parent->fillColor;
 			nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)((float)fillColor.a * percentToFadeIn)));
-			nvgFontFace(vg, font->vgFontFace.c_str());
+			nvgFontFace(vg, font->fontFilepath.c_str());
 			nvgFontSize(vg, fontScale);
 			nvgText(vg, glyphPos.x, fontScale + glyphPos.y, str.c_str(), NULL);
 		}
