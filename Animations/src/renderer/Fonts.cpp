@@ -45,6 +45,11 @@ namespace MathAnim
 		FT_UInt leftGlyph = FT_Get_Char_Index(fontFace, leftCodepoint);
 		FT_UInt rightGlyph = FT_Get_Char_Index(fontFace, rightCodepoint);
 		int error = FT_Get_Kerning(fontFace, leftGlyph, rightGlyph, FT_Kerning_Mode::FT_KERNING_DEFAULT, &kerning);
+		if (error)
+		{
+			return 0.0f;
+		}
+
 		return (float)kerning.x / unitsPerEM;
 	}
 
@@ -203,8 +208,8 @@ namespace MathAnim
 				}
 			}
 			
-			constexpr uint32 textureWidth = 1024;
-			constexpr uint32 textureHeight = 1024;
+			constexpr uint32 textureWidth = 2048;
+			constexpr uint32 textureHeight = 2048;
 			res.texture = TextureBuilder()
 				.setFormat(ByteFormat::R8_UI)
 				.setWidth(textureWidth)
@@ -252,12 +257,11 @@ namespace MathAnim
 					continue;
 				}
 
-				// Copy every row into our bitmap and flip the image at the
-				// same time
+				// Copy every row into our bitmap
 				for (int y = 0; y < bitmap.rows; y++)
 				{
 					uint8* dst = textureMemory + cursorX + ((cursorY + y) * textureWidth);
-					uint8* src = bitmap.buffer + ((bitmap.rows - y - 1) * bitmap.width);
+					uint8* src = bitmap.buffer + (y * bitmap.width);
 					g_memory_copyMem(dst, src, sizeof(uint8) * bitmap.width);
 				}
 
@@ -517,6 +521,8 @@ namespace MathAnim
 			res.bearingX = (float)glyphSlot->metrics.horiBearingX / upem;
 			res.bearingY = (float)glyphSlot->metrics.horiBearingY / upem;
 			res.descentY = descentY / upem;
+			res.glyphWidth = (float)glyphSlot->metrics.width / upem;
+			res.glyphHeight = (float)glyphSlot->metrics.height / upem;
 
 			// Iterate once to count the number of total vertices
 			{
@@ -633,6 +639,8 @@ namespace MathAnim
 						bool dropoutEnabled = bezierControlPoint && (flag & 0x4);
 						float pointx = ((float)(point->x - glyphLeft) / upem);
 						float pointy = ((float)(point->y + descentY) / upem);
+						// Flip the point y since the glyph is "upside down"
+						pointy = res.glyphHeight - pointy;
 						Vec2 position = Vec2{ pointx, pointy };
 
 						g_logger_assert(!thirdOrderControlPoint, "No Support.");

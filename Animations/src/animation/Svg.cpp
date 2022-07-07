@@ -493,7 +493,8 @@ namespace MathAnim
 			);
 
 			// Apply transformations
-			nvgTranslate(vg, interpolatedPos.x - Svg::camera->position.x, interpolatedPos.y - Svg::camera->position.y);
+			Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
+			nvgTranslate(vg, interpolatedPos.x - cameraCenteredPos.x, interpolatedPos.y - cameraCenteredPos.y);
 			if (interpolatedRotation.z != 0.0f)
 			{
 				nvgRotate(vg, glm::radians(interpolatedRotation.z));
@@ -759,7 +760,8 @@ namespace MathAnim
 		float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
 
 		// NOTE(voxel): Quick and Dirty
-		nvgTranslate(vg, position.x - Svg::camera->position.x, position.y - Svg::camera->position.y);
+		Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
+		nvgTranslate(vg, position.x - cameraCenteredPos.x, position.y - cameraCenteredPos.y);
 		if (parent->rotation.z != 0.0f)
 		{
 			nvgRotate(vg, glm::radians(parent->rotation.z));

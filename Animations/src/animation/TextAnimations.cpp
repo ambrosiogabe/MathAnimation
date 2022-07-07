@@ -64,17 +64,15 @@ namespace MathAnim
 
 		float numberLettersToDraw = t * (float)numNonWhitespaceCharacters;
 		int numNonWhitespaceLettersDrawn = 0;
+		constexpr float numLettersToLag = 2.0f;
 		for (int i = 0; i < textStr.length(); i++)
 		{
 			uint32 codepoint = (uint32)textStr[i];
 			const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
 
-			float percentOfLetterToDraw = numberLettersToDraw - (float)numNonWhitespaceLettersDrawn;
+			float denominator = i == textStr.length() - 1 ? 1.0f : numLettersToLag;
+			float percentOfLetterToDraw = (numberLettersToDraw - (float)numNonWhitespaceLettersDrawn) / denominator;
 			glm::vec4 glyphPos = cursorPos;
-			// TODO: Do some debugging to make sure this is accurate
-			// The bounding box of the text's top left corner should
-			// be where the text gets positioned from
-			glyphPos.y -= (font->lineHeight / 2.0f) * fontSizePixels;
 			renderWriteInCodepointAnimation(vg, codepoint, percentOfLetterToDraw, font, fontSizePixels, glyphPos, parent);
 
 			// TODO: I may have to add kerning info here
@@ -215,9 +213,12 @@ namespace MathAnim
 		float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
 		float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
 
+		float yOffset = -glyphOutline.bearingY;
+
 		if (lengthToDraw > 0)
 		{
-			nvgTranslate(vg, -TextAnimations::camera->position.x, -TextAnimations::camera->position.y);
+			Vec2 cameraCenteredPos = TextAnimations::camera->projectionSize / 2.0f - TextAnimations::camera->position;
+			nvgTranslate(vg, -cameraCenteredPos.x, -cameraCenteredPos.y);
 			float lengthDrawn = 0.0f;
 			for (int c = 0; c < glyphOutline.numContours; c++)
 			{
@@ -239,14 +240,14 @@ namespace MathAnim
 				{
 					glm::vec4 pos = glm::vec4(
 						glyphOutline.contours[c].vertices[0].position.x + glyphOutline.bearingX,
-						glyphOutline.contours[c].vertices[0].position.y - glyphOutline.descentY,
+						glyphOutline.contours[c].vertices[0].position.y + yOffset,
 						0.0f,
 						1.0f
 					);
 					nvgMoveTo(
 						vg,
 						pos.x * fontScale + glyphPos.x,
-						(1.0f - pos.y) * fontScale + glyphPos.y
+						pos.y * fontScale + glyphPos.y
 					);
 				}
 
@@ -264,13 +265,13 @@ namespace MathAnim
 					{
 						glm::vec4 p0 = glm::vec4(
 							glyphOutline.contours[c].vertices[vi].position.x + glyphOutline.bearingX,
-							glyphOutline.contours[c].vertices[vi].position.y - glyphOutline.descentY,
+							glyphOutline.contours[c].vertices[vi].position.y + yOffset,
 							0.0f,
 							1.0f
 						);
 						glm::vec4 p1 = glm::vec4(
 							glyphOutline.contours[c].vertices[vi + 1].position.x + glyphOutline.bearingX,
-							glyphOutline.contours[c].vertices[vi + 1].position.y - glyphOutline.descentY,
+							glyphOutline.contours[c].vertices[vi + 1].position.y + yOffset,
 							0.0f,
 							1.0f
 						);
@@ -287,7 +288,7 @@ namespace MathAnim
 						nvgLineTo(
 							vg,
 							projectedPos.x * fontScale + glyphPos.x,
-							(1.0f - projectedPos.y) * fontScale + glyphPos.y
+							projectedPos.y * fontScale + glyphPos.y
 						);
 					}
 					else
@@ -300,35 +301,35 @@ namespace MathAnim
 						// Degree elevated quadratic bezier curve
 						glm::vec4 pr0 = glm::vec4(
 							p0.x + glyphOutline.bearingX,
-							p0.y - glyphOutline.descentY,
+							p0.y + yOffset,
 							0.0f,
 							1.0f
 						);
 						glm::vec4 pr1 = (1.0f / 3.0f) * glm::vec4(
 							p0.x + glyphOutline.bearingX,
-							p0.y - glyphOutline.descentY,
+							p0.y + yOffset,
 							0.0f,
 							1.0f
 						) + (2.0f / 3.0f) * glm::vec4(
 							p1.x + glyphOutline.bearingX,
-							p1.y - glyphOutline.descentY,
+							p1.y + yOffset,
 							0.0f,
 							1.0f
 						);
 						glm::vec4 pr2 = (2.0f / 3.0f) * glm::vec4(
 							p1.x + glyphOutline.bearingX,
-							p1.y - glyphOutline.descentY,
+							p1.y + yOffset,
 							0.0f,
 							1.0f
 						) + (1.0f / 3.0f) * glm::vec4(
 							p2.x + glyphOutline.bearingX,
-							p2.y - glyphOutline.descentY,
+							p2.y + yOffset,
 							0.0f,
 							1.0f
 						);
 						glm::vec4 pr3 = glm::vec4(
 							p2.x + glyphOutline.bearingX,
-							p2.y - glyphOutline.descentY,
+							p2.y + yOffset,
 							0.0f,
 							1.0f
 						);
@@ -356,11 +357,11 @@ namespace MathAnim
 						nvgBezierTo(
 							vg,
 							pr1.x * fontScale + glyphPos.x,
-							(1.0f - pr1.y) * fontScale + glyphPos.y,
+							pr1.y * fontScale + glyphPos.y,
 							pr2.x * fontScale + glyphPos.x,
-							(1.0f - pr2.y) * fontScale + glyphPos.y,
+							pr2.y * fontScale + glyphPos.y,
 							pr3.x * fontScale + glyphPos.x,
-							(1.0f - pr3.y) * fontScale + glyphPos.y
+							pr3.y * fontScale + glyphPos.y
 						);
 
 						vi++;
@@ -389,7 +390,7 @@ namespace MathAnim
 			nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)((float)fillColor.a * percentToFadeIn)));
 			nvgFontFace(vg, font->fontFilepath.c_str());
 			nvgFontSize(vg, fontScale);
-			nvgText(vg, glyphPos.x, fontScale + glyphPos.y, str.c_str(), NULL);
+			nvgText(vg, glyphPos.x, glyphPos.y, str.c_str(), NULL);
 		}
 
 		nvgResetTransform(vg);

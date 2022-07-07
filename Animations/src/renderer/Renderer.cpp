@@ -718,29 +718,35 @@ namespace MathAnim
 			const SizedFont* font = fontStack[fontStackPtr - 1];
 			const glm::vec4& colorGlm = getColor();
 			Vec4 color = Vec4{ colorGlm.r, colorGlm.g, colorGlm.b, colorGlm.a };
-
 			Vec2 cursorPos = start;
+
 			for (int i = 0; i < string.length(); i++)
 			{
 				char c = string[i];
 				const GlyphTexture& glyphTexture = font->getGlyphTexture(c);
 				const GlyphOutline& glyphOutline = font->getGlyphInfo(c);
-				float charWidth = (glyphTexture.uvMax.x - glyphTexture.uvMin.x) * font->texture.width;
-				float charHeight = (glyphTexture.uvMax.y - glyphTexture.uvMin.y) * font->texture.height;
-				float bearingX = glyphOutline.bearingX * font->fontSizePixels;
-				float descentY = -(font->unsizedFont->lineHeight / 2.0f) * font->fontSizePixels;
-				descentY -= glyphOutline.descentY * font->fontSizePixels;
+				float charWidth = glyphOutline.glyphWidth * (float)font->fontSizePixels;
+				float charHeight = glyphOutline.glyphHeight * (float)font->fontSizePixels;
+				float bearingX = glyphOutline.bearingX * (float)font->fontSizePixels;
+				float descentY = glyphOutline.descentY * (float)font->fontSizePixels;
+				float bearingY = glyphOutline.bearingY * (float)font->fontSizePixels;
+				float lineHeight = font->unsizedFont->lineHeight * font->fontSizePixels;
 
 				drawListFont2D.addGlyph(
-					cursorPos + Vec2{ bearingX, descentY },
-					cursorPos + Vec2{ charWidth, charHeight }, 
+					cursorPos + Vec2{ bearingX, -bearingY },
+					cursorPos + Vec2{ bearingX + charWidth, descentY },
 					glyphTexture.uvMin, 
 					glyphTexture.uvMax, 
 					color, 
 					font->texture.graphicsId
 				);
 
-				cursorPos.x += glyphOutline.advanceX * font->fontSizePixels;
+				float kerning = 0.0f;
+				if (i < string.length() - 1)
+				{
+					//kerning = font->getKerning((uint32)string[i], (uint32)string[i + 1]);
+				}
+				cursorPos.x += (glyphOutline.advanceX + kerning) * font->fontSizePixels;
 			}
 		}
 

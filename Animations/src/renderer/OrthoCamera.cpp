@@ -19,6 +19,7 @@ namespace MathAnim
 	glm::mat4 OrthoCamera::calculateProjectionMatrix() const
 	{
 		Vec2 halfSize = projectionSize / 2.0f;
-		return glm::ortho(-halfSize.x, halfSize.x, -halfSize.y, halfSize.y);
+		// Invert the y-coords so that the elements are laid out top->bottom
+		return glm::ortho(-halfSize.x, halfSize.x, halfSize.y, -halfSize.y);
 	};
 }

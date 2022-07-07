@@ -37,6 +37,8 @@ namespace MathAnim
 		float bearingX;
 		float bearingY;
 		float descentY;
+		float glyphWidth;
+		float glyphHeight;
 
 		void free();
 	};

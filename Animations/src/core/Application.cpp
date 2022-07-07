@@ -55,7 +55,7 @@ namespace MathAnim
 			window = new Window(1920, 1080, winTitle);
 			window->setVSync(true);
 
-			camera2D.position = Vec2{ 0, 0 };
+			camera2D.position = Vec2{ 1920.0f, 1080.0f };
 			//camera2D.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
 			camera2D.projectionSize = Vec2{ 3840.0f, 2160.0f };
 
@@ -75,6 +75,7 @@ namespace MathAnim
 			// NOTE(voxel): Just to initialize the camera
 			Svg::init(camera2D);
 			TextAnimations::init(camera2D);
+			AnimationManager::init(camera2D);
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
@@ -93,7 +94,7 @@ namespace MathAnim
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			// Test fonts
-			testFont = Fonts::loadSizedFont("C:/Windows/Fonts/ariblk.ttf", 128);
+			testFont = Fonts::loadSizedFont("C:/Windows/Fonts/ariblk.ttf", 256);
 		}
 
 		void run()
@@ -137,7 +138,7 @@ namespace MathAnim
 
 				Renderer::pushFont(testFont);
 				Renderer::pushColor("#4a6a9e"_hex);
-				Renderer::drawString("Hello World!", Vec2{ 64.0f, 64.0f });
+				Renderer::drawString("Hello gabe!", Vec2{ 64.0f, 512.0f });
 				Renderer::popColor();
 				Renderer::popFont();
 
