@@ -29,9 +29,6 @@
 [submodule "Animations/vendor/nativeFileDialog"]
 	path = Animations/vendor/nativeFileDialog
 	url = https://github.com/mlabbe/nativefiledialog
-[submodule "Animations/vendor/microtex"]
-	path = Animations/vendor/microtex
-	url = https://github.com/NanoMichael/MicroTeX
 [submodule "Animations/vendor/tinyxml2"]
 	path = Animations/vendor/tinyxml2
 	url = https://github.com/leethomason/tinyxml2
