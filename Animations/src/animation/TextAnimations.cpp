@@ -135,6 +135,12 @@ namespace MathAnim
 
 	void TextObject::free()
 	{
+		if (this->font)
+		{
+			Fonts::unloadFont(this->font);
+			this->font = nullptr;
+		}
+
 		if (this->text)
 		{
 			g_memory_free(this->text);

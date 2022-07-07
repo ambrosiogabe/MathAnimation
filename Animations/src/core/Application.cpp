@@ -186,9 +186,9 @@ namespace MathAnim
 			Fonts::unloadSizedFont(testFont);
 			AnimationManager::serialize("./myScene.bin");
 
-			Fonts::unloadAllFonts();
 			EditorGui::free();
 			nvgDeleteGL3(vg);
+			Fonts::unloadAllFonts();
 			Renderer::free();
 			Audio::free();
 
