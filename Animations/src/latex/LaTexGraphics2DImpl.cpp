@@ -1,9 +1,17 @@
 #include "latex/LaTexGraphics2DImpl.h"
+#include "latex/LaTexFontImpl.h"
+#include "renderer/Renderer.h"
+#include "renderer/Fonts.h"
 
 #include <nanovg.h>
 
 namespace tex
 {
+	Graphics2DImpl::Graphics2DImpl(NVGcontext* vg)
+	{
+		this->vg = vg;
+	}
+
 	void Graphics2DImpl::setColor(color c)
 	{
 		uint8 r = (c >> 24) & 0xFF;
@@ -43,13 +51,14 @@ namespace tex
 	/** Get the current font */
 	const Font* Graphics2DImpl::getFont() const
 	{
-		return nullptr;
+		return currentFont;
 	}
 
 	/** Set the font of the context */
 	void Graphics2DImpl::setFont(const Font* font)
 	{
-
+		// This is gross, but the author of the library does it this way, so it should be fine right?
+		currentFont = static_cast<const FontImpl*>(font);
 	}
 
 	/**
@@ -135,9 +144,14 @@ namespace tex
 	 */
 	void Graphics2DImpl::drawChar(wchar_t c, float x, float y)
 	{
-		char asciiC = (char)c;
-		g_logger_warning("TODO: Add unicode support to nvg, or implement font rendering using my own library.");
-		nvgText(vg, x, y, &asciiC, &asciiC);
+		std::string str = std::string("") + (char)c;
+		//g_logger_warning("TODO: Add unicode support, or implement font rendering using my own library.");
+		//MathAnim::Renderer::pushFont(currentFont->_font);
+		//MathAnim::Renderer::drawString(std::string("") + asciiC, MathAnim::Vec2{x, y});
+		//MathAnim::Renderer::popFont();
+		//nvgFontFace(vg, currentFont->_font->unsizedFont->fontFilepath.c_str());
+		//nvgFontSize(vg, 128.0f);
+		//nvgText(vg, 300.0f, 300.0f, str.c_str(), nullptr);
 	}
 
 	/**
@@ -149,7 +163,18 @@ namespace tex
 	 */
 	void Graphics2DImpl::drawText(const std::wstring& c, float x, float y)
 	{
-		g_logger_warning("TODO: Implement me.");
+		//g_logger_warning("TODO: Add unicode support, or implement font rendering using my own library.");
+		//MathAnim::Renderer::pushFont(currentFont->_font);
+		std::string str;
+		for (int i = 0; i < c.size(); i++)
+		{
+			str += c[i];
+		}
+		//MathAnim::Renderer::drawString(str, MathAnim::Vec2{ x, y });
+		//MathAnim::Renderer::popFont();
+
+		nvgFontFace(vg, currentFont->_font->unsizedFont->fontFilepath.c_str());
+		nvgText(vg, x, y, str.c_str(), nullptr);
 	}
 
 	/**

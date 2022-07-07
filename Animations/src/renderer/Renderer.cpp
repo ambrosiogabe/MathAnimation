@@ -12,6 +12,9 @@
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
 
+// TODO: Tmp remove me
+#include "latex/LaTexLayer.h"
+
 #include <nanovg.h>
 
 #ifdef _RELEASE
@@ -374,6 +377,7 @@ namespace MathAnim
 			// These should be blended appropriately
 			drawList2D.render(shader2D);
 			drawList2D.reset();
+			LaTexLayer::update();
 			nvgEndFrame(vg);
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");

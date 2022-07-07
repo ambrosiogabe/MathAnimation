@@ -9,6 +9,8 @@ struct NVGcontext;
 
 namespace tex
 {
+	class FontImpl;
+
 	/**
 	 * Abstract class to represents a graphics (2D) context, all the TeX drawing operations will on it.
 	 * It must have scale, translation, and rotation support. You should notice that the scaling on
@@ -16,9 +18,11 @@ namespace tex
 	 * characters. In most cases, you should never use different scalings, unless you are really sure the
 	 * coordinates are correct (i.e. draw a hyphen).
 	 */
-	class Graphics2DImpl : tex::Graphics2D
+	class Graphics2DImpl : public tex::Graphics2D
 	{
 	public:
+		Graphics2DImpl(NVGcontext* vg);
+
 		/**
 		 * Set the color of the context
 		 *
@@ -172,6 +176,7 @@ namespace tex
 		float currentStrokeWidth;
 		float currentScaleX;
 		float currentScaleY;
+		const FontImpl* currentFont = nullptr;
 	};
 
 }  // namespace tex

@@ -5,15 +5,20 @@
 #include <../microtex/src/latex.h>
 #include <../microtex/src/graphic/graphic.h>
 
+namespace MathAnim
+{
+	struct SizedFont;
+}
+
 namespace tex
 {
-
 	class FontImpl : public tex::Font
 	{
 	public:
 
 		FontImpl(const std::string& file, float size);
 		FontImpl(const std::string& name, int style, float size);
+		virtual ~FontImpl() override;
 
 		/** Get the font size */
 		virtual float getSize() const override;
@@ -32,6 +37,9 @@ namespace tex
 
 		/** Check if current font not equals another */
 		virtual bool operator!=(const tex::Font& f) const override;
+
+	public:
+		MathAnim::SizedFont* _font;
 	};
 }
 

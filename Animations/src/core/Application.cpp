@@ -17,6 +17,7 @@
 #include "animation/AnimationManager.h"
 #include "editor/EditorGui.h"
 #include "audio/Audio.h"
+#include "latex/LaTexLayer.h"
 
 #include "nanovg.h"
 #define NANOVG_GL3_IMPLEMENTATION
@@ -45,9 +46,6 @@ namespace MathAnim
 		static float accumulatedTime = 0.0f;
 
 		static const char* winTitle = "Math Animations";
-
-		// TODO: Remove me
-		SizedFont* testFont;
 
 		void init()
 		{
@@ -84,6 +82,8 @@ namespace MathAnim
 				return;
 			}
 
+			LaTexLayer::init();
+
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
 			AnimationManager::deserialize("./myScene.bin");
@@ -92,9 +92,6 @@ namespace MathAnim
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-			// Test fonts
-			testFont = Fonts::loadSizedFont("C:/Windows/Fonts/ariblk.ttf", 256);
 		}
 
 		void run()
@@ -135,12 +132,6 @@ namespace MathAnim
 				camera3D.orientation.y += 45.0f * deltaTime;
 				camera3D.position.x = glm::cos(-glm::radians(camera3D.orientation.y)) * -10.0f;
 				camera3D.position.z = glm::sin(-glm::radians(camera3D.orientation.y)) * 10.0f;
-
-				Renderer::pushFont(testFont);
-				Renderer::pushColor("#4a6a9e"_hex);
-				Renderer::drawString("Hello gabe!", Vec2{ 64.0f, 512.0f });
-				Renderer::popColor();
-				Renderer::popFont();
 
 				// Render to main framebuffer
 				Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);
@@ -183,9 +174,9 @@ namespace MathAnim
 
 		void free()
 		{
-			Fonts::unloadSizedFont(testFont);
 			AnimationManager::serialize("./myScene.bin");
 
+			LaTexLayer::free();
 			EditorGui::free();
 			nvgDeleteGL3(vg);
 			Fonts::unloadAllFonts();

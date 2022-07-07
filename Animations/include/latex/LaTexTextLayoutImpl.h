@@ -9,9 +9,11 @@ namespace tex
 {
 
 	/** To layout the text that the program cannot recognize. */
-	class TextLayoutImpl : tex::TextLayout
+	class TextLayoutImpl : public tex::TextLayout
 	{
 	public:
+		TextLayoutImpl(const std::wstring& src, const sptr<tex::Font>& font);
+
 		/**
 		 * Get the layout bounds with current text and font
 		 *
@@ -36,6 +38,11 @@ namespace tex
 		 * @return new TextLayout
 		 */
 		static sptr<TextLayout> create(const std::wstring& src, const sptr<tex::Font>& font);
+
+	private:
+		sptr<tex::Font> font;
+		std::string text;
+		std::wstring wtext;
 	};
 }
 
