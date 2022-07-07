@@ -63,8 +63,6 @@ project "Animations"
         "Animations/vendor/freetype/include",
         "Animations/vendor/nanovg/src",
         "Animations/vendor/dearimgui",
-        -- TODO: Remove this
-        "./Animations/vendor/imguizmo",
         "Animations/vendor/openal/include",
         "Animations/vendor/nativeFileDialog/src/include",
     }
@@ -133,7 +131,6 @@ project "Animations"
             -- Other premake projects
             "nanovg",
             "DearImGui",
-            "MicroTex",
             -- Windows static libs required for ffmepg
             "Ws2_32.lib",
             "Secur32.lib",
@@ -185,130 +182,6 @@ project "nanovg"
         defines { "NDEBUG", "NVG_NO_STB" }
         symbols "Off"
         warnings "Extra"
-
-project "MicroTex"
-    kind "StaticLib"
-    language "C++"
-    cppdialect "C++17"
-    staticruntime "on"
-    
-    targetdir("_bin/" .. outputdir .. "/%{prj.name}")
-    objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
-
-    -- Taken from microtex CMake
-    files {
-        -- atom folder
-        "Animations/vendor/microtex/src/atom/atom_basic.cpp",
-        "Animations/vendor/microtex/src/atom/atom_char.cpp",
-        "Animations/vendor/microtex/src/atom/atom_impl.cpp",
-        "Animations/vendor/microtex/src/atom/atom_matrix.cpp",
-        "Animations/vendor/microtex/src/atom/atom_row.cpp",
-        "Animations/vendor/microtex/src/atom/atom_space.cpp",
-        "Animations/vendor/microtex/src/atom/colors_def.cpp",
-        "Animations/vendor/microtex/src/atom/unit_conversion.cpp",
-        -- box folder
-        "Animations/vendor/microtex/src/box/box.cpp",
-        "Animations/vendor/microtex/src/box/box_factory.cpp",
-        "Animations/vendor/microtex/src/box/box_group.cpp",
-        "Animations/vendor/microtex/src/box/box_single.cpp",
-        -- core folder
-        "Animations/vendor/microtex/src/core/core.cpp",
-        "Animations/vendor/microtex/src/core/formula.cpp",
-        "Animations/vendor/microtex/src/core/formula_def.cpp",
-        "Animations/vendor/microtex/src/core/glue.cpp",
-        "Animations/vendor/microtex/src/core/localized_num.cpp",
-        "Animations/vendor/microtex/src/core/macro.cpp",
-        "Animations/vendor/microtex/src/core/macro_def.cpp",
-        "Animations/vendor/microtex/src/core/macro_impl.cpp",
-        "Animations/vendor/microtex/src/core/parser.cpp",
-        -- fonts folder
-        "Animations/vendor/microtex/src/fonts/alphabet.cpp",
-        "Animations/vendor/microtex/src/fonts/font_basic.cpp",
-        "Animations/vendor/microtex/src/fonts/font_info.cpp",
-        "Animations/vendor/microtex/src/fonts/fonts.cpp",
-        -- utils folder
-        "Animations/vendor/microtex/src/utils/string_utils.cpp",
-        "Animations/vendor/microtex/src/utils/utf.cpp",
-        "Animations/vendor/microtex/src/utils/utils.cpp",
-        -- res folder
-        "Animations/vendor/microtex/src/res/builtin/formula_mappings.res.cpp",
-        "Animations/vendor/microtex/src/res/builtin/symbol_mapping.res.cpp",
-        "Animations/vendor/microtex/src/res/builtin/tex_param.res.cpp",
-        "Animations/vendor/microtex/src/res/builtin/tex_symbols.res.cpp",
-        "Animations/vendor/microtex/src/res/font/bi10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/bx10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmbsy10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmbx10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmbxti10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmex10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmmi10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmmi10_unchanged.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmmib10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmmib10_unchanged.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmr10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmss10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmssbx10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmssi10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmsy10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmti10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmti10_unchanged.def.cpp",
-        "Animations/vendor/microtex/src/res/font/cmtt10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/dsrom10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/eufb10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/eufm10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/i10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/moustache.def.cpp",
-        "Animations/vendor/microtex/src/res/font/msam10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/msbm10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/r10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/r10_unchanged.def.cpp",
-        "Animations/vendor/microtex/src/res/font/rsfs10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/sb10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/sbi10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/si10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/special.def.cpp",
-        "Animations/vendor/microtex/src/res/font/ss10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/stmary10.def.cpp",
-        "Animations/vendor/microtex/src/res/font/tt10.def.cpp",
-        "Animations/vendor/microtex/src/res/parser/font_parser.cpp",
-        "Animations/vendor/microtex/src/res/parser/formula_parser.cpp",
-        "Animations/vendor/microtex/src/res/reg/builtin_font_reg.cpp",
-        "Animations/vendor/microtex/src/res/reg/builtin_syms_reg.cpp",
-        "Animations/vendor/microtex/src/res/sym/amsfonts.def.cpp",
-        "Animations/vendor/microtex/src/res/sym/amssymb.def.cpp",
-        "Animations/vendor/microtex/src/res/sym/base.def.cpp",
-        "Animations/vendor/microtex/src/res/sym/stmaryrd.def.cpp",
-        "Animations/vendor/microtex/src/res/sym/symspecial.def.cpp",
-
-        "Animations/vendor/microtex/src/latex.cpp",
-        "Animations/vendor/microtex/src/render.cpp",
-
-        -- TinyXml2 (added by me)
-        "Animations/vendor/tinyxml2/tinyxml2.cpp",
-        "Animations/vendor/tinyxml2/tinyxml2.h"
-    }
-
-    includedirs {
-        "Animations/vendor/microtex/src",
-        "Animations/vendor/tinyxml2"
-    }
-
-    buildoptions { 
-        "/utf-8" 
-    }
-
-    defines {
-        "BUILD_WIN32",
-        "_HAS_STD_BYTE=0"
-    }
-
-    filter "configurations:Debug"
-        buildoptions "/MTd"
-        symbols "On"
-
-    filter "configurations:Release"
-        buildoptions "/MT"
-        symbols "Off"
 
 project "DearImGui"
     kind "StaticLib"
