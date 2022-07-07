@@ -11,7 +11,7 @@
 
 namespace MathAnim
 {
-	CharRange CharRange::Ascii = { 32, 127 };
+	CharRange CharRange::Ascii = { 32, 126 };
 
 	struct SharedFont
 	{
@@ -130,6 +130,7 @@ namespace MathAnim
 		static int getOutline(FT_Glyph glyph, FT_OutlineGlyph* Outg);
 		static GlyphOutline createOutlineInternal(FT_OutlineGlyph outlineGlyph, FT_Face face);
 		static std::string getSizedFontKey(const char* filepath, int fontSizePixels);
+		static std::string getUnsizedFontKey(const char* filepath);
 
 		void init()
 		{
@@ -193,6 +194,8 @@ namespace MathAnim
 					return &iter->second.font;
 				}
 			}
+
+			g_logger_info("Caching sized font '%s'.", sizedFontKey.c_str());
 
 			SizedFont res;
 			res.unsizedFont = loadFont(filepath, Application::getNvgContext(), defaultCharset);
@@ -292,12 +295,25 @@ namespace MathAnim
 			return &loadedSizedFonts[sizedFontKey].font;
 		}
 
-		void unloadSizedFont(const char* filepath)
+		void unloadSizedFont(SizedFont* sizedFont)
 		{
-			auto iter = loadedSizedFonts.find(filepath);
+			if (!sizedFont)
+			{
+				g_logger_error("Tried to unload sized font that was nullptr.");
+				return;
+			}
+
+			if (!sizedFont->unsizedFont)
+			{
+				g_logger_error("Tried to unload a sized font that had an unsized font that was nullptr.");
+				return;
+			}
+
+			std::string fontKey = getSizedFontKey(sizedFont->unsizedFont->fontFilepath.c_str(), sizedFont->fontSizePixels);
+			auto iter = loadedSizedFonts.find(fontKey);
 			if (iter == loadedSizedFonts.end())
 			{
-				g_logger_warning("Tried to unload sized font that was not cached.");
+				g_logger_warning("Tried to unload sized font '%s' that was not cached.", fontKey.c_str());
 				return;
 			}
 
@@ -305,32 +321,47 @@ namespace MathAnim
 			iter->second.referenceCount--;
 			if (iter->second.referenceCount <= 0)
 			{
-				g_logger_info("Unloading sized font '%s'.", font->unsizedFont->fontFilepath);
+				g_logger_info("Unloading sized font '%s' from cache.", fontKey.c_str());
 			}
 
 			unloadFont(font->unsizedFont);
 			if (iter->second.referenceCount <= 0)
 			{
 				// Really unload the font now
-				g_logger_info("Unloading sized font '%s'.", font->unsizedFont->fontFilepath);
 				font->texture.destroy();
 				loadedSizedFonts.erase(iter);
 			}
+		}
+
+		void unloadSizedFont(const char* filepath, int fontSizePixels)
+		{
+			std::string fontKey = getSizedFontKey(filepath, fontSizePixels);
+			auto iter = loadedSizedFonts.find(fontKey);
+			if (iter == loadedSizedFonts.end())
+			{
+				g_logger_warning("Tried to unload sized font that was not cached '%s'.", fontKey.c_str());
+				return;
+			}
+
+			SizedFont* font = &iter->second.font;
+			unloadSizedFont(font);
 		}
 
 		Font* loadFont(const char* filepath, NVGcontext* vg, CharRange defaultCharset)
 		{
 			g_logger_assert(initialized, "Font library must be initialized to load a font.");
 
-			std::string filepathStr = std::string(filepath);
+			std::string unsizedFontKey = getUnsizedFontKey(filepath);
 			{
-				auto iter = loadedFonts.find(filepathStr);
+				auto iter = loadedFonts.find(unsizedFontKey);
 				if (iter != loadedFonts.end())
 				{
 					iter->second.referenceCount++;
 					return &iter->second.font;
 				}
 			}
+
+			g_logger_info("Caching unsized font '%s'.", unsizedFontKey.c_str());
 
 			// Load the new font into freetype.
 			FT_Face face;
@@ -348,7 +379,7 @@ namespace MathAnim
 
 			// Generate a texture for the font and initialize the font structure
 			Font font;
-			font.fontFilepath = filepathStr;
+			font.fontFilepath = filepath;
 			font.fontFace = face;
 			font.unitsPerEM = (float)face->units_per_EM;
 			font.lineHeight = (float)face->height / font.unitsPerEM;
@@ -359,14 +390,14 @@ namespace MathAnim
 			int vgFontError = nvgCreateFont(vg, font.fontFilepath.c_str(), font.fontFilepath.c_str());
 			if (vgFontError == -1)
 			{
-				g_logger_error("Failed to create vgFont for font '%s'.", filepathStr.c_str());
+				g_logger_error("Failed to create vgFont for font '%s'.", unsizedFontKey.c_str());
 				font.fontFilepath = "";
 			}
 
-			loadedFonts[filepathStr].font = font;
-			loadedFonts[filepathStr].referenceCount = 1;
+			loadedFonts[unsizedFontKey].font = font;
+			loadedFonts[unsizedFontKey].referenceCount = 1;
 
-			return &loadedFonts[filepathStr].font;
+			return &loadedFonts[unsizedFontKey].font;
 		}
 
 		void unloadFont(Font* font)
@@ -377,6 +408,23 @@ namespace MathAnim
 				return;
 			}
 
+			std::string unsizedFontKey = getUnsizedFontKey(font->fontFilepath.c_str());
+			auto fontIter = loadedFonts.find(unsizedFontKey);
+			if (fontIter == loadedFonts.end())
+			{
+				g_logger_error("Tried to unload font that was never cached '%s'", font->fontFilepath.c_str());
+				return;
+			}
+
+			fontIter->second.referenceCount--;
+			if (fontIter->second.referenceCount > 0)
+			{
+				return;
+			}
+
+			// If the reference count is <= 0 then really unload it
+			g_logger_info("Unloading font '%s' from cache.", unsizedFontKey.c_str());
+
 			for (std::pair<const uint32, GlyphOutline>& kv : font->glyphMap)
 			{
 				GlyphOutline& outline = kv.second;
@@ -385,28 +433,13 @@ namespace MathAnim
 
 			FT_Done_Face(font->fontFace);
 			font->fontFace = nullptr;
-
-			{
-				auto iter = loadedFonts.find(font->fontFilepath);
-				if (iter != loadedFonts.end())
-				{
-					iter->second.referenceCount--;
-					if (iter->second.referenceCount <= 0)
-					{
-						g_logger_info("Unloading font '%s'.", font->fontFilepath.c_str());
-						loadedFonts.erase(iter);
-					}
-				}
-				else
-				{
-					g_logger_warning("Tried to unload font '%s' that was not cached for some reason.", font->fontFilepath.c_str());
-				}
-			}
+			loadedFonts.erase(fontIter);
 		}
 
 		void unloadFont(const char* filepath)
 		{
-			auto iter = loadedFonts.find(filepath);
+			std::string unsizedFontKey = getUnsizedFontKey(filepath);
+			auto iter = loadedFonts.find(unsizedFontKey);
 			if (iter == loadedFonts.end())
 			{
 				g_logger_warning("Tried to load font that was never cached '%s'.", filepath);
@@ -443,17 +476,6 @@ namespace MathAnim
 				iter->second.referenceCount = 0;
 				iter = loadedSizedFonts.erase(iter);
 			}
-		}
-
-		Font* getFont(const char* filepath)
-		{
-			auto iter = loadedFonts.find(std::string(filepath));
-			if (iter != loadedFonts.end())
-			{
-				return &iter->second.font;
-			}
-
-			return nullptr;
 		}
 
 		static void generateDefaultCharset(Font& font, CharRange defaultCharset)
@@ -784,7 +806,48 @@ namespace MathAnim
 
 		static std::string getSizedFontKey(const char* filepath, int fontSizePixels)
 		{
-			return std::string(filepath) + "_Size_" + std::to_string(fontSizePixels);
+			return getUnsizedFontKey(filepath) + "_Size_" + std::to_string(fontSizePixels);
+		}
+
+		static std::string getUnsizedFontKey(const char* filepath)
+		{
+			// Convert all path separators to '/'
+			uint8 staticBuffer[_MAX_PATH + 1];
+			int filepathSize = (int)std::strlen(filepath);
+
+			uint8* buffer = staticBuffer;
+			bool freeBuffer = false;
+			if (filepathSize >= _MAX_PATH)
+			{
+				buffer = (uint8*)g_memory_allocate(sizeof(char) * filepathSize + 1);
+				freeBuffer = true;
+			}
+
+			g_memory_copyMem(buffer, (void*)filepath, sizeof(char) * filepathSize);
+			buffer[filepathSize] = '\0';
+
+			for (int i = 0; i < filepathSize; i++)
+			{
+				// Switch all backslashes to forward slashes
+				if (buffer[i] == '\\')
+				{
+					buffer[i] = '/';
+				}
+				// Convert the filepath to lowercase
+				else if (buffer[i] >= 'A' && buffer[i] <= 'Z')
+				{
+					buffer[i] = (buffer[i] - 'A') + 'a';
+				}
+			}
+
+			std::string res = std::string((char*)buffer, filepathSize);
+
+			if (freeBuffer)
+			{
+				g_memory_free(buffer);
+			}
+
+			return res;
 		}
 	}
 }

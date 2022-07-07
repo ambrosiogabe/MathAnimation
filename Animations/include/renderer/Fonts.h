@@ -93,7 +93,12 @@ namespace MathAnim
 		// Decreases a reference count to the font
 		// If the reference count goes below 0, the 
 		// font is fully unloaded
-		void unloadSizedFont(const char* filepath);
+		void unloadSizedFont(SizedFont* sizedFont);
+
+		// Decreases a reference count to the font
+		// If the reference count goes below 0, the 
+		// font is fully unloaded
+		void unloadSizedFont(const char* filepath, int fontSizePixels);
 
 		// Decreases a reference count to the font
 		// If the reference count goes below 0, the 

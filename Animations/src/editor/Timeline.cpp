@@ -591,6 +591,10 @@ namespace MathAnim
 					const bool is_selected = (fontIndex == n);
 					if (ImGui::Selectable(fonts[n].c_str(), is_selected))
 					{
+						if (object->as.textObject.font)
+						{
+							Fonts::unloadFont(object->as.textObject.font);
+						}
 						object->as.textObject.font = Fonts::loadFont(fonts[n].c_str(), Application::getNvgContext());
 					}
 
@@ -667,12 +671,12 @@ namespace MathAnim
 				animation->as.modifyU8Vec4.target.a = (uint8)(strokeColor[3] * 255.0f);
 			}
 		}
-		
+
 		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation)
 		{
 			ImGui::DragFloat2(": Camera Target Position", &animation->as.modifyVec2.target.x);
 		}
-		
+
 		static void handleSquareInspector(AnimObject* object)
 		{
 			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength))

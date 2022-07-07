@@ -183,6 +183,7 @@ namespace MathAnim
 
 		void free()
 		{
+			Fonts::unloadSizedFont(testFont);
 			AnimationManager::serialize("./myScene.bin");
 
 			Fonts::unloadAllFonts();
