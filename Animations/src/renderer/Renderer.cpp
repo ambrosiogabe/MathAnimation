@@ -1195,7 +1195,7 @@ namespace MathAnim
 	}
 	// ---------------------- End DrawList2D Functions ----------------------
 
-	// ---------------------- End DrawListFont2D Functions ----------------------
+	// ---------------------- Begin DrawListFont2D Functions ----------------------
 	void DrawListFont2D::init()
 	{
 		vao = UINT32_MAX;
