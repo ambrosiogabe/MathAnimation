@@ -90,6 +90,8 @@ namespace MathAnim
 
 			EditorGui::init();
 
+			LaTexLayer::parseLaTeX(R"raw(\langle 1, 2, 3 \rangle)raw", true);
+
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}

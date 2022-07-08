@@ -7,6 +7,8 @@ namespace MathAnim
 	{
 		void init();
 
+		void parseLaTeX(const char* latex, bool isMathTex = false);
+
 		void update();
 
 		void free();
