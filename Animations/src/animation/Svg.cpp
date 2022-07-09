@@ -14,7 +14,7 @@ namespace MathAnim
 		static OrthoCamera* camera;
 		static Vec3 cursor;
 		static bool moveToP0 = false;
-		
+
 		// ----------------- Internal functions -----------------
 		static void checkResize(Contour& contour);
 		static void render2DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
@@ -31,12 +31,12 @@ namespace MathAnim
 			res.is3D = false;
 			return res;
 		}
-		
+
 		void init(OrthoCamera& sceneCamera)
 		{
 			camera = &sceneCamera;
 		}
-		
+
 		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D)
 		{
 			object->is3D = is3D;
@@ -54,24 +54,37 @@ namespace MathAnim
 			moveToP0 = false;
 		}
 
-		void closeContour(SvgObject* object)
+		void closeContour(SvgObject* object, bool lineToEndpoint)
 		{
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot close contour when no contour exists.");
 			g_logger_assert(object->contours[object->numContours - 1].numCurves > 0, "contour->numCurves == 0. Cannot close contour with 0 vertices. There must be at least one vertex to close a contour.");
 
-			cursor = Vec3{ 0, 0, 0 };
+			if (lineToEndpoint)
+			{
+				if (object->contours[object->numContours - 1].numCurves > 0)
+				{
+					Vec3 firstPoint = object->contours[object->numContours - 1].curves[0].p0;
+					lineTo(object, firstPoint, true);
+				}
+			}
 
-			// NOP
-			// We'll let nanovg handle closing of contours
+			cursor = Vec3{ 0, 0, 0 };
 		}
 
-		void moveTo(const SvgObject* object, const Vec3& point)
+		void moveTo(SvgObject* object, const Vec3& point, bool absolute)
 		{
-			cursor = point;
+			// If no object has started, begin the object here
+			if (object->numContours == 0)
+			{
+				beginContour(object, point, true);
+				absolute = true;
+			}
+
+			cursor = absolute ? point : cursor + point;
 			moveToP0 = true;
 		}
 
-		void lineTo(SvgObject* object, const Vec3& point)
+		void lineTo(SvgObject* object, const Vec3& point, bool absolute)
 		{
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a lineTo when no contour exists.");
 			Contour& contour = object->contours[object->numContours - 1];
@@ -79,15 +92,31 @@ namespace MathAnim
 			checkResize(contour);
 
 			contour.curves[contour.numCurves - 1].p0 = cursor;
-			contour.curves[contour.numCurves - 1].as.line.p1 = point;
+			contour.curves[contour.numCurves - 1].as.line.p1 = absolute ? point : point + cursor;
 			contour.curves[contour.numCurves - 1].type = CurveType::Line;
 			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
 
-			cursor = point;
+			cursor = contour.curves[contour.numCurves - 1].as.line.p1;
 			moveToP0 = false;
 		}
 
-		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest)
+		void hzLineTo(SvgObject* object, float xPoint, bool absolute)
+		{
+			Vec3 position = absolute
+				? Vec3{ xPoint, cursor.y, 0.0f }
+			: Vec3{ xPoint, 0.0f, 0.0f } + cursor;
+			lineTo(object, position, true);
+		}
+
+		void vtLineTo(SvgObject* object, float yPoint, bool absolute)
+		{
+			Vec3 position = absolute
+				? Vec3{ cursor.x, yPoint, 0.0f }
+			: Vec3{ 0.0f, yPoint, 0.0f } + cursor;
+			lineTo(object, position, true);
+		}
+
+		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest, bool absolute)
 		{
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier2To when no contour exists.");
 			Contour& contour = object->contours[object->numContours - 1];
@@ -95,16 +124,20 @@ namespace MathAnim
 			checkResize(contour);
 
 			contour.curves[contour.numCurves - 1].p0 = cursor;
-			contour.curves[contour.numCurves - 1].as.bezier2.p1 = control;
-			contour.curves[contour.numCurves - 1].as.bezier2.p2 = dest;
+
+			contour.curves[contour.numCurves - 1].as.bezier2.p1 = absolute ? control : control + cursor;
+			cursor = contour.curves[contour.numCurves - 1].as.bezier2.p1;
+
+			contour.curves[contour.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + cursor;
+			cursor = contour.curves[contour.numCurves - 1].as.bezier2.p2;
+
 			contour.curves[contour.numCurves - 1].type = CurveType::Bezier2;
 			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
 
-			cursor = dest;
 			moveToP0 = false;
 		}
 
-		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest)
+		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest, bool absolute)
 		{
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier3To when no contour exists.");
 			Contour& contour = object->contours[object->numContours - 1];
@@ -112,13 +145,53 @@ namespace MathAnim
 			checkResize(contour);
 
 			contour.curves[contour.numCurves - 1].p0 = cursor;
-			contour.curves[contour.numCurves - 1].as.bezier3.p1 = control0;
-			contour.curves[contour.numCurves - 1].as.bezier3.p2 = control1;
-			contour.curves[contour.numCurves - 1].as.bezier3.p3 = dest;
+
+			contour.curves[contour.numCurves - 1].as.bezier3.p1 = absolute ? control0 : control0 + cursor;
+			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p1;
+
+			contour.curves[contour.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + cursor;
+			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p2;
+
+			contour.curves[contour.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + cursor;
+			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p3;
+
 			contour.curves[contour.numCurves - 1].type = CurveType::Bezier3;
 			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
 
-			cursor = dest;
+			moveToP0 = false;
+		}
+
+		void smoothBezier3To(SvgObject* object, const Vec3& control1, const Vec3& dest, bool absolute)
+		{
+			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier3To when no contour exists.");
+			Contour& contour = object->contours[object->numContours - 1];
+			contour.numCurves++;
+			checkResize(contour);
+
+			contour.curves[contour.numCurves - 1].p0 = cursor;
+
+			Vec3 control0 = cursor;
+			if (contour.numCurves > 1)
+			{
+				if (contour.curves[contour.numCurves - 2].type == CurveType::Bezier3)
+				{
+					Vec3 prevControl1 = contour.curves[contour.numCurves - 2].as.bezier3.p2;
+					// Reflect the previous c2 about the current cursor
+					control0 = (-1.0f * (prevControl1 - cursor)) + cursor;
+				}
+			}
+			contour.curves[contour.numCurves - 1].as.bezier3.p1 = control0;
+			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p1;
+
+			contour.curves[contour.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + cursor;
+			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p2;
+
+			contour.curves[contour.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + cursor;
+			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p3;
+
+			contour.curves[contour.numCurves - 1].type = CurveType::Bezier3;
+			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
+
 			moveToP0 = false;
 		}
 
@@ -766,6 +839,7 @@ namespace MathAnim
 		{
 			nvgRotate(vg, glm::radians(parent->rotation.z));
 		}
+		nvgScale(vg, parent->scale.x, parent->scale.y);
 
 		if (lengthToDraw > 0)
 		{
@@ -1175,9 +1249,9 @@ namespace MathAnim
 							}
 
 							Renderer::bezier3To3D(
-								Vec3{p1.x, p1.y, p1.z},
-								Vec3{p2.x, p2.y, p2.z},
-								Vec3{p3.x, p3.y, p3.z}
+								Vec3{ p1.x, p1.y, p1.z },
+								Vec3{ p2.x, p2.y, p2.z },
+								Vec3{ p3.x, p3.y, p3.z }
 							);
 						}
 						break;
@@ -1275,7 +1349,7 @@ namespace MathAnim
 					}
 					bool shouldClosePath = completedPath;
 					Renderer::endPath3D(shouldClosePath);
-					
+
 					Renderer::popColor();
 					Renderer::popStrokeWidth();
 				}

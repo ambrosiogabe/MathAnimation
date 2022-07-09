@@ -436,6 +436,8 @@ namespace MathAnim
 
 			ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x);
 			ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
+			float slowDragSpeed = 0.02f;
+			ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
 
 			ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart);
 			float strokeColor[4] = {

@@ -77,12 +77,15 @@ namespace MathAnim
 		void init(OrthoCamera& camera);
 
 		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D = false);
-		void closeContour(SvgObject* object);
+		void closeContour(SvgObject* object, bool lineToEndpoint = false);
 
-		void moveTo(const SvgObject* object, const Vec3& point);
-		void lineTo(SvgObject* object, const Vec3& point);
-		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest);
-		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest);
+		void moveTo(SvgObject* object, const Vec3& point, bool absolute = true);
+		void lineTo(SvgObject* object, const Vec3& point, bool absolute = true);
+		void hzLineTo(SvgObject* object, float xPoint, bool absolute = true);
+		void vtLineTo(SvgObject* object, float yPoint, bool absolute = true);
+		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest, bool absolute = true);
+		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest, bool absolute = true);
+		void smoothBezier3To(SvgObject* object, const Vec3& control1, const Vec3& dest, bool absolute = true);
 
 		void copy(SvgObject* dest, const SvgObject* src);
 		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);

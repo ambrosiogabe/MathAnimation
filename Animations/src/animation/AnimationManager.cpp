@@ -321,6 +321,7 @@ namespace MathAnim
 				}
 				objectIter->position = objectIter->_positionStart;
 				objectIter->rotation = objectIter->_rotationStart;
+				objectIter->scale = objectIter->_scaleStart;
 				objectIter->fillColor = objectIter->_fillColorStart;
 				objectIter->strokeColor = objectIter->_strokeColorStart;
 				objectIter->strokeWidth = objectIter->_strokeWidthStart;

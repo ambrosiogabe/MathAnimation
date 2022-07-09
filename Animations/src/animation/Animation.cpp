@@ -400,6 +400,10 @@ namespace MathAnim
 		//     X                -> f32
 		//     Y                -> f32
 		//     Z                -> f32
+		//  _ScaleStart
+		//     X                -> f32
+		//     Y                -> f32
+		//     Z                -> f32
 		//   _FillColorStart
 		//     R                -> u8
 		//     G                -> u8
@@ -425,6 +429,10 @@ namespace MathAnim
 		memory.write<float>(&_rotationStart.x);
 		memory.write<float>(&_rotationStart.y);
 		memory.write<float>(&_rotationStart.z);
+
+		memory.write<float>(&_scaleStart.x);
+		memory.write<float>(&_scaleStart.y);
+		memory.write<float>(&_scaleStart.z);
 
 		memory.write<uint8>(&_fillColorStart.r);
 		memory.write<uint8>(&_fillColorStart.g);
@@ -508,11 +516,14 @@ namespace MathAnim
 		res.isAnimating = false;
 		res.objectType = type;
 
-		res.position = { 0, 0 };
-		res._positionStart = { 0, 0 };
+		res.position = { 0, 0, 0 };
+		res._positionStart = { 0, 0, 0 };
 
-		res.rotation = { 0, 0 };
-		res._rotationStart = { 0, 0 };
+		res.rotation = { 0, 0, 0 };
+		res._rotationStart = { 0, 0, 0 };
+
+		res.scale = { 1, 1, 1 };
+		res._scaleStart = { 1, 1, 1 };
 
 		res.svgObject = nullptr;
 		res._svgObjectStart = nullptr;
@@ -601,6 +612,10 @@ namespace MathAnim
 		//   X				  -> f32
 		//   Y				  -> f32
 		//   Z                -> f32
+		//  _ScaleStart
+		//     X                -> f32
+		//     Y                -> f32
+		//     Z                -> f32
 		// _FillColorStart
 		//   R                -> u8
 		//   G                -> u8
@@ -630,6 +645,10 @@ namespace MathAnim
 		memory.read<float>(&res._rotationStart.x);
 		memory.read<float>(&res._rotationStart.y);
 		memory.read<float>(&res._rotationStart.z);
+
+		memory.read<float>(&res._scaleStart.x);
+		memory.read<float>(&res._scaleStart.y);
+		memory.read<float>(&res._scaleStart.z);
 
 		memory.read<uint8>(&res._fillColorStart.r);
 		memory.read<uint8>(&res._fillColorStart.g);

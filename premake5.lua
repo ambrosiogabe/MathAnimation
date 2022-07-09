@@ -131,6 +131,7 @@ project "Animations"
             -- Other premake projects
             "nanovg",
             "DearImGui",
+            "TinyXml2",
             -- Windows static libs required for ffmepg
             "Ws2_32.lib",
             "Secur32.lib",
@@ -182,6 +183,38 @@ project "nanovg"
         defines { "NDEBUG", "NVG_NO_STB" }
         symbols "Off"
         warnings "Extra"
+
+project "TinyXml2"
+    kind "StaticLib"
+    language "C++"
+    cppdialect "C++17"
+    staticruntime "on"
+    
+    targetdir("_bin/" .. outputdir .. "/%{prj.name}")
+    objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
+
+    includedirs { 
+        "./Animations/vendor/tinyxml2/" 
+    }
+
+    files { 
+        "./Animations/vendor/tinyxml2/tinyxml2.cpp",
+        "./Animations/vendor/tinyxml2/tinyxml2.h" 
+    }
+
+    defines { "_CRT_SECURE_NO_WARNINGS" } 
+
+    filter "configurations:Debug"
+        buildoptions "/MTd"
+        defines { "DEBUG", "NVG_NO_STB" }
+        symbols "On"
+        warnings "Extra"
+
+    filter "configurations:Release"
+        buildoptions "/MT"
+        defines { "NDEBUG", "NVG_NO_STB" }
+        symbols "Off"
+        warnings "Extra"    
 
 project "DearImGui"
     kind "StaticLib"

@@ -20,6 +20,8 @@
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
 
+#include "animation/SvgParser.h"
+
 #include "nanovg.h"
 #define NANOVG_GL3_IMPLEMENTATION
 #include "nanovg_gl.h"
@@ -48,6 +50,9 @@ namespace MathAnim
 		static float accumulatedTime = 0.0f;
 
 		static const char* winTitle = "Math Animations";
+		static const char* testLatex = R"raw(\langle 1, 2, 3 \rangle)raw";
+		static SvgObject* tmpObject = nullptr;
+		static AnimObject tmpParent;
 
 		void init()
 		{
@@ -95,11 +100,37 @@ namespace MathAnim
 
 			EditorGui::init();
 
-			LaTexLayer::laTexToSvg(R"raw(\langle 1, 2, 3 \rangle)raw", true);
-			LaTexLayer::laTexToSvg(R"raw(\sum_{n=0}^{\infty} n!)raw", true);
+			LaTexLayer::laTexToSvg(testLatex, true);
+			LaTexLayer::laTexToSvg(R"raw(\sum_{n=5}^{\infty} n!)raw", true);
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			tmpParent = AnimObject::createDefault(AnimObjectTypeV1::LaTexObject, 0, 3000);
+			tmpParent.objectType = AnimObjectTypeV1::LaTexObject;
+			tmpParent._positionStart.x = 300.0f;
+			tmpParent._positionStart.y = 300.0f;
+			tmpParent._positionStart.z = 0.0f;
+			tmpParent._strokeWidthStart = 15.0f / 600.0f;
+			tmpParent._strokeColorStart.r = 255;
+			tmpParent._strokeColorStart.g = 0;
+			tmpParent._strokeColorStart.b = 0;
+			tmpParent._strokeColorStart.a = 255;
+			tmpParent._scaleStart.x = 600.0f;
+			tmpParent._scaleStart.y = 600.0f;
+			tmpParent._scaleStart.z = 600.0f;
+
+			tmpParent.position.x = tmpParent._positionStart.x;
+			tmpParent.position.y = tmpParent._positionStart.y;
+			tmpParent.position.z = tmpParent._positionStart.z;
+			tmpParent.strokeWidth= tmpParent._strokeWidthStart;
+			tmpParent.strokeColor.r = tmpParent._strokeColorStart.r;
+			tmpParent.strokeColor.g = tmpParent._strokeColorStart.g;
+			tmpParent.strokeColor.b = tmpParent._strokeColorStart.b;
+			tmpParent.strokeColor.a = tmpParent._strokeColorStart.a;
+			tmpParent.scale.x = tmpParent._scaleStart.x;
+			tmpParent.scale.y = tmpParent._scaleStart.y;
+			tmpParent.scale.z = tmpParent._scaleStart.z;
 		}
 
 		void run()
@@ -116,6 +147,24 @@ namespace MathAnim
 
 				window->pollInput();
 				window->setTitle(winTitle + std::string(" -- ") + std::to_string(deltaTime));
+
+				static bool parsed = false;
+				if (LaTexLayer::laTexIsReady(testLatex) && !parsed)
+				{
+					std::string docFilepath = "latex/" + LaTexLayer::getLaTexMd5(testLatex) + ".svg";
+					tmpObject = SvgParser::parseSvgDoc(docFilepath.c_str());
+					//const char pathText[] = "M 0 0 L 0 10 L 10 10 L 10 0 z";
+					//tmpObject = SvgParser::parseSvgPath(pathText, sizeof(pathText), Vec4{ 0, 0, 10.0f, 10.0f });
+					parsed = true;
+				}
+
+				if (tmpObject)
+				{
+					static float t = -1.0f;
+					float easeT = CMath::ease(t / 2.0f, EaseType::Cubic, EaseDirection::InOut);
+					tmpObject->renderCreateAnimation(vg, easeT, &tmpParent);
+					t += deltaTime;
+				}
 
 				// Update components
 				if (animState == AnimState::PlayForward)
@@ -182,6 +231,8 @@ namespace MathAnim
 
 		void free()
 		{
+			tmpObject->free();
+			g_memory_free(tmpObject);
 			AnimationManager::serialize("./myScene.bin");
 
 			LaTexLayer::free();

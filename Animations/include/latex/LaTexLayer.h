@@ -5,6 +5,8 @@
 
 namespace MathAnim
 {
+	struct SvgObject;
+
 	namespace LaTexLayer
 	{
 		void init();
