@@ -52,6 +52,7 @@ namespace MathAnim
 		void init()
 		{
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
+			//globalThreadPool = new GlobalThreadPool(true);
 
 			// Initiaize GLFW/Glad
 			window = new Window(1920, 1080, winTitle);

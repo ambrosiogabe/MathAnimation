@@ -35,6 +35,9 @@ namespace MathAnim
 	{
 	public:
 		GlobalThreadPool(uint32 numThreads);
+#ifdef _DEBUG
+		GlobalThreadPool(bool forceConcurrent);
+#endif
 
 		void free();
 
@@ -57,6 +60,9 @@ namespace MathAnim
 		std::mutex* queueMtx;
 		bool doWork;
 		uint32 numThreads;
+#ifdef _DEBUG
+		bool forceConcurrent;
+#endif
 	};
 }
 
