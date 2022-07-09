@@ -21,7 +21,7 @@ namespace MathAnim
 		queueMtx = new std::mutex();
 		workerThreads = new std::thread[numThreads];
 #ifdef _DEBUG
-		forceConcurrent = false;
+		forceSynchronous = false;
 #endif
 
 		for (uint32 i = 0; i < numThreads; i++)
@@ -30,9 +30,9 @@ namespace MathAnim
 		}
 	}
 
-	GlobalThreadPool::GlobalThreadPool(bool forceConcurrent)
+	GlobalThreadPool::GlobalThreadPool(bool forceSynchronous)
 	{
-		this->forceConcurrent = forceConcurrent;
+		this->forceSynchronous = forceSynchronous;
 		tasks = nullptr;
 		cv = nullptr;
 		generalMtx = nullptr;
@@ -45,7 +45,7 @@ namespace MathAnim
 	void GlobalThreadPool::free()
 	{
 #ifdef _DEBUG
-		if (forceConcurrent)
+		if (forceSynchronous)
 		{
 			return;
 		}
@@ -118,7 +118,7 @@ namespace MathAnim
 	void GlobalThreadPool::queueTask(TaskFunction function, const char* taskName, void* data, size_t dataSize, Priority priority, ThreadCallback callback)
 	{
 #ifdef _DEBUG
-		if (forceConcurrent)
+		if (forceSynchronous)
 		{
 			if (function)
 			{
@@ -152,7 +152,7 @@ namespace MathAnim
 	void GlobalThreadPool::beginWork(bool notifyAll)
 	{
 #ifdef _DEBUG
-		if (forceConcurrent)
+		if (forceSynchronous)
 		{
 			return;
 		}

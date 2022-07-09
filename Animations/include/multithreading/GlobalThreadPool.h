@@ -36,7 +36,7 @@ namespace MathAnim
 	public:
 		GlobalThreadPool(uint32 numThreads);
 #ifdef _DEBUG
-		GlobalThreadPool(bool forceConcurrent);
+		GlobalThreadPool(bool forceSynchronous);
 #endif
 
 		void free();
@@ -61,7 +61,7 @@ namespace MathAnim
 		bool doWork;
 		uint32 numThreads;
 #ifdef _DEBUG
-		bool forceConcurrent;
+		bool forceSynchronous;
 #endif
 	};
 }
