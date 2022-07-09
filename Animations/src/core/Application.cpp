@@ -18,6 +18,7 @@
 #include "editor/EditorGui.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
+#include "multithreading/GlobalThreadPool.h"
 
 #include "nanovg.h"
 #define NANOVG_GL3_IMPLEMENTATION
@@ -38,6 +39,7 @@ namespace MathAnim
 		static int outputHeight = 2160;
 		static NVGcontext* vg = NULL;
 
+		static GlobalThreadPool* globalThreadPool = nullptr;
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
 		static OrthoCamera camera2D;
@@ -49,6 +51,8 @@ namespace MathAnim
 
 		void init()
 		{
+			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
+
 			// Initiaize GLFW/Glad
 			window = new Window(1920, 1080, winTitle);
 			window->setVSync(true);
@@ -90,7 +94,8 @@ namespace MathAnim
 
 			EditorGui::init();
 
-			LaTexLayer::parseLaTeX(R"raw(\langle 1, 2, 3 \rangle)raw", true);
+			LaTexLayer::laTexToSvg(R"raw(\langle 1, 2, 3 \rangle)raw", true);
+			LaTexLayer::laTexToSvg(R"raw(\sum_{n=0}^{\infty} n!)raw", true);
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -187,6 +192,7 @@ namespace MathAnim
 
 			ImGuiLayer::free();
 			Window::cleanup();
+			globalThreadPool->free();
 		}
 
 		void setEditorPlayState(AnimState state)
@@ -231,6 +237,11 @@ namespace MathAnim
 		NVGcontext* getNvgContext()
 		{
 			return vg;
+		}
+
+		GlobalThreadPool* threadPool()
+		{
+			return globalThreadPool;
 		}
 	}
 }

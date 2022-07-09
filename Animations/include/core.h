@@ -25,6 +25,10 @@
 #include <string>
 #include <optional>
 #include <random>
+#include <queue>
+#include <thread>
+#include <condition_variable>
+#include <mutex>
 
 // GLFW/glad
 #include <glad/glad.h>

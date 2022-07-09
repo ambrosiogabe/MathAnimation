@@ -36,8 +36,9 @@ namespace MathAnim
 	{
 		float fontSizePixels;
 		char* text;
+		bool isEquation;
 
-		void render(NVGcontext* vg, const AnimObject* parent) const;
+		void parseLaTex(AnimObject* parent);
 		void serialize(RawMemory& memory) const;
 		void free();
 

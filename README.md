@@ -199,8 +199,9 @@ This library is planned to support
 
 ## Bugs
 
-* If you leave it running for awhile, you can't click on segments
-    * I deleted a segment and a subsegment and that's when it started
+* The timeline should only accept key events when no other element is focused.
+  * For example, if you click a segment, then hit the delete key while entering text in an input box, it
+  will delete the segment. This should not happen.
 
 ## Licensing
 

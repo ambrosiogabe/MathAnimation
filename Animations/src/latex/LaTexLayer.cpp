@@ -1,6 +1,7 @@
 #include "latex/LaTexLayer.h"
 #include "core/Application.h"
 #include "platform/Platform.h"
+#include "multithreading/GlobalThreadPool.h"
 
 static const char preamble[] = \
 R"raw(\documentclass[preview]{standalone}
@@ -44,6 +45,13 @@ namespace MathAnim
 {
 	namespace LaTexLayer
 	{
+		struct LaTexTask
+		{
+			char* laTex;
+			bool isMathTex;
+		};
+
+		// ----------- Internal variables ----------- 
 		static bool latexIsInstalled;
 		static char latexInstallLocation[_MAX_PATH];
 		static char latexProgram[_MAX_PATH];
@@ -51,10 +59,11 @@ namespace MathAnim
 		static char dvisvgmProgram[_MAX_PATH];
 		static const char* dvisvgmExeName = "/miktex/bin/x64/dvisvgm.exe";
 
-		static std::unordered_map<std::string, std::string> latexCachedFiles;
+		static std::unordered_map<std::string, std::string> latexCachedMd5;
 
 		// ----------- Internal functions ----------- 
 		static bool generateSvgFile(const std::string& filename, const std::string& latex, bool isMathTex);
+		static void generateSvgTask(void* data, size_t dataSize);
 
 		void init()
 		{
@@ -124,32 +133,70 @@ namespace MathAnim
 			Platform::createDirIfNotExists("latex");
 		}
 
-		void parseLaTeX(const char* latexRaw, bool isMathTex)
+		void laTexToSvg(const char* latexRaw, bool isMathTex)
 		{
 			if (!latexIsInstalled)
 			{
-				g_logger_error("Cannot parse LaTeX. No LaTeX found on the system.");
+				g_logger_error("Cannot parse LaTeX. No LaTeX program found on the system.");
 				return;
 			}
 
-
 			std::string latex = std::string(latexRaw);
-			// Md5 the latex to get a re-generatable filename
-			std::string filename = Platform::md5FromString(latex);
-
-			std::string svgFilename = filename + ".svg";
-			std::string svgFullpath = "latex/" + svgFilename;
-
-			// Try to generate the SVG file if needed
-			if (!Platform::fileExists(svgFullpath.c_str()))
+			if (!laTexIsReady(latex))
 			{
-				if (!generateSvgFile(filename, latex, isMathTex))
-				{
-					return;
-				}
+				// Launch this as a task on a new thread so that it doesn't block the main thread
+				LaTexTask* taskData = (LaTexTask*)g_memory_allocate(sizeof(LaTexTask));
+				taskData->laTex = (char*)g_memory_allocate(sizeof(char) * latex.length() + 1);
+				g_memory_copyMem(taskData->laTex, (void*)latex.c_str(), sizeof(char) * latex.length());
+				taskData->laTex[latex.length()] = '\0';
+				taskData->isMathTex = isMathTex;
+				Application::threadPool()->queueTask(
+					generateSvgTask,
+					"Generate LaTeX Svg File",
+					taskData,
+					sizeof(LaTexTask)
+				);
+			}
+		}
+
+		bool laTexIsReady(const char* latexRaw, bool isMathTex)
+		{
+			std::string latex = std::string(latexRaw);
+			return laTexIsReady(latex);
+		}
+
+		bool laTexIsReady(const std::string& latex)
+		{
+			if (!latexIsInstalled)
+			{
+				g_logger_error("Cannot parse LaTeX. No LaTeX program found on the system.");
+				return false;
 			}
 
-			// Finally process the resulting SVG file
+			// Md5 the latex to get a re-generatable filename
+			std::string filename = Platform::md5FromString(latex);
+			std::string svgFullpath = "latex/" + filename + ".svg";
+
+			return Platform::fileExists(svgFullpath.c_str());
+		}
+
+		std::string getLaTexMd5(const char* latexRaw)
+		{
+			std::string latex = latexRaw;
+			return getLaTexMd5(latex);
+		}
+
+		std::string getLaTexMd5(const std::string& latex)
+		{
+			auto iter = latexCachedMd5.find(latex);
+			if (iter != latexCachedMd5.end())
+			{
+				return iter->second;
+			}
+
+			std::string md5 = Platform::md5FromString(latex);
+			latexCachedMd5[latex] = md5;
+			return md5;
 		}
 
 		void update()
@@ -162,6 +209,17 @@ namespace MathAnim
 		}
 
 		// ----------- Internal functions ----------- 
+		static void generateSvgTask(void* data, size_t dataSize)
+		{
+			g_logger_assert(dataSize == sizeof(LaTexTask), "Invalid latex task.");
+			LaTexTask* task = (LaTexTask*)data;
+
+			std::string filename = getLaTexMd5(task->laTex);
+			generateSvgFile(filename, task->laTex, task->isMathTex);
+			g_memory_free(task->laTex);
+			g_memory_free(task);
+		}
+
 		static bool generateSvgFile(const std::string& filename, const std::string& latex, bool isMathTex)
 		{
 			if (isMathTex)
@@ -229,6 +287,8 @@ namespace MathAnim
 				std::string cmdArgs2 = dviFilename + " -n";
 				Platform::executeProgram(dvisvgmProgram, cmdArgs2.c_str(), workingDirectory.c_str(), dviLogFilename.c_str());
 
+				// Sleep for 1 second before deleting files to make sure they are not locked
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 				// If everything succeeded, clear out all the unnecessary files
 				Platform::deleteFile(dviFullpath.c_str());
 				Platform::deleteFile(latexFullpath.c_str());

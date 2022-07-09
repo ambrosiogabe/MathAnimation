@@ -274,14 +274,14 @@ namespace MathAnim
 				g_logger_error("Failed to launch process '%s': ", dwStatus);
 
 				TerminateProcess(pi.hProcess, 0);
-				if (fileHandle) CloseHandle(fileHandle);
 				CloseHandle(pi.hProcess);
 				CloseHandle(pi.hThread);
+				if (fileHandle) CloseHandle(fileHandle);
 				return false;
 			}
 
 			// Wait until child process exits.
-			g_logger_info("Running program: '%s'", finalArgs.c_str());
+			g_logger_log("Running program: '%s'", finalArgs.c_str());
 			WaitForSingleObject(pi.hProcess, 25000);
 			TerminateProcess(pi.hProcess, 0);
 			if (fileHandle) CloseHandle(fileHandle);

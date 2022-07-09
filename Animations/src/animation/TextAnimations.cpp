@@ -2,6 +2,7 @@
 #include "animation/Animation.h"
 #include "renderer/Fonts.h"
 #include "core/Application.h"
+#include "latex/LaTexLayer.h"
 
 #include "nanovg.h"
 
@@ -176,9 +177,9 @@ namespace MathAnim
 		return res;
 	}
 
-	void LaTexObject::render(NVGcontext* vg, const AnimObject* parent) const
+	void LaTexObject::parseLaTex(AnimObject* parent)
 	{
-		g_logger_warning("TODO: Implement me");
+		//LaTexLayer::parseLaTex(this->text, this->isEquation);
 	}
 
 	void LaTexObject::serialize(RawMemory& memory) const

@@ -6,6 +6,8 @@ struct NVGcontext;
 
 namespace MathAnim
 {
+	class GlobalThreadPool;
+
 	enum class AnimState : uint8
 	{
 		PlayForward,
@@ -32,6 +34,7 @@ namespace MathAnim
 		int getFrameratePerSecond();
 
 		NVGcontext* getNvgContext();
+		GlobalThreadPool* threadPool();
 	}
 }
 
