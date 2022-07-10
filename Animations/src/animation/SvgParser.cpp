@@ -12,7 +12,6 @@ namespace MathAnim
 		const char* text;
 		size_t textLength;
 		size_t cursor;
-		Vec4 viewBox;
 	};
 
 	enum class TokenType : uint8
@@ -43,12 +42,23 @@ namespace MathAnim
 		} as;
 	};
 
+	struct ArcParams
+	{
+		Vec2 radius;
+		float xAxisRotation;
+		bool largeArcFlag;
+		bool sweepFlag;
+		Vec2 endpoint;
+	};
+
 	namespace SvgParser
 	{
 		// ----------- Internal Functions -----------
 		static void interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res);
 		static bool parseVec2List(std::vector<Vec2>& list, ParserInfo& parserInfo);
-		static bool parseNumberList(std::vector<float>& list, ParserInfo& parserInfo);
+		static bool parseHzNumberList(std::vector<float>& list, ParserInfo& parserInfo);
+		static bool parseVtNumberList(std::vector<float>& list, ParserInfo& parserInfo);
+		static bool parseArcParamsList(std::vector<ArcParams>& list, ParserInfo& parserInfo);
 		static Token parseNextToken(ParserInfo& parserInfo);
 		static bool parseNumber(ParserInfo& parserInfo, float* out);
 		static Token consume(TokenType expected, ParserInfo& parserInfo);
@@ -56,7 +66,7 @@ namespace MathAnim
 		static inline char advance(ParserInfo& parserInfo) { char c = parserInfo.cursor < parserInfo.textLength ? parserInfo.text[parserInfo.cursor] : '\0'; parserInfo.cursor++; return c; }
 		static inline char peek(const ParserInfo& parserInfo, int advance = 0) { return parserInfo.cursor + advance >= parserInfo.textLength - 1 ? '\0' : parserInfo.text[parserInfo.cursor + advance]; }
 		static inline bool isDigit(char c) { return (c >= '0' && c <= '9'); }
-		static inline bool isNumberPart(char c) { return isDigit(c) || c == '-'; }
+		static inline bool isNumberPart(char c) { return isDigit(c) || c == '-' || c == '.'; }
 		static inline bool isAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
 		static inline bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\0'; }
 
@@ -133,7 +143,6 @@ namespace MathAnim
 			parserInfo.cursor = 0;
 			parserInfo.text = pathText;
 			parserInfo.textLength = pathTextLength;
-			parserInfo.viewBox = viewBox;
 
 			Token token = parseNextToken(parserInfo);
 			while (token.type != TokenType::EndOfFile)
@@ -141,6 +150,9 @@ namespace MathAnim
 				interpretCommand(token, parserInfo, res);
 				token = parseNextToken(parserInfo);
 			}
+
+			// Normalize the SVG curve
+			res->normalize();
 
 			res->calculateApproximatePerimeter();
 
@@ -210,7 +222,7 @@ namespace MathAnim
 			case TokenType::HzLineTo:
 			{
 				std::vector<float> numberList;
-				if (!parseNumberList(numberList, parserInfo))
+				if (!parseHzNumberList(numberList, parserInfo))
 				{
 					g_logger_error("Error interpreting line to command. Invalid coordinate encountered.");
 					return;
@@ -230,7 +242,7 @@ namespace MathAnim
 			case TokenType::VtLineTo:
 			{
 				std::vector<float> numberList;
-				if (!parseNumberList(numberList, parserInfo))
+				if (!parseVtNumberList(numberList, parserInfo))
 				{
 					g_logger_error("Error interpreting line to command. Invalid coordinate encountered.");
 					return;
@@ -300,17 +312,74 @@ namespace MathAnim
 			break;
 			case TokenType::QuadCurveTo:
 			{
-				g_logger_error("TODO: QuadCurveTo not implemented yet.");
+				std::vector<Vec2> vec2List;
+				if (!parseVec2List(vec2List, parserInfo))
+				{
+					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
+					return;
+				}
+				if (vec2List.size() <= 0)
+				{
+					g_logger_error("Error interpreting move to command. No coordinates provided.");
+					return;
+				}
+
+				if (vec2List.size() != 2)
+				{
+					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
+					return;
+				}
+
+				Vec3 c0 = Vec3{ vec2List[0].x, vec2List[0].y, 0.0f };
+				Vec3 p2 = Vec3{ vec2List[1].x, vec2List[1].y, 0.0f };
+				Svg::bezier2To(res, c0, p2, isAbsolute);
 			}
 			break;
 			case TokenType::SmoothQuadCurveTo:
 			{
-				g_logger_error("TODO: SmoothQuadCurveTo not implemented yet.");
+				std::vector<Vec2> vec2List;
+				if (!parseVec2List(vec2List, parserInfo))
+				{
+					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
+					return;
+				}
+				if (vec2List.size() <= 0)
+				{
+					g_logger_error("Error interpreting move to command. No coordinates provided.");
+					return;
+				}
+
+				if (vec2List.size() != 1)
+				{
+					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
+					return;
+				}
+
+				Vec3 p2 = Vec3{ vec2List[0].x, vec2List[0].y, 0.0f };
+				Svg::smoothBezier2To(res, p2, isAbsolute);
 			}
 			break;
 			case TokenType::ArcTo:
 			{
-				g_logger_error("TODO: ArcTo not implemented yet.");
+				std::vector<ArcParams> arcParamsList;
+				if (!parseArcParamsList(arcParamsList, parserInfo))
+				{
+					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
+					return;
+				}
+				if (arcParamsList.size() <= 0)
+				{
+					g_logger_error("Error interpreting arc to command. No coordinates provided.");
+					return;
+				}
+
+				if (arcParamsList.size() != 1)
+				{
+					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
+					return;
+				}
+
+				
 			}
 			break;
 			default:
@@ -329,8 +398,8 @@ namespace MathAnim
 
 				if (x.type == TokenType::Number && y.type == TokenType::Number)
 				{
-					float xVal = x.as.number / parserInfo.viewBox.values[2];
-					float yVal = y.as.number / parserInfo.viewBox.values[3];
+					float xVal = x.as.number;
+					float yVal = y.as.number;
 					list.emplace_back(Vec2{ xVal, yVal });
 				}
 				else
@@ -342,7 +411,7 @@ namespace MathAnim
 			return true;
 		}
 
-		static bool parseNumberList(std::vector<float>& list, ParserInfo& parserInfo)
+		static bool parseHzNumberList(std::vector<float>& list, ParserInfo& parserInfo)
 		{
 			do
 			{
@@ -351,8 +420,67 @@ namespace MathAnim
 
 				if (x.type == TokenType::Number)
 				{
-					float xVal = x.as.number / parserInfo.viewBox.values[2];
+					float xVal = x.as.number;
 					list.emplace_back(xVal);
+				}
+				else
+				{
+					return false;
+				}
+			} while (isNumberPart(peek(parserInfo)));
+
+			return true;
+		}
+
+		static bool parseVtNumberList(std::vector<float>& list, ParserInfo& parserInfo)
+		{
+			do
+			{
+				// TODO: Revisit this with a match(tokenType) statement
+				Token y = consume(TokenType::Number, parserInfo);
+
+				if (y.type == TokenType::Number)
+				{
+					float yVal = y.as.number;
+					list.emplace_back(yVal);
+				}
+				else
+				{
+					return false;
+				}
+			} while (isNumberPart(peek(parserInfo)));
+
+			return true;
+		}
+
+		static bool parseArcParamsList(std::vector<ArcParams>& list, ParserInfo& parserInfo)
+		{
+			do
+			{
+				// TODO: Revisit this with a match(tokenType) statement
+				Token rx = consume(TokenType::Number, parserInfo);
+				Token ry = consume(TokenType::Number, parserInfo);
+				Token xAxisRotation = consume(TokenType::Number, parserInfo);
+				Token largeArcFlag = consume(TokenType::Number, parserInfo);
+				Token sweepFlag = consume(TokenType::Number, parserInfo);
+				Token dstX = consume(TokenType::Number, parserInfo);
+				Token dstY = consume(TokenType::Number, parserInfo);
+
+				if (rx.type == TokenType::Number && ry.type == TokenType::Number && 
+					xAxisRotation.type == TokenType::Number && 
+					largeArcFlag.type == TokenType::Number && sweepFlag.type == TokenType::Number &&
+					dstX.type == TokenType::Number && dstY.type == TokenType::Number)
+				{
+					ArcParams res;
+					res.radius.x = rx.as.number;
+					res.radius.y = ry.as.number;
+					res.xAxisRotation = xAxisRotation.as.number;
+					res.largeArcFlag = largeArcFlag.as.number != 0.0f;
+					res.sweepFlag = sweepFlag.as.number != 0.0f;
+					res.endpoint.x = dstX.as.number;
+					res.endpoint.y = dstY.as.number;
+
+					list.emplace_back(res);
 				}
 				else
 				{
@@ -467,10 +595,8 @@ namespace MathAnim
 			size_t numberEnd = parserInfo.cursor;
 
 			bool seenDot = false;
-			bool isNegative = false;
 			if (peek(parserInfo) == '-')
 			{
-				isNegative = true;
 				advance(parserInfo);
 			}
 
@@ -489,11 +615,6 @@ namespace MathAnim
 				g_memory_copyMem(smallBuffer, (void*)(parserInfo.text + numberStart), sizeof(char) * (numberEnd - numberStart));
 				smallBuffer[numberEnd - numberStart] = '\0';
 				*out = (float)atof(smallBuffer);
-				if (isNegative)
-				{
-					*out *= -1.0f;
-				}
-
 				return true;
 			}
 

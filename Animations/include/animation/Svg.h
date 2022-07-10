@@ -64,6 +64,7 @@ namespace MathAnim
 		float approximatePerimeter;
 		bool is3D;
 
+		void normalize();
 		void calculateApproximatePerimeter();
 		void render(NVGcontext* vg, const AnimObject* parent) const;
 		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse = false) const;
@@ -85,7 +86,9 @@ namespace MathAnim
 		void vtLineTo(SvgObject* object, float yPoint, bool absolute = true);
 		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest, bool absolute = true);
 		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest, bool absolute = true);
+		void smoothBezier2To(SvgObject* object, const Vec3& dest, bool absolute = true);
 		void smoothBezier3To(SvgObject* object, const Vec3& control1, const Vec3& dest, bool absolute = true);
+		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec3& dst, bool absolute = true);
 
 		void copy(SvgObject* dest, const SvgObject* src);
 		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);

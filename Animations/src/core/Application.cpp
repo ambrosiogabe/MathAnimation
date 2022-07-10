@@ -109,16 +109,16 @@ namespace MathAnim
 			tmpParent = AnimObject::createDefault(AnimObjectTypeV1::LaTexObject, 0, 3000);
 			tmpParent.objectType = AnimObjectTypeV1::LaTexObject;
 			tmpParent._positionStart.x = 300.0f;
-			tmpParent._positionStart.y = 300.0f;
+			tmpParent._positionStart.y = 700.0f;
 			tmpParent._positionStart.z = 0.0f;
-			tmpParent._strokeWidthStart = 15.0f / 600.0f;
+			tmpParent._strokeWidthStart = 5.0f;
 			tmpParent._strokeColorStart.r = 255;
 			tmpParent._strokeColorStart.g = 0;
 			tmpParent._strokeColorStart.b = 0;
 			tmpParent._strokeColorStart.a = 255;
-			tmpParent._scaleStart.x = 600.0f;
-			tmpParent._scaleStart.y = 600.0f;
-			tmpParent._scaleStart.z = 600.0f;
+			tmpParent._scaleStart.x = 200.0f;
+			tmpParent._scaleStart.y = 200.0f;
+			tmpParent._scaleStart.z = 200.0f;
 
 			tmpParent.position.x = tmpParent._positionStart.x;
 			tmpParent.position.y = tmpParent._positionStart.y;
@@ -153,8 +153,9 @@ namespace MathAnim
 				{
 					std::string docFilepath = "latex/" + LaTexLayer::getLaTexMd5(testLatex) + ".svg";
 					tmpObject = SvgParser::parseSvgDoc(docFilepath.c_str());
-					//const char pathText[] = "M 0 0 L 0 10 L 10 10 L 10 0 z";
-					//tmpObject = SvgParser::parseSvgPath(pathText, sizeof(pathText), Vec4{ 0, 0, 10.0f, 10.0f });
+					//const char pathText[] = "M 4 8 L 10 1 L 13 0 L 12 3 L 5 9 C 6 10 6 11 7 10 C 7 11 8 12 7 12 A 1.42 1.42 0 0 1 6 13 A 5 5 0 0 0 4 10 Q 3.5 9.9 3.5 10.5 T 2 11.8 T 1.2 11 T 2.5 9.5 T 3 9 A 5 5 90 0 0 0 7 A 1.42 1.42 0 0 1 1 6 C 1 5 2 6 3 6 C 2 7 3 7 4 8 M 10 1 L 10 3 L 12 3 L 10.2 2.8 L 10 1";
+					//const char pathText[] = "M2.769614-2.49066C2.769614-2.49066 2.769614-2.550436 2.719801-2.669988L.976339-7.252802C.926526-7.372354 .896638-7.47198 .757161-7.47198C.647572-7.47198 .557908-7.382316 .557908-7.272727C.557908-7.272727 .557908-7.212951 .607721-7.0934L2.361146-2.49066L.607721 2.11208C.557908 2.231631 .557908 2.291407 .557908 2.291407C.557908 2.400996 .647572 2.49066 .757161 2.49066C.886675 2.49066 .926526 2.400996 .966376 2.291407L2.719801-2.311333C2.769614-2.430884 2.769614-2.49066 2.769614-2.49066Z";
+					//tmpObject = SvgParser::parseSvgPath(pathText, sizeof(pathText), Vec4{ 0.0f, 0.0, 0.0f, 0.0f });
 					parsed = true;
 				}
 
