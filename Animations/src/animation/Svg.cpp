@@ -1225,7 +1225,7 @@ namespace MathAnim
 					const glm::u8vec4& fillColor = parent->fillColor;
 					nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)(fillColor.a * percentToFadeIn)));
 					nvgBeginPath(vg);
-					nvgPathWinding(vg, obj->contours[contouri].clockwiseFill ? NVG_CW : NVG_CCW);
+					nvgPathWinding(vg, NVG_CW);
 
 					nvgMoveTo(vg,
 						obj->contours[contouri].curves[0].p0.x * parent->scale.x,
@@ -1241,6 +1241,13 @@ namespace MathAnim
 							0.0f,
 							1.0f
 						);
+
+						if (curvei != 0 && curve.moveToP0)
+						{
+							nvgMoveTo(vg, p0.x * parent->scale.x, p0.y * parent->scale.y);
+							// TODO: Does this work consistently???
+							nvgPathWinding(vg, NVG_HOLE);
+						}
 
 						switch (curve.type)
 						{
