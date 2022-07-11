@@ -326,6 +326,12 @@ namespace MathAnim
 				objectIter->strokeColor = objectIter->_strokeColorStart;
 				objectIter->strokeWidth = objectIter->_strokeWidthStart;
 				objectIter->isAnimating = false;
+				
+				// Update any updateable objects
+				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
+				{
+					objectIter->as.laTexObject.update();
+				}
 
 				for (auto animIter = objectIter->animations.begin(); animIter != objectIter->animations.end(); animIter++)
 				{

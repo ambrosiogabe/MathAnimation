@@ -25,6 +25,14 @@ namespace MathAnim
 		switch (type)
 		{
 		case AnimTypeV1::Create:
+		{		
+			// TODO: This is getting messy and gross
+			if (getParent()->objectType == AnimObjectTypeV1::LaTexObject)
+			{
+				getParent()->as.laTexObject.renderCreateAnimation(vg, t, getParent(), false);
+				break;
+			}
+
 			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render create animation for SVG object that is nullptr.");
 			getParent()->svgObject->renderCreateAnimation(vg, t, getParent());
 			if (getParent()->svgObject->is3D)
@@ -35,10 +43,19 @@ namespace MathAnim
 					getMutableParent()->renderFadeInAnimation(vg, (t - 0.8f) / 0.2f);
 				}
 			}
-			break;
+		}
+		break;
 		case AnimTypeV1::UnCreate:
+		{
+			// TODO: This is getting messy and gross
+			if (getParent()->objectType == AnimObjectTypeV1::LaTexObject)
+			{
+				getParent()->as.laTexObject.renderCreateAnimation(vg, t, getParent(), true);
+				break;
+			}
+
 			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
-			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), true);
+			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), Vec3{0, 0, 0}, true);
 			if (getParent()->svgObject->is3D)
 			{
 				// Only fade out for t = [0.0-0.2]
@@ -47,7 +64,8 @@ namespace MathAnim
 					getMutableParent()->renderFadeOutAnimation(vg, t / 0.2f);
 				}
 			}
-			break;
+		}
+		break;
 		case AnimTypeV1::FadeIn:
 			getMutableParent()->renderFadeInAnimation(vg, t);
 			break;
@@ -316,10 +334,13 @@ namespace MathAnim
 		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.render(vg, this);
 			break;
+		case AnimObjectTypeV1::LaTexObject:
+			this->as.laTexObject.render(vg, this);
+			break;
 		default:
 			// TODO: Add magic_enum
 			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(objectType).data());
-			g_logger_info("Unknown animation: %d", objectType);
+			g_logger_info("Unknown animation object: %d", objectType);
 			break;
 		}
 	}

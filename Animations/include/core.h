@@ -29,6 +29,8 @@
 #include <thread>
 #include <condition_variable>
 #include <mutex>
+#include <set>
+#include <unordered_set>
 
 // GLFW/glad
 #include <glad/glad.h>

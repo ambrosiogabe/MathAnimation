@@ -1,5 +1,7 @@
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
+#include "animation/SvgParser.h"
+#include "animation/Svg.h"
 #include "renderer/Fonts.h"
 #include "core/Application.h"
 #include "latex/LaTexLayer.h"
@@ -12,6 +14,7 @@ namespace MathAnim
 	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos, const AnimObject* parent);
 
 	static TextObject deserializeTextV1(RawMemory& memory);
+	static LaTexObject deserializeLaTexV1(RawMemory& memory);
 
 	namespace TextAnimations
 	{
@@ -177,31 +180,120 @@ namespace MathAnim
 		return res;
 	}
 
-	void LaTexObject::parseLaTex(AnimObject* parent)
+	void LaTexObject::update()
 	{
-		//LaTexLayer::parseLaTex(this->text, this->isEquation);
+		if (isParsingLaTex)
+		{
+			if (LaTexLayer::laTexIsReady(text, isEquation))
+			{
+				if (svgGroup)
+				{
+					svgGroup->free();
+					svgGroup = nullptr;
+				}
+
+				std::string filepath = "latex/" + LaTexLayer::getLaTexMd5(text) + ".svg";
+				svgGroup = SvgParser::parseSvgDoc(filepath.c_str());
+				isParsingLaTex = false;
+			}
+		}
+	}
+
+	void LaTexObject::parseLaTex()
+	{
+		LaTexLayer::laTexToSvg(text, isEquation);
+		isParsingLaTex = true;
+	}
+
+	void LaTexObject::render(NVGcontext* vg, const AnimObject* parent) const
+	{
+		if (svgGroup)
+		{
+			// TODO: Super ugly hack...
+			((AnimObject*)parent)->scale *= parent->as.laTexObject.fontSizePixels;
+			svgGroup->render(vg, (AnimObject*)parent);
+			((AnimObject*)parent)->scale /= parent->as.laTexObject.fontSizePixels;
+		}
+	}
+
+	void LaTexObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse) const
+	{
+		if (svgGroup)
+		{
+			// TODO: Super ugly hack...
+			((AnimObject*)parent)->scale *= parent->as.laTexObject.fontSizePixels;
+			svgGroup->renderCreateAnimation(vg, t, (AnimObject*)parent, reverse);
+			((AnimObject*)parent)->scale /= parent->as.laTexObject.fontSizePixels;
+		}
 	}
 
 	void LaTexObject::serialize(RawMemory& memory) const
 	{
-		g_logger_warning("TODO: Implement me");
+		// fontSizePixels   -> float
+		// textLength       -> i32
+		// text             -> char[textLength]
+		// isEquation       -> u8 (bool)
+		memory.write<float>(&fontSizePixels);
+
+		// TODO: Specialize std::string or const char* in template so
+		// we don't have to write out text char by char
+		memory.write<int32>(&textLength);
+		for (int i = 0; i < textLength; i++)
+		{
+			memory.write<char>(&text[i]);
+		}
+		constexpr char nullByte = '\0';
+		memory.write<char>(&nullByte);
+
+		uint8 isEquationU8 = isEquation ? 1 : 0;
+		memory.write<uint8>(&isEquationU8);
 	}
 
 	void LaTexObject::free()
 	{
-		g_logger_warning("TODO: Implement me");
+		if (svgGroup)
+		{
+			svgGroup->free();
+			g_memory_free(svgGroup);
+			svgGroup = nullptr;
+		}
+
+		if (text)
+		{
+			g_memory_free(text);
+			text = nullptr;
+		}
 	}
 
 	LaTexObject LaTexObject::deserialize(RawMemory& memory, uint32 version)
 	{
-		g_logger_warning("TODO: Implement me");
-		return {};
+		if (version == 1)
+		{
+			return deserializeLaTexV1(memory);
+		}
+
+		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		LaTexObject res;
+		g_memory_zeroMem(&res, sizeof(LaTexObject));
+		return res;
 	}
 
 	LaTexObject LaTexObject::createDefault()
 	{
-		g_logger_warning("TODO: Implement me");
-		return {};
+		LaTexObject res;
+		res.fontSizePixels = 128.0f;
+		// Alternating harmonic series
+		static const char defaultLatex[] = R"raw(\sum _{k=1}^{\infty }{\frac {(-1)^{k+1}}{k}}={\frac {1}{1}}-{\frac {1}{2}}+{\frac {1}{3}}-{\frac {1}{4}}+\cdots =\ln 2)raw";
+		res.text = (char*)g_memory_allocate(sizeof(defaultLatex) / sizeof(char));
+		g_memory_copyMem(res.text, (void*)defaultLatex, sizeof(defaultLatex) / sizeof(char));
+		res.textLength = (sizeof(defaultLatex) / sizeof(char)) - 1;
+		res.text[res.textLength] = '\0';
+		res.isEquation = true;
+		res.svgGroup = nullptr;
+		res.isParsingLaTex = false;
+		res.parseLaTex();
+
+		return res;
 	}
 
 	// ------------- Internal Functions -------------
@@ -435,6 +527,36 @@ namespace MathAnim
 		}
 
 		res.font = Fonts::loadFont(fontFilepath.c_str(), Application::getNvgContext());
+
+		return res;
+	}
+
+	static LaTexObject deserializeLaTexV1(RawMemory& memory)
+	{
+		LaTexObject res;
+
+		// fontSizePixels   -> float
+		// textLength       -> i32
+		// text             -> char[textLength]
+		// isEquation       -> u8 (bool)
+		memory.read<float>(&res.fontSizePixels);
+
+		// TODO: Specialize std::string or const char* in template so
+		// we don't have to read in text char by char
+		memory.read<int32>(&res.textLength);
+		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
+		for (int i = 0; i < res.textLength; i++)
+		{
+			memory.read<char>(&res.text[i]);
+		}
+		memory.read<char>(&res.text[res.textLength]);
+
+		uint8 isEquationU8;
+		memory.read<uint8>(&isEquationU8);
+		res.isEquation = isEquationU8 == 1;
+		res.isParsingLaTex = false;
+		res.svgGroup = nullptr;
+		res.parseLaTex();
 
 		return res;
 	}

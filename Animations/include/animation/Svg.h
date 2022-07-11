@@ -67,20 +67,24 @@ namespace MathAnim
 
 		void normalize();
 		void calculateApproximatePerimeter();
-		void render(NVGcontext* vg, const AnimObject* parent) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse = false) const;
+		void render(NVGcontext* vg, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}, bool reverse = false) const;
 		void free();
 	};
 
 	struct SvgGroup
 	{
+		char** uniqueObjectNames;
+		SvgObject* uniqueObjects;
+		int numUniqueObjects;
+
 		SvgObject* objects;
 		Vec3* objectOffsets;
 		int numObjects;
 		Vec4 viewbox;
 
-		void render(NVGcontext* vg, const AnimObject* parent) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse = false) const;
+		void render(NVGcontext* vg, AnimObject* parent) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse = false) const;
 		void free();
 	};
 
@@ -92,7 +96,7 @@ namespace MathAnim
 		void init(OrthoCamera& camera);
 
 		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox);
-		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const Vec3& offset);
+		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec3& offset);
 		void endSvgGroup(SvgGroup* group);
 
 		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D = false);

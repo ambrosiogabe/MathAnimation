@@ -118,8 +118,8 @@ namespace MathAnim
 	Vec3 operator/(const Vec3& a, float scale);
 	Vec3 operator*(float scale, const Vec3& a);
 	Vec3 operator/(float scale, const Vec3& a);
-	Vec3 operator*=(const Vec3& a, float scale);
-	Vec3 operator/=(const Vec3& a, float scale);
+	void operator*=(Vec3& a, float scale);
+	void operator/=(Vec3& a, float scale);
 	Vec3 operator+=(const Vec3& a, const Vec3& b);
 	Vec3 operator-=(const Vec3& a, const Vec3& b);
 

@@ -37,6 +37,7 @@ namespace MathAnim
 		static void handleAnimObjectInspector(int animObjectId);
 		static void handleAnimationInspector(int animationId);
 		static void handleTextObjectInspector(AnimObject* object);
+		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
 		static void handleRotateToAnimationInspector(Animation* animation);
 		static void handleAnimateStrokeColorAnimationInspector(Animation* animation);
@@ -474,7 +475,7 @@ namespace MathAnim
 				handleTextObjectInspector(animObject);
 				break;
 			case AnimObjectTypeV1::LaTexObject:
-				g_logger_assert(false, "TODO: Implement me.");
+				handleLaTexObjectInspector(animObject);
 				break;
 			case AnimObjectTypeV1::Square:
 				handleSquareInspector(animObject);
@@ -624,6 +625,48 @@ namespace MathAnim
 				object->as.textObject.textLength = (int32_t)newLength;
 				g_memory_copyMem(object->as.textObject.text, scratch, newLength * sizeof(char));
 				object->as.textObject.text[newLength] = '\0';
+			}
+		}
+
+		static void handleLaTexObjectInspector(AnimObject* object)
+		{
+			ImGui::DragFloat(": Font Size (Px)", &object->as.laTexObject.fontSizePixels);
+
+			constexpr int scratchLength = 2048;
+			char scratch[scratchLength] = {};
+			if (object->as.laTexObject.textLength >= scratchLength)
+			{
+				g_logger_error("Text object has more than %d characters. Tell Gabe to increase scratch length for LaTex objects.", scratchLength);
+				return;
+			}
+			g_memory_copyMem(scratch, object->as.laTexObject.text, object->as.laTexObject.textLength * sizeof(char));
+			scratch[object->as.laTexObject.textLength] = '\0';
+			if (ImGui::InputTextMultiline(": LaTeX", scratch, scratchLength * sizeof(char)))
+			{
+				size_t newLength = std::strlen(scratch);
+				object->as.laTexObject.text = (char*)g_memory_realloc(object->as.laTexObject.text, sizeof(char) * (newLength + 1));
+				object->as.laTexObject.textLength = (int32_t)newLength;
+				g_memory_copyMem(object->as.laTexObject.text, scratch, newLength * sizeof(char));
+				object->as.laTexObject.text[newLength] = '\0';
+			}
+
+			ImGui::Checkbox(": Is Equation", &object->as.laTexObject.isEquation);
+
+			// Disable the generate button if it's currently parsing some SVG
+			bool disableButton = object->as.laTexObject.isParsingLaTex;
+			if (disableButton)
+			{
+				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+			}
+			if (ImGui::Button("Generate LaTeX"))
+			{
+				object->as.laTexObject.parseLaTex();
+			}
+			if (disableButton)
+			{
+				ImGui::PopItemFlag();
+				ImGui::PopStyleVar();
 			}
 		}
 

@@ -102,9 +102,9 @@ namespace MathAnim
 		};
 	}
 
-	Vec3 operator*=(const Vec3& a, float scale)
+	void operator*=(Vec3& a, float scale)
 	{
-		return a * scale;
+		a = a * scale;
 	}
 
 	Vec3 operator*(float scale, const Vec3& a)
@@ -117,9 +117,9 @@ namespace MathAnim
 		return a / scale;
 	}
 
-	Vec3 operator/=(const Vec3& a, float scale)
+	void operator/=(Vec3& a, float scale)
 	{
-		return a / scale;
+		a = a / scale;
 	}
 
 	Vec3 operator+=(const Vec3& a, const Vec3& b) 

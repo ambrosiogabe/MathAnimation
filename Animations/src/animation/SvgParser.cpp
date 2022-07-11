@@ -183,28 +183,65 @@ namespace MathAnim
 
 					if (!xAttr) g_logger_warning("Child element '%s' had no x attribute.", childEl->Name());
 					if (!yAttr) g_logger_warning("Child element '%s' had no y attribute.", childEl->Name());
-					if (!linkAttr) g_logger_warning("Child element '%s' had no xlink:href attribute.", childEl->Name());
 
-					if (xAttr && yAttr && linkAttr)
+					if (std::strcmp(childEl->Name(), "use") == 0)
 					{
-						float x = (float)atof(xAttr->Value());
-						float y = (float)atof(yAttr->Value());
-						const char* linkText = linkAttr->Value();
-						if (linkText[0] != '#')
-						{
-							g_logger_warning("Child element '%s' link attribute '%s' did not begin with '#'.", childEl->Name(), linkText);
-							continue;
-						}
+						if (!linkAttr) g_logger_warning("Child element '%s' had no xlink:href attribute.", childEl->Name());
 
-						std::string id = std::string(linkText + 1);
-						auto iter = objIds.find(id);
-						if (iter == objIds.end())
+						if (xAttr && yAttr && linkAttr)
 						{
-							g_logger_warning("Could not find link to svg path '%s' for child element '%s'", id.c_str(), childEl->Name());
-							continue;
-						}
+							float x = xAttr->FloatValue();
+							float y = yAttr->FloatValue();
+							const char* linkText = linkAttr->Value();
+							if (linkText[0] != '#')
+							{
+								g_logger_warning("Child element '%s' link attribute '%s' did not begin with '#'.", childEl->Name(), linkText);
+								continue;
+							}
 
-						Svg::pushSvgToGroup(group, iter->second, Vec3{ x, y, 0.0f });
+							std::string id = std::string(linkText + 1);
+							auto iter = objIds.find(id);
+							if (iter == objIds.end())
+							{
+								g_logger_warning("Could not find link to svg path '%s' for child element '%s'", id.c_str(), childEl->Name());
+								continue;
+							}
+
+							Svg::pushSvgToGroup(group, iter->second, iter->first, Vec3{ x, y, 0.0f });
+						}
+					}
+					else if (std::strcmp(childEl->Name(), "rect") == 0)
+					{
+						const XMLAttribute* wAttr = childEl->FindAttribute("width");
+						const XMLAttribute* hAttr = childEl->FindAttribute("height");
+
+						if (!wAttr) g_logger_warning("Child element '%s' had no width attribute.", childEl->Name());
+						if (!hAttr) g_logger_warning("Child element '%s' had no height attribute.", childEl->Name());
+
+						if (wAttr && hAttr && xAttr && yAttr)
+						{
+							float x = xAttr->FloatValue();
+							float y = yAttr->FloatValue();
+							float w = wAttr->FloatValue();
+							float h = hAttr->FloatValue();
+
+							SvgObject rect = Svg::createDefault();
+							Svg::beginContour(&rect, { 0, h, 0.0f }, true);
+							Svg::lineTo(&rect, { w, h, 0.0f });
+							Svg::lineTo(&rect, { w, 0, 0.0f });
+							Svg::lineTo(&rect, { 0, 0, 0.0f });
+							Svg::lineTo(&rect, { 0, h, 0.0f });
+							Svg::closeContour(&rect);
+							
+							static uint64 rCounter = 0;
+							rCounter++;
+							std::string rCounterStr = "rect-" + rCounter;
+							Svg::pushSvgToGroup(group, rect, rCounterStr, Vec3{ x, y, 0.0f });
+						}
+					}
+					else
+					{
+						g_logger_warning("Unknown group element '%s'.", childEl->Name());
 					}
 
 					childEl = childEl->NextSiblingElement();

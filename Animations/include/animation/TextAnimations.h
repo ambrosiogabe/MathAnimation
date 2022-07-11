@@ -9,6 +9,7 @@ namespace MathAnim
 {
 	struct Font;
 	struct AnimObject;
+	struct SvgGroup;
 	
 	namespace TextAnimations
 	{
@@ -36,9 +37,22 @@ namespace MathAnim
 	{
 		float fontSizePixels;
 		char* text;
+		int32 textLength;
+		// TODO: Move this into the main animation object and fix everything else
+		// to use that
+		SvgGroup* svgGroup;
 		bool isEquation;
+		bool isParsingLaTex;
 
-		void parseLaTex(AnimObject* parent);
+		// NOTE: This update function is just used to check if it's
+		// in the middle of parsing latex. If it is, then it checks
+		// if it's ready and then assigns it to the SVG group when it's done
+		// generating the svg
+		void update();
+
+		void parseLaTex();
+		void render(NVGcontext* vg, const AnimObject* parent) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse) const;
 		void serialize(RawMemory& memory) const;
 		void free();
 
