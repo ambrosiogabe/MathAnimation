@@ -19,6 +19,7 @@ namespace MathAnim
 		static void checkResize(Contour& contour);
 		static void render2DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
 		static void render3DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
+		static void transformPoint(Vec3* point, const Vec3& offset, const Vec3& viewboxPos, const Vec3& viewboxSize);
 
 		SvgObject createDefault()
 		{
@@ -32,9 +33,85 @@ namespace MathAnim
 			return res;
 		}
 
+		SvgGroup createDefaultGroup()
+		{
+			SvgGroup res;
+			// Dummy allocation to allow memory tracking when reallocing 
+			// TODO: Fix the dang memory allocation library so I don't have to do this!
+			res.objects = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			res.objectOffsets = (Vec3*)g_memory_allocate(sizeof(Vec3));
+			res.numObjects = 0;
+			res.viewbox = Vec4{0, 0, 1, 1};
+			return res;
+		}
+
 		void init(OrthoCamera& sceneCamera)
 		{
 			camera = &sceneCamera;
+		}
+
+		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox)
+		{
+			group->viewbox = viewbox;
+		}
+
+		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const Vec3& offset)
+		{
+			group->numObjects++;
+			group->objects = (SvgObject*)g_memory_realloc(group->objects, sizeof(SvgObject) * group->numObjects);
+			g_logger_assert(group->objects != nullptr, "Ran out of RAM.");
+			group->objectOffsets = (Vec3*)g_memory_realloc(group->objectOffsets, sizeof(Vec3) * group->numObjects);
+			g_logger_assert(group->objectOffsets != nullptr, "Ran out of RAM.");
+
+			group->objectOffsets[group->numObjects - 1] = offset;
+			group->objects[group->numObjects - 1] = obj;
+		}
+
+		void endSvgGroup(SvgGroup* group)
+		{
+			Vec3 viewboxPos = Vec3{ group->viewbox.values[0], group->viewbox.values[1], 0.0f};
+			Vec3 viewboxSize = Vec3{ group->viewbox.values[2], group->viewbox.values[3], 1.0f };
+
+			// Normalize all the SVGs within the viewbox
+			for (int svgi = 0; svgi < group->numObjects; svgi++)
+			{
+				const SvgObject& svg = group->objects[svgi];
+				const Vec3& offset = group->objectOffsets[svgi];
+
+				// Add the offset to all the vertex positions, transform them according to the view box
+				// and normalize them
+				for (int contouri = 0; contouri < svg.numContours; contouri++)
+				{
+					const Contour& contour = svg.contours[contouri];
+					for (int curvei = 0; curvei < contour.numCurves; curvei++)
+					{
+						Curve& curve = contour.curves[curvei];
+						transformPoint(&curve.p0, offset, viewboxPos, viewboxSize);
+
+						switch (curve.type)
+						{
+						case CurveType::Bezier3:
+							transformPoint(&curve.as.bezier3.p1, offset, viewboxPos, viewboxSize);
+							transformPoint(&curve.as.bezier3.p2, offset, viewboxPos, viewboxSize);
+							transformPoint(&curve.as.bezier3.p3, offset, viewboxPos, viewboxSize);
+							break;
+						case CurveType::Bezier2:
+							transformPoint(&curve.as.bezier2.p1, offset, viewboxPos, viewboxSize);
+							transformPoint(&curve.as.bezier2.p2, offset, viewboxPos, viewboxSize);
+							break;
+						case CurveType::Line:
+							transformPoint(&curve.as.line.p1, offset, viewboxPos, viewboxSize);
+							break;
+						default:
+							g_logger_error("Unknown CurveType %d during SVG group normalization", curve.type);
+							break;
+						}
+					}
+				}
+
+				// Make sure the perimeter is calculated
+				group->objects[svgi].calculateApproximatePerimeter();
+			}
 		}
 
 		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D)
@@ -784,6 +861,13 @@ namespace MathAnim
 
 			nvgResetTransform(vg);
 		}
+
+		static void transformPoint(Vec3* point, const Vec3& offset, const Vec3& viewboxPos, const Vec3& viewboxSize)
+		{
+			*point = ((*point + offset) - viewboxPos);
+			point->x /= viewboxSize.x;
+			point->y /= viewboxSize.y;
+		}
 	}
 
 	// ----------------- SvgObject functions -----------------
@@ -991,6 +1075,55 @@ namespace MathAnim
 
 		numContours = 0;
 		approximatePerimeter = 0.0f;
+	}
+
+	void SvgGroup::render(NVGcontext* vg, const AnimObject* parent) const
+	{
+		renderCreateAnimation(vg, 1.01f, parent);
+	}
+
+	void SvgGroup::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse) const
+	{
+		float numberObjectsToDraw = t * (float)numObjects;
+		constexpr float numObjectsToLag = 2.0f;
+		float numObjectsDrawn = 0.0f;
+		for (int i = 0; i < numObjects; i++)
+		{
+			const SvgObject& obj = objects[i];
+
+			float denominator = i == numObjects - 1 ? 1.0f : numObjectsToLag;
+			float percentOfLetterToDraw = (numberObjectsToDraw - numObjectsDrawn) / denominator;
+			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, reverse);
+			numObjectsDrawn += 1.0f;
+
+			if (numObjectsDrawn >= numberObjectsToDraw)
+			{
+				break;
+			}
+		}
+	}
+
+	void SvgGroup::free()
+	{
+		for (int i = 0; i < numObjects; i++)
+		{
+			objects[i].free();
+		}
+
+		if (objects)
+		{
+			g_memory_free(objects);
+		}
+
+		if (objectOffsets)
+		{
+			g_memory_free(objectOffsets);
+		}
+
+		numObjects = 0;
+		objectOffsets = nullptr;
+		objects = nullptr;
+		viewbox = Vec4{ 0, 0, 0, 0 };
 	}
 
 	// ------------------- Svg Object Internal functions -------------------

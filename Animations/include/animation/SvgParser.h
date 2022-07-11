@@ -5,12 +5,13 @@
 namespace MathAnim
 {
 	struct SvgObject;
+	struct SvgGroup;
 
 	namespace SvgParser
 	{
-		SvgObject* parseSvgDoc(const char* filepath);
+		SvgGroup* parseSvgDoc(const char* filepath);
 
-		SvgObject* parseSvgPath(const char* pathText, size_t pathTextLength, const Vec4& viewBox);
+		SvgObject parseSvgPath(const char* pathText, size_t pathTextLength);
 	}
 }
 

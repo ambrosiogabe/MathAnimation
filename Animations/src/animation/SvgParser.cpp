@@ -59,6 +59,7 @@ namespace MathAnim
 		static bool parseHzNumberList(std::vector<float>& list, ParserInfo& parserInfo);
 		static bool parseVtNumberList(std::vector<float>& list, ParserInfo& parserInfo);
 		static bool parseArcParamsList(std::vector<ArcParams>& list, ParserInfo& parserInfo);
+		static bool parseViewbox(Vec4* out, const char* viewboxStr);
 		static Token parseNextToken(ParserInfo& parserInfo);
 		static bool parseNumber(ParserInfo& parserInfo, float* out);
 		static Token consume(TokenType expected, ParserInfo& parserInfo);
@@ -70,7 +71,7 @@ namespace MathAnim
 		static inline bool isAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
 		static inline bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\0'; }
 
-		SvgObject* parseSvgDoc(const char* filepath)
+		SvgGroup* parseSvgDoc(const char* filepath)
 		{
 			XMLDocument doc;
 			doc.LoadFile(filepath);
@@ -91,49 +92,133 @@ namespace MathAnim
 			const char* version = versionAttribute->Value();
 			if (std::strcmp(version, "1.1") != 0)
 			{
-				g_logger_error("Only support for SVG version 1.1 right now.");
+				g_logger_error("Only support for SVG version 1.1 right now. Doc '%s' had version '%s'", filepath, version);
 				return nullptr;
 			}
 
-			const XMLAttribute* widthAttribute = svgElement->FindAttribute("width");
-			if (!widthAttribute)
+			// TODO: Do these even matter if we always get a viewbox?
+			// TODO: Is there ever a case when we don't get a viewbox??
+			//const XMLAttribute* widthAttribute = svgElement->FindAttribute("width");
+			//if (!widthAttribute)
+			//{
+			//	g_logger_error("Unknown svg width. No width attribute provided for '%s'.", filepath);
+			//	return nullptr;
+			//}
+			//float overallWidth = (float)atof(widthAttribute->Value());
+
+			//const XMLAttribute* heightAttribute = svgElement->FindAttribute("height");
+			//if (!heightAttribute)
+			//{
+			//	g_logger_error("Unknown svg height. No height attribute provided for '%s'.", filepath);
+			//	return nullptr;
+			//}
+			//float overallHeight = (float)atof(heightAttribute->Value());
+
+			const XMLAttribute* viewboxAttribute = svgElement->FindAttribute("viewBox");
+			if (!viewboxAttribute)
 			{
-				g_logger_error("Unknown svg width. No width attribute provided for '%s'.", filepath);
+				g_logger_error("SVG '%s' has no viewBox attribute.", filepath);
 				return nullptr;
 			}
-			float overallWidth = (float)atof(widthAttribute->Value());
 
-			const XMLAttribute* heightAttribute = svgElement->FindAttribute("height");
-			if (!heightAttribute)
+			Vec4 viewbox;
+			if (!parseViewbox(&viewbox, viewboxAttribute->Value()))
 			{
-				g_logger_error("Unknown svg height. No height attribute provided for '%s'.", filepath);
+				g_logger_error("Failed to parse viewBox attribute for SVG '%s'.", filepath);
 				return nullptr;
 			}
-			float overallHeight = (float)atof(heightAttribute->Value());
-
-			//SvgObject* object = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-			//*object = Svg::createDefault();
 
 			XMLElement* defsElement = svgElement->FirstChildElement("defs");
-			if (defsElement)
+			if (defsElement == nullptr)
 			{
-				XMLElement* pathElement = defsElement->FirstChildElement("path");
-				const XMLAttribute* pathAttribute = pathElement->FindAttribute("d");
-				if (pathAttribute)
+				g_logger_warning("SVG doc '%s' had no <defs> block.", filepath);
+				return nullptr;
+			}
+
+			XMLElement* groupElement = svgElement->FirstChildElement("g");
+			if (!groupElement)
+			{
+				g_logger_warning("SVG doc '%s' has no <g> block.", filepath);
+				return nullptr;
+			}
+
+			std::unordered_map<std::string, SvgObject> objIds;
+
+			{
+				XMLElement* childEl = defsElement->FirstChildElement();
+				// Loop through all the definitions and save the svg objects
+				while (childEl != nullptr)
 				{
-					size_t textLength = std::strlen(pathAttribute->Value());
-					Vec4 viewBox = Vec4{ 0, 0, overallWidth, overallHeight };
-					return parseSvgPath(pathAttribute->Value(), textLength, viewBox);
+					const XMLAttribute* pathAttribute = childEl->FindAttribute("d");
+					const XMLAttribute* id = childEl->FindAttribute("id");
+					if (pathAttribute == nullptr) g_logger_warning("Child element '%s' had no path attribute.", childEl->Name());
+					if (id == nullptr) g_logger_warning("Child element '%s' had no id attribute.", childEl->Name());
+
+					if (pathAttribute && id)
+					{
+						size_t textLength = std::strlen(pathAttribute->Value());
+						SvgObject obj = parseSvgPath(pathAttribute->Value(), textLength);
+						std::string idStr = std::string(id->Value());
+						auto iter = objIds.find(idStr);
+						g_logger_assert(iter == objIds.end(), "Tried to insert duplicate ID '%s' in SVG object map", idStr.c_str());
+						objIds[idStr] = obj;
+					}
+
+					childEl = childEl->NextSiblingElement();
 				}
 			}
 
-			return nullptr;
+			// Create a group using the svg objects and the viewbox attribute
+			SvgGroup* group = (SvgGroup*)g_memory_allocate(sizeof(SvgGroup));
+			*group = Svg::createDefaultGroup();
+			Svg::beginSvgGroup(group, viewbox);
+
+			{
+				XMLElement* childEl = groupElement->FirstChildElement();
+				while (childEl != nullptr)
+				{
+					const XMLAttribute* xAttr = childEl->FindAttribute("x");
+					const XMLAttribute* yAttr = childEl->FindAttribute("y");
+					const XMLAttribute* linkAttr = childEl->FindAttribute("xlink:href");
+
+					if (!xAttr) g_logger_warning("Child element '%s' had no x attribute.", childEl->Name());
+					if (!yAttr) g_logger_warning("Child element '%s' had no y attribute.", childEl->Name());
+					if (!linkAttr) g_logger_warning("Child element '%s' had no xlink:href attribute.", childEl->Name());
+
+					if (xAttr && yAttr && linkAttr)
+					{
+						float x = (float)atof(xAttr->Value());
+						float y = (float)atof(yAttr->Value());
+						const char* linkText = linkAttr->Value();
+						if (linkText[0] != '#')
+						{
+							g_logger_warning("Child element '%s' link attribute '%s' did not begin with '#'.", childEl->Name(), linkText);
+							continue;
+						}
+
+						std::string id = std::string(linkText + 1);
+						auto iter = objIds.find(id);
+						if (iter == objIds.end())
+						{
+							g_logger_warning("Could not find link to svg path '%s' for child element '%s'", id.c_str(), childEl->Name());
+							continue;
+						}
+
+						Svg::pushSvgToGroup(group, iter->second, Vec3{ x, y, 0.0f });
+					}
+
+					childEl = childEl->NextSiblingElement();
+				}
+			}
+
+			Svg::endSvgGroup(group);
+
+			return group;
 		}
 
-		SvgObject* parseSvgPath(const char* pathText, size_t pathTextLength, const Vec4& viewBox)
+		SvgObject parseSvgPath(const char* pathText, size_t pathTextLength)
 		{
-			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-			*res = Svg::createDefault();
+			SvgObject res = Svg::createDefault();
 			if (pathTextLength <= 0)
 			{
 				return res;
@@ -147,14 +232,11 @@ namespace MathAnim
 			Token token = parseNextToken(parserInfo);
 			while (token.type != TokenType::EndOfFile)
 			{
-				interpretCommand(token, parserInfo, res);
+				interpretCommand(token, parserInfo, &res);
 				token = parseNextToken(parserInfo);
 			}
 
-			// Normalize the SVG curve
-			res->normalize();
-
-			res->calculateApproximatePerimeter();
+			res.calculateApproximatePerimeter();
 
 			return res;
 		}
@@ -278,7 +360,7 @@ namespace MathAnim
 					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
 					return;
 				}
-				
+
 				Vec3 c0 = Vec3{ vec2List[0].x, vec2List[0].y, 0.0f };
 				Vec3 c1 = Vec3{ vec2List[1].x, vec2List[1].y, 0.0f };
 				Vec3 p2 = Vec3{ vec2List[2].x, vec2List[2].y, 0.0f };
@@ -379,7 +461,7 @@ namespace MathAnim
 					return;
 				}
 
-				
+
 			}
 			break;
 			default:
@@ -466,8 +548,8 @@ namespace MathAnim
 				Token dstX = consume(TokenType::Number, parserInfo);
 				Token dstY = consume(TokenType::Number, parserInfo);
 
-				if (rx.type == TokenType::Number && ry.type == TokenType::Number && 
-					xAxisRotation.type == TokenType::Number && 
+				if (rx.type == TokenType::Number && ry.type == TokenType::Number &&
+					xAxisRotation.type == TokenType::Number &&
 					largeArcFlag.type == TokenType::Number && sweepFlag.type == TokenType::Number &&
 					dstX.type == TokenType::Number && dstY.type == TokenType::Number)
 				{
@@ -488,6 +570,31 @@ namespace MathAnim
 				}
 			} while (isNumberPart(peek(parserInfo)));
 
+			return true;
+		}
+
+		static bool parseViewbox(Vec4* out, const char* viewboxStr)
+		{
+			ParserInfo pi;
+			pi.cursor = 0;
+			pi.text = viewboxStr;
+			pi.textLength = std::strlen(viewboxStr);
+
+			Token x = parseNextToken(pi);
+			Token y = parseNextToken(pi);
+			Token w = parseNextToken(pi);
+			Token h = parseNextToken(pi);
+
+			if (x.type != TokenType::Number || y.type != TokenType::Number || w.type != TokenType::Number || h.type != TokenType::Number)
+			{
+				g_logger_error("Malformed viewBox '%s'", viewboxStr);
+				return false;
+			}
+
+			out->values[0] = x.as.number;
+			out->values[1] = y.as.number;
+			out->values[2] = w.as.number;
+			out->values[3] = h.as.number;
 			return true;
 		}
 

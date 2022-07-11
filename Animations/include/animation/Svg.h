@@ -59,6 +59,7 @@ namespace MathAnim
 
 	struct SvgObject
 	{
+		// TODO: Have a Path struct which contains SubPath structs which are the holes...(possibly)
 		Contour* contours;
 		int numContours;
 		float approximatePerimeter;
@@ -71,11 +72,28 @@ namespace MathAnim
 		void free();
 	};
 
+	struct SvgGroup
+	{
+		SvgObject* objects;
+		Vec3* objectOffsets;
+		int numObjects;
+		Vec4 viewbox;
+
+		void render(NVGcontext* vg, const AnimObject* parent) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse = false) const;
+		void free();
+	};
+
 	namespace Svg
 	{
 		SvgObject createDefault();
+		SvgGroup createDefaultGroup();
 		
 		void init(OrthoCamera& camera);
+
+		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox);
+		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const Vec3& offset);
+		void endSvgGroup(SvgGroup* group);
 
 		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D = false);
 		void closeContour(SvgObject* object, bool lineToEndpoint = false);

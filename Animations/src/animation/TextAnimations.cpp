@@ -53,7 +53,7 @@ namespace MathAnim
 		}
 
 		std::string textStr = std::string(text);
-		glm::vec4 cursorPos = glm::vec4(parent->position.x, parent->position.y, 0.0f, 1.0f);
+		glm::vec4 cursorPos = glm::vec4(parent->position.x, parent->position.y, parent->position.z, 1.0f);
 		int numNonWhitespaceCharacters = 0;
 		for (int i = 0; i < textStr.length(); i++)
 		{
