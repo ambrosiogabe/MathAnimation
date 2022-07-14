@@ -13,9 +13,6 @@
 #include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui_internal.h>
-#include <ImGuizmo.h>
-#include <ImSequencer.h>
-#include <ImCurveEdit.h>
 
 #include <nfd.h>
 
@@ -40,6 +37,7 @@ namespace MathAnim
 		static void handleAnimObjectInspector(int animObjectId);
 		static void handleAnimationInspector(int animationId);
 		static void handleTextObjectInspector(AnimObject* object);
+		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
 		static void handleRotateToAnimationInspector(Animation* animation);
 		static void handleAnimateStrokeColorAnimationInspector(Animation* animation);
@@ -48,6 +46,7 @@ namespace MathAnim
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
 		static void handleCubeInspector(AnimObject* object);
+		static void handleAxisInspector(AnimObject* object);
 
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate = INT32_MAX);
 		static void addAnimObject(const AnimObject& object);
@@ -438,6 +437,8 @@ namespace MathAnim
 
 			ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x);
 			ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
+			float slowDragSpeed = 0.02f;
+			ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
 
 			ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart);
 			float strokeColor[4] = {
@@ -474,7 +475,7 @@ namespace MathAnim
 				handleTextObjectInspector(animObject);
 				break;
 			case AnimObjectTypeV1::LaTexObject:
-				g_logger_assert(false, "TODO: Implement me.");
+				handleLaTexObjectInspector(animObject);
 				break;
 			case AnimObjectTypeV1::Square:
 				handleSquareInspector(animObject);
@@ -484,6 +485,9 @@ namespace MathAnim
 				break;
 			case AnimObjectTypeV1::Cube:
 				handleCubeInspector(animObject);
+				break;
+			case AnimObjectTypeV1::Axis:
+				handleAxisInspector(animObject);
 				break;
 			default:
 				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
@@ -552,7 +556,7 @@ namespace MathAnim
 			int fontIndex = -1;
 			if (object->as.textObject.font != nullptr)
 			{
-				std::filesystem::path fontFilepath = object->as.textObject.font->vgFontFace;
+				std::filesystem::path fontFilepath = object->as.textObject.font->fontFilepath;
 				fontFilepath.make_preferred();
 				int index = 0;
 				for (const auto& font : fonts)
@@ -576,7 +580,7 @@ namespace MathAnim
 			{
 				if (object->as.textObject.font != nullptr)
 				{
-					g_logger_warning("Could not find font %s", object->as.textObject.font->vgFontFace.c_str());
+					g_logger_warning("Could not find font %s", object->as.textObject.font->fontFilepath.c_str());
 				}
 			}
 
@@ -587,6 +591,10 @@ namespace MathAnim
 					const bool is_selected = (fontIndex == n);
 					if (ImGui::Selectable(fonts[n].c_str(), is_selected))
 					{
+						if (object->as.textObject.font)
+						{
+							Fonts::unloadFont(object->as.textObject.font);
+						}
 						object->as.textObject.font = Fonts::loadFont(fonts[n].c_str(), Application::getNvgContext());
 					}
 
@@ -617,6 +625,48 @@ namespace MathAnim
 				object->as.textObject.textLength = (int32_t)newLength;
 				g_memory_copyMem(object->as.textObject.text, scratch, newLength * sizeof(char));
 				object->as.textObject.text[newLength] = '\0';
+			}
+		}
+
+		static void handleLaTexObjectInspector(AnimObject* object)
+		{
+			ImGui::DragFloat(": Font Size (Px)", &object->as.laTexObject.fontSizePixels);
+
+			constexpr int scratchLength = 2048;
+			char scratch[scratchLength] = {};
+			if (object->as.laTexObject.textLength >= scratchLength)
+			{
+				g_logger_error("Text object has more than %d characters. Tell Gabe to increase scratch length for LaTex objects.", scratchLength);
+				return;
+			}
+			g_memory_copyMem(scratch, object->as.laTexObject.text, object->as.laTexObject.textLength * sizeof(char));
+			scratch[object->as.laTexObject.textLength] = '\0';
+			if (ImGui::InputTextMultiline(": LaTeX", scratch, scratchLength * sizeof(char)))
+			{
+				size_t newLength = std::strlen(scratch);
+				object->as.laTexObject.text = (char*)g_memory_realloc(object->as.laTexObject.text, sizeof(char) * (newLength + 1));
+				object->as.laTexObject.textLength = (int32_t)newLength;
+				g_memory_copyMem(object->as.laTexObject.text, scratch, newLength * sizeof(char));
+				object->as.laTexObject.text[newLength] = '\0';
+			}
+
+			ImGui::Checkbox(": Is Equation", &object->as.laTexObject.isEquation);
+
+			// Disable the generate button if it's currently parsing some SVG
+			bool disableButton = object->as.laTexObject.isParsingLaTex;
+			if (disableButton)
+			{
+				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+			}
+			if (ImGui::Button("Generate LaTeX"))
+			{
+				object->as.laTexObject.parseLaTex();
+			}
+			if (disableButton)
+			{
+				ImGui::PopItemFlag();
+				ImGui::PopStyleVar();
 			}
 		}
 
@@ -663,12 +713,12 @@ namespace MathAnim
 				animation->as.modifyU8Vec4.target.a = (uint8)(strokeColor[3] * 255.0f);
 			}
 		}
-		
+
 		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation)
 		{
 			ImGui::DragFloat2(": Camera Target Position", &animation->as.modifyVec2.target.x);
 		}
-		
+
 		static void handleSquareInspector(AnimObject* object)
 		{
 			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength))
@@ -721,6 +771,94 @@ namespace MathAnim
 				object->_svgObjectStart = nullptr;
 
 				object->as.cube.init(object);
+			}
+		}
+
+		static void handleAxisInspector(AnimObject* object)
+		{
+			bool reInitObject = false;
+
+			reInitObject = ImGui::DragFloat3(": Axes Length", object->as.axis.axesLength.values) || reInitObject;
+
+			int xVals[2] = { object->as.axis.xRange.min, object->as.axis.xRange.max };
+			if (ImGui::DragInt2(": X-Range", xVals, 1.0f))
+			{
+				// Make sure it's in strictly increasing order
+				if (xVals[0] < xVals[1])
+				{
+					object->as.axis.xRange.min = xVals[0];
+					object->as.axis.xRange.max = xVals[1];
+					reInitObject = true;
+				}
+			}
+
+			int yVals[2] = { object->as.axis.yRange.min, object->as.axis.yRange.max };
+			if (ImGui::DragInt2(": Y-Range", yVals, 1.0f))
+			{
+				// Make sure it's in strictly increasing order
+				if (yVals[0] < yVals[1])
+				{
+					object->as.axis.yRange.min = yVals[0];
+					object->as.axis.yRange.max = yVals[1];
+					reInitObject = true;
+				}
+			}
+
+			int zVals[2] = { object->as.axis.zRange.min, object->as.axis.zRange.max };
+			if (ImGui::DragInt2(": Z-Range", zVals, 1.0f))
+			{
+				// Make sure it's in strictly increasing order
+				if (zVals[0] < zVals[1])
+				{
+					object->as.axis.zRange.min = zVals[0];
+					object->as.axis.zRange.max = zVals[1];
+					reInitObject = true;
+				}
+			}
+
+			reInitObject = ImGui::DragFloat(": X-Increment", &object->as.axis.xStep) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Y-Increment", &object->as.axis.yStep) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Z-Increment", &object->as.axis.zStep) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Tick Width", &object->as.axis.tickWidth) || reInitObject;
+			reInitObject = ImGui::Checkbox(": Draw Labels", &object->as.axis.drawNumbers) || reInitObject;
+			if (ImGui::Checkbox(": Is 3D", &object->as.axis.is3D))
+			{
+				// Reset to default values if we toggle 3D on or off
+				if (object->as.axis.is3D)
+				{
+					object->_positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
+					object->as.axis.axesLength = Vec3{ 8.0f, 5.0f, 8.0f };
+					object->as.axis.xRange = { 0, 8 };
+					object->as.axis.yRange = { 0, 5 };
+					object->as.axis.zRange = { 0, 8 };
+					object->as.axis.tickWidth = 0.2f;
+					object->_strokeWidthStart = 0.05f;
+				}
+				else
+				{
+					glm::vec2 outputSize = Application::getOutputSize();
+					object->_positionStart = Vec3{ outputSize.x / 2.0f, outputSize.y / 2.0f, 0.0f };
+					object->as.axis.axesLength = Vec3{ 3'000.0f, 1'700.0f, 1.0f };
+					object->as.axis.xRange = { 0, 18 };
+					object->as.axis.yRange = { 0, 10 };
+					object->as.axis.zRange = { 0, 10 };
+					object->as.axis.tickWidth = 75.0f;
+					object->_strokeWidthStart = 7.5f;
+				}
+				reInitObject = true;
+			}
+
+			if (reInitObject)
+			{
+				object->svgObject->free();
+				g_memory_free(object->svgObject);
+				object->svgObject = nullptr;
+
+				object->_svgObjectStart->free();
+				g_memory_free(object->_svgObjectStart);
+				object->_svgObjectStart = nullptr;
+
+				object->as.axis.init(object);
 			}
 		}
 

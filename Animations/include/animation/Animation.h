@@ -5,6 +5,7 @@
 
 #include "animation/TextAnimations.h"
 #include "animation/Shapes.h"
+#include "animation/Axis.h"
 #include "renderer/OrthoCamera.h"
 
 namespace MathAnim
@@ -25,6 +26,7 @@ namespace MathAnim
 		Square,
 		Circle,
 		Cube,
+		Axis,
 		Length
 	};
 
@@ -108,10 +110,12 @@ namespace MathAnim
 		AnimObjectTypeV1 objectType;
 		Vec3 position;
 		Vec3 rotation;
+		Vec3 scale;
 		// Rotation is stored by rotX, rotY, rotZ order of rotations
 		Vec3 _rotationStart;
 		// This is the position before any animations are applied
 		Vec3 _positionStart;
+		Vec3 _scaleStart;
 		int32 id;
 		int32 frameStart;
 		int32 duration;
@@ -134,6 +138,7 @@ namespace MathAnim
 			Square square;
 			Circle circle;
 			Cube cube;
+			Axis axis;
 		} as;
 
 		void render(NVGcontext* vg) const;

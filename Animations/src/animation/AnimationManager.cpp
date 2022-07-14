@@ -4,6 +4,7 @@
 #include "renderer/Renderer.h"
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
+#include "renderer/OrthoCamera.h"
 
 namespace MathAnim
 {
@@ -20,6 +21,7 @@ namespace MathAnim
 			"Square",
 			"Circle",
 			"Cube",
+			"Axis",
 			"Length"
 		};
 
@@ -43,10 +45,17 @@ namespace MathAnim
 		// NOTE(gabe): So this is due to my whacky architecture, but at the beginning of rendering
 		// each frame we actually need to reset the camera position to its start position. I really
 		// need to figure out a better architecture for this haha
-		static Vec2 cameraStartPosition = {};
+		static Vec2 sceneCamera2DStartPos;
+		static OrthoCamera* sceneCamera2D;
 
 		// Internal Functions
 		static void deserializeAnimationManagerExV1(RawMemory& memory);
+
+		void init(OrthoCamera& camera)
+		{
+			sceneCamera2D = &camera;
+			sceneCamera2DStartPos = sceneCamera2D->position;
+		}
 
 		void addAnimObject(const AnimObject& object)
 		{
@@ -300,7 +309,7 @@ namespace MathAnim
 
 		void render(NVGcontext* vg, int frame, Framebuffer& framebuffer)
 		{
-			Renderer::getMutableOrthoCamera()->position = cameraStartPosition;
+			sceneCamera2D->position = sceneCamera2DStartPos;
 
 			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
 			{
@@ -312,10 +321,17 @@ namespace MathAnim
 				}
 				objectIter->position = objectIter->_positionStart;
 				objectIter->rotation = objectIter->_rotationStart;
+				objectIter->scale = objectIter->_scaleStart;
 				objectIter->fillColor = objectIter->_fillColorStart;
 				objectIter->strokeColor = objectIter->_strokeColorStart;
 				objectIter->strokeWidth = objectIter->_strokeWidthStart;
 				objectIter->isAnimating = false;
+				
+				// Update any updateable objects
+				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
+				{
+					objectIter->as.laTexObject.update();
+				}
 
 				for (auto animIter = objectIter->animations.begin(); animIter != objectIter->animations.end(); animIter++)
 				{

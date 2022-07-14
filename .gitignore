@@ -21,3 +21,5 @@ msbuild-build.bat
 run.bat
 myScene.bin
 imgui.ini
+
+latex/**

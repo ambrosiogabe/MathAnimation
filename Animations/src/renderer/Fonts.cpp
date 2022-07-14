@@ -1,9 +1,9 @@
 #include "renderer/Fonts.h"
+#include "renderer/Renderer.h"
+#include "core/Application.h"
 
-#include "nanovg.h"
+#include <nanovg.h>
 
-#include <string>
-#include <iostream>
 #include <freetype/ftglyph.h>
 #include <freetype/freetype.h>
 #include <freetype/ftoutln.h>
@@ -11,7 +11,19 @@
 
 namespace MathAnim
 {
-	CharRange CharRange::Ascii = { 32, 127 };
+	CharRange CharRange::Ascii = { 32, 126 };
+
+	struct SharedFont
+	{
+		Font font;
+		int referenceCount;
+	};
+
+	struct SharedSizedFont
+	{
+		SizedFont font;
+		int referenceCount;
+	};
 
 	const GlyphOutline& Font::getGlyphInfo(uint32 glyphIndex) const
 	{
@@ -21,7 +33,7 @@ namespace MathAnim
 			return iter->second;
 		}
 
-		g_logger_error("Glyph index '%d' does not exist in font '%s'.", glyphIndex, vgFontFace.c_str());
+		g_logger_error("Glyph index '%d' does not exist in font '%s'.", glyphIndex, fontFilepath.c_str());
 		static GlyphOutline defaultGlyph = {};
 		return defaultGlyph;
 	}
@@ -33,6 +45,11 @@ namespace MathAnim
 		FT_UInt leftGlyph = FT_Get_Char_Index(fontFace, leftCodepoint);
 		FT_UInt rightGlyph = FT_Get_Char_Index(fontFace, rightCodepoint);
 		int error = FT_Get_Kerning(fontFace, leftGlyph, rightGlyph, FT_Kerning_Mode::FT_KERNING_DEFAULT, &kerning);
+		if (error)
+		{
+			return 0.0f;
+		}
+
 		return (float)kerning.x / unitsPerEM;
 	}
 
@@ -43,7 +60,7 @@ namespace MathAnim
 		{
 			const GlyphOutline& outline = getGlyphInfo((uint32)string[i]);
 			cursor.x += outline.advanceX;
-			
+
 			if (string[i] == '\n')
 			{
 				cursor.y += lineHeight;
@@ -84,21 +101,52 @@ namespace MathAnim
 		descentY = 0.0f;
 	}
 
+	const GlyphTexture& SizedFont::getGlyphTexture(uint32 codepoint) const
+	{
+		if (this->glyphTextureCoords.find(codepoint) == this->glyphTextureCoords.end())
+		{
+			g_logger_warning("Trying to access glyph texture for unloaded glyph: '%c' in font '%s'.", codepoint, this->unsizedFont->fontFilepath.c_str());
+			static GlyphTexture nullTexture = {
+				0,
+				Vec2{0, 0},
+				Vec2{0, 0}
+			};
+			return nullTexture;
+		}
+
+		return this->glyphTextureCoords.at(codepoint);
+	}
+
 	namespace Fonts
 	{
 		static bool initialized = false;
 		static const int hzPadding = 2;
 		static const int vtPadding = 2;
 		static FT_Library library;
-		static std::unordered_map<std::string, Font> loadedFonts;
+		static std::unordered_map<std::string, SharedFont> loadedFonts;
+		static std::unordered_map<std::string, SharedSizedFont> loadedSizedFonts;
 
 		static void generateDefaultCharset(Font& font, CharRange defaultCharset);
 		static int getOutline(FT_Glyph glyph, FT_OutlineGlyph* Outg);
 		static GlyphOutline createOutlineInternal(FT_OutlineGlyph outlineGlyph, FT_Face face);
+		static std::string getSizedFontKey(const char* filepath, int fontSizePixels);
+		static std::string getUnsizedFontKey(const char* filepath);
+
+		void init()
+		{
+			int error = FT_Init_FreeType(&library);
+			if (error)
+			{
+				g_logger_error("An error occurred during freetype initialization. Font rendering will not work.");
+			}
+
+			g_logger_info("Initialized freetype library.");
+			initialized = true;
+		}
 
 		int createOutline(Font* font, uint32 character, GlyphOutline* outlineResult)
 		{
-			g_logger_assert(font->fontFace != nullptr, "Cannot create outline for uninitialized font '%s'.", font->vgFontFace.c_str());
+			g_logger_assert(font->fontFace != nullptr, "Cannot create outline for uninitialized font '%s'.", font->fontFilepath.c_str());
 
 			FT_Face fontFace = font->fontFace;
 			FT_UInt glyphIndex = FT_Get_Char_Index(fontFace, character);
@@ -133,27 +181,187 @@ namespace MathAnim
 			return 0;
 		}
 
-		void init()
+		SizedFont* loadSizedFont(const char* filepath, int fontSizePixels, CharRange defaultCharset)
 		{
-			int error = FT_Init_FreeType(&library);
-			if (error)
+			// Check if the sized font is already loaded
+			std::string sizedFontKey = getSizedFontKey(filepath, fontSizePixels);
 			{
-				g_logger_error("An error occurred during freetype initialization. Font rendering will not work.");
+				auto iter = loadedSizedFonts.find(sizedFontKey);
+				if (iter != loadedSizedFonts.end())
+				{
+					// Increment reference count and return
+					iter->second.referenceCount++;
+					return &iter->second.font;
+				}
 			}
 
-			g_logger_info("Initialized freetype library.");
-			initialized = true;
+			g_logger_info("Caching sized font '%s'.", sizedFontKey.c_str());
+
+			SizedFont res;
+			res.unsizedFont = loadFont(filepath, Application::getNvgContext(), defaultCharset);
+			res.fontSizePixels = fontSizePixels;
+
+			{
+				FT_Error error = FT_Set_Pixel_Sizes(res.unsizedFont->fontFace, fontSizePixels, fontSizePixels);
+				if (error)
+				{
+					g_logger_error("Freetype failed to set the pixel size for font '%s'.", filepath);
+					unloadFont(res.unsizedFont);
+					return nullptr;
+				}
+			}
+			
+			constexpr uint32 textureWidth = 2048;
+			constexpr uint32 textureHeight = 2048;
+			res.texture = TextureBuilder()
+				.setFormat(ByteFormat::R8_UI)
+				.setWidth(textureWidth)
+				.setHeight(textureHeight)
+				.setMagFilter(FilterMode::Linear)
+				.setMinFilter(FilterMode::Linear)
+				.setWrapS(WrapMode::None)
+				.setWrapT(WrapMode::None)
+				.generate();
+
+			// Generate the texture and upload it to the GPU
+			uint8* textureMemory = (uint8*)g_memory_allocate(sizeof(uint8) * textureWidth * textureHeight);
+			g_memory_zeroMem(textureMemory, sizeof(uint8) * textureWidth * textureHeight);
+			uint32 cursorX = 0;
+			uint32 cursorY = 0;
+			uint32 lineHeight = 0;
+			for (uint32 codepoint = defaultCharset.firstCharCode; codepoint <= defaultCharset.lastCharCode; codepoint++)
+			{
+				FT_UInt glyphIndex = FT_Get_Char_Index(res.unsizedFont->fontFace, codepoint);
+				if (glyphIndex == 0)
+				{
+					g_logger_warning("Character code '%c' not found. Missing glyph.", codepoint);
+					continue;
+				}
+
+				// Load the glyph
+				FT_Error error = FT_Load_Glyph(res.unsizedFont->fontFace, glyphIndex, FT_LOAD_RENDER);
+				if (error)
+				{
+					g_logger_error("Freetype could not load glyph for character code '%c'.", codepoint);
+				}
+
+				FT_Bitmap& bitmap = res.unsizedFont->fontFace->glyph->bitmap;
+				if (cursorX + bitmap.width >= textureWidth)
+				{
+					cursorY += lineHeight;
+					lineHeight = 0;
+					cursorX = 0;
+				}
+				lineHeight = glm::max(bitmap.rows, lineHeight);
+
+				if (cursorY + bitmap.rows >= textureHeight)
+				{
+					g_logger_error("Ran out of texture room for font '%s'", filepath);
+					continue;
+				}
+
+				// Copy every row into our bitmap
+				for (int y = 0; y < bitmap.rows; y++)
+				{
+					uint8* dst = textureMemory + cursorX + ((cursorY + y) * textureWidth);
+					uint8* src = bitmap.buffer + (y * bitmap.width);
+					g_memory_copyMem(dst, src, sizeof(uint8) * bitmap.width);
+				}
+
+				// Add normalized glyph position
+				res.glyphTextureCoords[codepoint].lruCacheId = 0;
+				res.glyphTextureCoords[codepoint].uvMin = Vec2{
+					(float)cursorX / (float)textureWidth,
+					(float)cursorY / (float)textureHeight
+				};
+				res.glyphTextureCoords[codepoint].uvMax = Vec2{
+					(float)cursorX / (float)textureWidth + (float)bitmap.width / (float)textureWidth,
+					(float)cursorY / (float)textureHeight + (float)bitmap.rows / (float)textureHeight
+				};
+
+				// Increment our write cursor
+				cursorX += bitmap.width;
+			}
+
+			// Upload texture memory to the GPU
+			res.texture.uploadSubImage(0, 0, textureWidth, textureHeight, textureMemory);
+
+			g_memory_free(textureMemory);
+
+			// All done now cache the result and return it
+			loadedSizedFonts[sizedFontKey].font = res;
+			loadedSizedFonts[sizedFontKey].referenceCount = 1;
+			
+			return &loadedSizedFonts[sizedFontKey].font;
+		}
+
+		void unloadSizedFont(SizedFont* sizedFont)
+		{
+			if (!sizedFont)
+			{
+				g_logger_error("Tried to unload sized font that was nullptr.");
+				return;
+			}
+
+			if (!sizedFont->unsizedFont)
+			{
+				g_logger_error("Tried to unload a sized font that had an unsized font that was nullptr.");
+				return;
+			}
+
+			std::string fontKey = getSizedFontKey(sizedFont->unsizedFont->fontFilepath.c_str(), sizedFont->fontSizePixels);
+			auto iter = loadedSizedFonts.find(fontKey);
+			if (iter == loadedSizedFonts.end())
+			{
+				g_logger_warning("Tried to unload sized font '%s' that was not cached.", fontKey.c_str());
+				return;
+			}
+
+			SizedFont* font = &iter->second.font;
+			iter->second.referenceCount--;
+			if (iter->second.referenceCount <= 0)
+			{
+				g_logger_info("Unloading sized font '%s' from cache.", fontKey.c_str());
+			}
+
+			unloadFont(font->unsizedFont);
+			if (iter->second.referenceCount <= 0)
+			{
+				// Really unload the font now
+				font->texture.destroy();
+				loadedSizedFonts.erase(iter);
+			}
+		}
+
+		void unloadSizedFont(const char* filepath, int fontSizePixels)
+		{
+			std::string fontKey = getSizedFontKey(filepath, fontSizePixels);
+			auto iter = loadedSizedFonts.find(fontKey);
+			if (iter == loadedSizedFonts.end())
+			{
+				g_logger_warning("Tried to unload sized font that was not cached '%s'.", fontKey.c_str());
+				return;
+			}
+
+			SizedFont* font = &iter->second.font;
+			unloadSizedFont(font);
 		}
 
 		Font* loadFont(const char* filepath, NVGcontext* vg, CharRange defaultCharset)
 		{
 			g_logger_assert(initialized, "Font library must be initialized to load a font.");
 
-			std::string filepathStr = std::string(filepath);
-			if (loadedFonts.find(filepathStr) != loadedFonts.end())
+			std::string unsizedFontKey = getUnsizedFontKey(filepath);
 			{
-				return &loadedFonts[filepathStr];
+				auto iter = loadedFonts.find(unsizedFontKey);
+				if (iter != loadedFonts.end())
+				{
+					iter->second.referenceCount++;
+					return &iter->second.font;
+				}
 			}
+
+			g_logger_info("Caching unsized font '%s'.", unsizedFontKey.c_str());
 
 			// Load the new font into freetype.
 			FT_Face face;
@@ -171,7 +379,7 @@ namespace MathAnim
 
 			// Generate a texture for the font and initialize the font structure
 			Font font;
-			font.vgFontFace = filepathStr;
+			font.fontFilepath = filepath;
 			font.fontFace = face;
 			font.unitsPerEM = (float)face->units_per_EM;
 			font.lineHeight = (float)face->height / font.unitsPerEM;
@@ -179,26 +387,44 @@ namespace MathAnim
 			// TODO: Turn the preset characters into a parameter
 			generateDefaultCharset(font, defaultCharset);
 
-			int vgFontError = nvgCreateFont(vg, font.vgFontFace.c_str(), font.vgFontFace.c_str());
+			int vgFontError = nvgCreateFont(vg, font.fontFilepath.c_str(), font.fontFilepath.c_str());
 			if (vgFontError == -1)
 			{
-				g_logger_error("Failed to create vgFont for font '%s'.", filepathStr.c_str());
-				font.vgFontFace = "";
+				g_logger_error("Failed to create vgFont for font '%s'.", unsizedFontKey.c_str());
+				font.fontFilepath = "";
 			}
 
-			loadedFonts[filepathStr] = font;
+			loadedFonts[unsizedFontKey].font = font;
+			loadedFonts[unsizedFontKey].referenceCount = 1;
 
-			return &loadedFonts[filepathStr];
+			return &loadedFonts[unsizedFontKey].font;
 		}
 
 		void unloadFont(Font* font)
 		{
 			if (!font)
 			{
+				g_logger_warning("Tried to unload font that was nullptr.");
 				return;
 			}
 
-			std::string formattedPath = font->vgFontFace;
+			std::string unsizedFontKey = getUnsizedFontKey(font->fontFilepath.c_str());
+			auto fontIter = loadedFonts.find(unsizedFontKey);
+			if (fontIter == loadedFonts.end())
+			{
+				g_logger_error("Tried to unload font that was never cached '%s'", font->fontFilepath.c_str());
+				return;
+			}
+
+			fontIter->second.referenceCount--;
+			if (fontIter->second.referenceCount > 0)
+			{
+				return;
+			}
+
+			// If the reference count is <= 0 then really unload it
+			g_logger_info("Unloading font '%s' from cache.", unsizedFontKey.c_str());
+
 			for (std::pair<const uint32, GlyphOutline>& kv : font->glyphMap)
 			{
 				GlyphOutline& outline = kv.second;
@@ -207,25 +433,28 @@ namespace MathAnim
 
 			FT_Done_Face(font->fontFace);
 			font->fontFace = nullptr;
-
-			loadedFonts.erase(formattedPath);
+			loadedFonts.erase(fontIter);
 		}
 
 		void unloadFont(const char* filepath)
 		{
-			Font* font = getFont(filepath);
-			if (font)
+			std::string unsizedFontKey = getUnsizedFontKey(filepath);
+			auto iter = loadedFonts.find(unsizedFontKey);
+			if (iter == loadedFonts.end())
 			{
-				unloadFont(font);
+				g_logger_warning("Tried to load font that was never cached '%s'.", filepath);
+				return;
 			}
+			
+			unloadFont(&iter->second.font);
 		}
 
 		void unloadAllFonts()
 		{
+			// Delete all unsized fonts
 			for (auto iter = loadedFonts.begin(); iter != loadedFonts.end();)
 			{
-				Font& font = iter->second;
-				std::string formattedPath = font.vgFontFace;
+				Font& font = iter->second.font;
 				for (std::pair<const uint32, GlyphOutline>& kv : font.glyphMap)
 				{
 					GlyphOutline& outline = kv.second;
@@ -234,20 +463,19 @@ namespace MathAnim
 
 				FT_Done_Face(font.fontFace);
 				font.fontFace = nullptr;
+				iter->second.referenceCount = 0;
 
 				iter = loadedFonts.erase(iter);
 			}
-		}
 
-		Font* getFont(const char* filepath)
-		{
-			auto iter = loadedFonts.find(std::string(filepath));
-			if (iter != loadedFonts.end())
+			// Delete all sized fonts
+			for (auto iter = loadedSizedFonts.begin(); iter != loadedSizedFonts.end();)
 			{
-				return &iter->second;
+				SizedFont& font = iter->second.font;
+				font.texture.destroy();
+				iter->second.referenceCount = 0;
+				iter = loadedSizedFonts.erase(iter);
 			}
-
-			return nullptr;
 		}
 
 		static void generateDefaultCharset(Font& font, CharRange defaultCharset)
@@ -315,6 +543,8 @@ namespace MathAnim
 			res.bearingX = (float)glyphSlot->metrics.horiBearingX / upem;
 			res.bearingY = (float)glyphSlot->metrics.horiBearingY / upem;
 			res.descentY = descentY / upem;
+			res.glyphWidth = (float)glyphSlot->metrics.width / upem;
+			res.glyphHeight = (float)glyphSlot->metrics.height / upem;
 
 			// Iterate once to count the number of total vertices
 			{
@@ -431,6 +661,8 @@ namespace MathAnim
 						bool dropoutEnabled = bezierControlPoint && (flag & 0x4);
 						float pointx = ((float)(point->x - glyphLeft) / upem);
 						float pointy = ((float)(point->y + descentY) / upem);
+						// Flip the point y since the glyph is "upside down"
+						pointy = res.glyphHeight - pointy;
 						Vec2 position = Vec2{ pointx, pointy };
 
 						g_logger_assert(!thirdOrderControlPoint, "No Support.");
@@ -567,6 +799,52 @@ namespace MathAnim
 						vi++;
 					}
 				}
+			}
+
+			return res;
+		}
+
+		static std::string getSizedFontKey(const char* filepath, int fontSizePixels)
+		{
+			return getUnsizedFontKey(filepath) + "_Size_" + std::to_string(fontSizePixels);
+		}
+
+		static std::string getUnsizedFontKey(const char* filepath)
+		{
+			// Convert all path separators to '/'
+			uint8 staticBuffer[_MAX_PATH + 1];
+			int filepathSize = (int)std::strlen(filepath);
+
+			uint8* buffer = staticBuffer;
+			bool freeBuffer = false;
+			if (filepathSize >= _MAX_PATH)
+			{
+				buffer = (uint8*)g_memory_allocate(sizeof(char) * filepathSize + 1);
+				freeBuffer = true;
+			}
+
+			g_memory_copyMem(buffer, (void*)filepath, sizeof(char) * filepathSize);
+			buffer[filepathSize] = '\0';
+
+			for (int i = 0; i < filepathSize; i++)
+			{
+				// Switch all backslashes to forward slashes
+				if (buffer[i] == '\\')
+				{
+					buffer[i] = '/';
+				}
+				// Convert the filepath to lowercase
+				else if (buffer[i] >= 'A' && buffer[i] <= 'Z')
+				{
+					buffer[i] = (buffer[i] - 'A') + 'a';
+				}
+			}
+
+			std::string res = std::string((char*)buffer, filepathSize);
+
+			if (freeBuffer)
+			{
+				g_memory_free(buffer);
 			}
 
 			return res;

@@ -25,6 +25,14 @@ namespace MathAnim
 		switch (type)
 		{
 		case AnimTypeV1::Create:
+		{		
+			// TODO: This is getting messy and gross
+			if (getParent()->objectType == AnimObjectTypeV1::LaTexObject)
+			{
+				getParent()->as.laTexObject.renderCreateAnimation(vg, t, getParent(), false);
+				break;
+			}
+
 			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render create animation for SVG object that is nullptr.");
 			getParent()->svgObject->renderCreateAnimation(vg, t, getParent());
 			if (getParent()->svgObject->is3D)
@@ -35,10 +43,19 @@ namespace MathAnim
 					getMutableParent()->renderFadeInAnimation(vg, (t - 0.8f) / 0.2f);
 				}
 			}
-			break;
+		}
+		break;
 		case AnimTypeV1::UnCreate:
+		{
+			// TODO: This is getting messy and gross
+			if (getParent()->objectType == AnimObjectTypeV1::LaTexObject)
+			{
+				getParent()->as.laTexObject.renderCreateAnimation(vg, t, getParent(), true);
+				break;
+			}
+
 			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
-			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), true);
+			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), Vec3{0, 0, 0}, true);
 			if (getParent()->svgObject->is3D)
 			{
 				// Only fade out for t = [0.0-0.2]
@@ -47,7 +64,8 @@ namespace MathAnim
 					getMutableParent()->renderFadeOutAnimation(vg, t / 0.2f);
 				}
 			}
-			break;
+		}
+		break;
 		case AnimTypeV1::FadeIn:
 			getMutableParent()->renderFadeInAnimation(vg, t);
 			break;
@@ -308,13 +326,21 @@ namespace MathAnim
 			Renderer::popColor();
 		}
 		break;
+		case AnimObjectTypeV1::Axis:
+			g_logger_assert(this->svgObject != nullptr, "Cannot render axis with null SVG object.");
+			this->svgObject->render(vg, this);
+			// TODO: Render the numbers
+			break;
 		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.render(vg, this);
+			break;
+		case AnimObjectTypeV1::LaTexObject:
+			this->as.laTexObject.render(vg, this);
 			break;
 		default:
 			// TODO: Add magic_enum
 			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(objectType).data());
-			g_logger_info("Unknown animation: %d", objectType);
+			g_logger_info("Unknown animation object: %d", objectType);
 			break;
 		}
 	}
@@ -368,6 +394,10 @@ namespace MathAnim
 		case AnimObjectTypeV1::Cube:
 			// NOP
 			break;
+		case AnimObjectTypeV1::Axis:
+			// NOP
+			// TODO: Free any text objecty stuff with the numbers
+			break;
 		case AnimObjectTypeV1::TextObject:
 			this->as.textObject.free();
 			break;
@@ -388,6 +418,10 @@ namespace MathAnim
 		//     Y                -> f32
 		//     Z                -> f32
 		//  _RotationStart
+		//     X                -> f32
+		//     Y                -> f32
+		//     Z                -> f32
+		//  _ScaleStart
 		//     X                -> f32
 		//     Y                -> f32
 		//     Z                -> f32
@@ -416,6 +450,10 @@ namespace MathAnim
 		memory.write<float>(&_rotationStart.x);
 		memory.write<float>(&_rotationStart.y);
 		memory.write<float>(&_rotationStart.z);
+
+		memory.write<float>(&_scaleStart.x);
+		memory.write<float>(&_scaleStart.y);
+		memory.write<float>(&_scaleStart.z);
 
 		memory.write<uint8>(&_fillColorStart.r);
 		memory.write<uint8>(&_fillColorStart.g);
@@ -450,6 +488,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Cube:
 			this->as.cube.serialize(memory);
+			break;
+		case AnimObjectTypeV1::Axis:
+			this->as.axis.serialize(memory);
 			break;
 		default:
 			g_logger_warning("Unknown object type %d when serializing.", (int)objectType);
@@ -496,11 +537,14 @@ namespace MathAnim
 		res.isAnimating = false;
 		res.objectType = type;
 
-		res.position = { 0, 0 };
-		res._positionStart = { 0, 0 };
+		res.position = { 0, 0, 0 };
+		res._positionStart = { 0, 0, 0 };
 
-		res.rotation = { 0, 0 };
-		res._rotationStart = { 0, 0 };
+		res.rotation = { 0, 0, 0 };
+		res._rotationStart = { 0, 0, 0 };
+
+		res.scale = { 1, 1, 1 };
+		res._scaleStart = { 1, 1, 1 };
 
 		res.svgObject = nullptr;
 		res._svgObjectStart = nullptr;
@@ -548,6 +592,25 @@ namespace MathAnim
 			res.as.cube.sideLength = defaultCubeLength;
 			res.as.cube.init(&res);
 			break;
+		case AnimObjectTypeV1::Axis:
+			res.as.axis.axesLength = Vec3{ 3'000.0f, 1'700.0f, 1.0f };
+			res.as.axis.xRange = { 0, 18 };
+			res.as.axis.yRange = { 0, 10 };
+			res.as.axis.zRange = { 0, 10 };
+			res.as.axis.xStep = 1.0f;
+			res.as.axis.yStep = 1.0f;
+			res.as.axis.zStep = 1.0f;
+			res.as.axis.tickWidth = 75.0f;
+			res.as.axis.drawNumbers = true;
+			res.as.axis.is3D = false;
+			res._strokeWidthStart = 7.5f;
+			res._fillColorStart.a = 0;
+			res._positionStart = {
+				outputSize.x / 2.0f,
+				outputSize.y / 2.0f
+			};
+			res.as.axis.init(&res);
+			break;
 		default:
 			g_logger_error("Cannot create default animation object of type %d", (int)type);
 			break;
@@ -570,6 +633,10 @@ namespace MathAnim
 		//   X				  -> f32
 		//   Y				  -> f32
 		//   Z                -> f32
+		//  _ScaleStart
+		//     X                -> f32
+		//     Y                -> f32
+		//     Z                -> f32
 		// _FillColorStart
 		//   R                -> u8
 		//   G                -> u8
@@ -599,6 +666,10 @@ namespace MathAnim
 		memory.read<float>(&res._rotationStart.x);
 		memory.read<float>(&res._rotationStart.y);
 		memory.read<float>(&res._rotationStart.z);
+
+		memory.read<float>(&res._scaleStart.x);
+		memory.read<float>(&res._scaleStart.y);
+		memory.read<float>(&res._scaleStart.z);
 
 		memory.read<uint8>(&res._fillColorStart.r);
 		memory.read<uint8>(&res._fillColorStart.g);
@@ -646,6 +717,10 @@ namespace MathAnim
 		case AnimObjectTypeV1::Cube:
 			res.as.cube = Cube::deserialize(memory, version);
 			res.as.cube.init(&res);
+			break;
+		case AnimObjectTypeV1::Axis:
+			res.as.axis = Axis::deserialize(memory, version);
+			res.as.axis.init(&res);
 			break;
 		default:
 			g_logger_error("Unknown anim object type: %d. Corrupted memory.", res.objectType);

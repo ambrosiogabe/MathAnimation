@@ -7,9 +7,6 @@
 [submodule "Animations/vendor/dearimgui"]
 	path = Animations/vendor/dearimgui
 	url = https://github.com/ocornut/imgui
-[submodule "Animations/vendor/imguizmo"]
-	path = Animations/vendor/imguizmo
-	url = https://github.com/CedricGuillemet/ImGuizmo
 [submodule "Animations/vendor/cppUtils"]
 	path = Animations/vendor/cppUtils
 	url = https://github.com/ambrosiogabe/CppUtils
@@ -29,3 +26,6 @@
 [submodule "Animations/vendor/nativeFileDialog"]
 	path = Animations/vendor/nativeFileDialog
 	url = https://github.com/mlabbe/nativefiledialog
+[submodule "Animations/vendor/tinyxml2"]
+	path = Animations/vendor/tinyxml2
+	url = https://github.com/leethomason/tinyxml2

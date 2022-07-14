@@ -10,9 +10,12 @@ namespace MathAnim
 	struct AnimObject;
 	struct Animation;
 	struct Framebuffer;
+	struct OrthoCamera;
 
 	namespace AnimationManager
 	{
+		void init(OrthoCamera& camera);
+
 		void addAnimObject(const AnimObject& object);
 		void addAnimationTo(const Animation& animation, AnimObject& animObject);
 		void addAnimationTo(const Animation& animation, int animObjectId);

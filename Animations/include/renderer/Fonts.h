@@ -1,6 +1,7 @@
 #ifndef MATH_ANIM_FONTS_H
 #define MATH_ANIM_FONTS_H
 #include "core.h"
+#include "renderer/Texture.h"
 
 struct NVGcontext;
 
@@ -36,6 +37,8 @@ namespace MathAnim
 		float bearingX;
 		float bearingY;
 		float descentY;
+		float glyphWidth;
+		float glyphHeight;
 
 		void free();
 	};
@@ -44,7 +47,7 @@ namespace MathAnim
 	{
 		FT_Face fontFace;
 		std::unordered_map<uint32, GlyphOutline> glyphMap;
-		std::string vgFontFace;
+		std::string fontFilepath;
 		float unitsPerEM;
 		float lineHeight;
 
@@ -54,6 +57,26 @@ namespace MathAnim
 		glm::vec2 getSizeOfString(const std::string& string, int fontSizePixels) const;
 	};
 
+	struct GlyphTexture
+	{
+		uint32 lruCacheId;
+		Vec2 uvMin;
+		Vec2 uvMax;
+	};
+
+	struct SizedFont
+	{
+		Font* unsizedFont;
+		std::unordered_map<uint32, GlyphTexture> glyphTextureCoords;
+		int fontSizePixels;
+		Texture texture;
+
+		const GlyphTexture& getGlyphTexture(uint32 codepoint) const;
+		inline const GlyphOutline& getGlyphInfo(uint32 glyphIndex) const { g_logger_assert(unsizedFont != nullptr, "How did this happen."); return unsizedFont->getGlyphInfo(glyphIndex); }
+		inline float getKerning(uint32 leftCodepoint, uint32 rightCodepoint) const { g_logger_assert(unsizedFont != nullptr, "How did this happen."); return unsizedFont->getKerning(leftCodepoint, rightCodepoint); }
+		inline glm::vec2 getSizeOfString(const std::string& string) const { g_logger_assert(unsizedFont != nullptr, "How did this happen."); return unsizedFont->getSizeOfString(string, fontSizePixels); }
+	};
+
 	namespace Fonts
 	{
 		void init();
@@ -61,12 +84,45 @@ namespace MathAnim
 		// Returns a non-zero value if creating the outline fails
 		int createOutline(Font* font, uint32 character, GlyphOutline* outlineResult);
 
-		Font* loadFont(const char* filepath, NVGcontext* vg, CharRange defaultCharset = CharRange::Ascii);
-		void unloadFont(Font* font);
-		void unloadFont(const char* filepath);
-		void unloadAllFonts();
+		// Loads a sized font if it is not already loaded and creates
+		// a texture with the default charset.
+		// If the font is already loaded, it just increments
+		// a reference count and returns the font.
+		SizedFont* loadSizedFont(const char* filepath, int fontSizePixels, CharRange defaultCharset = CharRange::Ascii);
 
-		Font* getFont(const char* filepath);
+		// Decreases a reference count to the font
+		// If the reference count goes below 0, the 
+		// font is fully unloaded
+		void unloadSizedFont(SizedFont* sizedFont);
+
+		// Decreases a reference count to the font
+		// If the reference count goes below 0, the 
+		// font is fully unloaded
+		void unloadSizedFont(const char* filepath, int fontSizePixels);
+
+		// Decreases a reference count to the font
+		// If the reference count goes below 0, the 
+		// font is fully unloaded
+		void unloadFont(const char* filepath);
+
+		// Loads a font if it is not already loaded.
+		// If the font is already loaded, it just increments
+		// a reference count and returns the font.
+		Font* loadFont(const char* filepath, NVGcontext* vg, CharRange defaultCharset = CharRange::Ascii);
+
+		// Decreases a reference count to the font
+		// If the reference count goes below 0, the 
+		// font is fully unloaded
+		void unloadFont(Font* font);
+
+		// Decreases a reference count to the font
+		// If the reference count goes below 0, the 
+		// font is fully unloaded
+		void unloadFont(const char* filepath);
+
+		// Forcefully unloads all fonts irregardless
+		// of their current reference counts
+		void unloadAllFonts();
 	}
 }
 

@@ -47,6 +47,9 @@ namespace MathAnim
 	const char* TIMELINE_DRAG_DROP_SEGMENT_PAYLOAD_ID = "TIMELINE_SEGMENT_PAYLOAD_ID";
 	const char* TIMELINE_DRAG_DROP_SUB_SEGMENT_PAYLOAD_ID = "TIMELINE_SUB_SEGMENT_PAYLOAD_ID";
 
+	// State Values
+	static ImGuiID segmentDragID = UINT32_MAX;
+
 	// Dimensional values
 	constexpr int maxHighlightedSquares = 12;
 	constexpr float timelineRulerHeight = 65.0f;
@@ -539,6 +542,8 @@ namespace MathAnim
 								res.activeObjectIsSubSegment = false;
 								res.segmentIndex = si;
 								res.trackIndex = i;
+								activeSegmentID = UINT32_MAX;
+								segmentDragID = UINT32_MAX;
 							}
 						}
 						ImVec2 borderStart = segmentStart + ImVec2(0.0f, realTrackHeight - segmentTextAreaHeight);
@@ -675,6 +680,8 @@ namespace MathAnim
 											res.segmentIndex = si;
 											res.subSegmentIndex = subSegmenti;
 											res.trackIndex = i;
+											activeSegmentID = UINT32_MAX;
+											segmentDragID = UINT32_MAX;
 										}
 									}
 									ImVec2 borderStart = subSegmentStart + ImVec2(0.0f, realSubTrackHeight - segmentTextAreaHeight);
@@ -1354,7 +1361,6 @@ namespace MathAnim
 		static DragState dragState = DragState::None;
 		static DragState leftResizeState = DragState::None;
 		static DragState rightResizeState = DragState::None;
-		static ImGuiID dragID = segmentID;
 		constexpr float resizeDragWidth = 15.0f;
 		constexpr float halfResizeDragWidth = resizeDragWidth / 2.0f;
 		static ImVec2 startDragPos = ImVec2();
@@ -1374,7 +1380,7 @@ namespace MathAnim
 		// that you can click there without moving the segment
 		segmentEnd_.y -= segmentTextAreaHeight;
 
-		if (dragID == UINT32_MAX || dragID == segmentID)
+		if (segmentDragID == UINT32_MAX || segmentDragID == segmentID)
 		{
 			handleDragState(segmentStart_, segmentEnd_, &dragState);
 			handleDragState(leftResizeStart, leftResizeEnd, &leftResizeState);
@@ -1384,23 +1390,23 @@ namespace MathAnim
 		const ImGuiIO& io = ImGui::GetIO();
 
 		// If nothing is being dragged, then check all segments
-		if (dragID == UINT32_MAX)
+		if (segmentDragID == UINT32_MAX)
 		{
 			if (dragState != DragState::None)
 			{
-				dragID = segmentID;
+				segmentDragID = segmentID;
 			}
 			else if (leftResizeState != DragState::None)
 			{
-				dragID = segmentID;
+				segmentDragID = segmentID;
 			}
 			else if (rightResizeState != DragState::None)
 			{
-				dragID = segmentID;
+				segmentDragID = segmentID;
 			}
 		}
 
-		if (dragID != segmentID)
+		if (segmentDragID != segmentID)
 		{
 			return false;
 		}
@@ -1419,11 +1425,11 @@ namespace MathAnim
 		}
 
 		// Then handle based on the appropriate drag states
-		if (dragID != UINT32_MAX && dragID == segmentID)
+		if (segmentDragID != UINT32_MAX && segmentDragID == segmentID)
 		{
 			if (dragState == DragState::None && leftResizeState == DragState::None && rightResizeState == DragState::None)
 			{
-				dragID = UINT32_MAX;
+				segmentDragID = UINT32_MAX;
 				return false;
 			}
 

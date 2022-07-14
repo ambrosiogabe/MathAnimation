@@ -12,6 +12,7 @@ namespace MathAnim
 	struct Framebuffer;
 	struct Texture;
 	struct Font;
+	struct SizedFont;
 
 	enum class CapType
 	{
@@ -44,10 +45,12 @@ namespace MathAnim
 		void pushColor(const glm::vec4& color);
 		void pushColor(const Vec4& color);
 		void pushLineEnding(CapType lineEnding);
+		void pushFont(const SizedFont* sizedFont);
 
 		void popStrokeWidth(int numToPop = 1);
 		void popColor(int numToPop = 1);
 		void popLineEnding(int numToPop = 1);
+		void popFont(int numToPop = 1);
 
 		// ----------- 2D stuff ----------- 
 		// TODO: Switch to using this when drawing completed objects to potentially
@@ -56,7 +59,7 @@ namespace MathAnim
 		void drawFilledSquare(const Vec2& start, const Vec2& size);
 		void drawLine(const Vec2& start, const Vec2& end);
 		void drawTexture(const RenderableTexture& renderable, const Vec4& color);
-		void drawString(const std::string& string, const Font& font, const Vec2& start, float scale, const Vec4& color);
+		void drawString(const std::string& string, const Vec2& start);
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 

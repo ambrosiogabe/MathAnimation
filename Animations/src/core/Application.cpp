@@ -2,6 +2,7 @@
 #include "core.h"
 #include "core/Window.h"
 #include "core/Input.h"
+#include "core/GladLayer.h"
 #include "core/ImGuiLayer.h"
 #include "renderer/Renderer.h"
 #include "renderer/OrthoCamera.h"
@@ -17,6 +18,10 @@
 #include "animation/AnimationManager.h"
 #include "editor/EditorGui.h"
 #include "audio/Audio.h"
+#include "latex/LaTexLayer.h"
+#include "multithreading/GlobalThreadPool.h"
+
+#include "animation/SvgParser.h"
 
 #include "nanovg.h"
 #define NANOVG_GL3_IMPLEMENTATION
@@ -37,6 +42,7 @@ namespace MathAnim
 		static int outputHeight = 2160;
 		static NVGcontext* vg = NULL;
 
+		static GlobalThreadPool* globalThreadPool = nullptr;
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
 		static OrthoCamera camera2D;
@@ -46,18 +52,22 @@ namespace MathAnim
 
 		static const char* winTitle = "Math Animations";
 
-		void init()
+		void init(const char* projectFile)
 		{
+			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
+			//globalThreadPool = new GlobalThreadPool(true);
+
 			// Initiaize GLFW/Glad
 			window = new Window(1920, 1080, winTitle);
 			window->setVSync(true);
 
-			camera2D.position = Vec2{ 0, 0 };
-			camera2D.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
+			camera2D.position = Vec2{ 1920.0f, 1080.0f };
+			//camera2D.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
+			camera2D.projectionSize = Vec2{ 3840.0f, 2160.0f };
 
 			camera3D.forward = glm::vec3(0, 0, 1);
 			camera3D.fov = 70.0f;
-			camera3D.orientation = glm::vec3(-15.0f, 80.0f, 0);
+			camera3D.orientation = glm::vec3(-15.0f, 50.0f, 0);
 			camera3D.position = glm::vec3(
 				-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)), 
 				2.5f, 
@@ -65,12 +75,14 @@ namespace MathAnim
 			);
 
 			Fonts::init();
+			GladLayer::init();
 			Renderer::init(camera2D, camera3D);
 			ImGuiLayer::init(*window);
 			Audio::init();
 			// NOTE(voxel): Just to initialize the camera
 			Svg::init(camera2D);
 			TextAnimations::init(camera2D);
+			AnimationManager::init(camera2D);
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
@@ -79,9 +91,11 @@ namespace MathAnim
 				return;
 			}
 
+			LaTexLayer::init();
+
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
-			AnimationManager::deserialize("./myScene.bin");
+			AnimationManager::deserialize(projectFile);
 
 			EditorGui::init();
 
@@ -100,9 +114,7 @@ namespace MathAnim
 			{
 				float deltaTime = (float)(glfwGetTime() - previousTime);
 				previousTime = glfwGetTime();
-
 				window->pollInput();
-				window->setTitle(winTitle + std::string(" -- ") + std::to_string(deltaTime));
 
 				// Update components
 				if (animState == AnimState::PlayForward)
@@ -171,14 +183,16 @@ namespace MathAnim
 		{
 			AnimationManager::serialize("./myScene.bin");
 
-			Fonts::unloadAllFonts();
+			LaTexLayer::free();
 			EditorGui::free();
 			nvgDeleteGL3(vg);
+			Fonts::unloadAllFonts();
 			Renderer::free();
 			Audio::free();
 
 			ImGuiLayer::free();
 			Window::cleanup();
+			globalThreadPool->free();
 		}
 
 		void setEditorPlayState(AnimState state)
@@ -223,6 +237,11 @@ namespace MathAnim
 		NVGcontext* getNvgContext()
 		{
 			return vg;
+		}
+
+		GlobalThreadPool* threadPool()
+		{
+			return globalThreadPool;
 		}
 	}
 }

@@ -37,6 +37,7 @@ namespace MathAnim
 
 	struct Curve
 	{
+		bool moveToP0;
 		CurveType type;
 		// Every curve has at least one point
 		Vec3 p0;
@@ -58,29 +59,58 @@ namespace MathAnim
 
 	struct SvgObject
 	{
+		// TODO: Have a Path struct which contains SubPath structs which are the holes...(possibly)
 		Contour* contours;
 		int numContours;
 		float approximatePerimeter;
 		bool is3D;
 
+		void normalize();
 		void calculateApproximatePerimeter();
-		void render(NVGcontext* vg, const AnimObject* parent) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse = false) const;
+		void render(NVGcontext* vg, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}, bool reverse = false) const;
+		void free();
+	};
+
+	struct SvgGroup
+	{
+		char** uniqueObjectNames;
+		SvgObject* uniqueObjects;
+		int numUniqueObjects;
+
+		SvgObject* objects;
+		Vec3* objectOffsets;
+		int numObjects;
+		Vec4 viewbox;
+
+		void render(NVGcontext* vg, AnimObject* parent) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse = false) const;
 		void free();
 	};
 
 	namespace Svg
 	{
 		SvgObject createDefault();
+		SvgGroup createDefaultGroup();
 		
 		void init(OrthoCamera& camera);
 
-		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D = false);
-		void closeContour(SvgObject* object);
+		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox);
+		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec3& offset);
+		void endSvgGroup(SvgGroup* group);
 
-		void lineTo(SvgObject* object, const Vec3& point);
-		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest);
-		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest);
+		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D = false);
+		void closeContour(SvgObject* object, bool lineToEndpoint = false);
+
+		void moveTo(SvgObject* object, const Vec3& point, bool absolute = true);
+		void lineTo(SvgObject* object, const Vec3& point, bool absolute = true);
+		void hzLineTo(SvgObject* object, float xPoint, bool absolute = true);
+		void vtLineTo(SvgObject* object, float yPoint, bool absolute = true);
+		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest, bool absolute = true);
+		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest, bool absolute = true);
+		void smoothBezier2To(SvgObject* object, const Vec3& dest, bool absolute = true);
+		void smoothBezier3To(SvgObject* object, const Vec3& control1, const Vec3& dest, bool absolute = true);
+		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec3& dst, bool absolute = true);
 
 		void copy(SvgObject* dest, const SvgObject* src);
 		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
