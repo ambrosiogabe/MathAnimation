@@ -2,6 +2,7 @@
 #include "core.h"
 #include "core/Window.h"
 #include "core/Input.h"
+#include "core/GladLayer.h"
 #include "core/ImGuiLayer.h"
 #include "renderer/Renderer.h"
 #include "renderer/OrthoCamera.h"
@@ -51,7 +52,7 @@ namespace MathAnim
 
 		static const char* winTitle = "Math Animations";
 
-		void init()
+		void init(const char* projectFile)
 		{
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
 			//globalThreadPool = new GlobalThreadPool(true);
@@ -66,7 +67,7 @@ namespace MathAnim
 
 			camera3D.forward = glm::vec3(0, 0, 1);
 			camera3D.fov = 70.0f;
-			camera3D.orientation = glm::vec3(-15.0f, 80.0f, 0);
+			camera3D.orientation = glm::vec3(-15.0f, 50.0f, 0);
 			camera3D.position = glm::vec3(
 				-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)), 
 				2.5f, 
@@ -74,6 +75,7 @@ namespace MathAnim
 			);
 
 			Fonts::init();
+			GladLayer::init();
 			Renderer::init(camera2D, camera3D);
 			ImGuiLayer::init(*window);
 			Audio::init();
@@ -93,7 +95,7 @@ namespace MathAnim
 
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
-			AnimationManager::deserialize("./myScene.bin");
+			AnimationManager::deserialize(projectFile);
 
 			EditorGui::init();
 
@@ -112,9 +114,7 @@ namespace MathAnim
 			{
 				float deltaTime = (float)(glfwGetTime() - previousTime);
 				previousTime = glfwGetTime();
-
 				window->pollInput();
-				window->setTitle(winTitle + std::string(" -- ") + std::to_string(deltaTime));
 
 				// Update components
 				if (animState == AnimState::PlayForward)
@@ -136,9 +136,9 @@ namespace MathAnim
 					currentFrame = glm::max(currentFrame - 1, 0);
 				}
 
-				camera3D.orientation.y += 45.0f * deltaTime;
-				camera3D.position.x = glm::cos(-glm::radians(camera3D.orientation.y)) * -10.0f;
-				camera3D.position.z = glm::sin(-glm::radians(camera3D.orientation.y)) * 10.0f;
+				//camera3D.orientation.y += 45.0f * deltaTime;
+				//camera3D.position.x = glm::cos(-glm::radians(camera3D.orientation.y)) * -10.0f;
+				//camera3D.position.z = glm::sin(-glm::radians(camera3D.orientation.y)) * 10.0f;
 
 				// Render to main framebuffer
 				Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);

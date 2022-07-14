@@ -1481,8 +1481,8 @@ namespace MathAnim
 
 
 		// TODO: Add rotation to 3D lines somehow...
-		Renderer::rotate3D(parent->rotation);
 		Renderer::translate3D(parent->position);
+		Renderer::rotate3D(parent->rotation);
 		//if (parent->rotation.z != 0.0f)
 		//{
 		//	nvgRotate(vg, glm::radians(parent->rotation.z));

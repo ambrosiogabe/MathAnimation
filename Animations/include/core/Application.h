@@ -17,7 +17,7 @@ namespace MathAnim
 
 	namespace Application
 	{
-		void init();
+		void init(const char* projectFile);
 
 		void run();
 

@@ -264,7 +264,6 @@ namespace MathAnim
 
 		// ---------------------- Internal Functions ----------------------
 		static void setupScreenVao();
-		static void GLAPIENTRY messageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 		static uint32 getColorCompressed();
 		static const glm::vec4& getColor();
 		static float getStrokeWidth();
@@ -279,27 +278,6 @@ namespace MathAnim
 			lineEndingStackPtr = 0;
 			isDrawing3DPath = false;
 			numVertsIn3DPath = 0;
-
-			// Load OpenGL functions using Glad
-			if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-			{
-				g_logger_error("Failed to initialize glad.");
-				return;
-			}
-			g_logger_info("GLAD initialized.");
-			g_logger_info("Hello OpenGL %d.%d", GLVersion.major, GLVersion.minor);
-
-#ifdef _DEBUG
-			glEnable(GL_DEBUG_OUTPUT);
-			glDebugMessageCallback(messageCallback, 0);
-#endif
-
-			// Enable blending
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-			// Enable multisampling
-			glEnable(GL_MULTISAMPLE);
 
 			// Initialize default shader
 #ifdef _DEBUG
@@ -739,9 +717,9 @@ namespace MathAnim
 				drawListFont2D.addGlyph(
 					cursorPos + Vec2{ bearingX, -bearingY },
 					cursorPos + Vec2{ bearingX + charWidth, descentY },
-					glyphTexture.uvMin, 
-					glyphTexture.uvMax, 
-					color, 
+					glyphTexture.uvMin,
+					glyphTexture.uvMax,
+					color,
 					font->texture.graphicsId
 				);
 
@@ -876,7 +854,11 @@ namespace MathAnim
 		void lineTo3D(const Vec3& point, bool applyTransform)
 		{
 			g_logger_assert(isDrawing3DPath, "lineTo3D() cannot be called without calling beginPath3D(...) first.");
-			g_logger_assert(numVertsIn3DPath < max3DPathSize, "Max path size exceeded. A 3D Path can only have up to %d points.", max3DPathSize);
+			if (numVertsIn3DPath >= max3DPathSize)
+			{
+				//g_logger_assert(numVertsIn3DPath < max3DPathSize, "Max path size exceeded. A 3D Path can only have up to %d points.", max3DPathSize);
+				return;
+			}
 
 			float strokeWidth = strokeWidthStackPtr > 0
 				? strokeWidthStack[strokeWidthStackPtr - 1]
@@ -1047,29 +1029,6 @@ namespace MathAnim
 			glEnableVertexAttribArray(1);
 		}
 
-		static void GLAPIENTRY
-			messageCallback(GLenum source,
-				GLenum type,
-				GLuint id,
-				GLenum severity,
-				GLsizei length,
-				const GLchar* message,
-				const void* userParam)
-		{
-			if (type == GL_DEBUG_TYPE_ERROR)
-			{
-				g_logger_error("GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s",
-					(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
-					type, severity, message);
-
-				GLenum err;
-				while ((err = glGetError()) != GL_NO_ERROR)
-				{
-					g_logger_error("Error Code: 0x%8x", err);
-				}
-			}
-		}
-
 		static uint32 getColorCompressed()
 		{
 			const glm::vec4& color = colorStackPtr > 0
@@ -1227,7 +1186,7 @@ namespace MathAnim
 		}
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
-		
+
 		int rectStartIndex = cmd.elementCount / 6 * 4;
 		// Tri 1 indices
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
@@ -1323,9 +1282,9 @@ namespace MathAnim
 			// Make the draw call
 			glBindVertexArray(vao);
 			glDrawElements(
-				GL_TRIANGLES, 
-				drawCommands.data[i].elementCount, 
-				GL_UNSIGNED_SHORT, 
+				GL_TRIANGLES,
+				drawCommands.data[i].elementCount,
+				GL_UNSIGNED_SHORT,
 				nullptr
 			);
 		}
