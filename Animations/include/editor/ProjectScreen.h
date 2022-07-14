@@ -8,7 +8,7 @@ namespace MathAnim
 	{
 		void init();
 
-		std::string run();
+		void update();
 
 		void free();
 	}

@@ -1,15 +1,15 @@
 #include "core.h"
 #include "core/Application.h"
-#include "editor/ProjectScreen.h"
+#include "core/ProjectApp.h"
 
 using namespace MathAnim;
 int main()
 {
 	g_memory_init(true);
 
-	ProjectScreen::init();
-	std::string projectFile = ProjectScreen::run();
-	ProjectScreen::free();
+	ProjectApp::init();
+	std::string projectFile = ProjectApp::run();
+	ProjectApp::free();
 
 	if (projectFile != "")
 	{

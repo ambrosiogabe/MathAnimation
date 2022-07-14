@@ -1,9 +1,6 @@
 #include "editor/ProjectScreen.h"
-#include "core.h"
+#include "core/ProjectApp.h"
 #include "core/Window.h"
-#include "core/GladLayer.h"
-#include "core/ImGuiLayer.h"
-#include "multithreading/GlobalThreadPool.h"
 
 #include <imgui.h>
 
@@ -11,62 +8,34 @@ namespace MathAnim
 {
 	namespace ProjectScreen
 	{
-		static GlobalThreadPool* globalThreadPool = nullptr;
-		static Window* window = nullptr;
-
-		static const char* winTitle = "Math Animations -- Project Selector";
+		static ImFont* largeFont;
+		static ImFont* defaultFont;
 
 		void init()
 		{
-			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
-
-			// Initiaize GLFW/Glad
-			window = new Window(1920, 1080, winTitle);
-			window->setVSync(true);
-
-			GladLayer::init();
-			ImGuiLayer::init(*window);
-
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-			// TODO: Initialize app settings
+			ImGuiIO& io = ImGui::GetIO();
+			largeFont = io.Fonts->AddFontFromFileTTF("C:/Windows/FONTS/SegoeUI.ttf", 20.0f);
+			defaultFont = io.Fonts->AddFontFromFileTTF("C:/Windows/FONTS/SegoeUI.ttf", 12.0f);
 		}
 
-		std::string run()
+		void update()
 		{
-			// Run game loop
-			// Start with a 60 fps frame rate
-			bool isRunning = true;
-			double previousTime = glfwGetTime() - 0.16f;
-			constexpr float fixedDeltaTime = 1.0f / 60.0f;
-			while (isRunning && !window->shouldClose())
-			{
-				float deltaTime = (float)(glfwGetTime() - previousTime);
-				previousTime = glfwGetTime();
+			Window* window = ProjectApp::getWindow();
+			ImVec2 size = { (float)window->width, (float)window->height };
+			ImGui::SetNextWindowSize(size, ImGuiCond_Always);
+			ImGui::PushFont(defaultFont);
+			ImGui::Begin("Project Selector", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
-				window->pollInput();
+			ImGui::Text("Welcome to the project selector!");
 
-				glViewport(0, 0, window->width, window->height);
-				glClearColor(0, 0, 0, 0);
-
-				// Do ImGui stuff
-				ImGuiLayer::beginFrame();
-				ImGui::ShowDemoWindow();
-				
-				ImGuiLayer::endFrame();
-
-				window->swapBuffers();
-			}
-
-			return "./myScene.bin";
+			ImGui::End();
+			ImGui::PopFont();
 		}
 
 		void free()
 		{
-			ImGuiLayer::free();
-			Window::cleanup();
-			globalThreadPool->free();
+			ImGuiIO io = ImGui::GetIO();
+			io.Fonts->ClearFonts();
 		}
 	}
 }
