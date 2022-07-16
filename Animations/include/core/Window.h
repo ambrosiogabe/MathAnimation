@@ -37,6 +37,8 @@ namespace MathAnim
 		void setTitle(const std::string& newTitle);
         
 		float getContentScale() const;
+
+		void close();
         
         static glm::ivec2 getMonitorWorkingSize();
         

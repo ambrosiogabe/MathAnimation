@@ -277,10 +277,10 @@ namespace MathAnim
 		Vec4 interpolate(float t, const Vec4& src, const Vec4& target)
 		{
 			return Vec4{
-				(target.w - src.w) * t + src.w,
 				(target.x - src.x) * t + src.x,
 				(target.y - src.y) * t + src.y,
-				(target.z - src.z) * t + src.z
+				(target.z - src.z) * t + src.z,
+				(target.w - src.w) * t + src.w
 			};
 		}
 
@@ -334,14 +334,14 @@ namespace MathAnim
 		void serialize(RawMemory& memory, const Vec4& vec)
 		{
 			// Target
-			//   W    -> float
 			//   X    -> float
 			//   Y    -> float
 			//   Z    -> float
-			memory.write<float>(&vec.w);
+			//   W    -> float
 			memory.write<float>(&vec.x);
 			memory.write<float>(&vec.y);
 			memory.write<float>(&vec.z);
+			memory.write<float>(&vec.w);
 		}
 
 		void serialize(RawMemory& memory, const Vec3& vec)
@@ -367,14 +367,14 @@ namespace MathAnim
 		void serialize(RawMemory& memory, const Vec4i& vec)
 		{
 			// Target
-			//   W    -> i32
 			//   X    -> i32
 			//   Y    -> i32
 			//   Z    -> i32
-			memory.write<int32>(&vec.w);
+			//   W    -> i32
 			memory.write<int32>(&vec.x);
 			memory.write<int32>(&vec.y);
 			memory.write<int32>(&vec.z);
+			memory.write<int32>(&vec.w);
 		}
 
 		void serialize(RawMemory& memory, const Vec3i& vec)
@@ -413,15 +413,15 @@ namespace MathAnim
 		Vec4 deserializeVec4(RawMemory& memory)
 		{
 			// Target
-			//   W    -> float
 			//   X    -> float
 			//   Y    -> float
 			//   Z    -> float
+			//   W    -> float
 			Vec4 res;
-			memory.read<float>(&res.w);
 			memory.read<float>(&res.x);
 			memory.read<float>(&res.y);
 			memory.read<float>(&res.z);
+			memory.read<float>(&res.w);
 			return res;
 		}
 
@@ -452,15 +452,15 @@ namespace MathAnim
 		Vec4i deserializeVec4i(RawMemory& memory)
 		{
 			// Target
-			//   W    -> i32
 			//   X    -> i32
 			//   Y    -> i32
 			//   Z    -> i32
+			//   W    -> i32
 			Vec4i res;
-			memory.read<int32>(&res.w);
 			memory.read<int32>(&res.x);
 			memory.read<int32>(&res.y);
 			memory.read<int32>(&res.z);
+			memory.read<int32>(&res.w);
 			return res;
 		}
 

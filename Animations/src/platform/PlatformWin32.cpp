@@ -4,6 +4,7 @@
 
 #include <io.h>
 #include <Windows.h>
+#include <shlobj_core.h>
 #ifdef min
 #undef min
 #endif
@@ -322,6 +323,22 @@ namespace MathAnim
 			}
 
 			return std::string("");
+		}
+
+		std::string getSpecialAppDir()
+		{
+			CHAR szPath[MAX_PATH];
+
+			if (SHGetFolderPathA(NULL,
+				CSIDL_APPDATA,
+				NULL,
+				0,
+				szPath) == ERROR_SUCCESS)
+			{
+				return std::string(szPath);
+			}
+
+			return "";
 		}
 
 		void createDirIfNotExists(const char* dirName)

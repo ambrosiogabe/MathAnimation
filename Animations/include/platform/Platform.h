@@ -20,6 +20,8 @@ namespace MathAnim
 
 		std::string tmpFilename();
 
+		std::string getSpecialAppDir();
+
 		void createDirIfNotExists(const char* dirName);
 
 		std::string md5FromString(const char* str, size_t length, int md5Length = 16);

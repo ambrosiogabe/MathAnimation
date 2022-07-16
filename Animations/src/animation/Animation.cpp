@@ -33,7 +33,11 @@ namespace MathAnim
 				break;
 			}
 
-			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render create animation for SVG object that is nullptr.");
+			if (getParent()->svgObject == nullptr) 
+			{
+				g_logger_warning("Cannot render create animation for SVG object that is nullptr.");
+				break;
+			}
 			getParent()->svgObject->renderCreateAnimation(vg, t, getParent());
 			if (getParent()->svgObject->is3D)
 			{

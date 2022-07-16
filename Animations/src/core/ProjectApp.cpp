@@ -4,6 +4,7 @@
 #include "core/ImGuiLayer.h"
 #include "editor/ProjectScreen.h"
 #include "multithreading/GlobalThreadPool.h"
+#include "platform/Platform.h"
 
 #include <imgui.h>
 
@@ -13,6 +14,7 @@ namespace MathAnim
 	{
 		static GlobalThreadPool* globalThreadPool = nullptr;
 		static Window* window = nullptr;
+		static std::filesystem::path appRoot;
 
 		static const char* winTitle = "Math Animations -- Project Selector";
 
@@ -30,7 +32,13 @@ namespace MathAnim
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-			// TODO: Initialize app settings
+			std::string specialAppDirectory = Platform::getSpecialAppDir();
+			g_logger_info("Special app directory: '%s'", specialAppDirectory.c_str());
+			appRoot = std::filesystem::path(specialAppDirectory) / "MathAnimationEditor";
+			g_logger_info("App root: '%s'", appRoot.string().c_str());
+			Platform::createDirIfNotExists(appRoot.string().c_str());
+
+			ProjectScreen::init();
 		}
 
 		std::string run()
@@ -40,6 +48,7 @@ namespace MathAnim
 			bool isRunning = true;
 			double previousTime = glfwGetTime() - 0.16f;
 			constexpr float fixedDeltaTime = 1.0f / 60.0f;
+			bool projectWasSelected = false;
 			while (isRunning && !window->shouldClose())
 			{
 				float deltaTime = (float)(glfwGetTime() - previousTime);
@@ -52,18 +61,27 @@ namespace MathAnim
 
 				// Do ImGui stuff
 				ImGuiLayer::beginFrame();
-				ImGui::ShowDemoWindow();
-				ProjectScreen::update();
+				if (ProjectScreen::update())
+				{
+					window->close();
+					projectWasSelected = true;
+				}
 				ImGuiLayer::endFrame();
 
 				window->swapBuffers();
 			}
 
-			return "./myScene.bin";
+			if (projectWasSelected)
+			{
+				return ProjectScreen::getSelectedProject().projectFilepath;
+			}
+
+			return "";
 		}
 
 		void free()
 		{
+			ProjectScreen::free();
 			ImGuiLayer::free();
 			Window::cleanup();
 			globalThreadPool->free();
@@ -72,6 +90,11 @@ namespace MathAnim
 		Window* getWindow()
 		{
 			return window;
+		}
+
+		const std::filesystem::path& getAppRoot()
+		{
+			return appRoot;
 		}
 	}
 }

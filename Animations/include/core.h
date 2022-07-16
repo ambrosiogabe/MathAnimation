@@ -47,8 +47,11 @@
 // Core library stuff
 #include "math/DataStructures.h"
 
+#define IMGUI_USER_CONFIG "core/InternalImGuiConfig.h"
+#include <imgui.h>
+
 // User defined literals
-MathAnim::Vec4 operator "" _hex(const char* hexColor, size_t length);
+MathAnim::Vec4 operator""_hex(const char* hexColor, size_t length);
 
 struct RawMemory
 {

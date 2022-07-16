@@ -136,40 +136,40 @@ namespace MathAnim
 	Vec4 operator+(const Vec4& a, const Vec4& b)
 	{
 		return {
-			a.w + b.w,
 			a.x + b.x,
 			a.y + b.y,
-			a.z + b.z
+			a.z + b.z,
+			a.w + b.w
 		};
 	}
 
 	Vec4 operator-(const Vec4& a, const Vec4& b)
 	{
 		return {
-			a.w - b.w,
 			a.x - b.x,
 			a.y - b.y,
-			a.z - b.z
+			a.z - b.z,
+			a.w - b.w
 		};
 	}
 
 	Vec4 operator*(const Vec4& a, float scale)
 	{
 		return {
-			a.w * scale,
 			a.x * scale,
 			a.y * scale,
-			a.z * scale
+			a.z * scale,
+			a.w * scale
 		};
 	}
 
 	Vec4 operator/(const Vec4& a, float scale)
 	{
 		return {
-			a.w / scale,
 			a.x / scale,
 			a.y / scale,
-			a.z / scale
+			a.z / scale,
+			a.w / scale
 		};
 	}
 
@@ -335,22 +335,22 @@ namespace MathAnim
 
 	Vec4i operator+(const Vec4i& a, const Vec4i& b)
 	{
-		return Vec4i{ a.w + b.w, a.x + b.x, a.y + b.y, a.z + b.z };
+		return Vec4i{ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w };
 	}
 
 	Vec4i operator-(const Vec4i& a, const Vec4i& b)
 	{
-		return Vec4i{ a.w - b.w, a.x - b.x, a.y - b.y, a.z - b.z };
+		return Vec4i{ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w };
 	}
 
 	Vec4i operator*(const Vec4i& a, int32 scale)
 	{
-		return Vec4i{ a.w * scale, a.x * scale, a.y * scale, a.z * scale };
+		return Vec4i{ a.x * scale, a.y * scale, a.z * scale, a.w * scale };
 	}
 
 	Vec4i operator/(const Vec4i& a, int32 scale)
 	{
-		return Vec4i{ a.w / scale, a.x / scale, a.y / scale, a.z / scale };
+		return Vec4i{ a.x / scale, a.y / scale, a.z / scale, a.w / scale };
 	}
 
 	Vec4i operator*(int32 scale, const Vec4i& a)

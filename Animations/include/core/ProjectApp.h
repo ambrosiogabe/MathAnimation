@@ -15,6 +15,8 @@ namespace MathAnim
 		void free();
 
 		Window* getWindow();
+
+		const std::filesystem::path& getAppRoot();
 	}
 }
 
