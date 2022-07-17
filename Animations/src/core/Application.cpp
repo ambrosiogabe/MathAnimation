@@ -70,8 +70,8 @@ namespace MathAnim
 			camera3D.fov = 70.0f;
 			camera3D.orientation = glm::vec3(-15.0f, 50.0f, 0);
 			camera3D.position = glm::vec3(
-				-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)), 
-				2.5f, 
+				-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)),
+				2.5f,
 				10.0f * glm::sin(glm::radians(-camera3D.orientation.y))
 			);
 
@@ -182,13 +182,41 @@ namespace MathAnim
 			Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path currentPath = std::filesystem::path(currentProjectFilepath).parent_path();
-			stbi_write_png(
-				(currentPath/"projectPreview.png").string().c_str(),
-				mainFramebuffer.width,
-				mainFramebuffer.height,
-				3,
-				pixels,
-				sizeof(Pixel) * mainFramebuffer.width);
+			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
+			if (mainFramebuffer.width > 1280 || mainFramebuffer.height > 720)
+			{
+				constexpr int outputWidth = 1280;
+				constexpr int outputHeight = 720;
+				uint8* outputPixels = (uint8*)g_memory_allocate(sizeof(uint8) * outputWidth * outputHeight * 3);
+				stbir_resize_uint8(
+					(uint8*)pixels, 
+					mainFramebuffer.width, 
+					mainFramebuffer.height, 
+					0,
+					outputPixels, 
+					outputWidth, 
+					outputHeight, 
+					0, 
+					3);
+				stbi_write_png(
+					outputFile.string().c_str(),
+					outputWidth,
+					outputHeight,
+					3,
+					outputPixels,
+					sizeof(uint8) * outputWidth * 3);
+				g_memory_free(outputPixels);
+			}
+			else
+			{
+				stbi_write_png(
+					outputFile.string().c_str(),
+					mainFramebuffer.width,
+					mainFramebuffer.height,
+					3,
+					pixels,
+					sizeof(Pixel) * mainFramebuffer.width);
+			}
 			mainFramebuffer.freePixels(pixels);
 		}
 

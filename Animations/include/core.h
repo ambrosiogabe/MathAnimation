@@ -39,6 +39,7 @@
 // stb
 #include <stb/stb_image.h>
 #include <stb/stb_write.h>
+#include <stb/stb_image_resize.h>
 
 // Freetype
 #include <ft2build.h>
