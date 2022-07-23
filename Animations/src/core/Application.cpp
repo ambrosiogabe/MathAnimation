@@ -49,6 +49,7 @@ namespace MathAnim
 		static PerspectiveCamera camera3D;
 		static int currentFrame = 0;
 		static float accumulatedTime = 0.0f;
+		static std::string currentProjectFilepath;
 
 		static const char* winTitle = "Math Animations";
 
@@ -69,8 +70,8 @@ namespace MathAnim
 			camera3D.fov = 70.0f;
 			camera3D.orientation = glm::vec3(-15.0f, 50.0f, 0);
 			camera3D.position = glm::vec3(
-				-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)), 
-				2.5f, 
+				-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)),
+				2.5f,
 				10.0f * glm::sin(glm::radians(-camera3D.orientation.y))
 			);
 
@@ -95,7 +96,8 @@ namespace MathAnim
 
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
-			AnimationManager::deserialize(projectFile);
+			currentProjectFilepath = projectFile;
+			AnimationManager::deserialize(currentProjectFilepath.c_str());
 
 			EditorGui::init();
 
@@ -136,10 +138,6 @@ namespace MathAnim
 					currentFrame = glm::max(currentFrame - 1, 0);
 				}
 
-				//camera3D.orientation.y += 45.0f * deltaTime;
-				//camera3D.position.x = glm::cos(-glm::radians(camera3D.orientation.y)) * -10.0f;
-				//camera3D.position.z = glm::sin(-glm::radians(camera3D.orientation.y)) * 10.0f;
-
 				// Render to main framebuffer
 				Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);
 
@@ -177,11 +175,54 @@ namespace MathAnim
 
 				window->swapBuffers();
 			}
+
+			// If the window is closing, save the last rendered frame to a preview image
+			// TODO: Do this a better way
+			// Like no hard coded image path here and hard coded number of components
+			Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);
+			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
+			std::filesystem::path currentPath = std::filesystem::path(currentProjectFilepath).parent_path();
+			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
+			if (mainFramebuffer.width > 1280 || mainFramebuffer.height > 720)
+			{
+				constexpr int outputWidth = 1280;
+				constexpr int outputHeight = 720;
+				uint8* outputPixels = (uint8*)g_memory_allocate(sizeof(uint8) * outputWidth * outputHeight * 3);
+				stbir_resize_uint8(
+					(uint8*)pixels, 
+					mainFramebuffer.width, 
+					mainFramebuffer.height, 
+					0,
+					outputPixels, 
+					outputWidth, 
+					outputHeight, 
+					0, 
+					3);
+				stbi_write_png(
+					outputFile.string().c_str(),
+					outputWidth,
+					outputHeight,
+					3,
+					outputPixels,
+					sizeof(uint8) * outputWidth * 3);
+				g_memory_free(outputPixels);
+			}
+			else
+			{
+				stbi_write_png(
+					outputFile.string().c_str(),
+					mainFramebuffer.width,
+					mainFramebuffer.height,
+					3,
+					pixels,
+					sizeof(Pixel) * mainFramebuffer.width);
+			}
+			mainFramebuffer.freePixels(pixels);
 		}
 
 		void free()
 		{
-			AnimationManager::serialize("./myScene.bin");
+			AnimationManager::serialize(currentProjectFilepath.c_str());
 
 			LaTexLayer::free();
 			EditorGui::free();

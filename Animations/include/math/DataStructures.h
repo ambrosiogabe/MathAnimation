@@ -39,10 +39,10 @@ namespace MathAnim
 			float values[4];
 			struct
 			{
-				float w;
 				float x;
 				float y;
 				float z;
+				float w;
 			};
 			struct
 			{

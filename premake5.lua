@@ -235,8 +235,10 @@ project "DearImGui"
 
     includedirs {
         "./Animations/vendor/dearimgui",
-        "./Animations/vendor/imguizmo"
+        "./Animations/include"
     }
+
+    defines { "-DIMGUI_USER_CONFIG \"core/InternalImGuiConfig.h\"" }
 
     filter { "configurations:Debug" }
         buildoptions "/MTd"

@@ -1,6 +1,6 @@
 #include "core.h"
 
-int hexToInt(char hexCode)
+constexpr int hexToInt(char hexCode)
 {
 	switch (hexCode)
 	{
@@ -35,7 +35,7 @@ int hexToInt(char hexCode)
 	return -1;
 }
 
-float hexToFloat(char hexCode)
+constexpr float hexToFloat(char hexCode)
 {
 	return (float)hexToInt(hexCode);
 }

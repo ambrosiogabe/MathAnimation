@@ -289,8 +289,14 @@ namespace MathAnim
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
 #elif defined(_RELEASE)
-			shader.compileRaw(defaultShaderGlsl);
-			screenShader.compileRaw(screenShaderGlsl);
+			// TODO: Replace these with hardcoded strings
+			shader2D.compile("assets/shaders/default.glsl");
+			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
+			screenShader.compile("assets/shaders/screen.glsl");
+			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
+			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
+			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
+			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
 #endif
 
 			drawList2D.init();

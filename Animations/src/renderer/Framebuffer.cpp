@@ -107,8 +107,6 @@ namespace MathAnim
 		// 128 bits should be big enough for 1 pixel of any format
 		// TODO: Come up with generic way to get any type of pixel data
 		uint8* pixelBuffer = (uint8*)g_memory_allocate(sizeof(uint8) * texture.width * texture.height * 4);
-		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
-		uint32 formatType = TextureUtil::toGlDataType(texture.format);
 		glReadPixels(0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, pixelBuffer);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);

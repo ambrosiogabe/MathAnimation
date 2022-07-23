@@ -30,6 +30,7 @@ namespace MathAnim
 		}
 	}
 
+#ifdef _DEBUG
 	GlobalThreadPool::GlobalThreadPool(bool forceSynchronous)
 	{
 		this->forceSynchronous = forceSynchronous;
@@ -41,6 +42,7 @@ namespace MathAnim
 		doWork = false;
 		numThreads = 0;
 	}
+#endif
 
 	void GlobalThreadPool::free()
 	{

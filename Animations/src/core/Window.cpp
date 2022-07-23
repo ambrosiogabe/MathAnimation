@@ -95,6 +95,11 @@ namespace MathAnim
 		return xScale;
 	}
 
+	void Window::close()
+	{
+		glfwSetWindowShouldClose((GLFWwindow*)windowPtr, true);
+	}
+
 	void Window::update(float dt)
 	{
 
