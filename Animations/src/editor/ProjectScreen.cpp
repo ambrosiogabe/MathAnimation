@@ -85,6 +85,11 @@ namespace MathAnim
 						.setFilepath(projects[i].previewImageFilepath.c_str())
 						.generate(true);
 				}
+				else
+				{
+					projects.erase(projects.begin() + i);
+					i--;
+				}
 			}
 		}
 
