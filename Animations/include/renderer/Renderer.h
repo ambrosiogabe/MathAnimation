@@ -62,6 +62,8 @@ namespace MathAnim
 		void drawString(const std::string& string, const Vec2& start);
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2);
+		// This is expensive, it dispatches a draw call immediately
+		void drawTextureImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>(), bool is3D = false);
 
 		// ----------- 3D Line stuff ----------- 
 		void beginPath3D(const Vec3& start);

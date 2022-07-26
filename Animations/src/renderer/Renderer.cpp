@@ -122,7 +122,7 @@ namespace MathAnim
 		void init();
 
 		// TODO: Add a bunch of methods like this...
-		// void addRect();
+		void addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& shader) const;
@@ -338,7 +338,7 @@ namespace MathAnim
 			glDrawBuffers(3, compositeDrawBuffers);
 
 			// Collect all the render commands
-			nvgBeginFrame(vg, (float)framebuffer.width, (float)framebuffer.height, 1.0f);
+			//nvgBeginFrame(vg, (float)framebuffer.width, (float)framebuffer.height, 1.0f);
 			AnimationManager::render(vg, frame, framebuffer);
 
 			// Do all the draw calls
@@ -362,7 +362,7 @@ namespace MathAnim
 			drawList2D.render(shader2D);
 			drawList2D.reset();
 			LaTexLayer::update();
-			nvgEndFrame(vg);
+			//nvgEndFrame(vg);
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
 			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
@@ -784,6 +784,67 @@ namespace MathAnim
 			//vertices[numVertices].color = color;
 			//vertices[numVertices].textureId = 0;
 			//numVertices++;
+		}
+
+		void drawTextureImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform, bool is3D)
+		{
+			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
+			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
+			Vec2 min = { tmpMin.x, tmpMax.y };
+			Vec2 max = { tmpMax.x, tmpMin.y };
+
+			Vertex2D verts[6];
+			// Triangle 1
+			verts[0].position = min;
+			verts[0].textureCoords = uvMin;
+			verts[0].color = Vec4{ 1, 1, 1, 1 };
+
+			verts[1].position = Vec2{ min.x, max.y };
+			verts[1].textureCoords = Vec2{ uvMin.x, uvMax.y };
+			verts[1].color = Vec4{ 1, 1, 1, 1 };
+
+			verts[2].position = max;
+			verts[2].textureCoords = uvMax;
+			verts[2].color = Vec4{ 1, 1, 1, 1 };
+
+			// Triangle 2
+			verts[3].position = min;
+			verts[3].textureCoords = uvMin;
+			verts[3].color = Vec4{ 1, 1, 1, 1 };
+
+			verts[4].position = max;
+			verts[4].textureCoords = uvMax;
+			verts[4].color = Vec4{ 1, 1, 1, 1 };
+
+			verts[5].position = Vec2{ max.x, min.y };
+			verts[5].textureCoords = Vec2{ uvMax.x, uvMin.y };
+			verts[5].color = Vec4{ 1, 1, 1, 1 };
+
+			// Upload the verts and draw them
+			// TODO: Rename this to drawList2DQuad or something
+			glBindBuffer(GL_ARRAY_BUFFER, drawListFont2D.vbo);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_DYNAMIC_DRAW);
+
+			glBindVertexArray(drawListFont2D.vao);
+			// TODO: Rename this to shader2DQuad.glsl or something
+			shaderFont2D.bind();
+
+			if (is3D)
+			{
+				shaderFont2D.uploadMat4("uProjection", perspCamera->calculateProjectionMatrix());
+				shaderFont2D.uploadMat4("uView", perspCamera->calculateViewMatrix());
+			}
+			else
+			{
+				shaderFont2D.uploadMat4("uProjection", orthoCamera->calculateProjectionMatrix());
+				shaderFont2D.uploadMat4("uView", orthoCamera->calculateViewMatrix());
+			}
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, texture.graphicsId);
+			shaderFont2D.uploadInt("uTexture", 0);
+
+			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}
 
 		// ----------- 3D stuff ----------- 

@@ -151,6 +151,7 @@ namespace MathAnim
 				ImGui::ShowDemoWindow();
 				EditorGui::update(mainFramebuffer.getColorAttachment(0).graphicsId);
 				ImGuiLayer::endFrame();
+				Svg::endFrame();
 
 				// Miscellaneous
 				// TODO: Abstract this stuff out of here
@@ -228,6 +229,7 @@ namespace MathAnim
 			EditorGui::free();
 			nvgDeleteGL3(vg);
 			Fonts::unloadAllFonts();
+			Svg::free();
 			Renderer::free();
 			Audio::free();
 

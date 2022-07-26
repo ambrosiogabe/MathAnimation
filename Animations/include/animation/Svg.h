@@ -8,6 +8,7 @@ namespace MathAnim
 {
 	struct AnimObject;
 	struct OrthoCamera;
+	struct Texture;
 
 	enum class CurveType : uint8
 	{
@@ -64,11 +65,13 @@ namespace MathAnim
 		int numContours;
 		float approximatePerimeter;
 		bool is3D;
-
+		float svgWidth, svgHeight;
+		
 		void normalize();
 		void calculateApproximatePerimeter();
+		void calculateSvgSize();
 		void render(NVGcontext* vg, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}, bool reverse = false) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}, bool reverse = false, bool isSvgGroup = false) const;
 		void free();
 	};
 
@@ -94,6 +97,13 @@ namespace MathAnim
 		SvgGroup createDefaultGroup();
 		
 		void init(OrthoCamera& camera);
+		void free();
+
+		void endFrame();
+
+		const Vec2& getCacheUvMin();
+		const Vec2& getCacheUvMax();
+		const Texture& getCacheTexture();
 
 		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox);
 		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec3& offset);

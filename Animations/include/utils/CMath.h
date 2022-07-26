@@ -89,6 +89,17 @@ namespace MathAnim
 		int min(int a, int b);
 		float saturate(float val);
 
+		// Max, Min helpers
+		Vec2 max(const Vec2& a, const Vec2& b);
+		Vec2 min(const Vec2& a, const Vec2& b);
+		Vec3 max(const Vec3& a, const Vec3& b);
+		Vec3 min(const Vec3& a, const Vec3& b);
+		Vec4 max(const Vec4& a, const Vec4& b);
+		Vec4 min(const Vec4& a, const Vec4& b);
+
+		// Range max, min helpers
+		Vec2 rangeMaxMin(Vec2 range, float value);
+
 		// Hash Strings
 		uint32 hashString(const char* str);
 

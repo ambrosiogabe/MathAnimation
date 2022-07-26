@@ -2,11 +2,18 @@
 #include "animation/Animation.h"
 #include "utils/CMath.h"
 #include "renderer/Renderer.h"
+#include "renderer/Framebuffer.h"
+#include "renderer/Texture.h"
+#include "renderer/Colors.h"
+#include "core/Application.h"
 
 #include <nanovg.h>
 
 namespace MathAnim
 {
+	static float cacheCurrentX, cacheCurrentY, cacheLineHeight;
+	static Framebuffer svgCache;
+
 	namespace Svg
 	{
 		// ----------------- Private Variables -----------------
@@ -15,11 +22,15 @@ namespace MathAnim
 		static Vec3 cursor;
 		static bool moveToP0 = false;
 
+		static Vec2 cacheUvMin;
+		static Vec2 cacheUvMax;
+
 		// ----------------- Internal functions -----------------
 		static void checkResize(Contour& contour);
 		static void render2DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
 		static void render3DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
 		static void transformPoint(Vec3* point, const Vec3& offset, const Vec3& viewboxPos, const Vec3& viewboxSize);
+		static void generateSvgCache(uint32 width, uint32 height);
 
 		SvgObject createDefault()
 		{
@@ -51,6 +62,45 @@ namespace MathAnim
 		void init(OrthoCamera& sceneCamera)
 		{
 			camera = &sceneCamera;
+			constexpr int defaultWidth = 4096;
+			generateSvgCache(defaultWidth, defaultWidth);
+
+			cacheCurrentX = 0;
+			cacheCurrentY = 0;
+		}
+
+		void free()
+		{
+			if (svgCache.fbo != UINT32_MAX)
+			{
+				svgCache.destroy();
+			}
+		}
+
+		void endFrame()
+		{
+			cacheCurrentX = 0;
+			cacheCurrentY = 0;
+
+			svgCache.bind();
+			glViewport(0, 0, svgCache.width, svgCache.height);
+			svgCache.clearColorAttachmentRgba(0, colors[(uint8)Color::GreenBrown]);
+			svgCache.clearDepthStencil();
+		}
+
+		const Vec2& getCacheUvMin()
+		{
+			return cacheUvMin;
+		}
+
+		const Vec2& getCacheUvMax()
+		{
+			return cacheUvMax;
+		}
+
+		const Texture& getCacheTexture()
+		{
+			return svgCache.getColorAttachment(0);
 		}
 
 		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox)
@@ -101,10 +151,10 @@ namespace MathAnim
 			// Normalize all the SVGs within the viewbox
 			for (int svgi = 0; svgi < group->numObjects; svgi++)
 			{
-				//const SvgObject& svg = group->objects[svgi];
-				//const Vec3& offset = group->objectOffsets[svgi];
-
-				// Make sure the perimeter is calculated
+				// First get the original SVG element size recorded
+				group->objects[svgi].calculateSvgSize();
+				// Then normalize it and make sure the perimeter is calculated
+				//group->objects[svgi].normalize();
 				group->objects[svgi].calculateApproximatePerimeter();
 			}
 		}
@@ -863,11 +913,39 @@ namespace MathAnim
 			point->x /= viewboxSize.x;
 			point->y /= viewboxSize.y;
 		}
+
+		static void generateSvgCache(uint32 width, uint32 height)
+		{
+			if (svgCache.fbo != UINT32_MAX)
+			{
+				svgCache.destroy();
+			}
+
+			if (width > 4096 || height > 4096)
+			{
+				g_logger_error("SVG cache cannot be bigger than 4096x4096 pixels. The SVG will be truncated.");
+				width = 4096;
+				height = 4096;
+			}
+
+			// Default the svg framebuffer cache to 1024x1024 and resize if necessary
+			Texture cacheTexture = TextureBuilder()
+				.setFormat(ByteFormat::RGBA8_UI)
+				.setMinFilter(FilterMode::Linear)
+				.setMagFilter(FilterMode::Linear)
+				.setWidth(width)
+				.setHeight(height)
+				.build();
+			svgCache = FramebufferBuilder(width, height)
+				.addColorAttachment(cacheTexture)
+				.includeDepthStencil()
+				.generate();
+		}
 	}
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, bool reverse, const SvgObject* obj);
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, const Vec3& textureOffset, bool reverse, const SvgObject* obj);
 	static void renderCreateAnimation3D(float t, const AnimObject* parent, bool reverse, const SvgObject* obj);
 
 	void SvgObject::normalize()
@@ -942,9 +1020,8 @@ namespace MathAnim
 		}
 
 		// Then map everything to a [0.0-1.0] range from there
-		// We need to maintain aspect ratio though
 		Vec2 hzOutputRange = Vec2{ 0.0f, 1.0f };
-		Vec2 vtOutputRange = Vec2{ 0.0f, (max.y - min.y) / (max.x - min.x) };
+		Vec2 vtOutputRange = Vec2{ 0.0f, 1.0f };
 		for (int contouri = 0; contouri < this->numContours; contouri++)
 		{
 			for (int curvei = 0; curvei < this->contours[contouri].numCurves; curvei++)
@@ -1033,12 +1110,62 @@ namespace MathAnim
 		}
 	}
 
+	void SvgObject::calculateSvgSize()
+	{
+		Vec2 xBounds = { FLT_MAX, FLT_MIN };
+		Vec2 yBounds = { FLT_MAX, FLT_MIN };
+		for (int contouri = 0; contouri < this->numContours; contouri++)
+		{
+			for (int curvei = 0; curvei < this->contours[contouri].numCurves; curvei++)
+			{
+				const Curve& curve = contours[contouri].curves[curvei];
+				glm::vec3 p0 = { curve.p0.x, curve.p0.y, curve.p0.z };
+				xBounds = CMath::rangeMaxMin(xBounds, curve.p0.x);
+				yBounds = CMath::rangeMaxMin(yBounds, curve.p0.y);
+
+				switch (curve.type)
+				{
+				case CurveType::Bezier3:
+				{
+					xBounds = CMath::rangeMaxMin(xBounds, curve.as.bezier3.p1.x);
+					yBounds = CMath::rangeMaxMin(yBounds, curve.as.bezier3.p1.y);
+
+					xBounds = CMath::rangeMaxMin(xBounds, curve.as.bezier3.p2.x);
+					yBounds = CMath::rangeMaxMin(yBounds, curve.as.bezier3.p2.y);
+
+					xBounds = CMath::rangeMaxMin(xBounds, curve.as.bezier3.p3.x);
+					yBounds = CMath::rangeMaxMin(yBounds, curve.as.bezier3.p3.y);
+				}
+				break;
+				case CurveType::Bezier2:
+				{
+					xBounds = CMath::rangeMaxMin(xBounds, curve.as.bezier2.p1.x);
+					yBounds = CMath::rangeMaxMin(yBounds, curve.as.bezier2.p1.y);
+
+					xBounds = CMath::rangeMaxMin(xBounds, curve.as.bezier2.p2.x);
+					yBounds = CMath::rangeMaxMin(yBounds, curve.as.bezier2.p2.y);
+				}
+				break;
+				case CurveType::Line:
+				{
+					xBounds = CMath::rangeMaxMin(xBounds, curve.as.line.p1.x);
+					yBounds = CMath::rangeMaxMin(yBounds, curve.as.line.p1.y);
+				}
+				break;
+				}
+			}
+		}
+
+		svgWidth = xBounds.max - xBounds.min;
+		svgHeight = yBounds.max - yBounds.min;
+	}
+
 	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec3& offset) const
 	{
 		renderCreateAnimation(vg, 1.01f, parent, offset);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, bool reverse) const
+	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, bool reverse, bool isSvgGroup) const
 	{
 		if (this->is3D)
 		{
@@ -1046,7 +1173,82 @@ namespace MathAnim
 		}
 		else
 		{
-			renderCreateAnimation2D(vg, t, parent, offset, reverse, this);
+			// Check if the SVG cache needs to regenerate
+			float svgTotalWidth = (svgWidth + parent->strokeWidth * 0.5f) * parent->scale.x;
+			float svgTotalHeight = (svgHeight + parent->strokeWidth * 0.5f) * parent->scale.y;
+			{
+				float newRightX = offset.x + svgTotalWidth + cacheCurrentX;
+				if (newRightX >= svgCache.width)
+				{
+					// Move to the newline
+					cacheCurrentY += cacheLineHeight;
+					cacheLineHeight = 0;
+				}
+
+				float newBottomY = offset.y + svgTotalHeight + cacheCurrentY;
+				if (newBottomY >= svgCache.height)
+				{
+					// Double the size of the texture (up to 8192x8192 max)
+					Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
+				}
+			}
+
+			// Render to the framebuffer then blit the framebuffer to the screen
+			// with the appropriate transformations
+			int32 lastFboId;
+			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastFboId);
+
+			// First render to the cache
+			svgCache.bind();
+			glViewport(0, 0, svgCache.width, svgCache.height);
+
+			// Reset the draw buffers to draw to FB_attachment_0
+			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
+			glDrawBuffers(3, compositeDrawBuffers);
+
+			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
+			Vec3 svgTextureOffset = Vec3{ (float)cacheCurrentX, (float)cacheCurrentY, 0.0f };
+			Svg::cacheUvMin = Vec2{ svgTextureOffset.x / (float)svgCache.width, svgTextureOffset.y / (float)svgCache.height };
+			Svg::cacheUvMax = Svg::cacheUvMin + 
+				Vec2{ (svgTotalWidth / (float)svgCache.width), (svgTotalHeight / (float)svgCache.height) };
+			renderCreateAnimation2D(vg, t, parent, offset, svgTextureOffset, reverse, this);
+			nvgEndFrame(vg);
+
+			if (!isSvgGroup)
+			{
+				cacheCurrentX += svgTotalWidth;
+				cacheLineHeight = glm::max(cacheLineHeight, svgTotalHeight);
+			}
+
+			// Then bind the previous fbo and blit it to the screen with
+			// the appropriate transformations
+			glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
+
+			// Reset the draw buffers to draw to FB_attachment_0
+			glDrawBuffers(3, compositeDrawBuffers);
+
+			glm::mat4 transform = glm::identity<glm::mat4>();
+			Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
+			transform = glm::translate(
+				transform, 
+				glm::vec3(
+					parent->position.x - cameraCenteredPos.x, 
+					parent->position.y - cameraCenteredPos.y, 
+					0.0f
+				)
+			);
+			if (!CMath::compare(parent->rotation.z, 0.0f))
+			{
+				transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
+			}
+			glEnable(GL_BLEND);
+			Renderer::drawTextureImmediate(
+				Svg::getCacheTexture(),
+				Vec2{ svgTotalWidth, svgTotalHeight },
+				Svg::cacheUvMin,
+				Svg::cacheUvMax,
+				transform,
+				false);
 		}
 	}
 
@@ -1084,6 +1286,9 @@ namespace MathAnim
 		float numberObjectsToDraw = t * (float)numObjects;
 		constexpr float numObjectsToLag = 2.0f;
 		float numObjectsDrawn = 0.0f;
+
+		float maxWidth = 0.0f;
+		float maxHeight = 0.0f;
 		for (int i = 0; i < numObjects; i++)
 		{
 			const SvgObject& obj = objects[i];
@@ -1091,14 +1296,22 @@ namespace MathAnim
 
 			float denominator = i == numObjects - 1 ? 1.0f : numObjectsToLag;
 			float percentOfLetterToDraw = (numberObjectsToDraw - numObjectsDrawn) / denominator;
-			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, offset - translation, reverse);
+			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, offset - translation, reverse, true);
 			numObjectsDrawn += 1.0f;
+
+			float svgTotalWidth = (obj.svgWidth + parent->strokeWidth * 0.5f) * parent->scale.x;
+			float svgTotalHeight = (obj.svgHeight + parent->strokeWidth * 0.5f) * parent->scale.x;
+			maxWidth = glm::max(maxWidth, svgTotalWidth);
+			maxHeight = glm::max(maxHeight, svgTotalHeight);
 
 			if (numObjectsDrawn >= numberObjectsToDraw)
 			{
 				break;
 			}
 		}
+
+		cacheCurrentX += maxWidth;
+		cacheLineHeight = glm::max(cacheLineHeight, maxHeight);
 	}
 
 	void SvgGroup::free()
@@ -1147,7 +1360,7 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, bool reverse, const SvgObject* obj)
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, const Vec3& textureOffset, bool reverse, const SvgObject* obj)
 	{
 		if (reverse)
 		{
@@ -1162,11 +1375,12 @@ namespace MathAnim
 		float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
 
 		// NOTE(voxel): Quick and Dirty
-		Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
-		nvgTranslate(vg, position.x - cameraCenteredPos.x, position.y - cameraCenteredPos.y);
+		//Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
+		//nvgTranslate(vg, position.x - cameraCenteredPos.x, position.y - cameraCenteredPos.y);
+		nvgTranslate(vg, textureOffset.x, textureOffset.y);
 		if (parent->rotation.z != 0.0f)
 		{
-			nvgRotate(vg, glm::radians(parent->rotation.z));
+			//nvgRotate(vg, glm::radians(parent->rotation.z));
 		}
 
 		if (lengthToDraw > 0)

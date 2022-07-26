@@ -8,8 +8,19 @@ namespace MathAnim
 
 	struct Vec2
 	{
-		float x;
-		float y;
+		union
+		{
+			struct
+			{
+				float x;
+				float y;
+			};
+			struct
+			{
+				float min;
+				float max;
+			};
+		};
 	};
 
 	struct Vec3

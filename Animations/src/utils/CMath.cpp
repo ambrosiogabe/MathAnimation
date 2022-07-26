@@ -141,6 +141,41 @@ namespace MathAnim
 				val;
 		}
 
+		Vec2 max(const Vec2& a, const Vec2& b) 
+		{
+			return Vec2{ glm::max(a.x, b.x), glm::max(a.y, b.y) };
+		}
+
+		Vec2 min(const Vec2& a, const Vec2& b) 
+		{
+			return Vec2{ glm::min(a.x, b.x), glm::min(a.y, b.y) };
+		}
+
+		Vec3 max(const Vec3& a, const Vec3& b)
+		{
+			return Vec3{ glm::max(a.x, b.x), glm::max(a.y, b.y), glm::max(a.z, b.z) };
+		}
+
+		Vec3 min(const Vec3& a, const Vec3& b) 
+		{
+			return Vec3{ glm::min(a.x, b.x), glm::min(a.y, b.y), glm::min(a.z, b.z) };
+		}
+
+		Vec4 max(const Vec4& a, const Vec4& b)
+		{
+			return Vec4{ glm::max(a.x, b.x), glm::max(a.y, b.y), glm::max(a.z, b.z), glm::max(a.w, b.w) };
+		}
+
+		Vec4 min(const Vec4& a, const Vec4& b) 
+		{
+			return Vec4{ glm::min(a.x, b.x), glm::min(a.y, b.y), glm::min(a.z, b.z), glm::min(a.w, b.w) };
+		}
+
+		Vec2 rangeMaxMin(Vec2 range, float value)
+		{
+			return Vec2{ glm::min(range.min, value), glm::max(range.max, value) };
+		}
+
 		uint32 hashString(const char* str)
 		{
 			uint32 hash = 2166136261u;

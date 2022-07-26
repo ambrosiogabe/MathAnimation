@@ -24,9 +24,10 @@ out vec4 FragColor;
 in vec4 fColor;
 in vec2 fTexCoord;
 
-uniform usampler2D uTexture;
+uniform sampler2D uTexture;
 
 void main()
 {
-    FragColor = fColor * (float(texture(uTexture, fTexCoord).r) / 255.0f);
+    //FragColor = fColor * (float(texture(uTexture, fTexCoord).r) / 255.0f);
+    FragColor = fColor * texture(uTexture, fTexCoord);
 }
