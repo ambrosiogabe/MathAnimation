@@ -159,14 +159,13 @@ namespace MathAnim
 			}
 		}
 
-		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D)
+		void beginContour(SvgObject* object, const Vec3& firstPoint, bool is3D)
 		{
 			object->is3D = is3D;
 			object->numContours++;
 			object->contours = (Contour*)g_memory_realloc(object->contours, sizeof(Contour) * object->numContours);
 			g_logger_assert(object->contours != nullptr, "Ran out of RAM.");
 
-			object->contours[object->numContours - 1].clockwiseFill = clockwiseFill;
 			object->contours[object->numContours - 1].maxCapacity = initialMaxCapacity;
 			object->contours[object->numContours - 1].curves = (Curve*)g_memory_allocate(sizeof(Curve) * initialMaxCapacity);
 			object->contours[object->numContours - 1].numCurves = 0;
@@ -198,7 +197,7 @@ namespace MathAnim
 			// If no object has started, begin the object here
 			if (object->numContours == 0)
 			{
-				beginContour(object, point, true);
+				beginContour(object, point);
 				absolute = true;
 				moveToP0 = false;
 			}
@@ -1173,9 +1172,15 @@ namespace MathAnim
 		}
 		else
 		{
+			if (!isSvgGroup)
+			{
+				cacheCurrentX += parent->strokeWidth;
+				cacheCurrentY += parent->strokeWidth;
+			}
+
 			// Check if the SVG cache needs to regenerate
-			float svgTotalWidth = (svgWidth + parent->strokeWidth * 0.5f) * parent->scale.x;
-			float svgTotalHeight = (svgHeight + parent->strokeWidth * 0.5f) * parent->scale.y;
+			float svgTotalWidth = (svgWidth + parent->strokeWidth * 2.0f) * parent->scale.x;
+			float svgTotalHeight = (svgHeight + parent->strokeWidth * 2.0f) * parent->scale.y;
 			{
 				float newRightX = offset.x + svgTotalWidth + cacheCurrentX;
 				if (newRightX >= svgCache.width)
@@ -1208,11 +1213,23 @@ namespace MathAnim
 
 			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
 			Vec3 svgTextureOffset = Vec3{ (float)cacheCurrentX, (float)cacheCurrentY, 0.0f };
-			Svg::cacheUvMin = Vec2{ svgTextureOffset.x / (float)svgCache.width, svgTextureOffset.y / (float)svgCache.height };
-			Svg::cacheUvMax = Svg::cacheUvMin + 
-				Vec2{ (svgTotalWidth / (float)svgCache.width), (svgTotalHeight / (float)svgCache.height) };
 			renderCreateAnimation2D(vg, t, parent, offset, svgTextureOffset, reverse, this);
 			nvgEndFrame(vg);
+
+			if (isSvgGroup)
+			{
+				svgTextureOffset.x += offset.x * parent->scale.x;
+				svgTextureOffset.y += offset.y * parent->scale.y;
+				Svg::cacheUvMin = Vec2{ svgTextureOffset.x / (float)svgCache.width, svgTextureOffset.y / (float)svgCache.height };
+				Svg::cacheUvMax = Svg::cacheUvMin +
+					Vec2{ (svgTotalWidth / (float)svgCache.width), (svgTotalHeight / (float)svgCache.height) };
+			}
+			else
+			{
+				Svg::cacheUvMin = Vec2{ svgTextureOffset.x / (float)svgCache.width, svgTextureOffset.y / (float)svgCache.height };
+				Svg::cacheUvMax = Svg::cacheUvMin +
+					Vec2{ (svgTotalWidth / (float)svgCache.width), (svgTotalHeight / (float)svgCache.height) };
+			}
 
 			if (!isSvgGroup)
 			{
@@ -1262,7 +1279,6 @@ namespace MathAnim
 			}
 			contours[contouri].numCurves = 0;
 			contours[contouri].maxCapacity = 0;
-			contours[contouri].clockwiseFill = false;
 		}
 
 		if (contours)
@@ -1296,11 +1312,12 @@ namespace MathAnim
 
 			float denominator = i == numObjects - 1 ? 1.0f : numObjectsToLag;
 			float percentOfLetterToDraw = (numberObjectsToDraw - numObjectsDrawn) / denominator;
-			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, offset - translation, reverse, true);
+			Vec3 absOffset = offset - translation;
+			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, absOffset, reverse, true);
 			numObjectsDrawn += 1.0f;
 
-			float svgTotalWidth = (obj.svgWidth + parent->strokeWidth * 0.5f) * parent->scale.x;
-			float svgTotalHeight = (obj.svgHeight + parent->strokeWidth * 0.5f) * parent->scale.x;
+			float svgTotalWidth = (absOffset.x + (obj.svgWidth + parent->strokeWidth * 2.0f)) * parent->scale.x;
+			float svgTotalHeight = (absOffset.y + (obj.svgHeight + parent->strokeWidth * 2.0f)) * parent->scale.x;
 			maxWidth = glm::max(maxWidth, svgTotalWidth);
 			maxHeight = glm::max(maxHeight, svgTotalHeight);
 
@@ -1477,6 +1494,14 @@ namespace MathAnim
 								p3 = q3;
 							}
 
+							// TODO: TMP Remove me
+							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
+							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
+							Vec2 tp2 = Vec2{ p2.x * parent->scale.x, p2.y * parent->scale.y };
+							Vec2 tp3 = Vec2{ p3.x * parent->scale.x, p3.y * parent->scale.y };
+							BBox bbox = CMath::bezier3BBox(tp0, tp1, tp2, tp3);
+							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
+
 							nvgBezierTo(
 								vg,
 								p1.x * parent->scale.x, p1.y * parent->scale.y,
@@ -1538,6 +1563,14 @@ namespace MathAnim
 								pr2 = q2;
 								pr3 = q3;
 							}
+
+							// TODO: TMP Remove me
+							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
+							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
+							Vec2 tp2 = Vec2{ p2.x * parent->scale.x, p2.y * parent->scale.y };
+							Vec2 tp3 = Vec2{ p3.x * parent->scale.x, p3.y * parent->scale.y };
+							BBox bbox = CMath::bezier3BBox(tp0, tp1, tp2, tp3);
+							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
 
 							nvgBezierTo(
 								vg,
@@ -1676,6 +1709,106 @@ namespace MathAnim
 			}
 
 			nvgFill(vg);
+		}
+
+		// TODO: TMP Remove me
+		if (amountToFadeIn > 0)
+		{
+			for (int contouri = 0; contouri < obj->numContours; contouri++)
+			{
+				if (obj->contours[contouri].numCurves > 0)
+				{
+					for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
+					{
+						const Curve& curve = obj->contours[contouri].curves[curvei];
+						glm::vec4 p0 = glm::vec4(
+							curve.p0.x + offset.x,
+							curve.p0.y + offset.y,
+							0.0f,
+							1.0f
+						);
+
+						switch (curve.type)
+						{
+						case CurveType::Bezier3:
+						{
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x + offset.x, curve.as.bezier3.p1.y + offset.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x + offset.x, curve.as.bezier3.p2.y + offset.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x + offset.x, curve.as.bezier3.p3.y + offset.y, 0.0f, 1.0f };
+
+							// TODO: TMP Remove me
+							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
+							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
+							Vec2 tp2 = Vec2{ p2.x * parent->scale.x, p2.y * parent->scale.y };
+							Vec2 tp3 = Vec2{ p3.x * parent->scale.x, p3.y * parent->scale.y };
+							BBox bbox = CMath::bezier3BBox(tp0, tp1, tp2, tp3);
+
+							nvgBeginPath(vg);
+							nvgStrokeWidth(vg, 5.0f);
+							nvgStrokeColor(vg, nvgRGB(255, 0, 0));
+							nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
+							nvgMoveTo(vg, bbox.min.x, bbox.min.y);
+							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
+							nvgStroke(vg);
+						}
+						break;
+						case CurveType::Bezier2:
+						{
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x + offset.x, curve.as.bezier2.p1.y + offset.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x + offset.x, curve.as.bezier2.p1.y + offset.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x + offset.x, curve.as.bezier2.p2.y + offset.y, 0.0f, 1.0f };
+
+							// Degree elevated quadratic bezier curve
+							glm::vec4 pr0 = p0;
+							glm::vec4 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
+							glm::vec4 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+							glm::vec4 pr3 = p3;
+
+							// TODO: TMP Remove me
+							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
+							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
+							Vec2 tp2 = Vec2{ p3.x * parent->scale.x, p3.y * parent->scale.y };
+							BBox bbox = CMath::bezier2BBox(tp0, tp1, tp2);
+
+							nvgBeginPath(vg);
+							nvgStrokeWidth(vg, 5.0f);
+							nvgStrokeColor(vg, nvgRGB(255, 0, 0));
+							nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
+							nvgMoveTo(vg, bbox.min.x, bbox.min.y);
+							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
+							nvgStroke(vg);
+						}
+						break;
+						case CurveType::Line:
+						{
+							glm::vec4 p1 = glm::vec4(
+								(curve.as.line.p1.x + offset.x) * parent->scale.x,
+								(curve.as.line.p1.y + offset.y) * parent->scale.y,
+								0.0f,
+								1.0f
+							);
+
+							// TODO: TMP Remove me
+							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
+							Vec2 tp1 = Vec2{ p1.x, p1.y };
+							BBox bbox = CMath::bezier1BBox(tp0, tp1);
+
+							nvgBeginPath(vg);
+							nvgStrokeWidth(vg, 5.0f);
+							nvgStrokeColor(vg, nvgRGB(255, 0, 0));
+							nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
+							nvgMoveTo(vg, bbox.min.x, bbox.min.y);
+							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
+							nvgStroke(vg);
+						}
+						break;
+						default:
+							g_logger_warning("Unknown curve type in render %d", (int)curve.type);
+							break;
+						}
+					}
+				}
+			}
 		}
 
 		nvgResetTransform(vg);

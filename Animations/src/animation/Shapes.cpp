@@ -19,13 +19,11 @@ namespace MathAnim
 		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 		*parent->svgObject = Svg::createDefault();
 
-		float halfLength = sideLength / 2.0f;
-
-		Svg::beginContour(parent->_svgObjectStart, { -halfLength, halfLength, 0.0f }, true);
-		Svg::lineTo(parent->_svgObjectStart, { halfLength, halfLength, 0.0f });
-		Svg::lineTo(parent->_svgObjectStart, { halfLength, -halfLength, 0.0f });
-		Svg::lineTo(parent->_svgObjectStart, { -halfLength, -halfLength, 0.0f });
-		Svg::lineTo(parent->_svgObjectStart, { -halfLength, halfLength, 0.0f });
+		Svg::beginContour(parent->_svgObjectStart, { 0.0f, sideLength, 0.0f });
+		Svg::lineTo(parent->_svgObjectStart, { sideLength, sideLength, 0.0f });
+		Svg::lineTo(parent->_svgObjectStart, { sideLength, 0.0f, 0.0f });
+		Svg::lineTo(parent->_svgObjectStart, { 0.0f, 0.0f, 0.0f });
+		Svg::lineTo(parent->_svgObjectStart, { 0.0f, sideLength, 0.0f });
 		Svg::closeContour(parent->_svgObjectStart);
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
@@ -66,8 +64,7 @@ namespace MathAnim
 		// See here for how to construct circle with beziers 
 		// https://stackoverflow.com/questions/1734745/how-to-create-circle-with-bézier-curves
 		double equidistantControls = (4.0 / 3.0) * glm::tan(glm::pi<double>() / 8.0) * (double)radius;
-		bool clockwiseFill = true;
-		Svg::beginContour(parent->_svgObjectStart, { -radius, 0.0f, 0.0f }, clockwiseFill, is3D);
+		Svg::beginContour(parent->_svgObjectStart, { -radius, 0.0f, 0.0f }, is3D);
 
 		Svg::bezier3To(parent->_svgObjectStart,
 			Vec3{ -radius, (float)equidistantControls, 0.0f },
@@ -129,29 +126,28 @@ namespace MathAnim
 		float halfLength = sideLength / 2.0f;
 
 		bool is3D = true;
-		bool clockwiseFill = true;
-		Svg::beginContour(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, -halfLength }, clockwiseFill, is3D);
+		Svg::beginContour(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, -halfLength }, is3D);
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, -halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, -halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, -halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, -halfLength });
 		Svg::closeContour(parent->_svgObjectStart);
 
-		Svg::beginContour(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, -halfLength }, clockwiseFill, is3D);
+		Svg::beginContour(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, -halfLength }, is3D);
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, -halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, -halfLength });
 		Svg::closeContour(parent->_svgObjectStart);
 
-		Svg::beginContour(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, halfLength }, clockwiseFill, is3D);
+		Svg::beginContour(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, halfLength }, is3D);
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, halfLength });
 		Svg::closeContour(parent->_svgObjectStart);
 
-		Svg::beginContour(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, halfLength }, clockwiseFill, is3D);
+		Svg::beginContour(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, halfLength }, is3D);
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, -halfLength });
 		Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, -halfLength });

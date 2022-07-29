@@ -228,6 +228,141 @@ namespace MathAnim
 				t * t * t * p3;
 		}
 
+		Vec2 tRootBezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2)
+		{
+			Vec2 w0 = 2.0f * (p1 - p0);
+			Vec2 w1 = 2.0f * (p2 - p1);
+			Vec2 tValues;
+
+			// If the denominator is 0, then return invalid t-value
+			tValues.x = CMath::compare(w1.x - w0.x, 0.0f)
+				? -1.0f 
+				: (-w0.x) / (w1.x - w0.x);
+			tValues.y = CMath::compare(w1.y - w0.y, 0.0f)
+				? -1.0f
+				: (-w0.y) / (w1.y - w0.y);
+
+			return tValues;
+		}
+
+		Vec4 tRootsBezier3(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3)
+		{
+			Vec2 v0 = 3.0f * (p1 - p0);
+			Vec2 v1 = 3.0f * (p2 - p1);
+			Vec2 v2 = 3.0f * (p3 - p2);
+
+			Vec2 a = v0 - (2.0f * v1) + v2;
+			Vec2 b = 2.0f * (v1 - v0);
+			Vec2 c = v0;
+
+			Vec4 res;
+			// res[0] is + case in quadratic curve
+			// res[1] is - case in quadratic curve
+			if (CMath::compare(a.x, 0.0f))
+			{
+				res.values[0] = -1.0f;
+				res.values[2] = -1.0f;
+			}
+			else
+			{
+				// Solve x cases
+				res.values[0] = quadraticFormulaPos(a.x, b.x, c.x);
+				res.values[2] = quadraticFormulaNeg(a.x, b.x, c.x);
+			}
+
+			if (CMath::compare(a.y, 0.0f))
+			{
+				res.values[1] = -1.0f;
+				res.values[3] = -1.0f;
+			}
+			else
+			{
+				res.values[1] = quadraticFormulaPos(a.y, b.y, c.y);
+				res.values[3] = quadraticFormulaNeg(a.y, b.y, c.y);
+			}
+
+			return res;
+		}
+
+		BBox bezier1BBox(const Vec2& p0, const Vec2& p1)
+		{
+			BBox res;
+			res.min = min(p0, p1);
+			res.max = max(p0, p1);
+			return res;
+		}
+
+		BBox bezier2BBox(const Vec2& p0, const Vec2& p1, const Vec2& p2)
+		{
+			// Find extremities then return min max extremities
+			// Initialize it to the min/max of the endpoints
+			BBox res;
+			res.min = min(p0, p2);
+			res.max = max(p0, p2);
+
+			Vec2 roots = tRootBezier2(p0, p1, p2);
+			for (int i = 0; i < 2; i++)
+			{
+				// Root is in range of the bezier curve
+				if (roots.values[i] > 0.0f && roots.values[i] < 1.0f)
+				{
+					Vec2 pos = bezier2(p0, p1, p2, roots.values[i]);
+					res.min = min(res.min, pos);
+					res.max = max(res.max, pos);
+				}
+			}
+
+			return res;
+		}
+
+		BBox bezier3BBox(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3)
+		{
+			// Find extremities then return min max extremities
+			// Initialize it to the min/max of the endpoints
+			BBox res;
+			res.min = min(p0, p3);
+			res.max = max(p0, p3);
+
+			Vec4 roots = tRootsBezier3(p0, p1, p2, p3);
+			for (int i = 0; i < 4; i++)
+			{
+				// Root is in range of the bezier curve
+				if (roots.values[i] > 0.0f && roots.values[i] < 1.0f)
+				{
+					Vec2 pos = bezier2(p0, p1, p2, roots.values[i]);
+					res.min = min(res.min, pos);
+					res.max = max(res.max, pos);
+				}
+			}
+
+			return res;
+		}
+
+		Vec2 tRootBezier2(const Vec3& p0, const Vec3& p1, const Vec3& p2)
+		{
+			return tRootBezier2(Vec2{ p0.x, p0.y }, Vec2{ p1.x, p1.y }, Vec2{ p2.x, p2.y });
+		}
+
+		Vec4 tRootsBezier3(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3)
+		{
+			return tRootsBezier3(Vec2{ p0.x, p0.y }, Vec2{ p1.x, p1.y }, Vec2{ p2.x, p2.y }, Vec2{ p3.x, p3.y });
+		}
+
+		BBox bezier1BBox(const Vec3& p0, const Vec3& p1)
+		{
+			return bezier1BBox(Vec2{ p0.x, p0.y }, Vec2{ p1.x, p1.y });
+		}
+
+		BBox bezier2BBox(const Vec3& p0, const Vec3& p1, const Vec3& p2)
+		{
+			return bezier2BBox(Vec2{ p0.x, p0.y }, Vec2{ p1.x, p1.y }, Vec2{ p2.x, p2.y });
+		}
+
+		BBox bezier3BBox(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3)
+		{
+			return bezier3BBox(Vec2{ p0.x, p0.y }, Vec2{ p1.x, p1.y }, Vec2{ p2.x, p2.y }, Vec2{ p3.x, p3.y });
+		}
+
 		// Easing functions
 		float ease(float t, EaseType type, EaseDirection direction)
 		{

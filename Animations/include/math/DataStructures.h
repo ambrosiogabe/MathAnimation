@@ -5,11 +5,11 @@
 
 namespace MathAnim
 {
-
 	struct Vec2
 	{
 		union
 		{
+			float values[2];
 			struct
 			{
 				float x;
@@ -110,6 +110,18 @@ namespace MathAnim
 				int32 z;
 			};
 		};
+	};
+
+	struct BBox
+	{
+		Vec2 min;
+		Vec2 max;
+	};
+
+	struct BBoxi
+	{
+		Vec2i min;
+		Vec2i max;
 	};
 
 	Vec2 operator+(const Vec2& a, const Vec2& b);

@@ -226,7 +226,7 @@ namespace MathAnim
 							float h = hAttr->FloatValue();
 
 							SvgObject rect = Svg::createDefault();
-							Svg::beginContour(&rect, { 0, h, 0.0f }, true);
+							Svg::beginContour(&rect, { 0, h, 0.0f });
 							Svg::lineTo(&rect, { w, h, 0.0f });
 							Svg::lineTo(&rect, { w, 0, 0.0f });
 							Svg::lineTo(&rect, { 0, 0, 0.0f });

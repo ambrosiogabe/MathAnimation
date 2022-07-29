@@ -55,7 +55,6 @@ namespace MathAnim
 		Curve* curves;
 		int numCurves;
 		int maxCapacity;
-		bool clockwiseFill;
 	};
 
 	struct SvgObject
@@ -66,10 +65,12 @@ namespace MathAnim
 		float approximatePerimeter;
 		bool is3D;
 		float svgWidth, svgHeight;
+		BBox bbox;
 		
 		void normalize();
 		void calculateApproximatePerimeter();
 		void calculateSvgSize();
+		void calculateBBox();
 		void render(NVGcontext* vg, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}) const;
 		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}, bool reverse = false, bool isSvgGroup = false) const;
 		void free();
@@ -109,7 +110,7 @@ namespace MathAnim
 		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec3& offset);
 		void endSvgGroup(SvgGroup* group);
 
-		void beginContour(SvgObject* object, const Vec3& firstPoint, bool clockwiseFill, bool is3D = false);
+		void beginContour(SvgObject* object, const Vec3& firstPoint, bool is3D = false);
 		void closeContour(SvgObject* object, bool lineToEndpoint = false);
 
 		void moveTo(SvgObject* object, const Vec3& point, bool absolute = true);

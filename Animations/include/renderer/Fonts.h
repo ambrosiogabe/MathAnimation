@@ -7,6 +7,8 @@ struct NVGcontext;
 
 namespace MathAnim
 {
+	struct SvgObject;
+
 	struct CharRange
 	{
 		uint32 firstCharCode;
@@ -15,24 +17,9 @@ namespace MathAnim
 		static CharRange Ascii;
 	};
 
-	struct GlyphVertex
-	{
-		Vec2 position;
-		bool controlPoint;
-	};
-
-	struct GlyphContour
-	{
-		GlyphVertex* vertices;
-		int numVertices;
-		int numCurves;
-	};
-
 	struct GlyphOutline
 	{
-		GlyphContour* contours;
-		int numContours;
-		float totalCurveLengthApprox;
+		SvgObject* svg;
 		float advanceX;
 		float bearingX;
 		float bearingY;

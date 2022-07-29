@@ -28,18 +28,6 @@ namespace MathAnim
 
 	void TextObject::render(NVGcontext* vg, const AnimObject* parent) const
 	{
-		//const glm::u8vec4& fillColor = parent->fillColor;
-		//const glm::u8vec4& strokeColor = parent->strokeColor;
-		//nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, fillColor.a));
-		//if (!glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
-		//{
-		//	nvgStrokeWidth(vg, parent->strokeWidth);
-		//	nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, strokeColor.a));
-		//}
-		//nvgFontFace(vg, font->vgFontFace.c_str());
-		//nvgFontSize(vg, fontSizePixels);
-		//nvgText(vg, parent->position.x, (font->lineHeight * 0.5f * fontSizePixels) + parent->position.y, text, NULL);
-
 		// TODO: This may lead to performance degradation with larger projects because
 		// we can't just stroke an object we have to manually draw the svg curves
 		// then do a stroke, then repeat with a fill. I should consider looking into
@@ -48,7 +36,7 @@ namespace MathAnim
 		renderWriteInAnimation(vg, 1.01f, parent);
 	}
 
-	void TextObject::renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent) const
+	void TextObject::renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse) const
 	{
 		if (parent->as.textObject.font == nullptr)
 		{
@@ -56,7 +44,7 @@ namespace MathAnim
 		}
 
 		std::string textStr = std::string(text);
-		glm::vec4 cursorPos = glm::vec4(parent->position.x, parent->position.y, parent->position.z, 1.0f);
+		Vec3 cursorPos = parent->position;
 		int numNonWhitespaceCharacters = 0;
 		for (int i = 0; i < textStr.length(); i++)
 		{
@@ -76,11 +64,16 @@ namespace MathAnim
 
 			float denominator = i == textStr.length() - 1 ? 1.0f : numLettersToLag;
 			float percentOfLetterToDraw = (numberLettersToDraw - (float)numNonWhitespaceLettersDrawn) / denominator;
-			glm::vec4 glyphPos = cursorPos;
-			renderWriteInCodepointAnimation(vg, codepoint, percentOfLetterToDraw, font, fontSizePixels, glyphPos, parent);
+			Vec3 glyphPos = cursorPos;
+			Vec3 offset = Vec3{
+				glyphOutline.bearingX,
+				-glyphOutline.bearingY,
+				0.0f
+			};
+			//glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, reverse);
 
 			// TODO: I may have to add kerning info here
-			cursorPos += glm::vec4(glyphOutline.advanceX * fontSizePixels, 0.0f, 0.0f, 1.0f);
+			cursorPos += Vec3{glyphOutline.advanceX * fontSizePixels, 0.0f, 0.0f};
 
 			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
 			{
@@ -297,203 +290,203 @@ namespace MathAnim
 	}
 
 	// ------------- Internal Functions -------------
-	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos, const AnimObject* parent)
-	{
-		if (font == nullptr)
-		{
-			return;
-		}
+	//static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos, const AnimObject* parent)
+	//{
+	//	if (font == nullptr)
+	//	{
+	//		return;
+	//	}
 
-		const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
+	//	const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
 
-		// Start the fade in after 80% of the codepoint is drawn
-		constexpr float fadeInStart = 0.8f;
-		float lengthToDraw = t * (float)glyphOutline.totalCurveLengthApprox;
-		float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
-		float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
+	//	// Start the fade in after 80% of the codepoint is drawn
+	//	constexpr float fadeInStart = 0.8f;
+	//	float lengthToDraw = t * (float)glyphOutline.totalCurveLengthApprox;
+	//	float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
+	//	float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
 
-		float yOffset = -glyphOutline.bearingY;
+	//	float yOffset = -glyphOutline.bearingY;
 
-		if (lengthToDraw > 0)
-		{
-			Vec2 cameraCenteredPos = TextAnimations::camera->projectionSize / 2.0f - TextAnimations::camera->position;
-			nvgTranslate(vg, -cameraCenteredPos.x, -cameraCenteredPos.y);
-			float lengthDrawn = 0.0f;
-			for (int c = 0; c < glyphOutline.numContours; c++)
-			{
-				nvgBeginPath(vg);
-				const glm::u8vec4& strokeColor = parent->strokeColor;
-				if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
-				{
-					// Fade the stroke out as the font fades in
-					nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, (unsigned char)((float)strokeColor.a * (1.0f - percentToFadeIn))));
-					nvgStrokeWidth(vg, 5.0f);
-				}
-				else
-				{
-					nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, strokeColor.a));
-					nvgStrokeWidth(vg, parent->strokeWidth);
-				}
+	//	if (lengthToDraw > 0)
+	//	{
+	//		Vec2 cameraCenteredPos = TextAnimations::camera->projectionSize / 2.0f - TextAnimations::camera->position;
+	//		nvgTranslate(vg, -cameraCenteredPos.x, -cameraCenteredPos.y);
+	//		float lengthDrawn = 0.0f;
+	//		for (int c = 0; c < glyphOutline.numContours; c++)
+	//		{
+	//			nvgBeginPath(vg);
+	//			const glm::u8vec4& strokeColor = parent->strokeColor;
+	//			if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
+	//			{
+	//				// Fade the stroke out as the font fades in
+	//				nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, (unsigned char)((float)strokeColor.a * (1.0f - percentToFadeIn))));
+	//				nvgStrokeWidth(vg, 5.0f);
+	//			}
+	//			else
+	//			{
+	//				nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, strokeColor.a));
+	//				nvgStrokeWidth(vg, parent->strokeWidth);
+	//			}
 
-				if (glyphOutline.contours[c].numVertices > 0)
-				{
-					glm::vec4 pos = glm::vec4(
-						glyphOutline.contours[c].vertices[0].position.x + glyphOutline.bearingX,
-						glyphOutline.contours[c].vertices[0].position.y + yOffset,
-						0.0f,
-						1.0f
-					);
-					nvgMoveTo(
-						vg,
-						pos.x * fontScale + glyphPos.x,
-						pos.y * fontScale + glyphPos.y
-					);
-				}
+	//			if (glyphOutline.contours[c].numVertices > 0)
+	//			{
+	//				glm::vec4 pos = glm::vec4(
+	//					glyphOutline.contours[c].vertices[0].position.x + glyphOutline.bearingX,
+	//					glyphOutline.contours[c].vertices[0].position.y + yOffset,
+	//					0.0f,
+	//					1.0f
+	//				);
+	//				nvgMoveTo(
+	//					vg,
+	//					pos.x * fontScale + glyphPos.x,
+	//					pos.y * fontScale + glyphPos.y
+	//				);
+	//			}
 
-				bool stoppedEarly = false;
-				for (int vi = 0; vi < glyphOutline.contours[c].numVertices; vi += 2)
-				{
-					float lengthLeft = lengthToDraw - (float)lengthDrawn;
-					if (lengthLeft < 0.0f)
-					{
-						break;
-					}
+	//			bool stoppedEarly = false;
+	//			for (int vi = 0; vi < glyphOutline.contours[c].numVertices; vi += 2)
+	//			{
+	//				float lengthLeft = lengthToDraw - (float)lengthDrawn;
+	//				if (lengthLeft < 0.0f)
+	//				{
+	//					break;
+	//				}
 
-					bool isLine = !glyphOutline.contours[c].vertices[vi + 1].controlPoint;
-					if (isLine)
-					{
-						glm::vec4 p0 = glm::vec4(
-							glyphOutline.contours[c].vertices[vi].position.x + glyphOutline.bearingX,
-							glyphOutline.contours[c].vertices[vi].position.y + yOffset,
-							0.0f,
-							1.0f
-						);
-						glm::vec4 p1 = glm::vec4(
-							glyphOutline.contours[c].vertices[vi + 1].position.x + glyphOutline.bearingX,
-							glyphOutline.contours[c].vertices[vi + 1].position.y + yOffset,
-							0.0f,
-							1.0f
-						);
-						float curveLength = glm::length(p1 - p0);
-						lengthDrawn += curveLength;
+	//				bool isLine = !glyphOutline.contours[c].vertices[vi + 1].controlPoint;
+	//				if (isLine)
+	//				{
+	//					glm::vec4 p0 = glm::vec4(
+	//						glyphOutline.contours[c].vertices[vi].position.x + glyphOutline.bearingX,
+	//						glyphOutline.contours[c].vertices[vi].position.y + yOffset,
+	//						0.0f,
+	//						1.0f
+	//					);
+	//					glm::vec4 p1 = glm::vec4(
+	//						glyphOutline.contours[c].vertices[vi + 1].position.x + glyphOutline.bearingX,
+	//						glyphOutline.contours[c].vertices[vi + 1].position.y + yOffset,
+	//						0.0f,
+	//						1.0f
+	//					);
+	//					float curveLength = glm::length(p1 - p0);
+	//					lengthDrawn += curveLength;
 
-						if (lengthLeft < curveLength)
-						{
-							float percentOfCurveToDraw = lengthLeft / curveLength;
-							p1 = (p1 - p0) * percentOfCurveToDraw + p0;
-						}
+	//					if (lengthLeft < curveLength)
+	//					{
+	//						float percentOfCurveToDraw = lengthLeft / curveLength;
+	//						p1 = (p1 - p0) * percentOfCurveToDraw + p0;
+	//					}
 
-						glm::vec4 projectedPos = p1;
-						nvgLineTo(
-							vg,
-							projectedPos.x * fontScale + glyphPos.x,
-							projectedPos.y * fontScale + glyphPos.y
-						);
-					}
-					else
-					{
-						const Vec2& p0 = glyphOutline.contours[c].vertices[vi + 0].position;
-						const Vec2& p1 = glyphOutline.contours[c].vertices[vi + 1].position;
-						const Vec2& p1a = glyphOutline.contours[c].vertices[vi + 1].position;
-						const Vec2& p2 = glyphOutline.contours[c].vertices[vi + 2].position;
+	//					glm::vec4 projectedPos = p1;
+	//					nvgLineTo(
+	//						vg,
+	//						projectedPos.x * fontScale + glyphPos.x,
+	//						projectedPos.y * fontScale + glyphPos.y
+	//					);
+	//				}
+	//				else
+	//				{
+	//					const Vec2& p0 = glyphOutline.contours[c].vertices[vi + 0].position;
+	//					const Vec2& p1 = glyphOutline.contours[c].vertices[vi + 1].position;
+	//					const Vec2& p1a = glyphOutline.contours[c].vertices[vi + 1].position;
+	//					const Vec2& p2 = glyphOutline.contours[c].vertices[vi + 2].position;
 
-						// Degree elevated quadratic bezier curve
-						glm::vec4 pr0 = glm::vec4(
-							p0.x + glyphOutline.bearingX,
-							p0.y + yOffset,
-							0.0f,
-							1.0f
-						);
-						glm::vec4 pr1 = (1.0f / 3.0f) * glm::vec4(
-							p0.x + glyphOutline.bearingX,
-							p0.y + yOffset,
-							0.0f,
-							1.0f
-						) + (2.0f / 3.0f) * glm::vec4(
-							p1.x + glyphOutline.bearingX,
-							p1.y + yOffset,
-							0.0f,
-							1.0f
-						);
-						glm::vec4 pr2 = (2.0f / 3.0f) * glm::vec4(
-							p1.x + glyphOutline.bearingX,
-							p1.y + yOffset,
-							0.0f,
-							1.0f
-						) + (1.0f / 3.0f) * glm::vec4(
-							p2.x + glyphOutline.bearingX,
-							p2.y + yOffset,
-							0.0f,
-							1.0f
-						);
-						glm::vec4 pr3 = glm::vec4(
-							p2.x + glyphOutline.bearingX,
-							p2.y + yOffset,
-							0.0f,
-							1.0f
-						);
+	//					// Degree elevated quadratic bezier curve
+	//					glm::vec4 pr0 = glm::vec4(
+	//						p0.x + glyphOutline.bearingX,
+	//						p0.y + yOffset,
+	//						0.0f,
+	//						1.0f
+	//					);
+	//					glm::vec4 pr1 = (1.0f / 3.0f) * glm::vec4(
+	//						p0.x + glyphOutline.bearingX,
+	//						p0.y + yOffset,
+	//						0.0f,
+	//						1.0f
+	//					) + (2.0f / 3.0f) * glm::vec4(
+	//						p1.x + glyphOutline.bearingX,
+	//						p1.y + yOffset,
+	//						0.0f,
+	//						1.0f
+	//					);
+	//					glm::vec4 pr2 = (2.0f / 3.0f) * glm::vec4(
+	//						p1.x + glyphOutline.bearingX,
+	//						p1.y + yOffset,
+	//						0.0f,
+	//						1.0f
+	//					) + (1.0f / 3.0f) * glm::vec4(
+	//						p2.x + glyphOutline.bearingX,
+	//						p2.y + yOffset,
+	//						0.0f,
+	//						1.0f
+	//					);
+	//					glm::vec4 pr3 = glm::vec4(
+	//						p2.x + glyphOutline.bearingX,
+	//						p2.y + yOffset,
+	//						0.0f,
+	//						1.0f
+	//					);
 
-						float chordLength = glm::length(pr3 - pr0);
-						float controlNetLength = glm::length(pr1 - pr0) + glm::length(pr2 - pr1) + glm::length(pr3 - pr2);
-						float approxLength = (chordLength + controlNetLength) / 2.0f;
-						lengthDrawn += approxLength;
+	//					float chordLength = glm::length(pr3 - pr0);
+	//					float controlNetLength = glm::length(pr1 - pr0) + glm::length(pr2 - pr1) + glm::length(pr3 - pr2);
+	//					float approxLength = (chordLength + controlNetLength) / 2.0f;
+	//					lengthDrawn += approxLength;
 
-						if (lengthLeft < approxLength)
-						{
-							// Interpolate the curve
-							float percentOfCurveToDraw = lengthLeft / approxLength;
+	//					if (lengthLeft < approxLength)
+	//					{
+	//						// Interpolate the curve
+	//						float percentOfCurveToDraw = lengthLeft / approxLength;
 
-							pr1 = (pr1 - pr0) * percentOfCurveToDraw + pr0;
-							pr2 = (pr2 - pr1) * percentOfCurveToDraw + pr1;
-							pr3 = (pr3 - pr2) * percentOfCurveToDraw + pr2;
-						}
+	//						pr1 = (pr1 - pr0) * percentOfCurveToDraw + pr0;
+	//						pr2 = (pr2 - pr1) * percentOfCurveToDraw + pr1;
+	//						pr3 = (pr3 - pr2) * percentOfCurveToDraw + pr2;
+	//					}
 
-						// Project the verts
-						pr1 = pr1;
-						pr2 = pr2;
-						pr3 = pr3;
+	//					// Project the verts
+	//					pr1 = pr1;
+	//					pr2 = pr2;
+	//					pr3 = pr3;
 
-						nvgBezierTo(
-							vg,
-							pr1.x * fontScale + glyphPos.x,
-							pr1.y * fontScale + glyphPos.y,
-							pr2.x * fontScale + glyphPos.x,
-							pr2.y * fontScale + glyphPos.y,
-							pr3.x * fontScale + glyphPos.x,
-							pr3.y * fontScale + glyphPos.y
-						);
+	//					nvgBezierTo(
+	//						vg,
+	//						pr1.x * fontScale + glyphPos.x,
+	//						pr1.y * fontScale + glyphPos.y,
+	//						pr2.x * fontScale + glyphPos.x,
+	//						pr2.y * fontScale + glyphPos.y,
+	//						pr3.x * fontScale + glyphPos.x,
+	//						pr3.y * fontScale + glyphPos.y
+	//					);
 
-						vi++;
-					}
+	//					vi++;
+	//				}
 
-					if (lengthDrawn > lengthToDraw)
-					{
-						stoppedEarly = true;
-						break;
-					}
-				}
+	//				if (lengthDrawn > lengthToDraw)
+	//				{
+	//					stoppedEarly = true;
+	//					break;
+	//				}
+	//			}
 
-				nvgStroke(vg);
+	//			nvgStroke(vg);
 
-				if (lengthDrawn > lengthToDraw)
-				{
-					break;
-				}
-			}
-		}
+	//			if (lengthDrawn > lengthToDraw)
+	//			{
+	//				break;
+	//			}
+	//		}
+	//	}
 
-		if (amountToFadeIn > 0)
-		{
-			std::string str = std::string("") + (char)codepoint;
-			const glm::u8vec4& fillColor = parent->fillColor;
-			nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)((float)fillColor.a * percentToFadeIn)));
-			nvgFontFace(vg, font->fontFilepath.c_str());
-			nvgFontSize(vg, fontScale);
-			nvgText(vg, glyphPos.x, glyphPos.y, str.c_str(), NULL);
-		}
+	//	if (amountToFadeIn > 0)
+	//	{
+	//		std::string str = std::string("") + (char)codepoint;
+	//		const glm::u8vec4& fillColor = parent->fillColor;
+	//		nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)((float)fillColor.a * percentToFadeIn)));
+	//		nvgFontFace(vg, font->fontFilepath.c_str());
+	//		nvgFontSize(vg, fontScale);
+	//		nvgText(vg, glyphPos.x, glyphPos.y, str.c_str(), NULL);
+	//	}
 
-		nvgResetTransform(vg);
-	}
+	//	nvgResetTransform(vg);
+	//}
 
 	static TextObject deserializeTextV1(RawMemory& memory)
 	{

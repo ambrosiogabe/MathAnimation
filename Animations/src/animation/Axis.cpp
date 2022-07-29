@@ -21,7 +21,7 @@ namespace MathAnim
 		// Draw the x-axis
 		float xStart = -axesLength.x / 2.0f;
 		float xEnd = axesLength.x / 2.0f;
-		Svg::beginContour(parent->_svgObjectStart, { xStart, 0.0f, 0.0f }, true, is3D);
+		Svg::beginContour(parent->_svgObjectStart, { xStart, 0.0f, 0.0f }, is3D);
 		Svg::lineTo(parent->_svgObjectStart, { xEnd, 0.0f, 0.0f });
 
 		// Draw the ticks
@@ -42,7 +42,7 @@ namespace MathAnim
 		// Draw the y-axis
 		float yStart = -axesLength.y / 2.0f;
 		float yEnd = axesLength.y / 2.0f;
-		Svg::beginContour(parent->_svgObjectStart, { 0.0f, yStart, 0.0f }, true, is3D);
+		Svg::beginContour(parent->_svgObjectStart, { 0.0f, yStart, 0.0f }, is3D);
 		Svg::lineTo(parent->_svgObjectStart, { 0.0f, yEnd, 0.0f });
 
 		// Draw the ticks
@@ -65,7 +65,7 @@ namespace MathAnim
 			// Draw the z-axis	
 			float zStart = -axesLength.z / 2.0f;
 			float zEnd = axesLength.z / 2.0f;
-			Svg::beginContour(parent->_svgObjectStart, { 0.0f, 0.0f, zStart }, true, is3D);
+			Svg::beginContour(parent->_svgObjectStart, { 0.0f, 0.0f, zStart }, is3D);
 			Svg::lineTo(parent->_svgObjectStart, { 0.0f, 0.0f, zEnd });
 
 			// Draw the ticks
