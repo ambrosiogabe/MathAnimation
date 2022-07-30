@@ -156,6 +156,7 @@ namespace MathAnim
 				// Then normalize it and make sure the perimeter is calculated
 				//group->objects[svgi].normalize();
 				group->objects[svgi].calculateApproximatePerimeter();
+				group->objects[svgi].calculateBBox();
 			}
 		}
 
@@ -432,6 +433,7 @@ namespace MathAnim
 			}
 
 			dest->calculateApproximatePerimeter();
+			dest->calculateBBox();
 		}
 
 		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t)
@@ -1159,6 +1161,54 @@ namespace MathAnim
 		svgHeight = yBounds.max - yBounds.min;
 	}
 
+	void SvgObject::calculateBBox()
+	{
+		bbox.min.x = FLT_MAX;
+		bbox.min.y = FLT_MAX;
+		bbox.max.x = FLT_MIN;
+		bbox.max.y = FLT_MIN;
+
+		for (int contouri = 0; contouri < numContours; contouri++)
+		{
+			if (contours[contouri].numCurves > 0)
+			{
+				for (int curvei = 0; curvei < contours[contouri].numCurves; curvei++)
+				{
+					const Curve& curve = contours[contouri].curves[curvei];
+					Vec3 p0 = Vec3{ curve.p0.x, curve.p0.y, 0.0f };
+
+					switch (curve.type)
+					{
+					case CurveType::Bezier3:
+					{
+						BBox subBbox = CMath::bezier3BBox(p0, curve.as.bezier3.p1, curve.as.bezier3.p2, curve.as.bezier3.p3);
+						bbox.min = CMath::min(bbox.min, subBbox.min);
+						bbox.max = CMath::max(bbox.max, subBbox.max);
+					}
+					break;
+					case CurveType::Bezier2:
+					{
+						BBox subBbox = CMath::bezier2BBox(p0, curve.as.bezier2.p1, curve.as.bezier2.p2);
+						bbox.min = CMath::min(bbox.min, subBbox.min);
+						bbox.max = CMath::max(bbox.max, subBbox.max);
+					}
+					break;
+					case CurveType::Line:
+					{
+						BBox subBbox = CMath::bezier1BBox(p0, curve.as.line.p1);
+						bbox.min = CMath::min(bbox.min, subBbox.min);
+						bbox.max = CMath::max(bbox.max, subBbox.max);
+					}
+					break;
+					default:
+						g_logger_warning("Unknown curve type in render %d", (int)curve.type);
+						break;
+					}
+				}
+			}
+		}
+	}
+
 	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec3& offset) const
 	{
 		renderCreateAnimation(vg, 1.01f, parent, offset);
@@ -1809,6 +1859,19 @@ namespace MathAnim
 					}
 				}
 			}
+
+			nvgBeginPath(vg);
+			nvgStrokeWidth(vg, 5.0f);
+			nvgStrokeColor(vg, nvgRGB(0, 255, 0));
+			nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
+			//nvgMoveTo(vg, obj->bbox.min.x + offset.x, obj->bbox.min.y + offset.y);
+			nvgRect(vg, 
+				(obj->bbox.min.x + offset.x) * parent->scale.x, 
+				(obj->bbox.min.y + offset.y) * parent->scale.y,
+				(obj->bbox.max.x - obj->bbox.min.x) * parent->scale.x,
+				(obj->bbox.max.y - obj->bbox.min.y) * parent->scale.y
+			);
+			nvgStroke(vg);
 		}
 
 		nvgResetTransform(vg);

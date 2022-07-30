@@ -27,6 +27,7 @@ namespace MathAnim
 		Svg::closeContour(parent->_svgObjectStart);
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
+		parent->_svgObjectStart->calculateBBox();
 	}
 
 	void Square::serialize(RawMemory& memory) const
@@ -86,6 +87,7 @@ namespace MathAnim
 		Svg::closeContour(parent->_svgObjectStart);
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
+		parent->_svgObjectStart->calculateBBox();
 	}
 
 	void Circle::serialize(RawMemory& memory) const
@@ -155,6 +157,7 @@ namespace MathAnim
 		Svg::closeContour(parent->_svgObjectStart);
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
+		parent->_svgObjectStart->calculateBBox();
 	}
 
 	void Cube::serialize(RawMemory& memory) const

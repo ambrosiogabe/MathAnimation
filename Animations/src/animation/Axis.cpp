@@ -83,6 +83,7 @@ namespace MathAnim
 		}
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
+		parent->_svgObjectStart->calculateBBox();
 	}
 
 	void Axis::serialize(RawMemory& memory) const

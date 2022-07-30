@@ -274,6 +274,7 @@ namespace MathAnim
 			}
 
 			res.calculateApproximatePerimeter();
+			res.calculateBBox();
 
 			return res;
 		}

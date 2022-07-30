@@ -667,6 +667,7 @@ namespace MathAnim
 
 			// Approximate contour lengths
 			res.svg->calculateApproximatePerimeter();
+			res.svg->calculateBBox();
 
 			return res;
 		}
