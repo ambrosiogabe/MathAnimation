@@ -65,24 +65,25 @@ namespace MathAnim
 		// See here for how to construct circle with beziers 
 		// https://stackoverflow.com/questions/1734745/how-to-create-circle-with-bézier-curves
 		double equidistantControls = (4.0 / 3.0) * glm::tan(glm::pi<double>() / 8.0) * (double)radius;
-		Svg::beginContour(parent->_svgObjectStart, { -radius, 0.0f, 0.0f }, is3D);
+		Vec3 translation = Vec3{ radius, radius, 0.0f };
+		Svg::beginContour(parent->_svgObjectStart, Vec3{ -radius, 0.0f, 0.0f } + translation, is3D);
 
 		Svg::bezier3To(parent->_svgObjectStart,
-			Vec3{ -radius, (float)equidistantControls, 0.0f },
-			Vec3{ -(float)equidistantControls, radius, 0.0f },
-			Vec3{ 0.0f, radius, 0.0f });
+			Vec3{ -radius, (float)equidistantControls, 0.0f } + translation,
+			Vec3{ -(float)equidistantControls, radius, 0.0f } + translation,
+			Vec3{ 0.0f, radius, 0.0f } + translation);
 		Svg::bezier3To(parent->_svgObjectStart,
-			Vec3{ (float)equidistantControls, radius, 0.0f },
-			Vec3{ radius, (float)equidistantControls, 0.0f },
-			Vec3{ radius, 0.0f, 0.0f});
+			Vec3{ (float)equidistantControls, radius, 0.0f } + translation,
+			Vec3{ radius, (float)equidistantControls, 0.0f } + translation,
+			Vec3{ radius, 0.0f, 0.0f} + translation);
 		Svg::bezier3To(parent->_svgObjectStart,
-			Vec3{ radius, -(float)equidistantControls, 0.0f },
-			Vec3{ (float)equidistantControls, -radius, 0.0f },
-			Vec3{ 0.0f, -radius, 0.0f});
+			Vec3{ radius, -(float)equidistantControls, 0.0f } + translation,
+			Vec3{ (float)equidistantControls, -radius, 0.0f } + translation,
+			Vec3{ 0.0f, -radius, 0.0f} + translation);
 		Svg::bezier3To(parent->_svgObjectStart,
-			Vec3{ -(float)equidistantControls, -radius, 0.0f },
-			Vec3{ -radius, -(float)equidistantControls, 0.0f },
-			Vec3{ -radius, 0.0f, 0.0f});
+			Vec3{ -(float)equidistantControls, -radius, 0.0f } + translation,
+			Vec3{ -radius, -(float)equidistantControls, 0.0f } + translation,
+			Vec3{ -radius, 0.0f, 0.0f} + translation);
 
 		Svg::closeContour(parent->_svgObjectStart);
 

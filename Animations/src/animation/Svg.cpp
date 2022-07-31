@@ -149,15 +149,16 @@ namespace MathAnim
 			Vec3 viewboxSize = Vec3{ group->viewbox.values[2], group->viewbox.values[3], 1.0f };
 
 			// Normalize all the SVGs within the viewbox
-			for (int svgi = 0; svgi < group->numObjects; svgi++)
-			{
-				// First get the original SVG element size recorded
-				group->objects[svgi].calculateSvgSize();
-				// Then normalize it and make sure the perimeter is calculated
-				//group->objects[svgi].normalize();
-				group->objects[svgi].calculateApproximatePerimeter();
-				group->objects[svgi].calculateBBox();
-			}
+			//for (int svgi = 0; svgi < group->numObjects; svgi++)
+			//{
+			//	// First get the original SVG element size recorded
+			//	group->objects[svgi].calculateSvgSize();
+			//	// Then normalize it and make sure the perimeter is calculated
+			//	//group->objects[svgi].normalize();
+			//	group->objects[svgi].calculateApproximatePerimeter();
+			//	group->objects[svgi].calculateBBox();
+			//}
+			group->normalize();
 		}
 
 		void beginContour(SvgObject* object, const Vec3& firstPoint, bool is3D)
@@ -946,76 +947,79 @@ namespace MathAnim
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, const Vec3& textureOffset, bool reverse, const SvgObject* obj);
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, const Vec3& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes);
 	static void renderCreateAnimation3D(float t, const AnimObject* parent, bool reverse, const SvgObject* obj);
 
-	void SvgObject::normalize()
+	void SvgObject::normalize(const Vec2& inMin, const Vec2& inMax)
 	{
 		// First find the min max of the entire curve
-		Vec2 min = { FLT_MAX, FLT_MAX };
-		Vec2 max = { FLT_MIN, FLT_MIN };
-		for (int contouri = 0; contouri < this->numContours; contouri++)
+		Vec2 min = inMin;
+		Vec2 max = inMax;
+		if (min.x == FLT_MAX && min.y == FLT_MAX && max.x == FLT_MIN && max.y == FLT_MIN)
 		{
-			for (int curvei = 0; curvei < this->contours[contouri].numCurves; curvei++)
+			for (int contouri = 0; contouri < this->numContours; contouri++)
 			{
-				const Curve& curve = contours[contouri].curves[curvei];
-				glm::vec3 p0 = { curve.p0.x, curve.p0.y, curve.p0.z };
-
-				min.x = glm::min(p0.x, min.x);
-				max.x = glm::max(p0.x, max.x);
-				min.y = glm::min(p0.y, min.y);
-				max.y = glm::max(p0.y, max.y);
-
-				switch (curve.type)
+				for (int curvei = 0; curvei < this->contours[contouri].numCurves; curvei++)
 				{
-				case CurveType::Bezier3:
-				{
-					glm::vec3 p1 = { curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, curve.as.bezier3.p1.z };
-					glm::vec3 p2 = { curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, curve.as.bezier3.p2.z };
-					glm::vec3 p3 = { curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, curve.as.bezier3.p3.z };
+					const Curve& curve = contours[contouri].curves[curvei];
+					glm::vec3 p0 = { curve.p0.x, curve.p0.y, curve.p0.z };
 
-					min.x = glm::min(p1.x, min.x);
-					max.x = glm::max(p1.x, max.x);
-					min.y = glm::min(p1.y, min.y);
-					max.y = glm::max(p1.y, max.y);
+					min.x = glm::min(p0.x, min.x);
+					max.x = glm::max(p0.x, max.x);
+					min.y = glm::min(p0.y, min.y);
+					max.y = glm::max(p0.y, max.y);
 
-					min.x = glm::min(p2.x, min.x);
-					max.x = glm::max(p2.x, max.x);
-					min.y = glm::min(p2.y, min.y);
-					max.y = glm::max(p2.y, max.y);
+					switch (curve.type)
+					{
+					case CurveType::Bezier3:
+					{
+						glm::vec3 p1 = { curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, curve.as.bezier3.p1.z };
+						glm::vec3 p2 = { curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, curve.as.bezier3.p2.z };
+						glm::vec3 p3 = { curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, curve.as.bezier3.p3.z };
 
-					min.x = glm::min(p3.x, min.x);
-					max.x = glm::max(p3.x, max.x);
-					min.y = glm::min(p3.y, min.y);
-					max.y = glm::max(p3.y, max.y);
-				}
-				break;
-				case CurveType::Bezier2:
-				{
-					glm::vec3 p1 = { curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, curve.as.bezier2.p1.z };
-					glm::vec3 p2 = { curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, curve.as.bezier2.p2.z };
+						min.x = glm::min(p1.x, min.x);
+						max.x = glm::max(p1.x, max.x);
+						min.y = glm::min(p1.y, min.y);
+						max.y = glm::max(p1.y, max.y);
 
-					min.x = glm::min(p1.x, min.x);
-					max.x = glm::max(p1.x, max.x);
-					min.y = glm::min(p1.y, min.y);
-					max.y = glm::max(p1.y, max.y);
+						min.x = glm::min(p2.x, min.x);
+						max.x = glm::max(p2.x, max.x);
+						min.y = glm::min(p2.y, min.y);
+						max.y = glm::max(p2.y, max.y);
 
-					min.x = glm::min(p2.x, min.x);
-					max.x = glm::max(p2.x, max.x);
-					min.y = glm::min(p2.y, min.y);
-					max.y = glm::max(p2.y, max.y);
-				}
-				break;
-				case CurveType::Line:
-				{
-					glm::vec3 p1 = { curve.as.line.p1.x, curve.as.line.p1.y, curve.as.line.p1.z };
+						min.x = glm::min(p3.x, min.x);
+						max.x = glm::max(p3.x, max.x);
+						min.y = glm::min(p3.y, min.y);
+						max.y = glm::max(p3.y, max.y);
+					}
+					break;
+					case CurveType::Bezier2:
+					{
+						glm::vec3 p1 = { curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, curve.as.bezier2.p1.z };
+						glm::vec3 p2 = { curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, curve.as.bezier2.p2.z };
 
-					min.x = glm::min(p1.x, min.x);
-					max.x = glm::max(p1.x, max.x);
-					min.y = glm::min(p1.y, min.y);
-					max.y = glm::max(p1.y, max.y);
-				}
-				break;
+						min.x = glm::min(p1.x, min.x);
+						max.x = glm::max(p1.x, max.x);
+						min.y = glm::min(p1.y, min.y);
+						max.y = glm::max(p1.y, max.y);
+
+						min.x = glm::min(p2.x, min.x);
+						max.x = glm::max(p2.x, max.x);
+						min.y = glm::min(p2.y, min.y);
+						max.y = glm::max(p2.y, max.y);
+					}
+					break;
+					case CurveType::Line:
+					{
+						glm::vec3 p1 = { curve.as.line.p1.x, curve.as.line.p1.y, curve.as.line.p1.z };
+
+						min.x = glm::min(p1.x, min.x);
+						max.x = glm::max(p1.x, max.x);
+						min.y = glm::min(p1.y, min.y);
+						max.y = glm::max(p1.y, max.y);
+					}
+					break;
+					}
 				}
 			}
 		}
@@ -1111,56 +1115,6 @@ namespace MathAnim
 		}
 	}
 
-	void SvgObject::calculateSvgSize()
-	{
-		Vec2 xBounds = { FLT_MAX, FLT_MIN };
-		Vec2 yBounds = { FLT_MAX, FLT_MIN };
-		for (int contouri = 0; contouri < this->numContours; contouri++)
-		{
-			for (int curvei = 0; curvei < this->contours[contouri].numCurves; curvei++)
-			{
-				const Curve& curve = contours[contouri].curves[curvei];
-				glm::vec3 p0 = { curve.p0.x, curve.p0.y, curve.p0.z };
-				xBounds = CMath::rangeMaxMin(xBounds, curve.p0.x);
-				yBounds = CMath::rangeMaxMin(yBounds, curve.p0.y);
-
-				switch (curve.type)
-				{
-				case CurveType::Bezier3:
-				{
-					xBounds = CMath::rangeMaxMin(xBounds, curve.as.bezier3.p1.x);
-					yBounds = CMath::rangeMaxMin(yBounds, curve.as.bezier3.p1.y);
-
-					xBounds = CMath::rangeMaxMin(xBounds, curve.as.bezier3.p2.x);
-					yBounds = CMath::rangeMaxMin(yBounds, curve.as.bezier3.p2.y);
-
-					xBounds = CMath::rangeMaxMin(xBounds, curve.as.bezier3.p3.x);
-					yBounds = CMath::rangeMaxMin(yBounds, curve.as.bezier3.p3.y);
-				}
-				break;
-				case CurveType::Bezier2:
-				{
-					xBounds = CMath::rangeMaxMin(xBounds, curve.as.bezier2.p1.x);
-					yBounds = CMath::rangeMaxMin(yBounds, curve.as.bezier2.p1.y);
-
-					xBounds = CMath::rangeMaxMin(xBounds, curve.as.bezier2.p2.x);
-					yBounds = CMath::rangeMaxMin(yBounds, curve.as.bezier2.p2.y);
-				}
-				break;
-				case CurveType::Line:
-				{
-					xBounds = CMath::rangeMaxMin(xBounds, curve.as.line.p1.x);
-					yBounds = CMath::rangeMaxMin(yBounds, curve.as.line.p1.y);
-				}
-				break;
-				}
-			}
-		}
-
-		svgWidth = xBounds.max - xBounds.min;
-		svgHeight = yBounds.max - yBounds.min;
-	}
-
 	void SvgObject::calculateBBox()
 	{
 		bbox.min.x = FLT_MAX;
@@ -1209,12 +1163,12 @@ namespace MathAnim
 		}
 	}
 
-	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec3& offset) const
+	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec3& offset, bool renderBBoxes) const
 	{
-		renderCreateAnimation(vg, 1.01f, parent, offset);
+		renderCreateAnimation(vg, 1.01f, parent, offset, false, false, renderBBoxes);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, bool reverse, bool isSvgGroup) const
+	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, bool reverse, bool isSvgGroup, bool renderBBoxes) const
 	{
 		if (this->is3D)
 		{
@@ -1222,15 +1176,9 @@ namespace MathAnim
 		}
 		else
 		{
-			if (!isSvgGroup)
-			{
-				cacheCurrentX += parent->strokeWidth;
-				cacheCurrentY += parent->strokeWidth;
-			}
-
 			// Check if the SVG cache needs to regenerate
-			float svgTotalWidth = (svgWidth + parent->strokeWidth * 2.0f) * parent->scale.x;
-			float svgTotalHeight = (svgHeight + parent->strokeWidth * 2.0f) * parent->scale.y;
+			float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
+			float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
 			{
 				float newRightX = offset.x + svgTotalWidth + cacheCurrentX;
 				if (newRightX >= svgCache.width)
@@ -1262,8 +1210,12 @@ namespace MathAnim
 			glDrawBuffers(3, compositeDrawBuffers);
 
 			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
-			Vec3 svgTextureOffset = Vec3{ (float)cacheCurrentX, (float)cacheCurrentY, 0.0f };
-			renderCreateAnimation2D(vg, t, parent, offset, svgTextureOffset, reverse, this);
+			Vec3 svgTextureOffset = Vec3{ 
+				(float)cacheCurrentX + parent->strokeWidth * 0.5f,
+				(float)cacheCurrentY + parent->strokeWidth * 0.5f, 
+				0.0f 
+			};
+			renderCreateAnimation2D(vg, t, parent, offset, svgTextureOffset, reverse, this, renderBBoxes);
 			nvgEndFrame(vg);
 
 			if (isSvgGroup)
@@ -1297,10 +1249,10 @@ namespace MathAnim
 			glm::mat4 transform = glm::identity<glm::mat4>();
 			Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
 			transform = glm::translate(
-				transform, 
+				transform,
 				glm::vec3(
-					parent->position.x - cameraCenteredPos.x, 
-					parent->position.y - cameraCenteredPos.y, 
+					parent->position.x - cameraCenteredPos.x,
+					parent->position.y - cameraCenteredPos.y,
 					0.0f
 				)
 			);
@@ -1340,21 +1292,59 @@ namespace MathAnim
 		approximatePerimeter = 0.0f;
 	}
 
-	void SvgGroup::render(NVGcontext* vg, AnimObject* parent) const
-	{
-		renderCreateAnimation(vg, 1.01f, parent);
-	}
-
-	void SvgGroup::renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse) const
+	void SvgGroup::normalize()
 	{
 		Vec3 translation = Vec3{ viewbox.values[0], viewbox.values[1], 0.0f };
+
+		calculateBBox();
+		//for (int i = 0; i < numObjects; i++)
+		//{
+		//	SvgObject& obj = objects[i];
+		//	Vec3& offset = objectOffsets[i];
+		//	Vec2 absOffset = CMath::vector2From3(offset - translation);
+		//	obj.normalize(bbox.min, bbox.max);
+		//	offset.x = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, absOffset.x);
+		//	offset.y = CMath::mapRange(Vec2{ bbox.min.y, bbox.max.y }, Vec2{ 0.0f, 1.0f }, absOffset.y);
+		//	obj.calculateSvgSize();
+		//}
+		//viewbox.values[0] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[0]);
+		//viewbox.values[1] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[1]);
+		//viewbox.values[2] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[2]);
+		//viewbox.values[3] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[3]);
+		//calculateBBox();
+	}
+
+	void SvgGroup::calculateBBox()
+	{
+		Vec3 translation = Vec3{ viewbox.values[0], viewbox.values[1], 0.0f };
+		bbox.min = Vec2{ FLT_MAX, FLT_MAX };
+		bbox.max = Vec2{ FLT_MIN, FLT_MIN };
+
+		for (int i = 0; i < numObjects; i++)
+		{
+			SvgObject& obj = objects[i];
+			const Vec3& offset = objectOffsets[i];
+
+			Vec2 absOffset = CMath::vector2From3(offset - translation);
+			obj.calculateBBox();
+			bbox.min = CMath::min(obj.bbox.min + absOffset, bbox.min);
+			bbox.max = CMath::max(obj.bbox.max + absOffset, bbox.max);
+		}
+	}
+
+	void SvgGroup::render(NVGcontext* vg, AnimObject* parent, bool renderBBoxes) const
+	{
+		renderCreateAnimation(vg, 1.01f, parent, false, renderBBoxes);
+	}
+
+	void SvgGroup::renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse, bool renderBBoxes) const
+	{
+		Vec3 translation = Vec3{ viewbox.values[0], viewbox.values[1], 0.0f };
+		Vec3 bboxOffset = Vec3{ bbox.min.x, bbox.min.y, 0.0f };
 
 		float numberObjectsToDraw = t * (float)numObjects;
 		constexpr float numObjectsToLag = 2.0f;
 		float numObjectsDrawn = 0.0f;
-
-		float maxWidth = 0.0f;
-		float maxHeight = 0.0f;
 		for (int i = 0; i < numObjects; i++)
 		{
 			const SvgObject& obj = objects[i];
@@ -1362,14 +1352,9 @@ namespace MathAnim
 
 			float denominator = i == numObjects - 1 ? 1.0f : numObjectsToLag;
 			float percentOfLetterToDraw = (numberObjectsToDraw - numObjectsDrawn) / denominator;
-			Vec3 absOffset = offset - translation;
-			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, absOffset, reverse, true);
+			Vec3 absOffset = offset - translation - bboxOffset + Vec3{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f, 0.0f };
+			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, absOffset, reverse, true, renderBBoxes);
 			numObjectsDrawn += 1.0f;
-
-			float svgTotalWidth = (absOffset.x + (obj.svgWidth + parent->strokeWidth * 2.0f)) * parent->scale.x;
-			float svgTotalHeight = (absOffset.y + (obj.svgHeight + parent->strokeWidth * 2.0f)) * parent->scale.x;
-			maxWidth = glm::max(maxWidth, svgTotalWidth);
-			maxHeight = glm::max(maxHeight, svgTotalHeight);
 
 			if (numObjectsDrawn >= numberObjectsToDraw)
 			{
@@ -1377,8 +1362,48 @@ namespace MathAnim
 			}
 		}
 
-		cacheCurrentX += maxWidth;
-		cacheLineHeight = glm::max(cacheLineHeight, maxHeight);
+		if (renderBBoxes)
+		{
+			// Render to the framebuffer then blit the framebuffer to the screen
+			// with the appropriate transformations
+			int32 lastFboId;
+			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastFboId);
+
+			// First render to the cache
+			svgCache.bind();
+			glViewport(0, 0, svgCache.width, svgCache.height);
+
+			// Reset the draw buffers to draw to FB_attachment_0
+			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
+			glDrawBuffers(3, compositeDrawBuffers);
+
+			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
+			Vec3 svgTextureOffset = Vec3{ (float)cacheCurrentX, (float)cacheCurrentY, 0.0f };
+
+			nvgBeginPath(vg);
+			nvgStrokeColor(vg, nvgRGBA(0, 255, 255, 255));
+			nvgStrokeWidth(vg, 5.0f);
+			nvgMoveTo(vg, cacheCurrentX, cacheCurrentY);
+			nvgRect(vg,
+				cacheCurrentX,
+				cacheCurrentY,
+				((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth,
+				((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth
+			);
+			nvgClosePath(vg);
+			nvgStroke(vg);
+			nvgEndFrame(vg);
+
+			// Then bind the previous fbo and blit it to the screen with
+			// the appropriate transformations
+			glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
+
+			// Reset the draw buffers to draw to FB_attachment_0
+			glDrawBuffers(3, compositeDrawBuffers);
+		}
+
+		cacheCurrentX += ((bbox.max.x - bbox.min.x) * parent->scale.x) + (parent->strokeWidth * 0.5f);
+		cacheLineHeight = glm::max(cacheLineHeight, ((bbox.max.y - bbox.min.y) * parent->scale.y) + (parent->strokeWidth * 0.5f));
 	}
 
 	void SvgGroup::free()
@@ -1427,7 +1452,7 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, const Vec3& textureOffset, bool reverse, const SvgObject* obj)
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, const Vec3& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes)
 	{
 		if (reverse)
 		{
@@ -1544,14 +1569,6 @@ namespace MathAnim
 								p3 = q3;
 							}
 
-							// TODO: TMP Remove me
-							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
-							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
-							Vec2 tp2 = Vec2{ p2.x * parent->scale.x, p2.y * parent->scale.y };
-							Vec2 tp3 = Vec2{ p3.x * parent->scale.x, p3.y * parent->scale.y };
-							BBox bbox = CMath::bezier3BBox(tp0, tp1, tp2, tp3);
-							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
-
 							nvgBezierTo(
 								vg,
 								p1.x * parent->scale.x, p1.y * parent->scale.y,
@@ -1613,14 +1630,6 @@ namespace MathAnim
 								pr2 = q2;
 								pr3 = q3;
 							}
-
-							// TODO: TMP Remove me
-							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
-							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
-							Vec2 tp2 = Vec2{ p2.x * parent->scale.x, p2.y * parent->scale.y };
-							Vec2 tp3 = Vec2{ p3.x * parent->scale.x, p3.y * parent->scale.y };
-							BBox bbox = CMath::bezier3BBox(tp0, tp1, tp2, tp3);
-							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
 
 							nvgBezierTo(
 								vg,
@@ -1761,8 +1770,7 @@ namespace MathAnim
 			nvgFill(vg);
 		}
 
-		// TODO: TMP Remove me
-		if (amountToFadeIn > 0)
+		if (renderBBoxes)
 		{
 			for (int contouri = 0; contouri < obj->numContours; contouri++)
 			{
@@ -1786,7 +1794,6 @@ namespace MathAnim
 							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x + offset.x, curve.as.bezier3.p2.y + offset.y, 0.0f, 1.0f };
 							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x + offset.x, curve.as.bezier3.p3.y + offset.y, 0.0f, 1.0f };
 
-							// TODO: TMP Remove me
 							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
 							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
 							Vec2 tp2 = Vec2{ p2.x * parent->scale.x, p2.y * parent->scale.y };
@@ -1799,6 +1806,7 @@ namespace MathAnim
 							nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
 							nvgMoveTo(vg, bbox.min.x, bbox.min.y);
 							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
+							nvgClosePath(vg);
 							nvgStroke(vg);
 						}
 						break;
@@ -1814,7 +1822,6 @@ namespace MathAnim
 							glm::vec4 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
 							glm::vec4 pr3 = p3;
 
-							// TODO: TMP Remove me
 							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
 							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
 							Vec2 tp2 = Vec2{ p3.x * parent->scale.x, p3.y * parent->scale.y };
@@ -1826,6 +1833,7 @@ namespace MathAnim
 							nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
 							nvgMoveTo(vg, bbox.min.x, bbox.min.y);
 							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
+							nvgClosePath(vg);
 							nvgStroke(vg);
 						}
 						break;
@@ -1838,7 +1846,6 @@ namespace MathAnim
 								1.0f
 							);
 
-							// TODO: TMP Remove me
 							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
 							Vec2 tp1 = Vec2{ p1.x, p1.y };
 							BBox bbox = CMath::bezier1BBox(tp0, tp1);
@@ -1849,6 +1856,7 @@ namespace MathAnim
 							nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
 							nvgMoveTo(vg, bbox.min.x, bbox.min.y);
 							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
+							nvgClosePath(vg);
 							nvgStroke(vg);
 						}
 						break;
@@ -1864,14 +1872,18 @@ namespace MathAnim
 			nvgStrokeWidth(vg, 5.0f);
 			nvgStrokeColor(vg, nvgRGB(0, 255, 0));
 			nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
-			//nvgMoveTo(vg, obj->bbox.min.x + offset.x, obj->bbox.min.y + offset.y);
-			nvgRect(vg, 
-				(obj->bbox.min.x + offset.x) * parent->scale.x, 
-				(obj->bbox.min.y + offset.y) * parent->scale.y,
-				(obj->bbox.max.x - obj->bbox.min.x) * parent->scale.x,
-				(obj->bbox.max.y - obj->bbox.min.y) * parent->scale.y
+			nvgMoveTo(vg,
+				((obj->bbox.min.x + offset.x) * parent->scale.x) - (parent->strokeWidth * 0.5f),
+				((obj->bbox.min.y + offset.y) * parent->scale.y) - (parent->strokeWidth * 0.5f)
+			);
+			nvgRect(vg,
+				((obj->bbox.min.x + offset.x) * parent->scale.x) - (parent->strokeWidth * 0.5f),
+				((obj->bbox.min.y + offset.y) * parent->scale.y) - (parent->strokeWidth * 0.5f),
+				((obj->bbox.max.x - obj->bbox.min.x) * parent->scale.x) + parent->strokeWidth,
+				((obj->bbox.max.y - obj->bbox.min.y) * parent->scale.y) + parent->strokeWidth
 			);
 			nvgStroke(vg);
+			nvgClosePath(vg);
 		}
 
 		nvgResetTransform(vg);
