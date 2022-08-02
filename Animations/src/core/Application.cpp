@@ -81,7 +81,7 @@ namespace MathAnim
 			ImGuiLayer::init(*window);
 			Audio::init();
 			// NOTE(voxel): Just to initialize the camera
-			Svg::init(camera2D);
+			Svg::init(camera2D, camera3D);
 			TextAnimations::init(camera2D);
 			AnimationManager::init(camera2D);
 

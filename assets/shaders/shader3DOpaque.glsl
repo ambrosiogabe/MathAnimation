@@ -32,11 +32,12 @@ in vec3 fNormal;
 
 uniform vec3 sunDirection;
 uniform vec3 sunColor;
+uniform sampler2D uTexture;
 
 void main()
 {
     float diff = max(dot(normalize(fNormal), sunDirection), 0.0);
-    vec3 diffuse = diff * sunColor;
+    vec3 diffuse = diff * sunColor * texture(uTexture, fTexCoord).rgb;
     vec3 ambient = vec3(0.1);
 
     FragColor = vec4(clamp(ambient + diffuse, vec3(0.0), vec3(1.0)), 1.0) * fColor;

@@ -61,9 +61,9 @@ namespace MathAnim
 		void drawString(const std::string& string, const Vec2& start);
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2);
-		void drawTexture(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>());
+		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>());
 		// This is expensive, it dispatches a draw call immediately
-		void drawTextureImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>(), bool is3D = false);
+		void drawTexturedQuadImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>(), bool is3D = false);
 
 		// ----------- 3D Line stuff ----------- 
 		void beginPath3D(const Vec3& start);
@@ -79,6 +79,7 @@ namespace MathAnim
 
 		// ----------- 3D stuff ----------- 
 		void drawFilledCube(const Vec3& center, const Vec3& size);
+		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isTransparent = false);
 
 		// ----------- Miscellaneous ----------- 
 		const OrthoCamera* getOrthoCamera();

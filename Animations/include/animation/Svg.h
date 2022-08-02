@@ -8,6 +8,7 @@ namespace MathAnim
 {
 	struct AnimObject;
 	struct OrthoCamera;
+	struct PerspectiveCamera;
 	struct Texture;
 
 	enum class CurveType : uint8
@@ -98,7 +99,7 @@ namespace MathAnim
 		SvgObject createDefault();
 		SvgGroup createDefaultGroup();
 		
-		void init(OrthoCamera& camera);
+		void init(OrthoCamera& sceneCamera2d, PerspectiveCamera& sceneCamera3d);
 		void free();
 
 		void endFrame();

@@ -5,6 +5,7 @@
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
 #include "renderer/Colors.h"
+#include "renderer/PerspectiveCamera.h"
 #include "core/Application.h"
 
 #include <nanovg.h>
@@ -18,15 +19,14 @@ namespace MathAnim
 	{
 		// ----------------- Private Variables -----------------
 		constexpr int initialMaxCapacity = 5;
-		static OrthoCamera* camera;
+		static OrthoCamera* orthoCamera;
+		static PerspectiveCamera* perspCamera;
 		static Vec2 cursor;
 		static bool moveToP0 = false;
 
 		// ----------------- Internal functions -----------------
 		static void checkResize(Contour& contour);
 		static void render2DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
-		static void render3DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
-		static void transformPoint(Vec3* point, const Vec2& offset, const Vec2& viewboxPos, const Vec2& viewboxSize);
 		static void generateSvgCache(uint32 width, uint32 height);
 
 		SvgObject createDefault()
@@ -56,9 +56,11 @@ namespace MathAnim
 			return res;
 		}
 
-		void init(OrthoCamera& sceneCamera)
+		void init(OrthoCamera& sceneCamera2d, PerspectiveCamera& sceneCamera3d)
 		{
-			camera = &sceneCamera;
+			orthoCamera = &sceneCamera2d;
+			perspCamera = &sceneCamera3d;
+
 			constexpr int defaultWidth = 4096;
 			generateSvgCache(defaultWidth, defaultWidth);
 
@@ -425,7 +427,7 @@ namespace MathAnim
 			g_logger_assert(interpolationSrc->is3D == interpolationDst->is3D, "Cannot interpolate between 2D and 3D svg object.");
 			if (interpolationSrc->is3D)
 			{
-				render3DInterpolation(vg, animObjectSrc, interpolationSrc, animObjectDst, interpolationDst, t);
+				// TODO: Implement me
 			}
 			else
 			{
@@ -442,230 +444,6 @@ namespace MathAnim
 				contour.curves = (Curve*)g_memory_realloc(contour.curves, sizeof(Curve) * contour.maxCapacity);
 				g_logger_assert(contour.curves != nullptr, "Ran out of RAM.");
 			}
-		}
-
-		static void render3DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t)
-		{
-			g_logger_warning("TODO: Implement me.");
-			//// Interpolate fill color
-			//glm::vec4 fillColorSrc = glm::vec4(
-			//	(float)animObjectSrc->fillColor.r / 255.0f,
-			//	(float)animObjectSrc->fillColor.g / 255.0f,
-			//	(float)animObjectSrc->fillColor.b / 255.0f,
-			//	(float)animObjectSrc->fillColor.a / 255.0f
-			//);
-			//glm::vec4 fillColorDst = glm::vec4(
-			//	(float)animObjectDst->fillColor.r / 255.0f,
-			//	(float)animObjectDst->fillColor.g / 255.0f,
-			//	(float)animObjectDst->fillColor.b / 255.0f,
-			//	(float)animObjectDst->fillColor.a / 255.0f
-			//);
-			//glm::vec4 fillColorInterp = (fillColorDst - fillColorSrc) * t + fillColorSrc;
-			//NVGcolor fillColor = nvgRGBA(
-			//	(uint8)(fillColorInterp.r * 255.0f),
-			//	(uint8)(fillColorInterp.g * 255.0f),
-			//	(uint8)(fillColorInterp.b * 255.0f),
-			//	(uint8)(fillColorInterp.a * 255.0f)
-			//);
-
-			//// Interpolate stroke color
-			//glm::vec4 strokeColorSrc = glm::vec4(
-			//	(float)animObjectSrc->strokeColor.r / 255.0f,
-			//	(float)animObjectSrc->strokeColor.g / 255.0f,
-			//	(float)animObjectSrc->strokeColor.b / 255.0f,
-			//	(float)animObjectSrc->strokeColor.a / 255.0f
-			//);
-			//glm::vec4 strokeColorDst = glm::vec4(
-			//	(float)animObjectDst->strokeColor.r / 255.0f,
-			//	(float)animObjectDst->strokeColor.g / 255.0f,
-			//	(float)animObjectDst->strokeColor.b / 255.0f,
-			//	(float)animObjectDst->strokeColor.a / 255.0f
-			//);
-			//glm::vec4 strokeColorInterp = (strokeColorDst - strokeColorSrc) * t + strokeColorSrc;
-			//NVGcolor strokeColor = nvgRGBA(
-			//	(uint8)(strokeColorInterp.r * 255.0f),
-			//	(uint8)(strokeColorInterp.g * 255.0f),
-			//	(uint8)(strokeColorInterp.b * 255.0f),
-			//	(uint8)(strokeColorInterp.a * 255.0f)
-			//);
-
-			//// Interpolate position
-			//const Vec3& dstPos = animObjectDst->position;
-			//const Vec3& srcPos = animObjectSrc->position;
-			//glm::vec3 interpolatedPos = glm::vec3(
-			//	(dstPos.x - srcPos.x) * t + srcPos.x,
-			//	(dstPos.y - srcPos.y) * t + srcPos.y,
-			//	(dstPos.z - srcPos.z) * t + srcPos.z
-			//);
-
-			//// Interpolate rotation
-			//const Vec3& dstRotation = animObjectDst->rotation;
-			//const Vec3& srcRotation = animObjectSrc->rotation;
-			//glm::vec3 interpolatedRotation = glm::vec3(
-			//	(dstRotation.x - srcRotation.x) * t + srcRotation.x,
-			//	(dstRotation.x - srcRotation.y) * t + srcRotation.y,
-			//	(dstRotation.x - srcRotation.z) * t + srcRotation.z
-			//);
-
-			//// Apply transformations
-			//nvgTranslate(vg, interpolatedPos.x - Svg::camera->position.x, interpolatedPos.y - Svg::camera->position.y);
-			//if (interpolatedRotation.z != 0.0f)
-			//{
-			//	nvgRotate(vg, glm::radians(interpolatedRotation.z));
-			//}
-
-			//// Interpolate stroke width
-			//float dstStrokeWidth = animObjectDst->strokeWidth;
-			//if (glm::epsilonEqual(dstStrokeWidth, 0.0f, 0.01f))
-			//{
-			//	dstStrokeWidth = 5.0f;
-			//}
-			//float srcStrokeWidth = animObjectSrc->strokeWidth;
-			//if (glm::epsilonEqual(srcStrokeWidth, 0.0f, 0.01f))
-			//{
-			//	srcStrokeWidth = 5.0f;
-			//}
-			//float strokeWidth = (dstStrokeWidth - srcStrokeWidth) * t + srcStrokeWidth;
-
-			//// If one object has more contours than the other object,
-			//// then we'll just skip every other contour for the object
-			//// with less contours and hopefully it looks cool
-			//const SvgObject* lessContours = interpolationSrc->numContours <= interpolationDst->numContours
-			//	? interpolationSrc
-			//	: interpolationDst;
-			//const SvgObject* moreContours = interpolationSrc->numContours > interpolationDst->numContours
-			//	? interpolationSrc
-			//	: interpolationDst;
-			//int numContoursToSkip = glm::max(moreContours->numContours / lessContours->numContours, 1);
-			//int lessContouri = 0;
-			//int moreContouri = 0;
-			//while (lessContouri < lessContours->numContours)
-			//{
-			//	nvgBeginPath(vg);
-
-			//	nvgFillColor(vg, fillColor);
-			//	nvgStrokeColor(vg, strokeColor);
-			//	nvgStrokeWidth(vg, strokeWidth);
-
-			//	const Contour& lessCurves = lessContours->contours[lessContouri];
-			//	const Contour& moreCurves = moreContours->contours[moreContouri];
-
-			//	// It's undefined to interpolate between two contours if one of the contours has no curves
-			//	bool shouldLoop = moreCurves.numCurves > 0 && lessCurves.numCurves > 0;
-			//	if (shouldLoop)
-			//	{
-			//		// Move to the start, which is the interpolation between both of the
-			//		// first vertices
-			//		const Vec3& p0a = lessCurves.curves[0].p0;
-			//		const Vec3& p0b = moreCurves.curves[0].p0;
-			//		Vec3 interpP0 = {
-			//			(p0b.x - p0a.x) * t + p0a.x,
-			//			(p0b.y - p0a.y) * t + p0a.y
-			//		};
-
-			//		nvgMoveTo(vg, interpP0.x, interpP0.y);
-			//	}
-
-			//	int maxNumCurves = glm::max(lessCurves.numCurves, moreCurves.numCurves);
-			//	for (int curvei = 0; curvei < maxNumCurves; curvei++)
-			//	{
-			//		// Interpolate between the two curves, treat both curves
-			//		// as bezier3 curves no matter what to make it easier
-			//		glm::vec2 p1a, p2a, p3a;
-			//		glm::vec2 p1b, p2b, p3b;
-
-			//		if (curvei > lessCurves.numCurves || curvei > moreCurves.numCurves)
-			//		{
-			//			g_logger_error("Cannot interpolate between two contours with different number of curves yet.");
-			//			break;
-			//		}
-			//		const Curve& lessCurve = lessCurves.curves[curvei];
-			//		const Curve& moreCurve = moreCurves.curves[curvei];
-
-			//		// First get the control points depending on the type of the curve
-			//		switch (lessCurve.type)
-			//		{
-			//		case CurveType::Bezier3:
-			//			p1a = glm::vec2(lessCurve.as.bezier3.p1.x, lessCurve.as.bezier3.p1.y);
-			//			p2a = glm::vec2(lessCurve.as.bezier3.p2.x, lessCurve.as.bezier3.p2.y);
-			//			p3a = glm::vec2(lessCurve.as.bezier3.p3.x, lessCurve.as.bezier3.p3.y);
-			//			break;
-			//		case CurveType::Bezier2:
-			//		{
-			//			glm::vec2 p0 = glm::vec2(lessCurve.p0.x, lessCurve.p0.y);
-			//			glm::vec2 p1 = glm::vec2(lessCurve.as.bezier2.p1.x, lessCurve.as.bezier2.p1.y);
-			//			glm::vec2 p2 = glm::vec2(lessCurve.as.bezier2.p2.x, lessCurve.as.bezier2.p2.y);
-
-			//			// Degree elevated quadratic bezier curve
-			//			p1a = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-			//			p2a = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-			//			p3a = p2;
-			//		}
-			//		break;
-			//		case CurveType::Line:
-			//			p1a = glm::vec2(lessCurve.p0.x, lessCurve.p0.y);
-			//			p2a = glm::vec2(lessCurve.as.line.p1.x, lessCurve.as.line.p1.y);
-			//			p3a = p2a;
-			//			break;
-			//		default:
-			//			g_logger_warning("Unknown curve type %d", lessCurve.type);
-			//			break;
-			//		}
-
-			//		switch (moreCurve.type)
-			//		{
-			//		case CurveType::Bezier3:
-			//			p1b = glm::vec2(moreCurve.as.bezier3.p1.x, moreCurve.as.bezier3.p1.y);
-			//			p2b = glm::vec2(moreCurve.as.bezier3.p2.x, moreCurve.as.bezier3.p2.y);
-			//			p3b = glm::vec2(moreCurve.as.bezier3.p3.x, moreCurve.as.bezier3.p3.y);
-			//			break;
-			//		case CurveType::Bezier2:
-			//		{
-			//			glm::vec2 p0 = glm::vec2(moreCurve.p0.x, moreCurve.p0.y);
-			//			glm::vec2 p1 = glm::vec2(moreCurve.as.bezier2.p1.x, moreCurve.as.bezier2.p1.y);
-			//			glm::vec2 p2 = glm::vec2(moreCurve.as.bezier2.p2.x, moreCurve.as.bezier2.p2.y);
-
-			//			// Degree elevated quadratic bezier curve
-			//			p1b = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-			//			p2b = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-			//			p3b = p2;
-			//		}
-			//		break;
-			//		case CurveType::Line:
-			//			p1b = glm::vec2(moreCurve.p0.x, moreCurve.p0.y);
-			//			p2b = glm::vec2(moreCurve.as.line.p1.x, moreCurve.as.line.p1.y);
-			//			p3b = p2b;
-			//			break;
-			//		default:
-			//			g_logger_warning("Unknown curve type %d", moreCurve.type);
-			//			break;
-			//		}
-
-			//		// Then interpolate between the control points
-			//		glm::vec2 interpP1 = (p1b - p1a) * t + p1a;
-			//		glm::vec2 interpP2 = (p2b - p2a) * t + p2a;
-			//		glm::vec2 interpP3 = (p3b - p3a) * t + p3a;
-
-			//		// Then draw
-			//		nvgBezierTo(vg,
-			//			interpP1.x, interpP1.y,
-			//			interpP2.x, interpP2.y,
-			//			interpP3.x, interpP3.y);
-			//	}
-
-			//	nvgStroke(vg);
-			//	nvgFill(vg);
-			//	nvgClosePath(vg);
-
-			//	lessContouri++;
-			//	moreContouri += numContoursToSkip;
-			//	if (moreContouri >= moreContours->numContours)
-			//	{
-			//		moreContouri = moreContours->numContours - 1;
-			//	}
-			//}
-
-			//nvgResetTransform(vg);
 		}
 
 		static void render2DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t)
@@ -730,7 +508,7 @@ namespace MathAnim
 			);
 
 			// Apply transformations
-			Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
+			Vec2 cameraCenteredPos = Svg::orthoCamera->projectionSize / 2.0f - Svg::orthoCamera->position;
 			nvgTranslate(vg, interpolatedPos.x - cameraCenteredPos.x, interpolatedPos.y - cameraCenteredPos.y);
 			if (interpolatedRotation.z != 0.0f)
 			{
@@ -889,13 +667,6 @@ namespace MathAnim
 			}
 
 			nvgResetTransform(vg);
-		}
-
-		static void transformPoint(Vec2* point, const Vec2& offset, const Vec2& viewboxPos, const Vec2& viewboxSize)
-		{
-			*point = ((*point + offset) - viewboxPos);
-			point->x /= viewboxSize.x;
-			point->y /= viewboxSize.y;
 		}
 
 		static void generateSvgCache(uint32 width, uint32 height)
@@ -1137,118 +908,138 @@ namespace MathAnim
 
 	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset, bool reverse, bool isSvgGroup, bool renderBBoxes) const
 	{
-		if (this->is3D)
+		Vec2 svgTextureOffset = Vec2{
+			(float)cacheCurrentX + parent->strokeWidth * 0.5f,
+			(float)cacheCurrentY + parent->strokeWidth * 0.5f
+		};
+
+		// Check if the SVG cache needs to regenerate
+		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
+		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
 		{
-			// TODO: Just blit to a 3D quad
-		}
-		else
-		{
-			Vec2 svgTextureOffset = Vec2{
+			float newRightX = svgTextureOffset.x + svgTotalWidth;
+			if (newRightX >= svgCache.width)
+			{
+				// Move to the newline
+				cacheCurrentY += cacheLineHeight;
+				cacheLineHeight = 0;
+				cacheCurrentX = 0;
+			}
+
+			float newBottomY = svgTextureOffset.y + svgTotalHeight;
+			if (newBottomY >= svgCache.height)
+			{
+				// Double the size of the texture (up to 8192x8192 max)
+				Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
+			}
+
+			svgTextureOffset = Vec2{
 				(float)cacheCurrentX + parent->strokeWidth * 0.5f,
 				(float)cacheCurrentY + parent->strokeWidth * 0.5f
 			};
+		}
 
-			// Check if the SVG cache needs to regenerate
-			float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
-			float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
+		// Render to the framebuffer then blit the framebuffer to the screen
+		// with the appropriate transformations
+		int32 lastFboId;
+		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastFboId);
+
+		// First render to the cache
+		svgCache.bind();
+		glViewport(0, 0, svgCache.width, svgCache.height);
+
+		// Reset the draw buffers to draw to FB_attachment_0
+		GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
+		glDrawBuffers(3, compositeDrawBuffers);
+
+		if (isSvgGroup)
+		{
+			svgTextureOffset.x += offset.x * parent->scale.x;
+			svgTextureOffset.y += offset.y * parent->scale.y;
+		}
+
+		nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
+		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this, renderBBoxes);
+		nvgEndFrame(vg);
+
+		// Then bind the previous fbo and blit it to the screen with
+		// the appropriate transformations if it's not an svg group
+		// SVG Groups get drawn in one draw call
+		glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
+		// Reset the draw buffers to draw to FB_attachment_0
+		glDrawBuffers(3, compositeDrawBuffers);
+
+		// Don't blit svg groups to a bunch of quads, they get rendered as one quad together
+		if (isSvgGroup)
+		{
+			return;
+		}
+
+		// Subtract half stroke width to make sure it's getting the correct coords
+		svgTextureOffset -= Vec2{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f };
+		Vec2 cacheUvMin = Vec2{
+			(svgTextureOffset.x + 0.5f) / (float)svgCache.width,
+			1.0f - ((svgTextureOffset.y + 0.5f) / (float)svgCache.height) - (svgTotalHeight / (float)svgCache.height)
+		};
+		Vec2 cacheUvMax = cacheUvMin +
+			Vec2{
+				((svgTotalWidth - 0.5f) / (float)svgCache.width),
+				((svgTotalHeight - 0.5f) / (float)svgCache.height)
+		};
+
+		cacheCurrentX += svgTotalWidth;
+		cacheLineHeight = glm::max(cacheLineHeight, svgTotalHeight);
+
+		// Correct for aspect ratio
+		float targetRatio = Application::getOutputTargetAspectRatio();
+		svgTotalHeight /= targetRatio;
+
+		if (!is3D)
+		{
+			glm::mat4 transform = glm::identity<glm::mat4>();
+			Vec2 cameraCenteredPos = Svg::orthoCamera->projectionSize / 2.0f - Svg::orthoCamera->position;
+			transform = glm::translate(
+				transform,
+				glm::vec3(
+					parent->position.x - cameraCenteredPos.x + (offset.x * parent->scale.x),
+					parent->position.y - cameraCenteredPos.y + (offset.y * parent->scale.y),
+					0.0f
+				)
+			);
+			if (!CMath::compare(parent->rotation.z, 0.0f))
 			{
-				float newRightX = svgTextureOffset.x + svgTotalWidth;
-				if (newRightX >= svgCache.width)
-				{
-					// Move to the newline
-					cacheCurrentY += cacheLineHeight;
-					cacheLineHeight = 0;
-					cacheCurrentX = 0;
-				}
-
-				float newBottomY = svgTextureOffset.y + svgTotalHeight;
-				if (newBottomY >= svgCache.height)
-				{
-					// Double the size of the texture (up to 8192x8192 max)
-					Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
-				}
-
-				svgTextureOffset = Vec2{
-					(float)cacheCurrentX + parent->strokeWidth * 0.5f,
-					(float)cacheCurrentY + parent->strokeWidth * 0.5f
-				};
+				transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
 			}
 
-			// Render to the framebuffer then blit the framebuffer to the screen
-			// with the appropriate transformations
-			int32 lastFboId;
-			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastFboId);
+			Renderer::drawTexturedQuad(
+				svgCache.getColorAttachment(0),
+				Vec2{ svgTotalWidth, svgTotalHeight },
+				cacheUvMin,
+				cacheUvMax,
+				transform
+			);
+		}
+		else
+		{
+			glm::mat4 transform = glm::identity<glm::mat4>();
+			transform = glm::translate(
+				transform,
+				glm::vec3(
+					parent->position.x - Svg::perspCamera->position.x + (offset.x * parent->scale.x),
+					parent->position.y - Svg::perspCamera->position.y + (offset.y * parent->scale.y),
+					0.0f
+				)
+			);
+			transform *= glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));
 
-			// First render to the cache
-			svgCache.bind();
-			glViewport(0, 0, svgCache.width, svgCache.height);
-
-			// Reset the draw buffers to draw to FB_attachment_0
-			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
-			glDrawBuffers(3, compositeDrawBuffers);
-
-			if (isSvgGroup)
-			{
-				svgTextureOffset.x += offset.x * parent->scale.x;
-				svgTextureOffset.y += offset.y * parent->scale.y;
-			}
-
-			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
-			renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this, renderBBoxes);
-			nvgEndFrame(vg);
-
-			// Subtract half stroke width to make sure it's getting the correct coords
-			svgTextureOffset -= Vec2{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f };
-			Vec2 cacheUvMin = Vec2{
-				(svgTextureOffset.x + 0.5f) / (float)svgCache.width,
-				1.0f - ((svgTextureOffset.y + 0.5f) / (float)svgCache.height) - (svgTotalHeight / (float)svgCache.height)
-			};
-			Vec2 cacheUvMax = cacheUvMin +
-				Vec2{
-					((svgTotalWidth - 0.5f) / (float)svgCache.width),
-					((svgTotalHeight - 0.5f) / (float)svgCache.height)
-			};
-
-			// Then bind the previous fbo and blit it to the screen with
-			// the appropriate transformations if it's not an svg group
-			// SVG Groups get drawn in one draw call
-			glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
-			// Reset the draw buffers to draw to FB_attachment_0
-			glDrawBuffers(3, compositeDrawBuffers);
-
-			if (!isSvgGroup)
-			{
-				cacheCurrentX += svgTotalWidth;
-				cacheLineHeight = glm::max(cacheLineHeight, svgTotalHeight);
-
-				glm::mat4 transform = glm::identity<glm::mat4>();
-				Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
-				transform = glm::translate(
-					transform,
-					glm::vec3(
-						parent->position.x - cameraCenteredPos.x + (offset.x * parent->scale.x),
-						parent->position.y - cameraCenteredPos.y + (offset.y * parent->scale.y),
-						0.0f
-					)
-				);
-				if (!CMath::compare(parent->rotation.z, 0.0f))
-				{
-					transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
-				}
-
-				// Correct for aspect ratio
-				float targetRatio = Application::getOutputTargetAspectRatio();
-				svgTotalHeight /= targetRatio;
-
-				glEnable(GL_BLEND);
-				Renderer::drawTexture(
-					svgCache.getColorAttachment(0),
-					Vec2{ svgTotalWidth, svgTotalHeight },
-					cacheUvMin,
-					cacheUvMax,
-					transform
-				);
-			}
+			Renderer::drawTexturedQuad3D(
+				svgCache.getColorAttachment(0),
+				Vec2{ svgTotalWidth * 0.01f, svgTotalHeight * 0.01f },
+				cacheUvMin,
+				cacheUvMax,
+				transform,
+				true
+			);
 		}
 	}
 
@@ -1345,7 +1136,7 @@ namespace MathAnim
 
 		// Then blit the SVG group to the screen
 		glm::mat4 transform = glm::identity<glm::mat4>();
-		Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
+		Vec2 cameraCenteredPos = Svg::orthoCamera->projectionSize / 2.0f - Svg::orthoCamera->position;
 		transform = glm::translate(
 			transform,
 			glm::vec3(
@@ -1380,7 +1171,7 @@ namespace MathAnim
 		svgTotalHeight /= targetRatio;
 
 		glEnable(GL_BLEND);
-		Renderer::drawTexture(
+		Renderer::drawTexturedQuad(
 			svgCache.getColorAttachment(0),
 			Vec2{ svgTotalWidth, svgTotalHeight },
 			cacheUvMin,

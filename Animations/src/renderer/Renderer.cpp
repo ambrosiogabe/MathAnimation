@@ -101,6 +101,15 @@ namespace MathAnim
 		uint32 elementCount;
 	};
 
+	struct DrawCmd3D
+	{
+		uint32 textureId;
+		uint32 vertexOffset;
+		uint32 indexOffset;
+		uint32 elementCount;
+		bool isTransparent;
+	};
+
 	struct Vertex2D
 	{
 		Vec2 position;
@@ -189,7 +198,7 @@ namespace MathAnim
 	{
 		SimpleVector<Vertex3D> vertices;
 		SimpleVector<uint16> indices;
-		SimpleVector<DrawCmd> drawCommands;
+		SimpleVector<DrawCmd3D> drawCommands;
 		SimpleVector<uint32> textureIdStack;
 
 		uint32 vao;
@@ -201,6 +210,7 @@ namespace MathAnim
 		void addCubeFilled(const Vec3& position, const Vec3& size, const Vec4& color);
 		// void addCubeFilledMulticolor(const Vec3& position, const Vec3& size, const Vec4* colors, int numColors);
 		// void addCubeFilledMulticolor(const Vec3& position, const Vec3& size, Vec4 colors[6]);
+		void addTexturedQuad3D(const Texture& texture, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec3& faceNormal, bool isTransparent);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& opaqueShader, const Shader& transparentShader, const Shader& compositeShader, const Framebuffer& framebuffer) const;
@@ -338,7 +348,6 @@ namespace MathAnim
 			glDrawBuffers(3, compositeDrawBuffers);
 
 			// Collect all the render commands
-			//nvgBeginFrame(vg, (float)framebuffer.width, (float)framebuffer.height, 1.0f);
 			AnimationManager::render(vg, frame, framebuffer);
 
 			// Do all the draw calls
@@ -727,7 +736,7 @@ namespace MathAnim
 			//numVertices++;
 		}
 
-		void drawTexture(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform)
+		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform)
 		{
 			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
 			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
@@ -737,7 +746,7 @@ namespace MathAnim
 			drawList2D.addTexturedQuad(texture, min, max, uvMin, uvMax);
 		}
 
-		void drawTextureImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform, bool is3D)
+		void drawTexturedQuadImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform, bool is3D)
 		{
 			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
 			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
@@ -995,6 +1004,22 @@ namespace MathAnim
 		{
 			const glm::vec4& color = getColor();
 			drawList3D.addCubeFilled(center, size, Vec4{ color.r, color.g, color.b, color.a });
+		}
+
+		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform, bool isTransparent)
+		{
+			glm::vec4 tmpBottomLeft = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
+			glm::vec4 tmpTopLeft = transform * glm::vec4(-size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
+			glm::vec4 tmpTopRight = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
+			glm::vec4 tmpBottomRight = transform * glm::vec4(size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
+			glm::vec4 tmpFaceNormal = transform * glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+			Vec3 bottomLeft = { tmpBottomLeft.x, tmpBottomLeft.y, tmpBottomLeft.z };
+			Vec3 topLeft = { tmpTopLeft.x, tmpTopLeft.y, tmpTopLeft.z };
+			Vec3 topRight = { tmpTopRight.x, tmpTopRight.y, tmpTopRight.z };
+			Vec3 bottomRight = { tmpBottomRight.x, tmpBottomRight.y, tmpBottomRight.z };
+			Vec3 faceNormal = Vec3{ tmpFaceNormal.x, tmpFaceNormal.y, tmpFaceNormal.z };
+
+			drawList3D.addTexturedQuad3D(texture, bottomLeft, topLeft, topRight, bottomRight, uvMin, uvMax, faceNormal, isTransparent);
 		}
 
 		// ----------- Miscellaneous ----------- 
@@ -1664,6 +1689,48 @@ namespace MathAnim
 		}
 	}
 
+	void DrawList3D::addTexturedQuad3D(const Texture& texture, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec3& faceNormal, bool isTransparent)
+	{
+		if (drawCommands.size() == 0 || 
+			drawCommands.data[drawCommands.size() - 1].textureId != texture.graphicsId ||
+			drawCommands.data[drawCommands.size() - 1].isTransparent != isTransparent)
+		{
+			DrawCmd3D newCommand;
+			newCommand.elementCount = 0;
+			newCommand.indexOffset = indices.size();
+			newCommand.vertexOffset = vertices.size();
+			newCommand.textureId = texture.graphicsId;
+			newCommand.isTransparent = isTransparent;
+			drawCommands.push(newCommand);
+		}
+
+		DrawCmd3D& cmd = drawCommands.data[drawCommands.size() - 1];
+
+		int rectStartIndex = cmd.elementCount / 6 * 4;
+		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
+		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
+		cmd.elementCount += 6;
+
+		Vertex3D vert;
+		vert.color = Vec4{ 1, 1, 1, 1 };
+		vert.position = bottomLeft;
+		vert.textureCoords = uvMin;
+		vert.normal = faceNormal;
+		vertices.push(vert);
+
+		vert.position = topLeft;
+		vert.textureCoords = Vec2{ uvMin.x, uvMax.y };
+		vertices.push(vert);
+
+		vert.position = topRight;
+		vert.textureCoords = uvMax;
+		vertices.push(vert);
+
+		vert.position = bottomRight;
+		vert.textureCoords = Vec2{ uvMax.x, uvMin.y };
+		vertices.push(vert);
+	}
+
 	void DrawList3D::setupGraphicsBuffers()
 	{
 		// Vec3 position;
@@ -1705,13 +1772,6 @@ namespace MathAnim
 			return;
 		}
 
-		// TODO: Upload a list of draw commands and do one render call
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3D) * vertices.size(), vertices.data, GL_DYNAMIC_DRAW);
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16) * indices.size(), indices.data, GL_DYNAMIC_DRAW);
-
 		framebuffer.bind();
 
 		// Set up the transparent draw buffers
@@ -1737,15 +1797,57 @@ namespace MathAnim
 		glClearBufferfv(GL_COLOR, 1, accumulationClear);
 		glClearBufferfv(GL_COLOR, 2, revealageClear);
 
+		// TODO: Render opaque surfaces here
+
+		// Then render the transparent surfaces
 		transparentShader.bind();
 		transparentShader.uploadMat4("uProjection", Renderer::perspCamera->calculateProjectionMatrix());
 		transparentShader.uploadMat4("uView", Renderer::perspCamera->calculateViewMatrix());
 		transparentShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
-		Vec4 sunColor = "#edc253"_hex;
+		Vec4 sunColor = "#ffffffff"_hex;
 		transparentShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
+		
+		for (int i = 0; i < drawCommands.size(); i++)
+		{
+			if (!drawCommands.data[i].isTransparent)
+			{
+				continue;
+			}
 
-		glBindVertexArray(vao);
-		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, NULL);
+			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			int numVerts = drawCommands.data[i].elementCount / 6 * 4;
+			glBufferData(
+				GL_ARRAY_BUFFER,
+				sizeof(Vertex3D) * numVerts,
+				vertices.data + drawCommands.data[i].vertexOffset,
+				GL_DYNAMIC_DRAW
+			);
+
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+			glBufferData(
+				GL_ELEMENT_ARRAY_BUFFER,
+				sizeof(uint16) * drawCommands.data[i].elementCount,
+				indices.data + drawCommands.data[i].indexOffset,
+				GL_DYNAMIC_DRAW
+			);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
+			transparentShader.uploadInt("uTexture", 0);
+
+			glBindVertexArray(vao);
+			glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, NULL);
+
+			// TODO: Swap this with glMultiDraw...
+			// Make the draw call
+			glBindVertexArray(vao);
+			glDrawElements(
+				GL_TRIANGLES,
+				drawCommands.data[i].elementCount,
+				GL_UNSIGNED_SHORT,
+				nullptr
+			);
+		}
 
 		// Composite the accumulation and revealage textures together
 		// Render to the composite framebuffer attachment
@@ -1774,7 +1876,6 @@ namespace MathAnim
 		// Reset GL state
 		// Enable writing to the depth buffer again
 		glDepthMask(GL_TRUE);
-		glEnable(GL_CULL_FACE);
 	}
 
 	void DrawList3D::reset()

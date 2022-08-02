@@ -32,36 +32,38 @@ in vec3 fNormal;
 
 uniform vec3 sunDirection;
 uniform vec3 sunColor;
+uniform sampler2D uTexture;
 
 void main()
 {
-    float diff = max(dot(normalize(fNormal), sunDirection), 0.0);
-    vec3 diffuse = diff * sunColor;
-    vec3 ambient = vec3(0.1);
+   float diff = max(dot(normalize(fNormal), sunDirection), 0.0);
+   vec3 diffuse = diff * sunColor;
+   vec3 ambient = vec3(0.1);
 
-    vec4 premultipliedReflect = vec4(clamp(ambient + diffuse, vec3(0.0), vec3(1.0)), 1.0) * fColor;
+   vec4 objColor = fColor * texture(uTexture, fTexCoord);
+   vec4 premultipliedReflect = vec4(clamp(ambient + diffuse, vec3(0.0), vec3(1.0)), 1.0) * objColor;
 
-    /* Modulate the net coverage for composition by the transmission. This does not affect the color channels of the
-       transparent surface because the caller's BSDF model should have already taken into account if transmission modulates
-       reflection. This model doesn't handled colored transmission, so it averages the color channels. See 
+   /* Modulate the net coverage for composition by the transmission. This does not affect the color channels of the
+      transparent surface because the caller's BSDF model should have already taken into account if transmission modulates
+      reflection. This model doesn't handled colored transmission, so it averages the color channels. See
 
-          McGuire and Enderton, Colored Stochastic Shadow Maps, ACM I3D, February 2011
-          http://graphics.cs.williams.edu/papers/CSSM/
+         McGuire and Enderton, Colored Stochastic Shadow Maps, ACM I3D, February 2011
+         http://graphics.cs.williams.edu/papers/CSSM/
 
-       for a full explanation and derivation.*/
+      for a full explanation and derivation.*/
 
-    // premultipliedReflect.a *= 1.0 - clamp(0.5, 0.0, 1.0);
+   // premultipliedReflect.a *= 1.0 - clamp(0.5, 0.0, 1.0);
 
-    /* You may need to adjust the w function if you have a very large or very small view volume; see the paper and
-       presentation slides at http://jcgt.org/published/0002/02/09/ */
-    // Intermediate terms to be cubed
-    float a = min(1.0, premultipliedReflect.a) * 8.0 + 0.01;
-    float b = -gl_FragCoord.z * 0.95 + 1.0;
+   /* You may need to adjust the w function if you have a very large or very small view volume; see the paper and
+      presentation slides at http://jcgt.org/published/0002/02/09/ */
+   // Intermediate terms to be cubed
+   float a = min(1.0, premultipliedReflect.a) * 8.0 + 0.01;
+   float b = -gl_FragCoord.z * 0.95 + 1.0;
 
-    /* If your scene has a lot of content very close to the far plane,
-       then include this line (one rsqrt instruction):
-       b /= sqrt(1e4 * abs(csZ)); */
-    float w = clamp(a * a * a * 1e8 * b * b * b, 1e-2, 3e2);
-    accumulation = premultipliedReflect * w;
-    revealage = premultipliedReflect.a;
+   /* If your scene has a lot of content very close to the far plane,
+      then include this line (one rsqrt instruction):
+      b /= sqrt(1e4 * abs(csZ)); */
+   float w = clamp(a * a * a * 1e8 * b * b * b, 1e-2, 3e2);
+   accumulation = premultipliedReflect * w;
+   revealage = premultipliedReflect.a;
 }
