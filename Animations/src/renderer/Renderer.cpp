@@ -361,8 +361,7 @@ namespace MathAnim
 			// These should be blended appropriately
 			drawList2D.render(shader2D);
 			drawList2D.reset();
-			LaTexLayer::update();
-			//nvgEndFrame(vg);
+			//LaTexLayer::update();
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
 			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
@@ -641,64 +640,6 @@ namespace MathAnim
 			//}
 		}
 
-		void drawTexture(const RenderableTexture& renderable, const Vec4& color)
-		{
-			// TODO: Move this into DrawList2D
-			// And make it something like pushTexture(texture);
-			// Then drawRect(pos, size, uvPos, uvSize);
-
-			//if (numVertices + 6 >= maxNumVerticesPerBatch)
-			//{
-			//	flushBatch();
-			//}
-
-			//uint32 texId = getTexId(*renderable.texture);
-
-			//// Triangle 1
-			//// "Bottom-left" corner
-			//vertices[numVertices].position = renderable.start;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = texId;
-			//vertices[numVertices].textureCoords = renderable.texCoordStart;
-			//numVertices++;
-
-			//// "Top-Left" corner
-			//vertices[numVertices].position = renderable.start + Vec2{ 0, renderable.size.y };
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = texId;
-			//vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ 0, renderable.texCoordSize.y };
-			//numVertices++;
-
-			//// "Top-Right" corner of line
-			//vertices[numVertices].position = renderable.start + renderable.size;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = texId;
-			//vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
-			//numVertices++;
-
-			//// Triangle 2
-			//// "Bottom-left" corner of line
-			//vertices[numVertices].position = renderable.start;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = texId;
-			//vertices[numVertices].textureCoords = renderable.texCoordStart;
-			//numVertices++;
-
-			//// "Bottom-Right" corner of line
-			//vertices[numVertices].position = renderable.start + Vec2{ renderable.size.x, 0 };
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = texId;
-			//vertices[numVertices].textureCoords = renderable.texCoordStart + Vec2{ renderable.texCoordSize.x, 0 };
-			//numVertices++;
-
-			//// "Top-Right" corner of line
-			//vertices[numVertices].position = renderable.start + renderable.size;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = texId;
-			//vertices[numVertices].textureCoords = renderable.texCoordStart + renderable.texCoordSize;
-			//numVertices++;
-		}
-
 		void drawString(const std::string& string, const Vec2& start)
 		{
 			g_logger_assert(fontStackPtr > 0, "Cannot draw string without a font provided. Did you forget a pushFont() call?");
@@ -784,6 +725,16 @@ namespace MathAnim
 			//vertices[numVertices].color = color;
 			//vertices[numVertices].textureId = 0;
 			//numVertices++;
+		}
+
+		void drawTexture(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform)
+		{
+			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
+			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
+			Vec2 min = { tmpMin.x, tmpMax.y };
+			Vec2 max = { tmpMax.x, tmpMin.y };
+
+			drawList2D.addTexturedQuad(texture, min, max, uvMin, uvMax);
 		}
 
 		void drawTextureImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform, bool is3D)
@@ -1142,7 +1093,45 @@ namespace MathAnim
 	}
 
 	// TODO: Add a bunch of methods like this...
-	// void addRect();
+	void DrawList2D::addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax)
+	{
+		// Check if we need to switch to a new batch
+		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != texture.graphicsId)
+		{
+			DrawCmd newCommand;
+			newCommand.elementCount = 0;
+			newCommand.indexOffset = indices.size();
+			newCommand.vertexOffset = vertices.size();
+			newCommand.textureId = texture.graphicsId;
+			drawCommands.push(newCommand);
+		}
+
+		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
+
+		int rectStartIndex = cmd.elementCount / 6 * 4;
+		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
+		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
+		cmd.elementCount += 6;
+
+		Vertex2D vert;
+		vert.color = Vec4{ 1, 1, 1, 1 };
+		vert.position = min;
+		vert.textureCoords = uvMin;
+		vertices.push(vert);
+
+		vert.position = Vec2{ min.x, max.y };
+		vert.textureCoords = Vec2{ uvMin.x, uvMax.y };
+		vertices.push(vert);
+
+		vert.position = max;
+		vert.textureCoords = uvMax;
+		vertices.push(vert);
+
+		vert.position = Vec2{ max.x, min.y };
+		vert.textureCoords = Vec2{ uvMax.x, uvMin.y };
+		vertices.push(vert);
+	}
+
 	void DrawList2D::setupGraphicsBuffers()
 	{
 		// Create the batched vao
@@ -1177,16 +1166,45 @@ namespace MathAnim
 			return;
 		}
 
-		// TODO: Upload a list of draw commands and do one render call
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D) * vertices.size(), vertices.data, GL_DYNAMIC_DRAW);
-
 		shader.bind();
 		shader.uploadMat4("uProjection", Renderer::orthoCamera->calculateProjectionMatrix());
 		shader.uploadMat4("uView", Renderer::orthoCamera->calculateViewMatrix());
 
-		glBindVertexArray(vao);
-		glDrawElements(GL_TRIANGLES, vertices.size(), GL_UNSIGNED_INT, NULL);
+		for (int i = 0; i < drawCommands.size(); i++)
+		{
+			// Bind the texture
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
+			shader.uploadInt("uTexture", 0);
+
+			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			int numVerts = drawCommands.data[i].elementCount / 6 * 4;
+			glBufferData(
+				GL_ARRAY_BUFFER,
+				sizeof(Vertex2D) * numVerts,
+				vertices.data + drawCommands.data[i].vertexOffset,
+				GL_DYNAMIC_DRAW
+			);
+
+			// Buffer the elements
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+			glBufferData(
+				GL_ELEMENT_ARRAY_BUFFER,
+				sizeof(uint16) * drawCommands.data[i].elementCount,
+				indices.data + drawCommands.data[i].indexOffset,
+				GL_DYNAMIC_DRAW
+			);
+
+			// TODO: Swap this with glMultiDraw...
+			// Make the draw call
+			glBindVertexArray(vao);
+			glDrawElements(
+				GL_TRIANGLES,
+				drawCommands.data[i].elementCount,
+				GL_UNSIGNED_SHORT,
+				nullptr
+			);
+		}
 	}
 
 	void DrawList2D::reset()

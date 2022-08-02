@@ -22,9 +22,6 @@ namespace MathAnim
 		static Vec3 cursor;
 		static bool moveToP0 = false;
 
-		static Vec2 cacheUvMin;
-		static Vec2 cacheUvMax;
-
 		// ----------------- Internal functions -----------------
 		static void checkResize(Contour& contour);
 		static void render2DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
@@ -84,23 +81,9 @@ namespace MathAnim
 
 			svgCache.bind();
 			glViewport(0, 0, svgCache.width, svgCache.height);
-			svgCache.clearColorAttachmentRgba(0, colors[(uint8)Color::GreenBrown]);
+			//svgCache.clearColorAttachmentRgba(0, "#fc03ecFF"_hex);
+			svgCache.clearColorAttachmentRgba(0, "#00000000"_hex);
 			svgCache.clearDepthStencil();
-		}
-
-		const Vec2& getCacheUvMin()
-		{
-			return cacheUvMin;
-		}
-
-		const Vec2& getCacheUvMax()
-		{
-			return cacheUvMax;
-		}
-
-		const Texture& getCacheTexture()
-		{
-			return svgCache.getColorAttachment(0);
 		}
 
 		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox)
@@ -947,7 +930,7 @@ namespace MathAnim
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, const Vec3& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes);
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes);
 	static void renderCreateAnimation3D(float t, const AnimObject* parent, bool reverse, const SvgObject* obj);
 
 	void SvgObject::normalize(const Vec2& inMin, const Vec2& inMax)
@@ -1176,24 +1159,37 @@ namespace MathAnim
 		}
 		else
 		{
+			Vec3 svgTextureOffset = Vec3{
+				(float)cacheCurrentX + parent->strokeWidth * 0.5f,
+				(float)cacheCurrentY + parent->strokeWidth * 0.5f,
+				0.0f
+			};
+
 			// Check if the SVG cache needs to regenerate
 			float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
 			float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
 			{
-				float newRightX = offset.x + svgTotalWidth + cacheCurrentX;
+				float newRightX = svgTextureOffset.x + svgTotalWidth;
 				if (newRightX >= svgCache.width)
 				{
 					// Move to the newline
 					cacheCurrentY += cacheLineHeight;
 					cacheLineHeight = 0;
+					cacheCurrentX = 0;
 				}
 
-				float newBottomY = offset.y + svgTotalHeight + cacheCurrentY;
+				float newBottomY = svgTextureOffset.y + svgTotalHeight;
 				if (newBottomY >= svgCache.height)
 				{
 					// Double the size of the texture (up to 8192x8192 max)
 					Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
 				}
+
+				svgTextureOffset = Vec3{
+					(float)cacheCurrentX + parent->strokeWidth * 0.5f,
+					(float)cacheCurrentY + parent->strokeWidth * 0.5f,
+					0.0f
+				};
 			}
 
 			// Render to the framebuffer then blit the framebuffer to the screen
@@ -1209,65 +1205,68 @@ namespace MathAnim
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
 			glDrawBuffers(3, compositeDrawBuffers);
 
-			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
-			Vec3 svgTextureOffset = Vec3{ 
-				(float)cacheCurrentX + parent->strokeWidth * 0.5f,
-				(float)cacheCurrentY + parent->strokeWidth * 0.5f, 
-				0.0f 
-			};
-			renderCreateAnimation2D(vg, t, parent, offset, svgTextureOffset, reverse, this, renderBBoxes);
-			nvgEndFrame(vg);
-
 			if (isSvgGroup)
 			{
 				svgTextureOffset.x += offset.x * parent->scale.x;
 				svgTextureOffset.y += offset.y * parent->scale.y;
-				Svg::cacheUvMin = Vec2{ svgTextureOffset.x / (float)svgCache.width, svgTextureOffset.y / (float)svgCache.height };
-				Svg::cacheUvMax = Svg::cacheUvMin +
-					Vec2{ (svgTotalWidth / (float)svgCache.width), (svgTotalHeight / (float)svgCache.height) };
 			}
-			else
-			{
-				Svg::cacheUvMin = Vec2{ svgTextureOffset.x / (float)svgCache.width, svgTextureOffset.y / (float)svgCache.height };
-				Svg::cacheUvMax = Svg::cacheUvMin +
-					Vec2{ (svgTotalWidth / (float)svgCache.width), (svgTotalHeight / (float)svgCache.height) };
-			}
+
+			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
+			renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this, renderBBoxes);
+			nvgEndFrame(vg);
+
+			// Subtract half stroke width to make sure it's getting the correct coords
+			svgTextureOffset -= Vec3{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f, 0.0f };
+			Vec2 cacheUvMin = Vec2{
+				(svgTextureOffset.x + 0.5f) / (float)svgCache.width,
+				1.0f - ((svgTextureOffset.y + 0.5f) / (float)svgCache.height) - (svgTotalHeight / (float)svgCache.height)
+			};
+			Vec2 cacheUvMax = cacheUvMin +
+				Vec2{
+					((svgTotalWidth - 0.5f) / (float)svgCache.width),
+					((svgTotalHeight - 0.5f) / (float)svgCache.height)
+			};
+
+			// Then bind the previous fbo and blit it to the screen with
+			// the appropriate transformations if it's not an svg group
+			// SVG Groups get drawn in one draw call
+			glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
+			// Reset the draw buffers to draw to FB_attachment_0
+			glDrawBuffers(3, compositeDrawBuffers);
 
 			if (!isSvgGroup)
 			{
 				cacheCurrentX += svgTotalWidth;
 				cacheLineHeight = glm::max(cacheLineHeight, svgTotalHeight);
+
+				glm::mat4 transform = glm::identity<glm::mat4>();
+				Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
+				transform = glm::translate(
+					transform,
+					glm::vec3(
+						parent->position.x - cameraCenteredPos.x + (offset.x * parent->scale.x),
+						parent->position.y - cameraCenteredPos.y + (offset.y * parent->scale.y),
+						0.0f
+					)
+				);
+				if (!CMath::compare(parent->rotation.z, 0.0f))
+				{
+					transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
+				}
+
+				// Correct for aspect ratio
+				float targetRatio = Application::getOutputTargetAspectRatio();
+				svgTotalHeight /= targetRatio;
+
+				glEnable(GL_BLEND);
+				Renderer::drawTexture(
+					svgCache.getColorAttachment(0),
+					Vec2{ svgTotalWidth, svgTotalHeight },
+					cacheUvMin,
+					cacheUvMax,
+					transform
+				);
 			}
-
-			// Then bind the previous fbo and blit it to the screen with
-			// the appropriate transformations
-			glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
-
-			// Reset the draw buffers to draw to FB_attachment_0
-			glDrawBuffers(3, compositeDrawBuffers);
-
-			glm::mat4 transform = glm::identity<glm::mat4>();
-			Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
-			transform = glm::translate(
-				transform,
-				glm::vec3(
-					parent->position.x - cameraCenteredPos.x,
-					parent->position.y - cameraCenteredPos.y,
-					0.0f
-				)
-			);
-			if (!CMath::compare(parent->rotation.z, 0.0f))
-			{
-				transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
-			}
-			glEnable(GL_BLEND);
-			Renderer::drawTextureImmediate(
-				Svg::getCacheTexture(),
-				Vec2{ svgTotalWidth, svgTotalHeight },
-				Svg::cacheUvMin,
-				Svg::cacheUvMax,
-				transform,
-				false);
 		}
 	}
 
@@ -1362,6 +1361,52 @@ namespace MathAnim
 			}
 		}
 
+		// Then blit the SVG group to the screen
+		glm::mat4 transform = glm::identity<glm::mat4>();
+		Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
+		transform = glm::translate(
+			transform,
+			glm::vec3(
+				parent->position.x - cameraCenteredPos.x,
+				parent->position.y - cameraCenteredPos.y,
+				0.0f
+			)
+		);
+		if (!CMath::compare(parent->rotation.z, 0.0f))
+		{
+			transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
+		}
+
+		Vec3 svgTextureOffset = Vec3{
+				(float)cacheCurrentX + parent->strokeWidth * 0.5f,
+				(float)cacheCurrentY + parent->strokeWidth * 0.5f,
+				0.0f
+		};
+		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
+		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
+		Vec2 cacheUvMin = Vec2{
+			(svgTextureOffset.x + 0.5f) / (float)svgCache.width,
+			1.0f - ((svgTextureOffset.y + 0.5f) / (float)svgCache.height) - (svgTotalHeight / (float)svgCache.height)
+		};
+		Vec2 cacheUvMax = cacheUvMin +
+			Vec2{
+				((svgTotalWidth - 0.5f) / (float)svgCache.width),
+				((svgTotalHeight - 0.5f) / (float)svgCache.height)
+		};
+
+		// Correct for aspect ratio
+		float targetRatio = Application::getOutputTargetAspectRatio();
+		svgTotalHeight /= targetRatio;
+
+		glEnable(GL_BLEND);
+		Renderer::drawTexture(
+			svgCache.getColorAttachment(0),
+			Vec2{ svgTotalWidth, svgTotalHeight },
+			cacheUvMin,
+			cacheUvMax,
+			transform
+		);
+
 		if (renderBBoxes)
 		{
 			// Render to the framebuffer then blit the framebuffer to the screen
@@ -1452,7 +1497,7 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, const Vec3& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes)
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes)
 	{
 		if (reverse)
 		{
@@ -1498,8 +1543,8 @@ namespace MathAnim
 					}
 
 					nvgMoveTo(vg,
-						(obj->contours[contouri].curves[0].p0.x + offset.x) * parent->scale.x,
-						(obj->contours[contouri].curves[0].p0.y + offset.y) * parent->scale.y
+						obj->contours[contouri].curves[0].p0.x * parent->scale.x,
+						obj->contours[contouri].curves[0].p0.y * parent->scale.y
 					);
 
 					for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
@@ -1511,10 +1556,9 @@ namespace MathAnim
 						}
 
 						const Curve& curve = obj->contours[contouri].curves[curvei];
-						// TODO: Ugly hack for svg subpaths
 						glm::vec4 p0 = glm::vec4(
-							curve.p0.x + offset.x,
-							curve.p0.y + offset.y,
+							curve.p0.x,
+							curve.p0.y,
 							0.0f,
 							1.0f
 						);
@@ -1527,9 +1571,9 @@ namespace MathAnim
 						{
 						case CurveType::Bezier3:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x + offset.x, curve.as.bezier3.p1.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x + offset.x, curve.as.bezier3.p2.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x + offset.x, curve.as.bezier3.p3.y + offset.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, 0.0f, 1.0f };
 
 							float chordLength = glm::length(p3 - p0);
 							float controlNetLength = glm::length(p1 - p0) + glm::length(p2 - p1) + glm::length(p3 - p2);
@@ -1579,9 +1623,9 @@ namespace MathAnim
 						break;
 						case CurveType::Bezier2:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x + offset.x, curve.as.bezier2.p1.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x + offset.x, curve.as.bezier2.p1.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x + offset.x, curve.as.bezier2.p2.y + offset.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, 0.0f, 1.0f };
 
 							// Degree elevated quadratic bezier curve
 							glm::vec4 pr0 = p0;
@@ -1642,8 +1686,8 @@ namespace MathAnim
 						case CurveType::Line:
 						{
 							glm::vec4 p1 = glm::vec4(
-								curve.as.line.p1.x + offset.x,
-								curve.as.line.p1.y + offset.y,
+								curve.as.line.p1.x,
+								curve.as.line.p1.y,
 								0.0f,
 								1.0f
 							);
@@ -1688,16 +1732,16 @@ namespace MathAnim
 					nvgPathWinding(vg, NVG_CW);
 
 					nvgMoveTo(vg,
-						(obj->contours[contouri].curves[0].p0.x + offset.x) * parent->scale.x,
-						(obj->contours[contouri].curves[0].p0.y + offset.y) * parent->scale.y
+						obj->contours[contouri].curves[0].p0.x * parent->scale.x,
+						obj->contours[contouri].curves[0].p0.y * parent->scale.y
 					);
 
 					for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
 					{
 						const Curve& curve = obj->contours[contouri].curves[curvei];
 						glm::vec4 p0 = glm::vec4(
-							curve.p0.x + offset.x,
-							curve.p0.y + offset.y,
+							curve.p0.x,
+							curve.p0.y,
 							0.0f,
 							1.0f
 						);
@@ -1713,9 +1757,9 @@ namespace MathAnim
 						{
 						case CurveType::Bezier3:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x + offset.x, curve.as.bezier3.p1.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x + offset.x, curve.as.bezier3.p2.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x + offset.x, curve.as.bezier3.p3.y + offset.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, 0.0f, 1.0f };
 
 							nvgBezierTo(
 								vg,
@@ -1727,9 +1771,9 @@ namespace MathAnim
 						break;
 						case CurveType::Bezier2:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x + offset.x, curve.as.bezier2.p1.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x + offset.x, curve.as.bezier2.p1.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x + offset.x, curve.as.bezier2.p2.y + offset.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, 0.0f, 1.0f };
 
 							// Degree elevated quadratic bezier curve
 							glm::vec4 pr0 = p0;
@@ -1748,8 +1792,8 @@ namespace MathAnim
 						case CurveType::Line:
 						{
 							glm::vec4 p1 = glm::vec4(
-								(curve.as.line.p1.x + offset.x) * parent->scale.x,
-								(curve.as.line.p1.y + offset.y) * parent->scale.y,
+								curve.as.line.p1.x * parent->scale.x,
+								curve.as.line.p1.y * parent->scale.y,
 								0.0f,
 								1.0f
 							);
@@ -1780,8 +1824,8 @@ namespace MathAnim
 					{
 						const Curve& curve = obj->contours[contouri].curves[curvei];
 						glm::vec4 p0 = glm::vec4(
-							curve.p0.x + offset.x,
-							curve.p0.y + offset.y,
+							curve.p0.x,
+							curve.p0.y,
 							0.0f,
 							1.0f
 						);
@@ -1790,9 +1834,9 @@ namespace MathAnim
 						{
 						case CurveType::Bezier3:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x + offset.x, curve.as.bezier3.p1.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x + offset.x, curve.as.bezier3.p2.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x + offset.x, curve.as.bezier3.p3.y + offset.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, 0.0f, 1.0f };
 
 							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
 							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
@@ -1812,9 +1856,9 @@ namespace MathAnim
 						break;
 						case CurveType::Bezier2:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x + offset.x, curve.as.bezier2.p1.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x + offset.x, curve.as.bezier2.p1.y + offset.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x + offset.x, curve.as.bezier2.p2.y + offset.y, 0.0f, 1.0f };
+							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
+							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
+							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, 0.0f, 1.0f };
 
 							// Degree elevated quadratic bezier curve
 							glm::vec4 pr0 = p0;
@@ -1840,8 +1884,8 @@ namespace MathAnim
 						case CurveType::Line:
 						{
 							glm::vec4 p1 = glm::vec4(
-								(curve.as.line.p1.x + offset.x) * parent->scale.x,
-								(curve.as.line.p1.y + offset.y) * parent->scale.y,
+								curve.as.line.p1.x * parent->scale.x,
+								curve.as.line.p1.y * parent->scale.y,
 								0.0f,
 								1.0f
 							);
@@ -1873,12 +1917,12 @@ namespace MathAnim
 			nvgStrokeColor(vg, nvgRGB(0, 255, 0));
 			nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
 			nvgMoveTo(vg,
-				((obj->bbox.min.x + offset.x) * parent->scale.x) - (parent->strokeWidth * 0.5f),
-				((obj->bbox.min.y + offset.y) * parent->scale.y) - (parent->strokeWidth * 0.5f)
+				(obj->bbox.min.x * parent->scale.x) - (parent->strokeWidth * 0.5f),
+				(obj->bbox.min.y * parent->scale.y) - (parent->strokeWidth * 0.5f)
 			);
 			nvgRect(vg,
-				((obj->bbox.min.x + offset.x) * parent->scale.x) - (parent->strokeWidth * 0.5f),
-				((obj->bbox.min.y + offset.y) * parent->scale.y) - (parent->strokeWidth * 0.5f),
+				(obj->bbox.min.x * parent->scale.x) - (parent->strokeWidth * 0.5f),
+				(obj->bbox.min.y * parent->scale.y) - (parent->strokeWidth * 0.5f),
 				((obj->bbox.max.x - obj->bbox.min.x) * parent->scale.x) + parent->strokeWidth,
 				((obj->bbox.max.y - obj->bbox.min.y) * parent->scale.y) + parent->strokeWidth
 			);

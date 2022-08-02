@@ -28,6 +28,5 @@ uniform sampler2D uTexture;
 
 void main()
 {
-    //FragColor = fColor * (float(texture(uTexture, fTexCoord).r) / 255.0f);
-    FragColor = fColor * texture(uTexture, fTexCoord);
+    FragColor = fColor * (float(texture(uTexture, fTexCoord).r) / 255.0f);
 }

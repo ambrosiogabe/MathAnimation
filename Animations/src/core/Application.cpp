@@ -62,7 +62,7 @@ namespace MathAnim
 			window = new Window(1920, 1080, winTitle);
 			window->setVSync(true);
 
-			camera2D.position = Vec2{ 1920.0f, 1080.0f };
+			camera2D.position = Vec2{ 0.0f, 0.0f };
 			//camera2D.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
 			camera2D.projectionSize = Vec2{ 3840.0f, 2160.0f };
 

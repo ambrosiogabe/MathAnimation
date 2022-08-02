@@ -440,7 +440,8 @@ namespace MathAnim
 			float slowDragSpeed = 0.02f;
 			ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
 
-			ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart);
+			// NanoVG only allows stroke width between [0-200] so we reflect that here
+			ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f);
 			float strokeColor[4] = {
 				(float)animObject->_strokeColorStart.r / 255.0f,
 				(float)animObject->_strokeColorStart.g / 255.0f,

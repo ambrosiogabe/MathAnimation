@@ -103,10 +103,6 @@ namespace MathAnim
 
 		void endFrame();
 
-		const Vec2& getCacheUvMin();
-		const Vec2& getCacheUvMax();
-		const Texture& getCacheTexture();
-
 		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox);
 		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec3& offset);
 		void endSvgGroup(SvgGroup* group);
