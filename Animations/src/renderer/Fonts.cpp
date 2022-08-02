@@ -551,11 +551,10 @@ namespace MathAnim
 					end = *contourEnd;
 
 					bool previousPointWasControlPoint = false;
-					Vec3 previousPosition;
-					Vec3 firstPoint = {
+					Vec2 previousPosition;
+					Vec2 firstPoint = {
 						((float)(point->x - glyphLeft) / upem),
-						((float)(point->y + descentY) / upem),
-						0.0f
+						((float)(point->y + descentY) / upem)
 					};
 					Svg::beginContour(res.svg, firstPoint);
 
@@ -570,7 +569,7 @@ namespace MathAnim
 						float pointy = ((float)(point->y + descentY) / upem);
 						// Flip the point y since the glyph is "upside down"
 						pointy = res.glyphHeight - pointy;
-						Vec3 position = Vec3{ pointx, pointy, 0.0f };
+						Vec2 position = Vec2{ pointx, pointy };
 
 						g_logger_assert(!thirdOrderControlPoint, "No Support.");
 						g_logger_assert(!dropoutEnabled, "No Support.");
@@ -593,10 +592,9 @@ namespace MathAnim
 							if (previousPointWasControlPoint && bezierControlPoint)
 							{
 								// Two off points, hidden on point in between
-								Vec3 hiddenPointPosition = Vec3{
+								Vec2 hiddenPointPosition = Vec2{
 									(position.x - previousPosition.x) / 2.0f + previousPosition.x,
-									(position.y - previousPosition.y) / 2.0f + previousPosition.y,
-									0.0f
+									(position.y - previousPosition.y) / 2.0f + previousPosition.y
 								};
 								//res.contours[c].vertices[vertexStackPointer].position = hiddenPointPosition;
 								//res.contours[c].vertices[vertexStackPointer].controlPoint = false;

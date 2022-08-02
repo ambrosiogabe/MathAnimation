@@ -20,20 +20,20 @@ namespace MathAnim
 
 	struct Line
 	{
-		Vec3 p1;
+		Vec2 p1;
 	};
 
 	struct Bezier2
 	{
-		Vec3 p1;
-		Vec3 p2;
+		Vec2 p1;
+		Vec2 p2;
 	};
 
 	struct Bezier3
 	{
-		Vec3 p1;
-		Vec3 p2;
-		Vec3 p3;
+		Vec2 p1;
+		Vec2 p2;
+		Vec2 p3;
 	};
 
 	struct Curve
@@ -41,7 +41,7 @@ namespace MathAnim
 		bool moveToP0;
 		CurveType type;
 		// Every curve has at least one point
-		Vec3 p0;
+		Vec2 p0;
 		union
 		{
 			Line line;
@@ -69,8 +69,8 @@ namespace MathAnim
 		void normalize(const Vec2& min = Vec2{ FLT_MAX, FLT_MAX }, const Vec2& max = Vec2{ FLT_MIN, FLT_MIN });
 		void calculateApproximatePerimeter();
 		void calculateBBox();
-		void render(NVGcontext* vg, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}, bool renderBBoxes = false) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset = Vec3{0, 0, 0}, bool reverse = false, bool isSvgGroup = false, bool renderBBoxes = false) const;
+		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, bool renderBBoxes = false) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, bool reverse = false, bool isSvgGroup = false, bool renderBBoxes = false) const;
 		void free();
 	};
 
@@ -81,7 +81,7 @@ namespace MathAnim
 		int numUniqueObjects;
 
 		SvgObject* objects;
-		Vec3* objectOffsets;
+		Vec2* objectOffsets;
 		int numObjects;
 		Vec4 viewbox;
 		BBox bbox;
@@ -104,21 +104,21 @@ namespace MathAnim
 		void endFrame();
 
 		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox);
-		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec3& offset);
+		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset);
 		void endSvgGroup(SvgGroup* group);
 
-		void beginContour(SvgObject* object, const Vec3& firstPoint, bool is3D = false);
+		void beginContour(SvgObject* object, const Vec2& firstPoint, bool is3D = false);
 		void closeContour(SvgObject* object, bool lineToEndpoint = false);
 
-		void moveTo(SvgObject* object, const Vec3& point, bool absolute = true);
-		void lineTo(SvgObject* object, const Vec3& point, bool absolute = true);
+		void moveTo(SvgObject* object, const Vec2& point, bool absolute = true);
+		void lineTo(SvgObject* object, const Vec2& point, bool absolute = true);
 		void hzLineTo(SvgObject* object, float xPoint, bool absolute = true);
 		void vtLineTo(SvgObject* object, float yPoint, bool absolute = true);
-		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest, bool absolute = true);
-		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest, bool absolute = true);
-		void smoothBezier2To(SvgObject* object, const Vec3& dest, bool absolute = true);
-		void smoothBezier3To(SvgObject* object, const Vec3& control1, const Vec3& dest, bool absolute = true);
-		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec3& dst, bool absolute = true);
+		void bezier2To(SvgObject* object, const Vec2& control, const Vec2& dest, bool absolute = true);
+		void bezier3To(SvgObject* object, const Vec2& control0, const Vec2& control1, const Vec2& dest, bool absolute = true);
+		void smoothBezier2To(SvgObject* object, const Vec2& dest, bool absolute = true);
+		void smoothBezier3To(SvgObject* object, const Vec2& control1, const Vec2& dest, bool absolute = true);
+		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec2& dst, bool absolute = true);
 
 		void copy(SvgObject* dest, const SvgObject* src);
 		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);

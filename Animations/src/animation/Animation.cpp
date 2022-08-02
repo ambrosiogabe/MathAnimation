@@ -59,7 +59,7 @@ namespace MathAnim
 			}
 
 			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
-			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), Vec3{0, 0, 0}, true);
+			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), Vec2{0, 0}, true);
 			if (getParent()->svgObject->is3D)
 			{
 				// Only fade out for t = [0.0-0.2]

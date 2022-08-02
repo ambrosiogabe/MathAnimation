@@ -134,18 +134,6 @@ namespace MathAnim
 		BBox bezier2BBox(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 		BBox bezier3BBox(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3);
 
-		// Bezier extremities Vec3 versions
-		// Returns pair <xRoot, yRoot> in tValues
-		// -1.0f indicates an invalid root
-		Vec2 tRootBezier2(const Vec3& p0, const Vec3& p1, const Vec3& p2);
-		// Returns pairs <xRootPos, yRootPos, xRootNeg, yRootNeg> in tValues
-		// -1.0f indicates an invalid root
-		Vec4 tRootsBezier3(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3);
-
-		BBox bezier1BBox(const Vec3& p0, const Vec3& p1);
-		BBox bezier2BBox(const Vec3& p0, const Vec3& p1, const Vec3& p2);
-		BBox bezier3BBox(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3);
-
 		// Easing functions
 		float ease(float t, EaseType type, EaseDirection direction);
 

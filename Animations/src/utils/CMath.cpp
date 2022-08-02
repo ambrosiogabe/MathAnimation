@@ -338,31 +338,6 @@ namespace MathAnim
 			return res;
 		}
 
-		Vec2 tRootBezier2(const Vec3& p0, const Vec3& p1, const Vec3& p2)
-		{
-			return tRootBezier2(Vec2{ p0.x, p0.y }, Vec2{ p1.x, p1.y }, Vec2{ p2.x, p2.y });
-		}
-
-		Vec4 tRootsBezier3(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3)
-		{
-			return tRootsBezier3(Vec2{ p0.x, p0.y }, Vec2{ p1.x, p1.y }, Vec2{ p2.x, p2.y }, Vec2{ p3.x, p3.y });
-		}
-
-		BBox bezier1BBox(const Vec3& p0, const Vec3& p1)
-		{
-			return bezier1BBox(Vec2{ p0.x, p0.y }, Vec2{ p1.x, p1.y });
-		}
-
-		BBox bezier2BBox(const Vec3& p0, const Vec3& p1, const Vec3& p2)
-		{
-			return bezier2BBox(Vec2{ p0.x, p0.y }, Vec2{ p1.x, p1.y }, Vec2{ p2.x, p2.y });
-		}
-
-		BBox bezier3BBox(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3)
-		{
-			return bezier3BBox(Vec2{ p0.x, p0.y }, Vec2{ p1.x, p1.y }, Vec2{ p2.x, p2.y }, Vec2{ p3.x, p3.y });
-		}
-
 		// Easing functions
 		float ease(float t, EaseType type, EaseDirection direction)
 		{

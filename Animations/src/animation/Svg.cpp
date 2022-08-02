@@ -19,14 +19,14 @@ namespace MathAnim
 		// ----------------- Private Variables -----------------
 		constexpr int initialMaxCapacity = 5;
 		static OrthoCamera* camera;
-		static Vec3 cursor;
+		static Vec2 cursor;
 		static bool moveToP0 = false;
 
 		// ----------------- Internal functions -----------------
 		static void checkResize(Contour& contour);
 		static void render2DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
 		static void render3DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
-		static void transformPoint(Vec3* point, const Vec3& offset, const Vec3& viewboxPos, const Vec3& viewboxSize);
+		static void transformPoint(Vec3* point, const Vec2& offset, const Vec2& viewboxPos, const Vec2& viewboxSize);
 		static void generateSvgCache(uint32 width, uint32 height);
 
 		SvgObject createDefault()
@@ -47,7 +47,7 @@ namespace MathAnim
 			// Dummy allocation to allow memory tracking when reallocing 
 			// TODO: Fix the dang memory allocation library so I don't have to do this!
 			res.objects = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-			res.objectOffsets = (Vec3*)g_memory_allocate(sizeof(Vec3));
+			res.objectOffsets = (Vec2*)g_memory_allocate(sizeof(Vec2));
 			res.numObjects = 0;
 			res.uniqueObjects = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 			res.uniqueObjectNames = (char**)g_memory_allocate(sizeof(char*));
@@ -91,12 +91,12 @@ namespace MathAnim
 			group->viewbox = viewbox;
 		}
 
-		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec3& offset)
+		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset)
 		{
 			group->numObjects++;
 			group->objects = (SvgObject*)g_memory_realloc(group->objects, sizeof(SvgObject) * group->numObjects);
 			g_logger_assert(group->objects != nullptr, "Ran out of RAM.");
-			group->objectOffsets = (Vec3*)g_memory_realloc(group->objectOffsets, sizeof(Vec3) * group->numObjects);
+			group->objectOffsets = (Vec2*)g_memory_realloc(group->objectOffsets, sizeof(Vec2) * group->numObjects);
 			g_logger_assert(group->objectOffsets != nullptr, "Ran out of RAM.");
 
 			group->objectOffsets[group->numObjects - 1] = offset;
@@ -144,7 +144,7 @@ namespace MathAnim
 			group->normalize();
 		}
 
-		void beginContour(SvgObject* object, const Vec3& firstPoint, bool is3D)
+		void beginContour(SvgObject* object, const Vec2& firstPoint, bool is3D)
 		{
 			object->is3D = is3D;
 			object->numContours++;
@@ -169,15 +169,15 @@ namespace MathAnim
 			{
 				if (object->contours[object->numContours - 1].numCurves > 0)
 				{
-					Vec3 firstPoint = object->contours[object->numContours - 1].curves[0].p0;
+					Vec2 firstPoint = object->contours[object->numContours - 1].curves[0].p0;
 					lineTo(object, firstPoint, true);
 				}
 			}
 
-			cursor = Vec3{ 0, 0, 0 };
+			cursor = Vec2{ 0, 0 };
 		}
 
-		void moveTo(SvgObject* object, const Vec3& point, bool absolute)
+		void moveTo(SvgObject* object, const Vec2& point, bool absolute)
 		{
 			// If no object has started, begin the object here
 			if (object->numContours == 0)
@@ -193,7 +193,7 @@ namespace MathAnim
 			}
 		}
 
-		void lineTo(SvgObject* object, const Vec3& point, bool absolute)
+		void lineTo(SvgObject* object, const Vec2& point, bool absolute)
 		{
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a lineTo when no contour exists.");
 			Contour& contour = object->contours[object->numContours - 1];
@@ -211,21 +211,21 @@ namespace MathAnim
 
 		void hzLineTo(SvgObject* object, float xPoint, bool absolute)
 		{
-			Vec3 position = absolute
-				? Vec3{ xPoint, cursor.y, 0.0f }
-			: Vec3{ xPoint, 0.0f, 0.0f } + cursor;
+			Vec2 position = absolute
+				? Vec2{ xPoint, cursor.y }
+			: Vec2{ xPoint, 0.0f } + cursor;
 			lineTo(object, position, true);
 		}
 
 		void vtLineTo(SvgObject* object, float yPoint, bool absolute)
 		{
-			Vec3 position = absolute
-				? Vec3{ cursor.x, yPoint, 0.0f }
-			: Vec3{ 0.0f, yPoint, 0.0f } + cursor;
+			Vec2 position = absolute
+				? Vec2{ cursor.x, yPoint }
+			: Vec2{ 0.0f, yPoint } + cursor;
 			lineTo(object, position, true);
 		}
 
-		void bezier2To(SvgObject* object, const Vec3& control, const Vec3& dest, bool absolute)
+		void bezier2To(SvgObject* object, const Vec2& control, const Vec2& dest, bool absolute)
 		{
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier2To when no contour exists.");
 			Contour& contour = object->contours[object->numContours - 1];
@@ -246,7 +246,7 @@ namespace MathAnim
 			moveToP0 = false;
 		}
 
-		void bezier3To(SvgObject* object, const Vec3& control0, const Vec3& control1, const Vec3& dest, bool absolute)
+		void bezier3To(SvgObject* object, const Vec2& control0, const Vec2& control1, const Vec2& dest, bool absolute)
 		{
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier3To when no contour exists.");
 			Contour& contour = object->contours[object->numContours - 1];
@@ -270,7 +270,7 @@ namespace MathAnim
 			moveToP0 = false;
 		}
 
-		void smoothBezier2To(SvgObject* object, const Vec3& dest, bool absolute)
+		void smoothBezier2To(SvgObject* object, const Vec2& dest, bool absolute)
 		{
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier3To when no contour exists.");
 			Contour& contour = object->contours[object->numContours - 1];
@@ -279,12 +279,12 @@ namespace MathAnim
 
 			contour.curves[contour.numCurves - 1].p0 = cursor;
 
-			Vec3 control0 = cursor;
+			Vec2 control0 = cursor;
 			if (contour.numCurves > 1)
 			{
 				if (contour.curves[contour.numCurves - 2].type == CurveType::Bezier2)
 				{
-					Vec3 prevControl1 = contour.curves[contour.numCurves - 2].as.bezier2.p1;
+					Vec2 prevControl1 = contour.curves[contour.numCurves - 2].as.bezier2.p1;
 					// Reflect the previous c2 about the current cursor
 					control0 = (-1.0f * (prevControl1 - cursor)) + cursor;
 				}
@@ -301,7 +301,7 @@ namespace MathAnim
 			moveToP0 = false;
 		}
 
-		void smoothBezier3To(SvgObject* object, const Vec3& control1, const Vec3& dest, bool absolute)
+		void smoothBezier3To(SvgObject* object, const Vec2& control1, const Vec2& dest, bool absolute)
 		{
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier3To when no contour exists.");
 			Contour& contour = object->contours[object->numContours - 1];
@@ -310,12 +310,12 @@ namespace MathAnim
 
 			contour.curves[contour.numCurves - 1].p0 = cursor;
 
-			Vec3 control0 = cursor;
+			Vec2 control0 = cursor;
 			if (contour.numCurves > 1)
 			{
 				if (contour.curves[contour.numCurves - 2].type == CurveType::Bezier3)
 				{
-					Vec3 prevControl1 = contour.curves[contour.numCurves - 2].as.bezier3.p2;
+					Vec2 prevControl1 = contour.curves[contour.numCurves - 2].as.bezier3.p2;
 					// Reflect the previous c2 about the current cursor
 					control0 = (-1.0f * (prevControl1 - cursor)) + cursor;
 				}
@@ -335,7 +335,7 @@ namespace MathAnim
 			moveToP0 = false;
 		}
 
-		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec3& dst, bool absolute)
+		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec2& dst, bool absolute)
 		{
 			// TODO: All this should probably be implementation details...
 			if (CMath::compare(cursor, dst))
@@ -713,12 +713,11 @@ namespace MathAnim
 			);
 
 			// Interpolate position
-			const Vec3& dstPos = animObjectDst->position;
-			const Vec3& srcPos = animObjectSrc->position;
-			glm::vec3 interpolatedPos = glm::vec3(
+			const Vec2& dstPos = CMath::vector2From3(animObjectDst->position);
+			const Vec2& srcPos = CMath::vector2From3(animObjectSrc->position);
+			glm::vec2 interpolatedPos = glm::vec2(
 				(dstPos.x - srcPos.x) * t + srcPos.x,
-				(dstPos.y - srcPos.y) * t + srcPos.y,
-				(dstPos.z - srcPos.z) * t + srcPos.z
+				(dstPos.y - srcPos.y) * t + srcPos.y
 			);
 
 			// Interpolate rotation
@@ -780,9 +779,9 @@ namespace MathAnim
 				{
 					// Move to the start, which is the interpolation between both of the
 					// first vertices
-					const Vec3& p0a = lessCurves.curves[0].p0;
-					const Vec3& p0b = moreCurves.curves[0].p0;
-					Vec3 interpP0 = {
+					const Vec2& p0a = lessCurves.curves[0].p0;
+					const Vec2& p0b = moreCurves.curves[0].p0;
+					Vec2 interpP0 = {
 						(p0b.x - p0a.x) * t + p0a.x,
 						(p0b.y - p0a.y) * t + p0a.y
 					};
@@ -892,7 +891,7 @@ namespace MathAnim
 			nvgResetTransform(vg);
 		}
 
-		static void transformPoint(Vec3* point, const Vec3& offset, const Vec3& viewboxPos, const Vec3& viewboxSize)
+		static void transformPoint(Vec2* point, const Vec2& offset, const Vec2& viewboxPos, const Vec2& viewboxSize)
 		{
 			*point = ((*point + offset) - viewboxPos);
 			point->x /= viewboxSize.x;
@@ -930,8 +929,7 @@ namespace MathAnim
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes);
-	static void renderCreateAnimation3D(float t, const AnimObject* parent, bool reverse, const SvgObject* obj);
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes);
 
 	void SvgObject::normalize(const Vec2& inMin, const Vec2& inMax)
 	{
@@ -945,61 +943,47 @@ namespace MathAnim
 				for (int curvei = 0; curvei < this->contours[contouri].numCurves; curvei++)
 				{
 					const Curve& curve = contours[contouri].curves[curvei];
-					glm::vec3 p0 = { curve.p0.x, curve.p0.y, curve.p0.z };
+					const Vec2& p0 = curve.p0;
 
-					min.x = glm::min(p0.x, min.x);
-					max.x = glm::max(p0.x, max.x);
-					min.y = glm::min(p0.y, min.y);
-					max.y = glm::max(p0.y, max.y);
+					min = CMath::min(p0, min);
+					max = CMath::max(p0, max);
 
 					switch (curve.type)
 					{
 					case CurveType::Bezier3:
 					{
-						glm::vec3 p1 = { curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, curve.as.bezier3.p1.z };
-						glm::vec3 p2 = { curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, curve.as.bezier3.p2.z };
-						glm::vec3 p3 = { curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, curve.as.bezier3.p3.z };
+						const Vec2& p1 = curve.as.bezier3.p1;
+						const Vec2& p2 = curve.as.bezier3.p2;
+						const Vec2& p3 = curve.as.bezier3.p3;
 
-						min.x = glm::min(p1.x, min.x);
-						max.x = glm::max(p1.x, max.x);
-						min.y = glm::min(p1.y, min.y);
-						max.y = glm::max(p1.y, max.y);
+						min = CMath::min(p1, min);
+						max = CMath::max(p1, max);
 
-						min.x = glm::min(p2.x, min.x);
-						max.x = glm::max(p2.x, max.x);
-						min.y = glm::min(p2.y, min.y);
-						max.y = glm::max(p2.y, max.y);
+						min = CMath::min(p2, min);
+						max = CMath::max(p2, max);
 
-						min.x = glm::min(p3.x, min.x);
-						max.x = glm::max(p3.x, max.x);
-						min.y = glm::min(p3.y, min.y);
-						max.y = glm::max(p3.y, max.y);
+						min = CMath::min(p3, min);
+						max = CMath::max(p3, max);
 					}
 					break;
 					case CurveType::Bezier2:
 					{
-						glm::vec3 p1 = { curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, curve.as.bezier2.p1.z };
-						glm::vec3 p2 = { curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, curve.as.bezier2.p2.z };
+						const Vec2& p1 = curve.as.bezier2.p1;
+						const Vec2& p2 = curve.as.bezier2.p2;
 
-						min.x = glm::min(p1.x, min.x);
-						max.x = glm::max(p1.x, max.x);
-						min.y = glm::min(p1.y, min.y);
-						max.y = glm::max(p1.y, max.y);
+						min = CMath::min(p1, min);
+						max = CMath::max(p1, max);
 
-						min.x = glm::min(p2.x, min.x);
-						max.x = glm::max(p2.x, max.x);
-						min.y = glm::min(p2.y, min.y);
-						max.y = glm::max(p2.y, max.y);
+						min = CMath::min(p2, min);
+						max = CMath::max(p2, max);
 					}
 					break;
 					case CurveType::Line:
 					{
-						glm::vec3 p1 = { curve.as.line.p1.x, curve.as.line.p1.y, curve.as.line.p1.z };
+						const Vec2& p1 = curve.as.line.p1;
 
-						min.x = glm::min(p1.x, min.x);
-						max.x = glm::max(p1.x, max.x);
-						min.y = glm::min(p1.y, min.y);
-						max.y = glm::max(p1.y, max.y);
+						min = CMath::min(p1, min);
+						max = CMath::max(p1, max);
 					}
 					break;
 					}
@@ -1062,35 +1046,35 @@ namespace MathAnim
 			for (int curvei = 0; curvei < this->contours[contouri].numCurves; curvei++)
 			{
 				const Curve& curve = contours[contouri].curves[curvei];
-				glm::vec3 p0 = { curve.p0.x, curve.p0.y, curve.p0.z };
+				const Vec2& p0 = curve.p0;
 
 				switch (curve.type)
 				{
 				case CurveType::Bezier3:
 				{
-					glm::vec3 p1 = { curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, curve.as.bezier3.p1.z };
-					glm::vec3 p2 = { curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, curve.as.bezier3.p2.z };
-					glm::vec3 p3 = { curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, curve.as.bezier3.p3.z };
-					float chordLength = glm::length(p3 - p0);
-					float controlNetLength = glm::length(p1 - p0) + glm::length(p2 - p1) + glm::length(p3 - p2);
+					const Vec2& p1 = curve.as.bezier3.p1;
+					const Vec2& p2 = curve.as.bezier3.p2;
+					const Vec2& p3 = curve.as.bezier3.p3;
+					float chordLength = CMath::length(p3 - p0);
+					float controlNetLength = CMath::length(p1 - p0) + CMath::length(p2 - p1) + CMath::length(p3 - p2);
 					float approxLength = (chordLength + controlNetLength) / 2.0f;
 					approximatePerimeter += approxLength;
 				}
 				break;
 				case CurveType::Bezier2:
 				{
-					glm::vec3 p1 = { curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, curve.as.bezier2.p1.z };
-					glm::vec3 p2 = { curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, curve.as.bezier2.p2.z };
-					float chordLength = glm::length(p2 - p0);
-					float controlNetLength = glm::length(p1 - p0) + glm::length(p2 - p1);
+					const Vec2& p1 = curve.as.bezier2.p1;
+					const Vec2& p2 = curve.as.bezier2.p2;
+					float chordLength = CMath::length(p2 - p0);
+					float controlNetLength = CMath::length(p1 - p0) + CMath::length(p2 - p1);
 					float approxLength = (chordLength + controlNetLength) / 2.0f;
 					approximatePerimeter += approxLength;
 				}
 				break;
 				case CurveType::Line:
 				{
-					glm::vec3 p1 = { curve.as.line.p1.x, curve.as.line.p1.y, curve.as.line.p1.z };
-					approximatePerimeter += glm::length(p1 - p0);
+					const Vec2& p1 = curve.as.line.p1;
+					approximatePerimeter += CMath::length(p1 - p0);
 				}
 				break;
 				}
@@ -1112,7 +1096,7 @@ namespace MathAnim
 				for (int curvei = 0; curvei < contours[contouri].numCurves; curvei++)
 				{
 					const Curve& curve = contours[contouri].curves[curvei];
-					Vec3 p0 = Vec3{ curve.p0.x, curve.p0.y, 0.0f };
+					Vec2 p0 = Vec2{ curve.p0.x, curve.p0.y };
 
 					switch (curve.type)
 					{
@@ -1146,23 +1130,22 @@ namespace MathAnim
 		}
 	}
 
-	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec3& offset, bool renderBBoxes) const
+	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset, bool renderBBoxes) const
 	{
 		renderCreateAnimation(vg, 1.01f, parent, offset, false, false, renderBBoxes);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& offset, bool reverse, bool isSvgGroup, bool renderBBoxes) const
+	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset, bool reverse, bool isSvgGroup, bool renderBBoxes) const
 	{
 		if (this->is3D)
 		{
-			renderCreateAnimation3D(t, parent, reverse, this);
+			// TODO: Just blit to a 3D quad
 		}
 		else
 		{
-			Vec3 svgTextureOffset = Vec3{
+			Vec2 svgTextureOffset = Vec2{
 				(float)cacheCurrentX + parent->strokeWidth * 0.5f,
-				(float)cacheCurrentY + parent->strokeWidth * 0.5f,
-				0.0f
+				(float)cacheCurrentY + parent->strokeWidth * 0.5f
 			};
 
 			// Check if the SVG cache needs to regenerate
@@ -1185,10 +1168,9 @@ namespace MathAnim
 					Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
 				}
 
-				svgTextureOffset = Vec3{
+				svgTextureOffset = Vec2{
 					(float)cacheCurrentX + parent->strokeWidth * 0.5f,
-					(float)cacheCurrentY + parent->strokeWidth * 0.5f,
-					0.0f
+					(float)cacheCurrentY + parent->strokeWidth * 0.5f
 				};
 			}
 
@@ -1216,7 +1198,7 @@ namespace MathAnim
 			nvgEndFrame(vg);
 
 			// Subtract half stroke width to make sure it's getting the correct coords
-			svgTextureOffset -= Vec3{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f, 0.0f };
+			svgTextureOffset -= Vec2{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f };
 			Vec2 cacheUvMin = Vec2{
 				(svgTextureOffset.x + 0.5f) / (float)svgCache.width,
 				1.0f - ((svgTextureOffset.y + 0.5f) / (float)svgCache.height) - (svgTotalHeight / (float)svgCache.height)
@@ -1315,16 +1297,16 @@ namespace MathAnim
 
 	void SvgGroup::calculateBBox()
 	{
-		Vec3 translation = Vec3{ viewbox.values[0], viewbox.values[1], 0.0f };
+		Vec2 translation = Vec2{ viewbox.values[0], viewbox.values[1] };
 		bbox.min = Vec2{ FLT_MAX, FLT_MAX };
 		bbox.max = Vec2{ FLT_MIN, FLT_MIN };
 
 		for (int i = 0; i < numObjects; i++)
 		{
 			SvgObject& obj = objects[i];
-			const Vec3& offset = objectOffsets[i];
+			const Vec2& offset = objectOffsets[i];
 
-			Vec2 absOffset = CMath::vector2From3(offset - translation);
+			Vec2 absOffset = offset - translation;
 			obj.calculateBBox();
 			bbox.min = CMath::min(obj.bbox.min + absOffset, bbox.min);
 			bbox.max = CMath::max(obj.bbox.max + absOffset, bbox.max);
@@ -1338,8 +1320,8 @@ namespace MathAnim
 
 	void SvgGroup::renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse, bool renderBBoxes) const
 	{
-		Vec3 translation = Vec3{ viewbox.values[0], viewbox.values[1], 0.0f };
-		Vec3 bboxOffset = Vec3{ bbox.min.x, bbox.min.y, 0.0f };
+		Vec2 translation = Vec2{ viewbox.values[0], viewbox.values[1] };
+		Vec2 bboxOffset = Vec2{ bbox.min.x, bbox.min.y };
 
 		float numberObjectsToDraw = t * (float)numObjects;
 		constexpr float numObjectsToLag = 2.0f;
@@ -1347,11 +1329,11 @@ namespace MathAnim
 		for (int i = 0; i < numObjects; i++)
 		{
 			const SvgObject& obj = objects[i];
-			const Vec3& offset = objectOffsets[i];
+			const Vec2& offset = objectOffsets[i];
 
 			float denominator = i == numObjects - 1 ? 1.0f : numObjectsToLag;
 			float percentOfLetterToDraw = (numberObjectsToDraw - numObjectsDrawn) / denominator;
-			Vec3 absOffset = offset - translation - bboxOffset + Vec3{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f, 0.0f };
+			Vec2 absOffset = offset - translation - bboxOffset + Vec2{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f };
 			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, absOffset, reverse, true, renderBBoxes);
 			numObjectsDrawn += 1.0f;
 
@@ -1377,10 +1359,9 @@ namespace MathAnim
 			transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
 		}
 
-		Vec3 svgTextureOffset = Vec3{
+		Vec2 svgTextureOffset = Vec2{
 				(float)cacheCurrentX + parent->strokeWidth * 0.5f,
-				(float)cacheCurrentY + parent->strokeWidth * 0.5f,
-				0.0f
+				(float)cacheCurrentY + parent->strokeWidth * 0.5f
 		};
 		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
 		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
@@ -1497,7 +1478,7 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec3& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes)
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes)
 	{
 		if (reverse)
 		{
@@ -1931,238 +1912,5 @@ namespace MathAnim
 		}
 
 		nvgResetTransform(vg);
-	}
-
-	static void render3D(NVGcontext* vg, const AnimObject* parent, const SvgObject* obj)
-	{
-
-	}
-
-	static void renderCreateAnimation3D(float t, const AnimObject* parent, bool reverse, const SvgObject* obj)
-	{
-		if (reverse)
-		{
-			t = 1.0f - t;
-		}
-
-
-		// TODO: Add rotation to 3D lines somehow...
-		Renderer::translate3D(parent->position);
-		Renderer::rotate3D(parent->rotation);
-		//if (parent->rotation.z != 0.0f)
-		//{
-		//	nvgRotate(vg, glm::radians(parent->rotation.z));
-		//}
-
-		float lengthToDraw = t * (float)obj->approximatePerimeter;
-		if (lengthToDraw > 0)
-		{
-			float lengthDrawn = 0.0f;
-			for (int contouri = 0; contouri < obj->numContours; contouri++)
-			{
-				if (obj->contours[contouri].numCurves > 0)
-				{
-					// Fade the stroke out as the svg fades in
-					const glm::u8vec4& strokeColor = parent->strokeColor;
-					glm::vec4 unpackedStrokeColor = glm::vec4(strokeColor) / 255.0f;
-					if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
-					{
-						Renderer::pushColor(unpackedStrokeColor);
-						Renderer::pushStrokeWidth(0.2f);
-					}
-					else
-					{
-						Renderer::pushColor(unpackedStrokeColor);
-						Renderer::pushStrokeWidth(parent->strokeWidth);
-					}
-
-					Renderer::beginPath3D(obj->contours[contouri].curves[0].p0);
-
-					bool completedPath = true;
-					for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
-					{
-						float lengthLeft = lengthToDraw - lengthDrawn;
-						if (lengthLeft < 0.0f)
-						{
-							completedPath = false;
-							break;
-						}
-
-						const Curve& curve = obj->contours[contouri].curves[curvei];
-						glm::vec4 p0 = glm::vec4(
-							curve.p0.x,
-							curve.p0.y,
-							curve.p0.z,
-							1.0f
-						);
-						if (curve.moveToP0)
-						{
-							// TODO: Add built-in moveTo support for the 3D paths
-							Renderer::endPath3D(false);
-							Renderer::beginPath3D(curve.p0);
-						}
-
-						switch (curve.type)
-						{
-						case CurveType::Bezier3:
-						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, curve.as.bezier3.p1.z, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, curve.as.bezier3.p2.z, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, curve.as.bezier3.p3.z, 1.0f };
-
-							float chordLength = glm::length(p3 - p0);
-							float controlNetLength = glm::length(p1 - p0) + glm::length(p2 - p1) + glm::length(p3 - p2);
-							float approxLength = (chordLength + controlNetLength) / 2.0f;
-							lengthDrawn += approxLength;
-
-							if (lengthLeft < approxLength)
-							{
-								completedPath = false;
-
-								// Interpolate the curve
-								float percentOfCurveToDraw = lengthLeft / approxLength;
-
-								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
-								float t0 = 0.0f;
-								float t1 = percentOfCurveToDraw;
-								float u0 = 1.0f;
-								float u1 = (1.0f - t1);
-
-								glm::vec4 q0 = ((u0 * u0 * u0) * p0) +
-									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-									((t0 * t0 * t0) * p3);
-								glm::vec4 q1 = ((u0 * u0 * u1) * p0) +
-									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-									((t0 * t0 * t1) * p3);
-								glm::vec4 q2 = ((u0 * u1 * u1) * p0) +
-									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-									((t0 * t1 * t1) * p3);
-								glm::vec4 q3 = ((u1 * u1 * u1) * p0) +
-									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-									((t1 * t1 * t1) * p3);
-
-								p1 = q1;
-								p2 = q2;
-								p3 = q3;
-							}
-
-							Renderer::bezier3To3D(
-								Vec3{ p1.x, p1.y, p1.z },
-								Vec3{ p2.x, p2.y, p2.z },
-								Vec3{ p3.x, p3.y, p3.z }
-							);
-						}
-						break;
-						case CurveType::Bezier2:
-						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, curve.as.bezier2.p1.z, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, curve.as.bezier2.p1.z, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, curve.as.bezier2.p2.z, 1.0f };
-
-							// Degree elevated quadratic bezier curve
-							glm::vec4 pr0 = p0;
-							glm::vec4 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-							glm::vec4 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-							glm::vec4 pr3 = p2;
-
-							float chordLength = glm::length(pr3 - pr0);
-							float controlNetLength = glm::length(pr1 - pr0) + glm::length(pr2 - pr1) + glm::length(pr3 - pr2);
-							float approxLength = (chordLength + controlNetLength) / 2.0f;
-							lengthDrawn += approxLength;
-
-							if (lengthLeft < approxLength)
-							{
-								completedPath = false;
-
-								// Interpolate the curve
-								float percentOfCurveToDraw = lengthLeft / approxLength;
-
-								p1 = (pr1 - pr0) * percentOfCurveToDraw + pr0;
-								p2 = (pr2 - pr1) * percentOfCurveToDraw + pr1;
-								p3 = (pr3 - pr2) * percentOfCurveToDraw + pr2;
-
-								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
-								float t0 = 0.0f;
-								float t1 = percentOfCurveToDraw;
-								float u0 = 1.0f;
-								float u1 = (1.0f - t1);
-
-								glm::vec4 q0 = ((u0 * u0 * u0) * p0) +
-									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-									((t0 * t0 * t0) * p3);
-								glm::vec4 q1 = ((u0 * u0 * u1) * p0) +
-									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-									((t0 * t0 * t1) * p3);
-								glm::vec4 q2 = ((u0 * u1 * u1) * p0) +
-									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-									((t0 * t1 * t1) * p3);
-								glm::vec4 q3 = ((u1 * u1 * u1) * p0) +
-									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-									((t1 * t1 * t1) * p3);
-
-								pr1 = q1;
-								pr2 = q2;
-								pr3 = q3;
-							}
-
-							// TODO: Replace this with bezier2
-							Renderer::bezier3To3D(
-								Vec3{ p1.x, p1.y, p1.z },
-								Vec3{ p2.x, p2.y, p2.y },
-								Vec3{ p3.x, p3.y, p3.z }
-							);
-						}
-						break;
-						case CurveType::Line:
-						{
-							glm::vec4 p1 = glm::vec4(
-								curve.as.line.p1.x,
-								curve.as.line.p1.y,
-								curve.as.line.p1.z,
-								1.0f
-							);
-							float curveLength = glm::length(p1 - p0);
-							lengthDrawn += curveLength;
-
-							if (lengthLeft < curveLength)
-							{
-								completedPath = false;
-								float percentOfCurveToDraw = lengthLeft / curveLength;
-								p1 = (p1 - p0) * percentOfCurveToDraw + p0;
-							}
-
-							Renderer::lineTo3D(
-								Vec3{ p1.x, p1.y, p1.z }
-							);
-						}
-						break;
-						default:
-							g_logger_warning("Unknown curve type in render %d", (int)curve.type);
-							break;
-						}
-					}
-					bool shouldClosePath = completedPath;
-					Renderer::endPath3D(shouldClosePath);
-
-					Renderer::popColor();
-					Renderer::popStrokeWidth();
-				}
-
-				if (lengthDrawn > lengthToDraw)
-				{
-					break;
-				}
-			}
-		}
-
-		Renderer::resetTransform3D();
 	}
 }
