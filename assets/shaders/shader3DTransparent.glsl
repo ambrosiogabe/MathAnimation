@@ -41,7 +41,8 @@ void main()
    vec3 ambient = vec3(0.1);
 
    vec4 objColor = fColor * texture(uTexture, fTexCoord);
-   vec4 premultipliedReflect = vec4(clamp(ambient + diffuse, vec3(0.0), vec3(1.0)), 1.0) * objColor;
+   //vec4 premultipliedReflect = vec4(clamp(ambient + diffuse, vec3(0.0), vec3(1.0)), 1.0) * objColor;
+   vec4 premultipliedReflect = objColor;
 
    /* Modulate the net coverage for composition by the transmission. This does not affect the color channels of the
       transparent surface because the caller's BSDF model should have already taken into account if transmission modulates

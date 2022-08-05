@@ -123,6 +123,7 @@ namespace MathAnim
 		SvgObject* _svgObjectStart;
 		SvgObject* svgObject;
 		bool isAnimating;
+		bool isTransparent;
 		float _strokeWidthStart;
 		float strokeWidth;
 		glm::u8vec4 _strokeColorStart;

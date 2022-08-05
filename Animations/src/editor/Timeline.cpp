@@ -470,6 +470,8 @@ namespace MathAnim
 				animObject->_fillColorStart.a = (uint8)(fillColor[3] * 255.0f);
 			}
 
+			ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
+
 			switch (animObject->objectType)
 			{
 			case AnimObjectTypeV1::TextObject:

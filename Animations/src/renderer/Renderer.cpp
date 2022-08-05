@@ -1772,6 +1772,60 @@ namespace MathAnim
 			return;
 		}
 
+		Vec4 sunColor = "#ffffffff"_hex;
+
+		glDepthMask(GL_TRUE);
+		glEnable(GL_DEPTH_TEST);
+
+		// First render opaque objects
+		opaqueShader.bind();
+		opaqueShader.uploadMat4("uProjection", Renderer::perspCamera->calculateProjectionMatrix());
+		opaqueShader.uploadMat4("uView", Renderer::perspCamera->calculateViewMatrix());
+		//opaqueShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
+		//opaqueShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
+
+		for (int i = 0; i < drawCommands.size(); i++)
+		{
+			if (drawCommands.data[i].isTransparent)
+			{
+				continue;
+			}
+
+			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			int numVerts = drawCommands.data[i].elementCount / 6 * 4;
+			glBufferData(
+				GL_ARRAY_BUFFER,
+				sizeof(Vertex3D) * numVerts,
+				vertices.data + drawCommands.data[i].vertexOffset,
+				GL_DYNAMIC_DRAW
+			);
+
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+			glBufferData(
+				GL_ELEMENT_ARRAY_BUFFER,
+				sizeof(uint16) * drawCommands.data[i].elementCount,
+				indices.data + drawCommands.data[i].indexOffset,
+				GL_DYNAMIC_DRAW
+			);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
+			transparentShader.uploadInt("uTexture", 0);
+
+			glBindVertexArray(vao);
+			glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, NULL);
+
+			// TODO: Swap this with glMultiDraw...
+			// Make the draw call
+			glBindVertexArray(vao);
+			glDrawElements(
+				GL_TRIANGLES,
+				drawCommands.data[i].elementCount,
+				GL_UNSIGNED_SHORT,
+				nullptr
+			);
+		}
+
 		framebuffer.bind();
 
 		// Set up the transparent draw buffers
@@ -1797,15 +1851,12 @@ namespace MathAnim
 		glClearBufferfv(GL_COLOR, 1, accumulationClear);
 		glClearBufferfv(GL_COLOR, 2, revealageClear);
 
-		// TODO: Render opaque surfaces here
-
 		// Then render the transparent surfaces
 		transparentShader.bind();
 		transparentShader.uploadMat4("uProjection", Renderer::perspCamera->calculateProjectionMatrix());
 		transparentShader.uploadMat4("uView", Renderer::perspCamera->calculateViewMatrix());
-		transparentShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
-		Vec4 sunColor = "#ffffffff"_hex;
-		transparentShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
+		//transparentShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
+		//transparentShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
 		
 		for (int i = 0; i < drawCommands.size(); i++)
 		{

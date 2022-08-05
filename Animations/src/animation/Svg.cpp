@@ -1027,10 +1027,10 @@ namespace MathAnim
 				glm::vec3(
 					parent->position.x - Svg::perspCamera->position.x + (offset.x * parent->scale.x),
 					parent->position.y - Svg::perspCamera->position.y + (offset.y * parent->scale.y),
-					0.0f
+					parent->position.z - Svg::perspCamera->position.z
 				)
 			);
-			transform *= glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));
+			transform = transform * glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));
 
 			Renderer::drawTexturedQuad3D(
 				svgCache.getColorAttachment(0),
@@ -1038,7 +1038,7 @@ namespace MathAnim
 				cacheUvMin,
 				cacheUvMax,
 				transform,
-				true
+				parent->isTransparent
 			);
 		}
 	}

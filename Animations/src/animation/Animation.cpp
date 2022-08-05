@@ -440,6 +440,7 @@ namespace MathAnim
 		//     B                -> u8
 		//     A                -> u8
 		//   _StrokeWidthStart  -> f32
+		//   isTransparent      -> u8
 		//   Id                 -> int32
 		//   FrameStart         -> int32
 		//   Duration           -> int32
@@ -470,6 +471,9 @@ namespace MathAnim
 		memory.write<uint8>(&_strokeColorStart.a);
 
 		memory.write<float>(&_strokeWidthStart);
+
+		uint8 isTransparentU8 = isTransparent ? 1 : 0;
+		memory.write<uint8>(&isTransparentU8);
 
 		memory.write<int32>(&id);
 		memory.write<int32>(&frameStart);
@@ -552,6 +556,8 @@ namespace MathAnim
 
 		res.svgObject = nullptr;
 		res._svgObjectStart = nullptr;
+
+		res.isTransparent = false;
 
 		res.strokeWidth = 0.0f;
 		res._strokeWidthStart = 0.0f;
@@ -652,6 +658,7 @@ namespace MathAnim
 		//   B                -> u8
 		//   A                -> u8
 		// _StrokeWidthStart  -> f32
+		// isTransparent      -> u8
 		// Id                 -> int32
 		// FrameStart         -> int32
 		// Duration           -> int32
@@ -686,6 +693,10 @@ namespace MathAnim
 		memory.read<uint8>(&res._strokeColorStart.a);
 
 		memory.read<float>(&res._strokeWidthStart);
+
+		uint8 isTransparent;
+		memory.read<uint8>(&isTransparent);
+		res.isTransparent = isTransparent != 0;
 
 		memory.read<int32>(&res.id);
 		memory.read<int32>(&res.frameStart);
