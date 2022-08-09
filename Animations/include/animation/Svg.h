@@ -104,6 +104,8 @@ namespace MathAnim
 
 		void endFrame();
 
+		const Texture& getSvgCache();
+
 		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox);
 		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset);
 		void endSvgGroup(SvgGroup* group);

@@ -43,8 +43,13 @@ namespace MathAnim
 			return;
 		}
 
+		// This is gross
+		AnimObject* mutParent = (AnimObject*)parent;
+		Vec3 oldScale = mutParent->scale;
+		mutParent->scale *= this->fontSizePixels;
+
 		std::string textStr = std::string(text);
-		Vec3 cursorPos = parent->position;
+		Vec2 cursorPos = Vec2{ 0, 0 };
 		int numNonWhitespaceCharacters = 0;
 		for (int i = 0; i < textStr.length(); i++)
 		{
@@ -64,16 +69,15 @@ namespace MathAnim
 
 			float denominator = i == textStr.length() - 1 ? 1.0f : numLettersToLag;
 			float percentOfLetterToDraw = (numberLettersToDraw - (float)numNonWhitespaceLettersDrawn) / denominator;
-			Vec3 glyphPos = cursorPos;
-			Vec3 offset = Vec3{
+			Vec2 glyphPos = cursorPos;
+			Vec2 offset = Vec2{
 				glyphOutline.bearingX,
-				-glyphOutline.bearingY,
-				0.0f
+				-glyphOutline.bearingY
 			};
-			//glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, reverse);
+			glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, reverse);
 
 			// TODO: I may have to add kerning info here
-			cursorPos += Vec3{glyphOutline.advanceX * fontSizePixels, 0.0f, 0.0f};
+			cursorPos += Vec2{glyphOutline.advanceX * fontSizePixels, 0.0f};
 
 			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
 			{
@@ -85,6 +89,8 @@ namespace MathAnim
 				break;
 			}
 		}
+
+		mutParent->scale = oldScale;
 	}
 
 	void TextObject::serialize(RawMemory& memory) const

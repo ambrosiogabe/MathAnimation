@@ -88,6 +88,11 @@ namespace MathAnim
 			svgCache.clearDepthStencil();
 		}
 
+		const Texture& getSvgCache()
+		{
+			return svgCache.getColorAttachment(0);
+		}
+
 		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox)
 		{
 			group->viewbox = viewbox;

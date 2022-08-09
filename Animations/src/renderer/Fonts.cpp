@@ -660,6 +660,8 @@ namespace MathAnim
 
 					contourEnd++;
 					start = end + 1;
+
+					Svg::closeContour(res.svg, false);
 				}
 			}
 

@@ -1774,6 +1774,7 @@ namespace MathAnim
 
 		Vec4 sunColor = "#ffffffff"_hex;
 
+		// Enable depth testing and depth buffer writes
 		glDepthMask(GL_TRUE);
 		glEnable(GL_DEPTH_TEST);
 

@@ -1,6 +1,7 @@
 #include "editor/EditorGui.h"
 #include "editor/Timeline.h"
 #include "editor/AnimObjectPanel.h"
+#include "editor/DebugPanel.h"
 #include "core/Application.h"
 
 #include "imgui.h"
@@ -55,8 +56,8 @@ namespace MathAnim
 			ImGui::End();
 
 			Timeline::update();
-
 			AnimObjectPanel::update();
+			DebugPanel::update();
 		}
 
 		void free()
