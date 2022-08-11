@@ -56,6 +56,7 @@ namespace MathAnim
 		Curve* curves;
 		int numCurves;
 		int maxCapacity;
+		bool isHole;
 	};
 
 	struct SvgObject
@@ -111,7 +112,7 @@ namespace MathAnim
 		void endSvgGroup(SvgGroup* group);
 
 		void beginContour(SvgObject* object, const Vec2& firstPoint, bool is3D = false);
-		void closeContour(SvgObject* object, bool lineToEndpoint = false);
+		void closeContour(SvgObject* object, bool lineToEndpoint = false, bool isHole = false);
 
 		void moveTo(SvgObject* object, const Vec2& point, bool absolute = true);
 		void lineTo(SvgObject* object, const Vec2& point, bool absolute = true);

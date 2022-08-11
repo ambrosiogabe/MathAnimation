@@ -161,17 +161,19 @@ namespace MathAnim
 			object->contours[object->numContours - 1].maxCapacity = initialMaxCapacity;
 			object->contours[object->numContours - 1].curves = (Curve*)g_memory_allocate(sizeof(Curve) * initialMaxCapacity);
 			object->contours[object->numContours - 1].numCurves = 0;
+			object->contours[object->numContours - 1].isHole = false;
 
 			object->contours[object->numContours - 1].curves[0].p0 = firstPoint;
 			cursor = firstPoint;
 			moveToP0 = false;
 		}
 
-		void closeContour(SvgObject* object, bool lineToEndpoint)
+		void closeContour(SvgObject* object, bool lineToEndpoint, bool isHole)
 		{
 			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot close contour when no contour exists.");
 			g_logger_assert(object->contours[object->numContours - 1].numCurves > 0, "contour->numCurves == 0. Cannot close contour with 0 vertices. There must be at least one vertex to close a contour.");
 
+			object->contours[object->numContours - 1].isHole = isHole;
 			if (lineToEndpoint)
 			{
 				if (object->contours[object->numContours - 1].numCurves > 0)
@@ -1498,15 +1500,15 @@ namespace MathAnim
 
 		if (amountToFadeIn > 0)
 		{
+			// Begin Composite path
+			nvgBeginPath(vg);
+
 			for (int contouri = 0; contouri < obj->numContours; contouri++)
 			{
 				if (obj->contours[contouri].numCurves > 0)
 				{
-					// TODO: De-deuplicate this by just calling render
-					const glm::u8vec4& fillColor = parent->fillColor;
-					nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)(fillColor.a * percentToFadeIn)));
+					// Begin sub-path
 					nvgBeginPath(vg);
-					nvgPathWinding(vg, NVG_CW);
 
 					nvgMoveTo(vg,
 						obj->contours[contouri].curves[0].p0.x * parent->scale.x,
@@ -1584,10 +1586,19 @@ namespace MathAnim
 						}
 					}
 
+					// Close sub-path
 					nvgClosePath(vg);
+
+					if (obj->contours[contouri].isHole)
+					{
+						nvgPathWinding(vg, NVG_HOLE);
+					}
 				}
 			}
 
+			// Fill composite-path
+			const glm::u8vec4& fillColor = parent->fillColor;
+			nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)(fillColor.a* percentToFadeIn)));
 			nvgFill(vg);
 		}
 

@@ -2,6 +2,7 @@
 #include "renderer/Renderer.h"
 #include "core/Application.h"
 #include "animation/Svg.h"
+#include "utils/CMath.h"
 
 #include <nanovg.h>
 
@@ -614,6 +615,8 @@ namespace MathAnim
 			*res.svg = Svg::createDefault();
 
 			{
+				bool shouldCloseContour = false;
+
 				short* contourEnds = outline->contours;     // pointer to contour ends
 				FT_Vector* basePoints = outline->points;    // pointer to outline point
 				char* baseFlags = outline->tags;            // pointer to flag
@@ -644,7 +647,14 @@ namespace MathAnim
 
 					if (firstPointType == PointType::CurveTagOn)
 					{
-						Svg::beginContour(res.svg, firstPoint);
+						if (c == 0)
+						{
+							Svg::beginContour(res.svg, firstPoint);
+						}
+						else
+						{
+							Svg::moveTo(res.svg, firstPoint);
+						}
 					}
 					else if (firstPointType == PointType::CurveTagConic && previousPointType == PointType::CurveTagConic)
 					{
@@ -652,11 +662,26 @@ namespace MathAnim
 							(firstPoint.x - previousPosition.x) / 2.0f + previousPosition.x,
 							(firstPoint.y - previousPosition.y) / 2.0f + previousPosition.y
 						};
-						Svg::beginContour(res.svg, hiddenPoint);
+
+						if (c == 0)
+						{
+							Svg::beginContour(res.svg, hiddenPoint);
+						}
+						else
+						{
+							Svg::moveTo(res.svg, firstPoint);
+						}
 					}
 					else if (firstPointType == PointType::CurveTagConic && previousPointType == PointType::CurveTagOn)
 					{
-						Svg::beginContour(res.svg, previousPosition);
+						if (c == 0)
+						{
+							Svg::beginContour(res.svg, previousPosition);
+						}
+						else
+						{
+							Svg::moveTo(res.svg, firstPoint);
+						}
 					}
 					else
 					{
@@ -665,6 +690,8 @@ namespace MathAnim
 
 					for (int p = 0; p <= numPoints; p++)
 					{
+						shouldCloseContour = true;
+
 						Vec2 position = FT_Vector_ToVec2(points[p % numPoints], glyphLeft, descentY, upem, res.glyphHeight);
 
 						char flag = flags[p % numPoints];
@@ -742,7 +769,13 @@ namespace MathAnim
 						previousPosition = position;
 					}
 
-					Svg::closeContour(res.svg, true);
+					// Close the contour
+					Svg::lineTo(res.svg, previousPosition);
+				}
+
+				if (shouldCloseContour)
+				{
+					Svg::closeContour(res.svg);
 				}
 			}
 

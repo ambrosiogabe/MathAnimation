@@ -73,6 +73,13 @@ namespace MathAnim
 			return (-b - glm::sqrt(b * b - 4 * a * c)) / (2.0f * a);
 		}
 
+		// Winding order stuff
+		bool isClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2);
+		inline bool isCounterClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2) { return !isClockwise(p0, p1, p2); }
+
+		bool isClockwise(const Vec3& p0, const Vec3& p1, const Vec3& p2);
+		inline bool isCounterClockwise(const Vec3& p0, const Vec3& p1, const Vec3& p2) { return !isClockwise(p0, p1, p2); }
+
 		// Float Comparison functions, using custom epsilon
 		bool compare(float x, float y, float epsilon = std::numeric_limits<float>::min());
 		bool compare(const Vec3& vec1, const Vec3& vec2, float epsilon = std::numeric_limits<float>::min());

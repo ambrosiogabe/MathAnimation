@@ -74,15 +74,15 @@ namespace MathAnim
 				glyphOutline.bearingX,
 				-glyphOutline.bearingY
 			};
-			glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, reverse);
-
-			// TODO: I may have to add kerning info here
-			cursorPos += Vec2{glyphOutline.advanceX, 0.0f};
 
 			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
 			{
+				glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, reverse);
 				numNonWhitespaceLettersDrawn++;
 			}
+
+			// TODO: I may have to add kerning info here
+			cursorPos += Vec2{ glyphOutline.advanceX, 0.0f };
 
 			if ((float)numNonWhitespaceLettersDrawn >= numberLettersToDraw)
 			{

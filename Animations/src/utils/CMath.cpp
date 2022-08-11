@@ -49,6 +49,28 @@ namespace MathAnim
 		static float easeInOutBounce(float t);
 
 		// ------------------ Public Functions ------------------
+		bool isClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2)
+		{
+			return glm::determinant(
+				glm::mat3(
+					glm::vec3(p0.x, p0.y, 1.0f),
+					glm::vec3(p1.x, p1.y, 1.0f),
+					glm::vec3(p2.x, p2.y, 1.0f)
+				)
+			) < 0;
+		}
+
+		bool isClockwise(const Vec3& p0, const Vec3& p1, const Vec3& p2)
+		{
+			return glm::determinant(
+				glm::mat3(
+					glm::vec3(p0.x, p0.y, p0.z),
+					glm::vec3(p1.x, p1.y, p1.z),
+					glm::vec3(p2.x, p2.y, p2.z)
+				)
+			) < 0;
+		}
+
 		bool compare(float x, float y, float epsilon)
 		{
 			return abs(x - y) <= epsilon * std::max(1.0f, std::max(abs(x), abs(y)));
