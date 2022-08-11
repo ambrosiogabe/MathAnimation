@@ -77,7 +77,7 @@ namespace MathAnim
 			glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, reverse);
 
 			// TODO: I may have to add kerning info here
-			cursorPos += Vec2{glyphOutline.advanceX * fontSizePixels, 0.0f};
+			cursorPos += Vec2{glyphOutline.advanceX, 0.0f};
 
 			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
 			{

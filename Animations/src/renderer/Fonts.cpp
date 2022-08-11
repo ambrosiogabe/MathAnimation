@@ -10,6 +10,80 @@
 #include <freetype/ftoutln.h>
 #include <freetype/ftbbox.h>
 
+enum class PointType : uint8
+{
+	None,
+	CurveTagOn,
+	CurveTagConic,
+	CurveTagCubic
+};
+
+enum class DropoutMode : uint8
+{
+	None,
+	Undefined
+};
+
+inline PointType FT_getPointType(char flag)
+{
+	// These interpretations can be found here:
+	// https://freetype.org/freetype2/docs/reference/ft2-outline_processing.html#ft_outline
+	/*
+	* If bit 0 is unset, the point is ‘off’ the curve, i.e., a Bezier control point,
+	* while it is ‘on’ if set.
+	*
+	* Bit 1 is meaningful for ‘off’ points only.
+	* If set, it indicates a third-order Bezier arc control point;
+	* and a second-order control point if unset.
+	*/
+	bool bit0Set = (flag & 0x1);
+	bool bit1Set = (flag & 0x2);
+
+	if (bit0Set)
+	{
+		return PointType::CurveTagOn;
+	}
+
+	// Bit 0 is set at this point
+	if (bit1Set)
+	{
+		return PointType::CurveTagCubic;
+	}
+
+	return PointType::CurveTagConic;
+}
+
+inline DropoutMode FT_getDropoutMode(char flag)
+{
+	// These interpretations can be found here:
+	// https://freetype.org/freetype2/docs/reference/ft2-outline_processing.html#ft_outline
+	/*
+	* If bit 2 is set, bits 5-7 contain the drop-out mode
+	* (as defined in the OpenType specification; the value is the same as the argument to the ‘SCANMODE’ instruction).
+	*
+	* Bits 3 and 4 are reserved for internal purposes.
+	*/
+	bool bit2Set = (flag & 0x4);
+	if (!bit2Set)
+	{
+		return DropoutMode::None;
+	}
+
+	return DropoutMode::Undefined;
+}
+
+inline MathAnim::Vec2 FT_Vector_ToVec2(const FT_Vector& vec, float glyphLeft, float descentY, float upem, float glyphHeight)
+{
+	float pointx = ((float)(vec.x - glyphLeft) / upem);
+	float pointy = ((float)(vec.y + descentY) / upem);
+	// Flip the point y since the glyph is "upside down"
+	pointy = glyphHeight - pointy;
+	return MathAnim::Vec2{
+		pointx,
+		pointy
+	};
+}
+
 namespace MathAnim
 {
 	CharRange CharRange::Ascii = { 32, 126 };
@@ -200,7 +274,7 @@ namespace MathAnim
 					return nullptr;
 				}
 			}
-			
+
 			constexpr uint32 textureWidth = 2048;
 			constexpr uint32 textureHeight = 2048;
 			res.texture = TextureBuilder()
@@ -281,7 +355,7 @@ namespace MathAnim
 			// All done now cache the result and return it
 			loadedSizedFonts[sizedFontKey].font = res;
 			loadedSizedFonts[sizedFontKey].referenceCount = 1;
-			
+
 			return &loadedSizedFonts[sizedFontKey].font;
 		}
 
@@ -435,7 +509,7 @@ namespace MathAnim
 				g_logger_warning("Tried to load font that was never cached '%s'.", filepath);
 				return;
 			}
-			
+
 			unloadFont(&iter->second.font);
 		}
 
@@ -540,128 +614,135 @@ namespace MathAnim
 			*res.svg = Svg::createDefault();
 
 			{
-				int start = 0;                          //start index of contour
-				int end = 0;                            //end index of contour
-				short* contourEnd = outline->contours;  //pointer to contour end
-				FT_Vector* point = outline->points;     //pointer to outline point
-				char* flags = outline->tags;            //pointer to flag
+				short* contourEnds = outline->contours;     // pointer to contour ends
+				FT_Vector* basePoints = outline->points;    // pointer to outline point
+				char* baseFlags = outline->tags;            // pointer to flag
 
 				for (int c = 0; c < outline->n_contours; c++)
 				{
-					end = *contourEnd;
+					char* flags = baseFlags;
+					FT_Vector* points = basePoints;
 
-					bool previousPointWasControlPoint = false;
-					Vec2 previousPosition;
-					Vec2 firstPoint = {
-						((float)(point->x - glyphLeft) / upem),
-						((float)(point->y + descentY) / upem)
-					};
-					Svg::beginContour(res.svg, firstPoint);
-
-					for (int p = start; p <= end + 1; p++)
+					// Increment the base pointers to the next contour
+					int startIndex = 0;
+					if (c > 0)
 					{
-						char flag = *flags;
-						bool bezierControlPoint = !(flag & 0x1);
-						bool thirdOrderControlPoint = bezierControlPoint && (flag & 0x2);
-						bool secondOrderControlPoint = bezierControlPoint && !(flag & 0x2);
-						bool dropoutEnabled = bezierControlPoint && (flag & 0x4);
-						float pointx = ((float)(point->x - glyphLeft) / upem);
-						float pointy = ((float)(point->y + descentY) / upem);
-						// Flip the point y since the glyph is "upside down"
-						pointy = res.glyphHeight - pointy;
-						Vec2 position = Vec2{ pointx, pointy };
+						startIndex = contourEnds[c - 1] + 1;
+					}
+					int endIndex = contourEnds[c];
+					int numPoints = (endIndex - startIndex) + 1;
+					baseFlags += numPoints;
+					basePoints += numPoints;
 
-						g_logger_assert(!thirdOrderControlPoint, "No Support.");
-						g_logger_assert(!dropoutEnabled, "No Support.");
+					// Initialize the previous point stuff
+					char previousFlag = flags[numPoints - 1];
+					PointType previousPointType = FT_getPointType(previousFlag);
+					Vec2 previousPosition = FT_Vector_ToVec2(points[numPoints - 1], glyphLeft, descentY, upem, res.glyphHeight);
+					char firstPointFlag = flags[0];
+					PointType firstPointType = FT_getPointType(firstPointFlag);
+					Vec2 firstPoint = FT_Vector_ToVec2(points[0], glyphLeft, descentY, upem, res.glyphHeight);
 
-						if (bezierControlPoint && !previousPointWasControlPoint)
+					if (firstPointType == PointType::CurveTagOn)
+					{
+						Svg::beginContour(res.svg, firstPoint);
+					}
+					else if (firstPointType == PointType::CurveTagConic && previousPointType == PointType::CurveTagConic)
+					{
+						Vec2 hiddenPoint = Vec2{
+							(firstPoint.x - previousPosition.x) / 2.0f + previousPosition.x,
+							(firstPoint.y - previousPosition.y) / 2.0f + previousPosition.y
+						};
+						Svg::beginContour(res.svg, hiddenPoint);
+					}
+					else if (firstPointType == PointType::CurveTagConic && previousPointType == PointType::CurveTagOn)
+					{
+						Svg::beginContour(res.svg, previousPosition);
+					}
+					else
+					{
+						g_logger_assert(false, "Unknown curve start.");
+					}
+
+					for (int p = 0; p <= numPoints; p++)
+					{
+						Vec2 position = FT_Vector_ToVec2(points[p % numPoints], glyphLeft, descentY, upem, res.glyphHeight);
+
+						char flag = flags[p % numPoints];
+						PointType pointType = FT_getPointType(flag);
+						DropoutMode dropoutMode = FT_getDropoutMode(flag);
+						if (dropoutMode != DropoutMode::None)
 						{
-							Svg::bezier2To(
-								res.svg,
-								previousPosition,
-								position
-							);
+							g_logger_warning("Add support for dropout modes.");
 						}
-						else if (!bezierControlPoint)
+
+						if (pointType == PointType::CurveTagOn)
 						{
-							Svg::lineTo(res.svg, position);
+							// Line segment
+							// On point -> On point
+							if (previousPointType == PointType::CurveTagOn)
+							{
+								Svg::lineTo(res.svg, position);
+							}
+							// Bezier 2
+							// On point -> Conic point -> On point
+							else if (previousPointType == PointType::CurveTagConic)
+							{
+								Svg::bezier2To(
+									res.svg,
+									previousPosition,
+									position
+								);
+							}
+							// Bezier 3
+							// On point -> Cubic point -> Cubic point -> On point
+							else if (previousPointType == PointType::CurveTagCubic)
+							{
+								if (p >= 2)
+								{
+									char prevPrevFlag = flags[(p - 2) % numPoints];
+									PointType prevPrevType = FT_getPointType(prevPrevFlag);
+									g_logger_assert(prevPrevType == PointType::CurveTagCubic, "Invalid cubic bezier. Should be On Point -> Cubic Point -> Cubic Point -> On Point");
+									Vec2 prevPrevPosition = FT_Vector_ToVec2(points[(p - 2) % numPoints], glyphLeft, descentY, upem, res.glyphHeight);
+									Svg::bezier3To(
+										res.svg,
+										prevPrevPosition,
+										previousPosition,
+										position
+									);
+								}
+								else
+								{
+									g_logger_error("A cubic curve requires at least 4 points.");
+								}
+							}
 						}
 
-						if (p > start && p != end + 1)
+						if (p > 0 && p != numPoints)
 						{
-							if (previousPointWasControlPoint && bezierControlPoint)
+							// Bezier 2
+							// On Point -> Conic Point -> Conic Point
+							//                          ^
+							//                   Hidden On Point
+							if (previousPointType == PointType::CurveTagConic && pointType == PointType::CurveTagConic)
 							{
 								// Two off points, hidden on point in between
 								Vec2 hiddenPointPosition = Vec2{
 									(position.x - previousPosition.x) / 2.0f + previousPosition.x,
 									(position.y - previousPosition.y) / 2.0f + previousPosition.y
 								};
-								//res.contours[c].vertices[vertexStackPointer].position = hiddenPointPosition;
-								//res.contours[c].vertices[vertexStackPointer].controlPoint = false;
-								//vertexStackPointer++;
-								//res.contours[c].vertices[vertexStackPointer].position = hiddenPointPosition;
-								//res.contours[c].vertices[vertexStackPointer].controlPoint = false;
-								//vertexStackPointer++;
 								Svg::bezier2To(
 									res.svg,
 									previousPosition,
 									hiddenPointPosition
 								);
 							}
-							//else if (!bezierControlPoint)
-							//{
-							//	// Starting and ending, push another copy of this vertex
-							//	res.contours[c].vertices[vertexStackPointer].position = position;
-							//	res.contours[c].vertices[vertexStackPointer].controlPoint = false;
-							//	vertexStackPointer++;
-							//}
-						}
-						else if (p == start)
-						{
-							g_logger_assert(!bezierControlPoint, "Should start with an off point for every contour.");
 						}
 
-						//if (bezierControlPoint && previousPointWasControlPoint)
-						//{
-						//	res.contours[c].vertices[vertexStackPointer].position = position;
-						//	res.contours[c].vertices[vertexStackPointer].controlPoint = true;
-						//	vertexStackPointer++;
-						//}
-
-						previousPointWasControlPoint = bezierControlPoint;
+						previousPointType = pointType;
 						previousPosition = position;
-
-						static char* flagsEndPtr;
-						static FT_Vector* pointEndPtr;
-						if (p == end)
-						{
-							// Set flags to the first flags and save the position it should be at
-							flagsEndPtr = flags + 1;
-							flags = flags - (end - start);
-
-							// Set the point to the first point and save the position it should be at
-							pointEndPtr = point + 1;
-							point = point - (end - start);
-						}
-						else
-						{
-							flags++;
-							point++;
-						}
-
-						if (p == end + 1)
-						{
-							// Reset the flags to the last flags pointer
-							// and the point to the last point pointer
-							flags = flagsEndPtr;
-							point = pointEndPtr;
-						}
 					}
 
-					contourEnd++;
-					start = end + 1;
-
-					Svg::closeContour(res.svg, false);
+					Svg::closeContour(res.svg, true);
 				}
 			}
 
