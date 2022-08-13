@@ -12,7 +12,9 @@
 
 namespace MathAnim
 {
-	static float cacheCurrentX, cacheCurrentY, cacheLineHeight;
+	static float cacheLineHeight;
+	static Vec2 cachePadding = { 3, 3 };
+	static Vec2 cacheCurrentPos;
 	static Framebuffer svgCache;
 
 	namespace Svg
@@ -64,8 +66,8 @@ namespace MathAnim
 			constexpr int defaultWidth = 4096;
 			generateSvgCache(defaultWidth, defaultWidth);
 
-			cacheCurrentX = 0;
-			cacheCurrentY = 0;
+			cacheCurrentPos.x = 0;
+			cacheCurrentPos.y = 0;
 		}
 
 		void free()
@@ -78,8 +80,8 @@ namespace MathAnim
 
 		void endFrame()
 		{
-			cacheCurrentX = 0;
-			cacheCurrentY = 0;
+			cacheCurrentPos.x = 0;
+			cacheCurrentPos.y = 0;
 
 			svgCache.bind();
 			glViewport(0, 0, svgCache.width, svgCache.height);
@@ -707,7 +709,7 @@ namespace MathAnim
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes);
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool reverse, const SvgObject* obj);
 
 	void SvgObject::normalize(const Vec2& inMin, const Vec2& inMax)
 	{
@@ -908,16 +910,16 @@ namespace MathAnim
 		}
 	}
 
-	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset, bool renderBBoxes) const
+	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset) const
 	{
-		renderCreateAnimation(vg, 1.01f, parent, offset, false, false, renderBBoxes);
+		renderCreateAnimation(vg, 1.01f, parent, offset, false, false);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset, bool reverse, bool isSvgGroup, bool renderBBoxes) const
+	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset, bool reverse, bool isSvgGroup) const
 	{
 		Vec2 svgTextureOffset = Vec2{
-			(float)cacheCurrentX + parent->strokeWidth * 0.5f,
-			(float)cacheCurrentY + parent->strokeWidth * 0.5f
+			(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
+			(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
 		};
 
 		// Check if the SVG cache needs to regenerate
@@ -928,9 +930,9 @@ namespace MathAnim
 			if (newRightX >= svgCache.width)
 			{
 				// Move to the newline
-				cacheCurrentY += cacheLineHeight;
+				cacheCurrentPos.y += cacheLineHeight + cachePadding.y;
 				cacheLineHeight = 0;
-				cacheCurrentX = 0;
+				cacheCurrentPos.x = 0;
 			}
 
 			float newBottomY = svgTextureOffset.y + svgTotalHeight;
@@ -941,8 +943,8 @@ namespace MathAnim
 			}
 
 			svgTextureOffset = Vec2{
-				(float)cacheCurrentX + parent->strokeWidth * 0.5f,
-				(float)cacheCurrentY + parent->strokeWidth * 0.5f
+				(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
+				(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
 			};
 		}
 
@@ -966,7 +968,7 @@ namespace MathAnim
 		}
 
 		nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
-		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this, renderBBoxes);
+		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this);
 		nvgEndFrame(vg);
 
 		// Then bind the previous fbo and blit it to the screen with
@@ -985,16 +987,16 @@ namespace MathAnim
 		// Subtract half stroke width to make sure it's getting the correct coords
 		svgTextureOffset -= Vec2{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f };
 		Vec2 cacheUvMin = Vec2{
-			(svgTextureOffset.x + 0.5f) / (float)svgCache.width,
-			1.0f - ((svgTextureOffset.y + 0.5f) / (float)svgCache.height) - (svgTotalHeight / (float)svgCache.height)
+			svgTextureOffset.x / (float)svgCache.width,
+			1.0f - (svgTextureOffset.y / (float)svgCache.height) - (svgTotalHeight / (float)svgCache.height)
 		};
 		Vec2 cacheUvMax = cacheUvMin +
 			Vec2{
-				((svgTotalWidth - 0.5f) / (float)svgCache.width),
-				((svgTotalHeight - 0.5f) / (float)svgCache.height)
+				svgTotalWidth / (float)svgCache.width,
+				svgTotalHeight / (float)svgCache.height
 		};
 
-		cacheCurrentX += svgTotalWidth;
+		cacheCurrentPos.x += svgTotalWidth + cachePadding.x;
 		cacheLineHeight = glm::max(cacheLineHeight, svgTotalHeight);
 
 		// Correct for aspect ratio
@@ -1111,15 +1113,49 @@ namespace MathAnim
 		}
 	}
 
-	void SvgGroup::render(NVGcontext* vg, AnimObject* parent, bool renderBBoxes) const
+	void SvgGroup::render(NVGcontext* vg, AnimObject* parent) const
 	{
-		renderCreateAnimation(vg, 1.01f, parent, false, renderBBoxes);
+		renderCreateAnimation(vg, 1.01f, parent, false);
 	}
 
-	void SvgGroup::renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse, bool renderBBoxes) const
+	void SvgGroup::renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse) const
 	{
 		Vec2 translation = Vec2{ viewbox.values[0], viewbox.values[1] };
 		Vec2 bboxOffset = Vec2{ bbox.min.x, bbox.min.y };
+
+		// TODO: Offload all this stuff into some sort of TexturePacker data structure
+		{
+			Vec2 svgTextureOffset = Vec2{
+				(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
+				(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
+			};
+
+			// Check if the SVG cache needs to regenerate
+			float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
+			float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
+			{
+				float newRightX = svgTextureOffset.x + svgTotalWidth;
+				if (newRightX >= svgCache.width)
+				{
+					// Move to the newline
+					cacheCurrentPos.y += cacheLineHeight + cachePadding.y;
+					cacheLineHeight = 0;
+					cacheCurrentPos.x = 0;
+				}
+
+				float newBottomY = svgTextureOffset.y + svgTotalHeight;
+				if (newBottomY >= svgCache.height)
+				{
+					// Double the size of the texture (up to 8192x8192 max)
+					Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
+				}
+
+				svgTextureOffset = Vec2{
+					(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
+					(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
+				};
+			}
+		}
 
 		float numberObjectsToDraw = t * (float)numObjects;
 		constexpr float numObjectsToLag = 2.0f;
@@ -1131,8 +1167,8 @@ namespace MathAnim
 
 			float denominator = i == numObjects - 1 ? 1.0f : numObjectsToLag;
 			float percentOfLetterToDraw = (numberObjectsToDraw - numObjectsDrawn) / denominator;
-			Vec2 absOffset = offset - translation - bboxOffset + Vec2{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f };
-			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, absOffset, reverse, true, renderBBoxes);
+			Vec2 absOffset = offset - translation - bboxOffset;
+			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, absOffset, reverse, true);
 			numObjectsDrawn += 1.0f;
 
 			if (numObjectsDrawn >= numberObjectsToDraw)
@@ -1158,26 +1194,25 @@ namespace MathAnim
 		}
 
 		Vec2 svgTextureOffset = Vec2{
-				(float)cacheCurrentX + parent->strokeWidth * 0.5f,
-				(float)cacheCurrentY + parent->strokeWidth * 0.5f
+				(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
+				(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
 		};
 		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
 		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
 		Vec2 cacheUvMin = Vec2{
-			(svgTextureOffset.x + 0.5f) / (float)svgCache.width,
-			1.0f - ((svgTextureOffset.y + 0.5f) / (float)svgCache.height) - (svgTotalHeight / (float)svgCache.height)
+			svgTextureOffset.x / (float)svgCache.width,
+			1.0f - (svgTextureOffset.y / (float)svgCache.height) - (svgTotalHeight / (float)svgCache.height)
 		};
 		Vec2 cacheUvMax = cacheUvMin +
 			Vec2{
-				((svgTotalWidth - 0.5f) / (float)svgCache.width),
-				((svgTotalHeight - 0.5f) / (float)svgCache.height)
+				svgTotalWidth / (float)svgCache.width,
+				svgTotalHeight / (float)svgCache.height
 		};
 
 		// Correct for aspect ratio
 		float targetRatio = Application::getOutputTargetAspectRatio();
 		svgTotalHeight /= targetRatio;
 
-		glEnable(GL_BLEND);
 		Renderer::drawTexturedQuad(
 			svgCache.getColorAttachment(0),
 			Vec2{ svgTotalWidth, svgTotalHeight },
@@ -1186,7 +1221,7 @@ namespace MathAnim
 			transform
 		);
 
-		if (renderBBoxes)
+		if (parent->drawDebugBoxes)
 		{
 			// Render to the framebuffer then blit the framebuffer to the screen
 			// with the appropriate transformations
@@ -1202,17 +1237,21 @@ namespace MathAnim
 			glDrawBuffers(3, compositeDrawBuffers);
 
 			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
-			Vec3 svgTextureOffset = Vec3{ (float)cacheCurrentX, (float)cacheCurrentY, 0.0f };
 
+			float strokeWidthCorrectionPos = cachePadding.x * 0.5f;
+			float strokeWidthCorrectionNeg = -cachePadding.x;
 			nvgBeginPath(vg);
 			nvgStrokeColor(vg, nvgRGBA(0, 255, 255, 255));
-			nvgStrokeWidth(vg, 5.0f);
-			nvgMoveTo(vg, cacheCurrentX, cacheCurrentY);
+			nvgStrokeWidth(vg, cachePadding.x);
+			nvgMoveTo(vg,
+				cacheUvMin.x * svgCache.width + strokeWidthCorrectionPos,
+				(1.0f - cacheUvMax.y) * svgCache.height + strokeWidthCorrectionPos
+			);
 			nvgRect(vg,
-				cacheCurrentX,
-				cacheCurrentY,
-				((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth,
-				((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth
+				cacheUvMin.x * svgCache.width + strokeWidthCorrectionPos,
+				(1.0f - cacheUvMax.y) * svgCache.height + strokeWidthCorrectionPos,
+				(cacheUvMax.x - cacheUvMin.x) * svgCache.width + strokeWidthCorrectionNeg,
+				(cacheUvMax.y - cacheUvMin.y) * svgCache.height + strokeWidthCorrectionNeg
 			);
 			nvgClosePath(vg);
 			nvgStroke(vg);
@@ -1226,8 +1265,8 @@ namespace MathAnim
 			glDrawBuffers(3, compositeDrawBuffers);
 		}
 
-		cacheCurrentX += ((bbox.max.x - bbox.min.x) * parent->scale.x) + (parent->strokeWidth * 0.5f);
-		cacheLineHeight = glm::max(cacheLineHeight, ((bbox.max.y - bbox.min.y) * parent->scale.y) + (parent->strokeWidth * 0.5f));
+		cacheCurrentPos.x += (((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth + cachePadding.x);
+		cacheLineHeight = glm::max(cacheLineHeight, ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth);
 	}
 
 	void SvgGroup::free()
@@ -1276,7 +1315,7 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool reverse, const SvgObject* obj, bool renderBBoxes)
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool reverse, const SvgObject* obj)
 	{
 		if (reverse)
 		{
@@ -1285,19 +1324,26 @@ namespace MathAnim
 
 		// Start the fade in after 80% of the svg object is drawn
 		constexpr float fadeInStart = 0.8f;
-		const glm::vec2 position = { parent->position.x, parent->position.y };
 		float lengthToDraw = t * (float)obj->approximatePerimeter;
 		float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
 		float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
 
-		// NOTE(voxel): Quick and Dirty
-		//Vec2 cameraCenteredPos = Svg::camera->projectionSize / 2.0f - Svg::camera->position;
-		//nvgTranslate(vg, position.x - cameraCenteredPos.x, position.y - cameraCenteredPos.y);
-		nvgTranslate(vg, textureOffset.x, textureOffset.y);
-		if (parent->rotation.z != 0.0f)
-		{
-			//nvgRotate(vg, glm::radians(parent->rotation.z));
-		}
+		// Instead of translating, we'll map every coordinate from the SVG min-max range to
+		// the preferred coordinate range
+		//nvgTranslate(vg, textureOffset.x, textureOffset.y);
+		Vec2 scaledBboxMin = obj->bbox.min;
+		scaledBboxMin.x *= parent->scale.x;
+		scaledBboxMin.y *= parent->scale.y;
+		Vec2 minCoord = textureOffset + scaledBboxMin;
+		Vec2 bboxSize = (obj->bbox.max - obj->bbox.min);
+		bboxSize.x *= parent->scale.x;
+		bboxSize.y *= parent->scale.y;
+		Vec2 maxCoord = minCoord + bboxSize;
+
+		Vec2 inXRange = Vec2{ obj->bbox.min.x * parent->scale.x, obj->bbox.max.x * parent->scale.x };
+		Vec2 inYRange = Vec2{ obj->bbox.min.y * parent->scale.y, obj->bbox.max.y * parent->scale.y };
+		Vec2 outXRange = Vec2{ minCoord.x, maxCoord.x };
+		Vec2 outYRange = Vec2{ minCoord.y, maxCoord.y };
 
 		if (lengthToDraw > 0)
 		{
@@ -1321,10 +1367,18 @@ namespace MathAnim
 						nvgStrokeWidth(vg, parent->strokeWidth);
 					}
 
-					nvgMoveTo(vg,
-						obj->contours[contouri].curves[0].p0.x * parent->scale.x,
-						obj->contours[contouri].curves[0].p0.y * parent->scale.y
-					);
+					{
+						Vec2 p0 = obj->contours[contouri].curves[0].p0;
+						p0.x *= parent->scale.x;
+						p0.y *= parent->scale.y;
+						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
+						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
+
+						nvgMoveTo(vg,
+							p0.x,
+							p0.y
+						);
+					}
 
 					for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
 					{
@@ -1335,27 +1389,28 @@ namespace MathAnim
 						}
 
 						const Curve& curve = obj->contours[contouri].curves[curvei];
-						glm::vec4 p0 = glm::vec4(
-							curve.p0.x,
-							curve.p0.y,
-							0.0f,
-							1.0f
-						);
+						Vec2 p0 = curve.p0;
+
 						if (curve.moveToP0)
 						{
-							nvgMoveTo(vg, p0.x * parent->scale.x, p0.y * parent->scale.y);
+							Vec2 transformedP0 = p0;
+							transformedP0.x *= parent->scale.x;
+							transformedP0.y *= parent->scale.y;
+							transformedP0.x = CMath::mapRange(inXRange, outXRange, transformedP0.x);
+							transformedP0.y = CMath::mapRange(inYRange, outYRange, transformedP0.y);
+							nvgMoveTo(vg, transformedP0.x, transformedP0.y);
 						}
 
 						switch (curve.type)
 						{
 						case CurveType::Bezier3:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, 0.0f, 1.0f };
+							Vec2 p1 = curve.as.bezier3.p1;
+							Vec2 p2 = curve.as.bezier3.p2;
+							Vec2 p3 = curve.as.bezier3.p3;
 
-							float chordLength = glm::length(p3 - p0);
-							float controlNetLength = glm::length(p1 - p0) + glm::length(p2 - p1) + glm::length(p3 - p2);
+							float chordLength = CMath::length(p3 - p0);
+							float controlNetLength = CMath::length(p1 - p0) + CMath::length(p2 - p1) + CMath::length(p3 - p2);
 							float approxLength = (chordLength + controlNetLength) / 2.0f;
 							lengthDrawn += approxLength;
 
@@ -1370,19 +1425,19 @@ namespace MathAnim
 								float u0 = 1.0f;
 								float u1 = (1.0f - t1);
 
-								glm::vec4 q0 = ((u0 * u0 * u0) * p0) +
+								Vec2 q0 = ((u0 * u0 * u0) * p0) +
 									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
 									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
 									((t0 * t0 * t0) * p3);
-								glm::vec4 q1 = ((u0 * u0 * u1) * p0) +
+								Vec2 q1 = ((u0 * u0 * u1) * p0) +
 									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
 									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
 									((t0 * t0 * t1) * p3);
-								glm::vec4 q2 = ((u0 * u1 * u1) * p0) +
+								Vec2 q2 = ((u0 * u1 * u1) * p0) +
 									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
 									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
 									((t0 * t1 * t1) * p3);
-								glm::vec4 q3 = ((u1 * u1 * u1) * p0) +
+								Vec2 q3 = ((u1 * u1 * u1) * p0) +
 									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
 									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
 									((t1 * t1 * t1) * p3);
@@ -1392,28 +1447,43 @@ namespace MathAnim
 								p3 = q3;
 							}
 
+							p1.x *= parent->scale.x;
+							p1.y *= parent->scale.y;
+							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+							p2.x *= parent->scale.x;
+							p2.y *= parent->scale.y;
+							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
+							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
+
+							p3.x *= parent->scale.x;
+							p3.y *= parent->scale.y;
+							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
+							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
+
 							nvgBezierTo(
 								vg,
-								p1.x * parent->scale.x, p1.y * parent->scale.y,
-								p2.x * parent->scale.x, p2.y * parent->scale.y,
-								p3.x * parent->scale.x, p3.y * parent->scale.y
+								p1.x, p1.y,
+								p2.x, p2.y,
+								p3.x, p3.y
 							);
 						}
 						break;
 						case CurveType::Bezier2:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, 0.0f, 1.0f };
+							Vec2 p1 = curve.as.bezier2.p1;
+							Vec2 p2 = curve.as.bezier2.p1;
+							Vec2 p3 = curve.as.bezier2.p2;
 
 							// Degree elevated quadratic bezier curve
-							glm::vec4 pr0 = p0;
-							glm::vec4 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-							glm::vec4 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-							glm::vec4 pr3 = p3;
+							Vec2 pr0 = p0;
+							Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
+							Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+							Vec2 pr3 = p3;
 
-							float chordLength = glm::length(pr3 - pr0);
-							float controlNetLength = glm::length(pr1 - pr0) + glm::length(pr2 - pr1) + glm::length(pr3 - pr2);
+							float chordLength = CMath::length(pr3 - pr0);
+							float controlNetLength = CMath::length(pr1 - pr0) + CMath::length(pr2 - pr1) + CMath::length(pr3 - pr2);
 							float approxLength = (chordLength + controlNetLength) / 2.0f;
 							lengthDrawn += approxLength;
 
@@ -1432,19 +1502,19 @@ namespace MathAnim
 								float u0 = 1.0f;
 								float u1 = (1.0f - t1);
 
-								glm::vec4 q0 = ((u0 * u0 * u0) * p0) +
+								Vec2 q0 = ((u0 * u0 * u0) * p0) +
 									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
 									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
 									((t0 * t0 * t0) * p3);
-								glm::vec4 q1 = ((u0 * u0 * u1) * p0) +
+								Vec2 q1 = ((u0 * u0 * u1) * p0) +
 									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
 									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
 									((t0 * t0 * t1) * p3);
-								glm::vec4 q2 = ((u0 * u1 * u1) * p0) +
+								Vec2 q2 = ((u0 * u1 * u1) * p0) +
 									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
 									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
 									((t0 * t1 * t1) * p3);
-								glm::vec4 q3 = ((u1 * u1 * u1) * p0) +
+								Vec2 q3 = ((u1 * u1 * u1) * p0) +
 									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
 									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
 									((t1 * t1 * t1) * p3);
@@ -1454,23 +1524,33 @@ namespace MathAnim
 								pr3 = q3;
 							}
 
+							pr1.x *= parent->scale.x;
+							pr1.y *= parent->scale.y;
+							pr1.x = CMath::mapRange(inXRange, outXRange, pr1.x);
+							pr1.y = CMath::mapRange(inYRange, outYRange, pr1.y);
+
+							pr2.x *= parent->scale.x;
+							pr2.y *= parent->scale.y;
+							pr2.x = CMath::mapRange(inXRange, outXRange, pr2.x);
+							pr2.y = CMath::mapRange(inYRange, outYRange, pr2.y);
+
+							pr3.x *= parent->scale.x;
+							pr3.y *= parent->scale.y;
+							pr3.x = CMath::mapRange(inXRange, outXRange, pr3.x);
+							pr3.y = CMath::mapRange(inYRange, outYRange, pr3.y);
+
 							nvgBezierTo(
 								vg,
-								pr1.x * parent->scale.x, pr1.y * parent->scale.y,
-								pr2.x * parent->scale.x, pr2.y * parent->scale.y,
-								pr3.x * parent->scale.x, pr3.y * parent->scale.y
+								pr1.x, pr1.y,
+								pr2.x, pr2.y,
+								pr3.x, pr3.y
 							);
 						}
 						break;
 						case CurveType::Line:
 						{
-							glm::vec4 p1 = glm::vec4(
-								curve.as.line.p1.x,
-								curve.as.line.p1.y,
-								0.0f,
-								1.0f
-							);
-							float curveLength = glm::length(p1 - p0);
+							Vec2 p1 = curve.as.line.p1;
+							float curveLength = CMath::length(p1 - p0);
 							lengthDrawn += curveLength;
 
 							if (lengthLeft < curveLength)
@@ -1479,7 +1559,12 @@ namespace MathAnim
 								p1 = (p1 - p0) * percentOfCurveToDraw + p0;
 							}
 
-							nvgLineTo(vg, p1.x * parent->scale.x, p1.y * parent->scale.y);
+							p1.x *= parent->scale.x;
+							p1.y *= parent->scale.y;
+							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+							nvgLineTo(vg, p1.x, p1.y);
 						}
 						break;
 						default:
@@ -1500,34 +1585,39 @@ namespace MathAnim
 
 		if (amountToFadeIn > 0)
 		{
-			// Begin Composite path
-			nvgBeginPath(vg);
-
 			for (int contouri = 0; contouri < obj->numContours; contouri++)
 			{
 				if (obj->contours[contouri].numCurves > 0)
 				{
-					// Begin sub-path
+					// Begin path
 					nvgBeginPath(vg);
 
-					nvgMoveTo(vg,
-						obj->contours[contouri].curves[0].p0.x * parent->scale.x,
-						obj->contours[contouri].curves[0].p0.y * parent->scale.y
-					);
+					{
+						Vec2 p0 = obj->contours[contouri].curves[0].p0;
+						p0.x *= parent->scale.x;
+						p0.y *= parent->scale.y;
+						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
+						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
+
+						nvgMoveTo(vg,
+							p0.x,
+							p0.y
+						);
+					}
 
 					for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
 					{
 						const Curve& curve = obj->contours[contouri].curves[curvei];
-						glm::vec4 p0 = glm::vec4(
-							curve.p0.x,
-							curve.p0.y,
-							0.0f,
-							1.0f
-						);
+						Vec2 p0 = curve.p0;
 
 						if (curvei != 0 && curve.moveToP0)
 						{
-							nvgMoveTo(vg, p0.x * parent->scale.x, p0.y * parent->scale.y);
+							Vec2 transformedP0 = p0;
+							transformedP0.x *= parent->scale.x;
+							transformedP0.y *= parent->scale.y;
+							transformedP0.x = CMath::mapRange(inXRange, outXRange, transformedP0.x);
+							transformedP0.y = CMath::mapRange(inYRange, outYRange, transformedP0.y);
+							nvgMoveTo(vg, transformedP0.x, transformedP0.y);
 							// TODO: Does this work consistently???
 							nvgPathWinding(vg, NVG_HOLE);
 						}
@@ -1536,46 +1626,76 @@ namespace MathAnim
 						{
 						case CurveType::Bezier3:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, 0.0f, 1.0f };
+							Vec2 p1 = curve.as.bezier3.p1;
+							Vec2 p2 = curve.as.bezier3.p2;
+							Vec2 p3 = curve.as.bezier3.p3;
+
+							p1.x *= parent->scale.x;
+							p1.y *= parent->scale.y;
+							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+							p2.x *= parent->scale.x;
+							p2.y *= parent->scale.y;
+							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
+							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
+
+							p3.x *= parent->scale.x;
+							p3.y *= parent->scale.y;
+							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
+							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
 
 							nvgBezierTo(
 								vg,
-								p1.x * parent->scale.x, p1.y * parent->scale.y,
-								p2.x * parent->scale.x, p2.y * parent->scale.y,
-								p3.x * parent->scale.x, p3.y * parent->scale.y
+								p1.x, p1.y,
+								p2.x, p2.y,
+								p3.x, p3.y
 							);
 						}
 						break;
 						case CurveType::Bezier2:
 						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, 0.0f, 1.0f };
+							Vec2 p1 = curve.as.bezier2.p1;
+							Vec2 p2 = curve.as.bezier2.p1;
+							Vec2 p3 = curve.as.bezier2.p2;
 
 							// Degree elevated quadratic bezier curve
-							glm::vec4 pr0 = p0;
-							glm::vec4 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-							glm::vec4 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-							glm::vec4 pr3 = p3;
+							Vec2 pr0 = p0;
+							Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
+							Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+							Vec2 pr3 = p3;
+
+							pr1.x *= parent->scale.x;
+							pr1.y *= parent->scale.y;
+							pr1.x = CMath::mapRange(inXRange, outXRange, pr1.x);
+							pr1.y = CMath::mapRange(inYRange, outYRange, pr1.y);
+
+							pr2.x *= parent->scale.x;
+							pr2.y *= parent->scale.y;
+							pr2.x = CMath::mapRange(inXRange, outXRange, pr2.x);
+							pr2.y = CMath::mapRange(inYRange, outYRange, pr2.y);
+
+							pr3.x *= parent->scale.x;
+							pr3.y *= parent->scale.y;
+							pr3.x = CMath::mapRange(inXRange, outXRange, pr3.x);
+							pr3.y = CMath::mapRange(inYRange, outYRange, pr3.y);
 
 							nvgBezierTo(
 								vg,
-								pr1.x * parent->scale.x, pr1.y * parent->scale.y,
-								pr2.x * parent->scale.x, pr2.y * parent->scale.y,
-								pr3.x * parent->scale.x, pr3.y * parent->scale.y
+								pr1.x, pr1.y,
+								pr2.x, pr2.y,
+								pr3.x, pr3.y
 							);
 						}
 						break;
 						case CurveType::Line:
 						{
-							glm::vec4 p1 = glm::vec4(
-								curve.as.line.p1.x * parent->scale.x,
-								curve.as.line.p1.y * parent->scale.y,
-								0.0f,
-								1.0f
-							);
+							Vec2 p1 = curve.as.line.p1;
+
+							p1.x *= parent->scale.x;
+							p1.y *= parent->scale.y;
+							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
 							nvgLineTo(vg, p1.x, p1.y);
 						}
@@ -1586,8 +1706,10 @@ namespace MathAnim
 						}
 					}
 
-					// Close sub-path
-					nvgClosePath(vg);
+					// Fill path
+					const glm::u8vec4& fillColor = parent->fillColor;
+					nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)(fillColor.a * percentToFadeIn)));
+					nvgFill(vg);
 
 					if (obj->contours[contouri].isHole)
 					{
@@ -1595,124 +1717,170 @@ namespace MathAnim
 					}
 				}
 			}
-
-			// Fill composite-path
-			const glm::u8vec4& fillColor = parent->fillColor;
-			nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)(fillColor.a* percentToFadeIn)));
-			nvgFill(vg);
 		}
 
-		if (renderBBoxes)
+		if (parent->drawDebugBoxes)
 		{
-			for (int contouri = 0; contouri < obj->numContours; contouri++)
+			float debugStrokeWidth = cachePadding.x;
+			float strokeWidthCorrectionPos = debugStrokeWidth * 0.5f;
+			float strokeWidthCorrectionNeg = -debugStrokeWidth;
+
+			if (parent->drawCurveDebugBoxes)
 			{
-				if (obj->contours[contouri].numCurves > 0)
+				for (int contouri = 0; contouri < obj->numContours; contouri++)
 				{
-					for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
+					if (obj->contours[contouri].numCurves > 0)
 					{
-						const Curve& curve = obj->contours[contouri].curves[curvei];
-						glm::vec4 p0 = glm::vec4(
-							curve.p0.x,
-							curve.p0.y,
-							0.0f,
-							1.0f
-						);
-
-						switch (curve.type)
+						for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
 						{
-						case CurveType::Bezier3:
-						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier3.p1.x, curve.as.bezier3.p1.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier3.p2.x, curve.as.bezier3.p2.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier3.p3.x, curve.as.bezier3.p3.y, 0.0f, 1.0f };
+							const Curve& curve = obj->contours[contouri].curves[curvei];
+							Vec2 p0 = curve.p0;
+							p0.x *= parent->scale.x;
+							p0.y *= parent->scale.y;
+							p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
+							p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
 
-							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
-							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
-							Vec2 tp2 = Vec2{ p2.x * parent->scale.x, p2.y * parent->scale.y };
-							Vec2 tp3 = Vec2{ p3.x * parent->scale.x, p3.y * parent->scale.y };
-							BBox bbox = CMath::bezier3BBox(tp0, tp1, tp2, tp3);
+							switch (curve.type)
+							{
+							case CurveType::Bezier3:
+							{
+								Vec2 p1 = curve.as.bezier3.p1;
+								Vec2 p2 = curve.as.bezier3.p2;
+								Vec2 p3 = curve.as.bezier3.p3;
 
-							nvgBeginPath(vg);
-							nvgStrokeWidth(vg, 5.0f);
-							nvgStrokeColor(vg, nvgRGB(255, 0, 0));
-							nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
-							nvgMoveTo(vg, bbox.min.x, bbox.min.y);
-							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
-							nvgClosePath(vg);
-							nvgStroke(vg);
-						}
-						break;
-						case CurveType::Bezier2:
-						{
-							glm::vec4& p1 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
-							glm::vec4& p2 = glm::vec4{ curve.as.bezier2.p1.x, curve.as.bezier2.p1.y, 0.0f, 1.0f };
-							glm::vec4& p3 = glm::vec4{ curve.as.bezier2.p2.x, curve.as.bezier2.p2.y, 0.0f, 1.0f };
+								p1.x *= parent->scale.x;
+								p1.y *= parent->scale.y;
+								p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+								p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
-							// Degree elevated quadratic bezier curve
-							glm::vec4 pr0 = p0;
-							glm::vec4 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-							glm::vec4 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-							glm::vec4 pr3 = p3;
+								p2.x *= parent->scale.x;
+								p2.y *= parent->scale.y;
+								p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
+								p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
 
-							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
-							Vec2 tp1 = Vec2{ p1.x * parent->scale.x, p1.y * parent->scale.y };
-							Vec2 tp2 = Vec2{ p3.x * parent->scale.x, p3.y * parent->scale.y };
-							BBox bbox = CMath::bezier2BBox(tp0, tp1, tp2);
+								p3.x *= parent->scale.x;
+								p3.y *= parent->scale.y;
+								p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
+								p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
 
-							nvgBeginPath(vg);
-							nvgStrokeWidth(vg, 5.0f);
-							nvgStrokeColor(vg, nvgRGB(255, 0, 0));
-							nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
-							nvgMoveTo(vg, bbox.min.x, bbox.min.y);
-							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
-							nvgClosePath(vg);
-							nvgStroke(vg);
-						}
-						break;
-						case CurveType::Line:
-						{
-							glm::vec4 p1 = glm::vec4(
-								curve.as.line.p1.x * parent->scale.x,
-								curve.as.line.p1.y * parent->scale.y,
-								0.0f,
-								1.0f
-							);
+								BBox bbox = CMath::bezier3BBox(p0, p1, p2, p3);
 
-							Vec2 tp0 = Vec2{ p0.x * parent->scale.x, p0.y * parent->scale.y };
-							Vec2 tp1 = Vec2{ p1.x, p1.y };
-							BBox bbox = CMath::bezier1BBox(tp0, tp1);
-
-							nvgBeginPath(vg);
-							nvgStrokeWidth(vg, 5.0f);
-							nvgStrokeColor(vg, nvgRGB(255, 0, 0));
-							nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
-							nvgMoveTo(vg, bbox.min.x, bbox.min.y);
-							nvgRect(vg, bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
-							nvgClosePath(vg);
-							nvgStroke(vg);
-						}
-						break;
-						default:
-							g_logger_warning("Unknown curve type in render %d", (int)curve.type);
+								nvgBeginPath(vg);
+								nvgStrokeWidth(vg, debugStrokeWidth);
+								nvgStrokeColor(vg, nvgRGB(255, 0, 0));
+								nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
+								nvgMoveTo(vg,
+									bbox.min.x + strokeWidthCorrectionPos,
+									bbox.min.y + strokeWidthCorrectionPos
+								);
+								nvgRect(vg,
+									bbox.min.x + strokeWidthCorrectionPos,
+									bbox.min.y + strokeWidthCorrectionPos,
+									bbox.max.x - bbox.min.x + strokeWidthCorrectionNeg,
+									bbox.max.y - bbox.min.y + strokeWidthCorrectionNeg
+								);
+								nvgClosePath(vg);
+								nvgStroke(vg);
+							}
 							break;
+							case CurveType::Bezier2:
+							{
+								Vec2 p1 = curve.as.bezier2.p1;
+								Vec2 p2 = curve.as.bezier2.p1;
+								Vec2 p3 = curve.as.bezier2.p2;
+
+								p1.x *= parent->scale.x;
+								p1.y *= parent->scale.y;
+								p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+								p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+								p2.x *= parent->scale.x;
+								p2.y *= parent->scale.y;
+								p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
+								p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
+
+								p3.x *= parent->scale.x;
+								p3.y *= parent->scale.y;
+								p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
+								p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
+
+								// Degree elevated quadratic bezier curve
+								Vec2 pr0 = p0;
+								Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
+								Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+								Vec2 pr3 = p3;
+
+								BBox bbox = CMath::bezier3BBox(pr0, pr1, pr2, pr3);
+
+								nvgBeginPath(vg);
+								nvgStrokeWidth(vg, debugStrokeWidth);
+								nvgStrokeColor(vg, nvgRGB(255, 0, 0));
+								nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
+								nvgMoveTo(vg,
+									bbox.min.x + strokeWidthCorrectionPos,
+									bbox.min.y + strokeWidthCorrectionPos
+								);
+								nvgRect(vg,
+									bbox.min.x + strokeWidthCorrectionPos,
+									bbox.min.y + strokeWidthCorrectionPos,
+									bbox.max.x - bbox.min.x + strokeWidthCorrectionNeg,
+									bbox.max.y - bbox.min.y + strokeWidthCorrectionNeg
+								);
+								nvgClosePath(vg);
+								nvgStroke(vg);
+							}
+							break;
+							case CurveType::Line:
+							{
+								Vec2 p1 = curve.as.line.p1;
+
+								p1.x *= parent->scale.x;
+								p1.y *= parent->scale.y;
+								p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+								p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+								BBox bbox = CMath::bezier1BBox(p0, p1);
+
+								nvgBeginPath(vg);
+								nvgStrokeWidth(vg, debugStrokeWidth);
+								nvgStrokeColor(vg, nvgRGB(255, 0, 0));
+								nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
+								nvgMoveTo(vg,
+									bbox.min.x + strokeWidthCorrectionPos,
+									bbox.min.y + strokeWidthCorrectionPos
+								);
+								nvgRect(vg,
+									bbox.min.x + strokeWidthCorrectionPos,
+									bbox.min.y + strokeWidthCorrectionPos,
+									bbox.max.x - bbox.min.x + strokeWidthCorrectionNeg,
+									bbox.max.y - bbox.min.y + strokeWidthCorrectionNeg
+								);
+								nvgClosePath(vg);
+								nvgStroke(vg);
+							}
+							break;
+							default:
+								g_logger_warning("Unknown curve type in render %d", (int)curve.type);
+								break;
+							}
 						}
 					}
 				}
 			}
 
 			nvgBeginPath(vg);
-			nvgStrokeWidth(vg, 5.0f);
+			nvgStrokeWidth(vg, debugStrokeWidth);
 			nvgStrokeColor(vg, nvgRGB(0, 255, 0));
 			nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
 			nvgMoveTo(vg,
-				(obj->bbox.min.x * parent->scale.x) - (parent->strokeWidth * 0.5f),
-				(obj->bbox.min.y * parent->scale.y) - (parent->strokeWidth * 0.5f)
+				(obj->bbox.min.x * parent->scale.x) + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
+				(obj->bbox.min.y * parent->scale.y) + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos
 			);
 			nvgRect(vg,
-				(obj->bbox.min.x * parent->scale.x) - (parent->strokeWidth * 0.5f),
-				(obj->bbox.min.y * parent->scale.y) - (parent->strokeWidth * 0.5f),
-				((obj->bbox.max.x - obj->bbox.min.x) * parent->scale.x) + parent->strokeWidth,
-				((obj->bbox.max.y - obj->bbox.min.y) * parent->scale.y) + parent->strokeWidth
+				(obj->bbox.min.x * parent->scale.x) + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
+				(obj->bbox.min.y * parent->scale.y) + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
+				((obj->bbox.max.x - obj->bbox.min.x) * parent->scale.x) + parent->strokeWidth + strokeWidthCorrectionNeg,
+				((obj->bbox.max.y - obj->bbox.min.y) * parent->scale.y) + parent->strokeWidth + strokeWidthCorrectionNeg
 			);
 			nvgStroke(vg);
 			nvgClosePath(vg);

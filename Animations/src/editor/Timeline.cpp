@@ -471,6 +471,11 @@ namespace MathAnim
 			}
 
 			ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
+			ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
+			if (animObject->drawDebugBoxes)
+			{
+				ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
+			}
 
 			switch (animObject->objectType)
 			{

@@ -441,6 +441,8 @@ namespace MathAnim
 		//     A                -> u8
 		//   _StrokeWidthStart  -> f32
 		//   isTransparent      -> u8
+		//   drawDebugBoxes     -> u8
+		//   drawCurveDebugBoxes -> u8
 		//   Id                 -> int32
 		//   FrameStart         -> int32
 		//   Duration           -> int32
@@ -474,6 +476,12 @@ namespace MathAnim
 
 		uint8 isTransparentU8 = isTransparent ? 1 : 0;
 		memory.write<uint8>(&isTransparentU8);
+
+		uint8 drawDebugBoxesU8 = drawDebugBoxes ? 1 : 0;
+		memory.write<uint8>(&drawDebugBoxesU8);
+
+		uint8 drawCurveDebugBoxesU8 = drawCurveDebugBoxes ? 1 : 0;
+		memory.write<uint8>(&drawCurveDebugBoxesU8);
 
 		memory.write<int32>(&id);
 		memory.write<int32>(&frameStart);
@@ -558,6 +566,8 @@ namespace MathAnim
 		res._svgObjectStart = nullptr;
 
 		res.isTransparent = false;
+		res.drawDebugBoxes = false;
+		res.drawCurveDebugBoxes = false;
 
 		res.strokeWidth = 0.0f;
 		res._strokeWidthStart = 0.0f;
@@ -659,6 +669,8 @@ namespace MathAnim
 		//   A                -> u8
 		// _StrokeWidthStart  -> f32
 		// isTransparent      -> u8
+		// drawDebugBoxes     -> u8
+		// drawCurveDebugBoxes -> u8
 		// Id                 -> int32
 		// FrameStart         -> int32
 		// Duration           -> int32
@@ -697,6 +709,14 @@ namespace MathAnim
 		uint8 isTransparent;
 		memory.read<uint8>(&isTransparent);
 		res.isTransparent = isTransparent != 0;
+
+		uint8 drawDebugBoxes;
+		memory.read<uint8>(&drawDebugBoxes);
+		res.drawDebugBoxes = drawDebugBoxes != 0;
+
+		uint8 drawCurveDebugBoxes;
+		memory.read<uint8>(&drawCurveDebugBoxes);
+		res.drawCurveDebugBoxes = drawCurveDebugBoxes != 0;
 
 		memory.read<int32>(&res.id);
 		memory.read<int32>(&res.frameStart);

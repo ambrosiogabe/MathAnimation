@@ -124,6 +124,8 @@ namespace MathAnim
 		SvgObject* svgObject;
 		bool isAnimating;
 		bool isTransparent;
+		bool drawDebugBoxes;
+		bool drawCurveDebugBoxes;
 		float _strokeWidthStart;
 		float strokeWidth;
 		glm::u8vec4 _strokeColorStart;
