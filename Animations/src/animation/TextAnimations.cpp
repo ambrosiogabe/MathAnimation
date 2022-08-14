@@ -72,7 +72,7 @@ namespace MathAnim
 			Vec2 glyphPos = cursorPos;
 			Vec2 offset = Vec2{
 				glyphOutline.bearingX,
-				-glyphOutline.bearingY
+				font->lineHeight - glyphOutline.descentY
 			};
 
 			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')

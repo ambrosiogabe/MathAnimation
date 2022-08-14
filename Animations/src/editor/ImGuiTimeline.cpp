@@ -74,7 +74,7 @@ namespace MathAnim
 
 	constexpr float ZOOM_MIN = 0.1f;
 	constexpr float ZOOM_MAX = 300.0f;
-	constexpr float ZOOM_DEFAULT = 3.0f;
+	constexpr float ZOOM_DEFAULT = 5.0f;
 
 	// Colors
 	constexpr ImU32 boundaryTickColor = IM_COL32(135, 135, 135, 255);

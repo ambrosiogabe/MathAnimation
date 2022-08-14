@@ -738,10 +738,10 @@ namespace MathAnim
 
 		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform)
 		{
-			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
-			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
-			Vec2 min = { tmpMin.x, tmpMax.y };
-			Vec2 max = { tmpMax.x, tmpMin.y };
+			glm::vec4 tmpMin = transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+			glm::vec4 tmpMax = transform * glm::vec4(size.x, size.y, 0.0f, 1.0f);
+			Vec2 min = { tmpMin.x, tmpMin.y };
+			Vec2 max = { tmpMax.x, tmpMax.y };
 
 			drawList2D.addTexturedQuad(texture, min, max, uvMin, uvMax);
 		}
