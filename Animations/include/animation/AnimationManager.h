@@ -30,6 +30,8 @@ namespace MathAnim
 		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight);
 		void render(NVGcontext* vg, int frame, Framebuffer& framebuffer);
 
+		int lastAnimatedFrame();
+
 		const AnimObject* getObject(int animObjectId);
 		AnimObject* getMutableObject(int animObjectId);
 		Animation* getMutableAnimation(int animationId);

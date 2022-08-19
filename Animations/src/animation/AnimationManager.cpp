@@ -360,6 +360,18 @@ namespace MathAnim
 			}
 		}
 
+		int lastAnimatedFrame()
+		{
+			int lastFrame = -1;
+			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
+			{
+				int objectDeathTime = objectIter->frameStart + objectIter->duration;
+				lastFrame = glm::max(lastFrame, objectDeathTime);
+			}
+
+			return lastFrame;
+		}
+
 		const AnimObject* getObject(int animObjectId)
 		{
 			return getMutableObject(animObjectId);

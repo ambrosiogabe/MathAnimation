@@ -33,6 +33,8 @@ namespace MathAnim
 		int getFrameIndex();
 		int getFrameratePerSecond();
 
+		void exportVideoTo(const std::string& filename);
+
 		NVGcontext* getNvgContext();
 		GlobalThreadPool* threadPool();
 	}

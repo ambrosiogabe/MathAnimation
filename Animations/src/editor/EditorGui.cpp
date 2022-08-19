@@ -2,6 +2,7 @@
 #include "editor/Timeline.h"
 #include "editor/AnimObjectPanel.h"
 #include "editor/DebugPanel.h"
+#include "editor/ExportPanel.h"
 #include "core/Application.h"
 
 #include "imgui.h"
@@ -17,6 +18,7 @@ namespace MathAnim
 		{
 			Timeline::init();
 			AnimObjectPanel::init();
+			ExportPanel::init();
 		}
 
 		void update(uint32 sceneTextureId)
@@ -58,10 +60,12 @@ namespace MathAnim
 			Timeline::update();
 			AnimObjectPanel::update();
 			DebugPanel::update();
+			ExportPanel::update();
 		}
 
 		void free()
 		{
+			ExportPanel::free();
 			AnimObjectPanel::free();
 			Timeline::free();
 		}

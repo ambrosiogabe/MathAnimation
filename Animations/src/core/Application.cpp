@@ -35,6 +35,7 @@ namespace MathAnim
 	{
 		static AnimState animState = AnimState::Pause;
 		static bool outputVideoFile = false;
+		static std::string outputVideoFilename = "";
 
 		static int numFramesWritten = 0;
 		static int framerate = 60;
@@ -118,18 +119,20 @@ namespace MathAnim
 				previousTime = glfwGetTime();
 				window->pollInput();
 
+				if (outputVideoFile)
+				{
+					if (numFramesWritten % 60 == 0)
+					{
+						g_logger_info("Number of seconds rendered: %d", numFramesWritten / 60);
+					}
+					numFramesWritten++;
+					accumulatedTime += (1.0f / 60.0f);
+					currentFrame++;
+				}
+
 				// Update components
 				if (animState == AnimState::PlayForward)
 				{
-					if (outputVideoFile)
-					{
-						if (numFramesWritten % 60 == 0)
-						{
-							g_logger_info("Number of seconds rendered: %d", numFramesWritten / 60);
-						}
-						numFramesWritten++;
-					}
-
 					accumulatedTime += deltaTime;
 					currentFrame = (int)(accumulatedTime * 60.0f);
 				}
@@ -155,23 +158,18 @@ namespace MathAnim
 
 				// Miscellaneous
 				// TODO: Abstract this stuff out of here
-				if (outputVideoFile)
+				if (outputVideoFile && currentFrame > -1)
 				{
 					Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 					VideoWriter::pushFrame(pixels, outputHeight * outputWidth);
 					mainFramebuffer.freePixels(pixels);
-				}
 
-				if (Input::isKeyPressed(GLFW_KEY_F7) && !outputVideoFile)
-				{
-					currentFrame = 0;
-					outputVideoFile = true;
-					VideoWriter::startEncodingFile("output.mp4", outputWidth, outputHeight, framerate);
-				}
-				else if (Input::isKeyPressed(GLFW_KEY_F8) && outputVideoFile)
-				{
-					outputVideoFile = false;
-					VideoWriter::finishEncodingFile();
+					if (currentFrame >= AnimationManager::lastAnimatedFrame())
+					{
+						outputVideoFile = false;
+						VideoWriter::finishEncodingFile();
+						g_logger_info("Finished exporting video file.");
+					}
 				}
 
 				window->swapBuffers();
@@ -190,15 +188,16 @@ namespace MathAnim
 				constexpr int outputHeight = 720;
 				uint8* outputPixels = (uint8*)g_memory_allocate(sizeof(uint8) * outputWidth * outputHeight * 3);
 				stbir_resize_uint8(
-					(uint8*)pixels, 
-					mainFramebuffer.width, 
-					mainFramebuffer.height, 
+					(uint8*)pixels,
+					mainFramebuffer.width,
+					mainFramebuffer.height,
 					0,
-					outputPixels, 
-					outputWidth, 
-					outputHeight, 
-					0, 
+					outputPixels,
+					outputWidth,
+					outputHeight,
+					0,
 					3);
+				stbi_flip_vertically_on_write(true);
 				stbi_write_png(
 					outputFile.string().c_str(),
 					outputWidth,
@@ -275,6 +274,15 @@ namespace MathAnim
 		int getFrameratePerSecond()
 		{
 			return framerate;
+		}
+
+		void exportVideoTo(const std::string& filename)
+		{
+			outputVideoFilename = filename;
+
+			currentFrame = -1;
+			outputVideoFile = true;
+			VideoWriter::startEncodingFile(outputVideoFilename.c_str(), outputWidth, outputHeight, framerate);
 		}
 
 		NVGcontext* getNvgContext()
