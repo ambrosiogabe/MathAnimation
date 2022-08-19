@@ -10,6 +10,7 @@ namespace MathAnim
 	struct OrthoCamera;
 	struct PerspectiveCamera;
 	struct Texture;
+	struct Framebuffer;
 
 	enum class CurveType : uint8
 	{
@@ -105,6 +106,16 @@ namespace MathAnim
 		void endFrame();
 
 		const Texture& getSvgCache();
+		Framebuffer const& getSvgCacheFb();
+		const Vec2& getCacheCurrentPos();
+		const Vec2& getCachePadding();
+		void incrementCacheCurrentY();
+		void incrementCacheCurrentX(float distance);
+		void checkLineHeight(float newLineHeight);
+		void growCache();
+
+		PerspectiveCamera const& getPerspCamera();
+		OrthoCamera const& getOrthoCamera();
 
 		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox);
 		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset);

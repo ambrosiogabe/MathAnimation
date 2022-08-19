@@ -2,7 +2,11 @@
 #include "animation/Animation.h"
 #include "animation/SvgParser.h"
 #include "animation/Svg.h"
+#include "renderer/Renderer.h"
+#include "renderer/Framebuffer.h"
 #include "renderer/Fonts.h"
+#include "renderer/PerspectiveCamera.h"
+#include "renderer/OrthoCamera.h"
 #include "core/Application.h"
 #include "latex/LaTexLayer.h"
 
@@ -46,8 +50,55 @@ namespace MathAnim
 		float fontSizePixels = parent->as.textObject.fontSizePixels;
 		Vec2 svgScale = Vec2{ fontSizePixels, fontSizePixels };
 
+		// Calculate the string size
 		std::string textStr = std::string(text);
-		Vec2 cursorPos = Vec2{ 0, 0 };
+		Vec2 strSize = Vec2{ 0, font->lineHeight };
+		for (int i = 0; i < textStr.length(); i++)
+		{
+			uint32 codepoint = (uint32)textStr[i];
+			const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
+
+			Vec2 glyphPos = strSize;
+			Vec2 offset = Vec2{
+				glyphOutline.bearingX,
+				font->lineHeight - glyphOutline.bearingY
+			};
+
+			// TODO: I may have to add kerning info here
+			strSize += Vec2{ glyphOutline.advanceX, 0.0f };
+			
+			float newMaxY = font->lineHeight + glyphOutline.descentY;
+			strSize.y = glm::max(newMaxY, strSize.y);
+		}
+
+		// TODO: Offload all this stuff into some sort of TexturePacker data structure
+		{
+			Vec2 svgTextureOffset = Vec2{
+				(float)Svg::getCacheCurrentPos().x + parent->strokeWidth * 0.5f,
+				(float)Svg::getCacheCurrentPos().y + parent->strokeWidth * 0.5f
+			};
+
+			// Check if the SVG cache needs to regenerate
+			float svgTotalWidth = (strSize.x * svgScale.x) + parent->strokeWidth;
+			float svgTotalHeight = (strSize.y * svgScale.y) + parent->strokeWidth;
+			{
+				float newRightX = svgTextureOffset.x + svgTotalWidth;
+				if (newRightX >= Svg::getSvgCache().width)
+				{
+					// Move to the newline
+					Svg::incrementCacheCurrentY();
+				}
+
+				float newBottomY = svgTextureOffset.y + svgTotalHeight;
+				if (newBottomY >= Svg::getSvgCache().height)
+				{
+					// TODO: Get position on new cache if needed
+					Svg::growCache();
+				}
+			}
+		}
+
+		// Draw the string to the cache
 		int numNonWhitespaceCharacters = 0;
 		for (int i = 0; i < textStr.length(); i++)
 		{
@@ -57,6 +108,7 @@ namespace MathAnim
 			}
 		}
 
+		Vec2 cursorPos = Vec2{ 0, 0 };
 		float numberLettersToDraw = t * (float)numNonWhitespaceCharacters;
 		int numNonWhitespaceLettersDrawn = 0;
 		constexpr float numLettersToLag = 2.0f;
@@ -70,22 +122,143 @@ namespace MathAnim
 			Vec2 glyphPos = cursorPos;
 			Vec2 offset = Vec2{
 				glyphOutline.bearingX,
-				font->lineHeight - glyphOutline.descentY
+				font->lineHeight - glyphOutline.bearingY
 			};
 
 			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
 			{
-				glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, svgScale, reverse);
+				glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, svgScale, reverse, true);
 				numNonWhitespaceLettersDrawn++;
 			}
 
 			// TODO: I may have to add kerning info here
-			cursorPos += Vec2{ glyphOutline.advanceX * fontSizePixels, 0.0f };
+			cursorPos += Vec2{ glyphOutline.advanceX, 0.0f };
 
 			if ((float)numNonWhitespaceLettersDrawn >= numberLettersToDraw)
 			{
 				break;
 			}
+		}
+
+		// Blit the cached quad to the screen
+		{
+			Vec2 svgTextureOffset = Vec2 {
+				(float)Svg::getCacheCurrentPos().x + parent->strokeWidth * 0.5f,
+				(float)Svg::getCacheCurrentPos().y + parent->strokeWidth * 0.5f
+			};
+			float svgTotalWidth = (strSize.x * svgScale.x) + parent->strokeWidth;
+			float svgTotalHeight = (strSize.y * svgScale.y) + parent->strokeWidth;
+			Vec2 cacheUvMin = Vec2{
+				svgTextureOffset.x / (float)Svg::getSvgCache().width,
+				1.0f - (svgTextureOffset.y / (float)Svg::getSvgCache().height) - (svgTotalHeight / (float)Svg::getSvgCache().height)
+			};
+			Vec2 cacheUvMax = cacheUvMin +
+				Vec2{
+					svgTotalWidth / (float)Svg::getSvgCache().width,
+					svgTotalHeight / (float)Svg::getSvgCache().height
+			};
+
+			if (parent->drawDebugBoxes)
+			{
+				// Render to the framebuffer then blit the framebuffer to the screen
+				// with the appropriate transformations
+				int32 lastFboId;
+				glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastFboId);
+
+				// First render to the cache
+				Svg::getSvgCacheFb().bind();
+				glViewport(0, 0, Svg::getSvgCache().width, Svg::getSvgCache().height);
+
+				// Reset the draw buffers to draw to FB_attachment_0
+				GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
+				glDrawBuffers(3, compositeDrawBuffers);
+
+				nvgBeginFrame(vg, Svg::getSvgCache().width, Svg::getSvgCache().height, 1.0f);
+
+				float strokeWidthCorrectionPos = Svg::getCachePadding().x * 0.5f;
+				float strokeWidthCorrectionNeg = -Svg::getCachePadding().x;
+				nvgBeginPath(vg);
+				nvgStrokeColor(vg, nvgRGBA(0, 255, 255, 255));
+				nvgStrokeWidth(vg, Svg::getCachePadding().x);
+				nvgMoveTo(vg,
+					cacheUvMin.x * Svg::getSvgCache().width + strokeWidthCorrectionPos,
+					(1.0f - cacheUvMax.y) * Svg::getSvgCache().height + strokeWidthCorrectionPos
+				);
+				nvgRect(vg,
+					cacheUvMin.x * Svg::getSvgCache().width + strokeWidthCorrectionPos,
+					(1.0f - cacheUvMax.y) * Svg::getSvgCache().height + strokeWidthCorrectionPos,
+					(cacheUvMax.x - cacheUvMin.x) * Svg::getSvgCache().width + strokeWidthCorrectionNeg,
+					(cacheUvMax.y - cacheUvMin.y) * Svg::getSvgCache().height + strokeWidthCorrectionNeg
+				);
+				nvgClosePath(vg);
+				nvgStroke(vg);
+				nvgEndFrame(vg);
+
+				// Then bind the previous fbo and blit it to the screen with
+				// the appropriate transformations
+				glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
+
+				// Reset the draw buffers to draw to FB_attachment_0
+				glDrawBuffers(3, compositeDrawBuffers);
+			}
+
+			// Then blit the SVG group to the screen
+			// Correct for aspect ratio
+			float targetRatio = Application::getOutputTargetAspectRatio();
+			svgTotalHeight /= targetRatio;
+
+			if (parent->is3D)
+			{
+				glm::mat4 transform = glm::identity<glm::mat4>();
+				transform = glm::translate(
+					transform,
+					glm::vec3(
+						parent->position.x - Svg::getPerspCamera().position.x,
+						parent->position.y - Svg::getPerspCamera().position.y,
+						parent->position.z - Svg::getPerspCamera().position.z
+					)
+				);
+				transform = transform * glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));
+				transform = glm::scale(transform, glm::vec3(parent->scale.x, parent->scale.y, parent->scale.z));
+
+				Renderer::drawTexturedQuad3D(
+					Svg::getSvgCache(),
+					Vec2{ svgTotalWidth * 0.01f, svgTotalHeight * 0.01f },
+					cacheUvMin,
+					cacheUvMax,
+					transform,
+					parent->isTransparent
+				);
+			}
+			else
+			{
+				glm::mat4 transform = glm::identity<glm::mat4>();
+				Vec2 cameraCenteredPos = Svg::getOrthoCamera().projectionSize / 2.0f - Svg::getOrthoCamera().position;
+				transform = glm::translate(
+					transform,
+					glm::vec3(
+						parent->position.x - cameraCenteredPos.x,
+						parent->position.y - cameraCenteredPos.y,
+						0.0f
+					)
+				);
+				if (!CMath::compare(parent->rotation.z, 0.0f))
+				{
+					transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
+				}
+				transform = glm::scale(transform, glm::vec3(parent->scale.x, parent->scale.y, parent->scale.z));
+
+				Renderer::drawTexturedQuad(
+					Svg::getSvgCache(),
+					Vec2{ svgTotalWidth, svgTotalHeight },
+					cacheUvMin,
+					cacheUvMax,
+					transform
+				);
+			}
+
+			Svg::incrementCacheCurrentX(strSize.x * svgScale.x + parent->strokeWidth + Svg::getCachePadding().x);
+			Svg::checkLineHeight(strSize.y * svgScale.y + parent->strokeWidth);
 		}
 	}
 
@@ -273,7 +446,7 @@ namespace MathAnim
 	LaTexObject LaTexObject::createDefault()
 	{
 		LaTexObject res;
-		res.fontSizePixels = 128.0f;
+		res.fontSizePixels = 20.0f;
 		// Alternating harmonic series
 		static const char defaultLatex[] = R"raw(\sum _{k=1}^{\infty }{\frac {(-1)^{k+1}}{k}}={\frac {1}{1}}-{\frac {1}{2}}+{\frac {1}{3}}-{\frac {1}{4}}+\cdots =\ln 2)raw";
 		res.text = (char*)g_memory_allocate(sizeof(defaultLatex) / sizeof(char));

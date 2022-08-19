@@ -94,6 +94,54 @@ namespace MathAnim
 			return svgCache.getColorAttachment(0);
 		}
 
+		Framebuffer const& getSvgCacheFb()
+		{
+			return svgCache;
+		}
+
+		const Vec2& getCacheCurrentPos()
+		{
+			return cacheCurrentPos;
+		}
+
+		const Vec2& getCachePadding()
+		{
+			return cachePadding;
+		}
+
+		void incrementCacheCurrentY()
+		{
+			cacheCurrentPos.y += cacheLineHeight + cachePadding.y;
+			cacheLineHeight = 0;
+			cacheCurrentPos.x = 0;
+		}
+
+		void incrementCacheCurrentX(float distance)
+		{
+			cacheCurrentPos.x += distance;
+		}
+
+		void checkLineHeight(float newLineHeight)
+		{
+			cacheLineHeight = glm::max(cacheLineHeight, newLineHeight);
+		}
+
+		void growCache()
+		{
+			// Double the size of the texture (up to 8192x8192 max)
+			Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
+		}
+
+		PerspectiveCamera const& getPerspCamera()
+		{
+			return *perspCamera;
+		}
+
+		OrthoCamera const& getOrthoCamera()
+		{
+			return *orthoCamera;
+		}
+
 		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox)
 		{
 			group->viewbox = viewbox;
@@ -919,16 +967,13 @@ namespace MathAnim
 			if (newRightX >= svgCache.width)
 			{
 				// Move to the newline
-				cacheCurrentPos.y += cacheLineHeight + cachePadding.y;
-				cacheLineHeight = 0;
-				cacheCurrentPos.x = 0;
+				Svg::incrementCacheCurrentY();
 			}
 
 			float newBottomY = svgTextureOffset.y + svgTotalHeight;
 			if (newBottomY >= svgCache.height)
 			{
-				// Double the size of the texture (up to 8192x8192 max)
-				Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
+				Svg::growCache();
 			}
 
 			svgTextureOffset = Vec2{
@@ -985,8 +1030,8 @@ namespace MathAnim
 				svgTotalHeight / (float)svgCache.height
 		};
 
-		cacheCurrentPos.x += svgTotalWidth + cachePadding.x;
-		cacheLineHeight = glm::max(cacheLineHeight, svgTotalHeight);
+		Svg::incrementCacheCurrentX(svgTotalWidth + cachePadding.x);
+		Svg::checkLineHeight(svgTotalHeight);
 
 		// Correct for aspect ratio
 		float targetRatio = Application::getOutputTargetAspectRatio();
@@ -1129,22 +1174,14 @@ namespace MathAnim
 				if (newRightX >= svgCache.width)
 				{
 					// Move to the newline
-					cacheCurrentPos.y += cacheLineHeight + cachePadding.y;
-					cacheLineHeight = 0;
-					cacheCurrentPos.x = 0;
+					Svg::incrementCacheCurrentY();
 				}
 
 				float newBottomY = svgTextureOffset.y + svgTotalHeight;
 				if (newBottomY >= svgCache.height)
 				{
-					// Double the size of the texture (up to 8192x8192 max)
-					Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
+					Svg::growCache();
 				}
-
-				svgTextureOffset = Vec2{
-					(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
-					(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
-				};
 			}
 		}
 
@@ -1283,8 +1320,8 @@ namespace MathAnim
 			);
 		}
 
-		cacheCurrentPos.x += (((bbox.max.x - bbox.min.x) * svgScale.x) + parent->strokeWidth + cachePadding.x);
-		cacheLineHeight = glm::max(cacheLineHeight, ((bbox.max.y - bbox.min.y) * svgScale.y) + parent->strokeWidth);
+		Svg::incrementCacheCurrentX(((bbox.max.x - bbox.min.x) * svgScale.x) + parent->strokeWidth + cachePadding.x);
+		Svg::checkLineHeight(((bbox.max.y - bbox.min.y) * svgScale.y) + parent->strokeWidth);
 	}
 
 	void SvgGroup::free()
