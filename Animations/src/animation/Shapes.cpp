@@ -57,16 +57,14 @@ namespace MathAnim
 
 		parent->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 		*parent->_svgObjectStart = Svg::createDefault();
-		parent->_svgObjectStart->is3D = is3D;
 		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 		*parent->svgObject = Svg::createDefault();
-		parent->svgObject->is3D = is3D;
 
 		// See here for how to construct circle with beziers 
 		// https://stackoverflow.com/questions/1734745/how-to-create-circle-with-bézier-curves
 		double equidistantControls = (4.0 / 3.0) * glm::tan(glm::pi<double>() / 8.0) * (double)radius;
 		Vec2 translation = Vec2{ radius, radius };
-		Svg::beginContour(parent->_svgObjectStart, Vec2{ -radius, 0.0f } + translation, is3D);
+		Svg::beginContour(parent->_svgObjectStart, Vec2{ -radius, 0.0f } + translation);
 
 		Svg::bezier3To(parent->_svgObjectStart,
 			Vec2{ -radius, (float)equidistantControls } + translation,
@@ -94,10 +92,7 @@ namespace MathAnim
 	void Circle::serialize(RawMemory& memory) const
 	{
 		// radius   -> float
-		// is3D     -> uint8
-		uint8 is3DU8 = is3D ? 1 : 0;
 		memory.write<float>(&radius);
-		memory.write<uint8>(&is3DU8);
 	}
 
 	Circle Circle::deserialize(RawMemory& memory, uint32 version)
@@ -121,10 +116,8 @@ namespace MathAnim
 
 		parent->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 		*parent->_svgObjectStart = Svg::createDefault();
-		parent->_svgObjectStart->is3D = true;
 		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 		*parent->svgObject = Svg::createDefault();
-		parent->svgObject->is3D = true;
 
 		float halfLength = sideLength / 2.0f;
 
@@ -194,12 +187,8 @@ namespace MathAnim
 	static Circle deserializeCircleV1(RawMemory& memory)
 	{
 		// radius   -> float
-		// is3D     -> uint8
 		Circle res;
 		memory.read<float>(&res.radius);
-		uint8 is3DU8;
-		memory.read<uint8>(&is3DU8);
-		res.is3D = is3DU8 == 1;
 		return res;
 	}
 

@@ -471,6 +471,7 @@ namespace MathAnim
 			}
 
 			ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
+			ImGui::Checkbox(": Is 3D", &animObject->is3D);
 			ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
 			if (animObject->drawDebugBoxes)
 			{
@@ -757,12 +758,6 @@ namespace MathAnim
 				object->_svgObjectStart = nullptr;
 
 				object->as.circle.init(object);
-			}
-
-			if (ImGui::Checkbox(": Is 3D", &object->as.circle.is3D))
-			{
-				object->svgObject->is3D = object->as.circle.is3D;
-				object->_svgObjectStart->is3D = object->as.circle.is3D;
 			}
 		}
 

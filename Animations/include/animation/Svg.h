@@ -65,14 +65,13 @@ namespace MathAnim
 		Contour* contours;
 		int numContours;
 		float approximatePerimeter;
-		bool is3D;
 		BBox bbox;
 		
 		void normalize(const Vec2& min = Vec2{ FLT_MAX, FLT_MAX }, const Vec2& max = Vec2{ FLT_MIN, FLT_MIN });
 		void calculateApproximatePerimeter();
 		void calculateBBox();
-		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, bool reverse = false, bool isSvgGroup = false) const;
+		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, const Vec2& svgScale = Vec2{1, 1}) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, const Vec2& svgScale = Vec2{1, 1}, bool reverse = false, bool isSvgGroup = false) const;
 		void free();
 	};
 
@@ -90,8 +89,8 @@ namespace MathAnim
 
 		void normalize();
 		void calculateBBox();
-		void render(NVGcontext* vg, AnimObject* parent) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse = false) const;
+		void render(NVGcontext* vg, AnimObject* parent, const Vec2& svgScale = Vec2{ 1, 1 }) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, const Vec2& svgScale = Vec2{ 1, 1 }, bool reverse = false) const;
 		void free();
 	};
 
@@ -111,7 +110,7 @@ namespace MathAnim
 		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset);
 		void endSvgGroup(SvgGroup* group);
 
-		void beginContour(SvgObject* object, const Vec2& firstPoint, bool is3D = false);
+		void beginContour(SvgObject* object, const Vec2& firstPoint);
 		void closeContour(SvgObject* object, bool lineToEndpoint = false, bool isHole = false);
 
 		void moveTo(SvgObject* object, const Vec2& point, bool absolute = true);
@@ -129,4 +128,4 @@ namespace MathAnim
 	}
 }
 
-#endif 
+#endif

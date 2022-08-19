@@ -43,10 +43,8 @@ namespace MathAnim
 			return;
 		}
 
-		// This is gross
-		AnimObject* mutParent = (AnimObject*)parent;
-		Vec3 oldScale = mutParent->scale;
-		mutParent->scale *= this->fontSizePixels;
+		float fontSizePixels = parent->as.textObject.fontSizePixels;
+		Vec2 svgScale = Vec2{ fontSizePixels, fontSizePixels };
 
 		std::string textStr = std::string(text);
 		Vec2 cursorPos = Vec2{ 0, 0 };
@@ -77,20 +75,18 @@ namespace MathAnim
 
 			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
 			{
-				glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, reverse);
+				glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, svgScale, reverse);
 				numNonWhitespaceLettersDrawn++;
 			}
 
 			// TODO: I may have to add kerning info here
-			cursorPos += Vec2{ glyphOutline.advanceX, 0.0f };
+			cursorPos += Vec2{ glyphOutline.advanceX * fontSizePixels, 0.0f };
 
 			if ((float)numNonWhitespaceLettersDrawn >= numberLettersToDraw)
 			{
 				break;
 			}
 		}
-
-		mutParent->scale = oldScale;
 	}
 
 	void TextObject::serialize(RawMemory& memory) const
@@ -208,10 +204,8 @@ namespace MathAnim
 	{
 		if (svgGroup)
 		{
-			// TODO: Super ugly hack...
-			((AnimObject*)parent)->scale *= parent->as.laTexObject.fontSizePixels;
-			svgGroup->render(vg, (AnimObject*)parent);
-			((AnimObject*)parent)->scale /= parent->as.laTexObject.fontSizePixels;
+			Vec2 svgScale = Vec2{ parent->as.laTexObject.fontSizePixels, parent->as.laTexObject.fontSizePixels };
+			svgGroup->render(vg, (AnimObject*)parent, svgScale);
 		}
 	}
 
@@ -220,9 +214,8 @@ namespace MathAnim
 		if (svgGroup)
 		{
 			// TODO: Super ugly hack...
-			((AnimObject*)parent)->scale *= parent->as.laTexObject.fontSizePixels;
-			svgGroup->renderCreateAnimation(vg, t, (AnimObject*)parent, reverse);
-			((AnimObject*)parent)->scale /= parent->as.laTexObject.fontSizePixels;
+			Vec2 svgScale = Vec2{ parent->as.laTexObject.fontSizePixels, parent->as.laTexObject.fontSizePixels };
+			svgGroup->renderCreateAnimation(vg, t, (AnimObject*)parent, svgScale, reverse);
 		}
 	}
 

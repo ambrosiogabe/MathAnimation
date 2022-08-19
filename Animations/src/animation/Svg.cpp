@@ -39,7 +39,6 @@ namespace MathAnim
 			// TODO: Fix the dang memory allocation library so I don't have to do this!
 			res.contours = (Contour*)g_memory_allocate(sizeof(Contour));
 			res.numContours = 0;
-			res.is3D = false;
 			return res;
 		}
 
@@ -153,9 +152,8 @@ namespace MathAnim
 			group->normalize();
 		}
 
-		void beginContour(SvgObject* object, const Vec2& firstPoint, bool is3D)
+		void beginContour(SvgObject* object, const Vec2& firstPoint)
 		{
-			object->is3D = is3D;
 			object->numContours++;
 			object->contours = (Contour*)g_memory_realloc(object->contours, sizeof(Contour) * object->numContours);
 			g_logger_assert(object->contours != nullptr, "Ran out of RAM.");
@@ -400,7 +398,6 @@ namespace MathAnim
 				dest->numContours = src->numContours;
 			}
 
-			g_logger_assert(dest->is3D == src->is3D, "Cannot copy 2D svg object to 3D object or vice versa.");
 			g_logger_assert(dest->numContours == src->numContours, "How did this happen?");
 
 			// Finally we can just go through and set all the data equal to each other
@@ -433,15 +430,7 @@ namespace MathAnim
 
 		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t)
 		{
-			g_logger_assert(interpolationSrc->is3D == interpolationDst->is3D, "Cannot interpolate between 2D and 3D svg object.");
-			if (interpolationSrc->is3D)
-			{
-				// TODO: Implement me
-			}
-			else
-			{
-				render2DInterpolation(vg, animObjectSrc, interpolationSrc, animObjectDst, interpolationDst, t);
-			}
+			render2DInterpolation(vg, animObjectSrc, interpolationSrc, animObjectDst, interpolationDst, t);
 		}
 
 		// ----------------- Internal functions -----------------
@@ -709,7 +698,7 @@ namespace MathAnim
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool reverse, const SvgObject* obj);
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const Vec2& svgScale, bool reverse, const SvgObject* obj);
 
 	void SvgObject::normalize(const Vec2& inMin, const Vec2& inMax)
 	{
@@ -910,12 +899,12 @@ namespace MathAnim
 		}
 	}
 
-	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset) const
+	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset, const Vec2& svgScale) const
 	{
-		renderCreateAnimation(vg, 1.01f, parent, offset, false, false);
+		renderCreateAnimation(vg, 1.01f, parent, offset, svgScale, false, false);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset, bool reverse, bool isSvgGroup) const
+	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset, const Vec2& svgScale, bool reverse, bool isSvgGroup) const
 	{
 		Vec2 svgTextureOffset = Vec2{
 			(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
@@ -923,8 +912,8 @@ namespace MathAnim
 		};
 
 		// Check if the SVG cache needs to regenerate
-		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
-		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
+		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * svgScale.x) + parent->strokeWidth;
+		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * svgScale.y) + parent->strokeWidth;
 		{
 			float newRightX = svgTextureOffset.x + svgTotalWidth;
 			if (newRightX >= svgCache.width)
@@ -963,12 +952,12 @@ namespace MathAnim
 
 		if (isSvgGroup)
 		{
-			svgTextureOffset.x += offset.x * parent->scale.x;
-			svgTextureOffset.y += offset.y * parent->scale.y;
+			svgTextureOffset.x += offset.x * svgScale.x;
+			svgTextureOffset.y += offset.y * svgScale.y;
 		}
 
 		nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
-		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this);
+		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, svgScale, reverse, this);
 		nvgEndFrame(vg);
 
 		// Then bind the previous fbo and blit it to the screen with
@@ -1003,7 +992,30 @@ namespace MathAnim
 		float targetRatio = Application::getOutputTargetAspectRatio();
 		svgTotalHeight /= targetRatio;
 
-		if (!is3D)
+		if (parent->is3D)
+		{
+			glm::mat4 transform = glm::identity<glm::mat4>();
+			transform = glm::translate(
+				transform,
+				glm::vec3(
+					parent->position.x - Svg::perspCamera->position.x + (offset.x * parent->scale.x),
+					parent->position.y - Svg::perspCamera->position.y + (offset.y * parent->scale.y),
+					parent->position.z - Svg::perspCamera->position.z
+				)
+			);
+			transform = transform * glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));
+			transform = glm::scale(transform, glm::vec3(parent->scale.x, parent->scale.y, parent->scale.z));
+
+			Renderer::drawTexturedQuad3D(
+				svgCache.getColorAttachment(0),
+				Vec2{ svgTotalWidth * 0.01f, svgTotalHeight * 0.01f },
+				cacheUvMin,
+				cacheUvMax,
+				transform,
+				parent->isTransparent
+			);
+		}
+		else
 		{
 			glm::mat4 transform = glm::identity<glm::mat4>();
 			Vec2 cameraCenteredPos = Svg::orthoCamera->projectionSize / 2.0f - Svg::orthoCamera->position;
@@ -1019,6 +1031,7 @@ namespace MathAnim
 			{
 				transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
 			}
+			transform = glm::scale(transform, glm::vec3(parent->scale.x, parent->scale.y, parent->scale.z));
 
 			Renderer::drawTexturedQuad(
 				svgCache.getColorAttachment(0),
@@ -1026,28 +1039,6 @@ namespace MathAnim
 				cacheUvMin,
 				cacheUvMax,
 				transform
-			);
-		}
-		else
-		{
-			glm::mat4 transform = glm::identity<glm::mat4>();
-			transform = glm::translate(
-				transform,
-				glm::vec3(
-					parent->position.x - Svg::perspCamera->position.x + (offset.x * parent->scale.x),
-					parent->position.y - Svg::perspCamera->position.y + (offset.y * parent->scale.y),
-					parent->position.z - Svg::perspCamera->position.z
-				)
-			);
-			transform = transform * glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));
-
-			Renderer::drawTexturedQuad3D(
-				svgCache.getColorAttachment(0),
-				Vec2{ svgTotalWidth * 0.01f, svgTotalHeight * 0.01f },
-				cacheUvMin,
-				cacheUvMax,
-				transform,
-				parent->isTransparent
 			);
 		}
 	}
@@ -1113,12 +1104,12 @@ namespace MathAnim
 		}
 	}
 
-	void SvgGroup::render(NVGcontext* vg, AnimObject* parent) const
+	void SvgGroup::render(NVGcontext* vg, AnimObject* parent, const Vec2& svgScale) const
 	{
-		renderCreateAnimation(vg, 1.01f, parent, false);
+		renderCreateAnimation(vg, 1.01f, parent, svgScale, false);
 	}
 
-	void SvgGroup::renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse) const
+	void SvgGroup::renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, const Vec2& svgScale, bool reverse) const
 	{
 		Vec2 translation = Vec2{ viewbox.values[0], viewbox.values[1] };
 		Vec2 bboxOffset = Vec2{ bbox.min.x, bbox.min.y };
@@ -1131,8 +1122,8 @@ namespace MathAnim
 			};
 
 			// Check if the SVG cache needs to regenerate
-			float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
-			float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
+			float svgTotalWidth = ((bbox.max.x - bbox.min.x) * svgScale.x) + parent->strokeWidth;
+			float svgTotalHeight = ((bbox.max.y - bbox.min.y) * svgScale.y) + parent->strokeWidth;
 			{
 				float newRightX = svgTextureOffset.x + svgTotalWidth;
 				if (newRightX >= svgCache.width)
@@ -1168,7 +1159,7 @@ namespace MathAnim
 			float denominator = i == numObjects - 1 ? 1.0f : numObjectsToLag;
 			float percentOfLetterToDraw = (numberObjectsToDraw - numObjectsDrawn) / denominator;
 			Vec2 absOffset = offset - translation - bboxOffset;
-			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, absOffset, reverse, true);
+			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, absOffset, svgScale, reverse, true);
 			numObjectsDrawn += 1.0f;
 
 			if (numObjectsDrawn >= numberObjectsToDraw)
@@ -1177,28 +1168,12 @@ namespace MathAnim
 			}
 		}
 
-		// Then blit the SVG group to the screen
-		glm::mat4 transform = glm::identity<glm::mat4>();
-		Vec2 cameraCenteredPos = Svg::orthoCamera->projectionSize / 2.0f - Svg::orthoCamera->position;
-		transform = glm::translate(
-			transform,
-			glm::vec3(
-				parent->position.x - cameraCenteredPos.x,
-				parent->position.y - cameraCenteredPos.y,
-				0.0f
-			)
-		);
-		if (!CMath::compare(parent->rotation.z, 0.0f))
-		{
-			transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
-		}
-
 		Vec2 svgTextureOffset = Vec2{
-				(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
-				(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
+		(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
+		(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
 		};
-		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth;
-		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth;
+		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * svgScale.x) + parent->strokeWidth;
+		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * svgScale.y) + parent->strokeWidth;
 		Vec2 cacheUvMin = Vec2{
 			svgTextureOffset.x / (float)svgCache.width,
 			1.0f - (svgTextureOffset.y / (float)svgCache.height) - (svgTotalHeight / (float)svgCache.height)
@@ -1208,18 +1183,6 @@ namespace MathAnim
 				svgTotalWidth / (float)svgCache.width,
 				svgTotalHeight / (float)svgCache.height
 		};
-
-		// Correct for aspect ratio
-		float targetRatio = Application::getOutputTargetAspectRatio();
-		svgTotalHeight /= targetRatio;
-
-		Renderer::drawTexturedQuad(
-			svgCache.getColorAttachment(0),
-			Vec2{ svgTotalWidth, svgTotalHeight },
-			cacheUvMin,
-			cacheUvMax,
-			transform
-		);
 
 		if (parent->drawDebugBoxes)
 		{
@@ -1265,8 +1228,63 @@ namespace MathAnim
 			glDrawBuffers(3, compositeDrawBuffers);
 		}
 
-		cacheCurrentPos.x += (((bbox.max.x - bbox.min.x) * parent->scale.x) + parent->strokeWidth + cachePadding.x);
-		cacheLineHeight = glm::max(cacheLineHeight, ((bbox.max.y - bbox.min.y) * parent->scale.y) + parent->strokeWidth);
+		// Then blit the SVG group to the screen
+		// Correct for aspect ratio
+		float targetRatio = Application::getOutputTargetAspectRatio();
+		svgTotalHeight /= targetRatio;
+
+		if (parent->is3D)
+		{
+			glm::mat4 transform = glm::identity<glm::mat4>();
+			transform = glm::translate(
+				transform,
+				glm::vec3(
+					parent->position.x - Svg::perspCamera->position.x,
+					parent->position.y - Svg::perspCamera->position.y,
+					parent->position.z - Svg::perspCamera->position.z
+				)
+			);
+			transform = transform * glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));
+			transform = glm::scale(transform, glm::vec3(parent->scale.x, parent->scale.y, parent->scale.z));
+
+			Renderer::drawTexturedQuad3D(
+				svgCache.getColorAttachment(0),
+				Vec2{ svgTotalWidth * 0.01f, svgTotalHeight * 0.01f },
+				cacheUvMin,
+				cacheUvMax,
+				transform,
+				parent->isTransparent
+			);
+		}
+		else
+		{
+			glm::mat4 transform = glm::identity<glm::mat4>();
+			Vec2 cameraCenteredPos = Svg::orthoCamera->projectionSize / 2.0f - Svg::orthoCamera->position;
+			transform = glm::translate(
+				transform,
+				glm::vec3(
+					parent->position.x - cameraCenteredPos.x,
+					parent->position.y - cameraCenteredPos.y,
+					0.0f
+				)
+			);
+			if (!CMath::compare(parent->rotation.z, 0.0f))
+			{
+				transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
+			}
+			transform = glm::scale(transform, glm::vec3(parent->scale.x, parent->scale.y, parent->scale.z));
+
+			Renderer::drawTexturedQuad(
+				svgCache.getColorAttachment(0),
+				Vec2{ svgTotalWidth, svgTotalHeight },
+				cacheUvMin,
+				cacheUvMax,
+				transform
+			);
+		}
+
+		cacheCurrentPos.x += (((bbox.max.x - bbox.min.x) * svgScale.x) + parent->strokeWidth + cachePadding.x);
+		cacheLineHeight = glm::max(cacheLineHeight, ((bbox.max.y - bbox.min.y) * svgScale.y) + parent->strokeWidth);
 	}
 
 	void SvgGroup::free()
@@ -1315,7 +1333,7 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool reverse, const SvgObject* obj)
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const Vec2& svgScale, bool reverse, const SvgObject* obj)
 	{
 		if (reverse)
 		{
@@ -1332,16 +1350,16 @@ namespace MathAnim
 		// the preferred coordinate range
 		//nvgTranslate(vg, textureOffset.x, textureOffset.y);
 		Vec2 scaledBboxMin = obj->bbox.min;
-		scaledBboxMin.x *= parent->scale.x;
-		scaledBboxMin.y *= parent->scale.y;
+		scaledBboxMin.x *= svgScale.x;
+		scaledBboxMin.y *= svgScale.y;
 		Vec2 minCoord = textureOffset + scaledBboxMin;
 		Vec2 bboxSize = (obj->bbox.max - obj->bbox.min);
-		bboxSize.x *= parent->scale.x;
-		bboxSize.y *= parent->scale.y;
+		bboxSize.x *= svgScale.x;
+		bboxSize.y *= svgScale.y;
 		Vec2 maxCoord = minCoord + bboxSize;
 
-		Vec2 inXRange = Vec2{ obj->bbox.min.x * parent->scale.x, obj->bbox.max.x * parent->scale.x };
-		Vec2 inYRange = Vec2{ obj->bbox.min.y * parent->scale.y, obj->bbox.max.y * parent->scale.y };
+		Vec2 inXRange = Vec2{ obj->bbox.min.x * svgScale.x, obj->bbox.max.x * svgScale.x };
+		Vec2 inYRange = Vec2{ obj->bbox.min.y * svgScale.y, obj->bbox.max.y * svgScale.y };
 		Vec2 outXRange = Vec2{ minCoord.x, maxCoord.x };
 		Vec2 outYRange = Vec2{ minCoord.y, maxCoord.y };
 
@@ -1369,8 +1387,8 @@ namespace MathAnim
 
 					{
 						Vec2 p0 = obj->contours[contouri].curves[0].p0;
-						p0.x *= parent->scale.x;
-						p0.y *= parent->scale.y;
+						p0.x *= svgScale.x;
+						p0.y *= svgScale.y;
 						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
 						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
 
@@ -1394,8 +1412,8 @@ namespace MathAnim
 						if (curve.moveToP0)
 						{
 							Vec2 transformedP0 = p0;
-							transformedP0.x *= parent->scale.x;
-							transformedP0.y *= parent->scale.y;
+							transformedP0.x *= svgScale.x;
+							transformedP0.y *= svgScale.y;
 							transformedP0.x = CMath::mapRange(inXRange, outXRange, transformedP0.x);
 							transformedP0.y = CMath::mapRange(inYRange, outYRange, transformedP0.y);
 							nvgMoveTo(vg, transformedP0.x, transformedP0.y);
@@ -1447,18 +1465,18 @@ namespace MathAnim
 								p3 = q3;
 							}
 
-							p1.x *= parent->scale.x;
-							p1.y *= parent->scale.y;
+							p1.x *= svgScale.x;
+							p1.y *= svgScale.y;
 							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
-							p2.x *= parent->scale.x;
-							p2.y *= parent->scale.y;
+							p2.x *= svgScale.x;
+							p2.y *= svgScale.y;
 							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
 							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
 
-							p3.x *= parent->scale.x;
-							p3.y *= parent->scale.y;
+							p3.x *= svgScale.x;
+							p3.y *= svgScale.y;
 							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
 							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
 
@@ -1524,18 +1542,18 @@ namespace MathAnim
 								pr3 = q3;
 							}
 
-							pr1.x *= parent->scale.x;
-							pr1.y *= parent->scale.y;
+							pr1.x *= svgScale.x;
+							pr1.y *= svgScale.y;
 							pr1.x = CMath::mapRange(inXRange, outXRange, pr1.x);
 							pr1.y = CMath::mapRange(inYRange, outYRange, pr1.y);
 
-							pr2.x *= parent->scale.x;
-							pr2.y *= parent->scale.y;
+							pr2.x *= svgScale.x;
+							pr2.y *= svgScale.y;
 							pr2.x = CMath::mapRange(inXRange, outXRange, pr2.x);
 							pr2.y = CMath::mapRange(inYRange, outYRange, pr2.y);
 
-							pr3.x *= parent->scale.x;
-							pr3.y *= parent->scale.y;
+							pr3.x *= svgScale.x;
+							pr3.y *= svgScale.y;
 							pr3.x = CMath::mapRange(inXRange, outXRange, pr3.x);
 							pr3.y = CMath::mapRange(inYRange, outYRange, pr3.y);
 
@@ -1559,8 +1577,8 @@ namespace MathAnim
 								p1 = (p1 - p0) * percentOfCurveToDraw + p0;
 							}
 
-							p1.x *= parent->scale.x;
-							p1.y *= parent->scale.y;
+							p1.x *= svgScale.x;
+							p1.y *= svgScale.y;
 							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
@@ -1594,8 +1612,8 @@ namespace MathAnim
 
 					{
 						Vec2 p0 = obj->contours[contouri].curves[0].p0;
-						p0.x *= parent->scale.x;
-						p0.y *= parent->scale.y;
+						p0.x *= svgScale.x;
+						p0.y *= svgScale.y;
 						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
 						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
 
@@ -1613,8 +1631,8 @@ namespace MathAnim
 						if (curvei != 0 && curve.moveToP0)
 						{
 							Vec2 transformedP0 = p0;
-							transformedP0.x *= parent->scale.x;
-							transformedP0.y *= parent->scale.y;
+							transformedP0.x *= svgScale.x;
+							transformedP0.y *= svgScale.y;
 							transformedP0.x = CMath::mapRange(inXRange, outXRange, transformedP0.x);
 							transformedP0.y = CMath::mapRange(inYRange, outYRange, transformedP0.y);
 							nvgMoveTo(vg, transformedP0.x, transformedP0.y);
@@ -1630,18 +1648,18 @@ namespace MathAnim
 							Vec2 p2 = curve.as.bezier3.p2;
 							Vec2 p3 = curve.as.bezier3.p3;
 
-							p1.x *= parent->scale.x;
-							p1.y *= parent->scale.y;
+							p1.x *= svgScale.x;
+							p1.y *= svgScale.y;
 							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
-							p2.x *= parent->scale.x;
-							p2.y *= parent->scale.y;
+							p2.x *= svgScale.x;
+							p2.y *= svgScale.y;
 							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
 							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
 
-							p3.x *= parent->scale.x;
-							p3.y *= parent->scale.y;
+							p3.x *= svgScale.x;
+							p3.y *= svgScale.y;
 							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
 							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
 
@@ -1665,18 +1683,18 @@ namespace MathAnim
 							Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
 							Vec2 pr3 = p3;
 
-							pr1.x *= parent->scale.x;
-							pr1.y *= parent->scale.y;
+							pr1.x *= svgScale.x;
+							pr1.y *= svgScale.y;
 							pr1.x = CMath::mapRange(inXRange, outXRange, pr1.x);
 							pr1.y = CMath::mapRange(inYRange, outYRange, pr1.y);
 
-							pr2.x *= parent->scale.x;
-							pr2.y *= parent->scale.y;
+							pr2.x *= svgScale.x;
+							pr2.y *= svgScale.y;
 							pr2.x = CMath::mapRange(inXRange, outXRange, pr2.x);
 							pr2.y = CMath::mapRange(inYRange, outYRange, pr2.y);
 
-							pr3.x *= parent->scale.x;
-							pr3.y *= parent->scale.y;
+							pr3.x *= svgScale.x;
+							pr3.y *= svgScale.y;
 							pr3.x = CMath::mapRange(inXRange, outXRange, pr3.x);
 							pr3.y = CMath::mapRange(inYRange, outYRange, pr3.y);
 
@@ -1692,8 +1710,8 @@ namespace MathAnim
 						{
 							Vec2 p1 = curve.as.line.p1;
 
-							p1.x *= parent->scale.x;
-							p1.y *= parent->scale.y;
+							p1.x *= svgScale.x;
+							p1.y *= svgScale.y;
 							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
@@ -1735,8 +1753,8 @@ namespace MathAnim
 						{
 							const Curve& curve = obj->contours[contouri].curves[curvei];
 							Vec2 p0 = curve.p0;
-							p0.x *= parent->scale.x;
-							p0.y *= parent->scale.y;
+							p0.x *= svgScale.x;
+							p0.y *= svgScale.y;
 							p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
 							p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
 
@@ -1748,18 +1766,18 @@ namespace MathAnim
 								Vec2 p2 = curve.as.bezier3.p2;
 								Vec2 p3 = curve.as.bezier3.p3;
 
-								p1.x *= parent->scale.x;
-								p1.y *= parent->scale.y;
+								p1.x *= svgScale.x;
+								p1.y *= svgScale.y;
 								p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 								p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
-								p2.x *= parent->scale.x;
-								p2.y *= parent->scale.y;
+								p2.x *= svgScale.x;
+								p2.y *= svgScale.y;
 								p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
 								p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
 
-								p3.x *= parent->scale.x;
-								p3.y *= parent->scale.y;
+								p3.x *= svgScale.x;
+								p3.y *= svgScale.y;
 								p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
 								p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
 
@@ -1789,18 +1807,18 @@ namespace MathAnim
 								Vec2 p2 = curve.as.bezier2.p1;
 								Vec2 p3 = curve.as.bezier2.p2;
 
-								p1.x *= parent->scale.x;
-								p1.y *= parent->scale.y;
+								p1.x *= svgScale.x;
+								p1.y *= svgScale.y;
 								p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 								p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
-								p2.x *= parent->scale.x;
-								p2.y *= parent->scale.y;
+								p2.x *= svgScale.x;
+								p2.y *= svgScale.y;
 								p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
 								p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
 
-								p3.x *= parent->scale.x;
-								p3.y *= parent->scale.y;
+								p3.x *= svgScale.x;
+								p3.y *= svgScale.y;
 								p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
 								p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
 
@@ -1834,8 +1852,8 @@ namespace MathAnim
 							{
 								Vec2 p1 = curve.as.line.p1;
 
-								p1.x *= parent->scale.x;
-								p1.y *= parent->scale.y;
+								p1.x *= svgScale.x;
+								p1.y *= svgScale.y;
 								p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 								p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
@@ -1873,14 +1891,14 @@ namespace MathAnim
 			nvgStrokeColor(vg, nvgRGB(0, 255, 0));
 			nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
 			nvgMoveTo(vg,
-				(obj->bbox.min.x * parent->scale.x) + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
-				(obj->bbox.min.y * parent->scale.y) + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos
+				(obj->bbox.min.x * svgScale.x) + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
+				(obj->bbox.min.y * svgScale.y) + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos
 			);
 			nvgRect(vg,
-				(obj->bbox.min.x * parent->scale.x) + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
-				(obj->bbox.min.y * parent->scale.y) + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
-				((obj->bbox.max.x - obj->bbox.min.x) * parent->scale.x) + parent->strokeWidth + strokeWidthCorrectionNeg,
-				((obj->bbox.max.y - obj->bbox.min.y) * parent->scale.y) + parent->strokeWidth + strokeWidthCorrectionNeg
+				(obj->bbox.min.x * svgScale.x) + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
+				(obj->bbox.min.y * svgScale.y) + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
+				((obj->bbox.max.x - obj->bbox.min.x) * svgScale.x) + parent->strokeWidth + strokeWidthCorrectionNeg,
+				((obj->bbox.max.y - obj->bbox.min.y) * svgScale.y) + parent->strokeWidth + strokeWidthCorrectionNeg
 			);
 			nvgStroke(vg);
 			nvgClosePath(vg);

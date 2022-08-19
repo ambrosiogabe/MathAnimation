@@ -126,6 +126,7 @@ namespace MathAnim
 		bool isTransparent;
 		bool drawDebugBoxes;
 		bool drawCurveDebugBoxes;
+		bool is3D;
 		float _strokeWidthStart;
 		float strokeWidth;
 		glm::u8vec4 _strokeColorStart;

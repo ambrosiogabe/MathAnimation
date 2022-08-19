@@ -39,14 +39,6 @@ namespace MathAnim
 				break;
 			}
 			getParent()->svgObject->renderCreateAnimation(vg, t, getParent());
-			if (getParent()->svgObject->is3D)
-			{
-				// Only fade in in for t = [0.8-1.0] 
-				if (t >= 0.8f)
-				{
-					getMutableParent()->renderFadeInAnimation(vg, (t - 0.8f) / 0.2f);
-				}
-			}
 		}
 		break;
 		case AnimTypeV1::UnCreate:
@@ -59,15 +51,7 @@ namespace MathAnim
 			}
 
 			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
-			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), Vec2{0, 0}, true);
-			if (getParent()->svgObject->is3D)
-			{
-				// Only fade out for t = [0.0-0.2]
-				if (t < 0.2f)
-				{
-					getMutableParent()->renderFadeOutAnimation(vg, t / 0.2f);
-				}
-			}
+			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), Vec2{0, 0}, Vec2{1, 1}, true);
 		}
 		break;
 		case AnimTypeV1::FadeIn:
@@ -441,6 +425,7 @@ namespace MathAnim
 		//     A                -> u8
 		//   _StrokeWidthStart  -> f32
 		//   isTransparent      -> u8
+		//   is3D               -> u8
 		//   drawDebugBoxes     -> u8
 		//   drawCurveDebugBoxes -> u8
 		//   Id                 -> int32
@@ -476,6 +461,9 @@ namespace MathAnim
 
 		uint8 isTransparentU8 = isTransparent ? 1 : 0;
 		memory.write<uint8>(&isTransparentU8);
+
+		uint8 is3DU8 = is3D ? 1 : 0;
+		memory.write<uint8>(&is3DU8);
 
 		uint8 drawDebugBoxesU8 = drawDebugBoxes ? 1 : 0;
 		memory.write<uint8>(&drawDebugBoxesU8);
@@ -568,6 +556,7 @@ namespace MathAnim
 		res.isTransparent = false;
 		res.drawDebugBoxes = false;
 		res.drawCurveDebugBoxes = false;
+		res.is3D = false;
 
 		res.strokeWidth = 0.0f;
 		res._strokeWidthStart = 0.0f;
@@ -601,7 +590,6 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Circle:
 			res.as.circle.radius = defaultCircleRadius;
-			res.as.circle.is3D = false;
 			res.as.circle.init(&res);
 			res._positionStart = {
 				outputSize.x / 2.0f,
@@ -669,6 +657,7 @@ namespace MathAnim
 		//   A                -> u8
 		// _StrokeWidthStart  -> f32
 		// isTransparent      -> u8
+		// is3D               -> u8
 		// drawDebugBoxes     -> u8
 		// drawCurveDebugBoxes -> u8
 		// Id                 -> int32
@@ -709,6 +698,10 @@ namespace MathAnim
 		uint8 isTransparent;
 		memory.read<uint8>(&isTransparent);
 		res.isTransparent = isTransparent != 0;
+
+		uint8 is3D;
+		memory.read<uint8>(&is3D);
+		res.is3D = is3D != 0;
 
 		uint8 drawDebugBoxes;
 		memory.read<uint8>(&drawDebugBoxes);
