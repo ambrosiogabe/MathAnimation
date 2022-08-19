@@ -45,24 +45,28 @@ namespace MathAnim
 		return a / scale;
 	}
 
-	Vec2 operator*=(const Vec2& a, float scale)
+	Vec2& operator*=(Vec2& a, float scale)
 	{
-		return a * scale;
+		a = a * scale;
+		return a;
 	}
 
-	Vec2 operator/=(const Vec2& a, float scale)
+	Vec2& operator/=(Vec2& a, float scale)
 	{
-		return a / scale;
+		a = a / scale;
+		return a;
 	}
 
-	Vec2 operator+=(const Vec2& a, const Vec2& b) 
+	Vec2& operator+=(Vec2& a, const Vec2& b) 
 	{
-		return a + b;
+		a = a + b;
+		return a;
 	}
 
-	Vec2 operator-=(const Vec2& a, const Vec2& b) 
+	Vec2& operator-=(Vec2& a, const Vec2& b) 
 	{
-		return a - b;
+		a = a - b;
+		return a;
 	}
 
 
@@ -102,9 +106,10 @@ namespace MathAnim
 		};
 	}
 
-	void operator*=(Vec3& a, float scale)
+	Vec3& operator*=(Vec3& a, float scale)
 	{
 		a = a * scale;
+		return a;
 	}
 
 	Vec3 operator*(float scale, const Vec3& a)
@@ -117,19 +122,22 @@ namespace MathAnim
 		return a / scale;
 	}
 
-	void operator/=(Vec3& a, float scale)
+	Vec3& operator/=(Vec3& a, float scale)
 	{
 		a = a / scale;
+		return a;
 	}
 
-	Vec3 operator+=(const Vec3& a, const Vec3& b) 
+	Vec3& operator+=(Vec3& a, const Vec3& b) 
 	{
-		return a + b;
+		a = a + b;
+		return a;
 	}
 
-	Vec3 operator-=(const Vec3& a, const Vec3& b) 
+	Vec3& operator-=(Vec3& a, const Vec3& b) 
 	{
-		return a - b;
+		a = a - b;
+		return a;
 	}
 
 
@@ -183,24 +191,28 @@ namespace MathAnim
 		return a / scale;
 	}
 
-	Vec4 operator*=(const Vec4& a, float scale)
+	Vec4& operator*=(Vec4& a, float scale)
 	{
-		return a * scale;
+		a = a * scale;
+		return a;
 	}
 
-	Vec4 operator/=(const Vec4& a, float scale)
+	Vec4& operator/=(Vec4& a, float scale)
 	{
-		return a / scale;
+		a = a / scale;
+		return a;
 	}
 
-	Vec4 operator+=(const Vec4& a, const Vec4& b) 
+	Vec4& operator+=(Vec4& a, const Vec4& b) 
 	{
-		return a + b;
+		a = a + b;
+		return a;
 	}
 
-	Vec4 operator-=(const Vec4& a, const Vec4& b) 
+	Vec4& operator-=(Vec4& a, const Vec4& b) 
 	{
-		return a - b;
+		a = a - b;
+		return a;
 	}
 
 	bool operator==(const Vec4& a, const Vec4& b)
@@ -263,24 +275,28 @@ namespace MathAnim
 		return Vec2i{ a.x / scale, a.y / scale };
 	}
 
-	Vec2i operator*=(const Vec2i& a, int32 scale)
+	Vec2i& operator*=(Vec2i& a, int32 scale)
 	{
-		return a * scale;
+		a = a * scale;
+		return a;
 	}
 
-	Vec2i operator/=(const Vec2i& a, int32 scale)
+	Vec2i& operator/=(Vec2i& a, int32 scale)
 	{
-		return a / scale;
+		a = a / scale;
+		return a;
 	}
 
-	Vec2i operator+=(const Vec2i& a, const Vec2i& b)
+	Vec2i& operator+=(Vec2i& a, const Vec2i& b)
 	{
-		return a + b;
+		a = a + b;
+		return a;
 	}
 
-	Vec2i operator-=(const Vec2i& a, const Vec2i& b)
+	Vec2i& operator-=(Vec2i& a, const Vec2i& b)
 	{
-		return a - b;
+		a = a - b;
+		return a;
 	}
 
 	Vec3i operator+(const Vec3i& a, const Vec3i& b)
@@ -313,24 +329,28 @@ namespace MathAnim
 		return a / scale;
 	}
 
-	Vec3i operator*=(const Vec3i& a, int32 scale)
+	Vec3i& operator*=(Vec3i& a, int32 scale)
 	{
-		return a * scale;
+		a = a * scale;
+		return a;
 	}
 
-	Vec3i operator/=(const Vec3i& a, int32 scale)
+	Vec3i& operator/=(Vec3i& a, int32 scale)
 	{
-		return a / scale;
+		a = a / scale;
+		return a;
 	}
 
-	Vec3i operator+=(const Vec3i& a, const Vec3i& b)
+	Vec3i& operator+=(Vec3i& a, const Vec3i& b)
 	{
-		return a + b;
+		a = a + b;
+		return a;
 	}
 
-	Vec3i operator-=(const Vec3i& a, const Vec3i& b) 
+	Vec3i& operator-=(Vec3i& a, const Vec3i& b) 
 	{
-		return a - b;
+		a = a - b;
+		return a;
 	}
 
 	Vec4i operator+(const Vec4i& a, const Vec4i& b)
@@ -363,24 +383,28 @@ namespace MathAnim
 		return a / scale;
 	}
 
-	Vec4i operator*=(const Vec4i& a, int32 scale)
+	Vec4i& operator*=(Vec4i& a, int32 scale)
 	{
-		return a * scale;
+		a = a * scale;
+		return a;
 	}
 
-	Vec4i operator/=(const Vec4i& a, int32 scale)
+	Vec4i& operator/=(Vec4i& a, int32 scale)
 	{
-		return a / scale;
+		a = a / scale;
+		return a;
 	}
 
-	Vec4i operator+=(const Vec4i& a, const Vec4i& b)
+	Vec4i& operator+=(Vec4i& a, const Vec4i& b)
 	{
-		return a + b;
+		a = a + b;
+		return a;
 	}
 
-	Vec4i operator-=(const Vec4i& a, const Vec4i& b)
+	Vec4i& operator-=(Vec4i& a, const Vec4i& b)
 	{
-		return a - b;
+		a = a - b;
+		return a;
 	}
 
 	bool operator==(const Vec4i& a, const Vec4i& b)

@@ -24,7 +24,7 @@ namespace MathAnim
 		Font* font;
 
 		void render(NVGcontext* vg, const AnimObject* parent) const;
-		void renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent) const;
+		void renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse = false) const;
 		void serialize(RawMemory& memory) const;
 		void free();
 

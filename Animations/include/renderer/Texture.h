@@ -61,6 +61,8 @@ namespace MathAnim
 		void unbind() const;
 		void destroy();
 
+		void copyTo(Texture& texture) const;
+
 		void uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer) const;
 
 		bool isNull() const;

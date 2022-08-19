@@ -440,7 +440,8 @@ namespace MathAnim
 			float slowDragSpeed = 0.02f;
 			ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
 
-			ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart);
+			// NanoVG only allows stroke width between [0-200] so we reflect that here
+			ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f);
 			float strokeColor[4] = {
 				(float)animObject->_strokeColorStart.r / 255.0f,
 				(float)animObject->_strokeColorStart.g / 255.0f,
@@ -467,6 +468,14 @@ namespace MathAnim
 				animObject->_fillColorStart.g = (uint8)(fillColor[1] * 255.0f);
 				animObject->_fillColorStart.b = (uint8)(fillColor[2] * 255.0f);
 				animObject->_fillColorStart.a = (uint8)(fillColor[3] * 255.0f);
+			}
+
+			ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
+			ImGui::Checkbox(": Is 3D", &animObject->is3D);
+			ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
+			if (animObject->drawDebugBoxes)
+			{
+				ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
 			}
 
 			switch (animObject->objectType)
@@ -749,12 +758,6 @@ namespace MathAnim
 				object->_svgObjectStart = nullptr;
 
 				object->as.circle.init(object);
-			}
-
-			if (ImGui::Checkbox(": Is 3D", &object->as.circle.is3D))
-			{
-				object->svgObject->is3D = object->as.circle.is3D;
-				object->_svgObjectStart->is3D = object->as.circle.is3D;
 			}
 		}
 

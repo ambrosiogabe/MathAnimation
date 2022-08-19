@@ -316,7 +316,6 @@ namespace MathAnim
 				// Reset to original state and apply animations in order
 				if (objectIter->_svgObjectStart != nullptr && objectIter->svgObject != nullptr)
 				{
-					objectIter->svgObject->is3D = objectIter->_svgObjectStart->is3D;
 					Svg::copy(objectIter->svgObject, objectIter->_svgObjectStart);
 				}
 				objectIter->position = objectIter->_positionStart;

@@ -24,7 +24,7 @@ out vec4 FragColor;
 in vec4 fColor;
 in vec2 fTexCoord;
 
-uniform usampler2D uTexture;
+uniform sampler2D uTexture;
 
 void main()
 {

@@ -63,6 +63,23 @@ namespace MathAnim
 
 	namespace CMath
 	{
+		inline float quadraticFormulaPos(float a, float b, float c)
+		{
+			return (-b + glm::sqrt(b * b - 4 * a * c)) / (2.0f * a);
+		}
+
+		inline float quadraticFormulaNeg(float a, float b, float c)
+		{
+			return (-b - glm::sqrt(b * b - 4 * a * c)) / (2.0f * a);
+		}
+
+		// Winding order stuff
+		bool isClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2);
+		inline bool isCounterClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2) { return !isClockwise(p0, p1, p2); }
+
+		bool isClockwise(const Vec3& p0, const Vec3& p1, const Vec3& p2);
+		inline bool isCounterClockwise(const Vec3& p0, const Vec3& p1, const Vec3& p2) { return !isClockwise(p0, p1, p2); }
+
 		// Float Comparison functions, using custom epsilon
 		bool compare(float x, float y, float epsilon = std::numeric_limits<float>::min());
 		bool compare(const Vec3& vec1, const Vec3& vec2, float epsilon = std::numeric_limits<float>::min());
@@ -89,6 +106,17 @@ namespace MathAnim
 		int min(int a, int b);
 		float saturate(float val);
 
+		// Max, Min helpers
+		Vec2 max(const Vec2& a, const Vec2& b);
+		Vec2 min(const Vec2& a, const Vec2& b);
+		Vec3 max(const Vec3& a, const Vec3& b);
+		Vec3 min(const Vec3& a, const Vec3& b);
+		Vec4 max(const Vec4& a, const Vec4& b);
+		Vec4 min(const Vec4& a, const Vec4& b);
+
+		// Range max, min helpers
+		Vec2 rangeMaxMin(Vec2 range, float value);
+
 		// Hash Strings
 		uint32 hashString(const char* str);
 
@@ -96,9 +124,22 @@ namespace MathAnim
 		Vec2 bezier1(const Vec2& p0, const Vec2& p1, float t);
 		Vec2 bezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t);
 		Vec2 bezier3(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float t);
+
 		Vec3 bezier1(const Vec3& p0, const Vec3& p1, float t);
 		Vec3 bezier2(const Vec3& p0, const Vec3& p1, const Vec3& p2, float t);
 		Vec3 bezier3(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t);
+
+		// Bezier extremities
+		// Returns pair <xRoot, yRoot> in tValues
+		// -1.0f indicates an invalid root
+		Vec2 tRootBezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2);
+		// Returns pairs <xRootPos, yRootPos, xRootNeg, yRootNeg> in tValues
+		// -1.0f indicates an invalid root
+		Vec4 tRootsBezier3(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3);
+
+		BBox bezier1BBox(const Vec2& p0, const Vec2& p1);
+		BBox bezier2BBox(const Vec2& p0, const Vec2& p1, const Vec2& p2);
+		BBox bezier3BBox(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3);
 
 		// Easing functions
 		float ease(float t, EaseType type, EaseDirection direction);

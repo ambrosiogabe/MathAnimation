@@ -207,7 +207,7 @@ namespace MathAnim
 								continue;
 							}
 
-							Svg::pushSvgToGroup(group, iter->second, iter->first, Vec3{ x, y, 0.0f });
+							Svg::pushSvgToGroup(group, iter->second, iter->first, Vec2{ x, y });
 						}
 					}
 					else if (std::strcmp(childEl->Name(), "rect") == 0)
@@ -226,17 +226,17 @@ namespace MathAnim
 							float h = hAttr->FloatValue();
 
 							SvgObject rect = Svg::createDefault();
-							Svg::beginContour(&rect, { 0, h, 0.0f }, true);
-							Svg::lineTo(&rect, { w, h, 0.0f });
-							Svg::lineTo(&rect, { w, 0, 0.0f });
-							Svg::lineTo(&rect, { 0, 0, 0.0f });
-							Svg::lineTo(&rect, { 0, h, 0.0f });
+							Svg::beginContour(&rect, { 0, h });
+							Svg::lineTo(&rect, { w, h });
+							Svg::lineTo(&rect, { w, 0 });
+							Svg::lineTo(&rect, { 0, 0 });
+							Svg::lineTo(&rect, { 0, h });
 							Svg::closeContour(&rect);
 							
 							static uint64 rCounter = 0;
 							rCounter++;
 							std::string rCounterStr = "rect-" + rCounter;
-							Svg::pushSvgToGroup(group, rect, rCounterStr, Vec3{ x, y, 0.0f });
+							Svg::pushSvgToGroup(group, rect, rCounterStr, Vec2{ x, y });
 						}
 					}
 					else
@@ -274,6 +274,7 @@ namespace MathAnim
 			}
 
 			res.calculateApproximatePerimeter();
+			res.calculateBBox();
 
 			return res;
 		}
@@ -306,10 +307,10 @@ namespace MathAnim
 				}
 
 				const Vec2& firstPoint = vec2List[0];
-				Svg::moveTo(res, Vec3{ firstPoint.x, firstPoint.y, 0.0f }, isAbsolute);
+				Svg::moveTo(res, Vec2{ firstPoint.x, firstPoint.y }, isAbsolute);
 				for (int i = 1; i < vec2List.size(); i++)
 				{
-					Svg::lineTo(res, Vec3{ vec2List[i].x, vec2List[i].y, 0.0f }, isAbsolute);
+					Svg::lineTo(res, Vec2{ vec2List[i].x, vec2List[i].y }, isAbsolute);
 				}
 			}
 			break;
@@ -334,7 +335,7 @@ namespace MathAnim
 
 				for (int i = 0; i < vec2List.size(); i++)
 				{
-					Svg::lineTo(res, Vec3{ vec2List[i].x, vec2List[i].y, 0.0f }, isAbsolute);
+					Svg::lineTo(res, Vec2{ vec2List[i].x, vec2List[i].y }, isAbsolute);
 				}
 			}
 			break;
@@ -398,9 +399,9 @@ namespace MathAnim
 					return;
 				}
 
-				Vec3 c0 = Vec3{ vec2List[0].x, vec2List[0].y, 0.0f };
-				Vec3 c1 = Vec3{ vec2List[1].x, vec2List[1].y, 0.0f };
-				Vec3 p2 = Vec3{ vec2List[2].x, vec2List[2].y, 0.0f };
+				Vec2 c0 = Vec2{ vec2List[0].x, vec2List[0].y };
+				Vec2 c1 = Vec2{ vec2List[1].x, vec2List[1].y };
+				Vec2 p2 = Vec2{ vec2List[2].x, vec2List[2].y };
 				Svg::bezier3To(res, c0, c1, p2, isAbsolute);
 			}
 			break;
@@ -424,9 +425,7 @@ namespace MathAnim
 					return;
 				}
 
-				Vec3 c1 = Vec3{ vec2List[0].x, vec2List[0].y, 0.0f };
-				Vec3 p2 = Vec3{ vec2List[1].x, vec2List[1].y, 0.0f };
-				Svg::smoothBezier3To(res, c1, p2, isAbsolute);
+				Svg::smoothBezier3To(res, vec2List[0], vec2List[1], isAbsolute);
 			}
 			break;
 			case TokenType::QuadCurveTo:
@@ -449,9 +448,7 @@ namespace MathAnim
 					return;
 				}
 
-				Vec3 c0 = Vec3{ vec2List[0].x, vec2List[0].y, 0.0f };
-				Vec3 p2 = Vec3{ vec2List[1].x, vec2List[1].y, 0.0f };
-				Svg::bezier2To(res, c0, p2, isAbsolute);
+				Svg::bezier2To(res, vec2List[0], vec2List[1], isAbsolute);
 			}
 			break;
 			case TokenType::SmoothQuadCurveTo:
@@ -474,8 +471,7 @@ namespace MathAnim
 					return;
 				}
 
-				Vec3 p2 = Vec3{ vec2List[0].x, vec2List[0].y, 0.0f };
-				Svg::smoothBezier2To(res, p2, isAbsolute);
+				Svg::smoothBezier2To(res, vec2List[0], isAbsolute);
 			}
 			break;
 			case TokenType::ArcTo:

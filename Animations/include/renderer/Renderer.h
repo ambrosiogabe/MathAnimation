@@ -58,10 +58,12 @@ namespace MathAnim
 		void drawSquare(const Vec2& start, const Vec2& size);
 		void drawFilledSquare(const Vec2& start, const Vec2& size);
 		void drawLine(const Vec2& start, const Vec2& end);
-		void drawTexture(const RenderableTexture& renderable, const Vec4& color);
 		void drawString(const std::string& string, const Vec2& start);
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2);
+		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>());
+		// This is expensive, it dispatches a draw call immediately
+		void drawTexturedQuadImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>(), bool is3D = false);
 
 		// ----------- 3D Line stuff ----------- 
 		void beginPath3D(const Vec3& start);
@@ -77,6 +79,7 @@ namespace MathAnim
 
 		// ----------- 3D stuff ----------- 
 		void drawFilledCube(const Vec3& center, const Vec3& size);
+		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isTransparent = false);
 
 		// ----------- Miscellaneous ----------- 
 		const OrthoCamera* getOrthoCamera();

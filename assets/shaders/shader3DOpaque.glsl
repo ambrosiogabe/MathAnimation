@@ -24,7 +24,7 @@ void main()
 
 #type fragment
 #version 330 core
-out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
 
 in vec4 fColor;
 in vec2 fTexCoord;
@@ -32,12 +32,20 @@ in vec3 fNormal;
 
 uniform vec3 sunDirection;
 uniform vec3 sunColor;
+uniform sampler2D uTexture;
 
 void main()
 {
+    vec4 textureColor = texture(uTexture, fTexCoord) * fColor;
+    if (textureColor.a < 0.5) 
+    {
+        discard;
+    }
+
     float diff = max(dot(normalize(fNormal), sunDirection), 0.0);
-    vec3 diffuse = diff * sunColor;
+    vec3 diffuse = diff * sunColor * textureColor.rgb;
     vec3 ambient = vec3(0.1);
 
-    FragColor = vec4(clamp(ambient + diffuse, vec3(0.0), vec3(1.0)), 1.0) * fColor;
+    //FragColor = vec4(clamp(ambient + diffuse, vec3(0.0), vec3(1.0)), 1.0) * fColor;
+    FragColor = textureColor;
 }

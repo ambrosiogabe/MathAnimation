@@ -5,11 +5,22 @@
 
 namespace MathAnim
 {
-
 	struct Vec2
 	{
-		float x;
-		float y;
+		union
+		{
+			float values[2];
+			struct
+			{
+				float x;
+				float y;
+			};
+			struct
+			{
+				float min;
+				float max;
+			};
+		};
 	};
 
 	struct Vec3
@@ -101,16 +112,28 @@ namespace MathAnim
 		};
 	};
 
+	struct BBox
+	{
+		Vec2 min;
+		Vec2 max;
+	};
+
+	struct BBoxi
+	{
+		Vec2i min;
+		Vec2i max;
+	};
+
 	Vec2 operator+(const Vec2& a, const Vec2& b);
 	Vec2 operator-(const Vec2& a, const Vec2& b);
 	Vec2 operator*(const Vec2& a, float scale);
 	Vec2 operator/(const Vec2& a, float scale);
 	Vec2 operator*(float scale, const Vec2& a);
 	Vec2 operator/(float scale, const Vec2& a);
-	Vec2 operator*=(const Vec2& a, float scale);
-	Vec2 operator/=(const Vec2& a, float scale);
-	Vec2 operator+=(const Vec2& a, const Vec2& b);
-	Vec2 operator-=(const Vec2& a, const Vec2& b);
+	Vec2& operator*=(Vec2& a, float scale);
+	Vec2& operator/=(Vec2& a, float scale);
+	Vec2& operator+=(Vec2& a, const Vec2& b);
+	Vec2& operator-=(Vec2& a, const Vec2& b);
 
 	Vec3 operator+(const Vec3& a, const Vec3& b);
 	Vec3 operator-(const Vec3& a, const Vec3& b);
@@ -118,10 +141,10 @@ namespace MathAnim
 	Vec3 operator/(const Vec3& a, float scale);
 	Vec3 operator*(float scale, const Vec3& a);
 	Vec3 operator/(float scale, const Vec3& a);
-	void operator*=(Vec3& a, float scale);
-	void operator/=(Vec3& a, float scale);
-	Vec3 operator+=(const Vec3& a, const Vec3& b);
-	Vec3 operator-=(const Vec3& a, const Vec3& b);
+	Vec3& operator*=(Vec3& a, float scale);
+	Vec3& operator/=(Vec3& a, float scale);
+	Vec3& operator+=(Vec3& a, const Vec3& b);
+	Vec3& operator-=(Vec3& a, const Vec3& b);
 
 	Vec4 operator+(const Vec4& a, const Vec4& b);
 	Vec4 operator-(const Vec4& a, const Vec4& b);
@@ -129,10 +152,10 @@ namespace MathAnim
 	Vec4 operator/(const Vec4& a, float scale);
 	Vec4 operator*(float scale, const Vec4& a);
 	Vec4 operator/(float scale, const Vec4& a);
-	Vec4 operator*=(const Vec4& a, float scale);
-	Vec4 operator/=(const Vec4& a, float scale);
-	Vec4 operator+=(const Vec4& a, const Vec4& b);
-	Vec4 operator-=(const Vec4& a, const Vec4& b);
+	Vec4& operator*=(Vec4& a, float scale);
+	Vec4& operator/=(Vec4& a, float scale);
+	Vec4& operator+=(Vec4& a, const Vec4& b);
+	Vec4& operator-=(Vec4& a, const Vec4& b);
 
 	bool operator==(const Vec4& a, const Vec4& b);
 	bool operator==(const Vec3& a, const Vec3& b);
@@ -147,10 +170,10 @@ namespace MathAnim
 	Vec2i operator/(const Vec2i& a, int32 scale);
 	Vec2i operator*(int32 scale, const Vec2i& a);
 	Vec2i operator/(int32 scale, const Vec2i& a);
-	Vec2i operator*=(const Vec2i& a, int32 scale);
-	Vec2i operator/=(const Vec2i& a, int32 scale);
-	Vec2i operator+=(const Vec2i& a, const Vec2i& b);
-	Vec2i operator-=(const Vec2i& a, const Vec2i& b);
+	Vec2i& operator*=(Vec2i& a, int32 scale);
+	Vec2i& operator/=(Vec2i& a, int32 scale);
+	Vec2i& operator+=(Vec2i& a, const Vec2i& b);
+	Vec2i& operator-=(Vec2i& a, const Vec2i& b);
 
 	Vec3i operator+(const Vec3i& a, const Vec3i& b);
 	Vec3i operator-(const Vec3i& a, const Vec3i& b);
@@ -158,10 +181,10 @@ namespace MathAnim
 	Vec3i operator/(const Vec3i& a, int32 scale);
 	Vec3i operator*(int32 scale, const Vec3i& a);
 	Vec3i operator/(int32 scale, const Vec3i& a);
-	Vec3i operator*=(const Vec3i& a, int32 scale);
-	Vec3i operator/=(const Vec3i& a, int32 scale);
-	Vec3i operator+=(const Vec3i& a, const Vec3i& b);
-	Vec3i operator-=(const Vec3i& a, const Vec3i& b);
+	Vec3i& operator*=(Vec3i& a, int32 scale);
+	Vec3i& operator/=(Vec3i& a, int32 scale);
+	Vec3i& operator+=(Vec3i& a, const Vec3i& b);
+	Vec3i& operator-=(Vec3i& a, const Vec3i& b);
 
 	Vec4i operator+(const Vec4i& a, const Vec4i& b);
 	Vec4i operator-(const Vec4i& a, const Vec4i& b);
@@ -169,10 +192,10 @@ namespace MathAnim
 	Vec4i operator/(const Vec4i& a, int32 scale);
 	Vec4i operator*(int32 scale, const Vec4i& a);
 	Vec4i operator/(int32 scale, const Vec4i& a);
-	Vec4i operator*=(const Vec4i& a, int32 scale);
-	Vec4i operator/=(const Vec4i& a, int32 scale);
-	Vec4i operator+=(const Vec4i& a, const Vec4i& b);
-	Vec4i operator-=(const Vec4i& a, const Vec4i& b);
+	Vec4i& operator*=(Vec4i& a, int32 scale);
+	Vec4i& operator/=(Vec4i& a, int32 scale);
+	Vec4i& operator+=(Vec4i& a, const Vec4i& b);
+	Vec4i& operator-=(Vec4i& a, const Vec4i& b);
 
 	bool operator==(const Vec4i& a, const Vec4i& b);
 	bool operator==(const Vec3i& a, const Vec3i& b);
