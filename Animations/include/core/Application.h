@@ -26,12 +26,18 @@ namespace MathAnim
 		float getOutputTargetAspectRatio();
 		glm::vec2 getOutputSize();
 
+		void saveProject();
+
 		void setEditorPlayState(AnimState state);
 		AnimState getEditorPlayState();
 
 		void setFrameIndex(int frame);
 		int getFrameIndex();
 		int getFrameratePerSecond();
+
+		void exportVideoTo(const std::string& filename);
+		bool isExportingVideo();
+		void endExport();
 
 		NVGcontext* getNvgContext();
 		GlobalThreadPool* threadPool();

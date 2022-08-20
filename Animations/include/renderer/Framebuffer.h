@@ -32,7 +32,7 @@ namespace MathAnim
 		void clearDepthStencil() const;
 
 		uint32 readPixelUint32(int colorAttachment, int x, int y) const;
-		Pixel* readAllPixelsRgb8(int colorAttachment) const;
+		Pixel* readAllPixelsRgb8(int colorAttachment, bool flipVerticallyOnLoad = false) const;
 		void freePixels(Pixel* pixels) const;
 		const Texture& getColorAttachment(int index) const;
 

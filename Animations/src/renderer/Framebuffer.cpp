@@ -2,7 +2,7 @@
 
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
-#include "renderer/VideoWriter.h"
+#include "video/Encoder.h"
 
 namespace MathAnim
 {
@@ -95,7 +95,7 @@ namespace MathAnim
 		return pixel;
 	}
 
-	Pixel* Framebuffer::readAllPixelsRgb8(int colorAttachment) const
+	Pixel* Framebuffer::readAllPixelsRgb8(int colorAttachment, bool flipVerticallyOnLoad) const
 	{
 		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
@@ -112,12 +112,16 @@ namespace MathAnim
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		Pixel* output = (Pixel*)g_memory_allocate(sizeof(Pixel) * texture.width * texture.height);
-		for (int y = texture.height - 1; y >= 0; y--)
+		for (int y = 0; y < texture.height; y++)
 		{
 			for (int x = 0; x < texture.width; x++)
 			{
 				int pixIndex = (x + (y * texture.width)) * 4;
 				int outIndex = (x + ((texture.height - y - 1) * texture.width));
+				if (flipVerticallyOnLoad)
+				{
+					outIndex = (x + y * texture.width);
+				}
 				output[outIndex].r = pixelBuffer[pixIndex + 3];
 				output[outIndex].g = pixelBuffer[pixIndex + 2];
 				output[outIndex].b = pixelBuffer[pixIndex + 1];

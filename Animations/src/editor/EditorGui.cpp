@@ -2,6 +2,7 @@
 #include "editor/Timeline.h"
 #include "editor/AnimObjectPanel.h"
 #include "editor/DebugPanel.h"
+#include "editor/ExportPanel.h"
 #include "core/Application.h"
 
 #include "imgui.h"
@@ -12,15 +13,20 @@ namespace MathAnim
 	{
 		// ------------- Internal Functions -------------
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
+		static void checkHotKeys();
 
 		void init()
 		{
 			Timeline::init();
 			AnimObjectPanel::init();
+			ExportPanel::init();
 		}
 
 		void update(uint32 sceneTextureId)
 		{
+			// TODO: Do this in a central file
+			checkHotKeys();
+
 			ImGui::Begin("Animation View", nullptr, ImGuiWindowFlags_MenuBar);
 			if (ImGui::BeginMenuBar())
 			{
@@ -58,15 +64,30 @@ namespace MathAnim
 			Timeline::update();
 			AnimObjectPanel::update();
 			DebugPanel::update();
+			ExportPanel::update();
 		}
 
 		void free()
 		{
+			ExportPanel::free();
 			AnimObjectPanel::free();
 			Timeline::free();
 		}
 
 		// ------------- Internal Functions -------------
+		static void checkHotKeys()
+		{
+			ImGuiIO& io = ImGui::GetIO();
+			if (io.KeyCtrl)
+			{
+				if (ImGui::IsKeyPressed(ImGuiKey_S, false))
+				{
+					Application::saveProject();
+					g_logger_info("Saving project.");
+				}
+			}
+		}
+
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset)
 		{
 			float targetAspectRatio = Application::getOutputTargetAspectRatio();

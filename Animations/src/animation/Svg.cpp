@@ -1043,9 +1043,9 @@ namespace MathAnim
 			transform = glm::translate(
 				transform,
 				glm::vec3(
-					parent->position.x - Svg::perspCamera->position.x + (offset.x * parent->scale.x),
-					parent->position.y - Svg::perspCamera->position.y + (offset.y * parent->scale.y),
-					parent->position.z - Svg::perspCamera->position.z
+					parent->position.x + (offset.x * parent->scale.x),
+					parent->position.y + (offset.y * parent->scale.y),
+					parent->position.z
 				)
 			);
 			transform = transform * glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));
@@ -1276,9 +1276,9 @@ namespace MathAnim
 			transform = glm::translate(
 				transform,
 				glm::vec3(
-					parent->position.x - Svg::perspCamera->position.x,
-					parent->position.y - Svg::perspCamera->position.y,
-					parent->position.z - Svg::perspCamera->position.z
+					parent->position.x,
+					parent->position.y,
+					parent->position.z
 				)
 			);
 			transform = transform * glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));

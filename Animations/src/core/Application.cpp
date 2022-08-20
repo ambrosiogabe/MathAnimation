@@ -10,7 +10,6 @@
 #include "renderer/Shader.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
-#include "renderer/VideoWriter.h"
 #include "renderer/Fonts.h"
 #include "animation/Svg.h"
 #include "animation/TextAnimations.h"
@@ -20,6 +19,7 @@
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
+#include "video/Encoder.h"
 
 #include "animation/SvgParser.h"
 
@@ -35,8 +35,8 @@ namespace MathAnim
 	{
 		static AnimState animState = AnimState::Pause;
 		static bool outputVideoFile = false;
+		static std::string outputVideoFilename = "";
 
-		static int numFramesWritten = 0;
 		static int framerate = 60;
 		static int outputWidth = 3840;
 		static int outputHeight = 2160;
@@ -50,6 +50,7 @@ namespace MathAnim
 		static int currentFrame = 0;
 		static float accumulatedTime = 0.0f;
 		static std::string currentProjectFilepath;
+		static VideoEncoder encoder = {};
 
 		static const char* winTitle = "Math Animations";
 
@@ -118,18 +119,15 @@ namespace MathAnim
 				previousTime = glfwGetTime();
 				window->pollInput();
 
+				if (outputVideoFile)
+				{
+					accumulatedTime += (1.0f / 60.0f);
+					currentFrame++;
+				}
+
 				// Update components
 				if (animState == AnimState::PlayForward)
 				{
-					if (outputVideoFile)
-					{
-						if (numFramesWritten % 60 == 0)
-						{
-							g_logger_info("Number of seconds rendered: %d", numFramesWritten / 60);
-						}
-						numFramesWritten++;
-					}
-
 					accumulatedTime += deltaTime;
 					currentFrame = (int)(accumulatedTime * 60.0f);
 				}
@@ -155,23 +153,18 @@ namespace MathAnim
 
 				// Miscellaneous
 				// TODO: Abstract this stuff out of here
-				if (outputVideoFile)
+				if (outputVideoFile && currentFrame > -1)
 				{
-					Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
-					VideoWriter::pushFrame(pixels, outputHeight * outputWidth);
-					mainFramebuffer.freePixels(pixels);
-				}
+					Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0, true);
 
-				if (Input::isKeyPressed(GLFW_KEY_F7) && !outputVideoFile)
-				{
-					currentFrame = 0;
-					outputVideoFile = true;
-					VideoWriter::startEncodingFile("output.mp4", outputWidth, outputHeight, framerate);
-				}
-				else if (Input::isKeyPressed(GLFW_KEY_F8) && outputVideoFile)
-				{
-					outputVideoFile = false;
-					VideoWriter::finishEncodingFile();
+					// TODO: Add a hardware accelerated version that usee CUDA and NVENC
+					VideoWriter::pushFrame(pixels, outputWidth * outputHeight, encoder);
+					mainFramebuffer.freePixels(pixels);
+
+					if (currentFrame >= AnimationManager::lastAnimatedFrame())
+					{
+						endExport();
+					}
 				}
 
 				window->swapBuffers();
@@ -190,15 +183,16 @@ namespace MathAnim
 				constexpr int outputHeight = 720;
 				uint8* outputPixels = (uint8*)g_memory_allocate(sizeof(uint8) * outputWidth * outputHeight * 3);
 				stbir_resize_uint8(
-					(uint8*)pixels, 
-					mainFramebuffer.width, 
-					mainFramebuffer.height, 
+					(uint8*)pixels,
+					mainFramebuffer.width,
+					mainFramebuffer.height,
 					0,
-					outputPixels, 
-					outputWidth, 
-					outputHeight, 
-					0, 
+					outputPixels,
+					outputWidth,
+					outputHeight,
+					0,
 					3);
+				stbi_flip_vertically_on_write(true);
 				stbi_write_png(
 					outputFile.string().c_str(),
 					outputWidth,
@@ -223,6 +217,9 @@ namespace MathAnim
 
 		void free()
 		{
+			// Free it just in case, if the encoder isn't active this does nothing
+			VideoWriter::freeEncoder(encoder);
+
 			AnimationManager::serialize(currentProjectFilepath.c_str());
 
 			LaTexLayer::free();
@@ -236,6 +233,11 @@ namespace MathAnim
 			ImGuiLayer::free();
 			Window::cleanup();
 			globalThreadPool->free();
+		}
+
+		void saveProject()
+		{
+			AnimationManager::serialize(currentProjectFilepath.c_str());
 		}
 
 		void setEditorPlayState(AnimState state)
@@ -275,6 +277,35 @@ namespace MathAnim
 		int getFrameratePerSecond()
 		{
 			return framerate;
+		}
+
+		void exportVideoTo(const std::string& filename)
+		{
+			outputVideoFilename = filename;
+			if (VideoWriter::startEncodingFile(&encoder, outputVideoFilename.c_str(), outputWidth, outputHeight, framerate, 60, true))
+			{
+				currentFrame = -1;
+				outputVideoFile = true;
+			}
+		}
+
+		bool isExportingVideo()
+		{
+			return outputVideoFile;
+		}
+
+		void endExport()
+		{
+			if (VideoWriter::finalizeEncodingFile(encoder))
+			{
+				g_logger_info("Finished exporting video file.");
+			}
+			else
+			{
+				g_logger_error("Failed to finalize encoding video file: %s", encoder.filename);
+			}
+			VideoWriter::freeEncoder(encoder);
+			outputVideoFile = false;
 		}
 
 		NVGcontext* getNvgContext()
