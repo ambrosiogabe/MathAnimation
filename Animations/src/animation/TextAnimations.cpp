@@ -213,9 +213,9 @@ namespace MathAnim
 				transform = glm::translate(
 					transform,
 					glm::vec3(
-						parent->position.x - Svg::getPerspCamera().position.x,
-						parent->position.y - Svg::getPerspCamera().position.y,
-						parent->position.z - Svg::getPerspCamera().position.z
+						parent->position.x,
+						parent->position.y,
+						parent->position.z
 					)
 				);
 				transform = transform * glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));

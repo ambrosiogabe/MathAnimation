@@ -25,7 +25,7 @@ namespace MathAnim
 		switch (type)
 		{
 		case AnimTypeV1::Create:
-		{		
+		{
 			// TODO: This is getting messy and gross
 			if (getParent()->objectType == AnimObjectTypeV1::LaTexObject)
 			{
@@ -33,7 +33,7 @@ namespace MathAnim
 				break;
 			}
 
-			if (getParent()->svgObject == nullptr) 
+			if (getParent()->svgObject == nullptr)
 			{
 				g_logger_warning("Cannot render create animation for SVG object that is nullptr.");
 				break;
@@ -51,7 +51,7 @@ namespace MathAnim
 			}
 
 			g_logger_assert(getParent()->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
-			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), Vec2{0, 0}, Vec2{1, 1}, true);
+			getParent()->svgObject->renderCreateAnimation(vg, t, getParent(), Vec2{ 0, 0 }, Vec2{ 1, 1 }, true);
 		}
 		break;
 		case AnimTypeV1::FadeIn:
@@ -128,10 +128,17 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::FadeIn:
-			g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
+		{
+			static bool logWarning = true;
+			if (logWarning)
+			{
+				g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
+				logWarning = false;
+			}
 			getMutableParent()->fillColor.a = 255;
 			getMutableParent()->strokeColor.a = 255;
-			break;
+		}
+		break;
 		case AnimTypeV1::FadeOut:
 			getMutableParent()->fillColor.a = 0;
 			getMutableParent()->strokeColor.a = 0;

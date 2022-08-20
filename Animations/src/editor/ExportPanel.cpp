@@ -19,6 +19,7 @@ namespace MathAnim
 			static char filenameBuffer[filenameBufferSize];
 			ImGui::InputText(": Filename", filenameBuffer, filenameBufferSize);
 
+			ImGui::BeginDisabled(Application::isExportingVideo());
 			if (ImGui::Button("Export"))
 			{
 				std::string filename = std::string(filenameBuffer) + ".mp4";
@@ -32,6 +33,15 @@ namespace MathAnim
 					g_logger_error("Export filename cannot be empty.");
 				}
 			}
+			ImGui::EndDisabled();
+
+			ImGui::SameLine();
+			ImGui::BeginDisabled(!Application::isExportingVideo());
+			if (ImGui::Button("Stop Exporting"))
+			{
+				Application::endExport();
+			}
+			ImGui::EndDisabled();
 
 			ImGui::End();
 		}

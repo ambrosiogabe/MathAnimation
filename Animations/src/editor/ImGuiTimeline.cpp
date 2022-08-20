@@ -153,6 +153,12 @@ namespace MathAnim
 
 			ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - totalControlsWidth) / 2.0f);
 
+			if ((flags & ImGuiTimelineFlags_EnableMagnetControl) || (flags & ImGuiTimelineFlags_EnableZoomControl))
+			{
+				// Offset by some vertical padding if drawing timeline controls
+				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20.0f);
+			}
+
 			if (flags & ImGuiTimelineFlags_EnableMagnetControl)
 			{
 				bool popColor = false;

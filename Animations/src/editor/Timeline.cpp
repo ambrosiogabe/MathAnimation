@@ -79,14 +79,6 @@ namespace MathAnim
 			static int firstFrame = 0;
 			int currentFrame = Application::getFrameIndex();
 
-			ImGui::PushItemWidth(180);
-			if (ImGui::InputInt("Frame ", &currentFrame))
-			{
-				if (currentFrame < 0) currentFrame = 0;
-				Application::setFrameIndex(currentFrame);
-			}
-			ImGui::PopItemWidth();
-
 			ImGuiTimelineFlags flags = ImGuiTimelineFlags_None;
 			flags |= ImGuiTimelineFlags_EnableZoomControl;
 			flags |= ImGuiTimelineFlags_EnableMagnetControl;

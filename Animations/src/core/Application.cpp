@@ -10,7 +10,6 @@
 #include "renderer/Shader.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
-#include "renderer/VideoWriter.h"
 #include "renderer/Fonts.h"
 #include "animation/Svg.h"
 #include "animation/TextAnimations.h"
@@ -20,6 +19,7 @@
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
+#include "video/Encoder.h"
 
 #include "animation/SvgParser.h"
 
@@ -37,7 +37,6 @@ namespace MathAnim
 		static bool outputVideoFile = false;
 		static std::string outputVideoFilename = "";
 
-		static int numFramesWritten = 0;
 		static int framerate = 60;
 		static int outputWidth = 3840;
 		static int outputHeight = 2160;
@@ -51,6 +50,7 @@ namespace MathAnim
 		static int currentFrame = 0;
 		static float accumulatedTime = 0.0f;
 		static std::string currentProjectFilepath;
+		static VideoEncoder encoder = {};
 
 		static const char* winTitle = "Math Animations";
 
@@ -121,11 +121,6 @@ namespace MathAnim
 
 				if (outputVideoFile)
 				{
-					if (numFramesWritten % 60 == 0)
-					{
-						g_logger_info("Number of seconds rendered: %d", numFramesWritten / 60);
-					}
-					numFramesWritten++;
 					accumulatedTime += (1.0f / 60.0f);
 					currentFrame++;
 				}
@@ -160,15 +155,15 @@ namespace MathAnim
 				// TODO: Abstract this stuff out of here
 				if (outputVideoFile && currentFrame > -1)
 				{
-					Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
-					VideoWriter::pushFrame(pixels, outputHeight * outputWidth);
+					Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0, true);
+
+					// TODO: Add a hardware accelerated version that usee CUDA and NVENC
+					VideoWriter::pushFrame(pixels, outputWidth * outputHeight, encoder);
 					mainFramebuffer.freePixels(pixels);
 
 					if (currentFrame >= AnimationManager::lastAnimatedFrame())
 					{
-						outputVideoFile = false;
-						VideoWriter::finishEncodingFile();
-						g_logger_info("Finished exporting video file.");
+						endExport();
 					}
 				}
 
@@ -222,6 +217,9 @@ namespace MathAnim
 
 		void free()
 		{
+			// Free it just in case, if the encoder isn't active this does nothing
+			VideoWriter::freeEncoder(encoder);
+
 			AnimationManager::serialize(currentProjectFilepath.c_str());
 
 			LaTexLayer::free();
@@ -235,6 +233,11 @@ namespace MathAnim
 			ImGuiLayer::free();
 			Window::cleanup();
 			globalThreadPool->free();
+		}
+
+		void saveProject()
+		{
+			AnimationManager::serialize(currentProjectFilepath.c_str());
 		}
 
 		void setEditorPlayState(AnimState state)
@@ -279,10 +282,30 @@ namespace MathAnim
 		void exportVideoTo(const std::string& filename)
 		{
 			outputVideoFilename = filename;
+			if (VideoWriter::startEncodingFile(&encoder, outputVideoFilename.c_str(), outputWidth, outputHeight, framerate, 60, true))
+			{
+				currentFrame = -1;
+				outputVideoFile = true;
+			}
+		}
 
-			currentFrame = -1;
-			outputVideoFile = true;
-			VideoWriter::startEncodingFile(outputVideoFilename.c_str(), outputWidth, outputHeight, framerate);
+		bool isExportingVideo()
+		{
+			return outputVideoFile;
+		}
+
+		void endExport()
+		{
+			if (VideoWriter::finalizeEncodingFile(encoder))
+			{
+				g_logger_info("Finished exporting video file.");
+			}
+			else
+			{
+				g_logger_error("Failed to finalize encoding video file: %s", encoder.filename);
+			}
+			VideoWriter::freeEncoder(encoder);
+			outputVideoFile = false;
 		}
 
 		NVGcontext* getNvgContext()
