@@ -202,11 +202,6 @@ namespace MathAnim
 				glDrawBuffers(3, compositeDrawBuffers);
 			}
 
-			// Then blit the SVG group to the screen
-			// Correct for aspect ratio
-			float targetRatio = Application::getOutputTargetAspectRatio();
-			svgTotalHeight /= targetRatio;
-
 			if (parent->is3D)
 			{
 				glm::mat4 transform = glm::identity<glm::mat4>();
@@ -365,6 +360,39 @@ namespace MathAnim
 				isParsingLaTex = false;
 			}
 		}
+	}
+
+	void LaTexObject::setText(const std::string& str)
+	{
+		if (text)
+		{
+			g_memory_free(text);
+			text = nullptr;
+			textLength = 0;
+		}
+
+		this->text = (char*)g_memory_allocate(sizeof(char) * (str.length() + 1));
+		this->textLength = str.length();
+
+		g_memory_copyMem(this->text, (void*)str.c_str(), sizeof(char) * str.length());
+		this->text[this->textLength] = '\0';
+	}
+
+	void LaTexObject::setText(const char* cStr)
+	{
+		if (text)
+		{
+			g_memory_free(text);
+			text = nullptr;
+			textLength = 0;
+		}
+
+		size_t strLength = std::strlen(cStr);
+		this->text = (char*)g_memory_allocate(sizeof(char) * (strLength + 1));
+		this->textLength = strLength;
+
+		g_memory_copyMem(this->text, (void*)cStr, sizeof(char) * strLength);
+		this->text[this->textLength] = '\0';
 	}
 
 	void LaTexObject::parseLaTex()

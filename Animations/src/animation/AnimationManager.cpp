@@ -325,11 +325,35 @@ namespace MathAnim
 				objectIter->strokeColor = objectIter->_strokeColorStart;
 				objectIter->strokeWidth = objectIter->_strokeWidthStart;
 				objectIter->isAnimating = false;
-				
+
 				// Update any updateable objects
 				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
 				{
 					objectIter->as.laTexObject.update();
+				}
+
+				// Reset children state
+				for (int i = 0; i < objectIter->children.size(); i++)
+				{
+					AnimObject* child = &objectIter->children[i];
+					if (child->_svgObjectStart != nullptr && child->svgObject != nullptr)
+					{
+						Svg::copy(child->svgObject, child->_svgObjectStart);
+					}
+
+					// TODO: Create some sort of apply animation, then apply animations locally
+					// and then transform according to parent position after animation applications
+					child->position = child->_positionStart + objectIter->position;
+					child->rotation = child->_rotationStart + objectIter->rotation;
+					child->scale.x = child->_scaleStart.x * objectIter->scale.x;
+					child->scale.y = child->_scaleStart.y * objectIter->scale.y;
+					child->scale.z = child->_scaleStart.z * objectIter->scale.z;
+
+					// Update any updateable objects
+					if (child->objectType == AnimObjectTypeV1::LaTexObject)
+					{
+						child->as.laTexObject.update();
+					}
 				}
 
 				for (auto animIter = objectIter->animations.begin(); animIter != objectIter->animations.end(); animIter++)

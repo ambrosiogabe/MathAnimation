@@ -746,7 +746,7 @@ namespace MathAnim
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const Vec2& svgScale, bool reverse, const SvgObject* obj);
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const Vec2& svgScale, bool reverse, const SvgObject* obj, bool isSvgGroup);
 
 	void SvgObject::normalize(const Vec2& inMin, const Vec2& inMax)
 	{
@@ -1002,7 +1002,7 @@ namespace MathAnim
 		}
 
 		nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
-		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, svgScale, reverse, this);
+		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, svgScale, reverse, this, isSvgGroup);
 		nvgEndFrame(vg);
 
 		// Then bind the previous fbo and blit it to the screen with
@@ -1032,10 +1032,6 @@ namespace MathAnim
 
 		Svg::incrementCacheCurrentX(svgTotalWidth + cachePadding.x);
 		Svg::checkLineHeight(svgTotalHeight);
-
-		// Correct for aspect ratio
-		float targetRatio = Application::getOutputTargetAspectRatio();
-		svgTotalHeight /= targetRatio;
 
 		if (parent->is3D)
 		{
@@ -1266,10 +1262,6 @@ namespace MathAnim
 		}
 
 		// Then blit the SVG group to the screen
-		// Correct for aspect ratio
-		float targetRatio = Application::getOutputTargetAspectRatio();
-		svgTotalHeight /= targetRatio;
-
 		if (parent->is3D)
 		{
 			glm::mat4 transform = glm::identity<glm::mat4>();
@@ -1370,7 +1362,7 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const Vec2& svgScale, bool reverse, const SvgObject* obj)
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const Vec2& svgScale, bool reverse, const SvgObject* obj, bool isSvgGroup)
 	{
 		if (reverse)
 		{
@@ -1389,6 +1381,12 @@ namespace MathAnim
 		Vec2 scaledBboxMin = obj->bbox.min;
 		scaledBboxMin.x *= svgScale.x;
 		scaledBboxMin.y *= svgScale.y;
+		// TODO: This may cause issues with SVGs that have negative values
+		// Comment out this if-statement if it does
+		if (!isSvgGroup)
+		{
+			scaledBboxMin = CMath::max(scaledBboxMin, Vec2{ 0, 0 });
+		}
 		Vec2 minCoord = textureOffset + scaledBboxMin;
 		Vec2 bboxSize = (obj->bbox.max - obj->bbox.min);
 		bboxSize.x *= svgScale.x;
@@ -1928,14 +1926,14 @@ namespace MathAnim
 			nvgStrokeColor(vg, nvgRGB(0, 255, 0));
 			nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
 			nvgMoveTo(vg,
-				(obj->bbox.min.x * svgScale.x) + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
-				(obj->bbox.min.y * svgScale.y) + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos
+				scaledBboxMin.x + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
+				scaledBboxMin.y + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos
 			);
 			nvgRect(vg,
-				(obj->bbox.min.x * svgScale.x) + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
-				(obj->bbox.min.y * svgScale.y) + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
-				((obj->bbox.max.x - obj->bbox.min.x) * svgScale.x) + parent->strokeWidth + strokeWidthCorrectionNeg,
-				((obj->bbox.max.y - obj->bbox.min.y) * svgScale.y) + parent->strokeWidth + strokeWidthCorrectionNeg
+				scaledBboxMin.x + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
+				scaledBboxMin.y + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
+				bboxSize.x + parent->strokeWidth + strokeWidthCorrectionNeg,
+				bboxSize.y + parent->strokeWidth + strokeWidthCorrectionNeg
 			);
 			nvgStroke(vg);
 			nvgClosePath(vg);

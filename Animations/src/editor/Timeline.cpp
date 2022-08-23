@@ -427,13 +427,15 @@ namespace MathAnim
 				return;
 			}
 
-			ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x);
-			ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
+			bool objChanged = false;
+
+			objChanged = ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x) || objChanged;
+			objChanged = ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x) || objChanged;
 			float slowDragSpeed = 0.02f;
-			ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
+			objChanged = ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed) || objChanged;
 
 			// NanoVG only allows stroke width between [0-200] so we reflect that here
-			ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f);
+			objChanged = ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f) || objChanged;
 			float strokeColor[4] = {
 				(float)animObject->_strokeColorStart.r / 255.0f,
 				(float)animObject->_strokeColorStart.g / 255.0f,
@@ -446,6 +448,7 @@ namespace MathAnim
 				animObject->_strokeColorStart.g = (uint8)(strokeColor[1] * 255.0f);
 				animObject->_strokeColorStart.b = (uint8)(strokeColor[2] * 255.0f);
 				animObject->_strokeColorStart.a = (uint8)(strokeColor[3] * 255.0f);
+				objChanged = true;
 			}
 
 			float fillColor[4] = {
@@ -460,14 +463,15 @@ namespace MathAnim
 				animObject->_fillColorStart.g = (uint8)(fillColor[1] * 255.0f);
 				animObject->_fillColorStart.b = (uint8)(fillColor[2] * 255.0f);
 				animObject->_fillColorStart.a = (uint8)(fillColor[3] * 255.0f);
+				objChanged = true;
 			}
 
-			ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
-			ImGui::Checkbox(": Is 3D", &animObject->is3D);
-			ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
+			objChanged = ImGui::Checkbox(": Is Transparent", &animObject->isTransparent) || objChanged;
+			objChanged = ImGui::Checkbox(": Is 3D", &animObject->is3D) || objChanged;
+			objChanged = ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes) || objChanged;
 			if (animObject->drawDebugBoxes)
 			{
-				ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
+				objChanged = ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes) || objChanged;
 			}
 
 			switch (animObject->objectType)
@@ -493,6 +497,14 @@ namespace MathAnim
 			default:
 				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
 				break;
+			}
+
+			if (objChanged)
+			{
+				for (int i = 0; i < animObject->children.size(); i++)
+				{
+					animObject->children[i].takeParentAttributes(animObject);
+				}
 			}
 		}
 
@@ -816,42 +828,47 @@ namespace MathAnim
 			reInitObject = ImGui::DragFloat(": Z-Increment", &object->as.axis.zStep) || reInitObject;
 			reInitObject = ImGui::DragFloat(": Tick Width", &object->as.axis.tickWidth) || reInitObject;
 			reInitObject = ImGui::Checkbox(": Draw Labels", &object->as.axis.drawNumbers) || reInitObject;
-			if (ImGui::Checkbox(": Is 3D", &object->as.axis.is3D))
+			if (object->as.axis.drawNumbers)
 			{
-				// Reset to default values if we toggle 3D on or off
-				if (object->as.axis.is3D)
-				{
-					object->_positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
-					object->as.axis.axesLength = Vec3{ 8.0f, 5.0f, 8.0f };
-					object->as.axis.xRange = { 0, 8 };
-					object->as.axis.yRange = { 0, 5 };
-					object->as.axis.zRange = { 0, 8 };
-					object->as.axis.tickWidth = 0.2f;
-					object->_strokeWidthStart = 0.05f;
-				}
-				else
-				{
-					glm::vec2 outputSize = Application::getOutputSize();
-					object->_positionStart = Vec3{ outputSize.x / 2.0f, outputSize.y / 2.0f, 0.0f };
-					object->as.axis.axesLength = Vec3{ 3'000.0f, 1'700.0f, 1.0f };
-					object->as.axis.xRange = { 0, 18 };
-					object->as.axis.yRange = { 0, 10 };
-					object->as.axis.zRange = { 0, 10 };
-					object->as.axis.tickWidth = 75.0f;
-					object->_strokeWidthStart = 7.5f;
-				}
-				reInitObject = true;
+				reInitObject = ImGui::DragFloat(": Font Size Pixels", &object->as.axis.fontSizePixels, 1.0f, 0.0f, 300.0f) || reInitObject;
+				reInitObject = ImGui::DragFloat(": Label Padding", &object->as.axis.labelPadding, 1.0f, 0.0f, 500.0f) || reInitObject;
+				reInitObject = ImGui::DragFloat(": Label Stroke Width", &object->as.axis.labelStrokeWidth, 1.0f, 0.0f, 200.0f) || reInitObject;
 			}
+
+			//if (ImGui::Checkbox(": Is 3D", &object->as.axis.is3D))
+			//{
+			//	// Reset to default values if we toggle 3D on or off
+			//	if (object->as.axis.is3D)
+			//	{
+			//		object->_positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
+			//		object->as.axis.axesLength = Vec3{ 8.0f, 5.0f, 8.0f };
+			//		object->as.axis.xRange = { 0, 8 };
+			//		object->as.axis.yRange = { 0, 5 };
+			//		object->as.axis.zRange = { 0, 8 };
+			//		object->as.axis.tickWidth = 0.2f;
+			//		object->_strokeWidthStart = 0.05f;
+			//	}
+			//	else
+			//	{
+			//		glm::vec2 outputSize = Application::getOutputSize();
+			//		object->_positionStart = Vec3{ outputSize.x / 2.0f, outputSize.y / 2.0f, 0.0f };
+			//		object->as.axis.axesLength = Vec3{ 3'000.0f, 1'700.0f, 1.0f };
+			//		object->as.axis.xRange = { 0, 18 };
+			//		object->as.axis.yRange = { 0, 10 };
+			//		object->as.axis.zRange = { 0, 10 };
+			//		object->as.axis.tickWidth = 75.0f;
+			//		object->_strokeWidthStart = 7.5f;
+			//	}
+			//	reInitObject = true;
+			//}
 
 			if (reInitObject)
 			{
-				object->svgObject->free();
-				g_memory_free(object->svgObject);
-				object->svgObject = nullptr;
-
-				object->_svgObjectStart->free();
-				g_memory_free(object->_svgObjectStart);
-				object->_svgObjectStart = nullptr;
+				for (int i = 0; i < object->children.size(); i++)
+				{
+					object->children[i].free();
+				}
+				object->children.clear();
 
 				object->as.axis.init(object);
 			}
