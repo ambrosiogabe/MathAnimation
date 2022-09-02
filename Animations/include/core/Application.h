@@ -25,6 +25,7 @@ namespace MathAnim
 
 		float getOutputTargetAspectRatio();
 		glm::vec2 getOutputSize();
+		glm::vec2 getViewportSize();
 
 		void saveProject();
 

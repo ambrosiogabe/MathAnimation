@@ -15,8 +15,6 @@
 namespace MathAnim
 {
 	// ------------- Internal Functions -------------
-	static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos, const AnimObject* parent);
-
 	static TextObject deserializeTextV1(RawMemory& memory);
 	static LaTexObject deserializeLaTexV1(RawMemory& memory);
 
@@ -47,8 +45,7 @@ namespace MathAnim
 			return;
 		}
 
-		float fontSizePixels = parent->as.textObject.fontSizePixels;
-		Vec2 svgScale = Vec2{ fontSizePixels, fontSizePixels };
+		float fontSizePixels = parent->svgScale;
 
 		// Calculate the string size
 		std::string textStr = std::string(text);
@@ -79,8 +76,8 @@ namespace MathAnim
 			};
 
 			// Check if the SVG cache needs to regenerate
-			float svgTotalWidth = (strSize.x * svgScale.x) + parent->strokeWidth;
-			float svgTotalHeight = (strSize.y * svgScale.y) + parent->strokeWidth;
+			float svgTotalWidth = (strSize.x * parent->svgScale) + parent->strokeWidth;
+			float svgTotalHeight = (strSize.y * parent->svgScale) + parent->strokeWidth;
 			{
 				float newRightX = svgTextureOffset.x + svgTotalWidth;
 				if (newRightX >= Svg::getSvgCache().width)
@@ -127,7 +124,7 @@ namespace MathAnim
 
 			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
 			{
-				glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, svgScale, reverse, true);
+				glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, reverse, true);
 				numNonWhitespaceLettersDrawn++;
 			}
 
@@ -146,16 +143,18 @@ namespace MathAnim
 				(float)Svg::getCacheCurrentPos().x + parent->strokeWidth * 0.5f,
 				(float)Svg::getCacheCurrentPos().y + parent->strokeWidth * 0.5f
 			};
-			float svgTotalWidth = (strSize.x * svgScale.x) + parent->strokeWidth;
-			float svgTotalHeight = (strSize.y * svgScale.y) + parent->strokeWidth;
+			float svgTotalWidth = (strSize.x * parent->svgScale) + parent->strokeWidth;
+			float svgTotalHeight = (strSize.y * parent->svgScale) + parent->strokeWidth;
+
+			glm::vec2 outputSize = Application::getOutputSize();
 			Vec2 cacheUvMin = Vec2{
-				svgTextureOffset.x / (float)Svg::getSvgCache().width,
-				1.0f - (svgTextureOffset.y / (float)Svg::getSvgCache().height) - (svgTotalHeight / (float)Svg::getSvgCache().height)
+				svgTextureOffset.x / outputSize.x,
+				1.0f - (svgTextureOffset.y / outputSize.y) - (svgTotalHeight / outputSize.y)
 			};
 			Vec2 cacheUvMax = cacheUvMin +
 				Vec2{
-					svgTotalWidth / (float)Svg::getSvgCache().width,
-					svgTotalHeight / (float)Svg::getSvgCache().height
+					svgTotalWidth / outputSize.x,
+					svgTotalHeight / outputSize.y
 			};
 
 			if (parent->drawDebugBoxes)
@@ -173,7 +172,7 @@ namespace MathAnim
 				GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
 				glDrawBuffers(3, compositeDrawBuffers);
 
-				nvgBeginFrame(vg, Svg::getSvgCache().width, Svg::getSvgCache().height, 1.0f);
+				nvgBeginFrame(vg, outputSize.x, outputSize.y, 1.0f);
 
 				float strokeWidthCorrectionPos = Svg::getCachePadding().x * 0.5f;
 				float strokeWidthCorrectionNeg = -Svg::getCachePadding().x;
@@ -218,7 +217,7 @@ namespace MathAnim
 
 				Renderer::drawTexturedQuad3D(
 					Svg::getSvgCache(),
-					Vec2{ svgTotalWidth * 0.01f, svgTotalHeight * 0.01f },
+					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
 					cacheUvMin,
 					cacheUvMax,
 					transform,
@@ -245,26 +244,24 @@ namespace MathAnim
 
 				Renderer::drawTexturedQuad(
 					Svg::getSvgCache(),
-					Vec2{ svgTotalWidth, svgTotalHeight },
+					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
 					cacheUvMin,
 					cacheUvMax,
 					transform
 				);
 			}
 
-			Svg::incrementCacheCurrentX(strSize.x * svgScale.x + parent->strokeWidth + Svg::getCachePadding().x);
-			Svg::checkLineHeight(strSize.y * svgScale.y + parent->strokeWidth);
+			Svg::incrementCacheCurrentX(strSize.x * parent->svgScale + parent->strokeWidth + Svg::getCachePadding().x);
+			Svg::checkLineHeight(strSize.y * parent->svgScale + parent->strokeWidth);
 		}
 	}
 
 	void TextObject::serialize(RawMemory& memory) const
 	{
-		// fontSizePixels       -> float
 		// textLength           -> int32
 		// text                 -> char[textLength]
 		// fontFilepathLength   -> int32
 		// fontFilepath         -> char[fontFilepathLength]
-		memory.write<float>(&fontSizePixels);
 
 		// TODO: Specialize std::string or const char* in template so
 		// we don't have to write out text char by char
@@ -334,7 +331,6 @@ namespace MathAnim
 		TextObject res;
 		// TODO: Come up with application default font
 		res.font = nullptr;
-		res.fontSizePixels = 128;
 		static const char defaultText[] = "Text Object";
 		res.text = (char*)g_memory_allocate(sizeof(defaultText) / sizeof(char));
 		g_memory_copyMem(res.text, (void*)defaultText, sizeof(defaultText) / sizeof(char));
@@ -405,8 +401,8 @@ namespace MathAnim
 	{
 		if (svgGroup)
 		{
-			Vec2 svgScale = Vec2{ parent->as.laTexObject.fontSizePixels, parent->as.laTexObject.fontSizePixels };
-			svgGroup->render(vg, (AnimObject*)parent, svgScale);
+			// TODO: Ugly hack
+			svgGroup->render(vg, (AnimObject*)parent);
 		}
 	}
 
@@ -415,18 +411,15 @@ namespace MathAnim
 		if (svgGroup)
 		{
 			// TODO: Super ugly hack...
-			Vec2 svgScale = Vec2{ parent->as.laTexObject.fontSizePixels, parent->as.laTexObject.fontSizePixels };
-			svgGroup->renderCreateAnimation(vg, t, (AnimObject*)parent, svgScale, reverse);
+			svgGroup->renderCreateAnimation(vg, t, (AnimObject*)parent, reverse);
 		}
 	}
 
 	void LaTexObject::serialize(RawMemory& memory) const
 	{
-		// fontSizePixels   -> float
 		// textLength       -> i32
 		// text             -> char[textLength]
 		// isEquation       -> u8 (bool)
-		memory.write<float>(&fontSizePixels);
 
 		// TODO: Specialize std::string or const char* in template so
 		// we don't have to write out text char by char
@@ -474,7 +467,6 @@ namespace MathAnim
 	LaTexObject LaTexObject::createDefault()
 	{
 		LaTexObject res;
-		res.fontSizePixels = 20.0f;
 		// Alternating harmonic series
 		static const char defaultLatex[] = R"raw(\sum _{k=1}^{\infty }{\frac {(-1)^{k+1}}{k}}={\frac {1}{1}}-{\frac {1}{2}}+{\frac {1}{3}}-{\frac {1}{4}}+\cdots =\ln 2)raw";
 		res.text = (char*)g_memory_allocate(sizeof(defaultLatex) / sizeof(char));
@@ -490,214 +482,14 @@ namespace MathAnim
 	}
 
 	// ------------- Internal Functions -------------
-	//static void renderWriteInCodepointAnimation(NVGcontext* vg, uint32 codepoint, float t, Font* font, float fontScale, const glm::vec4& glyphPos, const AnimObject* parent)
-	//{
-	//	if (font == nullptr)
-	//	{
-	//		return;
-	//	}
-
-	//	const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
-
-	//	// Start the fade in after 80% of the codepoint is drawn
-	//	constexpr float fadeInStart = 0.8f;
-	//	float lengthToDraw = t * (float)glyphOutline.totalCurveLengthApprox;
-	//	float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
-	//	float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
-
-	//	float yOffset = -glyphOutline.bearingY;
-
-	//	if (lengthToDraw > 0)
-	//	{
-	//		Vec2 cameraCenteredPos = TextAnimations::camera->projectionSize / 2.0f - TextAnimations::camera->position;
-	//		nvgTranslate(vg, -cameraCenteredPos.x, -cameraCenteredPos.y);
-	//		float lengthDrawn = 0.0f;
-	//		for (int c = 0; c < glyphOutline.numContours; c++)
-	//		{
-	//			nvgBeginPath(vg);
-	//			const glm::u8vec4& strokeColor = parent->strokeColor;
-	//			if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
-	//			{
-	//				// Fade the stroke out as the font fades in
-	//				nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, (unsigned char)((float)strokeColor.a * (1.0f - percentToFadeIn))));
-	//				nvgStrokeWidth(vg, 5.0f);
-	//			}
-	//			else
-	//			{
-	//				nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, strokeColor.a));
-	//				nvgStrokeWidth(vg, parent->strokeWidth);
-	//			}
-
-	//			if (glyphOutline.contours[c].numVertices > 0)
-	//			{
-	//				glm::vec4 pos = glm::vec4(
-	//					glyphOutline.contours[c].vertices[0].position.x + glyphOutline.bearingX,
-	//					glyphOutline.contours[c].vertices[0].position.y + yOffset,
-	//					0.0f,
-	//					1.0f
-	//				);
-	//				nvgMoveTo(
-	//					vg,
-	//					pos.x * fontScale + glyphPos.x,
-	//					pos.y * fontScale + glyphPos.y
-	//				);
-	//			}
-
-	//			bool stoppedEarly = false;
-	//			for (int vi = 0; vi < glyphOutline.contours[c].numVertices; vi += 2)
-	//			{
-	//				float lengthLeft = lengthToDraw - (float)lengthDrawn;
-	//				if (lengthLeft < 0.0f)
-	//				{
-	//					break;
-	//				}
-
-	//				bool isLine = !glyphOutline.contours[c].vertices[vi + 1].controlPoint;
-	//				if (isLine)
-	//				{
-	//					glm::vec4 p0 = glm::vec4(
-	//						glyphOutline.contours[c].vertices[vi].position.x + glyphOutline.bearingX,
-	//						glyphOutline.contours[c].vertices[vi].position.y + yOffset,
-	//						0.0f,
-	//						1.0f
-	//					);
-	//					glm::vec4 p1 = glm::vec4(
-	//						glyphOutline.contours[c].vertices[vi + 1].position.x + glyphOutline.bearingX,
-	//						glyphOutline.contours[c].vertices[vi + 1].position.y + yOffset,
-	//						0.0f,
-	//						1.0f
-	//					);
-	//					float curveLength = glm::length(p1 - p0);
-	//					lengthDrawn += curveLength;
-
-	//					if (lengthLeft < curveLength)
-	//					{
-	//						float percentOfCurveToDraw = lengthLeft / curveLength;
-	//						p1 = (p1 - p0) * percentOfCurveToDraw + p0;
-	//					}
-
-	//					glm::vec4 projectedPos = p1;
-	//					nvgLineTo(
-	//						vg,
-	//						projectedPos.x * fontScale + glyphPos.x,
-	//						projectedPos.y * fontScale + glyphPos.y
-	//					);
-	//				}
-	//				else
-	//				{
-	//					const Vec2& p0 = glyphOutline.contours[c].vertices[vi + 0].position;
-	//					const Vec2& p1 = glyphOutline.contours[c].vertices[vi + 1].position;
-	//					const Vec2& p1a = glyphOutline.contours[c].vertices[vi + 1].position;
-	//					const Vec2& p2 = glyphOutline.contours[c].vertices[vi + 2].position;
-
-	//					// Degree elevated quadratic bezier curve
-	//					glm::vec4 pr0 = glm::vec4(
-	//						p0.x + glyphOutline.bearingX,
-	//						p0.y + yOffset,
-	//						0.0f,
-	//						1.0f
-	//					);
-	//					glm::vec4 pr1 = (1.0f / 3.0f) * glm::vec4(
-	//						p0.x + glyphOutline.bearingX,
-	//						p0.y + yOffset,
-	//						0.0f,
-	//						1.0f
-	//					) + (2.0f / 3.0f) * glm::vec4(
-	//						p1.x + glyphOutline.bearingX,
-	//						p1.y + yOffset,
-	//						0.0f,
-	//						1.0f
-	//					);
-	//					glm::vec4 pr2 = (2.0f / 3.0f) * glm::vec4(
-	//						p1.x + glyphOutline.bearingX,
-	//						p1.y + yOffset,
-	//						0.0f,
-	//						1.0f
-	//					) + (1.0f / 3.0f) * glm::vec4(
-	//						p2.x + glyphOutline.bearingX,
-	//						p2.y + yOffset,
-	//						0.0f,
-	//						1.0f
-	//					);
-	//					glm::vec4 pr3 = glm::vec4(
-	//						p2.x + glyphOutline.bearingX,
-	//						p2.y + yOffset,
-	//						0.0f,
-	//						1.0f
-	//					);
-
-	//					float chordLength = glm::length(pr3 - pr0);
-	//					float controlNetLength = glm::length(pr1 - pr0) + glm::length(pr2 - pr1) + glm::length(pr3 - pr2);
-	//					float approxLength = (chordLength + controlNetLength) / 2.0f;
-	//					lengthDrawn += approxLength;
-
-	//					if (lengthLeft < approxLength)
-	//					{
-	//						// Interpolate the curve
-	//						float percentOfCurveToDraw = lengthLeft / approxLength;
-
-	//						pr1 = (pr1 - pr0) * percentOfCurveToDraw + pr0;
-	//						pr2 = (pr2 - pr1) * percentOfCurveToDraw + pr1;
-	//						pr3 = (pr3 - pr2) * percentOfCurveToDraw + pr2;
-	//					}
-
-	//					// Project the verts
-	//					pr1 = pr1;
-	//					pr2 = pr2;
-	//					pr3 = pr3;
-
-	//					nvgBezierTo(
-	//						vg,
-	//						pr1.x * fontScale + glyphPos.x,
-	//						pr1.y * fontScale + glyphPos.y,
-	//						pr2.x * fontScale + glyphPos.x,
-	//						pr2.y * fontScale + glyphPos.y,
-	//						pr3.x * fontScale + glyphPos.x,
-	//						pr3.y * fontScale + glyphPos.y
-	//					);
-
-	//					vi++;
-	//				}
-
-	//				if (lengthDrawn > lengthToDraw)
-	//				{
-	//					stoppedEarly = true;
-	//					break;
-	//				}
-	//			}
-
-	//			nvgStroke(vg);
-
-	//			if (lengthDrawn > lengthToDraw)
-	//			{
-	//				break;
-	//			}
-	//		}
-	//	}
-
-	//	if (amountToFadeIn > 0)
-	//	{
-	//		std::string str = std::string("") + (char)codepoint;
-	//		const glm::u8vec4& fillColor = parent->fillColor;
-	//		nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)((float)fillColor.a * percentToFadeIn)));
-	//		nvgFontFace(vg, font->fontFilepath.c_str());
-	//		nvgFontSize(vg, fontScale);
-	//		nvgText(vg, glyphPos.x, glyphPos.y, str.c_str(), NULL);
-	//	}
-
-	//	nvgResetTransform(vg);
-	//}
-
 	static TextObject deserializeTextV1(RawMemory& memory)
 	{
 		TextObject res;
 
-		// fontSizePixels       -> float
 		// textLength           -> int32
 		// text                 -> char[textLength]
 		// fontFilepathLength   -> int32
 		// fontFilepath         -> char[fontFilepathLength]
-		memory.read<float>(&res.fontSizePixels);
 
 		// TODO: Specialize std::string or const char* in template so
 		// we don't have to read in text char by char
@@ -728,14 +520,13 @@ namespace MathAnim
 	{
 		LaTexObject res;
 
-		// fontSizePixels   -> float
 		// textLength       -> i32
 		// text             -> char[textLength]
 		// isEquation       -> u8 (bool)
-		memory.read<float>(&res.fontSizePixels);
 
 		// TODO: Specialize std::string or const char* in template so
 		// we don't have to read in text char by char
+
 		memory.read<int32>(&res.textLength);
 		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
 		for (int i = 0; i < res.textLength; i++)

@@ -29,6 +29,8 @@ namespace MathAnim
 		static WavData audioData;
 		static ImGuiTimeline_AudioData imguiAudioData;
 
+		static constexpr float slowDragSpeed = 0.02f;
+
 		// ------- Internal Functions --------
 		static ImGuiTimeline_Track createDefaultTrack(char* trackName = nullptr);
 		static void freeTrack(ImGuiTimeline_Track& track);
@@ -429,13 +431,13 @@ namespace MathAnim
 
 			bool objChanged = false;
 
-			objChanged = ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x) || objChanged;
+			objChanged = ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed) || objChanged;
 			objChanged = ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x) || objChanged;
-			float slowDragSpeed = 0.02f;
 			objChanged = ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed) || objChanged;
+			objChanged = ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed) || objChanged;
 
 			// NanoVG only allows stroke width between [0-200] so we reflect that here
-			objChanged = ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f) || objChanged;
+			objChanged = ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, slowDragSpeed, 0.0f, 10.0f) || objChanged;
 			float strokeColor[4] = {
 				(float)animObject->_strokeColorStart.r / 255.0f,
 				(float)animObject->_strokeColorStart.g / 255.0f,
@@ -620,8 +622,6 @@ namespace MathAnim
 				ImGui::EndCombo();
 			}
 
-			ImGui::DragFloat(": Font Size (Px)", &object->as.textObject.fontSizePixels);
-
 			constexpr int scratchLength = 256;
 			char scratch[scratchLength] = {};
 			if (object->as.textObject.textLength >= scratchLength)
@@ -643,8 +643,6 @@ namespace MathAnim
 
 		static void handleLaTexObjectInspector(AnimObject* object)
 		{
-			ImGui::DragFloat(": Font Size (Px)", &object->as.laTexObject.fontSizePixels);
-
 			constexpr int scratchLength = 2048;
 			char scratch[scratchLength] = {};
 			if (object->as.laTexObject.textLength >= scratchLength)
@@ -685,7 +683,7 @@ namespace MathAnim
 
 		static void handleMoveToAnimationInspector(Animation* animation)
 		{
-			ImGui::DragFloat3(": Target Position", &animation->as.modifyVec3.target.x);
+			ImGui::DragFloat3(": Target Position", &animation->as.modifyVec3.target.x, slowDragSpeed);
 		}
 
 		static void handleRotateToAnimationInspector(Animation* animation)
@@ -729,12 +727,12 @@ namespace MathAnim
 
 		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation)
 		{
-			ImGui::DragFloat2(": Camera Target Position", &animation->as.modifyVec2.target.x);
+			ImGui::DragFloat2(": Camera Target Position", &animation->as.modifyVec2.target.x, slowDragSpeed);
 		}
 
 		static void handleSquareInspector(AnimObject* object)
 		{
-			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength))
+			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength, slowDragSpeed))
 			{
 				// TODO: Do something better than this
 				object->svgObject->free();
@@ -751,7 +749,7 @@ namespace MathAnim
 
 		static void handleCircleInspector(AnimObject* object)
 		{
-			if (ImGui::DragFloat(": Radius", &object->as.circle.radius))
+			if (ImGui::DragFloat(": Radius", &object->as.circle.radius, slowDragSpeed))
 			{
 				object->svgObject->free();
 				g_memory_free(object->svgObject);
@@ -767,15 +765,13 @@ namespace MathAnim
 
 		static void handleCubeInspector(AnimObject* object)
 		{
-			if (ImGui::DragFloat(": Side Length", &object->as.cube.sideLength))
+			if (ImGui::DragFloat(": Side Length", &object->as.cube.sideLength, slowDragSpeed))
 			{
-				object->svgObject->free();
-				g_memory_free(object->svgObject);
-				object->svgObject = nullptr;
-
-				object->_svgObjectStart->free();
-				g_memory_free(object->_svgObjectStart);
-				object->_svgObjectStart = nullptr;
+				for (int i = 0; i < object->children.size(); i++)
+				{
+					object->children[i].free();
+				}
+				object->children.clear();
 
 				object->as.cube.init(object);
 			}
@@ -785,10 +781,10 @@ namespace MathAnim
 		{
 			bool reInitObject = false;
 
-			reInitObject = ImGui::DragFloat3(": Axes Length", object->as.axis.axesLength.values) || reInitObject;
+			reInitObject = ImGui::DragFloat3(": Axes Length", object->as.axis.axesLength.values, slowDragSpeed) || reInitObject;
 
 			int xVals[2] = { object->as.axis.xRange.min, object->as.axis.xRange.max };
-			if (ImGui::DragInt2(": X-Range", xVals, 1.0f))
+			if (ImGui::DragInt2(": X-Range", xVals, slowDragSpeed))
 			{
 				// Make sure it's in strictly increasing order
 				if (xVals[0] < xVals[1])
@@ -800,7 +796,7 @@ namespace MathAnim
 			}
 
 			int yVals[2] = { object->as.axis.yRange.min, object->as.axis.yRange.max };
-			if (ImGui::DragInt2(": Y-Range", yVals, 1.0f))
+			if (ImGui::DragInt2(": Y-Range", yVals, slowDragSpeed))
 			{
 				// Make sure it's in strictly increasing order
 				if (yVals[0] < yVals[1])
@@ -812,7 +808,7 @@ namespace MathAnim
 			}
 
 			int zVals[2] = { object->as.axis.zRange.min, object->as.axis.zRange.max };
-			if (ImGui::DragInt2(": Z-Range", zVals, 1.0f))
+			if (ImGui::DragInt2(": Z-Range", zVals, slowDragSpeed))
 			{
 				// Make sure it's in strictly increasing order
 				if (zVals[0] < zVals[1])
@@ -823,16 +819,16 @@ namespace MathAnim
 				}
 			}
 
-			reInitObject = ImGui::DragFloat(": X-Increment", &object->as.axis.xStep) || reInitObject;
-			reInitObject = ImGui::DragFloat(": Y-Increment", &object->as.axis.yStep) || reInitObject;
-			reInitObject = ImGui::DragFloat(": Z-Increment", &object->as.axis.zStep) || reInitObject;
-			reInitObject = ImGui::DragFloat(": Tick Width", &object->as.axis.tickWidth) || reInitObject;
+			reInitObject = ImGui::DragFloat(": X-Increment", &object->as.axis.xStep, slowDragSpeed) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Y-Increment", &object->as.axis.yStep, slowDragSpeed) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Z-Increment", &object->as.axis.zStep, slowDragSpeed) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Tick Width", &object->as.axis.tickWidth, slowDragSpeed) || reInitObject;
 			reInitObject = ImGui::Checkbox(": Draw Labels", &object->as.axis.drawNumbers) || reInitObject;
 			if (object->as.axis.drawNumbers)
 			{
-				reInitObject = ImGui::DragFloat(": Font Size Pixels", &object->as.axis.fontSizePixels, 1.0f, 0.0f, 300.0f) || reInitObject;
-				reInitObject = ImGui::DragFloat(": Label Padding", &object->as.axis.labelPadding, 1.0f, 0.0f, 500.0f) || reInitObject;
-				reInitObject = ImGui::DragFloat(": Label Stroke Width", &object->as.axis.labelStrokeWidth, 1.0f, 0.0f, 200.0f) || reInitObject;
+				reInitObject = ImGui::DragFloat(": Font Size Pixels", &object->as.axis.fontSizePixels, slowDragSpeed, 0.0f, 300.0f) || reInitObject;
+				reInitObject = ImGui::DragFloat(": Label Padding", &object->as.axis.labelPadding, slowDragSpeed, 0.0f, 500.0f) || reInitObject;
+				reInitObject = ImGui::DragFloat(": Label Stroke Width", &object->as.axis.labelStrokeWidth, slowDragSpeed, 0.0f, 200.0f) || reInitObject;
 			}
 
 			//if (ImGui::Checkbox(": Is 3D", &object->as.axis.is3D))

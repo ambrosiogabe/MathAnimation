@@ -123,6 +123,7 @@ namespace MathAnim
 		int32 timelineTrack;
 		SvgObject* _svgObjectStart;
 		SvgObject* svgObject;
+		float svgScale;
 		bool isAnimating;
 		bool isTransparent;
 		bool drawDebugBoxes;

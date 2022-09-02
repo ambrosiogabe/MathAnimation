@@ -40,6 +40,8 @@ namespace MathAnim
 		static int framerate = 60;
 		static int outputWidth = 3840;
 		static int outputHeight = 2160;
+		static float viewportWidth = 18.0f;
+		static float viewportHeight = 9.0f;
 		static NVGcontext* vg = NULL;
 
 		static GlobalThreadPool* globalThreadPool = nullptr;
@@ -64,8 +66,7 @@ namespace MathAnim
 			window->setVSync(true);
 
 			camera2D.position = Vec2{ 0.0f, 0.0f };
-			//camera2D.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
-			camera2D.projectionSize = Vec2{ 3840.0f, 2160.0f };
+			camera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
 
 			camera3D.forward = glm::vec3(0, 0, 1);
 			camera3D.fov = 70.0f;
@@ -262,6 +263,11 @@ namespace MathAnim
 		glm::vec2 getOutputSize()
 		{
 			return glm::vec2((float)outputWidth, (float)outputHeight);
+		}
+
+		glm::vec2 getViewportSize()
+		{
+			return glm::vec2(viewportWidth, viewportHeight * getOutputTargetAspectRatio());
 		}
 
 		void setFrameIndex(int frame)

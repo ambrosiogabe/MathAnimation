@@ -114,44 +114,45 @@ namespace MathAnim
 	{
 		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Square object initialized twice.");
 
-		parent->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		*parent->_svgObjectStart = Svg::createDefault();
-		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		*parent->svgObject = Svg::createDefault();
-
 		float halfLength = sideLength / 2.0f;
 
-		//bool is3D = true;
-		//Svg::beginContour(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, -halfLength }, is3D);
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, -halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, -halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, -halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, -halfLength });
-		//Svg::closeContour(parent->_svgObjectStart);
+		Vec3 offsets[6] = {
+			Vec3{0, 0, -halfLength}, // Back
+			Vec3{0, 0, halfLength},  // Front
+			Vec3{0, -halfLength, 0}, // Bottom
+			Vec3{0, halfLength, 0},  // Top
+			Vec3{-halfLength, 0, 0}, // Left
+			Vec3{halfLength, 0, 0}   // Right
+		};
+		Vec3 rotations[6] = {
+			Vec3{90, 0, 0},  // Back
+			Vec3{90, 0, 0},  // Front
+			Vec3{0, 0, 0},   // Bottom
+			Vec3{0, 0, 0},   // Top
+			Vec3{90, 90, 0}, // Left
+			Vec3{90, 90, 0}  // Right
+		};
 
-		//Svg::beginContour(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, -halfLength }, is3D);
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, -halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, -halfLength });
-		//Svg::closeContour(parent->_svgObjectStart);
+		for (int i = 0; i < 6; i++)
+		{
+			AnimObject cubeFace = AnimObject::createDefaultFromParent(AnimObjectTypeV1::SvgObject, parent);
+			cubeFace._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*cubeFace._svgObjectStart = Svg::createDefault();
+			cubeFace.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*cubeFace.svgObject = Svg::createDefault();
+			Svg::beginContour(cubeFace._svgObjectStart, Vec2{ -halfLength, -halfLength });
+			Svg::lineTo(cubeFace._svgObjectStart, Vec2{ -halfLength, halfLength });
+			Svg::lineTo(cubeFace._svgObjectStart, Vec2{ halfLength, halfLength });
+			Svg::lineTo(cubeFace._svgObjectStart, Vec2{ halfLength, -halfLength });
+			Svg::lineTo(cubeFace._svgObjectStart, Vec2{ -halfLength, -halfLength });
+			Svg::closeContour(cubeFace._svgObjectStart);
 
-		//Svg::beginContour(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, halfLength }, is3D);
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, halfLength, halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ halfLength, -halfLength, halfLength });
-		//Svg::closeContour(parent->_svgObjectStart);
-
-		//Svg::beginContour(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, halfLength }, is3D);
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, halfLength, -halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, -halfLength });
-		//Svg::lineTo(parent->_svgObjectStart, Vec3{ -halfLength, -halfLength, halfLength });
-		//Svg::closeContour(parent->_svgObjectStart);
-
-		parent->_svgObjectStart->calculateApproximatePerimeter();
-		parent->_svgObjectStart->calculateBBox();
+			cubeFace._positionStart = offsets[i];
+			cubeFace._rotationStart = rotations[i];
+			cubeFace._scaleStart = Vec3{ 1.0f, 1.0f, 1.0f };
+			cubeFace.is3D = true;
+			parent->children.push_back(cubeFace);
+		}
 	}
 
 	void Cube::serialize(RawMemory& memory) const

@@ -18,7 +18,6 @@ namespace MathAnim
 
 	struct TextObject
 	{
-		float fontSizePixels;
 		char* text;
 		int32 textLength;
 		Font* font;
@@ -35,7 +34,6 @@ namespace MathAnim
 	// TODO: Create some sort of layout machine using MicroTex
 	struct LaTexObject
 	{
-		float fontSizePixels;
 		char* text;
 		int32 textLength;
 		// TODO: Move this into the main animation object and fix everything else

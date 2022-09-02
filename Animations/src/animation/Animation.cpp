@@ -67,7 +67,7 @@ namespace MathAnim
 			}
 
 			g_logger_assert(obj->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
-			obj->svgObject->renderCreateAnimation(vg, t, obj, Vec2{ 0, 0 }, Vec2{ 1, 1 }, true);
+			obj->svgObject->renderCreateAnimation(vg, t, obj, Vec2{ 0, 0 }, true);
 		}
 		break;
 		case AnimTypeV1::FadeIn:
@@ -354,16 +354,17 @@ namespace MathAnim
 		break;
 		case AnimObjectTypeV1::Cube:
 		{
-			if (!this->isAnimating)
-			{
-				g_logger_assert(this->svgObject != nullptr, "Cannot render SVG object that is nullptr.");
-				this->svgObject->render(vg, this);
-			}
-			float sideLength = this->as.cube.sideLength - 0.01f;
-			Renderer::pushColor(this->fillColor);
-			Renderer::drawFilledCube(this->position, Vec3{sideLength, sideLength, sideLength});
-			Renderer::popColor();
+			// if (!this->isAnimating)
+			// {
+			// 	g_logger_assert(this->svgObject != nullptr, "Cannot render SVG object that is nullptr.");
+			// 	this->svgObject->render(vg, this);
+			// }
+			// float sideLength = this->as.cube.sideLength - 0.01f;
+			// Renderer::pushColor(this->fillColor);
+			// Renderer::drawFilledCube(this->position, Vec3{sideLength, sideLength, sideLength});
+			// Renderer::popColor();
 		}
+		// NOP: Cube just has a bunch of children anim objects that get rendered
 		break;
 		case AnimObjectTypeV1::Axis:
 			// NOP: Axis just has a bunch of children anim objects that get rendered
@@ -517,6 +518,7 @@ namespace MathAnim
 		//   B                -> u8
 		//   A                -> u8
 		// _StrokeWidthStart  -> f32
+		// svgScale           -> f32
 		// isTransparent      -> u8
 		// is3D               -> u8
 		// drawDebugBoxes     -> u8
@@ -555,6 +557,7 @@ namespace MathAnim
 		memory.write<uint8>(&_strokeColorStart.a);
 
 		memory.write<float>(&_strokeWidthStart);
+		memory.write<float>(&svgScale);
 
 		uint8 isTransparentU8 = isTransparent ? 1 : 0;
 		memory.write<uint8>(&isTransparentU8);
@@ -787,6 +790,7 @@ namespace MathAnim
 		//   B                -> u8
 		//   A                -> u8
 		// _StrokeWidthStart  -> f32
+		// svgScale           -> f32
 		// isTransparent      -> u8
 		// is3D               -> u8
 		// drawDebugBoxes     -> u8
@@ -829,6 +833,7 @@ namespace MathAnim
 		memory.read<uint8>(&res._strokeColorStart.a);
 
 		memory.read<float>(&res._strokeWidthStart);
+		memory.read<float>(&res.svgScale);
 
 		uint8 isTransparent;
 		memory.read<uint8>(&isTransparent);

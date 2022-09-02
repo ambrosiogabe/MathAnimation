@@ -14,6 +14,14 @@ namespace MathAnim
 		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Axis object initialized twice.");
 		g_logger_assert(parent->children.size() == 0, "Axis object initialized twice.");
 
+		float xStart = -axesLength.x / 2.0f;
+		float xEnd = axesLength.x / 2.0f;
+		float xMiddle = xStart + (xEnd - xStart) / 2.0f;
+
+		float yStart = -axesLength.y / 2.0f;
+		float yEnd = axesLength.y / 2.0f;
+		float yMiddle = yStart + (yEnd - yStart) / 2.0f;
+
 		// X-Axis
 		{
 			// The first child will be the x-axis lines as an svg object
@@ -25,20 +33,18 @@ namespace MathAnim
 			xAxis._positionStart = Vec3{ 0, 0, 0 };
 
 			// Draw the x-axis
-			float xStart = -axesLength.x / 2.0f;
-			float xEnd = axesLength.x / 2.0f;
 			Svg::beginContour(xAxis._svgObjectStart, { xStart, 0.0f });
 			Svg::lineTo(xAxis._svgObjectStart, { xEnd, 0.0f });
 
 			// Draw the ticks
 			g_logger_assert(xRange.max > xRange.min, "Invalid x range [%d, %d]. Axis range must be in increasing order.", xRange.min, xRange.max);
 			float numTicks = ((float)xRange.max - (float)xRange.min) / xStep;
-			float distanceBetweenTicks = glm::floor(axesLength.x / numTicks);
+			float distanceBetweenTicks = axesLength.x / numTicks;
 			int xNumber = xRange.min;
 			Vec2 cursor = Vec2{ xStart, -tickWidth / 2.0f };
 			for (int i = 0; i <= (int)glm::ceil(numTicks); i++)
 			{
-				if (i != (int)numTicks / 2 && cursor.x <= xEnd)
+				if (!(cursor.x >= xMiddle && cursor.x <= xMiddle))
 				{
 					Svg::moveTo(xAxis._svgObjectStart, cursor);
 					Svg::lineTo(xAxis._svgObjectStart, cursor + Vec2{ 0.0f, tickWidth });
@@ -48,7 +54,7 @@ namespace MathAnim
 						// Add an anim object child with the number this axis tick represents
 						AnimObject labelChild = AnimObject::createDefaultFromParent(AnimObjectTypeV1::LaTexObject, parent);
 						labelChild._positionStart = CMath::vector3From2(cursor + Vec2{ 0.0f, -labelPadding });
-						labelChild.as.laTexObject.fontSizePixels = fontSizePixels;
+						labelChild.svgScale = fontSizePixels;
 						labelChild.strokeWidth = labelStrokeWidth;
 						// Convert xNumber to string
 						std::string xTickLabel = std::to_string(xNumber);
@@ -78,20 +84,18 @@ namespace MathAnim
 			yAxis._positionStart = Vec3{ 0, 0, 0 };
 
 			// Draw the y-axis
-			float yStart = -axesLength.y / 2.0f;
-			float yEnd = axesLength.y / 2.0f;
 			Svg::beginContour(yAxis._svgObjectStart, { 0.0f, yStart });
 			Svg::lineTo(yAxis._svgObjectStart, { 0.0f, yEnd });
 
 			// Draw the ticks
 			g_logger_assert(yRange.max > yRange.min, "Invalid y range [%d, %d]. Axis range must be in increasing order.", yRange.min, yRange.max);
 			float numTicks = ((float)yRange.max - (float)yRange.min) / yStep;
-			float distanceBetweenTicks = glm::floor(axesLength.y / numTicks);
+			float distanceBetweenTicks = axesLength.y / numTicks;
 			int yNumber = yRange.min;
 			Vec2 cursor = Vec2{ -tickWidth / 2.0f, yStart };
 			for (int i = 0; i <= (int)glm::ceil(numTicks); i++)
 			{
-				if (i != (int)numTicks / 2 && cursor.y <= yEnd)
+				if (!(cursor.y >= yMiddle && cursor.y <= yMiddle))
 				{
 					Svg::moveTo(yAxis._svgObjectStart, cursor);
 					Svg::lineTo(yAxis._svgObjectStart, cursor + Vec2{ tickWidth, 0.0f });
@@ -102,7 +106,7 @@ namespace MathAnim
 						AnimObject labelChild = AnimObject::createDefaultFromParent(AnimObjectTypeV1::LaTexObject, parent);
 						labelChild._positionStart = CMath::vector3From2(cursor + Vec2{ tickWidth + labelPadding, 0.0f });
 						labelChild.position = labelChild._positionStart;
-						labelChild.as.laTexObject.fontSizePixels = fontSizePixels;
+						labelChild.svgScale = fontSizePixels;
 						labelChild.strokeWidth = labelStrokeWidth;
 						// Convert yNumber to string
 						std::string yTickLabel = std::to_string(yNumber);
