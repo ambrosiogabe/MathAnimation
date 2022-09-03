@@ -15,19 +15,19 @@ namespace MathAnim
 			"#64656aff"_hex,
 			"#3d3d41ff"_hex,
 			"#2b2b2eff"_hex,
-			"#1a1a20ff"_hex,
+			"#131318ff"_hex,
 			"#070707ff"_hex
 		};
 
 		const Vec4 Primary[9] = {
 			"#cbdbf8ff"_hex,
-			"#8eabe9ff"_hex,
-			"#6e95e9ff"_hex,
-			"#407de8ff"_hex,
-			"#3166cdff"_hex,
-			"#124fb4ff"_hex,
-			"#194698ff"_hex,
-			"#0c3376ff"_hex,
+			"#a3b9e9ff"_hex,
+			"#8aa8e9ff"_hex,
+			"#598be8ff"_hex,
+			"#507acdff"_hex,
+			"#4a72b4ff"_hex,
+			"#3d5d98ff"_hex,
+			"#284476ff"_hex,
 			"#0a2950ff"_hex
 		};
 
