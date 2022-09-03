@@ -66,6 +66,7 @@ namespace MathAnim
 			res.audioSourceFileLength = 0;
 			res.currentFrame = 0;
 			res.firstFrame = 0;
+			res.zoomLevel = 5.0f;
 			return res;
 		}
 
@@ -121,7 +122,16 @@ namespace MathAnim
 			ImGuiTimeline_AudioData* imguiAudioDataPtr = Audio::isNull(audioSource)
 				? nullptr
 				: &imguiAudioData;
-			ImGuiTimelineResult res = ImGuiTimeline(tracks, numTracks, &timelineData.currentFrame, &timelineData.firstFrame, nullptr, imguiAudioDataPtr, flags);
+			ImGuiTimelineResult res = ImGuiTimeline(
+				tracks, 
+				numTracks, 
+				&timelineData.currentFrame, 
+				&timelineData.firstFrame, 
+				&timelineData.zoomLevel, 
+				imguiAudioDataPtr, 
+				flags
+			);
+			
 			if (res.flags & ImGuiTimelineResultFlags_CurrentFrameChanged)
 			{
 				Application::setFrameIndex(timelineData.currentFrame);
@@ -322,6 +332,7 @@ namespace MathAnim
 			// audioSourceFile           -> uint8[audioSourceFileLength + 1]
 			// firstFrame                -> int32
 			// currentFrame              -> int32
+			// zoomLevel                 -> float
 			RawMemory res;
 			res.init(sizeof(TimelineData));
 
@@ -333,6 +344,7 @@ namespace MathAnim
 			res.write<uint8>(&nullByte);
 			res.write<int32>(&timelineData.firstFrame);
 			res.write<int32>(&timelineData.currentFrame);
+			res.write<float>(&timelineData.zoomLevel);
 
 			res.shrinkToFit();
 
@@ -347,6 +359,7 @@ namespace MathAnim
 			// audioSourceFile           -> uint8[audioSourceFileLength + 1]
 			// firstFrame                -> int32
 			// currentFrame              -> int32
+			// zoomLevel                 -> float
 
 			uint32 fileLengthU32;
 			if (!memory.read<uint32>(&fileLengthU32))
@@ -360,6 +373,7 @@ namespace MathAnim
 			memory.readDangerous(res.audioSourceFile, res.audioSourceFileLength + 1);
 			memory.read<int32>(&res.firstFrame);
 			memory.read<int32>(&res.currentFrame);
+			memory.read<float>(&res.zoomLevel);
 
 			Application::setFrameIndex(res.currentFrame);
 
