@@ -117,16 +117,17 @@ void RawMemory::writeDangerous(const uint8* data, size_t dataSize)
 	this->offset += dataSize;
 }
 
-void RawMemory::readDangerous(uint8* data, size_t dataSize)
+bool RawMemory::readDangerous(uint8* data, size_t dataSize)
 {
 	if (this->offset + dataSize > this->size)
 	{
 		g_logger_error("Deserialized bad data. Read boundary out of bounds, cannot access '%zu' bytes in memory of size '%zu' bytes",
 			this->offset + dataSize,
 			this->size);
-		return;
+		return false;
 	}
 
 	g_memory_copyMem((uint8*)data, this->data + this->offset, dataSize);
 	this->offset += dataSize;
+	return true;
 }

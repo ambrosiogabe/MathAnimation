@@ -32,6 +32,8 @@ namespace MathAnim
 		static constexpr float slowDragSpeed = 0.02f;
 
 		// ------- Internal Functions --------
+		static void loadAudioSource(const char* filepath);
+
 		static ImGuiTimeline_Track createDefaultTrack(char* trackName = nullptr);
 		static void freeTrack(ImGuiTimeline_Track& track);
 		static void addNewDefaultTrack(int insertIndex = INT32_MAX);
@@ -57,6 +59,15 @@ namespace MathAnim
 		static void deleteSubSegment(ImGuiTimeline_Segment& segment, int subSegmentIndex);
 		static void resetImGuiData();
 
+		TimelineData initInstance()
+		{
+			TimelineData res;
+			res.audioSourceFile = nullptr;
+			res.audioSourceFileLength = 0;
+			res.currentFrame = 0;
+			res.firstFrame = 0;
+			return res;
+		}
 
 		void init()
 		{
@@ -71,15 +82,14 @@ namespace MathAnim
 			setupImGuiTimelineDataFromAnimations();
 		}
 
-		void update()
+		void update(TimelineData& timelineData)
 		{
 			// NOTE: For best results, it's usually a good idea to specify 0 padding for the window
 			// so that the timeline can expand to the full width/height of the window
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 			ImGui::Begin("Timeline");
 
-			static int firstFrame = 0;
-			int currentFrame = Application::getFrameIndex();
+			timelineData.currentFrame = Application::getFrameIndex();
 
 			ImGuiTimelineFlags flags = ImGuiTimelineFlags_None;
 			flags |= ImGuiTimelineFlags_EnableZoomControl;
@@ -93,9 +103,9 @@ namespace MathAnim
 				if (!Audio::isNull(audioSource) && !audioSource.isPlaying)
 				{
 					float offset = 0.0f;
-					if (currentFrame > 0)
+					if (timelineData.currentFrame > 0)
 					{
-						offset = currentFrame / 60.0f;
+						offset = timelineData.currentFrame / 60.0f;
 					}
 					Audio::play(audioSource, offset);
 				}
@@ -111,10 +121,10 @@ namespace MathAnim
 			ImGuiTimeline_AudioData* imguiAudioDataPtr = Audio::isNull(audioSource)
 				? nullptr
 				: &imguiAudioData;
-			ImGuiTimelineResult res = ImGuiTimeline(tracks, numTracks, &currentFrame, &firstFrame, nullptr, imguiAudioDataPtr, flags);
+			ImGuiTimelineResult res = ImGuiTimeline(tracks, numTracks, &timelineData.currentFrame, &timelineData.firstFrame, nullptr, imguiAudioDataPtr, flags);
 			if (res.flags & ImGuiTimelineResultFlags_CurrentFrameChanged)
 			{
-				Application::setFrameIndex(currentFrame);
+				Application::setFrameIndex(timelineData.currentFrame);
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_AddTrackClicked)
@@ -127,6 +137,31 @@ namespace MathAnim
 				deleteTrack(res.trackIndex);
 			}
 
+			// If we have a filepath for an audio source and the current audio source is null
+			// try to load it
+			if (timelineData.audioSourceFileLength > 0 && Audio::isNull(audioSource))
+			{
+				loadAudioSource((const char*)timelineData.audioSourceFile);
+
+				if (Audio::isNull(audioSource))
+				{
+					// Failed to load the file, there must be something wrong with it.
+					g_logger_error("Failed to load audio source file '%s'", timelineData.audioSourceFile);
+					g_memory_free(timelineData.audioSourceFile);
+					timelineData.audioSourceFile = nullptr;
+					timelineData.audioSourceFileLength = 0;
+				}
+			}
+
+			if (res.flags & ImGuiTimelineResultFlags_DeleteAudioSource)
+			{
+				Audio::free(audioSource);
+				WavLoader::free(audioData);
+				timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8));
+				timelineData.audioSourceFile[0] = '\0';
+				timelineData.audioSourceFileLength = 0;
+			}
+
 			if (res.flags & ImGuiTimelineResultFlags_AddAudioSource)
 			{
 				nfdchar_t* outPath = NULL;
@@ -134,24 +169,14 @@ namespace MathAnim
 
 				if (result == NFD_OKAY)
 				{
-					Audio::free(audioSource);
-					WavLoader::free(audioData);
-					audioData = WavLoader::loadWavFile(outPath);
-					audioSource = Audio::loadWavFile(audioData);
-					std::free(outPath);
+					loadAudioSource(outPath);
+					
+					size_t pathLength = std::strlen(outPath);
+					timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8) * (pathLength + 1));
+					g_memory_copyMem(timelineData.audioSourceFile, outPath, sizeof(uint8) * (pathLength + 1));
+					timelineData.audioSourceFileLength = pathLength;
 
-					// TODO: Popup an error if loading fails to let the user know
-					if (!Audio::isNull(audioSource))
-					{
-						// Copy data to imgui struct if success
-						imguiAudioData.bitsPerSample = audioData.bitsPerSample;
-						imguiAudioData.blockAlignment = audioData.blockAlignment;
-						imguiAudioData.bytesPerSec = audioData.bytesPerSec;
-						imguiAudioData.data = audioData.audioData;
-						imguiAudioData.dataSize = audioData.dataSize;
-						imguiAudioData.numAudioChannels = audioData.audioChannelType == AudioChannelType::Dual ? 2 : 1;
-						imguiAudioData.sampleRate = audioData.sampleRate;
-					}
+					std::free(outPath);
 				}
 				else if (result == NFD_CANCEL)
 				{
@@ -261,8 +286,22 @@ namespace MathAnim
 			ImGui::End();
 		}
 
+		void freeInstance(TimelineData& timelineData)
+		{
+			// Free timeline data
+			if (timelineData.audioSourceFile)
+			{
+				g_memory_free(timelineData.audioSourceFile);
+			}
+			timelineData.audioSourceFile = nullptr;
+			timelineData.audioSourceFileLength = 0;
+			timelineData.currentFrame = 0;
+			timelineData.firstFrame = 0;
+		}
+
 		void free()
 		{
+			// TODO: Synchronize this with freeInstance
 			if (tracks)
 			{
 				for (int i = 0; i < numTracks; i++)
@@ -277,7 +316,82 @@ namespace MathAnim
 			ImGuiTimeline_free();
 		}
 
+		RawMemory serialize(const TimelineData& timelineData)
+		{
+			// audioSourceFileLength     -> uint32
+			// audioSourceFile           -> uint8[audioSourceFileLength + 1]
+			// firstFrame                -> int32
+			// currentFrame              -> int32
+			RawMemory res;
+			res.init(sizeof(TimelineData));
+
+			g_logger_assert(timelineData.audioSourceFileLength < UINT32_MAX, "Corrupted timeline data. Somehow audio source file length > UINT32_MAX '%d'", timelineData.audioSourceFileLength);
+			uint32 fileLengthU32 = (uint32)timelineData.audioSourceFileLength;
+			res.write<uint32>(&fileLengthU32);
+			res.writeDangerous(timelineData.audioSourceFile, fileLengthU32);
+			uint8 nullByte = '\0';
+			res.write<uint8>(&nullByte);
+			res.write<int32>(&timelineData.firstFrame);
+			res.write<int32>(&timelineData.currentFrame);
+
+			res.shrinkToFit();
+
+			return res;
+		}
+
+		TimelineData deserialize(RawMemory& memory)
+		{
+			TimelineData res = {};
+
+			// audioSourceFileLength     -> uint32
+			// audioSourceFile           -> uint8[audioSourceFileLength + 1]
+			// firstFrame                -> int32
+			// currentFrame              -> int32
+
+			uint32 fileLengthU32;
+			if (!memory.read<uint32>(&fileLengthU32))
+			{
+				g_logger_error("Corrupted timeline data in project file.");
+				return res;
+			}
+
+			res.audioSourceFileLength = (size_t)fileLengthU32;
+			res.audioSourceFile = (uint8*)g_memory_allocate(sizeof(uint8) * (res.audioSourceFileLength + 1));
+			memory.readDangerous(res.audioSourceFile, res.audioSourceFileLength + 1);
+			memory.read<int32>(&res.firstFrame);
+			memory.read<int32>(&res.currentFrame);
+
+			Application::setFrameIndex(res.currentFrame);
+
+			return res;
+		}
+
 		// ------- Internal Functions --------
+		static void loadAudioSource(const char* filepath)
+		{
+			Audio::free(audioSource);
+			WavLoader::free(audioData);
+			audioData = WavLoader::loadWavFile(filepath);
+			audioSource = Audio::loadWavFile(audioData);
+
+			// TODO: Popup an error if loading fails to let the user know
+			if (!Audio::isNull(audioSource))
+			{
+				// Copy data to imgui struct if success
+				imguiAudioData.bitsPerSample = audioData.bitsPerSample;
+				imguiAudioData.blockAlignment = audioData.blockAlignment;
+				imguiAudioData.bytesPerSec = audioData.bytesPerSec;
+				imguiAudioData.data = audioData.audioData;
+				imguiAudioData.dataSize = audioData.dataSize;
+				imguiAudioData.numAudioChannels = audioData.audioChannelType == AudioChannelType::Dual ? 2 : 1;
+				imguiAudioData.sampleRate = audioData.sampleRate;
+			}
+			else
+			{
+				g_memory_zeroMem(&imguiAudioData, sizeof(ImGuiTimeline_AudioData));
+			}
+		}
+
 		static ImGuiTimeline_Track createDefaultTrack(char* inTrackName)
 		{
 			ImGuiTimeline_Track defaultTrack;

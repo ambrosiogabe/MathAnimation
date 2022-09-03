@@ -4,6 +4,8 @@
 
 namespace MathAnim
 {
+	struct TimelineData;
+
 	namespace EditorGui
 	{
 		void init();
@@ -11,6 +13,9 @@ namespace MathAnim
 		void update(uint32 sceneTextureId);
 
 		void free();
+
+		const TimelineData& getTimelineData();
+		void setTimelineData(const TimelineData& data);
 	}
 }
 

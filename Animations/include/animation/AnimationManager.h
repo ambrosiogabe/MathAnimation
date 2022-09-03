@@ -39,8 +39,8 @@ namespace MathAnim
 
 		const AnimObject* getNextAnimObject(int animObjectId);
 
-		void serialize(const char* savePath = nullptr);
-		void deserialize(const char* loadPath = nullptr);
+		RawMemory serialize();
+		void deserialize(RawMemory& memory);
 		void sortAnimObjects();
 
 		const char* getAnimObjectName(AnimObjectTypeV1 type);
