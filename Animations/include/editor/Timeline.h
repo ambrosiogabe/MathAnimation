@@ -17,6 +17,7 @@ namespace MathAnim
 		size_t audioSourceFileLength;
 		int32 firstFrame;
 		int32 currentFrame;
+		float zoomLevel;
 	};
 
 	namespace Timeline
