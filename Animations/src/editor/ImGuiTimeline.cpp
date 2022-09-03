@@ -1157,6 +1157,11 @@ namespace MathAnim
 					res.flags |= ImGuiTimelineResultFlags_AddAudioSource;
 				}
 
+				if (ImGui::MenuItem("Delete Audio Source"))
+				{
+					res.flags |= ImGuiTimelineResultFlags_DeleteAudioSource;
+				}
+
 				ImGui::EndPopup();
 			}
 			ImGui::PopStyleVar();

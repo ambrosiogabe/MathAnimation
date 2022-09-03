@@ -14,12 +14,20 @@ namespace MathAnim
 		// ------------- Internal Functions -------------
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
 		static void checkHotKeys();
+		static TimelineData timeline;
+		static bool timelineLoaded = false;
 
 		void init()
 		{
+			if (!timelineLoaded)
+			{
+				timeline = Timeline::initInstance();
+			}
 			Timeline::init();
+
 			AnimObjectPanel::init();
 			ExportPanel::init();
+			timelineLoaded = true;
 		}
 
 		void update(uint32 sceneTextureId)
@@ -61,7 +69,7 @@ namespace MathAnim
 
 			ImGui::End();
 
-			Timeline::update();
+			Timeline::update(timeline);
 			AnimObjectPanel::update();
 			DebugPanel::update();
 			ExportPanel::update();
@@ -71,7 +79,20 @@ namespace MathAnim
 		{
 			ExportPanel::free();
 			AnimObjectPanel::free();
+			Timeline::freeInstance(timeline);
 			Timeline::free();
+		}
+
+		const TimelineData& getTimelineData()
+		{
+			return timeline;
+		}
+
+		void setTimelineData(const TimelineData& data)
+		{
+			Timeline::freeInstance(timeline);
+			timeline = data;
+			timelineLoaded = true;
 		}
 
 		// ------------- Internal Functions -------------

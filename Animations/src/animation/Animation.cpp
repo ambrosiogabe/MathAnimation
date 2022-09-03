@@ -687,6 +687,7 @@ namespace MathAnim
 		res.drawDebugBoxes = false;
 		res.drawCurveDebugBoxes = false;
 		res.is3D = false;
+		res.svgScale = 1.0f;
 
 		res.strokeWidth = 0.0f;
 		res._strokeWidthStart = 0.0f;

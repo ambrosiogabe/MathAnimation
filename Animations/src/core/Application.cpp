@@ -16,10 +16,12 @@
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "editor/EditorGui.h"
+#include "editor/Timeline.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
 #include "video/Encoder.h"
+#include "utils/TableOfContents.h"
 
 #include "animation/SvgParser.h"
 
@@ -99,7 +101,7 @@ namespace MathAnim
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
 			currentProjectFilepath = projectFile;
-			AnimationManager::deserialize(currentProjectFilepath.c_str());
+			loadProject(currentProjectFilepath.c_str());
 
 			EditorGui::init();
 
@@ -221,7 +223,7 @@ namespace MathAnim
 			// Free it just in case, if the encoder isn't active this does nothing
 			VideoWriter::freeEncoder(encoder);
 
-			AnimationManager::serialize(currentProjectFilepath.c_str());
+			saveProject();
 
 			LaTexLayer::free();
 			EditorGui::free();
@@ -238,7 +240,53 @@ namespace MathAnim
 
 		void saveProject()
 		{
-			AnimationManager::serialize(currentProjectFilepath.c_str());
+			RawMemory animationData = AnimationManager::serialize();
+			RawMemory timelineData = Timeline::serialize(EditorGui::getTimelineData());
+
+			TableOfContents tableOfContents;
+			tableOfContents.init();
+
+			tableOfContents.addEntry(animationData, "Animation_Data");
+			tableOfContents.addEntry(timelineData, "Timeline_Data");
+
+			tableOfContents.serialize(currentProjectFilepath.c_str());
+
+			animationData.free();
+			timelineData.free();
+			tableOfContents.free();
+		}
+
+		void loadProject(const char* filepath)
+		{
+			FILE* fp = fopen(filepath, "rb");
+			if (!fp)
+			{
+				g_logger_warning("Could not load project '%s', error opening file.", filepath);
+				return;
+			}
+
+			fseek(fp, 0, SEEK_END);
+			size_t fileSize = ftell(fp);
+			fseek(fp, 0, SEEK_SET);
+
+			RawMemory memory;
+			memory.init(fileSize);
+			fread(memory.data, fileSize, 1, fp);
+			fclose(fp);
+
+			TableOfContents toc = TableOfContents::deserialize(memory);
+			memory.free();
+
+			RawMemory animationData = toc.getEntry("Animation_Data");
+			RawMemory timelineData = toc.getEntry("Timeline_Data");
+			toc.free();
+
+			AnimationManager::deserialize(animationData);
+			TimelineData timeline = Timeline::deserialize(timelineData);
+			EditorGui::setTimelineData(timeline);
+
+			animationData.free();
+			timelineData.free();
 		}
 
 		void setEditorPlayState(AnimState state)
