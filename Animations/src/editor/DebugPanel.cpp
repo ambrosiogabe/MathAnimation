@@ -23,12 +23,13 @@ namespace MathAnim
 				ImGui::Text("Svg Cache");
 				ImGui::Separator();
 
-				ImTextureID texId = (ImTextureID)Svg::getSvgCache().graphicsId;
+				const Texture& svgCache = Svg::getSvgCache();
+				ImTextureID texId = (ImTextureID)svgCache.graphicsId;
 				ImVec2 pos = ImGui::GetCursorScreenPos();
 				ImVec4 tintCol = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);   // No tint
 				ImVec4 borderCol = ImVec4(1.0f, 1.0f, 1.0f, 0.5f); // 50% opaque white
 				float textureWidth = 512.0f;
-				float textureHeight = 512.0f;
+				float textureHeight = 512.0f * (svgCache.width / svgCache.height);
 				ImGui::Image(
 					texId,
 					ImVec2(textureWidth, textureHeight),

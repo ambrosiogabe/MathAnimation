@@ -87,10 +87,6 @@ namespace MathAnim
 	const ImU32 largeTickColor = U32Color(Colors::Neutral[5]);
 	const ImU32 defaultTickColor = U32Color(Colors::Neutral[6]);
 
-	//constexpr ImU32 dropdownArrowColor = IM_COL32(220, 230, 223, 255);
-	//constexpr ImU32 legendBorderColor = IM_COL32(5, 5, 5, 255);
-	//constexpr ImU32 legendBorderHighlightColor = IM_COL32(94, 97, 94, 255);
-
 	const ImU32 dropdownArrowColor = U32Color(Colors::Neutral[1]);
 	const ImU32 legendBorderColor = U32Color(Colors::Neutral[8]);
 	const ImU32 legendBorderHighlightColor = U32Color(Colors::Neutral[5]);
