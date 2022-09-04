@@ -45,6 +45,7 @@ namespace MathAnim
 		static float viewportWidth = 18.0f;
 		static float viewportHeight = 9.0f;
 		static NVGcontext* vg = NULL;
+		static AnimationManagerData* am = nullptr;
 
 		static GlobalThreadPool* globalThreadPool = nullptr;
 		static Window* window = nullptr;
@@ -87,7 +88,7 @@ namespace MathAnim
 			// NOTE(voxel): Just to initialize the camera
 			Svg::init(camera2D, camera3D);
 			TextAnimations::init(camera2D);
-			AnimationManager::init(camera2D);
+			am = AnimationManager::create(camera2D);
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
@@ -103,7 +104,7 @@ namespace MathAnim
 			currentProjectFilepath = projectFile;
 			loadProject(currentProjectFilepath.c_str());
 
-			EditorGui::init();
+			EditorGui::init(am);
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -140,7 +141,7 @@ namespace MathAnim
 				}
 
 				// Render to main framebuffer
-				Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);
+				Renderer::renderToFramebuffer(am, vg, currentFrame, mainFramebuffer);
 
 				// Render to window
 				mainFramebuffer.unbind();
@@ -150,7 +151,7 @@ namespace MathAnim
 				// Do ImGui stuff
 				ImGuiLayer::beginFrame();
 				ImGui::ShowDemoWindow();
-				EditorGui::update(mainFramebuffer.getColorAttachment(0).graphicsId);
+				EditorGui::update(mainFramebuffer.getColorAttachment(0).graphicsId, am);
 				ImGuiLayer::endFrame();
 				Svg::endFrame();
 
@@ -164,7 +165,7 @@ namespace MathAnim
 					VideoWriter::pushFrame(pixels, outputWidth * outputHeight, encoder);
 					mainFramebuffer.freePixels(pixels);
 
-					if (currentFrame >= AnimationManager::lastAnimatedFrame())
+					if (currentFrame >= AnimationManager::lastAnimatedFrame(am))
 					{
 						endExport();
 					}
@@ -176,7 +177,7 @@ namespace MathAnim
 			// If the window is closing, save the last rendered frame to a preview image
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
-			Renderer::renderToFramebuffer(vg, currentFrame, mainFramebuffer);
+			Renderer::renderToFramebuffer(am, vg, currentFrame, mainFramebuffer);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path currentPath = std::filesystem::path(currentProjectFilepath).parent_path();
 			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
@@ -225,8 +226,9 @@ namespace MathAnim
 
 			saveProject();
 
+			AnimationManager::free(am);
 			LaTexLayer::free();
-			EditorGui::free();
+			EditorGui::free(am);
 			nvgDeleteGL3(vg);
 			Fonts::unloadAllFonts();
 			Svg::free();
@@ -240,7 +242,7 @@ namespace MathAnim
 
 		void saveProject()
 		{
-			RawMemory animationData = AnimationManager::serialize();
+			RawMemory animationData = AnimationManager::serialize(am);
 			RawMemory timelineData = Timeline::serialize(EditorGui::getTimelineData());
 
 			TableOfContents tableOfContents;
@@ -281,7 +283,7 @@ namespace MathAnim
 			RawMemory timelineData = toc.getEntry("Timeline_Data");
 			toc.free();
 
-			AnimationManager::deserialize(animationData);
+			AnimationManager::deserialize(am, animationData);
 			TimelineData timeline = Timeline::deserialize(timelineData);
 			EditorGui::setTimelineData(timeline);
 

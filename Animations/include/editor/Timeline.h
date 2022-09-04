@@ -4,6 +4,8 @@
 
 namespace MathAnim
 {
+	struct AnimationManagerData;
+
 	struct TimelinePayload
 	{
 		AnimObjectTypeV1 objectType;
@@ -23,12 +25,12 @@ namespace MathAnim
 	namespace Timeline
 	{
 		TimelineData initInstance();
-		void init();
+		void init(AnimationManagerData* am);
 
-		void update(TimelineData& data);
+		void update(TimelineData& data, AnimationManagerData* am);
 
 		void freeInstance(TimelineData& data);
-		void free();
+		void free(AnimationManagerData* am);
 
 		void setActiveAnimObject(int animObjectId);
 		int getActiveAnimObject();

@@ -18,18 +18,18 @@ namespace MathAnim
 	static Animation deserializeAnimationExV1(RawMemory& memory);
 
 	// ----------------------------- Animation Functions -----------------------------
-	static void renderAnimationFromObj(NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation);
-	void Animation::render(NVGcontext* vg, float t) const
+	static void renderAnimationFromObj(AnimationManagerData* am, NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation);
+	void Animation::render(AnimationManagerData* am, NVGcontext* vg, float t) const
 	{
-		for (int i = 0; i < getParent()->children.size(); i++)
+		for (int i = 0; i < getParent(am)->children.size(); i++)
 		{
-			renderAnimationFromObj(vg, &getParent()->children[i], &getMutableParent()->children[i], t, this);
+			renderAnimationFromObj(am, vg, &getParent(am)->children[i], &getMutableParent(am)->children[i], t, this);
 		}
 
-		renderAnimationFromObj(vg, getParent(), getMutableParent(), t, this);
+		renderAnimationFromObj(am, vg, getParent(am), getMutableParent(am), t, this);
 	}
 
-	static void renderAnimationFromObj(NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation)
+	static void renderAnimationFromObj(AnimationManagerData* am, NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation)
 	{
 		t = CMath::ease(t, animation->easeType, animation->easeDirection);
 
@@ -86,7 +86,7 @@ namespace MathAnim
 		{
 			// TODO: Rethink how this works
 			const SvgObject* obj1 = obj->svgObject;
-			const AnimObject* nextObj = AnimationManager::getNextAnimObject(obj->id);
+			const AnimObject* nextObj = AnimationManager::getNextAnimObject(am, obj->id);
 			if (obj1 != nullptr && nextObj != nullptr)
 			{
 				const SvgObject* obj2 = nextObj->svgObject;
@@ -140,7 +140,7 @@ namespace MathAnim
 		}
 	}
 
-	void Animation::applyAnimation(NVGcontext* vg) const
+	void Animation::applyAnimation(AnimationManagerData* am, NVGcontext* vg) const
 	{
 		switch (type)
 		{
@@ -158,25 +158,25 @@ namespace MathAnim
 				g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
 				logWarning = false;
 			}
-			getMutableParent()->fillColor.a = 255;
-			getMutableParent()->strokeColor.a = 255;
+			getMutableParent(am)->fillColor.a = 255;
+			getMutableParent(am)->strokeColor.a = 255;
 		}
 		break;
 		case AnimTypeV1::FadeOut:
-			getMutableParent()->fillColor.a = 0;
-			getMutableParent()->strokeColor.a = 0;
+			getMutableParent(am)->fillColor.a = 0;
+			getMutableParent(am)->strokeColor.a = 0;
 			break;
 		case AnimTypeV1::MoveTo:
-			getMutableParent()->position = this->as.modifyVec3.target;
+			getMutableParent(am)->position = this->as.modifyVec3.target;
 			break;
 		case AnimTypeV1::RotateTo:
-			getMutableParent()->rotation = this->as.modifyVec3.target;
+			getMutableParent(am)->rotation = this->as.modifyVec3.target;
 			break;
 		case AnimTypeV1::AnimateFillColor:
-			getMutableParent()->fillColor = this->as.modifyU8Vec4.target;
+			getMutableParent(am)->fillColor = this->as.modifyU8Vec4.target;
 			break;
 		case AnimTypeV1::AnimateStrokeColor:
-			getMutableParent()->strokeColor = this->as.modifyU8Vec4.target;
+			getMutableParent(am)->strokeColor = this->as.modifyU8Vec4.target;
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me");
@@ -192,16 +192,16 @@ namespace MathAnim
 		}
 	}
 
-	const AnimObject* Animation::getParent() const
+	const AnimObject* Animation::getParent(AnimationManagerData* am) const
 	{
-		const AnimObject* res = AnimationManager::getObject(objectId);
+		const AnimObject* res = AnimationManager::getObject(am, objectId);
 		g_logger_assert(res != nullptr, "Invalid anim object.");
 		return res;
 	}
 
-	AnimObject* Animation::getMutableParent() const
+	AnimObject* Animation::getMutableParent(AnimationManagerData* am) const
 	{
-		AnimObject* res = AnimationManager::getMutableObject(objectId);
+		AnimObject* res = AnimationManager::getMutableObject(am, objectId);
 		g_logger_assert(res != nullptr, "Invalid anim object.");
 		return res;
 	}

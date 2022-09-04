@@ -12,6 +12,7 @@ namespace MathAnim
 {
 	struct Font;
 	struct SvgObject;
+	struct AnimationManagerData;
 	
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;
@@ -94,12 +95,12 @@ namespace MathAnim
 		//   t: is a float that ranges from [0, 1] where 0 is the
 		//      beginning of the animation and 1 is the end of the
 		//      animation
-		void render(NVGcontext* vg, float t) const;
+		void render(AnimationManagerData* am, NVGcontext* vg, float t) const;
 		// Set the animation to the end state without rendering it
-		void applyAnimation(NVGcontext* vg) const;
+		void applyAnimation(AnimationManagerData* am, NVGcontext* vg) const;
 
-		const AnimObject* getParent() const;
-		AnimObject* getMutableParent() const;
+		const AnimObject* getParent(AnimationManagerData* am) const;
+		AnimObject* getMutableParent(AnimationManagerData* am) const;
 		void free();
 		void serialize(RawMemory& memory) const;
 		static Animation deserialize(RawMemory& memory, uint32 version);

@@ -13,6 +13,7 @@ namespace MathAnim
 	struct Texture;
 	struct Font;
 	struct SizedFont;
+	struct AnimationManagerData;
 
 	enum class CapType
 	{
@@ -35,7 +36,7 @@ namespace MathAnim
 		void free();
 
 		// ----------- Render calls ----------- 
-		void renderToFramebuffer(NVGcontext* vg, int frame, Framebuffer& framebuffer);
+		void renderToFramebuffer(AnimationManagerData* am, NVGcontext* vg, int frame, Framebuffer& framebuffer);
 		void renderFramebuffer(const Framebuffer& framebuffer);
 
 		// ----------- Styles ----------- 

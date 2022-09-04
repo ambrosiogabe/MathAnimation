@@ -36,11 +36,11 @@ namespace MathAnim
 		static void loadAudioSource(const char* filepath);
 
 		static ImGuiTimeline_Track createDefaultTrack(char* trackName = nullptr);
-		static void freeTrack(ImGuiTimeline_Track& track);
-		static void addNewDefaultTrack(int insertIndex = INT32_MAX);
-		static void deleteTrack(int index);
-		static void handleAnimObjectInspector(int animObjectId);
-		static void handleAnimationInspector(int animationId);
+		static void freeTrack(ImGuiTimeline_Track& track, AnimationManagerData* am);
+		static void addNewDefaultTrack(AnimationManagerData* am, int insertIndex = INT32_MAX);
+		static void deleteTrack(AnimationManagerData* am, int index);
+		static void handleAnimObjectInspector(AnimationManagerData* am, int animObjectId);
+		static void handleAnimationInspector(AnimationManagerData* am, int animationId);
 		static void handleTextObjectInspector(AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
@@ -53,12 +53,12 @@ namespace MathAnim
 		static void handleCubeInspector(AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
 
-		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate = INT32_MAX);
+		static void setupImGuiTimelineDataFromAnimations(AnimationManagerData* am, int numTracksToCreate = INT32_MAX);
 		static void addAnimObject(const AnimObject& object);
 		static void addAnimation(const Animation& animation, int animObjectId);
-		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex);
-		static void deleteSubSegment(ImGuiTimeline_Segment& segment, int subSegmentIndex);
-		static void resetImGuiData();
+		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex, AnimationManagerData* am);
+		static void deleteSubSegment(ImGuiTimeline_Segment& segment, int subSegmentIndex, AnimationManagerData* am);
+		static void resetImGuiData(AnimationManagerData* am);
 
 		TimelineData initInstance()
 		{
@@ -71,7 +71,7 @@ namespace MathAnim
 			return res;
 		}
 
-		void init()
+		void init(AnimationManagerData* am)
 		{
 			audioSource = Audio::defaultAudioSource();
 
@@ -81,10 +81,10 @@ namespace MathAnim
 			numTracks = 0;
 
 			// Initialize some dummy data for now
-			setupImGuiTimelineDataFromAnimations();
+			setupImGuiTimelineDataFromAnimations(am);
 		}
 
-		void update(TimelineData& timelineData)
+		void update(TimelineData& timelineData, AnimationManagerData* am)
 		{
 			// NOTE: For best results, it's usually a good idea to specify 0 padding for the window
 			// so that the timeline can expand to the full width/height of the window
@@ -140,12 +140,12 @@ namespace MathAnim
 
 			if (res.flags & ImGuiTimelineResultFlags_AddTrackClicked)
 			{
-				addNewDefaultTrack(res.trackIndex);
+				addNewDefaultTrack(am, res.trackIndex);
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_DeleteTrackClicked)
 			{
-				deleteTrack(res.trackIndex);
+				deleteTrack(am, res.trackIndex);
 			}
 
 			// If we have a filepath for an audio source and the current audio source is null
@@ -204,12 +204,12 @@ namespace MathAnim
 				if (res.activeObjectIsSubSegment)
 				{
 					ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-					deleteSubSegment(segment, res.subSegmentIndex);
+					deleteSubSegment(segment, res.subSegmentIndex, am);
 				}
 				else
 				{
 					ImGuiTimeline_Track& track = tracks[res.trackIndex];
-					deleteSegment(track, res.segmentIndex);
+					deleteSegment(track, res.segmentIndex, am);
 				}
 			}
 
@@ -226,7 +226,7 @@ namespace MathAnim
 					{
 						AnimObject object = AnimObject::createDefault(payloadData->objectType, res.dragDropPayloadFirstFrame, 120);
 						object.timelineTrack = res.trackIndex;
-						AnimationManager::addAnimObject(object);
+						AnimationManager::addAnimObject(am, object);
 						SceneHierarchyPanel::addNewAnimObject(object);
 						addAnimObject(object);
 					}
@@ -238,7 +238,7 @@ namespace MathAnim
 						const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
 						int animObjectId = segment.userData.as.intData;
 						Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 30, animObjectId);
-						AnimationManager::addAnimationTo(animation, animObjectId);
+						AnimationManager::addAnimationTo(am, animation, animObjectId);
 						addAnimation(animation, animObjectId);
 					}
 				}
@@ -248,7 +248,7 @@ namespace MathAnim
 			{
 				const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
 				int animObjectIndex = segment.userData.as.intData;
-				AnimationManager::setAnimObjectTime(animObjectIndex, segment.frameStart, segment.frameDuration);
+				AnimationManager::setAnimObjectTime(am, animObjectIndex, segment.frameStart, segment.frameDuration);
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_SubSegmentTimeChanged)
@@ -256,7 +256,7 @@ namespace MathAnim
 				const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
 				int animationId = (int)(uintptr_t)subSegment.userData;
 				int animObjectId = tracks[res.trackIndex].segments[res.segmentIndex].userData.as.intData;
-				AnimationManager::setAnimationTime(animObjectId, animationId, subSegment.frameStart, subSegment.frameDuration);
+				AnimationManager::setAnimationTime(am, animObjectId, animationId, subSegment.frameStart, subSegment.frameDuration);
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectDeselected)
@@ -288,11 +288,11 @@ namespace MathAnim
 
 			if (activeAnimObjectId != INT32_MAX)
 			{
-				handleAnimObjectInspector(activeAnimObjectId);
+				handleAnimObjectInspector(am, activeAnimObjectId);
 			}
 			else if (activeAnimationId != INT32_MAX)
 			{
-				handleAnimationInspector(activeAnimationId);
+				handleAnimationInspector(am, activeAnimationId);
 			}
 
 			ImGui::End();
@@ -311,14 +311,14 @@ namespace MathAnim
 			timelineData.firstFrame = 0;
 		}
 
-		void free()
+		void free(AnimationManagerData* am)
 		{
 			// TODO: Synchronize this with freeInstance
 			if (tracks)
 			{
 				for (int i = 0; i < numTracks; i++)
 				{
-					freeTrack(tracks[i]);
+					freeTrack(tracks[i], am);
 				}
 				g_memory_free(tracks);
 			}
@@ -453,7 +453,7 @@ namespace MathAnim
 			return defaultTrack;
 		}
 
-		static void freeTrack(ImGuiTimeline_Track& track)
+		static void freeTrack(ImGuiTimeline_Track& track, AnimationManagerData* am)
 		{
 			track.isExpanded = false;
 			if (track.segments)
@@ -468,7 +468,7 @@ namespace MathAnim
 						activeAnimObjectId = INT32_MAX;
 					}
 
-					AnimationManager::removeAnimObject(animObjectId);
+					AnimationManager::removeAnimObject(am, animObjectId);
 
 					if (track.segments[i].subSegments)
 					{
@@ -498,7 +498,7 @@ namespace MathAnim
 			}
 		}
 
-		static void addNewDefaultTrack(int insertIndex)
+		static void addNewDefaultTrack(AnimationManagerData* am, int insertIndex)
 		{
 			numTracks++;
 			tracks = (ImGuiTimeline_Track*)g_memory_realloc(tracks, sizeof(ImGuiTimeline_Track) * numTracks);
@@ -521,15 +521,15 @@ namespace MathAnim
 				for (int segment = 0; segment < tracks[track].numSegments; segment++)
 				{
 					int animObjectId = tracks[track].segments[segment].userData.as.intData;
-					AnimationManager::setAnimObjectTrack(animObjectId, track);
+					AnimationManager::setAnimObjectTrack(am, animObjectId, track);
 				}
 			}
 		}
 
-		static void deleteTrack(int index)
+		static void deleteTrack(AnimationManagerData* am, int index)
 		{
 			g_logger_assert(index >= 0 && index < numTracks, "Invalid track index '%d' for deleting track.", index);
-			freeTrack(tracks[index]);
+			freeTrack(tracks[index], am);
 
 			// If the track wasn't the last track, move everything ahead of it back one
 			if (index < numTracks - 1)
@@ -549,7 +549,7 @@ namespace MathAnim
 				for (int segment = 0; segment < tracks[track].numSegments; segment++)
 				{
 					int animObjectId = tracks[track].segments[segment].userData.as.intData;
-					AnimationManager::setAnimObjectTrack(animObjectId, track);
+					AnimationManager::setAnimObjectTrack(am, animObjectId, track);
 				}
 			}
 
@@ -560,9 +560,9 @@ namespace MathAnim
 			// resetImGuiData();
 		}
 
-		static void handleAnimObjectInspector(int animObjectId)
+		static void handleAnimObjectInspector(AnimationManagerData* am, int animObjectId)
 		{
-			AnimObject* animObject = AnimationManager::getMutableObject(animObjectId);
+			AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectId);
 			if (!animObject)
 			{
 				g_logger_error("No anim object with id '%d' exists", animObject);
@@ -671,9 +671,9 @@ namespace MathAnim
 			}
 		}
 
-		static void handleAnimationInspector(int animationId)
+		static void handleAnimationInspector(AnimationManagerData* am, int animationId)
 		{
-			Animation* animation = AnimationManager::getMutableAnimation(animationId);
+			Animation* animation = AnimationManager::getMutableAnimation(am, animationId);
 			if (!animation)
 			{
 				g_logger_error("No animation with id '%d' exists", animationId);
@@ -1031,9 +1031,9 @@ namespace MathAnim
 			}
 		}
 
-		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate)
+		static void setupImGuiTimelineDataFromAnimations(AnimationManagerData* am, int numTracksToCreate)
 		{
-			const std::vector<AnimObject>& animObjects = AnimationManager::getAnimObjects();
+			const std::vector<AnimObject>& animObjects = AnimationManager::getAnimObjects(am);
 
 			// Find the max timeline track and add that many default tracks
 			int maxTimelineTrack = -1;
@@ -1053,7 +1053,7 @@ namespace MathAnim
 			{
 				for (int i = numTracks; i < maxTimelineTrack + 1; i++)
 				{
-					addNewDefaultTrack();
+					addNewDefaultTrack(am);
 				}
 			}
 			g_logger_assert(maxTimelineTrack + 1 <= numTracks, "Invalid num tracks to create.");
@@ -1215,11 +1215,11 @@ namespace MathAnim
 			g_logger_assert(false, "Failed to find animation object with id %d.\nCould not add animation.", animObjectId);
 		}
 
-		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex)
+		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex, AnimationManagerData* am)
 		{
 			// First delete it from our animations
 			ImGuiTimeline_Segment& segment = track.segments[segmentIndex];
-			AnimationManager::removeAnimObject(segment.userData.as.intData);
+			AnimationManager::removeAnimObject(am, segment.userData.as.intData);
 
 			// Unset active object if needed
 			if (segment.userData.as.intData == activeAnimObjectId)
@@ -1252,11 +1252,11 @@ namespace MathAnim
 			}
 		}
 
-		static void deleteSubSegment(ImGuiTimeline_Segment& segment, int subSegmentIndex)
+		static void deleteSubSegment(ImGuiTimeline_Segment& segment, int subSegmentIndex, AnimationManagerData* am)
 		{
 			// First delete it from our animations
 			ImGuiTimeline_SubSegment& subSegment = segment.subSegments[subSegmentIndex];
-			AnimationManager::removeAnimation(segment.userData.as.intData, (uintptr_t)subSegment.userData);
+			AnimationManager::removeAnimation(am, segment.userData.as.intData, (uintptr_t)subSegment.userData);
 
 			// Unset active object if needed
 			if ((uintptr_t)subSegment.userData == activeAnimationId)
@@ -1284,7 +1284,7 @@ namespace MathAnim
 			}
 		}
 
-		static void resetImGuiData()
+		static void resetImGuiData(AnimationManagerData* am)
 		{
 			for (int track = 0; track < numTracks; track++)
 			{
@@ -1306,7 +1306,7 @@ namespace MathAnim
 				}
 			}
 
-			setupImGuiTimelineDataFromAnimations(numTracks);
+			setupImGuiTimelineDataFromAnimations(am, numTracks);
 		}
 	}
 }

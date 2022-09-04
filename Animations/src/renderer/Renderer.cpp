@@ -332,7 +332,7 @@ namespace MathAnim
 		}
 
 		// ----------- Render calls ----------- 
-		void renderToFramebuffer(NVGcontext* vg, int frame, Framebuffer& framebuffer)
+		void renderToFramebuffer(AnimationManagerData* am, NVGcontext* vg, int frame, Framebuffer& framebuffer)
 		{
 			g_logger_assert(framebuffer.colorAttachments.size() == 3, "Invalid framebuffer. Should have 3 color attachments.");
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
@@ -348,7 +348,7 @@ namespace MathAnim
 			glDrawBuffers(3, compositeDrawBuffers);
 
 			// Collect all the render commands
-			AnimationManager::render(vg, frame, framebuffer);
+			AnimationManager::render(am, vg, frame, framebuffer);
 
 			// Do all the draw calls
 			drawList3DLine.render(shader3DLine);

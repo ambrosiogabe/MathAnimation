@@ -8,12 +8,24 @@
 
 namespace MathAnim
 {
+	struct AnimationManagerData
+	{
+		std::vector<AnimObject> objects;
+		// Maps from AnimObjectId -> Index in objects vector
+		std::unordered_map<uint32, uint32> idMap;
+		// Always sorted by startFrame and trackIndex
+		std::vector<Animation> animations;
+
+		// NOTE(gabe): So this is due to my whacky architecture, but at the beginning of rendering
+		// each frame we actually need to reset the camera position to its start position. I really
+		// need to figure out a better architecture for this haha
+		Vec2 sceneCamera2DStartPos;
+		OrthoCamera* sceneCamera2D;
+	};
+
 	namespace AnimationManager
 	{
 		// ------- Private variables --------
-		// List of animatable objects, sorted by start time
-		static std::vector<AnimObject> mObjects;
-
 		static const char* animationObjectTypeNames[] = {
 			"None",
 			"Text Object",
@@ -42,30 +54,49 @@ namespace MathAnim
 			"Length",
 		};
 
-		// NOTE(gabe): So this is due to my whacky architecture, but at the beginning of rendering
-		// each frame we actually need to reset the camera position to its start position. I really
-		// need to figure out a better architecture for this haha
-		static Vec2 sceneCamera2DStartPos;
-		static OrthoCamera* sceneCamera2D;
+		// -------- Internal Functions --------
+		static void deserializeAnimationManagerExV1(AnimationManagerData* am, RawMemory& memory);
+		static bool compareAnimObject(const AnimObject& ob1, const AnimObject& ob2);
+		static bool compareAnimation(const Animation& a1, const Animation& a2);
 
-		// Internal Functions
-		static void deserializeAnimationManagerExV1(RawMemory& memory);
-
-		void init(OrthoCamera& camera)
+		AnimationManagerData* create(OrthoCamera& camera)
 		{
-			sceneCamera2D = &camera;
-			sceneCamera2DStartPos = sceneCamera2D->position;
+			void* animManagerMemory = g_memory_allocate(sizeof(AnimationManagerData));
+			// Placement new to ensure the vectors and stuff are appropriately constructed
+			// but I can still use my memory tracker
+			AnimationManagerData* res = new(animManagerMemory)AnimationManagerData();
+
+			res->sceneCamera2D = &camera;
+			res->sceneCamera2DStartPos = res->sceneCamera2D->position;
+			return res;
 		}
 
-		void addAnimObject(const AnimObject& object)
+		void free(AnimationManagerData* am)
 		{
+			if (am)
+			{
+				for (int i = 0; i < am->objects.size(); i++)
+				{
+					am->objects[i].free();
+				}
+
+				// Call destructor to properly destruct vector objects
+				am->~AnimationManagerData();
+				g_memory_free(am);
+			}
+		}
+
+		void addAnimObject(AnimationManagerData* am, const AnimObject& object)
+		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
 			bool insertedObject = false;
-			for (auto iter = mObjects.begin(); iter != mObjects.end(); iter++)
+			for (auto iter = am->objects.begin(); iter != am->objects.end(); iter++)
 			{
 				// Insert it here. The list will always be sorted
 				if (object.frameStart < iter->frameStart)
 				{
-					mObjects.insert(iter, object);
+					am->objects.insert(iter, object);
 					insertedObject = true;
 					break;
 				}
@@ -76,7 +107,7 @@ namespace MathAnim
 				// If we didn't insert the object
 				// that means it must start after all the
 				// current animObject start times.
-				mObjects.push_back(object);
+				am->objects.push_back(object);
 			}
 		}
 
@@ -98,11 +129,13 @@ namespace MathAnim
 			animObject.animations.push_back(animation);
 		}
 
-		void addAnimationTo(const Animation& animation, int animObjectId)
+		void addAnimationTo(AnimationManagerData* am, const Animation& animation, int animObjectId)
 		{
-			for (int ai = 0; ai < mObjects.size(); ai++)
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			for (int ai = 0; ai < am->objects.size(); ai++)
 			{
-				AnimObject& animObject = mObjects[ai];
+				AnimObject& animObject = am->objects[ai];
 				if (animObject.id != animObjectId)
 				{
 					continue;
@@ -126,22 +159,24 @@ namespace MathAnim
 			}
 		}
 
-		bool removeAnimObject(int animObjectId)
+		bool removeAnimObject(AnimationManagerData* am, int animObjectId)
 		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
 			// Remove the anim object
-			for (int obji = 0; obji < mObjects.size(); obji++)
+			for (int obji = 0; obji < am->objects.size(); obji++)
 			{
-				if (mObjects[obji].id == animObjectId)
+				if (am->objects[obji].id == animObjectId)
 				{
 					// Free all animations in this object
-					for (int animi = 0; animi < mObjects[obji].animations.size(); animi++)
+					for (int animi = 0; animi < am->objects[obji].animations.size(); animi++)
 					{
-						g_logger_assert(mObjects[obji].animations[animi].objectId == animObjectId, "How did this happen?");
-						mObjects[obji].animations[animi].free();
+						g_logger_assert(am->objects[obji].animations[animi].objectId == animObjectId, "How did this happen?");
+						am->objects[obji].animations[animi].free();
 					}
 
-					mObjects[obji].free();
-					mObjects.erase(mObjects.begin() + obji);
+					am->objects[obji].free();
+					am->objects.erase(am->objects.begin() + obji);
 					return true;
 				}
 			}
@@ -149,21 +184,23 @@ namespace MathAnim
 			return false;
 		}
 
-		bool removeAnimation(int animObjectId, int animationId)
+		bool removeAnimation(AnimationManagerData* am, int animObjectId, int animationId)
 		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
 			// Remove the anim object
-			for (int obji = 0; obji < mObjects.size(); obji++)
+			for (int obji = 0; obji < am->objects.size(); obji++)
 			{
-				if (mObjects[obji].id == animObjectId)
+				if (am->objects[obji].id == animObjectId)
 				{
 					// Free all animations in this object
-					for (int animi = 0; animi < mObjects[obji].animations.size(); animi++)
+					for (int animi = 0; animi < am->objects[obji].animations.size(); animi++)
 					{
-						if (mObjects[obji].animations[animi].id == animationId)
+						if (am->objects[obji].animations[animi].id == animationId)
 						{
-							g_logger_assert(mObjects[obji].animations[animi].objectId == animObjectId, "How did this happen?");
-							mObjects[obji].animations[animi].free();
-							mObjects[obji].animations.erase(mObjects[obji].animations.begin() + animi);
+							g_logger_assert(am->objects[obji].animations[animi].objectId == animObjectId, "How did this happen?");
+							am->objects[obji].animations[animi].free();
+							am->objects[obji].animations.erase(am->objects[obji].animations.begin() + animi);
 							return true;
 						}
 					}
@@ -173,15 +210,17 @@ namespace MathAnim
 			return false;
 		}
 
-		bool setAnimObjectTime(int animObjectId, int frameStart, int duration)
+		bool setAnimObjectTime(AnimationManagerData* am, int animObjectId, int frameStart, int duration)
 		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
 			// Remove the animation then reinsert it. That way we make sure the list
 			// stays sorted
 			AnimObject animObjectCopy;
 			int objectIndex = -1;
-			for (int i = 0; i < mObjects.size(); i++)
+			for (int i = 0; i < am->objects.size(); i++)
 			{
-				const AnimObject& animObject = mObjects[i];
+				const AnimObject& animObject = am->objects[i];
 				if (animObject.id == animObjectId)
 				{
 					if (animObject.frameStart == frameStart && animObject.duration == duration)
@@ -198,32 +237,34 @@ namespace MathAnim
 
 			if (objectIndex != -1)
 			{
-				mObjects.erase(mObjects.begin() + objectIndex);
+				am->objects.erase(am->objects.begin() + objectIndex);
 				animObjectCopy.frameStart = frameStart;
 				animObjectCopy.duration = duration;
-				addAnimObject(animObjectCopy);
+				addAnimObject(am, animObjectCopy);
 				return true;
 			}
 
 			return false;
 		}
 
-		bool setAnimationTime(int animObjectId, int animationId, int frameStart, int duration)
+		bool setAnimationTime(AnimationManagerData* am, int animObjectId, int animationId, int frameStart, int duration)
 		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
 			// Remove the animation then reinsert it. That way we make sure the list
 			// stays sorted
 			Animation animationCopy;
 			int animationIndex = -1;
 			int animObjectIndex = -1;
-			for (int i = 0; i < mObjects.size(); i++)
+			for (int i = 0; i < am->objects.size(); i++)
 			{
-				if (mObjects[i].id == animObjectId)
+				if (am->objects[i].id == animObjectId)
 				{
 					// TODO: This is nasty. I should probably use a hash map to store
 					// animations and anim objects
-					for (int j = 0; j < mObjects[i].animations.size(); j++)
+					for (int j = 0; j < am->objects[i].animations.size(); j++)
 					{
-						const Animation& animation = mObjects[i].animations[j];
+						const Animation& animation = am->objects[i].animations[j];
 						if (animation.id == animationId)
 						{
 							if (animation.frameStart == frameStart && animation.duration == duration)
@@ -248,10 +289,10 @@ namespace MathAnim
 
 			if (animationIndex != -1)
 			{
-				mObjects[animObjectIndex].animations.erase(mObjects[animObjectIndex].animations.begin() + animationIndex);
+				am->objects[animObjectIndex].animations.erase(am->objects[animObjectIndex].animations.begin() + animationIndex);
 				animationCopy.frameStart = frameStart;
 				animationCopy.duration = duration;
-				addAnimationTo(animationCopy, mObjects[animObjectIndex]);
+				addAnimationTo(animationCopy, am->objects[animObjectIndex]);
 				return true;
 			}
 
@@ -259,13 +300,15 @@ namespace MathAnim
 
 		}
 
-		void setAnimObjectTrack(int animObjectId, int track)
+		void setAnimObjectTrack(AnimationManagerData* am, int animObjectId, int track)
 		{
-			for (int i = 0; i < mObjects.size(); i++)
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			for (int i = 0; i < am->objects.size(); i++)
 			{
-				if (mObjects[i].id == animObjectId)
+				if (am->objects[i].id == animObjectId)
 				{
-					mObjects[i].timelineTrack = track;
+					am->objects[i].timelineTrack = track;
 					return;
 				}
 			}
@@ -307,11 +350,13 @@ namespace MathAnim
 			return res;
 		}
 
-		void render(NVGcontext* vg, int frame, Framebuffer& framebuffer)
+		void render(AnimationManagerData* am, NVGcontext* vg, int frame, Framebuffer& framebuffer)
 		{
-			sceneCamera2D->position = sceneCamera2DStartPos;
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
+			am->sceneCamera2D->position = am->sceneCamera2DStartPos;
+
+			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 			{
 				// Reset to original state and apply animations in order
 				if (objectIter->_svgObjectStart != nullptr && objectIter->svgObject != nullptr)
@@ -358,7 +403,7 @@ namespace MathAnim
 
 				for (auto animIter = objectIter->animations.begin(); animIter != objectIter->animations.end(); animIter++)
 				{
-					float parentFrameStart = (float)animIter->getParent()->frameStart;
+					float parentFrameStart = (float)animIter->getParent(am)->frameStart;
 					float absoluteFrameStart = animIter->frameStart + parentFrameStart;
 					int animDeathTime = (int)absoluteFrameStart + animIter->duration;
 					if (absoluteFrameStart <= frame)
@@ -367,11 +412,11 @@ namespace MathAnim
 						{
 							objectIter->isAnimating = true;
 							float interpolatedT = ((float)frame - absoluteFrameStart) / (float)animIter->duration;
-							animIter->render(vg, interpolatedT);
+							animIter->render(am, vg, interpolatedT);
 						}
 						else
 						{
-							animIter->applyAnimation(vg);
+							animIter->applyAnimation(am, vg);
 						}
 					}
 				}
@@ -384,10 +429,12 @@ namespace MathAnim
 			}
 		}
 
-		int lastAnimatedFrame()
+		int lastAnimatedFrame(const AnimationManagerData* am)
 		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
 			int lastFrame = -1;
-			for (auto objectIter = mObjects.begin(); objectIter != mObjects.end(); objectIter++)
+			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 			{
 				int objectDeathTime = objectIter->frameStart + objectIter->duration;
 				lastFrame = glm::max(lastFrame, objectDeathTime);
@@ -401,33 +448,37 @@ namespace MathAnim
 			return animObjectId == INT32_MAX;
 		}
 
-		const AnimObject* getObject(int animObjectId)
+		const AnimObject* getObject(const AnimationManagerData* am, int animObjectId)
 		{
-			return getMutableObject(animObjectId);
+			return getMutableObject((AnimationManagerData*)am, animObjectId);
 		}
 
-		AnimObject* getMutableObject(int animObjectId)
+		AnimObject* getMutableObject(AnimationManagerData* am, int animObjectId)
 		{
-			for (int i = 0; i < mObjects.size(); i++)
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			for (int i = 0; i < am->objects.size(); i++)
 			{
-				if (mObjects[i].id == animObjectId)
+				if (am->objects[i].id == animObjectId)
 				{
-					return &mObjects[i];
+					return &am->objects[i];
 				}
 			}
 
 			return nullptr;
 		}
 
-		Animation* getMutableAnimation(int animationId)
+		Animation* getMutableAnimation(AnimationManagerData* am, int animationId)
 		{
-			for (int i = 0; i < mObjects.size(); i++)
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			for (int i = 0; i < am->objects.size(); i++)
 			{
-				for (int ai = 0; ai < mObjects[i].animations.size(); ai++)
+				for (int ai = 0; ai < am->objects[i].animations.size(); ai++)
 				{
-					if (mObjects[i].animations[ai].id == animationId)
+					if (am->objects[i].animations[ai].id == animationId)
 					{
-						return &mObjects[i].animations[ai];
+						return &am->objects[i].animations[ai];
 					}
 				}
 			}
@@ -435,32 +486,35 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		const std::vector<AnimObject>& getAnimObjects()
+		const std::vector<AnimObject>& getAnimObjects(const AnimationManagerData* am)
 		{
-			return mObjects;
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+			return am->objects;
 		}
 
-		const AnimObject* getNextAnimObject(int animObjectId)
+		const AnimObject* getNextAnimObject(const AnimationManagerData* am, int animObjectId)
 		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
 			int timelineTrack = -1;
 			int frameStart = -1;
 			int objIndex = -1;
-			for (int i = 0; i < mObjects.size(); i++)
+			for (int i = 0; i < am->objects.size(); i++)
 			{
 				if (objIndex != -1)
 				{
-					if (mObjects[i].timelineTrack == timelineTrack && mObjects[i].frameStart > mObjects[objIndex].frameStart)
+					if (am->objects[i].timelineTrack == timelineTrack && am->objects[i].frameStart > am->objects[objIndex].frameStart)
 					{
-						g_logger_assert(mObjects[i].frameStart >= mObjects[objIndex].frameStart + mObjects[objIndex].duration, "These two objects are intersecting.");
-						return &mObjects[i];
+						g_logger_assert(am->objects[i].frameStart >= am->objects[objIndex].frameStart + am->objects[objIndex].duration, "These two objects are intersecting.");
+						return &am->objects[i];
 					}
 				}
 
-				if (mObjects[i].id == animObjectId)
+				if (am->objects[i].id == animObjectId)
 				{
 					g_logger_assert(objIndex == -1, "Multiple objects found with object id %d", animObjectId);
-					timelineTrack = mObjects[i].timelineTrack;
-					frameStart = mObjects[i].frameStart;
+					timelineTrack = am->objects[i].timelineTrack;
+					frameStart = am->objects[i].frameStart;
 					objIndex = i;
 				}
 			}
@@ -468,8 +522,10 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		RawMemory serialize()
+		RawMemory serialize(const AnimationManagerData* am)
 		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+			
 			// This data should always be present regardless of file version
 			// Container data layout
 			// magicNumber   -> uint32
@@ -482,13 +538,13 @@ namespace MathAnim
 			// Custom data starts here. Subject to change from version to version
 			// numAnimations -> uint32
 			// animObjects   -> dynamic
-			uint32 numAnimations = (uint32)mObjects.size();
+			uint32 numAnimations = (uint32)am->objects.size();
 			memory.write<uint32>(&numAnimations);
 
 			// Write out each animation followed by 0xDEADBEEF
-			for (int i = 0; i < mObjects.size(); i++)
+			for (int i = 0; i < am->objects.size(); i++)
 			{
-				mObjects[i].serialize(memory);
+				am->objects[i].serialize(memory);
 				memory.write<uint32>(&MAGIC_NUMBER);
 			}
 			memory.shrinkToFit();
@@ -496,8 +552,10 @@ namespace MathAnim
 			return memory;
 		}
 
-		void deserialize(RawMemory& memory)
+		void deserialize(AnimationManagerData* am, RawMemory& memory)
 		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
 			// Read magic number and version then dispatch to appropraite
 			// deserializer
 			// magicNumber   -> uint32
@@ -512,7 +570,7 @@ namespace MathAnim
 
 			if (serializerVersion == 1)
 			{
-				deserializeAnimationManagerExV1(memory);
+				deserializeAnimationManagerExV1(am, memory);
 			}
 			else
 			{
@@ -521,25 +579,17 @@ namespace MathAnim
 
 			// Need to sort animation objects to ensure they get animations 
 			// applied in the correct order
-			sortAnimObjects();
+			sortAnimObjects(am);
 		}
 
-		static bool compareAnimObject(const AnimObject& ob1, const AnimObject& ob2)
+		void sortAnimObjects(AnimationManagerData* am)
 		{
-			return ob1.frameStart < ob2.frameStart;
-		}
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-		static bool compareAnimation(const Animation& a1, const Animation& a2)
-		{
-			return a1.frameStart < a2.frameStart;
-		}
-
-		void sortAnimObjects()
-		{
-			std::sort(mObjects.begin(), mObjects.end(), compareAnimObject);
-			for (int i = 0; i < mObjects.size(); i++)
+			std::sort(am->objects.begin(), am->objects.end(), compareAnimObject);
+			for (int i = 0; i < am->objects.size(); i++)
 			{
-				std::sort(mObjects[i].animations.begin(), mObjects[i].animations.end(), compareAnimation);
+				std::sort(am->objects[i].animations.begin(), am->objects[i].animations.end(), compareAnimation);
 			}
 		}
 
@@ -555,8 +605,8 @@ namespace MathAnim
 			return animationTypeNames[(int)type];
 		}
 
-		// Internal Functions
-		static void deserializeAnimationManagerExV1(RawMemory& memory)
+		// -------- Internal Functions --------
+		static void deserializeAnimationManagerExV1(AnimationManagerData* am, RawMemory& memory)
 		{
 			// We're in function V1 so this is a version 1 for sure
 			constexpr uint32 version = 1;
@@ -570,11 +620,21 @@ namespace MathAnim
 			for (uint32 i = 0; i < numAnimations; i++)
 			{
 				AnimObject animObject = AnimObject::deserialize(memory, version);
-				mObjects.push_back(animObject);
+				am->objects.push_back(animObject);
 				uint32 magicNumber;
 				memory.read<uint32>(&magicNumber);
 				g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
 			}
+		}
+
+		static bool compareAnimObject(const AnimObject& ob1, const AnimObject& ob2)
+		{
+			return ob1.frameStart < ob2.frameStart;
+		}
+
+		static bool compareAnimation(const Animation& a1, const Animation& a2)
+		{
+			return a1.frameStart < a2.frameStart;
 		}
 	}
 }

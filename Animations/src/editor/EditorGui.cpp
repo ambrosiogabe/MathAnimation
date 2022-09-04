@@ -18,21 +18,21 @@ namespace MathAnim
 		static TimelineData timeline;
 		static bool timelineLoaded = false;
 
-		void init()
+		void init(AnimationManagerData* am)
 		{
 			if (!timelineLoaded)
 			{
 				timeline = Timeline::initInstance();
 			}
-			Timeline::init();
+			Timeline::init(am);
 
 			AnimObjectPanel::init();
 			ExportPanel::init();
-			SceneHierarchyPanel::init();
+			SceneHierarchyPanel::init(am);
 			timelineLoaded = true;
 		}
 
-		void update(uint32 sceneTextureId)
+		void update(uint32 sceneTextureId, AnimationManagerData* am)
 		{
 			// TODO: Do this in a central file
 			checkHotKeys();
@@ -71,20 +71,20 @@ namespace MathAnim
 
 			ImGui::End();
 
-			Timeline::update(timeline);
+			Timeline::update(timeline, am);
 			AnimObjectPanel::update();
 			DebugPanel::update();
 			ExportPanel::update();
-			SceneHierarchyPanel::update();
+			SceneHierarchyPanel::update(am);
 		}
 
-		void free()
+		void free(AnimationManagerData* am)
 		{
 			SceneHierarchyPanel::free();
 			ExportPanel::free();
 			AnimObjectPanel::free();
 			Timeline::freeInstance(timeline);
-			Timeline::free();
+			Timeline::free(am);
 		}
 
 		const TimelineData& getTimelineData()
