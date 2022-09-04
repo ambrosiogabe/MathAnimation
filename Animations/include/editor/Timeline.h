@@ -30,6 +30,9 @@ namespace MathAnim
 		void freeInstance(TimelineData& data);
 		void free();
 
+		void setActiveAnimObject(int animObjectId);
+		int getActiveAnimObject();
+
 		RawMemory serialize(const TimelineData& data);
 		TimelineData deserialize(RawMemory& memory);
 	}

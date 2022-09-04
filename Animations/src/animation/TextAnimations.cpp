@@ -146,15 +146,14 @@ namespace MathAnim
 			float svgTotalWidth = (strSize.x * parent->svgScale) + parent->strokeWidth;
 			float svgTotalHeight = (strSize.y * parent->svgScale) + parent->strokeWidth;
 
-			glm::vec2 outputSize = Application::getOutputSize();
 			Vec2 cacheUvMin = Vec2{
-				svgTextureOffset.x / outputSize.x,
-				1.0f - (svgTextureOffset.y / outputSize.y) - (svgTotalHeight / outputSize.y)
+				svgTextureOffset.x / Svg::getSvgCache().width,
+				1.0f - (svgTextureOffset.y / Svg::getSvgCache().height) - (svgTotalHeight / Svg::getSvgCache().height)
 			};
 			Vec2 cacheUvMax = cacheUvMin +
 				Vec2{
-					svgTotalWidth / outputSize.x,
-					svgTotalHeight / outputSize.y
+					svgTotalWidth / Svg::getSvgCache().width,
+					svgTotalHeight / Svg::getSvgCache().height
 			};
 
 			if (parent->drawDebugBoxes)
@@ -172,7 +171,7 @@ namespace MathAnim
 				GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
 				glDrawBuffers(3, compositeDrawBuffers);
 
-				nvgBeginFrame(vg, outputSize.x, outputSize.y, 1.0f);
+				nvgBeginFrame(vg, Svg::getSvgCache().width, Svg::getSvgCache().height, 1.0f);
 
 				float strokeWidthCorrectionPos = Svg::getCachePadding().x * 0.5f;
 				float strokeWidthCorrectionNeg = -Svg::getCachePadding().x;

@@ -3,6 +3,7 @@
 #include "editor/AnimObjectPanel.h"
 #include "editor/DebugPanel.h"
 #include "editor/ExportPanel.h"
+#include "editor/SceneHierarchyPanel.h"
 #include "core/Application.h"
 
 #include "imgui.h"
@@ -27,6 +28,7 @@ namespace MathAnim
 
 			AnimObjectPanel::init();
 			ExportPanel::init();
+			SceneHierarchyPanel::init();
 			timelineLoaded = true;
 		}
 
@@ -73,10 +75,12 @@ namespace MathAnim
 			AnimObjectPanel::update();
 			DebugPanel::update();
 			ExportPanel::update();
+			SceneHierarchyPanel::update();
 		}
 
 		void free()
 		{
+			SceneHierarchyPanel::free();
 			ExportPanel::free();
 			AnimObjectPanel::free();
 			Timeline::freeInstance(timeline);

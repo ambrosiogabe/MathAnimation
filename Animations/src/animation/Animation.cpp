@@ -457,6 +457,13 @@ namespace MathAnim
 			this->_svgObjectStart = nullptr;
 		}
 
+		if (this->name)
+		{
+			g_memory_free(this->name);
+			this->name = nullptr;
+		}
+		this->nameLength = 0;
+
 		for (int i = 0; i < children.size(); i++)
 		{
 			children[i].free();
@@ -490,6 +497,9 @@ namespace MathAnim
 		{
 			animations[i].free();
 		}
+
+		this->parentId = INT32_MAX;
+		this->id = INT32_MAX;
 	}
 
 	void AnimObject::serialize(RawMemory& memory) const
@@ -524,6 +534,10 @@ namespace MathAnim
 		// drawDebugBoxes     -> u8
 		// drawCurveDebugBoxes -> u8
 		// Id                 -> int32
+		// NameLength         -> uint32
+		// Name               -> uint8[NameLength]
+		// 
+		// ParentId           -> int32
 		// FrameStart         -> int32
 		// Duration           -> int32
 		// TimelineTrack      -> int32
@@ -572,6 +586,10 @@ namespace MathAnim
 		memory.write<uint8>(&drawCurveDebugBoxesU8);
 
 		memory.write<int32>(&id);
+		memory.write<int32>(&parentId);
+		memory.write<uint32>(&nameLength);
+		memory.writeDangerous(name, (nameLength + 1));
+
 		memory.write<int32>(&frameStart);
 		memory.write<int32>(&duration);
 		memory.write<int32>(&timelineTrack);
@@ -665,6 +683,13 @@ namespace MathAnim
 	{
 		AnimObject res;
 		res.id = animObjectUidCounter++;
+		res.parentId = INT32_MAX;
+
+		const char* newObjName = "New Object";
+		res.nameLength = std::strlen(newObjName);
+		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
+		g_memory_copyMem(res.name, (void*)newObjName, sizeof(uint8) * (res.nameLength + 1));
+
 		res.animations = {};
 		res.frameStart = frameStart;
 		res.duration = duration;
@@ -797,6 +822,10 @@ namespace MathAnim
 		// drawDebugBoxes     -> u8
 		// drawCurveDebugBoxes -> u8
 		// Id                 -> int32
+		// NameLength         -> uint32
+		// Name               -> uint8[NameLength]
+		// 
+		// ParentId           -> int32
 		// FrameStart         -> int32
 		// Duration           -> int32
 		// TimelineTrack      -> int32
@@ -853,6 +882,14 @@ namespace MathAnim
 		res.drawCurveDebugBoxes = drawCurveDebugBoxes != 0;
 
 		memory.read<int32>(&res.id);
+		memory.read<int32>(&res.parentId);
+		if (!memory.read<uint32>(&res.nameLength))
+		{
+			g_logger_assert(false, "Corrupted project data. Irrecoverable.");
+		}
+		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
+		memory.readDangerous(res.name, res.nameLength + 1);
+
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);
 		memory.read<int32>(&res.timelineTrack);

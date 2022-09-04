@@ -396,6 +396,11 @@ namespace MathAnim
 			return lastFrame;
 		}
 
+		bool isObjectNull(int animObjectId)
+		{
+			return animObjectId == INT32_MAX;
+		}
+
 		const AnimObject* getObject(int animObjectId)
 		{
 			return getMutableObject(animObjectId);
