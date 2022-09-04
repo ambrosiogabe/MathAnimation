@@ -118,6 +118,10 @@ namespace MathAnim
 		Vec3 _positionStart;
 		Vec3 _scaleStart;
 		int32 id;
+		int32 parentId;
+		uint8* name;
+		uint32 nameLength;
+
 		int32 frameStart;
 		int32 duration;
 		int32 timelineTrack;

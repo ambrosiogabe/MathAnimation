@@ -32,6 +32,7 @@ namespace MathAnim
 
 		int lastAnimatedFrame();
 
+		bool isObjectNull(int animObjectId);
 		const AnimObject* getObject(int animObjectId);
 		AnimObject* getMutableObject(int animObjectId);
 		Animation* getMutableAnimation(int animationId);

@@ -3,6 +3,7 @@
 #include "core/Platform.h"
 #include "editor/Timeline.h"
 #include "editor/ImGuiTimeline.h"
+#include "editor/SceneHierarchyPanel.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "animation/Svg.h"
@@ -226,6 +227,7 @@ namespace MathAnim
 						AnimObject object = AnimObject::createDefault(payloadData->objectType, res.dragDropPayloadFirstFrame, 120);
 						object.timelineTrack = res.trackIndex;
 						AnimationManager::addAnimObject(object);
+						SceneHierarchyPanel::addNewAnimObject(object);
 						addAnimObject(object);
 					}
 				}
@@ -324,6 +326,17 @@ namespace MathAnim
 			Audio::free(audioSource);
 			WavLoader::free(audioData);
 			ImGuiTimeline_free();
+		}
+
+		void setActiveAnimObject(int animObjectId)
+		{
+			activeAnimObjectId = animObjectId;
+			activeAnimationId = INT32_MAX;
+		}
+
+		int getActiveAnimObject()
+		{
+			return activeAnimObjectId;
 		}
 
 		RawMemory serialize(const TimelineData& timelineData)
@@ -558,6 +571,26 @@ namespace MathAnim
 			}
 
 			bool objChanged = false;
+
+			constexpr int scratchLength = 256;
+			char scratch[scratchLength] = {};
+			if (animObject->nameLength < scratchLength - 1)
+			{
+				g_memory_copyMem(scratch, animObject->name, animObject->nameLength * sizeof(char));
+				scratch[animObject->nameLength] = '\0';
+				if (ImGui::InputText(": Name", scratch, scratchLength * sizeof(char)))
+				{
+					size_t newLength = std::strlen(scratch);
+					animObject->name = (uint8*)g_memory_realloc(animObject->name, sizeof(char) * (newLength + 1));
+					animObject->nameLength = (int32_t)newLength;
+					g_memory_copyMem(animObject->name, scratch, newLength * sizeof(char));
+					animObject->name[newLength] = '\0';
+				}
+			}
+			else
+			{
+				g_logger_error("Anim Object name has more 256 characters. Tell Gabe to increase scratch length for Anim Object names.");
+			}
 
 			objChanged = ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed) || objChanged;
 			objChanged = ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x) || objChanged;
@@ -1000,7 +1033,7 @@ namespace MathAnim
 
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate)
 		{
-			const std::vector<AnimObject> animObjects = AnimationManager::getAnimObjects();
+			const std::vector<AnimObject>& animObjects = AnimationManager::getAnimObjects();
 
 			// Find the max timeline track and add that many default tracks
 			int maxTimelineTrack = -1;
