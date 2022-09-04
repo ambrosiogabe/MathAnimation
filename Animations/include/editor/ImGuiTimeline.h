@@ -29,7 +29,8 @@ namespace MathAnim
 		ImGuiTimelineResultFlags_DragDropPayloadHit  = 0x200,
 		ImGuiTimelineResultFlags_DeleteActiveObject  = 0x400,
 		ImGuiTimelineResultFlags_AddAudioSource      = 0x800,
-		ImGuiTimelineResultFlags_ActiveObjectDeselected = 0x1000,
+		ImGuiTimelineResultFlags_DeleteAudioSource   = 0x1000,
+		ImGuiTimelineResultFlags_ActiveObjectDeselected = 0x2000
 	};
 
 	struct ImGuiTimelineResult

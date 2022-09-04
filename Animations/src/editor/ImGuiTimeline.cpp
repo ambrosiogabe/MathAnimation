@@ -1,5 +1,6 @@
 #include "editor/ImGuiTimeline.h"
 #include "core/ImGuiLayer.h"
+#include "core/Colors.h"
 
 #include "imgui.h"
 #include "utils/FontAwesome.h"
@@ -36,6 +37,11 @@ struct ImTimelineWindowData
 static constexpr int maxNumTimelines = 16;
 static int numTimelinesActive = 0;
 static ImTimelineWindowData windowData[maxNumTimelines];
+
+static ImU32 U32Color(const MathAnim::Vec4& c)
+{
+	return ImGui::ColorConvertFloat4ToU32(c);
+}
 
 namespace MathAnim
 {
@@ -77,24 +83,24 @@ namespace MathAnim
 	constexpr float ZOOM_DEFAULT = 5.0f;
 
 	// Colors
-	constexpr ImU32 boundaryTickColor = IM_COL32(135, 135, 135, 255);
-	constexpr ImU32 largeTickColor = IM_COL32(105, 105, 105, 255);
-	constexpr ImU32 defaultTickColor = IM_COL32(85, 85, 85, 255);
+	const ImU32 boundaryTickColor = U32Color(Colors::Neutral[4]);
+	const ImU32 largeTickColor = U32Color(Colors::Neutral[5]);
+	const ImU32 defaultTickColor = U32Color(Colors::Neutral[6]);
 
-	constexpr ImU32 dropdownArrowColor = IM_COL32(220, 230, 223, 255);
-	constexpr ImU32 legendBorderColor = IM_COL32(5, 5, 5, 255);
-	constexpr ImU32 legendBorderHighlightColor = IM_COL32(94, 97, 94, 255);
+	const ImU32 dropdownArrowColor = U32Color(Colors::Neutral[1]);
+	const ImU32 legendBorderColor = U32Color(Colors::Neutral[8]);
+	const ImU32 legendBorderHighlightColor = U32Color(Colors::Neutral[5]);
 
-	constexpr ImU32 canvasColor = IM_COL32(20, 20, 20, 255);
-	constexpr ImU32 legendBackground = IM_COL32(35, 35, 35, 255);
-	constexpr ImU32 timelineTrackDark = IM_COL32(10, 10, 10, 255);
-	constexpr ImU32 cursorColor = IM_COL32(214, 118, 111, 255);
+	const ImU32 canvasColor = U32Color(Colors::Neutral[8]);
+	const ImU32 legendBackground = U32Color(Colors::Neutral[7]);
+	const ImU32 timelineTrackDark = U32Color(Colors::Neutral[9]);
+	const ImU32 cursorColor = U32Color(Colors::AccentRed[3]);
 
-	constexpr ImU32 segmentColor = IM_COL32(133, 116, 184, 255);
-	constexpr ImU32 segmentDarkColor = IM_COL32(101, 88, 138, 255);
-	constexpr ImU32 segmentBoldColor = IM_COL32(69, 61, 92, 255);
-	constexpr ImU32 subSegmentColor = IM_COL32(119, 186, 122, 255);
-	constexpr ImU32 subSegmentDarkColor = IM_COL32(87, 135, 85, 255);
+	const ImU32 segmentColor = U32Color(Colors::Primary[5]);
+	const ImU32 segmentDarkColor = U32Color(Colors::Primary[6]);
+	const ImU32 segmentBoldColor = U32Color(Colors::Primary[8]);
+	const ImU32 subSegmentColor = U32Color(Colors::AccentGreen[3]);
+	const ImU32 subSegmentDarkColor = U32Color(Colors::AccentGreen[4]);
 
 	// Commonly used vars
 	static ImVec2 timelineRulerEnd;
@@ -1149,6 +1155,11 @@ namespace MathAnim
 				if (ImGui::MenuItem("Add Audio Source"))
 				{
 					res.flags |= ImGuiTimelineResultFlags_AddAudioSource;
+				}
+
+				if (ImGui::MenuItem("Delete Audio Source"))
+				{
+					res.flags |= ImGuiTimelineResultFlags_DeleteAudioSource;
 				}
 
 				ImGui::EndPopup();

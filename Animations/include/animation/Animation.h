@@ -27,6 +27,7 @@ namespace MathAnim
 		Circle,
 		Cube,
 		Axis,
+		SvgObject,
 		Length
 	};
 
@@ -117,11 +118,16 @@ namespace MathAnim
 		Vec3 _positionStart;
 		Vec3 _scaleStart;
 		int32 id;
+		int32 parentId;
+		uint8* name;
+		uint32 nameLength;
+
 		int32 frameStart;
 		int32 duration;
 		int32 timelineTrack;
 		SvgObject* _svgObjectStart;
 		SvgObject* svgObject;
+		float svgScale;
 		bool isAnimating;
 		bool isTransparent;
 		bool drawDebugBoxes;
@@ -134,6 +140,9 @@ namespace MathAnim
 		glm::u8vec4 _fillColorStart;
 		glm::u8vec4 fillColor;
 		std::vector<Animation> animations;
+		// TODO: Do we want to restructure this to only have
+		// a parent pointer or something?
+		std::vector<AnimObject> children;
 
 		union
 		{
@@ -149,10 +158,12 @@ namespace MathAnim
 		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target);
 		void renderFadeInAnimation(NVGcontext* vg, float t);
 		void renderFadeOutAnimation(NVGcontext* vg, float t);
+		void takeParentAttributes(const AnimObject* parent);
 		
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimObject deserialize(RawMemory& memory, uint32 version);
+		static AnimObject createDefaultFromParent(AnimObjectTypeV1 type, const AnimObject* parent);
 		static AnimObject createDefault(AnimObjectTypeV1 type, int32 frameStart, int32 duration);
 	};
 }

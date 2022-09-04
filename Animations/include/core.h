@@ -66,7 +66,7 @@ struct RawMemory
 	void resetReadWriteCursor();
 
 	void writeDangerous(const uint8* data, size_t dataSize);
-	void readDangerous(uint8* data, size_t dataSize);
+	bool readDangerous(uint8* data, size_t dataSize);
 
 	template<typename T>
 	void write(const T* data)
@@ -75,9 +75,9 @@ struct RawMemory
 	}
 
 	template<typename T>
-	void read(T* data)
+	bool read(T* data)
 	{
-		readDangerous((uint8*)data, sizeof(T));
+		return readDangerous((uint8*)data, sizeof(T));
 	}
 
 	void setCursor(size_t offset);

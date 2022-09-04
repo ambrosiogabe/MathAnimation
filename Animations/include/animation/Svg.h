@@ -71,8 +71,8 @@ namespace MathAnim
 		void normalize(const Vec2& min = Vec2{ FLT_MAX, FLT_MAX }, const Vec2& max = Vec2{ FLT_MIN, FLT_MIN });
 		void calculateApproximatePerimeter();
 		void calculateBBox();
-		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, const Vec2& svgScale = Vec2{1, 1}) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, const Vec2& svgScale = Vec2{1, 1}, bool reverse = false, bool isSvgGroup = false) const;
+		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, bool reverse = false, bool isSvgGroup = false) const;
 		void free();
 	};
 
@@ -90,8 +90,8 @@ namespace MathAnim
 
 		void normalize();
 		void calculateBBox();
-		void render(NVGcontext* vg, AnimObject* parent, const Vec2& svgScale = Vec2{ 1, 1 }) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, const Vec2& svgScale = Vec2{ 1, 1 }, bool reverse = false) const;
+		void render(NVGcontext* vg, AnimObject* parent) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse = false) const;
 		void free();
 	};
 

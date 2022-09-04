@@ -3,6 +3,7 @@
 #include "core/Platform.h"
 #include "editor/Timeline.h"
 #include "editor/ImGuiTimeline.h"
+#include "editor/SceneHierarchyPanel.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "animation/Svg.h"
@@ -29,7 +30,11 @@ namespace MathAnim
 		static WavData audioData;
 		static ImGuiTimeline_AudioData imguiAudioData;
 
+		static constexpr float slowDragSpeed = 0.02f;
+
 		// ------- Internal Functions --------
+		static void loadAudioSource(const char* filepath);
+
 		static ImGuiTimeline_Track createDefaultTrack(char* trackName = nullptr);
 		static void freeTrack(ImGuiTimeline_Track& track);
 		static void addNewDefaultTrack(int insertIndex = INT32_MAX);
@@ -55,6 +60,16 @@ namespace MathAnim
 		static void deleteSubSegment(ImGuiTimeline_Segment& segment, int subSegmentIndex);
 		static void resetImGuiData();
 
+		TimelineData initInstance()
+		{
+			TimelineData res;
+			res.audioSourceFile = nullptr;
+			res.audioSourceFileLength = 0;
+			res.currentFrame = 0;
+			res.firstFrame = 0;
+			res.zoomLevel = 5.0f;
+			return res;
+		}
 
 		void init()
 		{
@@ -69,15 +84,14 @@ namespace MathAnim
 			setupImGuiTimelineDataFromAnimations();
 		}
 
-		void update()
+		void update(TimelineData& timelineData)
 		{
 			// NOTE: For best results, it's usually a good idea to specify 0 padding for the window
 			// so that the timeline can expand to the full width/height of the window
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 			ImGui::Begin("Timeline");
 
-			static int firstFrame = 0;
-			int currentFrame = Application::getFrameIndex();
+			timelineData.currentFrame = Application::getFrameIndex();
 
 			ImGuiTimelineFlags flags = ImGuiTimelineFlags_None;
 			flags |= ImGuiTimelineFlags_EnableZoomControl;
@@ -91,9 +105,9 @@ namespace MathAnim
 				if (!Audio::isNull(audioSource) && !audioSource.isPlaying)
 				{
 					float offset = 0.0f;
-					if (currentFrame > 0)
+					if (timelineData.currentFrame > 0)
 					{
-						offset = currentFrame / 60.0f;
+						offset = timelineData.currentFrame / 60.0f;
 					}
 					Audio::play(audioSource, offset);
 				}
@@ -109,10 +123,19 @@ namespace MathAnim
 			ImGuiTimeline_AudioData* imguiAudioDataPtr = Audio::isNull(audioSource)
 				? nullptr
 				: &imguiAudioData;
-			ImGuiTimelineResult res = ImGuiTimeline(tracks, numTracks, &currentFrame, &firstFrame, nullptr, imguiAudioDataPtr, flags);
+			ImGuiTimelineResult res = ImGuiTimeline(
+				tracks, 
+				numTracks, 
+				&timelineData.currentFrame, 
+				&timelineData.firstFrame, 
+				&timelineData.zoomLevel, 
+				imguiAudioDataPtr, 
+				flags
+			);
+			
 			if (res.flags & ImGuiTimelineResultFlags_CurrentFrameChanged)
 			{
-				Application::setFrameIndex(currentFrame);
+				Application::setFrameIndex(timelineData.currentFrame);
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_AddTrackClicked)
@@ -125,6 +148,31 @@ namespace MathAnim
 				deleteTrack(res.trackIndex);
 			}
 
+			// If we have a filepath for an audio source and the current audio source is null
+			// try to load it
+			if (timelineData.audioSourceFileLength > 0 && Audio::isNull(audioSource))
+			{
+				loadAudioSource((const char*)timelineData.audioSourceFile);
+
+				if (Audio::isNull(audioSource))
+				{
+					// Failed to load the file, there must be something wrong with it.
+					g_logger_error("Failed to load audio source file '%s'", timelineData.audioSourceFile);
+					g_memory_free(timelineData.audioSourceFile);
+					timelineData.audioSourceFile = nullptr;
+					timelineData.audioSourceFileLength = 0;
+				}
+			}
+
+			if (res.flags & ImGuiTimelineResultFlags_DeleteAudioSource)
+			{
+				Audio::free(audioSource);
+				WavLoader::free(audioData);
+				timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8));
+				timelineData.audioSourceFile[0] = '\0';
+				timelineData.audioSourceFileLength = 0;
+			}
+
 			if (res.flags & ImGuiTimelineResultFlags_AddAudioSource)
 			{
 				nfdchar_t* outPath = NULL;
@@ -132,24 +180,14 @@ namespace MathAnim
 
 				if (result == NFD_OKAY)
 				{
-					Audio::free(audioSource);
-					WavLoader::free(audioData);
-					audioData = WavLoader::loadWavFile(outPath);
-					audioSource = Audio::loadWavFile(audioData);
-					std::free(outPath);
+					loadAudioSource(outPath);
+					
+					size_t pathLength = std::strlen(outPath);
+					timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8) * (pathLength + 1));
+					g_memory_copyMem(timelineData.audioSourceFile, outPath, sizeof(uint8) * (pathLength + 1));
+					timelineData.audioSourceFileLength = pathLength;
 
-					// TODO: Popup an error if loading fails to let the user know
-					if (!Audio::isNull(audioSource))
-					{
-						// Copy data to imgui struct if success
-						imguiAudioData.bitsPerSample = audioData.bitsPerSample;
-						imguiAudioData.blockAlignment = audioData.blockAlignment;
-						imguiAudioData.bytesPerSec = audioData.bytesPerSec;
-						imguiAudioData.data = audioData.audioData;
-						imguiAudioData.dataSize = audioData.dataSize;
-						imguiAudioData.numAudioChannels = audioData.audioChannelType == AudioChannelType::Dual ? 2 : 1;
-						imguiAudioData.sampleRate = audioData.sampleRate;
-					}
+					std::free(outPath);
 				}
 				else if (result == NFD_CANCEL)
 				{
@@ -189,6 +227,7 @@ namespace MathAnim
 						AnimObject object = AnimObject::createDefault(payloadData->objectType, res.dragDropPayloadFirstFrame, 120);
 						object.timelineTrack = res.trackIndex;
 						AnimationManager::addAnimObject(object);
+						SceneHierarchyPanel::addNewAnimObject(object);
 						addAnimObject(object);
 					}
 				}
@@ -259,8 +298,22 @@ namespace MathAnim
 			ImGui::End();
 		}
 
+		void freeInstance(TimelineData& timelineData)
+		{
+			// Free timeline data
+			if (timelineData.audioSourceFile)
+			{
+				g_memory_free(timelineData.audioSourceFile);
+			}
+			timelineData.audioSourceFile = nullptr;
+			timelineData.audioSourceFileLength = 0;
+			timelineData.currentFrame = 0;
+			timelineData.firstFrame = 0;
+		}
+
 		void free()
 		{
+			// TODO: Synchronize this with freeInstance
 			if (tracks)
 			{
 				for (int i = 0; i < numTracks; i++)
@@ -275,7 +328,97 @@ namespace MathAnim
 			ImGuiTimeline_free();
 		}
 
+		void setActiveAnimObject(int animObjectId)
+		{
+			activeAnimObjectId = animObjectId;
+			activeAnimationId = INT32_MAX;
+		}
+
+		int getActiveAnimObject()
+		{
+			return activeAnimObjectId;
+		}
+
+		RawMemory serialize(const TimelineData& timelineData)
+		{
+			// audioSourceFileLength     -> uint32
+			// audioSourceFile           -> uint8[audioSourceFileLength + 1]
+			// firstFrame                -> int32
+			// currentFrame              -> int32
+			// zoomLevel                 -> float
+			RawMemory res;
+			res.init(sizeof(TimelineData));
+
+			g_logger_assert(timelineData.audioSourceFileLength < UINT32_MAX, "Corrupted timeline data. Somehow audio source file length > UINT32_MAX '%d'", timelineData.audioSourceFileLength);
+			uint32 fileLengthU32 = (uint32)timelineData.audioSourceFileLength;
+			res.write<uint32>(&fileLengthU32);
+			res.writeDangerous(timelineData.audioSourceFile, fileLengthU32);
+			uint8 nullByte = '\0';
+			res.write<uint8>(&nullByte);
+			res.write<int32>(&timelineData.firstFrame);
+			res.write<int32>(&timelineData.currentFrame);
+			res.write<float>(&timelineData.zoomLevel);
+
+			res.shrinkToFit();
+
+			return res;
+		}
+
+		TimelineData deserialize(RawMemory& memory)
+		{
+			TimelineData res = {};
+
+			// audioSourceFileLength     -> uint32
+			// audioSourceFile           -> uint8[audioSourceFileLength + 1]
+			// firstFrame                -> int32
+			// currentFrame              -> int32
+			// zoomLevel                 -> float
+
+			uint32 fileLengthU32;
+			if (!memory.read<uint32>(&fileLengthU32))
+			{
+				g_logger_error("Corrupted timeline data in project file.");
+				return res;
+			}
+
+			res.audioSourceFileLength = (size_t)fileLengthU32;
+			res.audioSourceFile = (uint8*)g_memory_allocate(sizeof(uint8) * (res.audioSourceFileLength + 1));
+			memory.readDangerous(res.audioSourceFile, res.audioSourceFileLength + 1);
+			memory.read<int32>(&res.firstFrame);
+			memory.read<int32>(&res.currentFrame);
+			memory.read<float>(&res.zoomLevel);
+
+			Application::setFrameIndex(res.currentFrame);
+
+			return res;
+		}
+
 		// ------- Internal Functions --------
+		static void loadAudioSource(const char* filepath)
+		{
+			Audio::free(audioSource);
+			WavLoader::free(audioData);
+			audioData = WavLoader::loadWavFile(filepath);
+			audioSource = Audio::loadWavFile(audioData);
+
+			// TODO: Popup an error if loading fails to let the user know
+			if (!Audio::isNull(audioSource))
+			{
+				// Copy data to imgui struct if success
+				imguiAudioData.bitsPerSample = audioData.bitsPerSample;
+				imguiAudioData.blockAlignment = audioData.blockAlignment;
+				imguiAudioData.bytesPerSec = audioData.bytesPerSec;
+				imguiAudioData.data = audioData.audioData;
+				imguiAudioData.dataSize = audioData.dataSize;
+				imguiAudioData.numAudioChannels = audioData.audioChannelType == AudioChannelType::Dual ? 2 : 1;
+				imguiAudioData.sampleRate = audioData.sampleRate;
+			}
+			else
+			{
+				g_memory_zeroMem(&imguiAudioData, sizeof(ImGuiTimeline_AudioData));
+			}
+		}
+
 		static ImGuiTimeline_Track createDefaultTrack(char* inTrackName)
 		{
 			ImGuiTimeline_Track defaultTrack;
@@ -427,13 +570,35 @@ namespace MathAnim
 				return;
 			}
 
-			ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x);
-			ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
-			float slowDragSpeed = 0.02f;
-			ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
+			bool objChanged = false;
+
+			constexpr int scratchLength = 256;
+			char scratch[scratchLength] = {};
+			if (animObject->nameLength < scratchLength - 1)
+			{
+				g_memory_copyMem(scratch, animObject->name, animObject->nameLength * sizeof(char));
+				scratch[animObject->nameLength] = '\0';
+				if (ImGui::InputText(": Name", scratch, scratchLength * sizeof(char)))
+				{
+					size_t newLength = std::strlen(scratch);
+					animObject->name = (uint8*)g_memory_realloc(animObject->name, sizeof(char) * (newLength + 1));
+					animObject->nameLength = (int32_t)newLength;
+					g_memory_copyMem(animObject->name, scratch, newLength * sizeof(char));
+					animObject->name[newLength] = '\0';
+				}
+			}
+			else
+			{
+				g_logger_error("Anim Object name has more 256 characters. Tell Gabe to increase scratch length for Anim Object names.");
+			}
+
+			objChanged = ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed) || objChanged;
+			objChanged = ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x) || objChanged;
+			objChanged = ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed) || objChanged;
+			objChanged = ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed) || objChanged;
 
 			// NanoVG only allows stroke width between [0-200] so we reflect that here
-			ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f);
+			objChanged = ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, slowDragSpeed, 0.0f, 10.0f) || objChanged;
 			float strokeColor[4] = {
 				(float)animObject->_strokeColorStart.r / 255.0f,
 				(float)animObject->_strokeColorStart.g / 255.0f,
@@ -446,6 +611,7 @@ namespace MathAnim
 				animObject->_strokeColorStart.g = (uint8)(strokeColor[1] * 255.0f);
 				animObject->_strokeColorStart.b = (uint8)(strokeColor[2] * 255.0f);
 				animObject->_strokeColorStart.a = (uint8)(strokeColor[3] * 255.0f);
+				objChanged = true;
 			}
 
 			float fillColor[4] = {
@@ -460,14 +626,15 @@ namespace MathAnim
 				animObject->_fillColorStart.g = (uint8)(fillColor[1] * 255.0f);
 				animObject->_fillColorStart.b = (uint8)(fillColor[2] * 255.0f);
 				animObject->_fillColorStart.a = (uint8)(fillColor[3] * 255.0f);
+				objChanged = true;
 			}
 
-			ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
-			ImGui::Checkbox(": Is 3D", &animObject->is3D);
-			ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
+			objChanged = ImGui::Checkbox(": Is Transparent", &animObject->isTransparent) || objChanged;
+			objChanged = ImGui::Checkbox(": Is 3D", &animObject->is3D) || objChanged;
+			objChanged = ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes) || objChanged;
 			if (animObject->drawDebugBoxes)
 			{
-				ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
+				objChanged = ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes) || objChanged;
 			}
 
 			switch (animObject->objectType)
@@ -493,6 +660,14 @@ namespace MathAnim
 			default:
 				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
 				break;
+			}
+
+			if (objChanged)
+			{
+				for (int i = 0; i < animObject->children.size(); i++)
+				{
+					animObject->children[i].takeParentAttributes(animObject);
+				}
 			}
 		}
 
@@ -608,8 +783,6 @@ namespace MathAnim
 				ImGui::EndCombo();
 			}
 
-			ImGui::DragFloat(": Font Size (Px)", &object->as.textObject.fontSizePixels);
-
 			constexpr int scratchLength = 256;
 			char scratch[scratchLength] = {};
 			if (object->as.textObject.textLength >= scratchLength)
@@ -631,8 +804,6 @@ namespace MathAnim
 
 		static void handleLaTexObjectInspector(AnimObject* object)
 		{
-			ImGui::DragFloat(": Font Size (Px)", &object->as.laTexObject.fontSizePixels);
-
 			constexpr int scratchLength = 2048;
 			char scratch[scratchLength] = {};
 			if (object->as.laTexObject.textLength >= scratchLength)
@@ -673,7 +844,7 @@ namespace MathAnim
 
 		static void handleMoveToAnimationInspector(Animation* animation)
 		{
-			ImGui::DragFloat3(": Target Position", &animation->as.modifyVec3.target.x);
+			ImGui::DragFloat3(": Target Position", &animation->as.modifyVec3.target.x, slowDragSpeed);
 		}
 
 		static void handleRotateToAnimationInspector(Animation* animation)
@@ -717,12 +888,12 @@ namespace MathAnim
 
 		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation)
 		{
-			ImGui::DragFloat2(": Camera Target Position", &animation->as.modifyVec2.target.x);
+			ImGui::DragFloat2(": Camera Target Position", &animation->as.modifyVec2.target.x, slowDragSpeed);
 		}
 
 		static void handleSquareInspector(AnimObject* object)
 		{
-			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength))
+			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength, slowDragSpeed))
 			{
 				// TODO: Do something better than this
 				object->svgObject->free();
@@ -739,7 +910,7 @@ namespace MathAnim
 
 		static void handleCircleInspector(AnimObject* object)
 		{
-			if (ImGui::DragFloat(": Radius", &object->as.circle.radius))
+			if (ImGui::DragFloat(": Radius", &object->as.circle.radius, slowDragSpeed))
 			{
 				object->svgObject->free();
 				g_memory_free(object->svgObject);
@@ -755,15 +926,13 @@ namespace MathAnim
 
 		static void handleCubeInspector(AnimObject* object)
 		{
-			if (ImGui::DragFloat(": Side Length", &object->as.cube.sideLength))
+			if (ImGui::DragFloat(": Side Length", &object->as.cube.sideLength, slowDragSpeed))
 			{
-				object->svgObject->free();
-				g_memory_free(object->svgObject);
-				object->svgObject = nullptr;
-
-				object->_svgObjectStart->free();
-				g_memory_free(object->_svgObjectStart);
-				object->_svgObjectStart = nullptr;
+				for (int i = 0; i < object->children.size(); i++)
+				{
+					object->children[i].free();
+				}
+				object->children.clear();
 
 				object->as.cube.init(object);
 			}
@@ -773,10 +942,10 @@ namespace MathAnim
 		{
 			bool reInitObject = false;
 
-			reInitObject = ImGui::DragFloat3(": Axes Length", object->as.axis.axesLength.values) || reInitObject;
+			reInitObject = ImGui::DragFloat3(": Axes Length", object->as.axis.axesLength.values, slowDragSpeed) || reInitObject;
 
 			int xVals[2] = { object->as.axis.xRange.min, object->as.axis.xRange.max };
-			if (ImGui::DragInt2(": X-Range", xVals, 1.0f))
+			if (ImGui::DragInt2(": X-Range", xVals, slowDragSpeed))
 			{
 				// Make sure it's in strictly increasing order
 				if (xVals[0] < xVals[1])
@@ -788,7 +957,7 @@ namespace MathAnim
 			}
 
 			int yVals[2] = { object->as.axis.yRange.min, object->as.axis.yRange.max };
-			if (ImGui::DragInt2(": Y-Range", yVals, 1.0f))
+			if (ImGui::DragInt2(": Y-Range", yVals, slowDragSpeed))
 			{
 				// Make sure it's in strictly increasing order
 				if (yVals[0] < yVals[1])
@@ -800,7 +969,7 @@ namespace MathAnim
 			}
 
 			int zVals[2] = { object->as.axis.zRange.min, object->as.axis.zRange.max };
-			if (ImGui::DragInt2(": Z-Range", zVals, 1.0f))
+			if (ImGui::DragInt2(": Z-Range", zVals, slowDragSpeed))
 			{
 				// Make sure it's in strictly increasing order
 				if (zVals[0] < zVals[1])
@@ -811,47 +980,52 @@ namespace MathAnim
 				}
 			}
 
-			reInitObject = ImGui::DragFloat(": X-Increment", &object->as.axis.xStep) || reInitObject;
-			reInitObject = ImGui::DragFloat(": Y-Increment", &object->as.axis.yStep) || reInitObject;
-			reInitObject = ImGui::DragFloat(": Z-Increment", &object->as.axis.zStep) || reInitObject;
-			reInitObject = ImGui::DragFloat(": Tick Width", &object->as.axis.tickWidth) || reInitObject;
+			reInitObject = ImGui::DragFloat(": X-Increment", &object->as.axis.xStep, slowDragSpeed) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Y-Increment", &object->as.axis.yStep, slowDragSpeed) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Z-Increment", &object->as.axis.zStep, slowDragSpeed) || reInitObject;
+			reInitObject = ImGui::DragFloat(": Tick Width", &object->as.axis.tickWidth, slowDragSpeed) || reInitObject;
 			reInitObject = ImGui::Checkbox(": Draw Labels", &object->as.axis.drawNumbers) || reInitObject;
-			if (ImGui::Checkbox(": Is 3D", &object->as.axis.is3D))
+			if (object->as.axis.drawNumbers)
 			{
-				// Reset to default values if we toggle 3D on or off
-				if (object->as.axis.is3D)
-				{
-					object->_positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
-					object->as.axis.axesLength = Vec3{ 8.0f, 5.0f, 8.0f };
-					object->as.axis.xRange = { 0, 8 };
-					object->as.axis.yRange = { 0, 5 };
-					object->as.axis.zRange = { 0, 8 };
-					object->as.axis.tickWidth = 0.2f;
-					object->_strokeWidthStart = 0.05f;
-				}
-				else
-				{
-					glm::vec2 outputSize = Application::getOutputSize();
-					object->_positionStart = Vec3{ outputSize.x / 2.0f, outputSize.y / 2.0f, 0.0f };
-					object->as.axis.axesLength = Vec3{ 3'000.0f, 1'700.0f, 1.0f };
-					object->as.axis.xRange = { 0, 18 };
-					object->as.axis.yRange = { 0, 10 };
-					object->as.axis.zRange = { 0, 10 };
-					object->as.axis.tickWidth = 75.0f;
-					object->_strokeWidthStart = 7.5f;
-				}
-				reInitObject = true;
+				reInitObject = ImGui::DragFloat(": Font Size Pixels", &object->as.axis.fontSizePixels, slowDragSpeed, 0.0f, 300.0f) || reInitObject;
+				reInitObject = ImGui::DragFloat(": Label Padding", &object->as.axis.labelPadding, slowDragSpeed, 0.0f, 500.0f) || reInitObject;
+				reInitObject = ImGui::DragFloat(": Label Stroke Width", &object->as.axis.labelStrokeWidth, slowDragSpeed, 0.0f, 200.0f) || reInitObject;
 			}
+
+			//if (ImGui::Checkbox(": Is 3D", &object->as.axis.is3D))
+			//{
+			//	// Reset to default values if we toggle 3D on or off
+			//	if (object->as.axis.is3D)
+			//	{
+			//		object->_positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
+			//		object->as.axis.axesLength = Vec3{ 8.0f, 5.0f, 8.0f };
+			//		object->as.axis.xRange = { 0, 8 };
+			//		object->as.axis.yRange = { 0, 5 };
+			//		object->as.axis.zRange = { 0, 8 };
+			//		object->as.axis.tickWidth = 0.2f;
+			//		object->_strokeWidthStart = 0.05f;
+			//	}
+			//	else
+			//	{
+			//		glm::vec2 outputSize = Application::getOutputSize();
+			//		object->_positionStart = Vec3{ outputSize.x / 2.0f, outputSize.y / 2.0f, 0.0f };
+			//		object->as.axis.axesLength = Vec3{ 3'000.0f, 1'700.0f, 1.0f };
+			//		object->as.axis.xRange = { 0, 18 };
+			//		object->as.axis.yRange = { 0, 10 };
+			//		object->as.axis.zRange = { 0, 10 };
+			//		object->as.axis.tickWidth = 75.0f;
+			//		object->_strokeWidthStart = 7.5f;
+			//	}
+			//	reInitObject = true;
+			//}
 
 			if (reInitObject)
 			{
-				object->svgObject->free();
-				g_memory_free(object->svgObject);
-				object->svgObject = nullptr;
-
-				object->_svgObjectStart->free();
-				g_memory_free(object->_svgObjectStart);
-				object->_svgObjectStart = nullptr;
+				for (int i = 0; i < object->children.size(); i++)
+				{
+					object->children[i].free();
+				}
+				object->children.clear();
 
 				object->as.axis.init(object);
 			}
@@ -859,7 +1033,7 @@ namespace MathAnim
 
 		static void setupImGuiTimelineDataFromAnimations(int numTracksToCreate)
 		{
-			const std::vector<AnimObject> animObjects = AnimationManager::getAnimObjects();
+			const std::vector<AnimObject>& animObjects = AnimationManager::getAnimObjects();
 
 			// Find the max timeline track and add that many default tracks
 			int maxTimelineTrack = -1;

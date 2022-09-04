@@ -16,8 +16,10 @@ namespace MathAnim
 		float yStep;
 		float zStep;
 		float tickWidth;
-		bool is3D;
 		bool drawNumbers;
+		float fontSizePixels;
+		float labelPadding;
+		float labelStrokeWidth;
 
 		void init(AnimObject* parent);
 		void serialize(RawMemory& memory) const;

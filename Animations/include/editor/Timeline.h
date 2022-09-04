@@ -11,13 +11,30 @@ namespace MathAnim
 		bool isAnimObject;
 	};
 
+	struct TimelineData
+	{
+		uint8* audioSourceFile;
+		size_t audioSourceFileLength;
+		int32 firstFrame;
+		int32 currentFrame;
+		float zoomLevel;
+	};
+
 	namespace Timeline
 	{
+		TimelineData initInstance();
 		void init();
 
-		void update();
+		void update(TimelineData& data);
 
+		void freeInstance(TimelineData& data);
 		void free();
+
+		void setActiveAnimObject(int animObjectId);
+		int getActiveAnimObject();
+
+		RawMemory serialize(const TimelineData& data);
+		TimelineData deserialize(RawMemory& memory);
 	}
 }
 

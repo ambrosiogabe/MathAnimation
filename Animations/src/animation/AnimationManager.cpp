@@ -325,11 +325,35 @@ namespace MathAnim
 				objectIter->strokeColor = objectIter->_strokeColorStart;
 				objectIter->strokeWidth = objectIter->_strokeWidthStart;
 				objectIter->isAnimating = false;
-				
+
 				// Update any updateable objects
 				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
 				{
 					objectIter->as.laTexObject.update();
+				}
+
+				// Reset children state
+				for (int i = 0; i < objectIter->children.size(); i++)
+				{
+					AnimObject* child = &objectIter->children[i];
+					if (child->_svgObjectStart != nullptr && child->svgObject != nullptr)
+					{
+						Svg::copy(child->svgObject, child->_svgObjectStart);
+					}
+
+					// TODO: Create some sort of apply animation, then apply animations locally
+					// and then transform according to parent position after animation applications
+					child->position = child->_positionStart + objectIter->position;
+					child->rotation = child->_rotationStart + objectIter->rotation;
+					child->scale.x = child->_scaleStart.x * objectIter->scale.x;
+					child->scale.y = child->_scaleStart.y * objectIter->scale.y;
+					child->scale.z = child->_scaleStart.z * objectIter->scale.z;
+
+					// Update any updateable objects
+					if (child->objectType == AnimObjectTypeV1::LaTexObject)
+					{
+						child->as.laTexObject.update();
+					}
 				}
 
 				for (auto animIter = objectIter->animations.begin(); animIter != objectIter->animations.end(); animIter++)
@@ -370,6 +394,11 @@ namespace MathAnim
 			}
 
 			return lastFrame;
+		}
+
+		bool isObjectNull(int animObjectId)
+		{
+			return animObjectId == INT32_MAX;
 		}
 
 		const AnimObject* getObject(int animObjectId)
@@ -439,7 +468,7 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		void serialize(const char* savePath)
+		RawMemory serialize()
 		{
 			// This data should always be present regardless of file version
 			// Container data layout
@@ -464,31 +493,11 @@ namespace MathAnim
 			}
 			memory.shrinkToFit();
 
-			FILE* fp = fopen(savePath, "wb");
-			fwrite(memory.data, memory.size, 1, fp);
-			fclose(fp);
-
-			memory.free();
+			return memory;
 		}
 
-		void deserialize(const char* loadPath)
+		void deserialize(RawMemory& memory)
 		{
-			FILE* fp = fopen(loadPath, "rb");
-			if (!fp)
-			{
-				g_logger_warning("Could not load '%s', does not exist.", loadPath);
-				return;
-			}
-
-			fseek(fp, 0, SEEK_END);
-			size_t fileSize = ftell(fp);
-			fseek(fp, 0, SEEK_SET);
-
-			RawMemory memory;
-			memory.init(fileSize);
-			fread(memory.data, fileSize, 1, fp);
-			fclose(fp);
-
 			// Read magic number and version then dispatch to appropraite
 			// deserializer
 			// magicNumber   -> uint32
@@ -498,8 +507,8 @@ namespace MathAnim
 			uint32 serializerVersion;
 			memory.read<uint32>(&serializerVersion);
 
-			g_logger_assert(magicNumber == MAGIC_NUMBER, "File '%s' had invalid magic number '0x%8x. File must have been corrupted.", loadPath, magicNumber);
-			g_logger_assert((serializerVersion != 0 && serializerVersion <= SERIALIZER_VERSION), "File '%s' saved with invalid version '%d'. Looks like corrupted data.", loadPath, serializerVersion);
+			g_logger_assert(magicNumber == MAGIC_NUMBER, "Project file had invalid magic number '0x%8x'. File must have been corrupted.", magicNumber);
+			g_logger_assert((serializerVersion != 0 && serializerVersion <= SERIALIZER_VERSION), "Project file saved with invalid version '%d'. Looks like corrupted data.", serializerVersion);
 
 			if (serializerVersion == 1)
 			{
@@ -509,8 +518,6 @@ namespace MathAnim
 			{
 				g_logger_error("AnimationManagerEx serialized with unknown version '%d'.", serializerVersion);
 			}
-
-			memory.free();
 
 			// Need to sort animation objects to ensure they get animations 
 			// applied in the correct order

@@ -16,10 +16,12 @@
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "editor/EditorGui.h"
+#include "editor/Timeline.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
 #include "video/Encoder.h"
+#include "utils/TableOfContents.h"
 
 #include "animation/SvgParser.h"
 
@@ -40,6 +42,8 @@ namespace MathAnim
 		static int framerate = 60;
 		static int outputWidth = 3840;
 		static int outputHeight = 2160;
+		static float viewportWidth = 18.0f;
+		static float viewportHeight = 9.0f;
 		static NVGcontext* vg = NULL;
 
 		static GlobalThreadPool* globalThreadPool = nullptr;
@@ -64,8 +68,7 @@ namespace MathAnim
 			window->setVSync(true);
 
 			camera2D.position = Vec2{ 0.0f, 0.0f };
-			//camera2D.projectionSize = Vec2{ 6.0f * (1920.0f / 1080.0f), 6.0f };
-			camera2D.projectionSize = Vec2{ 3840.0f, 2160.0f };
+			camera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
 
 			camera3D.forward = glm::vec3(0, 0, 1);
 			camera3D.fov = 70.0f;
@@ -98,7 +101,7 @@ namespace MathAnim
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
 			currentProjectFilepath = projectFile;
-			AnimationManager::deserialize(currentProjectFilepath.c_str());
+			loadProject(currentProjectFilepath.c_str());
 
 			EditorGui::init();
 
@@ -220,7 +223,7 @@ namespace MathAnim
 			// Free it just in case, if the encoder isn't active this does nothing
 			VideoWriter::freeEncoder(encoder);
 
-			AnimationManager::serialize(currentProjectFilepath.c_str());
+			saveProject();
 
 			LaTexLayer::free();
 			EditorGui::free();
@@ -237,7 +240,53 @@ namespace MathAnim
 
 		void saveProject()
 		{
-			AnimationManager::serialize(currentProjectFilepath.c_str());
+			RawMemory animationData = AnimationManager::serialize();
+			RawMemory timelineData = Timeline::serialize(EditorGui::getTimelineData());
+
+			TableOfContents tableOfContents;
+			tableOfContents.init();
+
+			tableOfContents.addEntry(animationData, "Animation_Data");
+			tableOfContents.addEntry(timelineData, "Timeline_Data");
+
+			tableOfContents.serialize(currentProjectFilepath.c_str());
+
+			animationData.free();
+			timelineData.free();
+			tableOfContents.free();
+		}
+
+		void loadProject(const char* filepath)
+		{
+			FILE* fp = fopen(filepath, "rb");
+			if (!fp)
+			{
+				g_logger_warning("Could not load project '%s', error opening file.", filepath);
+				return;
+			}
+
+			fseek(fp, 0, SEEK_END);
+			size_t fileSize = ftell(fp);
+			fseek(fp, 0, SEEK_SET);
+
+			RawMemory memory;
+			memory.init(fileSize);
+			fread(memory.data, fileSize, 1, fp);
+			fclose(fp);
+
+			TableOfContents toc = TableOfContents::deserialize(memory);
+			memory.free();
+
+			RawMemory animationData = toc.getEntry("Animation_Data");
+			RawMemory timelineData = toc.getEntry("Timeline_Data");
+			toc.free();
+
+			AnimationManager::deserialize(animationData);
+			TimelineData timeline = Timeline::deserialize(timelineData);
+			EditorGui::setTimelineData(timeline);
+
+			animationData.free();
+			timelineData.free();
 		}
 
 		void setEditorPlayState(AnimState state)
@@ -262,6 +311,11 @@ namespace MathAnim
 		glm::vec2 getOutputSize()
 		{
 			return glm::vec2((float)outputWidth, (float)outputHeight);
+		}
+
+		glm::vec2 getViewportSize()
+		{
+			return glm::vec2(viewportWidth, viewportHeight * getOutputTargetAspectRatio());
 		}
 
 		void setFrameIndex(int frame)

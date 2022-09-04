@@ -12,54 +12,121 @@ namespace MathAnim
 	void Axis::init(AnimObject* parent)
 	{
 		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Axis object initialized twice.");
+		g_logger_assert(parent->children.size() == 0, "Axis object initialized twice.");
 
-		parent->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		*parent->_svgObjectStart = Svg::createDefault();
-		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		*parent->svgObject = Svg::createDefault();
+		float xStart = -axesLength.x / 2.0f;
+		float xEnd = axesLength.x / 2.0f;
+		float xMiddle = xStart + (xEnd - xStart) / 2.0f;
 
-		//// Draw the x-axis
-		//float xStart = -axesLength.x / 2.0f;
-		//float xEnd = axesLength.x / 2.0f;
-		//Svg::beginContour(parent->_svgObjectStart, { xStart, 0.0f, 0.0f }, is3D);
-		//Svg::lineTo(parent->_svgObjectStart, { xEnd, 0.0f, 0.0f });
+		float yStart = -axesLength.y / 2.0f;
+		float yEnd = axesLength.y / 2.0f;
+		float yMiddle = yStart + (yEnd - yStart) / 2.0f;
 
-		//// Draw the ticks
-		//{
-		//	g_logger_assert(xRange.max > xRange.min, "Invalid x range [%d, %d]. Axis range must be in increasing order.", xRange.min, xRange.max);
-		//	float numTicks = (float)xRange.max - (float)xRange.min;
-		//	float distanceBetweenTicks = axesLength.x / numTicks;
-		//	Vec3 cursor = Vec3{ xStart, -tickWidth / 2.0f, 0.0f };
-		//	while (cursor.x <= xEnd)
-		//	{
-		//		Svg::moveTo(parent->_svgObjectStart, cursor);
-		//		Svg::lineTo(parent->_svgObjectStart, cursor + Vec3{ 0.0f, tickWidth, 0.0f });
-		//		cursor.x += distanceBetweenTicks;
-		//	}
-		//}
-		//Svg::closeContour(parent->_svgObjectStart);
+		// X-Axis
+		{
+			// The first child will be the x-axis lines as an svg object
+			AnimObject xAxis = AnimObject::createDefaultFromParent(AnimObjectTypeV1::SvgObject, parent);
+			xAxis._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*xAxis._svgObjectStart = Svg::createDefault();
+			xAxis.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*xAxis.svgObject = Svg::createDefault();
+			xAxis._positionStart = Vec3{ 0, 0, 0 };
 
-		//// Draw the y-axis
-		//float yStart = -axesLength.y / 2.0f;
-		//float yEnd = axesLength.y / 2.0f;
-		//Svg::beginContour(parent->_svgObjectStart, { 0.0f, yStart, 0.0f }, is3D);
-		//Svg::lineTo(parent->_svgObjectStart, { 0.0f, yEnd, 0.0f });
+			// Draw the x-axis
+			Svg::beginContour(xAxis._svgObjectStart, { xStart, 0.0f });
+			Svg::lineTo(xAxis._svgObjectStart, { xEnd, 0.0f });
 
-		//// Draw the ticks
-		//{
-		//	g_logger_assert(yRange.max > yRange.min, "Invalid y range [%d, %d]. Axis range must be in increasing order.", yRange.min, yRange.max);
-		//	float numTicks = (float)yRange.max - (float)yRange.min;
-		//	float distanceBetweenTicks = axesLength.y / numTicks;
-		//	Vec3 cursor = Vec3{ -tickWidth / 2.0f, yStart, 0.0f };
-		//	while (cursor.y <= yEnd)
-		//	{
-		//		Svg::moveTo(parent->_svgObjectStart, cursor);
-		//		Svg::lineTo(parent->_svgObjectStart, cursor + Vec3{ tickWidth, 0.0f, 0.0f });
-		//		cursor.y += distanceBetweenTicks;
-		//	}
-		//}
-		//Svg::closeContour(parent->_svgObjectStart);
+			// Draw the ticks
+			g_logger_assert(xRange.max > xRange.min, "Invalid x range [%d, %d]. Axis range must be in increasing order.", xRange.min, xRange.max);
+			float numTicks = ((float)xRange.max - (float)xRange.min) / xStep;
+			float distanceBetweenTicks = axesLength.x / numTicks;
+			int xNumber = xRange.min;
+			Vec2 cursor = Vec2{ xStart, -tickWidth / 2.0f };
+			for (int i = 0; i <= (int)glm::ceil(numTicks); i++)
+			{
+				if (!(cursor.x >= xMiddle && cursor.x <= xMiddle))
+				{
+					Svg::moveTo(xAxis._svgObjectStart, cursor);
+					Svg::lineTo(xAxis._svgObjectStart, cursor + Vec2{ 0.0f, tickWidth });
 
+					if (this->drawNumbers)
+					{
+						// Add an anim object child with the number this axis tick represents
+						AnimObject labelChild = AnimObject::createDefaultFromParent(AnimObjectTypeV1::LaTexObject, parent);
+						labelChild._positionStart = CMath::vector3From2(cursor + Vec2{ 0.0f, -labelPadding });
+						labelChild.svgScale = fontSizePixels;
+						labelChild.strokeWidth = labelStrokeWidth;
+						// Convert xNumber to string
+						std::string xTickLabel = std::to_string(xNumber);
+						labelChild.as.laTexObject.setText(xTickLabel);
+						labelChild.as.laTexObject.parseLaTex();
+						parent->children.push_back(labelChild);
+					}
+				}
+
+				cursor.x += distanceBetweenTicks;
+				xNumber += this->xStep;
+			}
+			Svg::closeContour(xAxis._svgObjectStart);
+			xAxis._svgObjectStart->calculateApproximatePerimeter();
+			xAxis._svgObjectStart->calculateBBox();
+			parent->children.push_back(xAxis);
+		}
+
+		// Y-Axis
+		{
+			// The second child will be the y-axis lines as an svg object
+			AnimObject yAxis = AnimObject::createDefaultFromParent(AnimObjectTypeV1::SvgObject, parent);
+			yAxis._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*yAxis._svgObjectStart = Svg::createDefault();
+			yAxis.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*yAxis.svgObject = Svg::createDefault();
+			yAxis._positionStart = Vec3{ 0, 0, 0 };
+
+			// Draw the y-axis
+			Svg::beginContour(yAxis._svgObjectStart, { 0.0f, yStart });
+			Svg::lineTo(yAxis._svgObjectStart, { 0.0f, yEnd });
+
+			// Draw the ticks
+			g_logger_assert(yRange.max > yRange.min, "Invalid y range [%d, %d]. Axis range must be in increasing order.", yRange.min, yRange.max);
+			float numTicks = ((float)yRange.max - (float)yRange.min) / yStep;
+			float distanceBetweenTicks = axesLength.y / numTicks;
+			int yNumber = yRange.min;
+			Vec2 cursor = Vec2{ -tickWidth / 2.0f, yStart };
+			for (int i = 0; i <= (int)glm::ceil(numTicks); i++)
+			{
+				if (!(cursor.y >= yMiddle && cursor.y <= yMiddle))
+				{
+					Svg::moveTo(yAxis._svgObjectStart, cursor);
+					Svg::lineTo(yAxis._svgObjectStart, cursor + Vec2{ tickWidth, 0.0f });
+
+					if (this->drawNumbers)
+					{
+						// Add an anim object child with the number this axis tick represents
+						AnimObject labelChild = AnimObject::createDefaultFromParent(AnimObjectTypeV1::LaTexObject, parent);
+						labelChild._positionStart = CMath::vector3From2(cursor + Vec2{ tickWidth + labelPadding, 0.0f });
+						labelChild.position = labelChild._positionStart;
+						labelChild.svgScale = fontSizePixels;
+						labelChild.strokeWidth = labelStrokeWidth;
+						// Convert yNumber to string
+						std::string yTickLabel = std::to_string(yNumber);
+						labelChild.as.laTexObject.setText(yTickLabel);
+						labelChild.as.laTexObject.parseLaTex();
+						parent->children.push_back(labelChild);
+					}
+				}
+
+				cursor.y += distanceBetweenTicks;
+				yNumber += this->yStep;
+			}
+
+			Svg::closeContour(yAxis._svgObjectStart);
+			yAxis._svgObjectStart->calculateApproximatePerimeter();
+			yAxis._svgObjectStart->calculateBBox();
+			parent->children.push_back(yAxis);
+		}
+
+		// Z-Axis
 		//if (is3D)
 		//{
 		//	// Draw the z-axis	
@@ -81,9 +148,6 @@ namespace MathAnim
 		//	}
 		//	Svg::closeContour(parent->_svgObjectStart);
 		//}
-
-		parent->_svgObjectStart->calculateApproximatePerimeter();
-		parent->_svgObjectStart->calculateBBox();
 	}
 
 	void Axis::serialize(RawMemory& memory) const
@@ -96,8 +160,10 @@ namespace MathAnim
 		// yStep        -> float
 		// zStep        -> float
 		// tickWidth    -> float 
-		// is3D         -> u8
 		// drawNumbers  -> u8
+		// fontSizePx   -> float
+		// labelPadding -> float
+		// labelStrokeWidth -> float
 		CMath::serialize(memory, axesLength);
 		CMath::serialize(memory, xRange);
 		CMath::serialize(memory, yRange);
@@ -106,10 +172,11 @@ namespace MathAnim
 		memory.write<float>(&yStep);
 		memory.write<float>(&zStep);
 		memory.write<float>(&tickWidth);
-		const uint8 is3DU8 = is3D ? 1 : 0;
-		memory.write<uint8>(&is3DU8);
 		const uint8 drawNumbersU8 = drawNumbers ? 1 : 0;
 		memory.write<uint8>(&drawNumbersU8);
+		memory.write<float>(&fontSizePixels);
+		memory.write<float>(&labelPadding);
+		memory.write<float>(&labelStrokeWidth);
 	}
 
 	Axis Axis::deserialize(RawMemory& memory, uint32 version)
@@ -138,8 +205,10 @@ namespace MathAnim
 		// yStep         -> float
 		// zStep         -> float
 		// tickWidth     -> float 
-		// is3D          -> u8
 		// drawNumbers   -> u8
+		// fontSizePx    -> float
+		// labelPadding  -> float
+		// labelStrokeWidth -> float
 		Axis res;
 		res.axesLength = CMath::deserializeVec3(memory);
 		res.xRange = CMath::deserializeVec2i(memory);
@@ -149,12 +218,12 @@ namespace MathAnim
 		memory.read<float>(&res.yStep);
 		memory.read<float>(&res.zStep);
 		memory.read<float>(&res.tickWidth);
-		uint8 is3DU8;
-		memory.read<uint8>(&is3DU8);
-		res.is3D = is3DU8 == 1;
 		uint8 drawNumbersU8;
 		memory.read<uint8>(&drawNumbersU8);
 		res.drawNumbers = drawNumbersU8 == 1;
+		memory.read<float>(&res.fontSizePixels);
+		memory.read<float>(&res.labelPadding);
+		memory.read<float>(&res.labelStrokeWidth);
 
 		return res;
 	}

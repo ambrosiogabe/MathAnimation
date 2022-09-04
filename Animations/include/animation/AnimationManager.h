@@ -32,6 +32,7 @@ namespace MathAnim
 
 		int lastAnimatedFrame();
 
+		bool isObjectNull(int animObjectId);
 		const AnimObject* getObject(int animObjectId);
 		AnimObject* getMutableObject(int animObjectId);
 		Animation* getMutableAnimation(int animationId);
@@ -39,8 +40,8 @@ namespace MathAnim
 
 		const AnimObject* getNextAnimObject(int animObjectId);
 
-		void serialize(const char* savePath = nullptr);
-		void deserialize(const char* loadPath = nullptr);
+		RawMemory serialize();
+		void deserialize(RawMemory& memory);
 		void sortAnimObjects();
 
 		const char* getAnimObjectName(AnimObjectTypeV1 type);
