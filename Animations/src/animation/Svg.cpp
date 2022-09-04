@@ -1001,8 +1001,7 @@ namespace MathAnim
 			svgTextureOffset.y += offset.y * parent->svgScale;
 		}
 
-		glm::vec2 outputSize = Application::getOutputSize();
-		nvgBeginFrame(vg, outputSize.x, outputSize.y, 1.0f);
+		nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
 		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this, isSvgGroup);
 		nvgEndFrame(vg);
 
@@ -1022,13 +1021,13 @@ namespace MathAnim
 		// Subtract half stroke width to make sure it's getting the correct coords
 		svgTextureOffset -= Vec2{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f };
 		Vec2 cacheUvMin = Vec2{
-			svgTextureOffset.x / outputSize.x,
-			1.0f - (svgTextureOffset.y / outputSize.y) - (svgTotalHeight / outputSize.y)
+			svgTextureOffset.x / svgCache.width,
+			1.0f - (svgTextureOffset.y / svgCache.width) - (svgTotalHeight / svgCache.height)
 		};
 		Vec2 cacheUvMax = cacheUvMin +
 			Vec2{
-				svgTotalWidth / outputSize.x,
-				svgTotalHeight / outputSize.y
+				svgTotalWidth / svgCache.width,
+				svgTotalHeight / svgCache.height
 		};
 
 		Svg::incrementCacheCurrentX(svgTotalWidth + cachePadding.x);
@@ -1209,15 +1208,14 @@ namespace MathAnim
 		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->svgScale) + parent->strokeWidth;
 		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->svgScale) + parent->strokeWidth;
 
-		glm::vec2 outputSize = Application::getOutputSize();
 		Vec2 cacheUvMin = Vec2{
-			svgTextureOffset.x / outputSize.x,
-			1.0f - (svgTextureOffset.y / outputSize.y) - (svgTotalHeight / outputSize.y)
+			svgTextureOffset.x / svgCache.width,
+			1.0f - (svgTextureOffset.y / svgCache.height) - (svgTotalHeight / svgCache.height)
 		};
 		Vec2 cacheUvMax = cacheUvMin +
 			Vec2{
-				svgTotalWidth / outputSize.x,
-				svgTotalHeight / outputSize.y
+				svgTotalWidth / svgCache.width,
+				svgTotalHeight / svgCache.height
 		};
 
 		if (parent->drawDebugBoxes)
@@ -1235,7 +1233,7 @@ namespace MathAnim
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
 			glDrawBuffers(3, compositeDrawBuffers);
 
-			nvgBeginFrame(vg, outputSize.x, outputSize.y, 1.0f);
+			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
 
 			float strokeWidthCorrectionPos = cachePadding.x * 0.5f;
 			float strokeWidthCorrectionNeg = -cachePadding.x;
