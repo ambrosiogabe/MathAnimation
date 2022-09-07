@@ -47,6 +47,7 @@ namespace MathAnim
 		AnimateFillColor,
 		AnimateStrokeWidth,
         CameraMoveTo,
+		Shift,
 		Length
 	};
 

@@ -194,7 +194,17 @@ namespace MathAnim
 			obj->strokeColor.a = 255 - (uint8)(255.0f * t);
 			break;
 		case AnimTypeV1::MoveTo:
-			obj->position = animation->as.modifyVec3.target;
+		{
+			const Vec3& target = animation->as.modifyVec3.target;
+			obj->position = Vec3{
+				((target.x - obj->position.x) * t) + obj->position.x,
+				((target.y - obj->position.y) * t) + obj->position.y,
+				((target.z - obj->position.z) * t) + obj->position.z,
+			};
+		}
+			break;
+		case AnimTypeV1::Shift:
+			obj->position += (animation->as.modifyVec3.target * t);
 			break;
 		case AnimTypeV1::RotateTo:
 			obj->rotation = animation->as.modifyVec3.target;
@@ -271,6 +281,7 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
+		case AnimTypeV1::Shift:
 		case AnimTypeV1::RotateTo:
 			CMath::serialize(memory, this->as.modifyVec3.target);
 			break;
@@ -333,6 +344,7 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 		case AnimTypeV1::RotateTo:
+		case AnimTypeV1::Shift:
 			res.as.modifyVec3.target = Vec3{ 0.0f, 0.0f, 0.0f };
 			break;
 		case AnimTypeV1::AnimateFillColor:
@@ -977,9 +989,7 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 		case AnimTypeV1::RotateTo:
-			// TODO: How do I really feel about this?
-			// It's not explicit what the data structure looks like
-			// but since it's just a vec3 I don't think I care
+		case AnimTypeV1::Shift:
 			res.as.modifyVec3.target = CMath::deserializeVec3(memory);
 			break;
 		case AnimTypeV1::AnimateFillColor:

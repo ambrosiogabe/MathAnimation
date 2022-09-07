@@ -46,6 +46,7 @@ namespace MathAnim
 		static void handleTextObjectInspector(AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
+		static void handleShiftInspector(Animation* animation);
 		static void handleRotateToAnimationInspector(Animation* animation);
 		static void handleAnimateStrokeColorAnimationInspector(Animation* animation);
 		static void handleAnimateFillColorAnimationInspector(Animation* animation);
@@ -677,13 +678,23 @@ namespace MathAnim
 
 			if (ImGui::CollapsingHeader("Anim Objects"))
 			{
-				for (int i = 0; i < animation->animObjectIds.size(); i++)
+				auto animObjectIdIter = animation->animObjectIds.begin();
+				while (animObjectIdIter != animation->animObjectIds.end())
 				{
-					const AnimObject* obj = AnimationManager::getObject(am, animation->animObjectIds[i]);
+					const AnimObject* obj = AnimationManager::getObject(am, *animObjectIdIter);
 					if (obj)
 					{
-						ImGui::PushID(animation->animObjectIds[i]);
+						ImGui::PushID(*animObjectIdIter);
 						ImGui::InputText("##AnimObjectId", (char*)obj->name, obj->nameLength, ImGuiInputTextFlags_ReadOnly);
+						ImGui::SameLine();
+						if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
+						{
+							animObjectIdIter = animation->animObjectIds.erase(animObjectIdIter);
+						}
+						else
+						{
+							animObjectIdIter++;
+						}
 						ImGui::PopID();
 					}
 				}
@@ -763,6 +774,9 @@ namespace MathAnim
 				break;
 			case AnimTypeV1::MoveTo:
 				handleMoveToAnimationInspector(animation);
+				break;
+			case AnimTypeV1::Shift:
+				handleShiftInspector(animation);
 				break;
 			case AnimTypeV1::RotateTo:
 				handleRotateToAnimationInspector(animation);
@@ -901,6 +915,11 @@ namespace MathAnim
 		static void handleMoveToAnimationInspector(Animation* animation)
 		{
 			ImGui::DragFloat3(": Target Position", &animation->as.modifyVec3.target.x, slowDragSpeed);
+		}
+
+		static void handleShiftInspector(Animation* animation)
+		{
+			ImGui::DragFloat3(": Shift Amount", &animation->as.modifyVec3.target.x, slowDragSpeed);
 		}
 
 		static void handleRotateToAnimationInspector(Animation* animation)
