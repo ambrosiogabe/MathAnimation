@@ -154,6 +154,15 @@ project "Animations"
             "_RELEASE"
         }
 
+    filter { "configurations:Dist" }
+        buildoptions "/MT"
+        runtime "Release"
+        optimize "on"
+
+        defines {
+            "_DIST"
+        }
+
 project "nanovg"
     language "C"
     kind "StaticLib"

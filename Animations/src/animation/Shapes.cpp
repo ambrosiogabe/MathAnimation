@@ -133,26 +133,26 @@ namespace MathAnim
 			Vec3{90, 90, 0}  // Right
 		};
 
-		for (int i = 0; i < 6; i++)
-		{
-			AnimObject cubeFace = AnimObject::createDefaultFromParent(AnimObjectTypeV1::SvgObject, parent);
-			cubeFace._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-			*cubeFace._svgObjectStart = Svg::createDefault();
-			cubeFace.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-			*cubeFace.svgObject = Svg::createDefault();
-			Svg::beginContour(cubeFace._svgObjectStart, Vec2{ -halfLength, -halfLength });
-			Svg::lineTo(cubeFace._svgObjectStart, Vec2{ -halfLength, halfLength });
-			Svg::lineTo(cubeFace._svgObjectStart, Vec2{ halfLength, halfLength });
-			Svg::lineTo(cubeFace._svgObjectStart, Vec2{ halfLength, -halfLength });
-			Svg::lineTo(cubeFace._svgObjectStart, Vec2{ -halfLength, -halfLength });
-			Svg::closeContour(cubeFace._svgObjectStart);
+		//for (int i = 0; i < 6; i++)
+		//{
+		//	AnimObject cubeFace = AnimObject::createDefaultFromParent(AnimObjectTypeV1::SvgObject, parent);
+		//	cubeFace._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		//	*cubeFace._svgObjectStart = Svg::createDefault();
+		//	cubeFace.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		//	*cubeFace.svgObject = Svg::createDefault();
+		//	Svg::beginContour(cubeFace._svgObjectStart, Vec2{ -halfLength, -halfLength });
+		//	Svg::lineTo(cubeFace._svgObjectStart, Vec2{ -halfLength, halfLength });
+		//	Svg::lineTo(cubeFace._svgObjectStart, Vec2{ halfLength, halfLength });
+		//	Svg::lineTo(cubeFace._svgObjectStart, Vec2{ halfLength, -halfLength });
+		//	Svg::lineTo(cubeFace._svgObjectStart, Vec2{ -halfLength, -halfLength });
+		//	Svg::closeContour(cubeFace._svgObjectStart);
 
-			cubeFace._positionStart = offsets[i];
-			cubeFace._rotationStart = rotations[i];
-			cubeFace._scaleStart = Vec3{ 1.0f, 1.0f, 1.0f };
-			cubeFace.is3D = true;
-			parent->children.push_back(cubeFace);
-		}
+		//	cubeFace._positionStart = offsets[i];
+		//	cubeFace._rotationStart = rotations[i];
+		//	cubeFace._scaleStart = Vec3{ 1.0f, 1.0f, 1.0f };
+		//	cubeFace.is3D = true;
+		//	parent->children.push_back(cubeFace);
+		//}
 	}
 
 	void Cube::serialize(RawMemory& memory) const

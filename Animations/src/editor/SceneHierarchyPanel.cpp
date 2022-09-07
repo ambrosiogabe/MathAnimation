@@ -28,8 +28,6 @@ namespace MathAnim
 	namespace SceneHierarchyPanel
 	{
 		// --------- Internal variables ---------
-		static const char* SCENE_HEIRARCHY_PAYLOAD = "SCENE_HEIRARCHY_PAYLOAD";
-
 		// This is the in between spaces for all the different elements in the
 		// scene heirarchy tree
 		static std::vector<BetweenMetadata> inBetweenBuffer;
@@ -120,10 +118,11 @@ namespace MathAnim
 			static int inBetweenIndex = 0;
 			if (imGuiSceneHeirarchyWindow(&inBetweenIndex))
 			{
-				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(SCENE_HEIRARCHY_PAYLOAD))
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Timeline::getAnimObjectPayloadId()))
 				{
-					g_logger_assert(payload->DataSize == sizeof(int), "Invalid payload.");
-					int childIndex = *(int*)payload->Data;
+					g_logger_assert(payload->DataSize == sizeof(AnimObjectPayload), "Invalid payload.");
+					const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
+					int childIndex = objPayload->sceneHierarchyIndex;
 					g_logger_assert(childIndex >= 0 && childIndex < orderedEntities.size(), "Invalid payload.");
 					SceneTreeMetadata& childMetadata = orderedEntitiesCopy[childIndex];
 					moveTreeTo(am, childIndex, inBetweenIndex);
@@ -261,7 +260,6 @@ namespace MathAnim
 			ImGui::PushID(element.index);
 			ImGui::SetNextItemOpen(element.isOpen);
 			bool open = ImGui::TreeNodeEx(
-				// TODO: Add anim object names
 				animObject.name,
 				ImGuiTreeNodeFlags_FramePadding |
 				(element.selected ? ImGuiTreeNodeFlags_Selected : 0) |
@@ -297,8 +295,11 @@ namespace MathAnim
 			// We do drag drop right after the element we want it to effect, and this one will be a source and drag target
 			if (ImGui::BeginDragDropSource())
 			{
-				// Set payload to carry the address of transform (could be anything)
-				ImGui::SetDragDropPayload(SCENE_HEIRARCHY_PAYLOAD, &element.index, sizeof(int));
+				// Set payload to carry AnimObjectPayload
+				static AnimObjectPayload payload;
+				payload.animObjectId = element.animObjectId;
+				payload.sceneHierarchyIndex = element.index;
+				ImGui::SetDragDropPayload(Timeline::getAnimObjectPayloadId(), &payload, sizeof(AnimObjectPayload));
 				// TODO: Add anim object names
 				ImGui::Text("%s", "Temporary Name");
 				ImGui::EndDragDropSource();
@@ -306,10 +307,11 @@ namespace MathAnim
 
 			if (ImGui::BeginDragDropTarget())
 			{
-				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(SCENE_HEIRARCHY_PAYLOAD))
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Timeline::getAnimObjectPayloadId()))
 				{
-					g_logger_assert(payload->DataSize == sizeof(int), "Invalid payload.");
-					int childIndex = *(int*)payload->Data;
+					g_logger_assert(payload->DataSize == sizeof(AnimObjectPayload), "Invalid payload.");
+					const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
+					int childIndex = objPayload->sceneHierarchyIndex;
 					g_logger_assert(childIndex >= 0 && childIndex < orderedEntities.size(), "Invalid payload.");
 					SceneTreeMetadata& childMetadata = orderedEntitiesCopy[childIndex];
 					if (!isDescendantOf(am, element.animObjectId, childMetadata.animObjectId))

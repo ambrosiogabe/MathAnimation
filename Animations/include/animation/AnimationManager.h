@@ -20,32 +20,33 @@ namespace MathAnim
 		void free(AnimationManagerData* animManager);
 
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object);
-		void addAnimationTo(const Animation& animation, AnimObject& animObject);
-		void addAnimationTo(AnimationManagerData* am, const Animation& animation, int animObjectId);
+		void addAnimation(AnimationManagerData* am, const Animation& animation);
 
 		bool removeAnimObject(AnimationManagerData* am, int animObjectId);
-		bool removeAnimation(AnimationManagerData* am, int animObjectId, int animationId);
+		bool removeAnimation(AnimationManagerData* am, int animationId);
 
-		bool setAnimObjectTime(AnimationManagerData* am, int animObjectId, int frameStart, int duration);
-		bool setAnimationTime(AnimationManagerData* am, int animObjectId, int animationId, int frameStart, int duration);
-		void setAnimObjectTrack(AnimationManagerData* am, int animObjectId, int track);
+		bool setAnimationTime(AnimationManagerData* am, int animationId, int frameStart, int duration);
+		void setAnimationTrack(AnimationManagerData* am, int animationId, int track);
 
 		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight);
-		void render(AnimationManagerData* am, NVGcontext* vg, int frame, Framebuffer& framebuffer);
+		void render(AnimationManagerData* am, NVGcontext* vg, int deltaFrame, Framebuffer& framebuffer);
 
 		int lastAnimatedFrame(const AnimationManagerData* am);
 
 		bool isObjectNull(int animObjectId);
 		const AnimObject* getObject(const AnimationManagerData* am, int animObjectId);
 		AnimObject* getMutableObject(AnimationManagerData* am, int animObjectId);
+		const Animation* getAnimation(const AnimationManagerData* am, int animationId);
 		Animation* getMutableAnimation(AnimationManagerData* am, int animationId);
+
 		const std::vector<AnimObject>& getAnimObjects(const AnimationManagerData* am);
+		const std::vector<Animation>& getAnimations(const AnimationManagerData* am);
 
 		const AnimObject* getNextAnimObject(const AnimationManagerData* am, int animObjectId);
 
 		RawMemory serialize(const AnimationManagerData* am);
 		void deserialize(AnimationManagerData* am, RawMemory& memory);
-		void sortAnimObjects(AnimationManagerData* am);
+		void sortAnimations(AnimationManagerData* am);
 
 		const char* getAnimObjectName(AnimObjectTypeV1 type);
 		const char* getAnimationName(AnimTypeV1 type);

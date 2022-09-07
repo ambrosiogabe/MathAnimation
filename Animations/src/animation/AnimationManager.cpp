@@ -12,15 +12,24 @@ namespace MathAnim
 	{
 		std::vector<AnimObject> objects;
 		// Maps from AnimObjectId -> Index in objects vector
-		std::unordered_map<uint32, uint32> idMap;
+		std::unordered_map<int32, int32> objectIdMap;
+
 		// Always sorted by startFrame and trackIndex
 		std::vector<Animation> animations;
+		// Maps From AnimationId -> Index in animations vector
+		std::unordered_map<int32, int32> animationIdMap;
+
+		// This list gets updated whenever the timeline cursor moves
+		// It should hold the list of animations that are currently
+		// being rendered at the timeline cursor
+		std::vector<Animation> activeAnimations;
 
 		// NOTE(gabe): So this is due to my whacky architecture, but at the beginning of rendering
 		// each frame we actually need to reset the camera position to its start position. I really
 		// need to figure out a better architecture for this haha
 		Vec2 sceneCamera2DStartPos;
 		OrthoCamera* sceneCamera2D;
+		int currentFrame;
 	};
 
 	namespace AnimationManager
@@ -68,6 +77,7 @@ namespace MathAnim
 
 			res->sceneCamera2D = &camera;
 			res->sceneCamera2DStartPos = res->sceneCamera2D->position;
+			res->currentFrame = 0;
 			return res;
 		}
 
@@ -80,6 +90,11 @@ namespace MathAnim
 					am->objects[i].free();
 				}
 
+				for (int i = 0; i < am->animations.size(); i++)
+				{
+					am->animations[i].free();
+				}
+
 				// Call destructor to properly destruct vector objects
 				am->~AnimationManagerData();
 				g_memory_free(am);
@@ -90,73 +105,33 @@ namespace MathAnim
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			bool insertedObject = false;
-			for (auto iter = am->objects.begin(); iter != am->objects.end(); iter++)
-			{
-				// Insert it here. The list will always be sorted
-				if (object.frameStart < iter->frameStart)
-				{
-					am->objects.insert(iter, object);
-					insertedObject = true;
-					break;
-				}
-			}
-
-			if (!insertedObject)
-			{
-				// If we didn't insert the object
-				// that means it must start after all the
-				// current animObject start times.
-				am->objects.push_back(object);
-			}
+			am->objects.push_back(object);
+			am->objectIdMap[object.id] = am->objects.size() - 1;
 		}
 
-		void addAnimationTo(const Animation& animation, AnimObject& animObject)
+		void addAnimation(AnimationManagerData* am, const Animation& animation)
 		{
-			for (auto iter = animObject.animations.begin(); iter != animObject.animations.end(); iter++)
+			for (auto iter = am->animations.begin(); iter != am->animations.end(); iter++)
 			{
 				// Insert it here. The list will always be sorted
 				if (animation.frameStart < iter->frameStart)
 				{
-					animObject.animations.insert(iter, animation);
+					auto updateIter = am->animations.insert(iter, animation);
+
+					// Update indices
+					for (; updateIter != am->animations.end(); updateIter++)
+					{
+						am->animationIdMap[updateIter->id] = (updateIter - am->animations.begin());
+					}
+
 					return;
 				}
 			}
 
-			// If we didn't insert the animation
-			// that means it must start after all the
+			// If we didn't insert the animation that means it must start after all the
 			// current animation start times.
-			animObject.animations.push_back(animation);
-		}
-
-		void addAnimationTo(AnimationManagerData* am, const Animation& animation, int animObjectId)
-		{
-			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
-
-			for (int ai = 0; ai < am->objects.size(); ai++)
-			{
-				AnimObject& animObject = am->objects[ai];
-				if (animObject.id != animObjectId)
-				{
-					continue;
-				}
-
-				for (auto iter = animObject.animations.begin(); iter != animObject.animations.end(); iter++)
-				{
-					// Insert it here. The list will always be sorted
-					if (animation.frameStart < iter->frameStart)
-					{
-						animObject.animations.insert(iter, animation);
-						return;
-					}
-				}
-
-				// If we didn't insert the animation
-				// that means it must start after all the
-				// current animation start times.
-				animObject.animations.push_back(animation);
-				return;
-			}
+			am->animations.push_back(animation);
+			am->animationIdMap[animation.id] = am->animations.size() - 1;
 		}
 
 		bool removeAnimObject(AnimationManagerData* am, int animObjectId)
@@ -164,19 +139,23 @@ namespace MathAnim
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			// Remove the anim object
-			for (int obji = 0; obji < am->objects.size(); obji++)
+			auto iter = am->objectIdMap.find(animObjectId);
+			if (iter != am->objectIdMap.end())
 			{
-				if (am->objects[obji].id == animObjectId)
+				int animObjectIndex = iter->second;
+				if (animObjectIndex >= 0 && animObjectIndex < am->objects.size())
 				{
-					// Free all animations in this object
-					for (int animi = 0; animi < am->objects[obji].animations.size(); animi++)
+					auto updateIter = am->objects.erase(am->objects.begin() + animObjectIndex);
+					am->objectIdMap.erase(animObjectId);
+
+					// Update indices
+					for (; updateIter != am->objects.end(); updateIter++)
 					{
-						g_logger_assert(am->objects[obji].animations[animi].objectId == animObjectId, "How did this happen?");
-						am->objects[obji].animations[animi].free();
+						am->objectIdMap[updateIter->id] = updateIter - am->objects.begin();
 					}
 
-					am->objects[obji].free();
-					am->objects.erase(am->objects.begin() + obji);
+					// TODO: Also remove any references of this object from all animations
+
 					return true;
 				}
 			}
@@ -184,133 +163,72 @@ namespace MathAnim
 			return false;
 		}
 
-		bool removeAnimation(AnimationManagerData* am, int animObjectId, int animationId)
+		bool removeAnimation(AnimationManagerData* am, int animationId)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			// Remove the anim object
-			for (int obji = 0; obji < am->objects.size(); obji++)
+			// Remove the animation
+			auto iter = am->animationIdMap.find(animationId);
+			if (iter != am->animationIdMap.end())
 			{
-				if (am->objects[obji].id == animObjectId)
+				int animationIndex = iter->second;
+				if (animationIndex >= 0 && animationIndex < am->animations.size())
 				{
-					// Free all animations in this object
-					for (int animi = 0; animi < am->objects[obji].animations.size(); animi++)
+					auto updateIter = am->animations.erase(am->animations.begin() + animationIndex);
+					am->animationIdMap.erase(animationId);
+
+					for (; updateIter != am->animations.end(); updateIter++)
 					{
-						if (am->objects[obji].animations[animi].id == animationId)
-						{
-							g_logger_assert(am->objects[obji].animations[animi].objectId == animObjectId, "How did this happen?");
-							am->objects[obji].animations[animi].free();
-							am->objects[obji].animations.erase(am->objects[obji].animations.begin() + animi);
-							return true;
-						}
+						am->animationIdMap[updateIter->id] = (updateIter - am->animations.begin());
 					}
+
+					// TODO: Also remove any references of this animation from all other animations
+
+					return true;
 				}
 			}
 
 			return false;
 		}
 
-		bool setAnimObjectTime(AnimationManagerData* am, int animObjectId, int frameStart, int duration)
-		{
-			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
-
-			// Remove the animation then reinsert it. That way we make sure the list
-			// stays sorted
-			AnimObject animObjectCopy;
-			int objectIndex = -1;
-			for (int i = 0; i < am->objects.size(); i++)
-			{
-				const AnimObject& animObject = am->objects[i];
-				if (animObject.id == animObjectId)
-				{
-					if (animObject.frameStart == frameStart && animObject.duration == duration)
-					{
-						// If nothing changed, just return that the change was successful
-						return true;
-					}
-
-					animObjectCopy = animObject;
-					objectIndex = i;
-					break;
-				}
-			}
-
-			if (objectIndex != -1)
-			{
-				am->objects.erase(am->objects.begin() + objectIndex);
-				animObjectCopy.frameStart = frameStart;
-				animObjectCopy.duration = duration;
-				addAnimObject(am, animObjectCopy);
-				return true;
-			}
-
-			return false;
-		}
-
-		bool setAnimationTime(AnimationManagerData* am, int animObjectId, int animationId, int frameStart, int duration)
+		bool setAnimationTime(AnimationManagerData* am, int animationId, int frameStart, int duration)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			// Remove the animation then reinsert it. That way we make sure the list
 			// stays sorted
 			Animation animationCopy;
-			int animationIndex = -1;
-			int animObjectIndex = -1;
-			for (int i = 0; i < am->objects.size(); i++)
+			auto animationIndexIter = am->animationIdMap.find(animationId);
+
+			if (animationIndexIter != am->animationIdMap.end())
 			{
-				if (am->objects[i].id == animObjectId)
+				int animationIndex = animationIndexIter->second;
+				if (animationIndex >= 0 && animationIndex < am->animations.size())
 				{
-					// TODO: This is nasty. I should probably use a hash map to store
-					// animations and anim objects
-					for (int j = 0; j < am->objects[i].animations.size(); j++)
-					{
-						const Animation& animation = am->objects[i].animations[j];
-						if (animation.id == animationId)
-						{
-							if (animation.frameStart == frameStart && animation.duration == duration)
-							{
-								// If nothing changed, just return that the change was successful
-								return true;
-							}
+					animationCopy = am->animations[animationIndex];
+					am->animations.erase(am->animations.begin() + animationIndex);
 
-							animationCopy = animation;
-							animationIndex = j;
-							animObjectIndex = i;
-							break;
-						}
-					}
+					animationCopy.frameStart = frameStart;
+					animationCopy.duration = duration;
+
+					// This should update it's index and any other effected indices
+					addAnimation(am, animationCopy);
+					return true;
 				}
-
-				if (animationIndex != -1)
-				{
-					break;
-				}
-			}
-
-			if (animationIndex != -1)
-			{
-				am->objects[animObjectIndex].animations.erase(am->objects[animObjectIndex].animations.begin() + animationIndex);
-				animationCopy.frameStart = frameStart;
-				animationCopy.duration = duration;
-				addAnimationTo(animationCopy, am->objects[animObjectIndex]);
-				return true;
 			}
 
 			return false;
 
 		}
 
-		void setAnimObjectTrack(AnimationManagerData* am, int animObjectId, int track)
+		void setAnimationTrack(AnimationManagerData* am, int animationId, int track)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			for (int i = 0; i < am->objects.size(); i++)
+			Animation* animation = getMutableAnimation(am, animationId);
+			if (animation)
 			{
-				if (am->objects[i].id == animObjectId)
-				{
-					am->objects[i].timelineTrack = track;
-					return;
-				}
+				animation->timelineTrack = track;
 			}
 		}
 
@@ -350,79 +268,128 @@ namespace MathAnim
 			return res;
 		}
 
-		void render(AnimationManagerData* am, NVGcontext* vg, int frame, Framebuffer& framebuffer)
+		void render(AnimationManagerData* am, NVGcontext* vg, int deltaFrame, Framebuffer& framebuffer)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			am->sceneCamera2D->position = am->sceneCamera2DStartPos;
-
-			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
+			// If the current frame has changed, then apply the delta changes
+			// TODO: Optimization, optimize and check this is the problem and if so 
+			// if (deltaFrame != 0)
 			{
-				// Reset to original state and apply animations in order
-				if (objectIter->_svgObjectStart != nullptr && objectIter->svgObject != nullptr)
-				{
-					Svg::copy(objectIter->svgObject, objectIter->_svgObjectStart);
-				}
-				objectIter->position = objectIter->_positionStart;
-				objectIter->rotation = objectIter->_rotationStart;
-				objectIter->scale = objectIter->_scaleStart;
-				objectIter->fillColor = objectIter->_fillColorStart;
-				objectIter->strokeColor = objectIter->_strokeColorStart;
-				objectIter->strokeWidth = objectIter->_strokeWidthStart;
-				objectIter->isAnimating = false;
+				// TODO: Optimization, optimize and check this is the problem and if so 
+				// am->activeAnimations.clear();
+				am->currentFrame += deltaFrame;
 
-				// Update any updateable objects
-				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
-				{
-					objectIter->as.laTexObject.update();
-				}
+				// TODO: Add unApply/apply to all animations to go backwards and forwards
+				// deltas.
+				// For now I'll just reapply all changes from the start of the scene
 
-				// Reset children state
-				for (int i = 0; i < objectIter->children.size(); i++)
+				// Reset everything to state at frame 0
+				am->sceneCamera2D->position = am->sceneCamera2DStartPos;
+
+				for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 				{
-					AnimObject* child = &objectIter->children[i];
-					if (child->_svgObjectStart != nullptr && child->svgObject != nullptr)
+					// Reset to original state and apply animations in order
+					if (objectIter->_svgObjectStart != nullptr && objectIter->svgObject != nullptr)
 					{
-						Svg::copy(child->svgObject, child->_svgObjectStart);
+						Svg::copy(objectIter->svgObject, objectIter->_svgObjectStart);
 					}
-
-					// TODO: Create some sort of apply animation, then apply animations locally
-					// and then transform according to parent position after animation applications
-					child->position = child->_positionStart + objectIter->position;
-					child->rotation = child->_rotationStart + objectIter->rotation;
-					child->scale.x = child->_scaleStart.x * objectIter->scale.x;
-					child->scale.y = child->_scaleStart.y * objectIter->scale.y;
-					child->scale.z = child->_scaleStart.z * objectIter->scale.z;
+					objectIter->position = objectIter->_positionStart;
+					objectIter->rotation = objectIter->_rotationStart;
+					objectIter->scale = objectIter->_scaleStart;
+					objectIter->fillColor = objectIter->_fillColorStart;
+					objectIter->strokeColor = objectIter->_strokeColorStart;
+					objectIter->strokeWidth = objectIter->_strokeWidthStart;
+					objectIter->status = AnimObjectStatus::Inactive;
 
 					// Update any updateable objects
-					if (child->objectType == AnimObjectTypeV1::LaTexObject)
+					if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
 					{
-						child->as.laTexObject.update();
+						objectIter->as.laTexObject.update();
 					}
+
+					// Reset children state
+					//for (int i = 0; i < objectIter->children.size(); i++)
+					//{
+					//	AnimObject* child = &objectIter->children[i];
+					//	if (child->_svgObjectStart != nullptr && child->svgObject != nullptr)
+					//	{
+					//		Svg::copy(child->svgObject, child->_svgObjectStart);
+					//	}
+
+					//	// TODO: Create some sort of apply animation, then apply animations locally
+					//	// and then transform according to parent position after animation applications
+					//	child->position = child->_positionStart + objectIter->position;
+					//	child->rotation = child->_rotationStart + objectIter->rotation;
+					//	child->scale.x = child->_scaleStart.x * objectIter->scale.x;
+					//	child->scale.y = child->_scaleStart.y * objectIter->scale.y;
+					//	child->scale.z = child->_scaleStart.z * objectIter->scale.z;
+
+					//	// Update any updateable objects
+					//	if (child->objectType == AnimObjectTypeV1::LaTexObject)
+					//	{
+					//		child->as.laTexObject.update();
+					//	}
+					//}
 				}
 
-				for (auto animIter = objectIter->animations.begin(); animIter != objectIter->animations.end(); animIter++)
+				// Apply any changes from animations in order
+				for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
 				{
-					float parentFrameStart = (float)animIter->getParent(am)->frameStart;
-					float absoluteFrameStart = animIter->frameStart + parentFrameStart;
-					int animDeathTime = (int)absoluteFrameStart + animIter->duration;
-					if (absoluteFrameStart <= frame)
+					float frameStart = (float)animIter->frameStart;
+					int animDeathTime = (int)frameStart + animIter->duration;
+					if (frameStart <= am->currentFrame)
 					{
-						if (frame <= animDeathTime)
+						bool animationComplete = am->currentFrame >= animDeathTime;
+						// Set all objects this animation is acting on to animating/active status
+						for (auto objIter = animIter->animObjectIds.begin(); objIter != animIter->animObjectIds.end(); objIter++)
 						{
-							objectIter->isAnimating = true;
-							float interpolatedT = ((float)frame - absoluteFrameStart) / (float)animIter->duration;
-							animIter->render(am, vg, interpolatedT);
+							AnimObject* object = getMutableObject(am, *objIter);
+							// Omit the check in distribution builds								
+#ifndef _DIST
+							g_logger_assert(object != nullptr, "Somehow an animation had a reference to a non-existent object.");
+#endif
+							object->status = animationComplete
+								? AnimObjectStatus::Active
+								: AnimObjectStatus::Animating;
 						}
-						else
-						{
-							animIter->applyAnimation(am, vg);
-						}
+
+						// TODO: Optimization, optimize and check this is the problem and if so 
+						// If it's the middle of an animation then make sure 
+						// to keep track of it
+						// am->activeAnimations.push_back(*animIter);
+						// Then apply the animation
+						float interpolatedT = ((float)am->currentFrame - frameStart) / (float)animIter->duration;
+						animIter->applyAnimation(am, vg, interpolatedT);
 					}
 				}
 
-				int objectDeathTime = objectIter->frameStart + objectIter->duration;
-				if (!objectIter->isAnimating && objectIter->frameStart <= frame && frame <= objectDeathTime)
+				// TODO: Optimization, optimize and check this is the problem and if so 
+				// Sort the active animations list so they're always applied in order
+				// std::sort(am->activeAnimations.begin(), am->activeAnimations.end(), compareAnimation);
+			}
+
+			// TODO: Optimization, optimize and check this is the problem and if so 
+			// get this working if large scenes start lagging
+			// 
+			// If the frame didn't change re-apply active animations
+			// so that any changes to object properties take effect
+			//if (deltaFrame == 0)
+			//{
+			//	// Apply any active animations
+			//	for (auto animIter = am->activeAnimations.begin(); animIter != am->activeAnimations.end(); animIter++)
+			//	{
+			//		float frameStart = (float)animIter->frameStart;
+			//		float interpolatedT = ((float)am->currentFrame - frameStart) / (float)animIter->duration;
+			//		//animIter->render(am, vg, interpolatedT);
+			//		animIter->applyAnimation(am, vg, interpolatedT);
+			//	}
+			//}
+
+			// Render any active/animating objects
+			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
+			{
+				if (objectIter->status != AnimObjectStatus::Inactive)
 				{
 					objectIter->render(vg);
 				}
@@ -457,29 +424,35 @@ namespace MathAnim
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			for (int i = 0; i < am->objects.size(); i++)
+			auto iter = am->objectIdMap.find(animObjectId);
+			if (iter != am->objectIdMap.end())
 			{
-				if (am->objects[i].id == animObjectId)
+				int objectIndex = iter->second;
+				if (objectIndex >= 0 && objectIndex < am->objects.size())
 				{
-					return &am->objects[i];
+					return &am->objects[objectIndex];
 				}
 			}
 
 			return nullptr;
 		}
 
+		const Animation* getAnimation(const AnimationManagerData* am, int animationId)
+		{
+			return getMutableAnimation((AnimationManagerData*)am, animationId);
+		}
+
 		Animation* getMutableAnimation(AnimationManagerData* am, int animationId)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			for (int i = 0; i < am->objects.size(); i++)
+			auto iter = am->animationIdMap.find(animationId);
+			if (iter != am->animationIdMap.end())
 			{
-				for (int ai = 0; ai < am->objects[i].animations.size(); ai++)
+				int animationIndex = iter->second;
+				if (animationIndex >= 0 && animationIndex < am->animations.size())
 				{
-					if (am->objects[i].animations[ai].id == animationId)
-					{
-						return &am->objects[i].animations[ai];
-					}
+					return &am->animations[animationIndex];
 				}
 			}
 
@@ -490,6 +463,12 @@ namespace MathAnim
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 			return am->objects;
+		}
+
+		const std::vector<Animation>& getAnimations(const AnimationManagerData* am)
+		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+			return am->animations;
 		}
 
 		const AnimObject* getNextAnimObject(const AnimationManagerData* am, int animObjectId)
@@ -525,7 +504,7 @@ namespace MathAnim
 		RawMemory serialize(const AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
-			
+
 			// This data should always be present regardless of file version
 			// Container data layout
 			// magicNumber   -> uint32
@@ -537,16 +516,29 @@ namespace MathAnim
 
 			// Custom data starts here. Subject to change from version to version
 			// numAnimations -> uint32
-			// animObjects   -> dynamic
-			uint32 numAnimations = (uint32)am->objects.size();
+			// animations    -> dynamic
+			uint32 numAnimations = (uint32)am->animations.size();
 			memory.write<uint32>(&numAnimations);
 
 			// Write out each animation followed by 0xDEADBEEF
+			for (int i = 0; i < am->animations.size(); i++)
+			{
+				am->animations[i].serialize(memory);
+				memory.write<uint32>(&MAGIC_NUMBER);
+			}
+
+			// numAnimObjects -> uint32
+			// animObjects    -> dynamic
+			uint32 numAnimObjects = (uint32)am->objects.size();
+			memory.write<uint32>(&numAnimObjects);
+
+			// Write out each anim object followed by 0xDEADBEEF
 			for (int i = 0; i < am->objects.size(); i++)
 			{
 				am->objects[i].serialize(memory);
 				memory.write<uint32>(&MAGIC_NUMBER);
 			}
+
 			memory.shrinkToFit();
 
 			return memory;
@@ -577,20 +569,15 @@ namespace MathAnim
 				g_logger_error("AnimationManagerEx serialized with unknown version '%d'.", serializerVersion);
 			}
 
-			// Need to sort animation objects to ensure they get animations 
-			// applied in the correct order
-			sortAnimObjects(am);
+			// Need to sort animations they get applied in the correct order
+			sortAnimations(am);
 		}
 
-		void sortAnimObjects(AnimationManagerData* am)
+		void sortAnimations(AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			std::sort(am->objects.begin(), am->objects.end(), compareAnimObject);
-			for (int i = 0; i < am->objects.size(); i++)
-			{
-				std::sort(am->objects[i].animations.begin(), am->objects[i].animations.end(), compareAnimation);
-			}
+			std::sort(am->animations.begin(), am->animations.end(), compareAnimation);
 		}
 
 		const char* getAnimObjectName(AnimObjectTypeV1 type)
@@ -612,18 +599,37 @@ namespace MathAnim
 			constexpr uint32 version = 1;
 
 			// numAnimations -> uint32
-			// animObjects   -> dynamic
+			// animations    -> dynamic
 			uint32 numAnimations;
 			memory.read<uint32>(&numAnimations);
 
-			// Write out each animation followed by 0xDEADBEEF
+			// Read each animation followed by 0xDEADBEEF
 			for (uint32 i = 0; i < numAnimations; i++)
+			{
+				Animation animation = Animation::deserialize(memory, version);
+				am->animations.push_back(animation);
+				uint32 magicNumber;
+				memory.read<uint32>(&magicNumber);
+				g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+
+				am->animationIdMap[animation.id] = i;
+			}
+
+			// numAnimObjects -> uint32
+			// animObjects    -> dynamic
+			uint32 numAnimObjects;
+			memory.read<uint32>(&numAnimObjects);
+
+			// Read each anim object followed by 0xDEADBEEF
+			for (uint32 i = 0; i < numAnimObjects; i++)
 			{
 				AnimObject animObject = AnimObject::deserialize(memory, version);
 				am->objects.push_back(animObject);
 				uint32 magicNumber;
 				memory.read<uint32>(&magicNumber);
 				g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+
+				am->objectIdMap[animObject.id] = i;
 			}
 		}
 
@@ -634,6 +640,12 @@ namespace MathAnim
 
 		static bool compareAnimation(const Animation& a1, const Animation& a2)
 		{
+			// Sort by timeline track secondarily
+			if (a1.frameStart == a2.frameStart)
+			{
+				return a1.timelineTrack < a2.timelineTrack;
+			}
+
 			return a1.frameStart < a2.frameStart;
 		}
 	}

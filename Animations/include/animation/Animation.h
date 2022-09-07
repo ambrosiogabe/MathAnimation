@@ -75,12 +75,13 @@ namespace MathAnim
 	struct Animation
 	{
 		AnimTypeV1 type;
-		int32 objectId;
 		int32 frameStart;
 		int32 duration;
 		int32 id;
+		int32 timelineTrack;
 		EaseType easeType;
 		EaseDirection easeDirection;
+		std::vector<int32> animObjectIds;
 
 		union
 		{
@@ -95,16 +96,21 @@ namespace MathAnim
 		//   t: is a float that ranges from [0, 1] where 0 is the
 		//      beginning of the animation and 1 is the end of the
 		//      animation
-		void render(AnimationManagerData* am, NVGcontext* vg, float t) const;
+		// void render(AnimationManagerData* am, NVGcontext* vg, float t) const;
 		// Set the animation to the end state without rendering it
-		void applyAnimation(AnimationManagerData* am, NVGcontext* vg) const;
+		void applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t = 1.0) const;
 
-		const AnimObject* getParent(AnimationManagerData* am) const;
-		AnimObject* getMutableParent(AnimationManagerData* am) const;
 		void free();
 		void serialize(RawMemory& memory) const;
 		static Animation deserialize(RawMemory& memory, uint32 version);
-		static Animation createDefault(AnimTypeV1 type, int32 frameStart, int32 duration, int32 animObjectId);
+		static Animation createDefault(AnimTypeV1 type, int32 frameStart, int32 duration);
+	};
+
+	enum class AnimObjectStatus : uint8
+	{
+		Inactive,
+		Animating,
+		Active
 	};
 
 	struct AnimObject
@@ -118,6 +124,10 @@ namespace MathAnim
 		// This is the position before any animations are applied
 		Vec3 _positionStart;
 		Vec3 _scaleStart;
+		// This is the percent created ranging from [0.0-1.0] which determines 
+		// what to pass to renderCreateAnimation(...)
+		float percentCreated;
+
 		int32 id;
 		int32 parentId;
 		uint8* name;
@@ -129,7 +139,7 @@ namespace MathAnim
 		SvgObject* _svgObjectStart;
 		SvgObject* svgObject;
 		float svgScale;
-		bool isAnimating;
+		AnimObjectStatus status;
 		bool isTransparent;
 		bool drawDebugBoxes;
 		bool drawCurveDebugBoxes;
@@ -140,10 +150,6 @@ namespace MathAnim
 		glm::u8vec4 strokeColor;
 		glm::u8vec4 _fillColorStart;
 		glm::u8vec4 fillColor;
-		std::vector<Animation> animations;
-		// TODO: Do we want to restructure this to only have
-		// a parent pointer or something?
-		std::vector<AnimObject> children;
 
 		union
 		{

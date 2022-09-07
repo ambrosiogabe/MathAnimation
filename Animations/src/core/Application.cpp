@@ -52,7 +52,8 @@ namespace MathAnim
 		static Framebuffer mainFramebuffer;
 		static OrthoCamera camera2D;
 		static PerspectiveCamera camera3D;
-		static int currentFrame = 0;
+		static int absoluteCurrentFrame = -1;
+		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
 		static std::string currentProjectFilepath;
 		static VideoEncoder encoder = {};
@@ -117,6 +118,8 @@ namespace MathAnim
 			bool isRunning = true;
 			double previousTime = glfwGetTime() - 0.16f;
 			constexpr float fixedDeltaTime = 1.0f / 60.0f;
+			int deltaFrame = 0;
+
 			while (isRunning && !window->shouldClose())
 			{
 				float deltaTime = (float)(glfwGetTime() - previousTime);
@@ -126,22 +129,25 @@ namespace MathAnim
 				if (outputVideoFile)
 				{
 					accumulatedTime += (1.0f / 60.0f);
-					currentFrame++;
+					absoluteCurrentFrame++;
 				}
 
 				// Update components
 				if (animState == AnimState::PlayForward)
 				{
 					accumulatedTime += deltaTime;
-					currentFrame = (int)(accumulatedTime * 60.0f);
+					absoluteCurrentFrame = (int)(accumulatedTime * 60.0f);
 				}
 				else if (animState == AnimState::PlayReverse)
 				{
-					currentFrame = glm::max(currentFrame - 1, 0);
+					absoluteCurrentFrame = glm::max(absoluteCurrentFrame - 1, 0);
 				}
 
+				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
+				absolutePrevFrame = absoluteCurrentFrame;
+
 				// Render to main framebuffer
-				Renderer::renderToFramebuffer(am, vg, currentFrame, mainFramebuffer);
+				Renderer::renderToFramebuffer(am, vg, deltaFrame, mainFramebuffer);
 
 				// Render to window
 				mainFramebuffer.unbind();
@@ -157,7 +163,7 @@ namespace MathAnim
 
 				// Miscellaneous
 				// TODO: Abstract this stuff out of here
-				if (outputVideoFile && currentFrame > -1)
+				if (outputVideoFile && absoluteCurrentFrame > -1)
 				{
 					Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0, true);
 
@@ -165,7 +171,7 @@ namespace MathAnim
 					VideoWriter::pushFrame(pixels, outputWidth * outputHeight, encoder);
 					mainFramebuffer.freePixels(pixels);
 
-					if (currentFrame >= AnimationManager::lastAnimatedFrame(am))
+					if (absoluteCurrentFrame >= AnimationManager::lastAnimatedFrame(am))
 					{
 						endExport();
 					}
@@ -177,7 +183,7 @@ namespace MathAnim
 			// If the window is closing, save the last rendered frame to a preview image
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
-			Renderer::renderToFramebuffer(am, vg, currentFrame, mainFramebuffer);
+			Renderer::renderToFramebuffer(am, vg, deltaFrame, mainFramebuffer);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path currentPath = std::filesystem::path(currentProjectFilepath).parent_path();
 			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
@@ -226,9 +232,9 @@ namespace MathAnim
 
 			saveProject();
 
-			AnimationManager::free(am);
 			LaTexLayer::free();
 			EditorGui::free(am);
+			AnimationManager::free(am);
 			nvgDeleteGL3(vg);
 			Fonts::unloadAllFonts();
 			Svg::free();
@@ -295,7 +301,7 @@ namespace MathAnim
 		{
 			if (state == AnimState::PlayForward || state == AnimState::PlayReverse)
 			{
-				accumulatedTime = (float)currentFrame / 60.0f;
+				accumulatedTime = (float)absoluteCurrentFrame / 60.0f;
 			}
 			animState = state;
 		}
@@ -322,12 +328,12 @@ namespace MathAnim
 
 		void setFrameIndex(int frame)
 		{
-			currentFrame = frame;
+			absoluteCurrentFrame = frame;
 		}
 
 		int getFrameIndex()
 		{
-			return currentFrame;
+			return absoluteCurrentFrame;
 		}
 
 		int getFrameratePerSecond()
@@ -340,7 +346,7 @@ namespace MathAnim
 			outputVideoFilename = filename;
 			if (VideoWriter::startEncodingFile(&encoder, outputVideoFilename.c_str(), outputWidth, outputHeight, framerate, 60, true))
 			{
-				currentFrame = -1;
+				absoluteCurrentFrame = -1;
 				outputVideoFile = true;
 			}
 		}
