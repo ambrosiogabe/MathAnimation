@@ -343,9 +343,13 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
+			res.as.modifyVec3.target = Vec3{ Application::getViewportSize().x / 3.0f, Application::getViewportSize().y / 3.0f, 0.0f};
+			break;
 		case AnimTypeV1::RotateTo:
-		case AnimTypeV1::Shift:
 			res.as.modifyVec3.target = Vec3{ 0.0f, 0.0f, 0.0f };
+			break;
+		case AnimTypeV1::Shift:
+			res.as.modifyVec3.target = Vec3{ 0.0f, 1.0f, 0.0f};
 			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
@@ -692,9 +696,6 @@ namespace MathAnim
 		res.status = AnimObjectStatus::Inactive;
 		res.objectType = type;
 
-		res.position = { 0, 0, 0 };
-		res._positionStart = { 0, 0, 0 };
-
 		res.rotation = { 0, 0, 0 };
 		res._rotationStart = { 0, 0, 0 };
 
@@ -717,16 +718,22 @@ namespace MathAnim
 		res.fillColor = glm::u8vec4(255);
 		res._fillColorStart = glm::u8vec4(255);
 
-		constexpr float defaultSquareLength = 400.0f;
-		constexpr float defaultCircleRadius = 200.0f;
+		constexpr float defaultSquareLength = 3.0f;
+		constexpr float defaultCircleRadius = 1.5f;
 		constexpr float defaultCubeLength = 2.0f;
-		glm::vec2 outputSize = Application::getOutputSize();
+
+		glm::vec2 viewportSize = Application::getViewportSize();
+		res._positionStart = {
+				viewportSize.x / 2.0f,
+				viewportSize.y / 2.0f,
+				0.0f
+		};
+		res.position = res._positionStart;
 
 		switch (type)
 		{
 		case AnimObjectTypeV1::TextObject:
 			res.as.textObject = TextObject::createDefault();
-			// TODO: Center on the screen
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::createDefault();
@@ -738,18 +745,10 @@ namespace MathAnim
 		case AnimObjectTypeV1::Square:
 			res.as.square.sideLength = defaultSquareLength;
 			res.as.square.init(&res);
-			res._positionStart = {
-				outputSize.x / 2.0f,
-				outputSize.y / 2.0f
-			};
 			break;
 		case AnimObjectTypeV1::Circle:
 			res.as.circle.radius = defaultCircleRadius;
 			res.as.circle.init(&res);
-			res._positionStart = {
-				outputSize.x / 2.0f,
-				outputSize.y / 2.0f
-			};
 			break;
 		case AnimObjectTypeV1::Cube:
 			res.as.cube.sideLength = defaultCubeLength;
@@ -767,10 +766,6 @@ namespace MathAnim
 			res.as.axis.drawNumbers = true;
 			res._strokeWidthStart = 7.5f;
 			res._fillColorStart.a = 0;
-			res._positionStart = {
-				outputSize.x / 2.0f,
-				outputSize.y / 2.0f
-			};
 			res.as.axis.fontSizePixels = 9.5f;
 			res.as.axis.labelPadding = 25.0f;
 			res.as.axis.init(&res);
