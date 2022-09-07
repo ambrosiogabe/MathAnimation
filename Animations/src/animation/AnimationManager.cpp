@@ -207,7 +207,7 @@ namespace MathAnim
 				if (animationIndex >= 0 && animationIndex < am->animations.size())
 				{
 					animationCopy = am->animations[animationIndex];
-					am->animations.erase(am->animations.begin() + animationIndex);
+					removeAnimation(am, animationId);
 
 					animationCopy.frameStart = frameStart;
 					animationCopy.duration = duration;
