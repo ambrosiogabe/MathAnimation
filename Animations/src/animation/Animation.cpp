@@ -143,14 +143,24 @@ namespace MathAnim
 	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation);
 	void Animation::applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t) const
 	{
-		t = glm::clamp(CMath::ease(t, easeType, easeDirection), 0.0f, 1.0f);
-
 		for (int i = 0; i < animObjectIds.size(); i++)
 		{
-			AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectIds[i]);
-			if (animObject != nullptr)
+			float startT = 0.0f;
+			if (this->playbackType == PlaybackType::LaggedStart)
 			{
-				applyAnimationToObj(am, vg, animObject, t, this);
+				startT = (float)i / (float)animObjectIds.size() * lagRatio;
+			}
+
+			if (t >= startT)
+			{
+				float interpolatedT = CMath::mapRange(Vec2{ startT, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
+				interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
+
+				AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectIds[i]);
+				if (animObject != nullptr)
+				{
+					applyAnimationToObj(am, vg, animObject, interpolatedT, this);
+				}
 			}
 		}
 	}
@@ -223,6 +233,8 @@ namespace MathAnim
 		// easeType       -> uint8
 		// easeDirection  -> uint8
 		// timelineTrack  -> int32
+		// playbackType   -> uint8
+		// lagRatio       -> f32
 		// 
 		// numObjects     -> uint32
 		// objectIds      -> int32[numObjects]
@@ -235,7 +247,11 @@ namespace MathAnim
 		memory.write<uint8>(&easeTypeInt);
 		uint8 easeDirectionInt = (uint8)easeDirection;
 		memory.write<uint8>(&easeDirectionInt);
+
 		memory.write<int32>(&timelineTrack);
+		uint8 playbackTypeInt = (uint8)playbackType;
+		memory.write<uint8>(&playbackTypeInt);
+		memory.write<float>(&lagRatio);
 
 		uint32 numObjects = (uint32)animObjectIds.size();
 		memory.write<uint32>(&numObjects);
@@ -302,6 +318,8 @@ namespace MathAnim
 		res.type = type;
 		res.easeType = EaseType::Cubic;
 		res.easeDirection = EaseDirection::InOut;
+		res.playbackType = PlaybackType::LaggedStart;
+		res.lagRatio = 0.1f;
 
 		switch (type)
 		{
@@ -910,6 +928,8 @@ namespace MathAnim
 		// easeType       -> uint8
 		// easeDirection  -> uint8
 		// timelineTrack  -> int32
+		// playbackType   -> uint8
+		// lagRatio       -> f32
 		// 
 		// numObjects     -> uint32
 		// objectIds      -> int32[numObjects]
@@ -923,16 +943,19 @@ namespace MathAnim
 		memory.read<int32>(&res.duration);
 		memory.read<int32>(&res.id);
 		uint8 easeTypeInt, easeDirectionInt;
-		res.easeType = EaseType::Cubic;
-		res.easeDirection = EaseDirection::InOut;
 		memory.read<uint8>(&easeTypeInt);
 		memory.read<uint8>(&easeDirectionInt);
 		g_logger_assert(easeTypeInt < (uint8)EaseType::Length, "Corrupted memory. Ease type was %d which is out of bounds.", easeTypeInt);
 		res.easeType = (EaseType)easeTypeInt;
-		g_logger_assert(easeDirectionInt < (uint8)EaseDirection::Length, "Corrupted memory. Ease direction was %d which is out of bounds", easeDirectionInt);
+		g_logger_assert(easeDirectionInt < (uint8)EaseDirection::Length, "Corrupted memory. Ease direction was %d which is out of bounds.", easeDirectionInt);
 		res.easeDirection = (EaseDirection)easeDirectionInt;
 
 		memory.read<int32>(&res.timelineTrack);
+		uint8 playbackType;
+		memory.read<uint8>(&playbackType);
+		g_logger_assert(playbackType < (uint8)PlaybackType::Length, "Corrupted memory. PlaybackType was %d which is out of bounds.", playbackType);
+		res.playbackType = (PlaybackType)playbackType;
+		memory.read<float>(&res.lagRatio);
 
 		uint32 numObjects;
 		memory.read<uint32>(&numObjects);

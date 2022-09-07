@@ -341,6 +341,7 @@ namespace MathAnim
 					if (frameStart <= am->currentFrame)
 					{
 						bool animationComplete = am->currentFrame >= animDeathTime;
+
 						// Set all objects this animation is acting on to animating/active status
 						for (auto objIter = animIter->animObjectIds.begin(); objIter != animIter->animObjectIds.end(); objIter++)
 						{

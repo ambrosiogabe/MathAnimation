@@ -50,6 +50,20 @@ namespace MathAnim
 		Length
 	};
 
+	enum class PlaybackType : uint8
+	{
+		None = 0,
+		Synchronous,
+		LaggedStart,
+		Length
+	};
+
+	constexpr const char* playbackTypeNames[(uint8)PlaybackType::Length] = {
+		"None",
+		"Synchronous",
+		"Lagged Start"
+	};
+
 	// Animation Structs
 	struct ModifyVec4AnimData
 	{
@@ -81,6 +95,8 @@ namespace MathAnim
 		int32 timelineTrack;
 		EaseType easeType;
 		EaseDirection easeDirection;
+		PlaybackType playbackType;
+		float lagRatio;
 		std::vector<int32> animObjectIds;
 
 		union

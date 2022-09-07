@@ -740,6 +740,17 @@ namespace MathAnim
 				animation->easeDirection = (EaseDirection)(currentDirection + 1);
 			}
 
+			int currentPlaybackType = (int)(animation->playbackType) - 1;
+			if (ImGui::Combo(": Playback Type", &currentPlaybackType, &playbackTypeNames[1], (int)PlaybackType::Length - 1))
+			{
+				g_logger_assert(currentPlaybackType >= 0 && currentPlaybackType + 1 < (int)PlaybackType::Length, "How did this happen?");
+				animation->playbackType = (PlaybackType)(currentPlaybackType + 1);
+			}
+
+			ImGui::BeginDisabled(animation->playbackType == PlaybackType::Synchronous);
+			ImGui::DragFloat(": Lag Ratio", &animation->lagRatio, slowDragSpeed, 0.0f, 1.0f);
+			ImGui::EndDisabled();
+
 			switch (animation->type)
 			{
 			case AnimTypeV1::WriteInText:
