@@ -463,9 +463,7 @@ namespace MathAnim
 		this->strokeWidth = parent->strokeWidth;
 		this->drawCurveDebugBoxes = parent->drawCurveDebugBoxes;
 		this->drawDebugBoxes = parent->drawDebugBoxes;
-		this->duration = parent->duration;
 		this->fillColor = parent->fillColor;
-		this->frameStart = parent->frameStart;
 		this->is3D = parent->is3D;
 		this->status = parent->status;
 		this->isTransparent = parent->isTransparent;
@@ -620,10 +618,6 @@ namespace MathAnim
 		memory.write<uint32>(&nameLength);
 		memory.writeDangerous(name, (nameLength + 1));
 
-		memory.write<int32>(&frameStart);
-		memory.write<int32>(&duration);
-		memory.write<int32>(&timelineTrack);
-
 		switch (objectType)
 		{
 		case AnimObjectTypeV1::TextObject:
@@ -661,25 +655,19 @@ namespace MathAnim
 		}
 
 		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
-		AnimObject res;
-		res.frameStart = 0;
-		res.duration = 0;
+		AnimObject res = {};
 		res.id = -1;
-		res.objectType = AnimObjectTypeV1::None;
-		res.position = {};
-		res._positionStart = {};
-		res.timelineTrack = -1;
 		return res;
 	}
 
 	AnimObject AnimObject::createDefaultFromParent(AnimObjectTypeV1 type, const AnimObject* parent)
 	{
-		AnimObject res = createDefault(type, parent->frameStart, parent->duration);
+		AnimObject res = createDefault(type);
 		res.takeParentAttributes(parent);
 		return res;
 	}
 
-	AnimObject AnimObject::createDefault(AnimObjectTypeV1 type, int32 frameStart, int32 duration)
+	AnimObject AnimObject::createDefault(AnimObjectTypeV1 type)
 	{
 		AnimObject res;
 		res.id = animObjectUidCounter++;
@@ -691,8 +679,6 @@ namespace MathAnim
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
 		g_memory_copyMem(res.name, (void*)newObjName, sizeof(uint8) * (res.nameLength + 1));
 
-		res.frameStart = frameStart;
-		res.duration = duration;
 		res.status = AnimObjectStatus::Inactive;
 		res.objectType = type;
 
@@ -744,10 +730,12 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Square:
 			res.as.square.sideLength = defaultSquareLength;
+			res.svgScale = 50.0f;
 			res.as.square.init(&res);
 			break;
 		case AnimObjectTypeV1::Circle:
 			res.as.circle.radius = defaultCircleRadius;
+			res.svgScale = 150.0f;
 			res.as.circle.init(&res);
 			break;
 		case AnimObjectTypeV1::Cube:
@@ -869,6 +857,8 @@ namespace MathAnim
 		res.drawCurveDebugBoxes = drawCurveDebugBoxes != 0;
 
 		memory.read<int32>(&res.id);
+		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
+
 		memory.read<int32>(&res.parentId);
 		if (!memory.read<uint32>(&res.nameLength))
 		{
@@ -876,11 +866,6 @@ namespace MathAnim
 		}
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
 		memory.readDangerous(res.name, res.nameLength + 1);
-
-		memory.read<int32>(&res.frameStart);
-		memory.read<int32>(&res.duration);
-		memory.read<int32>(&res.timelineTrack);
-		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
 
 		res.position = res._positionStart;
 		res.strokeColor = res._strokeColorStart;
@@ -948,7 +933,10 @@ namespace MathAnim
 		res.type = (AnimTypeV1)animType;
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);
+
 		memory.read<int32>(&res.id);
+		animationUidCounter = glm::max(animationUidCounter, res.id + 1);
+
 		uint8 easeTypeInt, easeDirectionInt;
 		memory.read<uint8>(&easeTypeInt);
 		memory.read<uint8>(&easeDirectionInt);

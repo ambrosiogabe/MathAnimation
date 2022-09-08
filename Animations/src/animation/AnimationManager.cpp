@@ -66,7 +66,6 @@ namespace MathAnim
 
 		// -------- Internal Functions --------
 		static void deserializeAnimationManagerExV1(AnimationManagerData* am, RawMemory& memory);
-		static bool compareAnimObject(const AnimObject& ob1, const AnimObject& ob2);
 		static bool compareAnimation(const Animation& a1, const Animation& a2);
 
 		AnimationManagerData* create(OrthoCamera& camera)
@@ -403,10 +402,10 @@ namespace MathAnim
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			int lastFrame = -1;
-			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
+			for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
 			{
-				int objectDeathTime = objectIter->frameStart + objectIter->duration;
-				lastFrame = glm::max(lastFrame, objectDeathTime);
+				int animDeathTime = animIter->frameStart + animIter->duration;
+				lastFrame = glm::max(lastFrame, animDeathTime);
 			}
 
 			return lastFrame;
@@ -471,36 +470,6 @@ namespace MathAnim
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 			return am->animations;
-		}
-
-		const AnimObject* getNextAnimObject(const AnimationManagerData* am, int animObjectId)
-		{
-			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
-
-			int timelineTrack = -1;
-			int frameStart = -1;
-			int objIndex = -1;
-			for (int i = 0; i < am->objects.size(); i++)
-			{
-				if (objIndex != -1)
-				{
-					if (am->objects[i].timelineTrack == timelineTrack && am->objects[i].frameStart > am->objects[objIndex].frameStart)
-					{
-						g_logger_assert(am->objects[i].frameStart >= am->objects[objIndex].frameStart + am->objects[objIndex].duration, "These two objects are intersecting.");
-						return &am->objects[i];
-					}
-				}
-
-				if (am->objects[i].id == animObjectId)
-				{
-					g_logger_assert(objIndex == -1, "Multiple objects found with object id %d", animObjectId);
-					timelineTrack = am->objects[i].timelineTrack;
-					frameStart = am->objects[i].frameStart;
-					objIndex = i;
-				}
-			}
-
-			return nullptr;
 		}
 
 		RawMemory serialize(const AnimationManagerData* am)
@@ -633,11 +602,6 @@ namespace MathAnim
 
 				am->objectIdMap[animObject.id] = i;
 			}
-		}
-
-		static bool compareAnimObject(const AnimObject& ob1, const AnimObject& ob2)
-		{
-			return ob1.frameStart < ob2.frameStart;
 		}
 
 		static bool compareAnimation(const Animation& a1, const Animation& a2)

@@ -240,13 +240,24 @@ namespace MathAnim
 		// --------- Internal functions ---------
 		static void imGuiRightClickPopup(AnimationManagerData* am)
 		{
+			// String buffer to write object names
+			char buffer[256];
+			size_t bufferSize = sizeof(buffer);
+
 			if (ImGui::BeginPopupContextWindow())
 			{
-				if (ImGui::MenuItem("Add Anim Object"))
+				for (int i = 1; i < (int)AnimObjectTypeV1::Length - 1; i++)
 				{
-					AnimObject animObject = AnimObject::createDefault(AnimObjectTypeV1::Square, 0, 60 * 3);
-					AnimationManager::addAnimObject(am, animObject);
-					addNewAnimObject(animObject);
+					int strRes = sprintf_s(buffer, bufferSize, "Add %s\0", AnimationManager::getAnimObjectName((AnimObjectTypeV1)i));
+					if (strRes != -1)
+					{
+						if (ImGui::MenuItem(buffer))
+						{
+							AnimObject animObject = AnimObject::createDefault((AnimObjectTypeV1)i);
+							AnimationManager::addAnimObject(am, animObject);
+							addNewAnimObject(animObject);
+						}
+					}
 				}
 
 				ImGui::EndPopup();

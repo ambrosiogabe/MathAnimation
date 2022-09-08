@@ -150,9 +150,6 @@ namespace MathAnim
 		uint8* name;
 		uint32 nameLength;
 
-		int32 frameStart;
-		int32 duration;
-		int32 timelineTrack;
 		SvgObject* _svgObjectStart;
 		SvgObject* svgObject;
 		float svgScale;
@@ -188,7 +185,7 @@ namespace MathAnim
 		void serialize(RawMemory& memory) const;
 		static AnimObject deserialize(RawMemory& memory, uint32 version);
 		static AnimObject createDefaultFromParent(AnimObjectTypeV1 type, const AnimObject* parent);
-		static AnimObject createDefault(AnimObjectTypeV1 type, int32 frameStart, int32 duration);
+		static AnimObject createDefault(AnimObjectTypeV1 type);
 	};
 }
 
