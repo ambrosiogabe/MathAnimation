@@ -5,14 +5,15 @@
 namespace MathAnim
 {
 	struct TimelineData;
+	struct AnimationManagerData;
 
 	namespace EditorGui
 	{
-		void init();
+		void init(AnimationManagerData* am);
 
-		void update(uint32 sceneTextureId);
+		void update(uint32 sceneTextureId, AnimationManagerData* am);
 
-		void free();
+		void free(AnimationManagerData* am);
 
 		const TimelineData& getTimelineData();
 		void setTimelineData(const TimelineData& data);

@@ -5,14 +5,15 @@
 namespace MathAnim
 {
 	struct AnimObject;
+	struct AnimationManagerData;
 
 	namespace SceneHierarchyPanel
 	{
-		void init();
+		void init(AnimationManagerData* am);
 		void free();
 
 		void addNewAnimObject(const AnimObject& animObject);
-		void update();
+		void update(AnimationManagerData* am);
 		void deleteAnimObject(const AnimObject& animObject);
 
 		void serialize(RawMemory& memory);

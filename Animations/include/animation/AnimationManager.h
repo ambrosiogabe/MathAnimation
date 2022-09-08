@@ -12,37 +12,39 @@ namespace MathAnim
 	struct Framebuffer;
 	struct OrthoCamera;
 
+	struct AnimationManagerData;
+
 	namespace AnimationManager
 	{
-		void init(OrthoCamera& camera);
+		AnimationManagerData* create(OrthoCamera& camera);
+		void free(AnimationManagerData* animManager);
 
-		void addAnimObject(const AnimObject& object);
-		void addAnimationTo(const Animation& animation, AnimObject& animObject);
-		void addAnimationTo(const Animation& animation, int animObjectId);
+		void addAnimObject(AnimationManagerData* am, const AnimObject& object);
+		void addAnimation(AnimationManagerData* am, const Animation& animation);
 
-		bool removeAnimObject(int animObjectId);
-		bool removeAnimation(int animObjectId, int animationId);
+		bool removeAnimObject(AnimationManagerData* am, int animObjectId);
+		bool removeAnimation(AnimationManagerData* am, int animationId);
 
-		bool setAnimObjectTime(int animObjectId, int frameStart, int duration);
-		bool setAnimationTime(int animObjectId, int animationId, int frameStart, int duration);
-		void setAnimObjectTrack(int animObjectId, int track);
+		bool setAnimationTime(AnimationManagerData* am, int animationId, int frameStart, int duration);
+		void setAnimationTrack(AnimationManagerData* am, int animationId, int track);
 
 		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight);
-		void render(NVGcontext* vg, int frame, Framebuffer& framebuffer);
+		void render(AnimationManagerData* am, NVGcontext* vg, int deltaFrame, Framebuffer& framebuffer);
 
-		int lastAnimatedFrame();
+		int lastAnimatedFrame(const AnimationManagerData* am);
 
 		bool isObjectNull(int animObjectId);
-		const AnimObject* getObject(int animObjectId);
-		AnimObject* getMutableObject(int animObjectId);
-		Animation* getMutableAnimation(int animationId);
-		const std::vector<AnimObject>& getAnimObjects();
+		const AnimObject* getObject(const AnimationManagerData* am, int animObjectId);
+		AnimObject* getMutableObject(AnimationManagerData* am, int animObjectId);
+		const Animation* getAnimation(const AnimationManagerData* am, int animationId);
+		Animation* getMutableAnimation(AnimationManagerData* am, int animationId);
 
-		const AnimObject* getNextAnimObject(int animObjectId);
+		const std::vector<AnimObject>& getAnimObjects(const AnimationManagerData* am);
+		const std::vector<Animation>& getAnimations(const AnimationManagerData* am);
 
-		RawMemory serialize();
-		void deserialize(RawMemory& memory);
-		void sortAnimObjects();
+		RawMemory serialize(const AnimationManagerData* am);
+		void deserialize(AnimationManagerData* am, RawMemory& memory);
+		void sortAnimations(AnimationManagerData* am);
 
 		const char* getAnimObjectName(AnimObjectTypeV1 type);
 		const char* getAnimationName(AnimTypeV1 type);

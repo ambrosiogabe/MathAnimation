@@ -18,137 +18,164 @@ namespace MathAnim
 	static Animation deserializeAnimationExV1(RawMemory& memory);
 
 	// ----------------------------- Animation Functions -----------------------------
-	static void renderAnimationFromObj(NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation);
-	void Animation::render(NVGcontext* vg, float t) const
-	{
-		for (int i = 0; i < getParent()->children.size(); i++)
-		{
-			renderAnimationFromObj(vg, &getParent()->children[i], &getMutableParent()->children[i], t, this);
-		}
+	//static void renderAnimationFromObj(AnimationManagerData* am, NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation);
+	//void Animation::render(AnimationManagerData* am, NVGcontext* vg, float t) const
+	//{
+	//	for (int i = 0; i < animObjectIds.size(); i++)
+	//	{
+	//		renderAnimationFromObj(am, vg, &getParent(am)->children[i], &getMutableParent(am)->children[i], t, this);
+	//	}
 
-		renderAnimationFromObj(vg, getParent(), getMutableParent(), t, this);
+	//	renderAnimationFromObj(am, vg, getParent(am), getMutableParent(am), t, this);
+	//}
+
+	//static void renderAnimationFromObj(AnimationManagerData* am, NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation)
+	//{
+	//	t = CMath::ease(t, animation->easeType, animation->easeDirection);
+
+	//	switch (animation->type)
+	//	{
+	//	case AnimTypeV1::Create:
+	//	{
+	//		// TODO: This is getting messy and gross
+	//		if (obj->objectType == AnimObjectTypeV1::LaTexObject)
+	//		{
+	//			obj->as.laTexObject.renderCreateAnimation(vg, t, obj, false);
+	//			break;
+	//		}
+
+	//		static bool wasWarned = false;
+	//		if (obj->svgObject == nullptr)
+	//		{
+	//			if (!wasWarned)
+	//			{
+	//				g_logger_warning("Cannot render create animation for SVG object that is nullptr.\nSuppressing warning until the app exits.");
+	//				wasWarned = true;
+	//			}
+	//			break;
+	//		}
+	//		obj->svgObject->renderCreateAnimation(vg, t, obj);
+	//	}
+	//	break;
+	//	case AnimTypeV1::UnCreate:
+	//	{
+	//		// TODO: This is getting messy and gross
+	//		if (obj->objectType == AnimObjectTypeV1::LaTexObject)
+	//		{
+	//			obj->as.laTexObject.renderCreateAnimation(vg, t, obj, true);
+	//			break;
+	//		}
+
+	//		g_logger_assert(obj->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
+	//		obj->svgObject->renderCreateAnimation(vg, t, obj, Vec2{ 0, 0 }, true);
+	//	}
+	//	break;
+	//	case AnimTypeV1::FadeIn:
+	//		mutObj->renderFadeInAnimation(vg, t);
+	//		break;
+	//	case AnimTypeV1::FadeOut:
+	//		mutObj->renderFadeOutAnimation(vg, t);
+	//		break;
+	//	case AnimTypeV1::WriteInText:
+	//		obj->as.textObject.renderWriteInAnimation(vg, t, obj);
+	//		break;
+	//	case AnimTypeV1::MoveTo:
+	//		mutObj->renderMoveToAnimation(vg, t, animation->as.modifyVec3.target);
+	//		break;
+	//	case AnimTypeV1::Transform:
+	//	{
+	//		// TODO: Rethink how this works
+	//		const SvgObject* obj1 = obj->svgObject;
+	//		const AnimObject* nextObj = AnimationManager::getNextAnimObject(am, obj->id);
+	//		if (obj1 != nullptr && nextObj != nullptr)
+	//		{
+	//			const SvgObject* obj2 = nextObj->svgObject;
+	//			if (obj2 != nullptr)
+	//			{
+	//				Svg::renderInterpolation(vg, obj, obj1, nextObj, obj2, t);
+	//			}
+	//			else
+	//			{
+	//				g_logger_warning("One or more null svg objects in transform animation.");
+	//			}
+	//		}
+	//		else
+	//		{
+	//			g_logger_warning("One or more null svg objects in transform animation.");
+	//		}
+	//	}
+	//	break;
+	//	case AnimTypeV1::RotateTo:
+	//		mutObj->rotation = CMath::interpolate(t, obj->rotation, animation->as.modifyVec3.target);
+	//		obj->render(vg);
+	//		break;
+	//	case AnimTypeV1::AnimateStrokeColor:
+	//		mutObj->strokeColor = CMath::interpolate(t, obj->strokeColor, animation->as.modifyU8Vec4.target);
+	//		obj->render(vg);
+	//		break;
+	//	case AnimTypeV1::AnimateFillColor:
+	//		mutObj->fillColor = CMath::interpolate(t, obj->fillColor, animation->as.modifyU8Vec4.target);
+	//		obj->render(vg);
+	//		break;
+	//	case AnimTypeV1::AnimateStrokeWidth:
+	//	{
+	//		static bool wasWarned = false;
+	//		if (!wasWarned)
+	//		{
+	//			g_logger_warning("TODO: Implement me. Suppressing.");
+	//			wasWarned = true;
+	//		}
+	//	}
+	//	break;
+	//	case AnimTypeV1::CameraMoveTo:
+	//		Renderer::getMutableOrthoCamera()->position =
+	//			CMath::interpolate(t, Renderer::getOrthoCamera()->position, animation->as.modifyVec2.target);
+	//		obj->render(vg);
+	//		break;
+	//	default:
+	//		// TODO: Add magic_enum
+	//		// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
+	//		g_logger_info("Unknown animation: %d", animation->type);
+	//		break;
+	//	}
+	//}
+
+	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation);
+	void Animation::applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t) const
+	{
+		for (int i = 0; i < animObjectIds.size(); i++)
+		{
+			float startT = 0.0f;
+			if (this->playbackType == PlaybackType::LaggedStart)
+			{
+				startT = (float)i / (float)animObjectIds.size() * lagRatio;
+			}
+
+			if (t >= startT)
+			{
+				float interpolatedT = CMath::mapRange(Vec2{ startT, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
+				interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
+
+				AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectIds[i]);
+				if (animObject != nullptr)
+				{
+					applyAnimationToObj(am, vg, animObject, interpolatedT, this);
+				}
+			}
+		}
 	}
 
-	static void renderAnimationFromObj(NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation)
+	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation)
 	{
-		t = CMath::ease(t, animation->easeType, animation->easeDirection);
-
 		switch (animation->type)
 		{
-		case AnimTypeV1::Create:
-		{
-			// TODO: This is getting messy and gross
-			if (obj->objectType == AnimObjectTypeV1::LaTexObject)
-			{
-				obj->as.laTexObject.renderCreateAnimation(vg, t, obj, false);
-				break;
-			}
-
-			static bool wasWarned = false;
-			if (obj->svgObject == nullptr)
-			{
-				if (!wasWarned)
-				{
-					g_logger_warning("Cannot render create animation for SVG object that is nullptr.\nSuppressing warning until the app exits.");
-					wasWarned = true;
-				}
-				break;
-			}
-			obj->svgObject->renderCreateAnimation(vg, t, obj);
-		}
-		break;
-		case AnimTypeV1::UnCreate:
-		{
-			// TODO: This is getting messy and gross
-			if (obj->objectType == AnimObjectTypeV1::LaTexObject)
-			{
-				obj->as.laTexObject.renderCreateAnimation(vg, t, obj, true);
-				break;
-			}
-
-			g_logger_assert(obj->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
-			obj->svgObject->renderCreateAnimation(vg, t, obj, Vec2{ 0, 0 }, true);
-		}
-		break;
-		case AnimTypeV1::FadeIn:
-			mutObj->renderFadeInAnimation(vg, t);
-			break;
-		case AnimTypeV1::FadeOut:
-			mutObj->renderFadeOutAnimation(vg, t);
-			break;
-		case AnimTypeV1::WriteInText:
-			obj->as.textObject.renderWriteInAnimation(vg, t, obj);
-			break;
-		case AnimTypeV1::MoveTo:
-			mutObj->renderMoveToAnimation(vg, t, animation->as.modifyVec3.target);
-			break;
-		case AnimTypeV1::Transform:
-		{
-			// TODO: Rethink how this works
-			const SvgObject* obj1 = obj->svgObject;
-			const AnimObject* nextObj = AnimationManager::getNextAnimObject(obj->id);
-			if (obj1 != nullptr && nextObj != nullptr)
-			{
-				const SvgObject* obj2 = nextObj->svgObject;
-				if (obj2 != nullptr)
-				{
-					Svg::renderInterpolation(vg, obj, obj1, nextObj, obj2, t);
-				}
-				else
-				{
-					g_logger_warning("One or more null svg objects in transform animation.");
-				}
-			}
-			else
-			{
-				g_logger_warning("One or more null svg objects in transform animation.");
-			}
-		}
-		break;
-		case AnimTypeV1::RotateTo:
-			mutObj->rotation = CMath::interpolate(t, obj->rotation, animation->as.modifyVec3.target);
-			obj->render(vg);
-			break;
-		case AnimTypeV1::AnimateStrokeColor:
-			mutObj->strokeColor = CMath::interpolate(t, obj->strokeColor, animation->as.modifyU8Vec4.target);
-			obj->render(vg);
-			break;
-		case AnimTypeV1::AnimateFillColor:
-			mutObj->fillColor = CMath::interpolate(t, obj->fillColor, animation->as.modifyU8Vec4.target);
-			obj->render(vg);
-			break;
-		case AnimTypeV1::AnimateStrokeWidth:
-		{
-			static bool wasWarned = false;
-			if (!wasWarned)
-			{
-				g_logger_warning("TODO: Implement me. Suppressing.");
-				wasWarned = true;
-			}
-		}
-		break;
-		case AnimTypeV1::CameraMoveTo:
-			Renderer::getMutableOrthoCamera()->position =
-				CMath::interpolate(t, Renderer::getOrthoCamera()->position, animation->as.modifyVec2.target);
-			obj->render(vg);
-			break;
-		default:
-			// TODO: Add magic_enum
-			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
-			g_logger_info("Unknown animation: %d", animation->type);
-			break;
-		}
-	}
-
-	void Animation::applyAnimation(NVGcontext* vg) const
-	{
-		switch (type)
-		{
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
 		case AnimTypeV1::Transform:
+			obj->percentCreated = t;
+			break;
 		case AnimTypeV1::UnCreate:
-			// NOP
+			obj->percentCreated = 1.0f - t;
 			break;
 		case AnimTypeV1::FadeIn:
 		{
@@ -158,52 +185,48 @@ namespace MathAnim
 				g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
 				logWarning = false;
 			}
-			getMutableParent()->fillColor.a = 255;
-			getMutableParent()->strokeColor.a = 255;
+			obj->fillColor.a = (uint8)(255.0f * t);
+			obj->strokeColor.a = (uint8)(255.0f * t);
 		}
 		break;
 		case AnimTypeV1::FadeOut:
-			getMutableParent()->fillColor.a = 0;
-			getMutableParent()->strokeColor.a = 0;
+			obj->fillColor.a = 255 - (uint8)(255.0f * t);
+			obj->strokeColor.a = 255 - (uint8)(255.0f * t);
 			break;
 		case AnimTypeV1::MoveTo:
-			getMutableParent()->position = this->as.modifyVec3.target;
+		{
+			const Vec3& target = animation->as.modifyVec3.target;
+			obj->position = Vec3{
+				((target.x - obj->position.x) * t) + obj->position.x,
+				((target.y - obj->position.y) * t) + obj->position.y,
+				((target.z - obj->position.z) * t) + obj->position.z,
+			};
+		}
+			break;
+		case AnimTypeV1::Shift:
+			obj->position += (animation->as.modifyVec3.target * t);
 			break;
 		case AnimTypeV1::RotateTo:
-			getMutableParent()->rotation = this->as.modifyVec3.target;
+			obj->rotation = animation->as.modifyVec3.target;
 			break;
 		case AnimTypeV1::AnimateFillColor:
-			getMutableParent()->fillColor = this->as.modifyU8Vec4.target;
+			obj->fillColor = animation->as.modifyU8Vec4.target;
 			break;
 		case AnimTypeV1::AnimateStrokeColor:
-			getMutableParent()->strokeColor = this->as.modifyU8Vec4.target;
+			obj->strokeColor = animation->as.modifyU8Vec4.target;
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me");
 			break;
 		case AnimTypeV1::CameraMoveTo:
-			Renderer::getMutableOrthoCamera()->position = this->as.modifyVec2.target;
+			Renderer::getMutableOrthoCamera()->position = animation->as.modifyVec2.target;
 			break;
 		default:
 			// TODO: Add magic_enum
 			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
-			g_logger_info("Unknown animation: %d", type);
+			g_logger_info("Unknown animation: %d", animation->type);
 			break;
 		}
-	}
-
-	const AnimObject* Animation::getParent() const
-	{
-		const AnimObject* res = AnimationManager::getObject(objectId);
-		g_logger_assert(res != nullptr, "Invalid anim object.");
-		return res;
-	}
-
-	AnimObject* Animation::getMutableParent() const
-	{
-		AnimObject* res = AnimationManager::getMutableObject(objectId);
-		g_logger_assert(res != nullptr, "Invalid anim object.");
-		return res;
 	}
 
 	void Animation::free()
@@ -214,15 +237,19 @@ namespace MathAnim
 	void Animation::serialize(RawMemory& memory) const
 	{
 		// type           -> uint32
-		// objectId       -> int32
 		// frameStart     -> int32
 		// duration       -> int32
 		// id             -> int32
 		// easeType       -> uint8
 		// easeDirection  -> uint8
+		// timelineTrack  -> int32
+		// playbackType   -> uint8
+		// lagRatio       -> f32
+		// 
+		// numObjects     -> uint32
+		// objectIds      -> int32[numObjects]
 		uint32 animType = (uint32)this->type;
 		memory.write<uint32>(&animType);
-		memory.write<int32>(&objectId);
 		memory.write<int32>(&frameStart);
 		memory.write<int32>(&duration);
 		memory.write<int32>(&id);
@@ -230,6 +257,18 @@ namespace MathAnim
 		memory.write<uint8>(&easeTypeInt);
 		uint8 easeDirectionInt = (uint8)easeDirection;
 		memory.write<uint8>(&easeDirectionInt);
+
+		memory.write<int32>(&timelineTrack);
+		uint8 playbackTypeInt = (uint8)playbackType;
+		memory.write<uint8>(&playbackTypeInt);
+		memory.write<float>(&lagRatio);
+
+		uint32 numObjects = (uint32)animObjectIds.size();
+		memory.write<uint32>(&numObjects);
+		for (uint32 i = 0; i < numObjects; i++)
+		{
+			memory.write<int32>(&animObjectIds[i]);
+		}
 
 		switch (this->type)
 		{
@@ -242,6 +281,7 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
+		case AnimTypeV1::Shift:
 		case AnimTypeV1::RotateTo:
 			CMath::serialize(memory, this->as.modifyVec3.target);
 			break;
@@ -271,23 +311,26 @@ namespace MathAnim
 		g_logger_error("AnimationEx serialized with unknown version '%d'. Memory potentially corrupted.", version);
 		Animation res;
 		res.id = -1;
-		res.objectId = -1;
+		res.animObjectIds.clear();
 		res.type = AnimTypeV1::None;
 		res.duration = 0;
 		res.frameStart = 0;
 		return res;
 	}
 
-	Animation Animation::createDefault(AnimTypeV1 type, int32 frameStart, int32 duration, int32 animObjectId)
+	Animation Animation::createDefault(AnimTypeV1 type, int32 frameStart, int32 duration)
 	{
 		Animation res;
 		res.id = animationUidCounter++;
+		g_logger_assert(animationUidCounter < INT32_MAX, "Somehow our UID counter reached 65'536. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 65'000 animations in the scene.");
 		res.frameStart = frameStart;
 		res.duration = duration;
-		res.objectId = animObjectId;
+		res.animObjectIds.clear();
 		res.type = type;
 		res.easeType = EaseType::Cubic;
 		res.easeDirection = EaseDirection::InOut;
+		res.playbackType = PlaybackType::LaggedStart;
+		res.lagRatio = 0.1f;
 
 		switch (type)
 		{
@@ -300,8 +343,13 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
+			res.as.modifyVec3.target = Vec3{ Application::getViewportSize().x / 3.0f, Application::getViewportSize().y / 3.0f, 0.0f};
+			break;
 		case AnimTypeV1::RotateTo:
 			res.as.modifyVec3.target = Vec3{ 0.0f, 0.0f, 0.0f };
+			break;
+		case AnimTypeV1::Shift:
+			res.as.modifyVec3.target = Vec3{ 0.0f, 1.0f, 0.0f};
 			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
@@ -323,13 +371,6 @@ namespace MathAnim
 
 	void AnimObject::render(NVGcontext* vg) const
 	{
-		// Render all the children
-		for (int i = 0; i < children.size(); i++)
-		{
-			children[i].render(vg);
-		}
-
-		// Then render the parent
 		switch (objectType)
 		{
 		case AnimObjectTypeV1::Square:
@@ -349,7 +390,7 @@ namespace MathAnim
 			}
 
 			// Default SVG objects will just render the svgObject component
-			this->svgObject->render(vg, this);
+			this->svgObject->renderCreateAnimation(vg, this->percentCreated, this);
 		}
 		break;
 		case AnimObjectTypeV1::Cube:
@@ -370,10 +411,10 @@ namespace MathAnim
 			// NOP: Axis just has a bunch of children anim objects that get rendered
 			break;
 		case AnimObjectTypeV1::TextObject:
-			this->as.textObject.render(vg, this);
+			this->as.textObject.renderWriteInAnimation(vg, this->percentCreated, this);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
-			this->as.laTexObject.render(vg, this);
+			this->as.laTexObject.renderCreateAnimation(vg, this->percentCreated, this, false);
 			break;
 		default:
 			// TODO: Add magic_enum
@@ -422,11 +463,9 @@ namespace MathAnim
 		this->strokeWidth = parent->strokeWidth;
 		this->drawCurveDebugBoxes = parent->drawCurveDebugBoxes;
 		this->drawDebugBoxes = parent->drawDebugBoxes;
-		this->duration = parent->duration;
 		this->fillColor = parent->fillColor;
-		this->frameStart = parent->frameStart;
 		this->is3D = parent->is3D;
-		this->isAnimating = parent->isAnimating;
+		this->status = parent->status;
 		this->isTransparent = parent->isTransparent;
 
 		// Apply transformations
@@ -464,12 +503,6 @@ namespace MathAnim
 		}
 		this->nameLength = 0;
 
-		for (int i = 0; i < children.size(); i++)
-		{
-			children[i].free();
-		}
-		children.clear();
-
 		switch (this->objectType)
 		{
 		case AnimObjectTypeV1::Square:
@@ -491,11 +524,6 @@ namespace MathAnim
 		default:
 			g_logger_error("Cannot free unknown animation object of type %d", (int)objectType);
 			break;
-		}
-
-		for (int i = 0; i < animations.size(); i++)
-		{
-			animations[i].free();
 		}
 
 		this->parentId = INT32_MAX;
@@ -590,12 +618,6 @@ namespace MathAnim
 		memory.write<uint32>(&nameLength);
 		memory.writeDangerous(name, (nameLength + 1));
 
-		memory.write<int32>(&frameStart);
-		memory.write<int32>(&duration);
-		memory.write<int32>(&timelineTrack);
-
-		// TODO: Gross hacky I need a better solution
-		bool skipSerializingChildren = false;
 		switch (objectType)
 		{
 		case AnimObjectTypeV1::TextObject:
@@ -618,37 +640,10 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Axis:
 			this->as.axis.serialize(memory);
-			skipSerializingChildren = true;
 			break;
 		default:
 			g_logger_warning("Unknown object type %d when serializing.", (int)objectType);
 			break;
-		}
-
-		// NumAnimations  -> uint32
-		// Animations     -> dynamic
-		uint32 numAnimations = (uint32)this->animations.size();
-		memory.write<uint32>(&numAnimations);
-		for (uint32 i = 0; i < numAnimations; i++)
-		{
-			animations[i].serialize(memory);
-		}
-
-		if (skipSerializingChildren)
-		{
-			uint32 numChildren = 0;
-			memory.write<uint32>(&numChildren);
-		}
-		else
-		{	
-			// NumChildren    -> uint32
-			// Children       -> AnimObject[numChildren]
-			uint32 numChildren = (uint32)this->children.size();
-			memory.write<uint32>(&numChildren);
-			for (uint32 i = 0; i < numChildren; i++)
-			{
-				children[i].serialize(memory);
-			}
 		}
 	}
 
@@ -660,29 +655,23 @@ namespace MathAnim
 		}
 
 		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
-		AnimObject res;
-		res.animations = {};
-		res.frameStart = 0;
-		res.duration = 0;
+		AnimObject res = {};
 		res.id = -1;
-		res.objectType = AnimObjectTypeV1::None;
-		res.position = {};
-		res._positionStart = {};
-		res.timelineTrack = -1;
 		return res;
 	}
 
 	AnimObject AnimObject::createDefaultFromParent(AnimObjectTypeV1 type, const AnimObject* parent)
 	{
-		AnimObject res = createDefault(type, parent->frameStart, parent->duration);
+		AnimObject res = createDefault(type);
 		res.takeParentAttributes(parent);
 		return res;
 	}
 
-	AnimObject AnimObject::createDefault(AnimObjectTypeV1 type, int32 frameStart, int32 duration)
+	AnimObject AnimObject::createDefault(AnimObjectTypeV1 type)
 	{
 		AnimObject res;
 		res.id = animObjectUidCounter++;
+		g_logger_assert(animObjectUidCounter < INT32_MAX, "Somehow our UID counter reached '%d'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", INT32_MAX);
 		res.parentId = INT32_MAX;
 
 		const char* newObjName = "New Object";
@@ -690,14 +679,8 @@ namespace MathAnim
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
 		g_memory_copyMem(res.name, (void*)newObjName, sizeof(uint8) * (res.nameLength + 1));
 
-		res.animations = {};
-		res.frameStart = frameStart;
-		res.duration = duration;
-		res.isAnimating = false;
+		res.status = AnimObjectStatus::Inactive;
 		res.objectType = type;
-
-		res.position = { 0, 0, 0 };
-		res._positionStart = { 0, 0, 0 };
 
 		res.rotation = { 0, 0, 0 };
 		res._rotationStart = { 0, 0, 0 };
@@ -721,16 +704,22 @@ namespace MathAnim
 		res.fillColor = glm::u8vec4(255);
 		res._fillColorStart = glm::u8vec4(255);
 
-		constexpr float defaultSquareLength = 400.0f;
-		constexpr float defaultCircleRadius = 200.0f;
+		constexpr float defaultSquareLength = 3.0f;
+		constexpr float defaultCircleRadius = 1.5f;
 		constexpr float defaultCubeLength = 2.0f;
-		glm::vec2 outputSize = Application::getOutputSize();
+
+		glm::vec2 viewportSize = Application::getViewportSize();
+		res._positionStart = {
+				viewportSize.x / 2.0f,
+				viewportSize.y / 2.0f,
+				0.0f
+		};
+		res.position = res._positionStart;
 
 		switch (type)
 		{
 		case AnimObjectTypeV1::TextObject:
 			res.as.textObject = TextObject::createDefault();
-			// TODO: Center on the screen
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::createDefault();
@@ -741,19 +730,13 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Square:
 			res.as.square.sideLength = defaultSquareLength;
+			res.svgScale = 50.0f;
 			res.as.square.init(&res);
-			res._positionStart = {
-				outputSize.x / 2.0f,
-				outputSize.y / 2.0f
-			};
 			break;
 		case AnimObjectTypeV1::Circle:
 			res.as.circle.radius = defaultCircleRadius;
+			res.svgScale = 150.0f;
 			res.as.circle.init(&res);
-			res._positionStart = {
-				outputSize.x / 2.0f,
-				outputSize.y / 2.0f
-			};
 			break;
 		case AnimObjectTypeV1::Cube:
 			res.as.cube.sideLength = defaultCubeLength;
@@ -771,10 +754,6 @@ namespace MathAnim
 			res.as.axis.drawNumbers = true;
 			res._strokeWidthStart = 7.5f;
 			res._fillColorStart.a = 0;
-			res._positionStart = {
-				outputSize.x / 2.0f,
-				outputSize.y / 2.0f
-			};
 			res.as.axis.fontSizePixels = 9.5f;
 			res.as.axis.labelPadding = 25.0f;
 			res.as.axis.init(&res);
@@ -830,12 +809,8 @@ namespace MathAnim
 		// Duration           -> int32
 		// TimelineTrack      -> int32
 		// TimelineTrack      -> int32
-		// AnimationTypeDataSize -> uint64
-		// AnimationTypeSpecificData (This data will change depending on AnimObjectType)
-		// NumAnimations      -> uint32
-		// Animations         -> Animation[numAnimations]
-		// NumChildren        -> uint32
-		// Children           -> AnimObject[numChildren]
+		// AnimObjectTypeDataSize -> uint64
+		// AnimObjectTypeSpecificData (This data will change depending on AnimObjectType)
 		uint32 animObjectType;
 		memory.read<uint32>(&animObjectType);
 		g_logger_assert(animObjectType < (uint32)AnimObjectTypeV1::Length, "Invalid AnimObjectType '%d' from memory. Must be corrupted memory.", animObjectType);
@@ -882,6 +857,8 @@ namespace MathAnim
 		res.drawCurveDebugBoxes = drawCurveDebugBoxes != 0;
 
 		memory.read<int32>(&res.id);
+		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
+
 		memory.read<int32>(&res.parentId);
 		if (!memory.read<uint32>(&res.nameLength))
 		{
@@ -889,11 +866,6 @@ namespace MathAnim
 		}
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
 		memory.readDangerous(res.name, res.nameLength + 1);
-
-		memory.read<int32>(&res.frameStart);
-		memory.read<int32>(&res.duration);
-		memory.read<int32>(&res.timelineTrack);
-		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
 
 		res.position = res._positionStart;
 		res.strokeColor = res._strokeColorStart;
@@ -936,58 +908,57 @@ namespace MathAnim
 			break;
 		}
 
-		// NumAnimations  -> uint32
-		// Animations     -> dynamic
-		uint32 numAnimations;
-		memory.read<uint32>(&numAnimations);
-		for (uint32 i = 0; i < numAnimations; i++)
-		{
-			Animation animation = Animation::deserialize(memory, SERIALIZER_VERSION);
-			animationUidCounter = glm::max(animationUidCounter, animation.id + 1);
-			res.animations.push_back(animation);
-		}
-
-		// NumChildren        -> uint32
-		// Children           -> AnimObject[numChildren]
-		uint32 numChildren;
-		memory.read<uint32>(&numChildren);
-		for (uint32 i = 0; i < numChildren; i++)
-		{
-			AnimObject child = AnimObject::deserialize(memory, SERIALIZER_VERSION);
-			res.children.push_back(child);
-		}
-
 		return res;
 	}
 
 	Animation deserializeAnimationExV1(RawMemory& memory)
 	{
 		// type           -> uint32
-		// objectId       -> int32
 		// frameStart     -> int32
 		// duration       -> int32
 		// id             -> int32
 		// easeType       -> uint8
 		// easeDirection  -> uint8
+		// timelineTrack  -> int32
+		// playbackType   -> uint8
+		// lagRatio       -> f32
+		// 
+		// numObjects     -> uint32
+		// objectIds      -> int32[numObjects]
 		// Custom animation data -> dynamic
 		Animation res;
 		uint32 animType;
 		memory.read<uint32>(&animType);
 		g_logger_assert(animType < (uint32)AnimTypeV1::Length, "Invalid animation type '%d' from memory. Must be corrupted memory.", animType);
 		res.type = (AnimTypeV1)animType;
-		memory.read<int32>(&res.objectId);
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);
+
 		memory.read<int32>(&res.id);
+		animationUidCounter = glm::max(animationUidCounter, res.id + 1);
+
 		uint8 easeTypeInt, easeDirectionInt;
-		res.easeType = EaseType::Cubic;
-		res.easeDirection = EaseDirection::InOut;
 		memory.read<uint8>(&easeTypeInt);
 		memory.read<uint8>(&easeDirectionInt);
 		g_logger_assert(easeTypeInt < (uint8)EaseType::Length, "Corrupted memory. Ease type was %d which is out of bounds.", easeTypeInt);
 		res.easeType = (EaseType)easeTypeInt;
-		g_logger_assert(easeDirectionInt < (uint8)EaseDirection::Length, "Corrupted memory. Ease direction was %d which is out of bounds", easeDirectionInt);
+		g_logger_assert(easeDirectionInt < (uint8)EaseDirection::Length, "Corrupted memory. Ease direction was %d which is out of bounds.", easeDirectionInt);
 		res.easeDirection = (EaseDirection)easeDirectionInt;
+
+		memory.read<int32>(&res.timelineTrack);
+		uint8 playbackType;
+		memory.read<uint8>(&playbackType);
+		g_logger_assert(playbackType < (uint8)PlaybackType::Length, "Corrupted memory. PlaybackType was %d which is out of bounds.", playbackType);
+		res.playbackType = (PlaybackType)playbackType;
+		memory.read<float>(&res.lagRatio);
+
+		uint32 numObjects;
+		memory.read<uint32>(&numObjects);
+		res.animObjectIds.resize(numObjects, INT32_MAX);
+		for (uint32 i = 0; i < numObjects; i++)
+		{
+			memory.read<int32>(&res.animObjectIds[i]);
+		}
 
 		switch (res.type)
 		{
@@ -1001,9 +972,7 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 		case AnimTypeV1::RotateTo:
-			// TODO: How do I really feel about this?
-			// It's not explicit what the data structure looks like
-			// but since it's just a vec3 I don't think I care
+		case AnimTypeV1::Shift:
 			res.as.modifyVec3.target = CMath::deserializeVec3(memory);
 			break;
 		case AnimTypeV1::AnimateFillColor:

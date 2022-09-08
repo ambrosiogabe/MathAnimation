@@ -4,11 +4,19 @@
 
 namespace MathAnim
 {
+	struct AnimationManagerData;
+
 	struct TimelinePayload
 	{
 		AnimObjectTypeV1 objectType;
 		AnimTypeV1 animType;
 		bool isAnimObject;
+	};
+
+	struct AnimObjectPayload
+	{
+		int32 animObjectId;
+		int32 sceneHierarchyIndex;
 	};
 
 	struct TimelineData
@@ -23,15 +31,17 @@ namespace MathAnim
 	namespace Timeline
 	{
 		TimelineData initInstance();
-		void init();
+		void init(AnimationManagerData* am);
 
-		void update(TimelineData& data);
+		void update(TimelineData& data, AnimationManagerData* am);
 
 		void freeInstance(TimelineData& data);
-		void free();
+		void free(AnimationManagerData* am);
 
 		void setActiveAnimObject(int animObjectId);
 		int getActiveAnimObject();
+
+		const char* getAnimObjectPayloadId();
 
 		RawMemory serialize(const TimelineData& data);
 		TimelineData deserialize(RawMemory& memory);
