@@ -12,6 +12,7 @@ namespace MathAnim
 		void init(AnimationManagerData* am);
 
 		void update(uint32 sceneTextureId, AnimationManagerData* am);
+		void onGizmo(AnimationManagerData* am);
 
 		void free(AnimationManagerData* am);
 

@@ -982,11 +982,6 @@ namespace MathAnim
 			};
 		}
 
-		// Render to the framebuffer then blit the framebuffer to the screen
-		// with the appropriate transformations
-		int32 lastFboId;
-		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastFboId);
-
 		// First render to the cache
 		svgCache.bind();
 		glViewport(0, 0, svgCache.width, svgCache.height);
@@ -1004,13 +999,6 @@ namespace MathAnim
 		nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
 		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this, isSvgGroup);
 		nvgEndFrame(vg);
-
-		// Then bind the previous fbo and blit it to the screen with
-		// the appropriate transformations if it's not an svg group
-		// SVG Groups get drawn in one draw call
-		glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
-		// Reset the draw buffers to draw to FB_attachment_0
-		glDrawBuffers(3, compositeDrawBuffers);
 
 		// Don't blit svg groups to a bunch of quads, they get rendered as one quad together
 		if (isSvgGroup)
@@ -1220,11 +1208,6 @@ namespace MathAnim
 
 		if (parent->drawDebugBoxes)
 		{
-			// Render to the framebuffer then blit the framebuffer to the screen
-			// with the appropriate transformations
-			int32 lastFboId;
-			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastFboId);
-
 			// First render to the cache
 			svgCache.bind();
 			glViewport(0, 0, svgCache.width, svgCache.height);
@@ -1253,13 +1236,6 @@ namespace MathAnim
 			nvgClosePath(vg);
 			nvgStroke(vg);
 			nvgEndFrame(vg);
-
-			// Then bind the previous fbo and blit it to the screen with
-			// the appropriate transformations
-			glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
-
-			// Reset the draw buffers to draw to FB_attachment_0
-			glDrawBuffers(3, compositeDrawBuffers);
 		}
 
 		// Then blit the SVG group to the screen

@@ -332,7 +332,7 @@ namespace MathAnim
 		}
 
 		// ----------- Render calls ----------- 
-		void renderToFramebuffer(AnimationManagerData* am, NVGcontext* vg, int frame, Framebuffer& framebuffer)
+		void renderToFramebuffer(Framebuffer& framebuffer)
 		{
 			g_logger_assert(framebuffer.colorAttachments.size() == 3, "Invalid framebuffer. Should have 3 color attachments.");
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
@@ -346,9 +346,6 @@ namespace MathAnim
 			// Reset the draw buffers to draw to FB_attachment_0
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
 			glDrawBuffers(3, compositeDrawBuffers);
-
-			// Collect all the render commands
-			AnimationManager::render(am, vg, frame, framebuffer);
 
 			// Do all the draw calls
 			drawList3DLine.render(shader3DLine);
@@ -370,7 +367,6 @@ namespace MathAnim
 			// These should be blended appropriately
 			drawList2D.render(shader2D);
 			drawList2D.reset();
-			//LaTexLayer::update();
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
 			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");

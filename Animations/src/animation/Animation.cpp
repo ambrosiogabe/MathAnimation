@@ -16,6 +16,7 @@ namespace MathAnim
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(RawMemory& memory);
 	static Animation deserializeAnimationExV1(RawMemory& memory);
+	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation);
 
 	// ----------------------------- Animation Functions -----------------------------
 	//static void renderAnimationFromObj(AnimationManagerData* am, NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation);
@@ -140,7 +141,6 @@ namespace MathAnim
 	//	}
 	//}
 
-	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation);
 	void Animation::applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t) const
 	{
 		for (int i = 0; i < animObjectIds.size(); i++)
@@ -165,66 +165,31 @@ namespace MathAnim
 		}
 	}
 
-	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation)
+	void Animation::onGizmo()
 	{
-		switch (animation->type)
+		switch (type)
 		{
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
-		case AnimTypeV1::Transform:
-			obj->percentCreated = t;
-			break;
 		case AnimTypeV1::UnCreate:
-			obj->percentCreated = 1.0f - t;
-			break;
 		case AnimTypeV1::FadeIn:
-		{
-			static bool logWarning = true;
-			if (logWarning)
-			{
-				g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
-				logWarning = false;
-			}
-			obj->fillColor.a = (uint8)(255.0f * t);
-			obj->strokeColor.a = (uint8)(255.0f * t);
-		}
-		break;
 		case AnimTypeV1::FadeOut:
-			obj->fillColor.a = 255 - (uint8)(255.0f * t);
-			obj->strokeColor.a = 255 - (uint8)(255.0f * t);
+		case AnimTypeV1::WriteInText:
+		case AnimTypeV1::Transform:
+		case AnimTypeV1::AnimateStrokeColor:
+		case AnimTypeV1::AnimateFillColor:
+		case AnimTypeV1::AnimateStrokeWidth:
 			break;
 		case AnimTypeV1::MoveTo:
-		{
-			const Vec3& target = animation->as.modifyVec3.target;
-			obj->position = Vec3{
-				((target.x - obj->position.x) * t) + obj->position.x,
-				((target.y - obj->position.y) * t) + obj->position.y,
-				((target.z - obj->position.z) * t) + obj->position.z,
-			};
-		}
-			break;
-		case AnimTypeV1::Shift:
-			obj->position += (animation->as.modifyVec3.target * t);
+			// TODO: Render and handle move gizmo to logic
 			break;
 		case AnimTypeV1::RotateTo:
-			obj->rotation = animation->as.modifyVec3.target;
-			break;
-		case AnimTypeV1::AnimateFillColor:
-			obj->fillColor = animation->as.modifyU8Vec4.target;
-			break;
-		case AnimTypeV1::AnimateStrokeColor:
-			obj->strokeColor = animation->as.modifyU8Vec4.target;
-			break;
-		case AnimTypeV1::AnimateStrokeWidth:
-			g_logger_warning("TODO: Implement me");
+			// TODO: Render and handle rotate gizmo logic
 			break;
 		case AnimTypeV1::CameraMoveTo:
-			Renderer::getMutableOrthoCamera()->position = animation->as.modifyVec2.target;
+			// TODO: Render and handle move to gizmo logic
 			break;
 		default:
-			// TODO: Add magic_enum
-			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
-			g_logger_info("Unknown animation: %d", animation->type);
+			g_logger_info("Unknown animation: %d", type);
 			break;
 		}
 	}
@@ -343,13 +308,13 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
-			res.as.modifyVec3.target = Vec3{ Application::getViewportSize().x / 3.0f, Application::getViewportSize().y / 3.0f, 0.0f};
+			res.as.modifyVec3.target = Vec3{ Application::getViewportSize().x / 3.0f, Application::getViewportSize().y / 3.0f, 0.0f };
 			break;
 		case AnimTypeV1::RotateTo:
 			res.as.modifyVec3.target = Vec3{ 0.0f, 0.0f, 0.0f };
 			break;
 		case AnimTypeV1::Shift:
-			res.as.modifyVec3.target = Vec3{ 0.0f, 1.0f, 0.0f};
+			res.as.modifyVec3.target = Vec3{ 0.0f, 1.0f, 0.0f };
 			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
@@ -367,6 +332,35 @@ namespace MathAnim
 		}
 
 		return res;
+	}
+
+	void AnimObject::onGizmo()
+	{
+		if (is3D)
+		{
+			// TODO: Render and handle 3D gizmo logic based on edit mode
+		}
+		else
+		{
+			// TODO: Render and handle 2D gizmo logic based on edit mode
+		}
+
+		switch (objectType)
+		{
+		case AnimObjectTypeV1::Square:
+		case AnimObjectTypeV1::Circle:
+		case AnimObjectTypeV1::SvgObject:
+		case AnimObjectTypeV1::Axis:
+		case AnimObjectTypeV1::TextObject:
+		case AnimObjectTypeV1::LaTexObject:
+		case AnimObjectTypeV1::Cube:
+			// NOP: No Special logic, but I'll leave this just in case I think
+			// of something
+			break;
+		default:
+			g_logger_info("Unknown animation object: %d", objectType);
+			break;
+		}
 	}
 
 	void AnimObject::render(NVGcontext* vg) const
@@ -679,7 +673,7 @@ namespace MathAnim
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
 		g_memory_copyMem(res.name, (void*)newObjName, sizeof(uint8) * (res.nameLength + 1));
 
-		res.status = AnimObjectStatus::Inactive;
+		res.status = AnimObjectStatus::Active;
 		res.objectType = type;
 
 		res.rotation = { 0, 0, 0 };
@@ -991,5 +985,69 @@ namespace MathAnim
 		}
 
 		return res;
+	}
+
+	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation)
+	{
+		switch (animation->type)
+		{
+		case AnimTypeV1::WriteInText:
+		case AnimTypeV1::Create:
+		case AnimTypeV1::Transform:
+			obj->percentCreated = t;
+			break;
+		case AnimTypeV1::UnCreate:
+			obj->percentCreated = 1.0f - t;
+			break;
+		case AnimTypeV1::FadeIn:
+		{
+			static bool logWarning = true;
+			if (logWarning)
+			{
+				g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
+				logWarning = false;
+			}
+			obj->fillColor.a = (uint8)(255.0f * t);
+			obj->strokeColor.a = (uint8)(255.0f * t);
+		}
+		break;
+		case AnimTypeV1::FadeOut:
+			obj->fillColor.a = 255 - (uint8)(255.0f * t);
+			obj->strokeColor.a = 255 - (uint8)(255.0f * t);
+			break;
+		case AnimTypeV1::MoveTo:
+		{
+			const Vec3& target = animation->as.modifyVec3.target;
+			obj->position = Vec3{
+				((target.x - obj->position.x) * t) + obj->position.x,
+				((target.y - obj->position.y) * t) + obj->position.y,
+				((target.z - obj->position.z) * t) + obj->position.z,
+			};
+		}
+		break;
+		case AnimTypeV1::Shift:
+			obj->position += (animation->as.modifyVec3.target * t);
+			break;
+		case AnimTypeV1::RotateTo:
+			obj->rotation = animation->as.modifyVec3.target;
+			break;
+		case AnimTypeV1::AnimateFillColor:
+			obj->fillColor = animation->as.modifyU8Vec4.target;
+			break;
+		case AnimTypeV1::AnimateStrokeColor:
+			obj->strokeColor = animation->as.modifyU8Vec4.target;
+			break;
+		case AnimTypeV1::AnimateStrokeWidth:
+			g_logger_warning("TODO: Implement me");
+			break;
+		case AnimTypeV1::CameraMoveTo:
+			Renderer::getMutableOrthoCamera()->position = animation->as.modifyVec2.target;
+			break;
+		default:
+			// TODO: Add magic_enum
+			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
+			g_logger_info("Unknown animation: %d", animation->type);
+			break;
+		}
 	}
 }

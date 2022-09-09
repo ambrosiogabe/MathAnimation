@@ -36,7 +36,7 @@ namespace MathAnim
 		void free();
 
 		// ----------- Render calls ----------- 
-		void renderToFramebuffer(AnimationManagerData* am, NVGcontext* vg, int frame, Framebuffer& framebuffer);
+		void renderToFramebuffer(Framebuffer& framebuffer);
 		void renderFramebuffer(const Framebuffer& framebuffer);
 
 		// ----------- Styles ----------- 

@@ -4,6 +4,7 @@
 #include "editor/DebugPanel.h"
 #include "editor/ExportPanel.h"
 #include "editor/SceneHierarchyPanel.h"
+#include "animation/AnimationManager.h"
 #include "core/Application.h"
 
 #include "imgui.h"
@@ -76,6 +77,23 @@ namespace MathAnim
 			DebugPanel::update();
 			ExportPanel::update();
 			SceneHierarchyPanel::update(am);
+		}
+
+		void onGizmo(AnimationManagerData* am)
+		{
+			int activeAnimObjectId = Timeline::getActiveAnimObject();
+			AnimObject* activeAnimObject = AnimationManager::getMutableObject(am, activeAnimObjectId);
+			if (activeAnimObject)
+			{
+				activeAnimObject->onGizmo();
+			}
+
+			int activeAnimationId = Timeline::getActiveAnimation();
+			Animation* activeAnimation = AnimationManager::getMutableAnimation(am, activeAnimationId);
+			if (activeAnimation)
+			{
+				activeAnimation->onGizmo();
+			}
 		}
 
 		void free(AnimationManagerData* am)

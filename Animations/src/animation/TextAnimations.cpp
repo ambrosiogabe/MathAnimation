@@ -158,11 +158,6 @@ namespace MathAnim
 
 			if (parent->drawDebugBoxes)
 			{
-				// Render to the framebuffer then blit the framebuffer to the screen
-				// with the appropriate transformations
-				int32 lastFboId;
-				glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastFboId);
-
 				// First render to the cache
 				Svg::getSvgCacheFb().bind();
 				glViewport(0, 0, Svg::getSvgCache().width, Svg::getSvgCache().height);
@@ -191,13 +186,6 @@ namespace MathAnim
 				nvgClosePath(vg);
 				nvgStroke(vg);
 				nvgEndFrame(vg);
-
-				// Then bind the previous fbo and blit it to the screen with
-				// the appropriate transformations
-				glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
-
-				// Reset the draw buffers to draw to FB_attachment_0
-				glDrawBuffers(3, compositeDrawBuffers);
 			}
 
 			if (parent->is3D)

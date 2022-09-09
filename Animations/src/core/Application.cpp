@@ -17,6 +17,7 @@
 #include "animation/AnimationManager.h"
 #include "editor/EditorGui.h"
 #include "editor/Timeline.h"
+#include "editor/Gizmos.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
@@ -86,6 +87,7 @@ namespace MathAnim
 			Renderer::init(camera2D, camera3D);
 			ImGuiLayer::init(*window);
 			Audio::init();
+			GizmoManager::init();
 			// NOTE(voxel): Just to initialize the camera
 			Svg::init(camera2D, camera3D);
 			TextAnimations::init(camera2D);
@@ -146,10 +148,24 @@ namespace MathAnim
 				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
 				absolutePrevFrame = absoluteCurrentFrame;
 
-				// Render to main framebuffer
-				Renderer::renderToFramebuffer(am, vg, deltaFrame, mainFramebuffer);
+				// Update logic and render to main framebuffer
+				if (!outputVideoFile)
+				{
+					GizmoManager::update(am);
+				}
 
-				// Render to window
+				// Update Animation logic and collect draw calls
+				AnimationManager::render(am, vg, deltaFrame);
+				// Collect gizmo draw calls
+				if (!outputVideoFile)
+				{
+					GizmoManager::render(mainFramebuffer);
+				}
+
+				// Render all draw calls to main framebuffer
+				Renderer::renderToFramebuffer(mainFramebuffer);
+
+				// Render the main framebuffer to the window
 				mainFramebuffer.unbind();
 				glViewport(0, 0, window->width, window->height);
 				Renderer::clearColor(Vec4{ 0, 0, 0, 0 });
@@ -183,7 +199,8 @@ namespace MathAnim
 			// If the window is closing, save the last rendered frame to a preview image
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
-			Renderer::renderToFramebuffer(am, vg, deltaFrame, mainFramebuffer);
+			AnimationManager::render(am, vg, deltaFrame);
+			Renderer::renderToFramebuffer(mainFramebuffer);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path currentPath = std::filesystem::path(currentProjectFilepath).parent_path();
 			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
@@ -239,6 +256,7 @@ namespace MathAnim
 			Fonts::unloadAllFonts();
 			Svg::free();
 			Renderer::free();
+			GizmoManager::free();
 			Audio::free();
 
 			ImGuiLayer::free();
@@ -323,7 +341,7 @@ namespace MathAnim
 
 		glm::vec2 getViewportSize()
 		{
-			return glm::vec2(viewportWidth, viewportHeight * getOutputTargetAspectRatio());
+			return glm::vec2(viewportWidth, viewportHeight);
 		}
 
 		void setFrameIndex(int frame)
