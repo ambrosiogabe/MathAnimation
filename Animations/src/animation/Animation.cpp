@@ -1,11 +1,12 @@
 #include "animation/Animation.h"
 #include "core.h"
+#include "core/Application.h"
 #include "animation/AnimationManager.h"
 #include "animation/Svg.h"
 #include "renderer/Renderer.h"
 #include "renderer/Fonts.h"
 #include "utils/CMath.h"
-#include "core/Application.h"
+#include "editor/Gizmos.h"
 
 namespace MathAnim
 {
@@ -343,6 +344,8 @@ namespace MathAnim
 		else
 		{
 			// TODO: Render and handle 2D gizmo logic based on edit mode
+			std::string gizmoName = std::string((char*)this->name) + std::to_string(this->id);
+			GizmoManager::translateGizmo(gizmoName.c_str(), &this->_positionStart);
 		}
 
 		switch (objectType)

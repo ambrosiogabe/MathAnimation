@@ -2,6 +2,8 @@
 #include "editor/EditorGui.h"
 #include "animation/AnimationManager.h"
 #include "renderer/Framebuffer.h"
+#include "renderer/Renderer.h"
+#include "core/Colors.h"
 
 namespace MathAnim
 {
@@ -13,19 +15,14 @@ namespace MathAnim
 		Active
 	};
 
-	enum class GizmoType : uint8
-	{
-		None,
-		FreeMove,
-		VerticalMove,
-		HorizontalMove
-	};
-
 	struct GizmoState
 	{
 		GizmoStatus status;
 		GizmoType gizmoType;
+		GizmoVariant variant;
 		uint64 idHash;
+		Vec3 position;
+		Vec3 lastPosition;
 		bool wasUpdated;
 
 		void render();
@@ -90,20 +87,24 @@ namespace MathAnim
 			}
 		}
 
-		void freeMoveGizmo(const char* gizmoName, Vec3& position, FreeMoveVariant variant)
+		bool translateGizmo(const char* gizmoName, Vec3* position, GizmoVariant variant)
 		{
 			// Find or create the gizmo
 			GizmoState* gizmo = getGizmoByName(gizmoName);
 			if (!gizmo)
 			{
-				gizmo = createDefaultGizmoState(gizmoName, GizmoType::FreeMove);
+				gizmo = createDefaultGizmoState(gizmoName, GizmoType::Translation);
 			}
 			gizmo->wasUpdated = true;
+			gizmo->position = *position;
+			gizmo->variant = variant;
 
 			if (gizmo->status == GizmoStatus::Hovered)
 			{
-				
+
 			}
+
+			return false;
 		}
 
 		// -------------- Internal Functions --------------
@@ -159,40 +160,28 @@ namespace MathAnim
 	}
 
 	// -------------- Interal Gizmo Functions --------------
-	static void renderFreeMove();
-	static void renderVerticalMove();
-	static void renderHorizontalMove();
 
 	// -------------- Gizmo Functions --------------
 	void GizmoState::render()
 	{
-		switch (gizmoType)
+		// Render the gizmo shapes
+		if ((uint8)variant & (uint8)GizmoVariant::Free)
 		{
-		case GizmoType::FreeMove:
-			renderFreeMove();
-			break;
-		case GizmoType::HorizontalMove:
-			renderHorizontalMove();
-			break;
-		case GizmoType::VerticalMove:
-			renderVerticalMove();
-			break;
+			Renderer::pushColor(Colors::AccentRed[4]);
+			Renderer::drawFilledSquare(CMath::vector2From3(this->position), Vec2{ 1.5f, 1.5f });
+			Renderer::popColor();
+		}
+
+		if ((uint8)gizmoType & (uint8)GizmoVariant::Horizontal)
+		{
+			
+		}
+
+		if ((uint8)gizmoType & (uint8)GizmoVariant::Vertical)
+		{
+			
 		}
 	}
 
 	// -------------- Interal Gizmo Functions --------------
-	static void renderFreeMove()
-	{
-
-	}
-
-	static void renderVerticalMove()
-	{
-
-	}
-
-	static void renderHorizontalMove()
-	{
-
-	}
 }

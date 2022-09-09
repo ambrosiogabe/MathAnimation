@@ -7,13 +7,21 @@ namespace MathAnim
 	struct Framebuffer;
 	struct AnimationManagerData;
 
-	enum class FreeMoveVariant : uint8
+	enum class GizmoVariant : uint8
 	{
 		None = 0,
-		FreeMove = 0x1,
-		HorizontalMove = 0x2,
-		VerticalMove = 0x4,
+		Free = 0x1,
+		Horizontal = 0x2,
+		Vertical = 0x4,
 		All = 0xF
+	};
+
+	enum class GizmoType : uint8
+	{
+		None,
+		Translation,
+		Rotation,
+		Scaling
 	};
 
 	namespace GizmoManager
@@ -23,7 +31,9 @@ namespace MathAnim
 		void render(const Framebuffer& framebuffer);
 		void free();
 
-		void freeMoveGizmo(const char* gizmoName, Vec3& position, FreeMoveVariant variant = FreeMoveVariant::All);
+		bool translateGizmo(const char* gizmoName, Vec3* position, GizmoVariant variant = GizmoVariant::All);
+		bool rotateGizmo(const char* gizmoName, Vec3* rotation, GizmoVariant variant = GizmoVariant::All);
+		bool scaleGizmo(const char* gizmoName, Vec3* scale, GizmoVariant variant = GizmoVariant::All);
 	}
 }
 
