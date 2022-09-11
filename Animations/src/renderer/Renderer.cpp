@@ -475,7 +475,7 @@ namespace MathAnim
 			drawLine(start + Vec2{ size.x, 0 }, start + size);
 		}
 
-		void drawFilledSquare(const Vec2& start, const Vec2& size)
+		void drawFilledQuad(const Vec2& start, const Vec2& size)
 		{
 			Vec2 min = start + (size * -0.5f);
 			Vec2 max = start + (size * 0.5f);
@@ -1065,7 +1065,7 @@ namespace MathAnim
 				.setMinFilter(FilterMode::Nearest)
 				.setFormat(ByteFormat::RGBA8_UI)
 				.generate();
-			uint32 whitePixel = 0xFFFF;
+			uint32 whitePixel = 0xFFFFFFFF;
 			defaultWhiteTexture.uploadSubImage(0, 0, 1, 1, (uint8*)&whitePixel);
 		}
 

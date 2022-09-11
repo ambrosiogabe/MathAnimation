@@ -1047,12 +1047,11 @@ namespace MathAnim
 		else
 		{
 			glm::mat4 transform = glm::identity<glm::mat4>();
-			Vec2 cameraCenteredPos = Svg::orthoCamera->projectionSize / 2.0f - Svg::orthoCamera->position;
 			transform = glm::translate(
 				transform,
 				glm::vec3(
-					parent->position.x - cameraCenteredPos.x + (offset.x * parent->scale.x),
-					parent->position.y - cameraCenteredPos.y + (offset.y * parent->scale.y),
+					parent->position.x + (offset.x * parent->scale.x),
+					parent->position.y + (offset.y * parent->scale.y),
 					0.0f
 				)
 			);
@@ -1265,12 +1264,11 @@ namespace MathAnim
 		else
 		{
 			glm::mat4 transform = glm::identity<glm::mat4>();
-			Vec2 cameraCenteredPos = Svg::orthoCamera->position;
 			transform = glm::translate(
 				transform,
 				glm::vec3(
-					parent->position.x - cameraCenteredPos.x,
-					parent->position.y - cameraCenteredPos.y,
+					parent->position.x,
+					parent->position.y,
 					0.0f
 				)
 			);

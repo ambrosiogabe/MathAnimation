@@ -7,6 +7,7 @@ struct NVGcontext;
 namespace MathAnim
 {
 	class GlobalThreadPool;
+	struct OrthoCamera;
 
 	enum class AnimState : uint8
 	{
@@ -40,6 +41,9 @@ namespace MathAnim
 		void exportVideoTo(const std::string& filename);
 		bool isExportingVideo();
 		void endExport();
+
+		// TODO: Ugly hack
+		OrthoCamera* getCamera();
 
 		NVGcontext* getNvgContext();
 		GlobalThreadPool* threadPool();

@@ -388,6 +388,11 @@ namespace MathAnim
 			outputVideoFile = false;
 		}
 
+		OrthoCamera* getCamera()
+		{
+			return &camera2D;
+		}
+
 		NVGcontext* getNvgContext()
 		{
 			return vg;

@@ -218,8 +218,8 @@ namespace MathAnim
 				transform = glm::translate(
 					transform,
 					glm::vec3(
-						parent->position.x - cameraCenteredPos.x,
-						parent->position.y - cameraCenteredPos.y,
+						parent->position.x,
+						parent->position.y,
 						0.0f
 					)
 				);

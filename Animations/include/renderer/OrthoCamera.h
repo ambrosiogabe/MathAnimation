@@ -10,8 +10,9 @@ namespace MathAnim
 		Vec2 position;
 		Vec2 projectionSize;
 
-		glm::mat4 calculateViewMatrix();
+		glm::mat4 calculateViewMatrix() const;
 		glm::mat4 calculateProjectionMatrix() const;
+		Vec2 reverseProject(const Vec2& normalizedInput) const;
 	};
 }
 
