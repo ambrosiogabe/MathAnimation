@@ -29,7 +29,7 @@ namespace MathAnim
 		void setAnimationTrack(AnimationManagerData* am, int animationId, int track);
 
 		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight);
-		void render(AnimationManagerData* am, NVGcontext* vg, int deltaFrame, Framebuffer& framebuffer);
+		void render(AnimationManagerData* am, NVGcontext* vg, int deltaFrame);
 
 		int lastAnimatedFrame(const AnimationManagerData* am);
 

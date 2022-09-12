@@ -40,6 +40,7 @@ namespace MathAnim
 
 		void setActiveAnimObject(int animObjectId);
 		int getActiveAnimObject();
+		int getActiveAnimation();
 
 		const char* getAnimObjectPayloadId();
 

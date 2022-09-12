@@ -337,6 +337,11 @@ namespace MathAnim
 			return activeAnimObjectId;
 		}
 
+		int getActiveAnimation()
+		{
+			return activeAnimationId;
+		}
+
 		const char* getAnimObjectPayloadId()
 		{
 			return ANIM_OBJECT_DROP_TARGET_ID;

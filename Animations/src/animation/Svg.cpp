@@ -982,11 +982,6 @@ namespace MathAnim
 			};
 		}
 
-		// Render to the framebuffer then blit the framebuffer to the screen
-		// with the appropriate transformations
-		int32 lastFboId;
-		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastFboId);
-
 		// First render to the cache
 		svgCache.bind();
 		glViewport(0, 0, svgCache.width, svgCache.height);
@@ -1004,13 +999,6 @@ namespace MathAnim
 		nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
 		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this, isSvgGroup);
 		nvgEndFrame(vg);
-
-		// Then bind the previous fbo and blit it to the screen with
-		// the appropriate transformations if it's not an svg group
-		// SVG Groups get drawn in one draw call
-		glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
-		// Reset the draw buffers to draw to FB_attachment_0
-		glDrawBuffers(3, compositeDrawBuffers);
 
 		// Don't blit svg groups to a bunch of quads, they get rendered as one quad together
 		if (isSvgGroup)
@@ -1059,12 +1047,11 @@ namespace MathAnim
 		else
 		{
 			glm::mat4 transform = glm::identity<glm::mat4>();
-			Vec2 cameraCenteredPos = Svg::orthoCamera->projectionSize / 2.0f - Svg::orthoCamera->position;
 			transform = glm::translate(
 				transform,
 				glm::vec3(
-					parent->position.x - cameraCenteredPos.x + (offset.x * parent->scale.x),
-					parent->position.y - cameraCenteredPos.y + (offset.y * parent->scale.y),
+					parent->position.x + (offset.x * parent->scale.x),
+					parent->position.y + (offset.y * parent->scale.y),
 					0.0f
 				)
 			);
@@ -1220,11 +1207,6 @@ namespace MathAnim
 
 		if (parent->drawDebugBoxes)
 		{
-			// Render to the framebuffer then blit the framebuffer to the screen
-			// with the appropriate transformations
-			int32 lastFboId;
-			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &lastFboId);
-
 			// First render to the cache
 			svgCache.bind();
 			glViewport(0, 0, svgCache.width, svgCache.height);
@@ -1253,13 +1235,6 @@ namespace MathAnim
 			nvgClosePath(vg);
 			nvgStroke(vg);
 			nvgEndFrame(vg);
-
-			// Then bind the previous fbo and blit it to the screen with
-			// the appropriate transformations
-			glBindFramebuffer(GL_FRAMEBUFFER, lastFboId);
-
-			// Reset the draw buffers to draw to FB_attachment_0
-			glDrawBuffers(3, compositeDrawBuffers);
 		}
 
 		// Then blit the SVG group to the screen
@@ -1289,12 +1264,11 @@ namespace MathAnim
 		else
 		{
 			glm::mat4 transform = glm::identity<glm::mat4>();
-			Vec2 cameraCenteredPos = Svg::orthoCamera->position;
 			transform = glm::translate(
 				transform,
 				glm::vec3(
-					parent->position.x - cameraCenteredPos.x,
-					parent->position.y - cameraCenteredPos.y,
+					parent->position.x,
+					parent->position.y,
 					0.0f
 				)
 			);

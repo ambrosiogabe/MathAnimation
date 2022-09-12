@@ -4,7 +4,9 @@
 #include "editor/DebugPanel.h"
 #include "editor/ExportPanel.h"
 #include "editor/SceneHierarchyPanel.h"
+#include "animation/AnimationManager.h"
 #include "core/Application.h"
+#include "core/Input.h"
 
 #include "imgui.h"
 
@@ -17,9 +19,14 @@ namespace MathAnim
 		static void checkHotKeys();
 		static TimelineData timeline;
 		static bool timelineLoaded = false;
+		static ImVec2 viewportOffset;
+		static ImVec2 viewportSize;
 
 		void init(AnimationManagerData* am)
 		{
+			viewportOffset = { 0, 0 };
+			viewportSize = { 0, 0 };
+
 			if (!timelineLoaded)
 			{
 				timeline = Timeline::initInstance();
@@ -63,9 +70,12 @@ namespace MathAnim
 				ImGui::EndMenuBar();
 			}
 
-			ImVec2 viewportSize, viewportOffset;
-			getLargestSizeForViewport(&viewportSize, &viewportOffset);
-			ImGui::SetCursorPos(viewportOffset);
+			ImVec2 viewportRelativeOffset;
+			getLargestSizeForViewport(&viewportSize, &viewportRelativeOffset);
+
+			ImGui::SetCursorPos(viewportRelativeOffset);
+			viewportOffset = ImGui::GetCursorScreenPos();
+			viewportOffset = viewportOffset - ImGui::GetWindowPos();
 			ImTextureID textureId = (void*)(uintptr_t)sceneTextureId;
 			ImGui::Image(textureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
 
@@ -76,6 +86,38 @@ namespace MathAnim
 			DebugPanel::update();
 			ExportPanel::update();
 			SceneHierarchyPanel::update(am);
+		}
+
+		void onGizmo(AnimationManagerData* am)
+		{
+			int activeAnimObjectId = Timeline::getActiveAnimObject();
+			AnimObject* activeAnimObject = AnimationManager::getMutableObject(am, activeAnimObjectId);
+			if (activeAnimObject)
+			{
+				activeAnimObject->onGizmo();
+			}
+
+			int activeAnimationId = Timeline::getActiveAnimation();
+			Animation* activeAnimation = AnimationManager::getMutableAnimation(am, activeAnimationId);
+			if (activeAnimation)
+			{
+				activeAnimation->onGizmo();
+			}
+		}
+
+		Vec2 mouseToNormalizedViewport()
+		{
+			Vec2 mousePos = mouseToViewportCoords();
+			mousePos.x = (mousePos.x / viewportSize.x);
+			mousePos.y = (mousePos.y / viewportSize.y);
+			return mousePos;
+		}
+
+		Vec2 mouseToViewportCoords()
+		{
+			Vec2 mousePos = Vec2{ Input::mouseX, Input::mouseY };
+			mousePos -= viewportOffset;
+			return mousePos;
 		}
 
 		void free(AnimationManagerData* am)

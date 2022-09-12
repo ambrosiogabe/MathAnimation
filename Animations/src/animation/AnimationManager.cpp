@@ -268,7 +268,7 @@ namespace MathAnim
 			return res;
 		}
 
-		void render(AnimationManagerData* am, NVGcontext* vg, int deltaFrame, Framebuffer& framebuffer)
+		void render(AnimationManagerData* am, NVGcontext* vg, int deltaFrame)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -425,6 +425,11 @@ namespace MathAnim
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
+			if (animObjectId == INT32_MAX)
+			{
+				return nullptr;
+			}
+
 			auto iter = am->objectIdMap.find(animObjectId);
 			if (iter != am->objectIdMap.end())
 			{
@@ -446,6 +451,11 @@ namespace MathAnim
 		Animation* getMutableAnimation(AnimationManagerData* am, int animationId)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			if (animationId == INT32_MAX)
+			{
+				return nullptr;
+			}
 
 			auto iter = am->animationIdMap.find(animationId);
 			if (iter != am->animationIdMap.end())

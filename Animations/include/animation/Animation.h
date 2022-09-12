@@ -108,14 +108,13 @@ namespace MathAnim
 			ModifyU8Vec4AnimData modifyU8Vec4;
 		} as;
 
-		// Render the animation state using a interpolation t value
+		// Apply the animation state using a interpolation t value
 		// 
 		//   t: is a float that ranges from [0, 1] where 0 is the
 		//      beginning of the animation and 1 is the end of the
 		//      animation
-		// void render(AnimationManagerData* am, NVGcontext* vg, float t) const;
-		// Set the animation to the end state without rendering it
 		void applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t = 1.0) const;
+		void onGizmo();
 
 		void free();
 		void serialize(RawMemory& memory) const;
@@ -175,6 +174,7 @@ namespace MathAnim
 			Axis axis;
 		} as;
 
+		void onGizmo();
 		void render(NVGcontext* vg) const;
 		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target);
 		void renderFadeInAnimation(NVGcontext* vg, float t);
