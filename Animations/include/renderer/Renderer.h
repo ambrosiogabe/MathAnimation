@@ -58,6 +58,7 @@ namespace MathAnim
 		// batch draw calls together and improve performance
 		void drawSquare(const Vec2& start, const Vec2& size);
 		void drawFilledQuad(const Vec2& start, const Vec2& size);
+		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 		void drawLine(const Vec2& start, const Vec2& end);
 		void drawString(const std::string& string, const Vec2& start);
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);

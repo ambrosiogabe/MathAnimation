@@ -98,7 +98,9 @@ namespace MathAnim
 		uint32 textureId;
 		uint32 vertexOffset;
 		uint32 indexOffset;
-		uint32 elementCount;
+		uint32 elementCounter;
+		uint32 numVerts;
+		uint32 numElements;
 	};
 
 	struct DrawCmd3D
@@ -133,6 +135,7 @@ namespace MathAnim
 		// TODO: Add a bunch of methods like this...
 		void addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax);
 		void addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color);
+		void addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& shader) const;
@@ -482,55 +485,12 @@ namespace MathAnim
 
 			const glm::vec4& color = getColor();
 			drawList2D.addColoredQuad(min, max, Vec4{ color.r, color.g, color.b, color.a });
+		}
 
-			// TODO: Move this into the drawList2D
-			//if (numVertices + 6 >= maxNumVerticesPerBatch)
-			//{
-			//	flushBatch();
-			//}
-
-			//glm::vec4 vColor = colorStackPtr > 0
-			//	? colorStack[colorStackPtr - 1]
-			//	: defaultColor;
-			//Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
-
-			//// Triangle 1
-			//// "Bottom-left" corner of line
-			//vertices[numVertices].position = start;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
-
-			//// "Top-Left" corner of line
-			//vertices[numVertices].position = start + Vec2{ 0, size.y };
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
-
-			//// "Top-Right" corner of line
-			//vertices[numVertices].position = start + size;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
-
-			//// Triangle 2
-			//// "Bottom-left" corner of line
-			//vertices[numVertices].position = start;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
-
-			//// "Bottom-Right" corner of line
-			//vertices[numVertices].position = start + Vec2{ size.x, 0 };
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
-
-			//// "Top-Right" corner of line
-			//vertices[numVertices].position = start + size;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
+		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2)
+		{
+			const glm::vec4& color = getColor();
+			drawList2D.addColoredTri(p0, p1, p2, Vec4{ color.r, color.g, color.b, color.a });
 		}
 
 		void drawLine(const Vec2& start, const Vec2& end)
@@ -1143,19 +1103,22 @@ namespace MathAnim
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != texture.graphicsId)
 		{
 			DrawCmd newCommand;
-			newCommand.elementCount = 0;
+			newCommand.elementCounter = 0;
 			newCommand.indexOffset = indices.size();
 			newCommand.vertexOffset = vertices.size();
 			newCommand.textureId = texture.graphicsId;
+			newCommand.numElements = 0;
+			newCommand.numVerts = 0;
 			drawCommands.push(newCommand);
 		}
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		int rectStartIndex = cmd.elementCount / 6 * 4;
+		int rectStartIndex = cmd.elementCounter;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
-		cmd.elementCount += 6;
+		cmd.elementCounter += 4;
+		cmd.numElements += 6;
 
 		Vertex2D vert;
 		vert.color = Vec4{ 1, 1, 1, 1 };
@@ -1174,6 +1137,7 @@ namespace MathAnim
 		vert.position = Vec2{ max.x, min.y };
 		vert.textureCoords = Vec2{ uvMax.x, uvMin.y };
 		vertices.push(vert);
+		cmd.numVerts += 4;
 	}
 
 	void DrawList2D::addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color)
@@ -1182,19 +1146,22 @@ namespace MathAnim
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != UINT32_MAX)
 		{
 			DrawCmd newCommand;
-			newCommand.elementCount = 0;
+			newCommand.elementCounter = 0;
 			newCommand.indexOffset = indices.size();
 			newCommand.vertexOffset = vertices.size();
 			newCommand.textureId = UINT32_MAX;
+			newCommand.numElements = 0;
+			newCommand.numVerts = 0;
 			drawCommands.push(newCommand);
 		}
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		int rectStartIndex = cmd.elementCount / 6 * 4;
+		int rectStartIndex = cmd.elementCounter;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
-		cmd.elementCount += 6;
+		cmd.elementCounter += 4;
+		cmd.numElements += 6;
 
 		Vertex2D vert;
 		vert.color = color;
@@ -1213,6 +1180,46 @@ namespace MathAnim
 		vert.position = Vec2{ max.x, min.y };
 		vert.textureCoords = Vec2{ 1, 0 };
 		vertices.push(vert);
+		cmd.numVerts += 4;
+	}
+
+	void DrawList2D::addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color)
+	{
+		// Check if we need to switch to a new batch
+		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != UINT32_MAX)
+		{
+			DrawCmd newCommand;
+			newCommand.elementCounter = 0;
+			newCommand.indexOffset = indices.size();
+			newCommand.vertexOffset = vertices.size();
+			newCommand.numElements = 0;
+			newCommand.numVerts = 0;
+			newCommand.textureId = UINT32_MAX;
+			drawCommands.push(newCommand);
+		}
+
+		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
+
+		int rectStartIndex = cmd.elementCounter;
+		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
+		cmd.elementCounter += 3;
+		cmd.numElements += 3;
+
+		Vertex2D vert;
+		vert.color = color;
+		vert.position = p0;
+		vert.textureCoords = Vec2{ 0, 0 };
+		vertices.push(vert);
+
+		vert.position = p1;
+		vert.textureCoords = Vec2{ 0, 1 };
+		vertices.push(vert);
+
+		vert.position = p2;
+		vert.textureCoords = Vec2{ 1, 1 };
+		vertices.push(vert);
+
+		cmd.numVerts += 3;
 	}
 
 	void DrawList2D::setupGraphicsBuffers()
@@ -1270,7 +1277,7 @@ namespace MathAnim
 			}
 
 			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			int numVerts = drawCommands.data[i].elementCount / 6 * 4;
+			int numVerts = drawCommands.data[i].numVerts;
 			glBufferData(
 				GL_ARRAY_BUFFER,
 				sizeof(Vertex2D) * numVerts,
@@ -1282,7 +1289,7 @@ namespace MathAnim
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 			glBufferData(
 				GL_ELEMENT_ARRAY_BUFFER,
-				sizeof(uint16) * drawCommands.data[i].elementCount,
+				sizeof(uint16) * drawCommands.data[i].numElements,
 				indices.data + drawCommands.data[i].indexOffset,
 				GL_DYNAMIC_DRAW
 			);
@@ -1292,7 +1299,7 @@ namespace MathAnim
 			glBindVertexArray(vao);
 			glDrawElements(
 				GL_TRIANGLES,
-				drawCommands.data[i].elementCount,
+				drawCommands.data[i].numElements,
 				GL_UNSIGNED_SHORT,
 				nullptr
 			);
@@ -1355,21 +1362,24 @@ namespace MathAnim
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != textureId)
 		{
 			DrawCmd newCommand;
-			newCommand.elementCount = 0;
+			newCommand.elementCounter = 0;
 			newCommand.indexOffset = indices.size();
 			newCommand.vertexOffset = vertices.size();
 			newCommand.textureId = textureId;
+			newCommand.numElements = 0;
+			newCommand.numVerts = 0;
 			drawCommands.push(newCommand);
 		}
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		int rectStartIndex = cmd.elementCount / 6 * 4;
+		int rectStartIndex = cmd.elementCounter;
 		// Tri 1 indices
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		// Tri 2 indices
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
-		cmd.elementCount += 6;
+		cmd.elementCounter += 4;
+		cmd.numElements += 6;
 
 		Vertex2D vert;
 		vert.color = color;
@@ -1390,6 +1400,7 @@ namespace MathAnim
 		vert.position = Vec2{ posMax.x, posMin.y };
 		vert.textureCoords = Vec2{ uvMax.x, uvMin.y };
 		vertices.push(vert);
+		cmd.numVerts += 4;
 	}
 
 	// TODO: This is literally the exact same thing as the DrawList2D::setupGraphicsBuffers() function
@@ -1438,7 +1449,7 @@ namespace MathAnim
 			// TODO: Figure out how to correctly do this stuff
 			// I think this is crashing the GPU right now
 			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			int numVerts = drawCommands.data[i].elementCount / 6 * 4;
+			int numVerts = drawCommands.data[i].numVerts;
 			glBufferData(
 				GL_ARRAY_BUFFER,
 				sizeof(Vertex2D) * numVerts,
@@ -1450,7 +1461,7 @@ namespace MathAnim
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 			glBufferData(
 				GL_ELEMENT_ARRAY_BUFFER,
-				sizeof(uint16) * drawCommands.data[i].elementCount,
+				sizeof(uint16) * drawCommands.data[i].numElements,
 				indices.data + drawCommands.data[i].indexOffset,
 				GL_DYNAMIC_DRAW
 			);
@@ -1460,7 +1471,7 @@ namespace MathAnim
 			glBindVertexArray(vao);
 			glDrawElements(
 				GL_TRIANGLES,
-				drawCommands.data[i].elementCount,
+				drawCommands.data[i].numElements,
 				GL_UNSIGNED_SHORT,
 				nullptr
 			);
