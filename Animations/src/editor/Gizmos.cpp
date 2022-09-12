@@ -67,6 +67,9 @@ namespace MathAnim
 
 		void update(AnimationManagerData* am)
 		{
+			GlobalContext* g = gGizmoManager;
+			g->lastActiveGizmo = g->activeGizmo;
+
 			EditorGui::onGizmo(am);
 		}
 
@@ -88,7 +91,6 @@ namespace MathAnim
 			{
 				iter->wasUpdated = false;
 			}
-			g->lastActiveGizmo = g->activeGizmo;
 		}
 
 		void free()
@@ -106,6 +108,13 @@ namespace MathAnim
 				g_memory_free(gGizmoManager);
 				gGizmoManager = nullptr;
 			}
+		}
+
+		bool anyGizmoActive()
+		{
+			// Return whether any gizmo was active this frame or last frame 
+			// so that it reflects the state of queries accurately
+			return gGizmoManager->activeGizmo != NullGizmo || gGizmoManager->lastActiveGizmo != NullGizmo;
 		}
 
 		bool translateGizmo(const char* gizmoName, Vec3* position, GizmoVariant variant)

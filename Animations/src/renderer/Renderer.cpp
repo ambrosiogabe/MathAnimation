@@ -117,6 +117,7 @@ namespace MathAnim
 		Vec2 position;
 		Vec4 color;
 		Vec2 textureCoords;
+		uint32 objId;
 	};
 
 	struct DrawList2D
@@ -133,9 +134,9 @@ namespace MathAnim
 		void init();
 
 		// TODO: Add a bunch of methods like this...
-		void addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax);
-		void addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color);
-		void addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color);
+		void addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, uint32 objId);
+		void addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color, uint32 objId);
+		void addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color, uint32 objId);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& shader) const;
@@ -156,7 +157,7 @@ namespace MathAnim
 
 		void init();
 
-		void addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, int textureId);
+		void addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, int textureId, uint32 objId);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& shader);
@@ -341,18 +342,19 @@ namespace MathAnim
 		// ----------- Render calls ----------- 
 		void renderToFramebuffer(Framebuffer& framebuffer)
 		{
-			g_logger_assert(framebuffer.colorAttachments.size() == 3, "Invalid framebuffer. Should have 3 color attachments.");
+			g_logger_assert(framebuffer.colorAttachments.size() == 4, "Invalid framebuffer. Should have 3 color attachments.");
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
 
 			// Clear the framebuffer attachments and set it up
 			framebuffer.bind();
 			glViewport(0, 0, framebuffer.width, framebuffer.height);
 			framebuffer.clearColorAttachmentRgba(0, colors[(uint8)Color::GreenBrown]);
+			framebuffer.clearColorAttachmentUint32(3, UINT32_MAX);
 			framebuffer.clearDepthStencil();
 
 			// Reset the draw buffers to draw to FB_attachment_0
-			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
-			glDrawBuffers(3, compositeDrawBuffers);
+			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
+			glDrawBuffers(4, compositeDrawBuffers);
 
 			// Do all the draw calls
 			drawList3DLine.render(shader3DLine);
@@ -367,7 +369,7 @@ namespace MathAnim
 			drawList3D.reset();
 
 			// Reset the draw buffers to draw to FB_attachment_0
-			glDrawBuffers(3, compositeDrawBuffers);
+			glDrawBuffers(4, compositeDrawBuffers);
 
 			// Draw 2D stuff over 3D stuff so that 3D stuff is always "behind" the
 			// 2D stuff like a HUD
@@ -478,19 +480,19 @@ namespace MathAnim
 			drawLine(start + Vec2{ size.x, 0 }, start + size);
 		}
 
-		void drawFilledQuad(const Vec2& start, const Vec2& size)
+		void drawFilledQuad(const Vec2& start, const Vec2& size, uint32 objId)
 		{
 			Vec2 min = start + (size * -0.5f);
 			Vec2 max = start + (size * 0.5f);
 
 			const glm::vec4& color = getColor();
-			drawList2D.addColoredQuad(min, max, Vec4{ color.r, color.g, color.b, color.a });
+			drawList2D.addColoredQuad(min, max, Vec4{ color.r, color.g, color.b, color.a }, objId);
 		}
 
-		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2)
+		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, uint32 objId)
 		{
 			const glm::vec4& color = getColor();
-			drawList2D.addColoredTri(p0, p1, p2, Vec4{ color.r, color.g, color.b, color.a });
+			drawList2D.addColoredTri(p0, p1, p2, Vec4{ color.r, color.g, color.b, color.a }, objId);
 		}
 
 		void drawLine(const Vec2& start, const Vec2& end)
@@ -615,7 +617,7 @@ namespace MathAnim
 			//}
 		}
 
-		void drawString(const std::string& string, const Vec2& start)
+		void drawString(const std::string& string, const Vec2& start, uint32 objId)
 		{
 			g_logger_assert(fontStackPtr > 0, "Cannot draw string without a font provided. Did you forget a pushFont() call?");
 
@@ -642,7 +644,8 @@ namespace MathAnim
 					glyphTexture.uvMin,
 					glyphTexture.uvMax,
 					color,
-					font->texture.graphicsId
+					font->texture.graphicsId,
+					objId
 				);
 
 				float kerning = 0.0f;
@@ -702,17 +705,17 @@ namespace MathAnim
 			//numVertices++;
 		}
 
-		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform)
+		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform)
 		{
 			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
 			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
 			Vec2 min = { tmpMin.x, tmpMin.y };
 			Vec2 max = { tmpMax.x, tmpMax.y };
 
-			drawList2D.addTexturedQuad(texture, min, max, uvMin, uvMax);
+			drawList2D.addTexturedQuad(texture, min, max, uvMin, uvMax, objId);
 		}
 
-		void drawTexturedQuadImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform, bool is3D)
+		void drawTexturedQuadImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform, bool is3D)
 		{
 			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
 			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
@@ -724,27 +727,33 @@ namespace MathAnim
 			verts[0].position = min;
 			verts[0].textureCoords = uvMin;
 			verts[0].color = Vec4{ 1, 1, 1, 1 };
+			verts[0].objId = objId;
 
 			verts[1].position = Vec2{ min.x, max.y };
 			verts[1].textureCoords = Vec2{ uvMin.x, uvMax.y };
 			verts[1].color = Vec4{ 1, 1, 1, 1 };
+			verts[1].objId = objId;
 
 			verts[2].position = max;
 			verts[2].textureCoords = uvMax;
 			verts[2].color = Vec4{ 1, 1, 1, 1 };
+			verts[2].objId = objId;
 
 			// Triangle 2
 			verts[3].position = min;
 			verts[3].textureCoords = uvMin;
 			verts[3].color = Vec4{ 1, 1, 1, 1 };
+			verts[3].objId = objId;
 
 			verts[4].position = max;
 			verts[4].textureCoords = uvMax;
 			verts[4].color = Vec4{ 1, 1, 1, 1 };
+			verts[4].objId = objId;
 
 			verts[5].position = Vec2{ max.x, min.y };
 			verts[5].textureCoords = Vec2{ uvMax.x, uvMin.y };
 			verts[5].color = Vec4{ 1, 1, 1, 1 };
+			verts[5].objId = objId;
 
 			// Upload the verts and draw them
 			// TODO: Rename this to drawList2DQuad or something
@@ -1097,7 +1106,7 @@ namespace MathAnim
 	}
 
 	// TODO: Add a bunch of methods like this...
-	void DrawList2D::addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax)
+	void DrawList2D::addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, uint32 objId)
 	{
 		// Check if we need to switch to a new batch
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != texture.graphicsId)
@@ -1122,6 +1131,7 @@ namespace MathAnim
 
 		Vertex2D vert;
 		vert.color = Vec4{ 1, 1, 1, 1 };
+		vert.objId = objId;
 		vert.position = min;
 		vert.textureCoords = uvMin;
 		vertices.push(vert);
@@ -1140,7 +1150,7 @@ namespace MathAnim
 		cmd.numVerts += 4;
 	}
 
-	void DrawList2D::addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color)
+	void DrawList2D::addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color, uint32 objId)
 	{
 		// Check if we need to switch to a new batch
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != UINT32_MAX)
@@ -1165,6 +1175,7 @@ namespace MathAnim
 
 		Vertex2D vert;
 		vert.color = color;
+		vert.objId = objId;
 		vert.position = min;
 		vert.textureCoords = Vec2{ 0, 0 };
 		vertices.push(vert);
@@ -1183,7 +1194,7 @@ namespace MathAnim
 		cmd.numVerts += 4;
 	}
 
-	void DrawList2D::addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color)
+	void DrawList2D::addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color, uint32 objId)
 	{
 		// Check if we need to switch to a new batch
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != UINT32_MAX)
@@ -1207,6 +1218,7 @@ namespace MathAnim
 
 		Vertex2D vert;
 		vert.color = color;
+		vert.objId = objId;
 		vert.position = p0;
 		vert.textureCoords = Vec2{ 0, 0 };
 		vertices.push(vert);
@@ -1247,6 +1259,9 @@ namespace MathAnim
 
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, textureCoords)));
 		glEnableVertexAttribArray(2);
+
+		glVertexAttribIPointer(3, 1, GL_UNSIGNED_INT, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, objId)));
+		glEnableVertexAttribArray(3);
 	}
 
 	void DrawList2D::render(const Shader& shader) const
@@ -1356,7 +1371,7 @@ namespace MathAnim
 		setupGraphicsBuffers();
 	}
 
-	void DrawListFont2D::addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, int textureId)
+	void DrawListFont2D::addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, int textureId, uint32 objId)
 	{
 		// Check if we need to switch to a new batch
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != textureId)
@@ -1383,6 +1398,7 @@ namespace MathAnim
 
 		Vertex2D vert;
 		vert.color = color;
+		vert.objId = objId;
 
 		// Verts
 		vert.position = posMin;
@@ -1430,6 +1446,9 @@ namespace MathAnim
 
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, textureCoords)));
 		glEnableVertexAttribArray(2);
+
+		glVertexAttribIPointer(3, 1, GL_UNSIGNED_INT, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, objId)));
+		glEnableVertexAttribArray(3);
 	}
 
 	void DrawListFont2D::render(const Shader& shader)
@@ -1908,8 +1927,8 @@ namespace MathAnim
 		framebuffer.bind();
 
 		// Set up the transparent draw buffers
-		GLenum drawBuffers[] = { GL_NONE, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-		glDrawBuffers(3, drawBuffers);
+		GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
+		glDrawBuffers(4, drawBuffers);
 
 		// Set up GL state for transparent pass
 		// Disable writing to the depth buffer
@@ -1997,8 +2016,8 @@ namespace MathAnim
 		compositeShader.uploadInt("uRevealageTexture", 1);
 
 		// Set up the composite draw buffers
-		GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
-		glDrawBuffers(3, compositeDrawBuffers);
+		GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
+		glDrawBuffers(4, compositeDrawBuffers);
 
 		glBindVertexArray(Renderer::screenVao);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
