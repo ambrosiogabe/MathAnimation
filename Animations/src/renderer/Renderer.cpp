@@ -11,6 +11,8 @@
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
+#include "editor/Timeline.h"
+#include "editor/EditorGui.h"
 
 // TODO: Tmp remove me
 #include "latex/LaTexLayer.h"
@@ -241,6 +243,7 @@ namespace MathAnim
 		static Shader shader3DOpaque;
 		static Shader shader3DTransparent;
 		static Shader shader3DComposite;
+		static Shader pickingOutlineShader;
 
 		static constexpr int MAX_STACK_SIZE = 64;
 
@@ -281,6 +284,7 @@ namespace MathAnim
 		// ---------------------- Internal Functions ----------------------
 		static void setupDefaultWhiteTexture();
 		static void setupScreenVao();
+		static void renderPickingOutline(const Framebuffer& mainFramebuffer);
 		static uint32 getColorCompressed();
 		static const glm::vec4& getColor();
 		static float getStrokeWidth();
@@ -305,6 +309,7 @@ namespace MathAnim
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
+			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
 #elif defined(_RELEASE)
 			// TODO: Replace these with hardcoded strings
 			shader2D.compile("assets/shaders/default.glsl");
@@ -314,6 +319,7 @@ namespace MathAnim
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
+			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
 #endif
 
 			drawList2D.init();
@@ -376,6 +382,9 @@ namespace MathAnim
 			// These should be blended appropriately
 			drawList2D.render(shader2D);
 			drawList2D.reset();
+
+			// Draw outline around active anim object
+			renderPickingOutline(framebuffer);
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
 			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
@@ -1058,6 +1067,26 @@ namespace MathAnim
 
 			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(sizeof(float) * 2));
 			glEnableVertexAttribArray(1);
+		}
+
+		static void renderPickingOutline(const Framebuffer& mainFramebuffer)
+		{
+			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
+			glDrawBuffers(4, compositeDrawBuffers);
+			pickingOutlineShader.bind();
+
+			const Texture& objIdTexture = mainFramebuffer.getColorAttachment(3);
+			glActiveTexture(GL_TEXTURE0);
+			objIdTexture.bind();
+			pickingOutlineShader.uploadInt("uObjectIdTexture", 0);
+			pickingOutlineShader.uploadUInt("uActiveObjectId", Timeline::getActiveAnimObject());
+			glm::vec2 textureSize = glm::vec2((float)objIdTexture.width, (float)objIdTexture.height);
+			pickingOutlineShader.uploadVec2("uResolution", textureSize);
+
+			//pickingOutlineShader.uploadFloat("uThreshold", EditorGui::getThreshold());
+
+			glBindVertexArray(screenVao);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}
 
 		static uint32 getColorCompressed()

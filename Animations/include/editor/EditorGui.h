@@ -21,6 +21,8 @@ namespace MathAnim
 
 		const TimelineData& getTimelineData();
 		void setTimelineData(const TimelineData& data);
+
+		float getThreshold();
 	}
 }
 
