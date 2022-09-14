@@ -73,7 +73,7 @@ namespace MathAnim
 			EditorGui::onGizmo(am);
 		}
 
-		void render(const Framebuffer& framebuffer)
+		void render()
 		{
 			// Render call stuff
 			GlobalContext* g = gGizmoManager;

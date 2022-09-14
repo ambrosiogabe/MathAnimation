@@ -36,8 +36,9 @@ namespace MathAnim
 		void free();
 
 		// ----------- Render calls ----------- 
-		void renderToFramebuffer(Framebuffer& framebuffer);
+		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera, bool shouldRenderPickingOutline);
 		void renderFramebuffer(const Framebuffer& framebuffer);
+		void endFrame();
 
 		// ----------- Styles ----------- 
 		// TODO: Should this be push/pop calls, or more like nvgStroke calls with implicit pops?
@@ -64,8 +65,6 @@ namespace MathAnim
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform = glm::identity<glm::mat4>());
-		// This is expensive, it dispatches a draw call immediately
-		void drawTexturedQuadImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform = glm::identity<glm::mat4>(), bool is3D = false);
 
 		// ----------- 3D Line stuff ----------- 
 		void beginPath3D(const Vec3& start);
@@ -84,12 +83,6 @@ namespace MathAnim
 		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isTransparent = false);
 
 		// ----------- Miscellaneous ----------- 
-		const OrthoCamera* getOrthoCamera();
-		OrthoCamera* getMutableOrthoCamera();
-
-		const PerspectiveCamera* get3DCamera();
-		PerspectiveCamera* getMutable3DCamera();
-
 		void clearColor(const Vec4& color);
 	}
 }

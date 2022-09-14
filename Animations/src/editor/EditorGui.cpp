@@ -44,7 +44,7 @@ namespace MathAnim
 			timelineLoaded = true;
 		}
 
-		void update(const Framebuffer& mainFramebuffer, AnimationManagerData* am)
+		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am)
 		{
 			// TODO: Do this in a central file
 			checkHotKeys();
@@ -86,7 +86,19 @@ namespace MathAnim
 			ImTextureID textureId = (void*)(uintptr_t)mainColorTexture.graphicsId;
 			ImGui::Image(textureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
 			mouseHoveringViewport = ImGui::IsItemHovered();
+			ImGui::End();
 
+			// Draw the editor framebuffer viewport
+			ImGui::Begin("Animation Editor View", nullptr);
+			getLargestSizeForViewport(&viewportSize, &viewportRelativeOffset);
+
+			ImGui::SetCursorPos(viewportRelativeOffset);
+			viewportOffset = ImGui::GetCursorScreenPos();
+			viewportOffset = viewportOffset - ImGui::GetWindowPos();
+			const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
+			ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
+			ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
+			mouseHoveringViewport = ImGui::IsItemHovered();
 			ImGui::End();
 
 			Timeline::update(timeline, am);

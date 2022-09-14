@@ -141,7 +141,7 @@ namespace MathAnim
 		void addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color, uint32 objId);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& shader) const;
+		void render(const Shader& shader, const OrthoCamera& orthoCamera) const;
 		void reset();
 		void free();
 	};
@@ -162,7 +162,7 @@ namespace MathAnim
 		void addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, int textureId, uint32 objId);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& shader);
+		void render(const Shader& shader, const OrthoCamera& orthoCamera);
 		void reset();
 		void free();
 	};
@@ -188,7 +188,7 @@ namespace MathAnim
 		void addLine(const Vec3& previousPos, const Vec3& currentPos, const Vec3& nextPos, const Vec3& nextNextPos, uint32 packedColor, float thickness);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& shader) const;
+		void render(const Shader& shader, PerspectiveCamera& perspectiveCamera) const;
 		void reset();
 		void free();
 	};
@@ -220,7 +220,7 @@ namespace MathAnim
 		void addTexturedQuad3D(const Texture& texture, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec3& faceNormal, bool isTransparent);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& opaqueShader, const Shader& transparentShader, const Shader& compositeShader, const Framebuffer& framebuffer) const;
+		void render(const Shader& opaqueShader, const Shader& transparentShader, const Shader& compositeShader, const Framebuffer& framebuffer, PerspectiveCamera& perspectiveCamera) const;
 		void reset();
 		void free();
 	};
@@ -232,9 +232,6 @@ namespace MathAnim
 		static DrawListFont2D drawListFont2D;
 		static DrawList3DLine drawList3DLine;
 		static DrawList3D drawList3D;
-
-		static OrthoCamera* orthoCamera;
-		static PerspectiveCamera* perspCamera;
 
 		static Shader shader2D;
 		static Shader shaderFont2D;
@@ -291,9 +288,6 @@ namespace MathAnim
 
 		void init(OrthoCamera& inOrthoCamera, PerspectiveCamera& inPerspCamera)
 		{
-			orthoCamera = &inOrthoCamera;
-			perspCamera = &inPerspCamera;
-
 			strokeWidthStackPtr = 0;
 			colorStackPtr = 0;
 			lineEndingStackPtr = 0;
@@ -346,7 +340,7 @@ namespace MathAnim
 		}
 
 		// ----------- Render calls ----------- 
-		void renderToFramebuffer(Framebuffer& framebuffer)
+		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera, bool shouldRenderPickingOutline)
 		{
 			g_logger_assert(framebuffer.colorAttachments.size() == 4, "Invalid framebuffer. Should have 3 color attachments.");
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
@@ -354,7 +348,7 @@ namespace MathAnim
 			// Clear the framebuffer attachments and set it up
 			framebuffer.bind();
 			glViewport(0, 0, framebuffer.width, framebuffer.height);
-			framebuffer.clearColorAttachmentRgba(0, colors[(uint8)Color::GreenBrown]);
+			framebuffer.clearColorAttachmentRgba(0, clearColor);
 			framebuffer.clearColorAttachmentUint32(3, UINT32_MAX);
 			framebuffer.clearDepthStencil();
 
@@ -363,16 +357,13 @@ namespace MathAnim
 			glDrawBuffers(4, compositeDrawBuffers);
 
 			// Do all the draw calls
-			drawList3DLine.render(shader3DLine);
-			drawList3DLine.reset();
-
-			drawListFont2D.render(shaderFont2D);
-			drawListFont2D.reset();
+			// Draw lines and strings
+			drawList3DLine.render(shader3DLine, perspectiveCamera);
+			drawListFont2D.render(shaderFont2D, orthoCamera);
 
 			// Draw 3D objects after the lines so that we can do appropriate blending
 			// using OIT
-			drawList3D.render(shader3DOpaque, shader3DTransparent, shader3DComposite, framebuffer);
-			drawList3D.reset();
+			drawList3D.render(shader3DOpaque, shader3DTransparent, shader3DComposite, framebuffer, perspectiveCamera);
 
 			// Reset the draw buffers to draw to FB_attachment_0
 			glDrawBuffers(4, compositeDrawBuffers);
@@ -380,16 +371,13 @@ namespace MathAnim
 			// Draw 2D stuff over 3D stuff so that 3D stuff is always "behind" the
 			// 2D stuff like a HUD
 			// These should be blended appropriately
-			drawList2D.render(shader2D);
-			drawList2D.reset();
+			drawList2D.render(shader2D, orthoCamera);
 
 			// Draw outline around active anim object
-			renderPickingOutline(framebuffer);
-
-			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
-			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
-			g_logger_assert(strokeWidthStackPtr == 0, "Missing popStrokeWidth() call.");
-			g_logger_assert(fontStackPtr == 0, "Missing popFont() call.");
+			if (shouldRenderPickingOutline)
+			{
+				renderPickingOutline(framebuffer);
+			}
 		}
 
 		void renderFramebuffer(const Framebuffer& framebuffer)
@@ -403,6 +391,20 @@ namespace MathAnim
 
 			glBindVertexArray(screenVao);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
+		}
+
+		void endFrame()
+		{
+			// Do all the draw calls
+			drawList3DLine.reset();
+			drawListFont2D.reset();
+			drawList3D.reset();
+			drawList2D.reset();
+
+			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
+			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
+			g_logger_assert(strokeWidthStackPtr == 0, "Missing popStrokeWidth() call.");
+			g_logger_assert(fontStackPtr == 0, "Missing popFont() call.");
 		}
 
 		// ----------- Styles ----------- 
@@ -724,73 +726,6 @@ namespace MathAnim
 			drawList2D.addTexturedQuad(texture, min, max, uvMin, uvMax, objId);
 		}
 
-		void drawTexturedQuadImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform, bool is3D)
-		{
-			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
-			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
-			Vec2 min = { tmpMin.x, tmpMax.y };
-			Vec2 max = { tmpMax.x, tmpMin.y };
-
-			Vertex2D verts[6];
-			// Triangle 1
-			verts[0].position = min;
-			verts[0].textureCoords = uvMin;
-			verts[0].color = Vec4{ 1, 1, 1, 1 };
-			verts[0].objId = objId;
-
-			verts[1].position = Vec2{ min.x, max.y };
-			verts[1].textureCoords = Vec2{ uvMin.x, uvMax.y };
-			verts[1].color = Vec4{ 1, 1, 1, 1 };
-			verts[1].objId = objId;
-
-			verts[2].position = max;
-			verts[2].textureCoords = uvMax;
-			verts[2].color = Vec4{ 1, 1, 1, 1 };
-			verts[2].objId = objId;
-
-			// Triangle 2
-			verts[3].position = min;
-			verts[3].textureCoords = uvMin;
-			verts[3].color = Vec4{ 1, 1, 1, 1 };
-			verts[3].objId = objId;
-
-			verts[4].position = max;
-			verts[4].textureCoords = uvMax;
-			verts[4].color = Vec4{ 1, 1, 1, 1 };
-			verts[4].objId = objId;
-
-			verts[5].position = Vec2{ max.x, min.y };
-			verts[5].textureCoords = Vec2{ uvMax.x, uvMin.y };
-			verts[5].color = Vec4{ 1, 1, 1, 1 };
-			verts[5].objId = objId;
-
-			// Upload the verts and draw them
-			// TODO: Rename this to drawList2DQuad or something
-			glBindBuffer(GL_ARRAY_BUFFER, drawListFont2D.vbo);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_DYNAMIC_DRAW);
-
-			glBindVertexArray(drawListFont2D.vao);
-			// TODO: Rename this to shader2DQuad.glsl or something
-			shaderFont2D.bind();
-
-			if (is3D)
-			{
-				shaderFont2D.uploadMat4("uProjection", perspCamera->calculateProjectionMatrix());
-				shaderFont2D.uploadMat4("uView", perspCamera->calculateViewMatrix());
-			}
-			else
-			{
-				shaderFont2D.uploadMat4("uProjection", orthoCamera->calculateProjectionMatrix());
-				shaderFont2D.uploadMat4("uView", orthoCamera->calculateViewMatrix());
-			}
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, texture.graphicsId);
-			shaderFont2D.uploadInt("uTexture", 0);
-
-			glDrawArrays(GL_TRIANGLES, 0, 6);
-		}
-
 		// ----------- 3D stuff ----------- 
 		// TODO: Consider just making these glm::vec3's. I'm not sure what kind
 		// of impact, if any that will have
@@ -1007,26 +942,6 @@ namespace MathAnim
 		}
 
 		// ----------- Miscellaneous ----------- 
-		const OrthoCamera* getOrthoCamera()
-		{
-			return orthoCamera;
-		}
-
-		OrthoCamera* getMutableOrthoCamera()
-		{
-			return orthoCamera;
-		}
-
-		const PerspectiveCamera* get3DCamera()
-		{
-			return perspCamera;
-		}
-
-		PerspectiveCamera* getMutable3DCamera()
-		{
-			return perspCamera;
-		}
-
 		void clearColor(const Vec4& color)
 		{
 			glClearColor(color.r, color.g, color.b, color.a);
@@ -1299,7 +1214,7 @@ namespace MathAnim
 		glEnableVertexAttribArray(3);
 	}
 
-	void DrawList2D::render(const Shader& shader) const
+	void DrawList2D::render(const Shader& shader, const OrthoCamera& camera) const
 	{
 		if (vertices.size() == 0)
 		{
@@ -1307,8 +1222,8 @@ namespace MathAnim
 		}
 
 		shader.bind();
-		shader.uploadMat4("uProjection", Renderer::orthoCamera->calculateProjectionMatrix());
-		shader.uploadMat4("uView", Renderer::orthoCamera->calculateViewMatrix());
+		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
+		shader.uploadMat4("uView", camera.calculateViewMatrix());
 
 		for (int i = 0; i < drawCommands.size(); i++)
 		{
@@ -1486,11 +1401,11 @@ namespace MathAnim
 		glEnableVertexAttribArray(3);
 	}
 
-	void DrawListFont2D::render(const Shader& shader)
+	void DrawListFont2D::render(const Shader& shader, const OrthoCamera& camera)
 	{
 		shader.bind();
-		shader.uploadMat4("uProjection", Renderer::orthoCamera->calculateProjectionMatrix());
-		shader.uploadMat4("uView", Renderer::orthoCamera->calculateViewMatrix());
+		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
+		shader.uploadMat4("uView", camera.calculateViewMatrix());
 
 		for (int i = 0; i < drawCommands.size(); i++)
 		{
@@ -1662,7 +1577,7 @@ namespace MathAnim
 		glEnableVertexAttribArray(4);
 	}
 
-	void DrawList3DLine::render(const Shader& shader) const
+	void DrawList3DLine::render(const Shader& shader, PerspectiveCamera& camera) const
 	{
 		if (vertices.size() == 0)
 		{
@@ -1676,8 +1591,8 @@ namespace MathAnim
 		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.size(), vertices.data, GL_DYNAMIC_DRAW);
 
 		shader.bind();
-		shader.uploadMat4("uProjection", Renderer::perspCamera->calculateProjectionMatrix());
-		shader.uploadMat4("uView", Renderer::perspCamera->calculateViewMatrix());
+		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
+		shader.uploadMat4("uView", camera.calculateViewMatrix());
 		shader.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
 
 		glBindVertexArray(vao);
@@ -1897,7 +1812,7 @@ namespace MathAnim
 	}
 
 	void DrawList3D::render(const Shader& opaqueShader, const Shader& transparentShader,
-		const Shader& compositeShader, const Framebuffer& framebuffer) const
+		const Shader& compositeShader, const Framebuffer& framebuffer, PerspectiveCamera& camera) const
 	{
 		if (vertices.size() == 0)
 		{
@@ -1912,8 +1827,8 @@ namespace MathAnim
 
 		// First render opaque objects
 		opaqueShader.bind();
-		opaqueShader.uploadMat4("uProjection", Renderer::perspCamera->calculateProjectionMatrix());
-		opaqueShader.uploadMat4("uView", Renderer::perspCamera->calculateViewMatrix());
+		opaqueShader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
+		opaqueShader.uploadMat4("uView", camera.calculateViewMatrix());
 		//opaqueShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
 		//opaqueShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
 
@@ -1986,8 +1901,8 @@ namespace MathAnim
 
 		// Then render the transparent surfaces
 		transparentShader.bind();
-		transparentShader.uploadMat4("uProjection", Renderer::perspCamera->calculateProjectionMatrix());
-		transparentShader.uploadMat4("uView", Renderer::perspCamera->calculateViewMatrix());
+		transparentShader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
+		transparentShader.uploadMat4("uView", camera.calculateViewMatrix());
 		//transparentShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
 		//transparentShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
 

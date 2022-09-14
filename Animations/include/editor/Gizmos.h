@@ -28,7 +28,7 @@ namespace MathAnim
 	{
 		void init();
 		void update(AnimationManagerData* am);
-		void render(const Framebuffer& framebuffer);
+		void render();
 		void free();
 
 		bool anyGizmoActive();
