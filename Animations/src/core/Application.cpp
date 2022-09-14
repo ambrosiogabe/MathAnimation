@@ -168,7 +168,7 @@ namespace MathAnim
 				GizmoManager::render();
 				// Render all gizmo draw calls and animation draw calls to the editor framebuffer
 				renderPickingOutline = true;
-				Renderer::renderToFramebuffer(editorFramebuffer, Colors::Neutral[6], editorCamera2D, editorCamera3D, renderPickingOutline);
+				Renderer::renderToFramebuffer(editorFramebuffer, Colors::Neutral[7], editorCamera2D, editorCamera3D, renderPickingOutline);
 				Renderer::endFrame();
 
 				// Bind the window framebuffer and render ImGui results

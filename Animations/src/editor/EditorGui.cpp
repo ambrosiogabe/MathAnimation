@@ -8,6 +8,7 @@
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
 #include "core/Input.h"
+#include "core/Colors.h"
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
 
@@ -49,6 +50,8 @@ namespace MathAnim
 			// TODO: Do this in a central file
 			checkHotKeys();
 			checkForMousePicking(mainFramebuffer);
+
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
 			ImGui::Begin("Animation View", nullptr, ImGuiWindowFlags_MenuBar);
 			if (ImGui::BeginMenuBar())
@@ -100,6 +103,8 @@ namespace MathAnim
 			ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
 			mouseHoveringViewport = ImGui::IsItemHovered();
 			ImGui::End();
+
+			ImGui::PopStyleVar();
 
 			Timeline::update(timeline, am);
 			AnimObjectPanel::update();
@@ -202,6 +207,7 @@ namespace MathAnim
 
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset)
 		{
+			ImGuiStyle& style = ImGui::GetStyle();
 			float targetAspectRatio = Application::getOutputTargetAspectRatio();
 			ImVec2 contentRegion = ImGui::GetContentRegionAvail();
 			float scrollAmount = ImGui::GetScrollY();
