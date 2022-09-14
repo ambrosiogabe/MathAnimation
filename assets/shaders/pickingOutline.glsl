@@ -17,6 +17,7 @@ layout(location = 0) out vec4 FragColor;
 
 in vec2 fTexCoords;
 
+uniform sampler2D uColorTexture;
 uniform usampler2D uObjectIdTexture;
 uniform uint uActiveObjectId;
 uniform vec2 uResolution;
@@ -73,9 +74,8 @@ void main()
     //float fSample = sample == 0xFFFFFFFFUL ? float(0xFFFFFUL) : sample;
     //float gradient = fwidth(gradient);
 
-    const float threshold = -0.5;
-    if (gradient > 0.0 && numCorrectSamples > 0) {
-        FragColor = vec4(1, 1, 0, 1);
+    if (gradient > 2.5 && numCorrectSamples > 0) {
+        FragColor = vec4(1.0, 1.0, 1.0 - texture(uColorTexture, fTexCoords).b, 1.0);
     } else {
         discard;
     }

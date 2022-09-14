@@ -1079,6 +1079,12 @@ namespace MathAnim
 			glActiveTexture(GL_TEXTURE0);
 			objIdTexture.bind();
 			pickingOutlineShader.uploadInt("uObjectIdTexture", 0);
+
+			const Texture& colorTexture = mainFramebuffer.getColorAttachment(0);
+			glActiveTexture(GL_TEXTURE1);
+			colorTexture.bind();
+			pickingOutlineShader.uploadInt("uColorTexture", 1);
+
 			pickingOutlineShader.uploadUInt("uActiveObjectId", Timeline::getActiveAnimObject());
 			glm::vec2 textureSize = glm::vec2((float)objIdTexture.width, (float)objIdTexture.height);
 			pickingOutlineShader.uploadVec2("uResolution", textureSize);
