@@ -4,10 +4,12 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec4 aColor;
 layout (location = 2) in vec2 aTexCoord;
 layout (location = 3) in vec3 aNormal;
+layout (location = 4) in uint aObjId;
 
 out vec4 fColor;
 out vec2 fTexCoord;
 out vec3 fNormal;
+flat out uint fObjId;
 
 uniform mat4 uProjection;
 uniform mat4 uView;
@@ -17,18 +19,21 @@ void main()
     fColor = aColor;
     fTexCoord = aTexCoord;
     fNormal = aNormal;
+    fObjId = aObjId;
     gl_Position = uProjection * uView * vec4(aPos, 1.0);
 }
 
 #type fragment
 #version 330 core
 
-layout(location = 1) out vec4 accumulation;
-layout(location = 2) out float revealage;
+layout (location = 1) out vec4 accumulation;
+layout (location = 2) out float revealage;
+layout (location = 3) out uint ObjId;
 
 in vec4 fColor;
 in vec2 fTexCoord;
 in vec3 fNormal;
+flat in uint fObjId;
 
 uniform vec3 sunDirection;
 uniform vec3 sunColor;
@@ -67,4 +72,10 @@ void main()
    float w = clamp(a * a * a * 1e8 * b * b * b, 1e-2, 3e2);
    accumulation = premultipliedReflect * w;
    revealage = premultipliedReflect.a;
+
+   if (w > 0.5) {
+      ObjId = fObjId;
+   } else {
+      ObjId = 0xFFFFFFFFUL;
+   }
 }

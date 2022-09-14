@@ -173,7 +173,7 @@ namespace MathAnim
 				// Do ImGui stuff
 				ImGuiLayer::beginFrame();
 				ImGui::ShowDemoWindow();
-				EditorGui::update(mainFramebuffer.getColorAttachment(0).graphicsId, am);
+				EditorGui::update(mainFramebuffer, am);
 				ImGuiLayer::endFrame();
 				Svg::endFrame();
 

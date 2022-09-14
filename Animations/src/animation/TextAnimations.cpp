@@ -163,8 +163,8 @@ namespace MathAnim
 				glViewport(0, 0, Svg::getSvgCache().width, Svg::getSvgCache().height);
 
 				// Reset the draw buffers to draw to FB_attachment_0
-				GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE };
-				glDrawBuffers(3, compositeDrawBuffers);
+				GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
+				glDrawBuffers(4, compositeDrawBuffers);
 
 				nvgBeginFrame(vg, Svg::getSvgCache().width, Svg::getSvgCache().height, 1.0f);
 
@@ -234,6 +234,7 @@ namespace MathAnim
 					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
 					cacheUvMin,
 					cacheUvMax,
+					parent->id,
 					transform
 				);
 			}

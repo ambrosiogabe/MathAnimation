@@ -4,9 +4,12 @@
 #include "editor/DebugPanel.h"
 #include "editor/ExportPanel.h"
 #include "editor/SceneHierarchyPanel.h"
+#include "editor/Gizmos.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
 #include "core/Input.h"
+#include "renderer/Texture.h"
+#include "renderer/Framebuffer.h"
 
 #include "imgui.h"
 
@@ -17,10 +20,12 @@ namespace MathAnim
 		// ------------- Internal Functions -------------
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
 		static void checkHotKeys();
+		static void checkForMousePicking(const Framebuffer& mainFramebuffer);
 		static TimelineData timeline;
 		static bool timelineLoaded = false;
 		static ImVec2 viewportOffset;
 		static ImVec2 viewportSize;
+		static bool mouseHoveringViewport;
 
 		void init(AnimationManagerData* am)
 		{
@@ -39,10 +44,11 @@ namespace MathAnim
 			timelineLoaded = true;
 		}
 
-		void update(uint32 sceneTextureId, AnimationManagerData* am)
+		void update(const Framebuffer& mainFramebuffer, AnimationManagerData* am)
 		{
 			// TODO: Do this in a central file
 			checkHotKeys();
+			checkForMousePicking(mainFramebuffer);
 
 			ImGui::Begin("Animation View", nullptr, ImGuiWindowFlags_MenuBar);
 			if (ImGui::BeginMenuBar())
@@ -76,8 +82,10 @@ namespace MathAnim
 			ImGui::SetCursorPos(viewportRelativeOffset);
 			viewportOffset = ImGui::GetCursorScreenPos();
 			viewportOffset = viewportOffset - ImGui::GetWindowPos();
-			ImTextureID textureId = (void*)(uintptr_t)sceneTextureId;
+			const Texture& mainColorTexture = mainFramebuffer.getColorAttachment(0);
+			ImTextureID textureId = (void*)(uintptr_t)mainColorTexture.graphicsId;
 			ImGui::Image(textureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
+			mouseHoveringViewport = ImGui::IsItemHovered();
 
 			ImGui::End();
 
@@ -151,6 +159,31 @@ namespace MathAnim
 				{
 					Application::saveProject();
 					g_logger_info("Saving project.");
+				}
+			}
+		}
+		static void checkForMousePicking(const Framebuffer& mainFramebuffer)
+		{
+			if (mouseHoveringViewport && !GizmoManager::anyGizmoActive())
+			{
+				if (Input::mouseClicked(MouseButton::Left))
+				{
+					const Texture& pickingTexture = mainFramebuffer.getColorAttachment(3);
+					// Get the mouse pos in normalized coords
+					Vec2 normalizedMousePos = mouseToNormalizedViewport();
+					Vec2 mousePixelPos = Vec2{
+						normalizedMousePos.x * (float)pickingTexture.width,
+						normalizedMousePos.y * (float)pickingTexture.height
+					};
+					uint32 objId = mainFramebuffer.readPixelUint32(3, (int)mousePixelPos.x, (int)mousePixelPos.y);
+					if (objId != UINT32_MAX)
+					{
+						Timeline::setActiveAnimObject((int)objId);
+					}
+					else
+					{
+						Timeline::setActiveAnimObject(INT32_MAX);
+					}
 				}
 			}
 		}

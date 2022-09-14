@@ -258,10 +258,19 @@ namespace MathAnim
 				.setHeight(outputHeight)
 				.build();
 
+			Texture objIdTexture = TextureBuilder()
+				.setFormat(ByteFormat::R32_UI)
+				.setMinFilter(FilterMode::Nearest)
+				.setMagFilter(FilterMode::Nearest)
+				.setWidth(outputWidth)
+				.setHeight(outputHeight)
+				.build();
+
 			Framebuffer res = FramebufferBuilder(outputWidth, outputHeight)
 				.addColorAttachment(compositeTexture)
 				.addColorAttachment(accumulationTexture)
 				.addColorAttachment(revelageTexture)
+				.addColorAttachment(objIdTexture)
 				.includeDepthStencil()
 				.generate();
 

@@ -6,12 +6,13 @@ namespace MathAnim
 {
 	struct TimelineData;
 	struct AnimationManagerData;
+	struct Framebuffer;
 
 	namespace EditorGui
 	{
 		void init(AnimationManagerData* am);
 
-		void update(uint32 sceneTextureId, AnimationManagerData* am);
+		void update(const Framebuffer& mainFramebuffer, AnimationManagerData* am);
 		void onGizmo(AnimationManagerData* am);
 		Vec2 mouseToNormalizedViewport();
 		Vec2 mouseToViewportCoords();
@@ -20,6 +21,8 @@ namespace MathAnim
 
 		const TimelineData& getTimelineData();
 		void setTimelineData(const TimelineData& data);
+
+		float getThreshold();
 	}
 }
 

@@ -57,15 +57,15 @@ namespace MathAnim
 		// TODO: Switch to using this when drawing completed objects to potentially
 		// batch draw calls together and improve performance
 		void drawSquare(const Vec2& start, const Vec2& size);
-		void drawFilledQuad(const Vec2& start, const Vec2& size);
-		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2);
+		void drawFilledQuad(const Vec2& start, const Vec2& size, uint32 objId = UINT32_MAX);
+		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, uint32 objId = UINT32_MAX);
 		void drawLine(const Vec2& start, const Vec2& end);
-		void drawString(const std::string& string, const Vec2& start);
+		void drawString(const std::string& string, const Vec2& start, uint32 objId);
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
 		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2);
-		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>());
+		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform = glm::identity<glm::mat4>());
 		// This is expensive, it dispatches a draw call immediately
-		void drawTexturedQuadImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>(), bool is3D = false);
+		void drawTexturedQuadImmediate(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform = glm::identity<glm::mat4>(), bool is3D = false);
 
 		// ----------- 3D Line stuff ----------- 
 		void beginPath3D(const Vec3& start);

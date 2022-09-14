@@ -31,6 +31,8 @@ namespace MathAnim
 		void render(const Framebuffer& framebuffer);
 		void free();
 
+		bool anyGizmoActive();
+
 		bool translateGizmo(const char* gizmoName, Vec3* position, GizmoVariant variant = GizmoVariant::All);
 		bool rotateGizmo(const char* gizmoName, Vec3* rotation, GizmoVariant variant = GizmoVariant::All);
 		bool scaleGizmo(const char* gizmoName, Vec3* scale, GizmoVariant variant = GizmoVariant::All);
