@@ -27,6 +27,8 @@ namespace MathAnim
 		static ImVec2 viewportOffset;
 		static ImVec2 viewportSize;
 		static bool mouseHoveringViewport;
+		static bool mainViewportIsActive;
+		static bool editorViewportIsActive;
 
 		void init(AnimationManagerData* am)
 		{
@@ -79,30 +81,34 @@ namespace MathAnim
 				ImGui::EndMenuBar();
 			}
 
-			ImVec2 viewportRelativeOffset;
-			getLargestSizeForViewport(&viewportSize, &viewportRelativeOffset);
+			ImVec2 mainViewportOffset, mainViewportSize;
+			getLargestSizeForViewport(&mainViewportSize, &mainViewportOffset);
+			ImGui::SetCursorPos(mainViewportOffset);
 
-			ImGui::SetCursorPos(viewportRelativeOffset);
-			viewportOffset = ImGui::GetCursorScreenPos();
-			viewportOffset = viewportOffset - ImGui::GetWindowPos();
 			const Texture& mainColorTexture = mainFramebuffer.getColorAttachment(0);
 			ImTextureID textureId = (void*)(uintptr_t)mainColorTexture.graphicsId;
-			ImGui::Image(textureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
-			mouseHoveringViewport = ImGui::IsItemHovered();
+			ImGui::Image(textureId, mainViewportSize, ImVec2(0, 0), ImVec2(1, 1));
+			mainViewportIsActive = ImGui::IsItemVisible();
 			ImGui::End();
 
 			// Draw the editor framebuffer viewport
-			ImGui::Begin("Animation Editor View", nullptr);
-			getLargestSizeForViewport(&viewportSize, &viewportRelativeOffset);
+			{
+				ImGui::Begin("Animation Editor View", nullptr);
 
-			ImGui::SetCursorPos(viewportRelativeOffset);
-			viewportOffset = ImGui::GetCursorScreenPos();
-			viewportOffset = viewportOffset - ImGui::GetWindowPos();
-			const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
-			ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
-			ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
-			mouseHoveringViewport = ImGui::IsItemHovered();
-			ImGui::End();
+				ImVec2 editorViewportRelativeOffset;
+				getLargestSizeForViewport(&viewportSize, &editorViewportRelativeOffset);
+				ImGui::SetCursorPos(editorViewportRelativeOffset);
+				viewportOffset = ImGui::GetCursorScreenPos();
+				viewportOffset = viewportOffset - ImGui::GetWindowPos();
+
+				const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
+				ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
+				ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
+				mouseHoveringViewport = ImGui::IsItemHovered();
+				editorViewportIsActive = ImGui::IsItemVisible();
+
+				ImGui::End();
+			}
 
 			ImGui::PopStyleVar();
 
@@ -164,6 +170,16 @@ namespace MathAnim
 			Timeline::freeInstance(timeline);
 			timeline = data;
 			timelineLoaded = true;
+		}
+
+		bool mainViewportActive()
+		{
+			return mainViewportIsActive;
+		}
+
+		bool editorViewportActive()
+		{
+			return editorViewportIsActive;
 		}
 
 		// ------------- Internal Functions -------------
