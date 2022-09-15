@@ -5,9 +5,11 @@
 #include "editor/ExportPanel.h"
 #include "editor/SceneHierarchyPanel.h"
 #include "editor/Gizmos.h"
+#include "editor/EditorSettings.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
 #include "core/Input.h"
+#include "core/Colors.h"
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
 
@@ -26,6 +28,8 @@ namespace MathAnim
 		static ImVec2 viewportOffset;
 		static ImVec2 viewportSize;
 		static bool mouseHoveringViewport;
+		static bool mainViewportIsActive;
+		static bool editorViewportIsActive;
 
 		void init(AnimationManagerData* am)
 		{
@@ -44,11 +48,13 @@ namespace MathAnim
 			timelineLoaded = true;
 		}
 
-		void update(const Framebuffer& mainFramebuffer, AnimationManagerData* am)
+		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am)
 		{
 			// TODO: Do this in a central file
 			checkHotKeys();
-			checkForMousePicking(mainFramebuffer);
+			checkForMousePicking(editorFramebuffer);
+
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
 			ImGui::Begin("Animation View", nullptr, ImGuiWindowFlags_MenuBar);
 			if (ImGui::BeginMenuBar())
@@ -76,24 +82,43 @@ namespace MathAnim
 				ImGui::EndMenuBar();
 			}
 
-			ImVec2 viewportRelativeOffset;
-			getLargestSizeForViewport(&viewportSize, &viewportRelativeOffset);
+			ImVec2 mainViewportOffset, mainViewportSize;
+			getLargestSizeForViewport(&mainViewportSize, &mainViewportOffset);
+			ImGui::SetCursorPos(mainViewportOffset);
 
-			ImGui::SetCursorPos(viewportRelativeOffset);
-			viewportOffset = ImGui::GetCursorScreenPos();
-			viewportOffset = viewportOffset - ImGui::GetWindowPos();
 			const Texture& mainColorTexture = mainFramebuffer.getColorAttachment(0);
 			ImTextureID textureId = (void*)(uintptr_t)mainColorTexture.graphicsId;
-			ImGui::Image(textureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
-			mouseHoveringViewport = ImGui::IsItemHovered();
-
+			ImGui::Image(textureId, mainViewportSize, ImVec2(0, 0), ImVec2(1, 1));
+			mainViewportIsActive = ImGui::IsItemVisible();
 			ImGui::End();
+
+			// Draw the editor framebuffer viewport
+			{
+				ImGui::Begin("Animation Editor View", nullptr);
+
+				ImVec2 editorViewportRelativeOffset;
+				getLargestSizeForViewport(&viewportSize, &editorViewportRelativeOffset);
+				ImGui::SetCursorPos(editorViewportRelativeOffset);
+				viewportOffset = ImGui::GetCursorScreenPos();
+				viewportOffset = viewportOffset - ImGui::GetWindowPos();
+
+				const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
+				ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
+				ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
+				mouseHoveringViewport = ImGui::IsItemHovered();
+				editorViewportIsActive = ImGui::IsItemVisible();
+
+				ImGui::End();
+			}
+
+			ImGui::PopStyleVar();
 
 			Timeline::update(timeline, am);
 			AnimObjectPanel::update();
 			DebugPanel::update();
 			ExportPanel::update();
 			SceneHierarchyPanel::update(am);
+			EditorSettings::imgui();
 		}
 
 		void onGizmo(AnimationManagerData* am)
@@ -149,6 +174,21 @@ namespace MathAnim
 			timelineLoaded = true;
 		}
 
+		bool mainViewportActive()
+		{
+			return mainViewportIsActive;
+		}
+
+		bool editorViewportActive()
+		{
+			return editorViewportIsActive;
+		}
+
+		bool mouseHoveredEditorViewport()
+		{
+			return mouseHoveringViewport;
+		}
+
 		// ------------- Internal Functions -------------
 		static void checkHotKeys()
 		{
@@ -190,6 +230,7 @@ namespace MathAnim
 
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset)
 		{
+			ImGuiStyle& style = ImGui::GetStyle();
 			float targetAspectRatio = Application::getOutputTargetAspectRatio();
 			ImVec2 contentRegion = ImGui::GetContentRegionAvail();
 			float scrollAmount = ImGui::GetScrollY();

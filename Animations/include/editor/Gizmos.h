@@ -6,6 +6,8 @@ namespace MathAnim
 {
 	struct Framebuffer;
 	struct AnimationManagerData;
+	struct OrthoCamera;
+	struct PerspectiveCamera;
 
 	enum class GizmoVariant : uint8
 	{
@@ -27,8 +29,8 @@ namespace MathAnim
 	namespace GizmoManager
 	{
 		void init();
-		void update(AnimationManagerData* am);
-		void render(const Framebuffer& framebuffer);
+		void update(AnimationManagerData* am, const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera);
+		void render();
 		void free();
 
 		bool anyGizmoActive();

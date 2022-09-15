@@ -3,6 +3,8 @@
 
 namespace MathAnim
 {
+	// TODO: Cache these values and make this const by separating
+	// calculations from getting the matrices
 	glm::mat4 PerspectiveCamera::calculateViewMatrix()
 	{
 		glm::vec3 direction;

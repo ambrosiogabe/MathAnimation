@@ -1,5 +1,5 @@
-#ifndef MATH_ANIM_COLORS_H
-#define MATH_ANIM_COLORS_H
+#ifndef MATH_ANIM_CORE_COLORS_H
+#define MATH_ANIM_CORE_COLORS_H
 #include "core.h"
 
 namespace MathAnim

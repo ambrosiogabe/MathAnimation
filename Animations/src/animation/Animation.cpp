@@ -1044,7 +1044,8 @@ namespace MathAnim
 			g_logger_warning("TODO: Implement me");
 			break;
 		case AnimTypeV1::CameraMoveTo:
-			Renderer::getMutableOrthoCamera()->position = animation->as.modifyVec2.target;
+			//Renderer::getMutableOrthoCamera()->position = animation->as.modifyVec2.target;
+			g_logger_warning("TODO: Implement me");
 			break;
 		default:
 			// TODO: Add magic_enum

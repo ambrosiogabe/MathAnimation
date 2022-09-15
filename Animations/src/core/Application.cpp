@@ -4,6 +4,7 @@
 #include "core/Input.h"
 #include "core/GladLayer.h"
 #include "core/ImGuiLayer.h"
+#include "core/Colors.h"
 #include "renderer/Renderer.h"
 #include "renderer/OrthoCamera.h"
 #include "renderer/PerspectiveCamera.h"
@@ -11,6 +12,7 @@
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
 #include "renderer/Fonts.h"
+#include "renderer/Colors.h"
 #include "animation/Svg.h"
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
@@ -18,6 +20,8 @@
 #include "editor/EditorGui.h"
 #include "editor/Timeline.h"
 #include "editor/Gizmos.h"
+#include "editor/EditorCameraController.h"
+#include "editor/EditorSettings.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
@@ -51,8 +55,11 @@ namespace MathAnim
 		static GlobalThreadPool* globalThreadPool = nullptr;
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
+		static Framebuffer editorFramebuffer;
 		static OrthoCamera camera2D;
 		static PerspectiveCamera camera3D;
+		static OrthoCamera editorCamera2D;
+		static PerspectiveCamera editorCamera3D;
 		static int absoluteCurrentFrame = -1;
 		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
@@ -72,6 +79,8 @@ namespace MathAnim
 
 			camera2D.position = Vec2{ 0.0f, 0.0f };
 			camera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
+			camera2D.zoom = 1.0f;
+			editorCamera2D = camera2D;
 
 			camera3D.forward = glm::vec3(0, 0, 1);
 			camera3D.fov = 70.0f;
@@ -81,6 +90,7 @@ namespace MathAnim
 				2.5f,
 				10.0f * glm::sin(glm::radians(-camera3D.orientation.y))
 			);
+			editorCamera3D = camera3D;
 
 			Fonts::init();
 			GladLayer::init();
@@ -92,6 +102,7 @@ namespace MathAnim
 			Svg::init(camera2D, camera3D);
 			TextAnimations::init(camera2D);
 			am = AnimationManager::create(camera2D);
+			EditorSettings::init();
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
@@ -103,6 +114,7 @@ namespace MathAnim
 			LaTexLayer::init();
 
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
+			editorFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
 			currentProjectFilepath = projectFile;
 			loadProject(currentProjectFilepath.c_str());
@@ -148,32 +160,37 @@ namespace MathAnim
 				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
 				absolutePrevFrame = absoluteCurrentFrame;
 
-				// Update logic and render to main framebuffer
-				if (!outputVideoFile)
-				{
-					GizmoManager::update(am);
-				}
-
+				// Update systems all systems/collect systems draw calls
+				GizmoManager::update(am, camera2D, camera3D, editorCamera2D);
+				EditorCameraController::updateOrtho(editorCamera2D);
 				// Update Animation logic and collect draw calls
 				AnimationManager::render(am, vg, deltaFrame);
-				// Collect gizmo draw calls
-				if (!outputVideoFile)
+
+				// Render all animation draw calls to main framebuffer
+				bool renderPickingOutline = false;
+				if (EditorGui::mainViewportActive() || outputVideoFile)
 				{
-					GizmoManager::render(mainFramebuffer);
+					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, renderPickingOutline);
 				}
+				// Collect gizmo draw calls
+				GizmoManager::render();
+				// Render all gizmo draw calls and animation draw calls to the editor framebuffer
+				renderPickingOutline = true;
+				if (EditorGui::editorViewportActive())
+				{
+					Renderer::renderToFramebuffer(editorFramebuffer, Colors::Neutral[7], editorCamera2D, editorCamera3D, renderPickingOutline);
+				}
+				Renderer::endFrame();
 
-				// Render all draw calls to main framebuffer
-				Renderer::renderToFramebuffer(mainFramebuffer);
-
-				// Render the main framebuffer to the window
-				mainFramebuffer.unbind();
+				// Bind the window framebuffer and render ImGui results
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
 				glViewport(0, 0, window->width, window->height);
 				Renderer::clearColor(Vec4{ 0, 0, 0, 0 });
 
 				// Do ImGui stuff
 				ImGuiLayer::beginFrame();
 				ImGui::ShowDemoWindow();
-				EditorGui::update(mainFramebuffer, am);
+				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
 				ImGuiLayer::endFrame();
 				Svg::endFrame();
 
@@ -200,7 +217,7 @@ namespace MathAnim
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
 			AnimationManager::render(am, vg, deltaFrame);
-			Renderer::renderToFramebuffer(mainFramebuffer);
+			Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, false);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path currentPath = std::filesystem::path(currentProjectFilepath).parent_path();
 			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
@@ -249,7 +266,11 @@ namespace MathAnim
 
 			saveProject();
 
+			mainFramebuffer.destroy();
+			editorFramebuffer.destroy();
+
 			LaTexLayer::free();
+			EditorSettings::free();
 			EditorGui::free(am);
 			AnimationManager::free(am);
 			nvgDeleteGL3(vg);

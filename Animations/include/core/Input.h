@@ -25,10 +25,13 @@ namespace MathAnim
 		extern float mouseY;
 		extern float deltaMouseX;
 		extern float deltaMouseY;
+		extern float scrollX;
+		extern float scrollY;
 		extern bool keyPressed[GLFW_KEY_LAST + 1];
 
 		void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 		void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+		void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 		void endFrame();
 		
 		void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
