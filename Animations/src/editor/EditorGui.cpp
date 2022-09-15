@@ -5,6 +5,7 @@
 #include "editor/ExportPanel.h"
 #include "editor/SceneHierarchyPanel.h"
 #include "editor/Gizmos.h"
+#include "editor/EditorSettings.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
 #include "core/Input.h"
@@ -51,7 +52,7 @@ namespace MathAnim
 		{
 			// TODO: Do this in a central file
 			checkHotKeys();
-			checkForMousePicking(mainFramebuffer);
+			checkForMousePicking(editorFramebuffer);
 
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
@@ -117,6 +118,7 @@ namespace MathAnim
 			DebugPanel::update();
 			ExportPanel::update();
 			SceneHierarchyPanel::update(am);
+			EditorSettings::imgui();
 		}
 
 		void onGizmo(AnimationManagerData* am)
@@ -180,6 +182,11 @@ namespace MathAnim
 		bool editorViewportActive()
 		{
 			return editorViewportIsActive;
+		}
+
+		bool mouseHoveredEditorViewport()
+		{
+			return mouseHoveringViewport;
 		}
 
 		// ------------- Internal Functions -------------

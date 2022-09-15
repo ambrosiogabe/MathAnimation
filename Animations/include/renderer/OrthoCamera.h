@@ -9,6 +9,7 @@ namespace MathAnim
 	{
 		Vec2 position;
 		Vec2 projectionSize;
+		float zoom;
 
 		glm::mat4 calculateViewMatrix() const;
 		glm::mat4 calculateProjectionMatrix() const;

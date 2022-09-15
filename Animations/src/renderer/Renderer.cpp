@@ -500,6 +500,16 @@ namespace MathAnim
 			drawList2D.addColoredQuad(min, max, Vec4{ color.r, color.g, color.b, color.a }, objId);
 		}
 
+		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform)
+		{
+			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
+			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
+			Vec2 min = { tmpMin.x, tmpMin.y };
+			Vec2 max = { tmpMax.x, tmpMax.y };
+
+			drawList2D.addTexturedQuad(texture, min, max, uvMin, uvMax, objId);
+		}
+
 		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, uint32 objId)
 		{
 			const glm::vec4& color = getColor();
@@ -508,124 +518,83 @@ namespace MathAnim
 
 		void drawLine(const Vec2& start, const Vec2& end)
 		{
-			// TODO: Move this into DrawList2D
-			//CapType lineEnding = lineEndingStackPtr > 0
-			//	? lineEndingStack[lineEndingStackPtr - 1]
-			//	: defaultLineEnding;
-			//if ((lineEnding == CapType::Flat && numVertices + 6 >= maxNumVerticesPerBatch) ||
-			//	(lineEnding == CapType::Arrow && numVertices + 15 >= maxNumVerticesPerBatch))
-			//{
-			//	flushBatch();
-			//}
+			CapType lineEnding = lineEndingStackPtr > 0
+				? lineEndingStack[lineEndingStackPtr - 1]
+				: defaultLineEnding;
 
-			//glm::vec4 vColor = colorStackPtr > 0
-			//	? colorStack[colorStackPtr - 1]
-			//	: defaultColor;
-			//Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
-			//float strokeWidth = strokeWidthStackPtr > 0
-			//	? strokeWidthStack[strokeWidthStackPtr - 1]
-			//	: defaultStrokeWidth;
+			float strokeWidth = strokeWidthStackPtr > 0
+				? strokeWidthStack[strokeWidthStackPtr - 1]
+				: defaultStrokeWidth;
 
-			//Vec2 direction = end - start;
-			//Vec2 normalDirection = CMath::normalize(direction);
-			//Vec2 perpVector = CMath::normalize(Vec2{ normalDirection.y, -normalDirection.x });
+			Vec2 direction = end - start;
+			Vec2 normalDirection = CMath::normalize(direction);
+			Vec2 perpVector = CMath::normalize(Vec2{ normalDirection.y, -normalDirection.x });
 
-			//// Triangle 1
-			//// "Bottom-left" corner of line
-			//vertices[numVertices].position = start + (perpVector * strokeWidth * 0.5f);
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
+			// Triangle 1
+			// "Bottom-left" corner of line
+			Vec2 bottomLeft = start + (perpVector * strokeWidth * 0.5f);
+			Vec2 topRight = bottomLeft + direction - (perpVector * strokeWidth * 0.5f);
+			Vec2 size = topRight - bottomLeft;
+			drawFilledQuad(bottomLeft + size * 0.5f + Vec2{ strokeWidth * 0.5f, strokeWidth * 0.5f }, size);
 
-			//// "Top-Left" corner of line
-			//vertices[numVertices].position = vertices[numVertices - 1].position + direction;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
+			if (lineEnding == CapType::Arrow)
+			{
+				// Add arrow tip
+				Vec2 centerDot = end + (normalDirection * strokeWidth * 0.5f);
+				Vec2 vectorToCenter = CMath::normalize(centerDot - (end - perpVector * strokeWidth * 0.5f));
+				Vec2 oVectorToCenter = CMath::normalize(centerDot - (end + perpVector * strokeWidth * 0.5f));
+				Vec2 bottomLeft = centerDot - vectorToCenter * strokeWidth * 4.0f;
+				Vec2 bottomRight = centerDot - oVectorToCenter * strokeWidth * 4.0f;
+				Vec2 top = centerDot + normalDirection * strokeWidth * 4.0f;
 
-			//// "Top-Right" corner of line
-			//vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * strokeWidth);
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
+				// Left Triangle
+				//vertices[numVertices].position = centerDot;
+				//vertices[numVertices].color = color;
+				//vertices[numVertices].textureId = 0;
+				//numVertices++;
 
-			//// Triangle 2
-			//// "Bottom-left" corner of line
-			//vertices[numVertices].position = start + (perpVector * strokeWidth * 0.5f);
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
+				//vertices[numVertices].position = bottomLeft;
+				//vertices[numVertices].color = color;
+				//vertices[numVertices].textureId = 0;
+				//numVertices++;
 
-			//// "Bottom-Right" corner of line
-			//vertices[numVertices].position = vertices[numVertices - 1].position - (perpVector * strokeWidth);
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
+				//vertices[numVertices].position = top;
+				//vertices[numVertices].color = color;
+				//vertices[numVertices].textureId = 0;
+				//numVertices++;
 
-			//// "Top-Right" corner of line
-			//vertices[numVertices].position = vertices[numVertices - 1].position + direction;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
+				//// Right triangle
+				//vertices[numVertices].position = top;
+				//vertices[numVertices].color = color;
+				//vertices[numVertices].textureId = 0;
+				//numVertices++;
 
-			//if (lineEnding == CapType::Arrow)
-			//{
-			//	// Add arrow tip
-			//	Vec2 centerDot = end + (normalDirection * strokeWidth * 0.5f);
-			//	Vec2 vectorToCenter = CMath::normalize(centerDot - (end - perpVector * strokeWidth * 0.5f));
-			//	Vec2 oVectorToCenter = CMath::normalize(centerDot - (end + perpVector * strokeWidth * 0.5f));
-			//	Vec2 bottomLeft = centerDot - vectorToCenter * strokeWidth * 4.0f;
-			//	Vec2 bottomRight = centerDot - oVectorToCenter * strokeWidth * 4.0f;
-			//	Vec2 top = centerDot + normalDirection * strokeWidth * 4.0f;
+				//vertices[numVertices].position = centerDot;
+				//vertices[numVertices].color = color;
+				//vertices[numVertices].textureId = 0;
+				//numVertices++;
 
-			//	// Left Triangle
-			//	vertices[numVertices].position = centerDot;
-			//	vertices[numVertices].color = color;
-			//	vertices[numVertices].textureId = 0;
-			//	numVertices++;
+				//vertices[numVertices].position = bottomRight;
+				//vertices[numVertices].color = color;
+				//vertices[numVertices].textureId = 0;
+				//numVertices++;
 
-			//	vertices[numVertices].position = bottomLeft;
-			//	vertices[numVertices].color = color;
-			//	vertices[numVertices].textureId = 0;
-			//	numVertices++;
+				//// Center triangle
+				//vertices[numVertices].position = centerDot;
+				//vertices[numVertices].color = color;
+				//vertices[numVertices].textureId = 0;
+				//numVertices++;
 
-			//	vertices[numVertices].position = top;
-			//	vertices[numVertices].color = color;
-			//	vertices[numVertices].textureId = 0;
-			//	numVertices++;
+				//vertices[numVertices].position = end + perpVector * strokeWidth * 0.5f;
+				//vertices[numVertices].color = color;
+				//vertices[numVertices].textureId = 0;
+				//numVertices++;
 
-			//	// Right triangle
-			//	vertices[numVertices].position = top;
-			//	vertices[numVertices].color = color;
-			//	vertices[numVertices].textureId = 0;
-			//	numVertices++;
-
-			//	vertices[numVertices].position = centerDot;
-			//	vertices[numVertices].color = color;
-			//	vertices[numVertices].textureId = 0;
-			//	numVertices++;
-
-			//	vertices[numVertices].position = bottomRight;
-			//	vertices[numVertices].color = color;
-			//	vertices[numVertices].textureId = 0;
-			//	numVertices++;
-
-			//	// Center triangle
-			//	vertices[numVertices].position = centerDot;
-			//	vertices[numVertices].color = color;
-			//	vertices[numVertices].textureId = 0;
-			//	numVertices++;
-
-			//	vertices[numVertices].position = end + perpVector * strokeWidth * 0.5f;
-			//	vertices[numVertices].color = color;
-			//	vertices[numVertices].textureId = 0;
-			//	numVertices++;
-
-			//	vertices[numVertices].position = end - perpVector * strokeWidth * 0.5f;
-			//	vertices[numVertices].color = color;
-			//	vertices[numVertices].textureId = 0;
-			//	numVertices++;
-			//}
+				//vertices[numVertices].position = end - perpVector * strokeWidth * 0.5f;
+				//vertices[numVertices].color = color;
+				//vertices[numVertices].textureId = 0;
+				//numVertices++;
+			}
 		}
 
 		void drawString(const std::string& string, const Vec2& start, uint32 objId)
@@ -680,50 +649,10 @@ namespace MathAnim
 				float nextX = radius * glm::cos(glm::radians(nextT));
 				float nextY = radius * glm::sin(glm::radians(nextT));
 
-				drawFilledTriangle(position, position + Vec2{ x, y }, position + Vec2{ nextX, nextY });
+				drawFilledTri(position, position + Vec2{ x, y }, position + Vec2{ nextX, nextY });
 
 				t += sectorSize;
 			}
-		}
-
-		void drawFilledTriangle(const Vec2& p0, const Vec2& p1, const Vec2& p2)
-		{
-			// TODO: Move this into DrawList2D
-
-			//if (numVertices + 3 >= maxNumVerticesPerBatch)
-			//{
-			//	flushBatch();
-			//}
-
-			//glm::vec4 vColor = colorStackPtr > 0
-			//	? colorStack[colorStackPtr - 1]
-			//	: defaultColor;
-			//Vec4 color = Vec4{ vColor.r, vColor.g, vColor.g, vColor.a };
-
-			//vertices[numVertices].position = p0;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
-
-			//vertices[numVertices].position = p1;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
-
-			//vertices[numVertices].position = p2;
-			//vertices[numVertices].color = color;
-			//vertices[numVertices].textureId = 0;
-			//numVertices++;
-		}
-
-		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform)
-		{
-			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
-			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
-			Vec2 min = { tmpMin.x, tmpMin.y };
-			Vec2 max = { tmpMax.x, tmpMax.y };
-
-			drawList2D.addTexturedQuad(texture, min, max, uvMin, uvMax, objId);
 		}
 
 		// ----------- 3D stuff ----------- 

@@ -9,13 +9,15 @@ namespace MathAnim
 		float mouseY = 0;
 		float deltaMouseX = 0;
 		float deltaMouseY = 0;
+		float scrollX = 0;
+		float scrollY = 0;
 
 		bool keyPressed[GLFW_KEY_LAST + 1];
 
 		// ----------- Internal Variables -----------
-		static float mLastMouseX;
-		static float mLastMouseY;
-		static bool mFirstMouse = true;
+		static float lastMouseX;
+		static float lastMouseY;
+		static bool firstMouse = true;
 		static bool mouseButtonDownLastFrame[(uint8)MouseButton::Length];
 		static bool mouseButtonDown[(uint8)MouseButton::Length];
 		static bool mouseButtonUp[(uint8)MouseButton::Length];
@@ -24,17 +26,17 @@ namespace MathAnim
 		{
 			mouseX = (float)xpos;
 			mouseY = (float)ypos;
-			if (mFirstMouse)
+			if (firstMouse)
 			{
-				mLastMouseX = (float)xpos;
-				mLastMouseY = (float)ypos;
-				mFirstMouse = false;
+				lastMouseX = (float)xpos;
+				lastMouseY = (float)ypos;
+				firstMouse = false;
 			}
 
-			deltaMouseX = (float)xpos - mLastMouseX;
-			deltaMouseY = mLastMouseY - (float)ypos;
-			mLastMouseX = (float)xpos;
-			mLastMouseY = (float)ypos;
+			deltaMouseX = (float)xpos - lastMouseX;
+			deltaMouseY = lastMouseY - (float)ypos;
+			lastMouseX = (float)xpos;
+			lastMouseY = (float)ypos;
 		}
 
 		void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
@@ -43,12 +45,20 @@ namespace MathAnim
 			mouseButtonUp[button] = action == GLFW_RELEASE;
 		}
 
+		void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+		{
+			scrollX = (float)xoffset;
+			scrollY = (float)yoffset;
+		}
+
 		void endFrame()
 		{
 			// Copy the mouse button down states to mouse button down last frame
 			g_memory_copyMem(mouseButtonDownLastFrame, mouseButtonDown, sizeof(bool) * (uint8)MouseButton::Length);
 			deltaMouseX = 0;
 			deltaMouseY = 0;
+			scrollX = 0;
+			scrollY = 0;
 		}
 
 		void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)

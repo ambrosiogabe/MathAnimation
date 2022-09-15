@@ -20,6 +20,8 @@
 #include "editor/EditorGui.h"
 #include "editor/Timeline.h"
 #include "editor/Gizmos.h"
+#include "editor/EditorCameraController.h"
+#include "editor/EditorSettings.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
@@ -77,6 +79,7 @@ namespace MathAnim
 
 			camera2D.position = Vec2{ 0.0f, 0.0f };
 			camera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
+			camera2D.zoom = 1.0f;
 			editorCamera2D = camera2D;
 
 			camera3D.forward = glm::vec3(0, 0, 1);
@@ -99,6 +102,7 @@ namespace MathAnim
 			Svg::init(camera2D, camera3D);
 			TextAnimations::init(camera2D);
 			am = AnimationManager::create(camera2D);
+			EditorSettings::init();
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
@@ -156,8 +160,9 @@ namespace MathAnim
 				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
 				absolutePrevFrame = absoluteCurrentFrame;
 
-				// Update logic and render to main framebuffer
-				GizmoManager::update(am);
+				// Update systems all systems/collect systems draw calls
+				GizmoManager::update(am, camera2D, camera3D, editorCamera2D);
+				EditorCameraController::updateOrtho(editorCamera2D);
 				// Update Animation logic and collect draw calls
 				AnimationManager::render(am, vg, deltaFrame);
 
@@ -265,6 +270,7 @@ namespace MathAnim
 			editorFramebuffer.destroy();
 
 			LaTexLayer::free();
+			EditorSettings::free();
 			EditorGui::free(am);
 			AnimationManager::free(am);
 			nvgDeleteGL3(vg);

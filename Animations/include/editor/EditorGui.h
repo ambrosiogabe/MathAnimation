@@ -24,6 +24,7 @@ namespace MathAnim
 
 		bool mainViewportActive();
 		bool editorViewportActive();
+		bool mouseHoveredEditorViewport();
 	}
 }
 

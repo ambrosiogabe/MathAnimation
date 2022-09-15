@@ -36,6 +36,7 @@ namespace MathAnim
 		glfwSetCursorPosCallback((GLFWwindow*)windowPtr, Input::mouseCallback);
 		glfwSetKeyCallback((GLFWwindow*)windowPtr, Input::keyCallback);
 		glfwSetMouseButtonCallback((GLFWwindow*)windowPtr, Input::mouseButtonCallback);
+		glfwSetScrollCallback((GLFWwindow*)windowPtr, Input::scrollCallback);
 		glfwSetFramebufferSizeCallback((GLFWwindow*)windowPtr, resizeCallback);
 	}
 

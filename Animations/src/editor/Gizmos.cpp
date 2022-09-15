@@ -3,6 +3,8 @@
 #include "animation/AnimationManager.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Renderer.h"
+#include "renderer/OrthoCamera.h"
+#include "renderer/PerspectiveCamera.h"
 #include "core/Colors.h"
 #include "core/Input.h"
 #include "core/Application.h"
@@ -65,12 +67,19 @@ namespace MathAnim
 			gGizmoManager->activeGizmo = UINT64_MAX;
 		}
 
-		void update(AnimationManagerData* am)
+		void update(AnimationManagerData* am, const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera)
 		{
 			GlobalContext* g = gGizmoManager;
 			g->lastActiveGizmo = g->activeGizmo;
 
 			EditorGui::onGizmo(am);
+
+			// Draw camera outlines
+			Renderer::pushStrokeWidth(0.05f);
+			Renderer::pushColor(Colors::Neutral[0]);
+			Renderer::drawSquare(orthoCamera.position - orthoCamera.projectionSize / 2.0f, orthoCamera.projectionSize);
+			Renderer::popColor();
+			Renderer::popStrokeWidth();
 		}
 
 		void render()
