@@ -161,7 +161,7 @@ namespace MathAnim
 				absolutePrevFrame = absoluteCurrentFrame;
 
 				// Update systems all systems/collect systems draw calls
-				GizmoManager::update(am, camera2D, camera3D, editorCamera2D);
+				GizmoManager::update(am);
 				EditorCameraController::updateOrtho(editorCamera2D);
 				// Update Animation logic and collect draw calls
 				AnimationManager::render(am, vg, deltaFrame);
@@ -173,7 +173,7 @@ namespace MathAnim
 					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, renderPickingOutline);
 				}
 				// Collect gizmo draw calls
-				GizmoManager::render();
+				GizmoManager::render(camera2D, camera3D, editorCamera2D);
 				// Render all gizmo draw calls and animation draw calls to the editor framebuffer
 				renderPickingOutline = true;
 				if (EditorGui::editorViewportActive())

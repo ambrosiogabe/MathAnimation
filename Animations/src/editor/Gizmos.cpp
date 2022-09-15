@@ -67,22 +67,15 @@ namespace MathAnim
 			gGizmoManager->activeGizmo = UINT64_MAX;
 		}
 
-		void update(AnimationManagerData* am, const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera)
+		void update(AnimationManagerData* am)
 		{
 			GlobalContext* g = gGizmoManager;
 			g->lastActiveGizmo = g->activeGizmo;
 
 			EditorGui::onGizmo(am);
-
-			// Draw camera outlines
-			Renderer::pushStrokeWidth(0.05f);
-			Renderer::pushColor(Colors::Neutral[0]);
-			Renderer::drawSquare(orthoCamera.position - orthoCamera.projectionSize / 2.0f, orthoCamera.projectionSize);
-			Renderer::popColor();
-			Renderer::popStrokeWidth();
 		}
 
-		void render()
+		void render(const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera)
 		{
 			// Render call stuff
 			GlobalContext* g = gGizmoManager;
@@ -100,6 +93,13 @@ namespace MathAnim
 			{
 				iter->wasUpdated = false;
 			}
+
+			// Draw camera outlines
+			Renderer::pushStrokeWidth(0.05f);
+			Renderer::pushColor(Colors::Neutral[0]);
+			Renderer::drawSquare(orthoCamera.position - orthoCamera.projectionSize / 2.0f, orthoCamera.projectionSize);
+			Renderer::popColor();
+			Renderer::popStrokeWidth();
 		}
 
 		void free()

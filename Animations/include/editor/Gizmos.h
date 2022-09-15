@@ -29,8 +29,8 @@ namespace MathAnim
 	namespace GizmoManager
 	{
 		void init();
-		void update(AnimationManagerData* am, const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera);
-		void render();
+		void update(AnimationManagerData* am);
+		void render(const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera);
 		void free();
 
 		bool anyGizmoActive();
