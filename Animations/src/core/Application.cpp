@@ -409,9 +409,9 @@ namespace MathAnim
 			outputVideoFile = false;
 		}
 
-		OrthoCamera* getCamera()
+		OrthoCamera* getEditorCamera()
 		{
-			return &camera2D;
+			return &editorCamera2D;
 		}
 
 		NVGcontext* getNvgContext()

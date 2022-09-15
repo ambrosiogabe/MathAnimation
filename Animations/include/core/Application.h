@@ -43,7 +43,7 @@ namespace MathAnim
 		void endExport();
 
 		// TODO: Ugly hack
-		OrthoCamera* getCamera();
+		OrthoCamera* getEditorCamera();
 
 		NVGcontext* getNvgContext();
 		GlobalThreadPool* threadPool();

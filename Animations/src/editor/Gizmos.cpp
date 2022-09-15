@@ -191,7 +191,7 @@ namespace MathAnim
 					// Handle mouse dragging
 					// Transform the position passed in to the current mouse position
 					Vec2 newPos = EditorGui::mouseToNormalizedViewport();
-					OrthoCamera* camera = Application::getCamera();
+					OrthoCamera* camera = Application::getEditorCamera();
 					newPos = camera->reverseProject(newPos);
 					if (g->hotGizmoVariant == GizmoVariant::Free)
 					{
@@ -267,7 +267,7 @@ namespace MathAnim
 		static bool isMouseHovered(const Vec2& centerPosition, const Vec2& size)
 		{
 			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
-			OrthoCamera* camera = Application::getCamera();
+			OrthoCamera* camera = Application::getEditorCamera();
 			Vec2 worldCoords = camera->reverseProject(normalizedMousePos);
 			Vec2 bottomLeft = centerPosition - (size / 2.0f);
 
