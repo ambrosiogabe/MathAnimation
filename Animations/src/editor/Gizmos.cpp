@@ -67,22 +67,15 @@ namespace MathAnim
 			gGizmoManager->activeGizmo = UINT64_MAX;
 		}
 
-		void update(AnimationManagerData* am, const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera)
+		void update(AnimationManagerData* am)
 		{
 			GlobalContext* g = gGizmoManager;
 			g->lastActiveGizmo = g->activeGizmo;
 
 			EditorGui::onGizmo(am);
-
-			// Draw camera outlines
-			Renderer::pushStrokeWidth(0.05f);
-			Renderer::pushColor(Colors::Neutral[0]);
-			Renderer::drawSquare(orthoCamera.position - orthoCamera.projectionSize / 2.0f, orthoCamera.projectionSize);
-			Renderer::popColor();
-			Renderer::popStrokeWidth();
 		}
 
-		void render()
+		void render(const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera)
 		{
 			// Render call stuff
 			GlobalContext* g = gGizmoManager;
@@ -100,6 +93,13 @@ namespace MathAnim
 			{
 				iter->wasUpdated = false;
 			}
+
+			// Draw camera outlines
+			Renderer::pushStrokeWidth(0.05f);
+			Renderer::pushColor(Colors::Neutral[0]);
+			Renderer::drawSquare(orthoCamera.position - orthoCamera.projectionSize / 2.0f, orthoCamera.projectionSize);
+			Renderer::popColor();
+			Renderer::popStrokeWidth();
 		}
 
 		void free()
@@ -191,7 +191,7 @@ namespace MathAnim
 					// Handle mouse dragging
 					// Transform the position passed in to the current mouse position
 					Vec2 newPos = EditorGui::mouseToNormalizedViewport();
-					OrthoCamera* camera = Application::getCamera();
+					OrthoCamera* camera = Application::getEditorCamera();
 					newPos = camera->reverseProject(newPos);
 					if (g->hotGizmoVariant == GizmoVariant::Free)
 					{
@@ -267,7 +267,7 @@ namespace MathAnim
 		static bool isMouseHovered(const Vec2& centerPosition, const Vec2& size)
 		{
 			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
-			OrthoCamera* camera = Application::getCamera();
+			OrthoCamera* camera = Application::getEditorCamera();
 			Vec2 worldCoords = camera->reverseProject(normalizedMousePos);
 			Vec2 bottomLeft = centerPosition - (size / 2.0f);
 

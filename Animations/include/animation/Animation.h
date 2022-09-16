@@ -114,6 +114,10 @@ namespace MathAnim
 		//      beginning of the animation and 1 is the end of the
 		//      animation
 		void applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t = 1.0) const;
+
+		// Render the gizmo with relation to this object
+		void onGizmo(const AnimObject* obj);
+		// Render the gizmo for this animation with no relation to it's child objects
 		void onGizmo();
 
 		void free();

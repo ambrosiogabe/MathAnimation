@@ -30,7 +30,7 @@ namespace MathAnim
 		glm::mat4 inverseView = glm::inverse(calculateViewMatrix());
 		glm::mat4 inverseProj = glm::inverse(calculateProjectionMatrix());
 		glm::vec4 res = glm::vec4(ndcCoords.x, ndcCoords.y, 0.0f, 1.0f);
-		res = res * inverseView * inverseProj;
+		res = inverseView * inverseProj * res;
 		return Vec2{ res.x, res.y };
 	}
 }
