@@ -19,6 +19,8 @@ namespace MathAnim
 	static Animation deserializeAnimationExV1(RawMemory& memory);
 	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation);
 
+	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
+
 	// ----------------------------- Animation Functions -----------------------------
 	//static void renderAnimationFromObj(AnimationManagerData* am, NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation);
 	//void Animation::render(AnimationManagerData* am, NVGcontext* vg, float t) const
@@ -181,7 +183,36 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeWidth:
 			break;
 		case AnimTypeV1::MoveTo:
-			// TODO: Render and handle move gizmo to logic
+			onMoveToGizmo(nullptr, this);
+			break;
+		case AnimTypeV1::RotateTo:
+			// TODO: Render and handle rotate gizmo logic
+			break;
+		case AnimTypeV1::CameraMoveTo:
+			// TODO: Render and handle move to gizmo logic
+			break;
+		default:
+			g_logger_info("Unknown animation: %d", type);
+			break;
+		}
+	}
+
+	void Animation::onGizmo(const AnimObject* obj)
+	{
+		switch (type)
+		{
+		case AnimTypeV1::Create:
+		case AnimTypeV1::UnCreate:
+		case AnimTypeV1::FadeIn:
+		case AnimTypeV1::FadeOut:
+		case AnimTypeV1::WriteInText:
+		case AnimTypeV1::Transform:
+		case AnimTypeV1::AnimateStrokeColor:
+		case AnimTypeV1::AnimateFillColor:
+		case AnimTypeV1::AnimateStrokeWidth:
+			break;
+		case AnimTypeV1::MoveTo:
+			onMoveToGizmo(nullptr, this);
 			break;
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
@@ -1053,5 +1084,12 @@ namespace MathAnim
 			g_logger_info("Unknown animation: %d", animation->type);
 			break;
 		}
+	}
+
+	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim)
+	{
+		// TODO: Render and handle 2D gizmo logic based on edit mode
+		std::string gizmoName = "Move_To_" + std::to_string(anim->id);
+		GizmoManager::translateGizmo(gizmoName.c_str(), &anim->as.modifyVec3.target, GizmoVariant::Free);
 	}
 }

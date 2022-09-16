@@ -491,6 +491,23 @@ namespace MathAnim
 			return am->animations;
 		}
 
+		std::vector<int32> getAssociatedAnimations(const AnimationManagerData* am, const AnimObject* obj)
+		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			std::vector<int32> res;
+			for (auto anim : am->animations)
+			{
+				auto iter = std::find(anim.animObjectIds.begin(), anim.animObjectIds.end(), obj->id);
+				if (iter != anim.animObjectIds.end())
+				{
+					res.push_back(anim.id);
+				}
+			}
+
+			return res;
+		}
+
 		RawMemory serialize(const AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");

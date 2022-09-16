@@ -128,6 +128,17 @@ namespace MathAnim
 			if (activeAnimObject)
 			{
 				activeAnimObject->onGizmo();
+
+				// Render any animations that contain this object
+				std::vector<int32> animations = AnimationManager::getAssociatedAnimations(am, activeAnimObject);
+				for (int32 animId : animations)
+				{
+					Animation* animation = AnimationManager::getMutableAnimation(am, animId);
+					if (animation)
+					{
+						animation->onGizmo();
+					}
+				}
 			}
 
 			int activeAnimationId = Timeline::getActiveAnimation();
