@@ -49,6 +49,8 @@ namespace MathAnim
 			Bezier2 bezier2;
 			Bezier3 bezier3;
 		} as;
+
+		float calculateApproximatePerimeter() const;
 	};
 
 	struct Path
@@ -57,6 +59,8 @@ namespace MathAnim
 		int numCurves;
 		int maxCapacity;
 		bool isHole;
+
+		float calculateApproximatePerimeter() const;
 	};
 
 	struct SvgObject

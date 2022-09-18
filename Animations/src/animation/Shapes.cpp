@@ -23,6 +23,7 @@ namespace MathAnim
 		Svg::lineTo(parent->_svgObjectStart, { sideLength / 2.0f, sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { sideLength / 2.0f, -sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
+		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 4.0f });
 		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
 		Svg::closePath(parent->_svgObjectStart);
 
