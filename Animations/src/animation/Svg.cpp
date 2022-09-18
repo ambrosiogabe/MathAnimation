@@ -24,10 +24,9 @@ namespace MathAnim
 		static OrthoCamera* orthoCamera;
 		static PerspectiveCamera* perspCamera;
 		static Vec2 cursor;
-		static bool moveToP0 = false;
 
 		// ----------------- Internal functions -----------------
-		static void checkResize(Contour& contour);
+		static void checkResize(Path& path);
 		static void render2DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
 		static void generateSvgCache(uint32 width, uint32 height);
 
@@ -37,8 +36,8 @@ namespace MathAnim
 			res.approximatePerimeter = 0.0f;
 			// Dummy allocation to allow memory tracking when reallocing 
 			// TODO: Fix the dang memory allocation library so I don't have to do this!
-			res.contours = (Contour*)g_memory_allocate(sizeof(Contour));
-			res.numContours = 0;
+			res.paths = (Path*)g_memory_allocate(sizeof(Path));
+			res.numPaths = 0;
 			return res;
 		}
 
@@ -200,33 +199,44 @@ namespace MathAnim
 			group->normalize();
 		}
 
-		void beginContour(SvgObject* object, const Vec2& firstPoint)
+		void beginPath(SvgObject* object, const Vec2& firstPoint, bool isAbsolute)
 		{
-			object->numContours++;
-			object->contours = (Contour*)g_memory_realloc(object->contours, sizeof(Contour) * object->numContours);
-			g_logger_assert(object->contours != nullptr, "Ran out of RAM.");
+			if (!isAbsolute)
+			{
+				g_logger_assert(object->numPaths > 0, "Cannot have non-absolute beginPath without prior paths.");
+			}
 
-			object->contours[object->numContours - 1].maxCapacity = initialMaxCapacity;
-			object->contours[object->numContours - 1].curves = (Curve*)g_memory_allocate(sizeof(Curve) * initialMaxCapacity);
-			object->contours[object->numContours - 1].numCurves = 0;
-			object->contours[object->numContours - 1].isHole = false;
+			object->numPaths++;
+			object->paths = (Path*)g_memory_realloc(object->paths, sizeof(Path) * object->numPaths);
+			g_logger_assert(object->paths != nullptr, "Ran out of RAM.");
 
-			object->contours[object->numContours - 1].curves[0].p0 = firstPoint;
-			cursor = firstPoint;
-			moveToP0 = false;
+			object->paths[object->numPaths - 1].maxCapacity = initialMaxCapacity;
+			object->paths[object->numPaths - 1].curves = (Curve*)g_memory_allocate(sizeof(Curve) * initialMaxCapacity);
+			object->paths[object->numPaths - 1].numCurves = 0;
+			object->paths[object->numPaths - 1].isHole = false;
+
+			if (isAbsolute)
+			{
+				cursor = firstPoint;
+			}
+			else
+			{
+				cursor = firstPoint + cursor;
+			}
+			object->paths[object->numPaths - 1].curves[0].p0 = cursor;
 		}
 
-		void closeContour(SvgObject* object, bool lineToEndpoint, bool isHole)
+		void closePath(SvgObject* object, bool lineToEndpoint, bool isHole)
 		{
-			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot close contour when no contour exists.");
-			g_logger_assert(object->contours[object->numContours - 1].numCurves > 0, "contour->numCurves == 0. Cannot close contour with 0 vertices. There must be at least one vertex to close a contour.");
+			g_logger_assert(object->numPaths > 0, "object->numContours == 0. Cannot close contour when no contour exists.");
+			g_logger_assert(object->paths[object->numPaths - 1].numCurves > 0, "contour->numCurves == 0. Cannot close contour with 0 vertices. There must be at least one vertex to close a contour.");
 
-			object->contours[object->numContours - 1].isHole = isHole;
+			object->paths[object->numPaths - 1].isHole = isHole;
 			if (lineToEndpoint)
 			{
-				if (object->contours[object->numContours - 1].numCurves > 0)
+				if (object->paths[object->numPaths - 1].numCurves > 0)
 				{
-					Vec2 firstPoint = object->contours[object->numContours - 1].curves[0].p0;
+					Vec2 firstPoint = object->paths[object->numPaths - 1].curves[0].p0;
 					lineTo(object, firstPoint, true);
 				}
 			}
@@ -237,33 +247,34 @@ namespace MathAnim
 		void moveTo(SvgObject* object, const Vec2& point, bool absolute)
 		{
 			// If no object has started, begin the object here
-			if (object->numContours == 0)
+			if (object->numPaths == 0)
 			{
-				beginContour(object, point);
+				beginPath(object, point);
 				absolute = true;
-				moveToP0 = false;
 			}
 			else
 			{
+				// Otherwise begin a new path and close the old path
+				// TODO: Should this close the old path with a lineto?
+				bool isHole = object->numPaths > 1;
+				closePath(object, true, isHole);
 				cursor = absolute ? point : cursor + point;
-				moveToP0 = true;
+				beginPath(object, cursor);
 			}
 		}
 
 		void lineTo(SvgObject* object, const Vec2& point, bool absolute)
 		{
-			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a lineTo when no contour exists.");
-			Contour& contour = object->contours[object->numContours - 1];
-			contour.numCurves++;
-			checkResize(contour);
+			g_logger_assert(object->numPaths > 0, "object->numPaths == 0. Cannot create a lineTo when no path exists.");
+			Path& path = object->paths[object->numPaths - 1];
+			path.numCurves++;
+			checkResize(path);
 
-			contour.curves[contour.numCurves - 1].p0 = cursor;
-			contour.curves[contour.numCurves - 1].as.line.p1 = absolute ? point : point + cursor;
-			contour.curves[contour.numCurves - 1].type = CurveType::Line;
-			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
+			path.curves[path.numCurves - 1].p0 = cursor;
+			path.curves[path.numCurves - 1].as.line.p1 = absolute ? point : point + cursor;
+			path.curves[path.numCurves - 1].type = CurveType::Line;
 
-			cursor = contour.curves[contour.numCurves - 1].as.line.p1;
-			moveToP0 = false;
+			cursor = path.curves[path.numCurves - 1].as.line.p1;
 		}
 
 		void hzLineTo(SvgObject* object, float xPoint, bool absolute)
@@ -284,112 +295,100 @@ namespace MathAnim
 
 		void bezier2To(SvgObject* object, const Vec2& control, const Vec2& dest, bool absolute)
 		{
-			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier2To when no contour exists.");
-			Contour& contour = object->contours[object->numContours - 1];
-			contour.numCurves++;
-			checkResize(contour);
+			g_logger_assert(object->numPaths > 0, "object->numPaths == 0. Cannot create a bezier2To when no path exists.");
+			Path& path = object->paths[object->numPaths - 1];
+			path.numCurves++;
+			checkResize(path);
 
-			contour.curves[contour.numCurves - 1].p0 = cursor;
+			path.curves[path.numCurves - 1].p0 = cursor;
 
-			contour.curves[contour.numCurves - 1].as.bezier2.p1 = absolute ? control : control + cursor;
-			cursor = contour.curves[contour.numCurves - 1].as.bezier2.p1;
+			path.curves[path.numCurves - 1].as.bezier2.p1 = absolute ? control : control + cursor;
+			cursor = path.curves[path.numCurves - 1].as.bezier2.p1;
 
-			contour.curves[contour.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + cursor;
-			cursor = contour.curves[contour.numCurves - 1].as.bezier2.p2;
+			path.curves[path.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + cursor;
+			cursor = path.curves[path.numCurves - 1].as.bezier2.p2;
 
-			contour.curves[contour.numCurves - 1].type = CurveType::Bezier2;
-			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
-
-			moveToP0 = false;
+			path.curves[path.numCurves - 1].type = CurveType::Bezier2;
 		}
 
 		void bezier3To(SvgObject* object, const Vec2& control0, const Vec2& control1, const Vec2& dest, bool absolute)
 		{
-			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier3To when no contour exists.");
-			Contour& contour = object->contours[object->numContours - 1];
-			contour.numCurves++;
-			checkResize(contour);
+			g_logger_assert(object->numPaths > 0, "object->numPaths == 0. Cannot create a bezier3To when no path exists.");
+			Path& path = object->paths[object->numPaths - 1];
+			path.numCurves++;
+			checkResize(path);
 
-			contour.curves[contour.numCurves - 1].p0 = cursor;
+			path.curves[path.numCurves - 1].p0 = cursor;
 
-			contour.curves[contour.numCurves - 1].as.bezier3.p1 = absolute ? control0 : control0 + cursor;
-			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p1;
+			path.curves[path.numCurves - 1].as.bezier3.p1 = absolute ? control0 : control0 + cursor;
+			cursor = path.curves[path.numCurves - 1].as.bezier3.p1;
 
-			contour.curves[contour.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + cursor;
-			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p2;
+			path.curves[path.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + cursor;
+			cursor = path.curves[path.numCurves - 1].as.bezier3.p2;
 
-			contour.curves[contour.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + cursor;
-			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p3;
+			path.curves[path.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + cursor;
+			cursor = path.curves[path.numCurves - 1].as.bezier3.p3;
 
-			contour.curves[contour.numCurves - 1].type = CurveType::Bezier3;
-			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
-
-			moveToP0 = false;
+			path.curves[path.numCurves - 1].type = CurveType::Bezier3;
 		}
 
 		void smoothBezier2To(SvgObject* object, const Vec2& dest, bool absolute)
 		{
-			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier3To when no contour exists.");
-			Contour& contour = object->contours[object->numContours - 1];
-			contour.numCurves++;
-			checkResize(contour);
+			g_logger_assert(object->numPaths > 0, "object->numPaths == 0. Cannot create a bezier3To when no path exists.");
+			Path& path = object->paths[object->numPaths - 1];
+			path.numCurves++;
+			checkResize(path);
 
-			contour.curves[contour.numCurves - 1].p0 = cursor;
+			path.curves[path.numCurves - 1].p0 = cursor;
 
 			Vec2 control0 = cursor;
-			if (contour.numCurves > 1)
+			if (path.numCurves > 1)
 			{
-				if (contour.curves[contour.numCurves - 2].type == CurveType::Bezier2)
+				if (path.curves[path.numCurves - 2].type == CurveType::Bezier2)
 				{
-					Vec2 prevControl1 = contour.curves[contour.numCurves - 2].as.bezier2.p1;
+					Vec2 prevControl1 = path.curves[path.numCurves - 2].as.bezier2.p1;
 					// Reflect the previous c2 about the current cursor
 					control0 = (-1.0f * (prevControl1 - cursor)) + cursor;
 				}
 			}
-			contour.curves[contour.numCurves - 1].as.bezier2.p1 = control0;
-			cursor = contour.curves[contour.numCurves - 1].as.bezier2.p1;
+			path.curves[path.numCurves - 1].as.bezier2.p1 = control0;
+			cursor = path.curves[path.numCurves - 1].as.bezier2.p1;
 
-			contour.curves[contour.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + cursor;
-			cursor = contour.curves[contour.numCurves - 1].as.bezier2.p2;
+			path.curves[path.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + cursor;
+			cursor = path.curves[path.numCurves - 1].as.bezier2.p2;
 
-			contour.curves[contour.numCurves - 1].type = CurveType::Bezier2;
-			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
-
-			moveToP0 = false;
+			path.curves[path.numCurves - 1].type = CurveType::Bezier2;
 		}
 
 		void smoothBezier3To(SvgObject* object, const Vec2& control1, const Vec2& dest, bool absolute)
 		{
-			g_logger_assert(object->numContours > 0, "object->numContours == 0. Cannot create a bezier3To when no contour exists.");
-			Contour& contour = object->contours[object->numContours - 1];
-			contour.numCurves++;
-			checkResize(contour);
+			g_logger_assert(object->numPaths > 0, "object->numPaths == 0. Cannot create a bezier3To when no path exists.");
+			Path& path = object->paths[object->numPaths - 1];
+			path.numCurves++;
+			checkResize(path);
 
-			contour.curves[contour.numCurves - 1].p0 = cursor;
+			path.curves[path.numCurves - 1].p0 = cursor;
 
 			Vec2 control0 = cursor;
-			if (contour.numCurves > 1)
+			if (path.numCurves > 1)
 			{
-				if (contour.curves[contour.numCurves - 2].type == CurveType::Bezier3)
+				if (path.curves[path.numCurves - 2].type == CurveType::Bezier3)
 				{
-					Vec2 prevControl1 = contour.curves[contour.numCurves - 2].as.bezier3.p2;
+					Vec2 prevControl1 = path.curves[path.numCurves - 2].as.bezier3.p2;
 					// Reflect the previous c2 about the current cursor
 					control0 = (-1.0f * (prevControl1 - cursor)) + cursor;
 				}
 			}
-			contour.curves[contour.numCurves - 1].as.bezier3.p1 = control0;
-			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p1;
+			path.curves[path.numCurves - 1].as.bezier3.p1 = control0;
+			cursor = path.curves[path.numCurves - 1].as.bezier3.p1;
 
-			contour.curves[contour.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + cursor;
-			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p2;
+			path.curves[path.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + cursor;
+			cursor = path.curves[path.numCurves - 1].as.bezier3.p2;
 
-			contour.curves[contour.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + cursor;
-			cursor = contour.curves[contour.numCurves - 1].as.bezier3.p3;
+			path.curves[path.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + cursor;
+			cursor = path.curves[path.numCurves - 1].as.bezier3.p3;
 
-			contour.curves[contour.numCurves - 1].type = CurveType::Bezier3;
-			contour.curves[contour.numCurves - 1].moveToP0 = moveToP0;
-
-			moveToP0 = false;
+			path.curves[path.numCurves - 1].type = CurveType::Bezier3;
 		}
 
 		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec2& dst, bool absolute)
@@ -418,184 +417,85 @@ namespace MathAnim
 
 		void copy(SvgObject* dest, const SvgObject* src)
 		{
-			if (dest->numContours != src->numContours)
+			if (dest->numPaths != src->numPaths)
 			{
-				// Free any extra contours the destination has
+				// Free any extra paths the destination has
 				// If the destination has less, this loop doesn't run
-				for (int contouri = src->numContours; contouri < dest->numContours; contouri++)
+				for (int contouri = src->numPaths; contouri < dest->numPaths; contouri++)
 				{
-					g_memory_free(dest->contours[contouri].curves);
-					dest->contours[contouri].curves = nullptr;
-					dest->contours[contouri].numCurves = 0;
-					dest->contours[contouri].maxCapacity = 0;
+					g_memory_free(dest->paths[contouri].curves);
+					dest->paths[contouri].curves = nullptr;
+					dest->paths[contouri].numCurves = 0;
+					dest->paths[contouri].maxCapacity = 0;
 				}
 
 				// Then reallocate memory. If dest had less, this will acquire enough new memory
 				// If dest had more, this will get rid of the extra memory
-				dest->contours = (Contour*)g_memory_realloc(dest->contours, sizeof(Contour) * src->numContours);
+				dest->paths = (Path*)g_memory_realloc(dest->paths, sizeof(Path) * src->numPaths);
 
 				// Go through and initialize the curves for any new curves that were added
-				for (int contouri = dest->numContours; contouri < src->numContours; contouri++)
+				for (int contouri = dest->numPaths; contouri < src->numPaths; contouri++)
 				{
-					dest->contours[contouri].curves = (Curve*)g_memory_allocate(sizeof(Curve) * initialMaxCapacity);
-					dest->contours[contouri].maxCapacity = initialMaxCapacity;
-					dest->contours[contouri].numCurves = 0;
+					dest->paths[contouri].curves = (Curve*)g_memory_allocate(sizeof(Curve) * initialMaxCapacity);
+					dest->paths[contouri].maxCapacity = initialMaxCapacity;
+					dest->paths[contouri].numCurves = 0;
 				}
 
-				// Then set the number of contours equal
-				dest->numContours = src->numContours;
+				// Then set the number of paths equal
+				dest->numPaths = src->numPaths;
 			}
 
-			g_logger_assert(dest->numContours == src->numContours, "How did this happen?");
+			g_logger_assert(dest->numPaths == src->numPaths, "How did this happen?");
 
 			// Finally we can just go through and set all the data equal to each other
-			for (int contouri = 0; contouri < src->numContours; contouri++)
+			for (int pathi = 0; pathi < src->numPaths; pathi++)
 			{
-				Contour& dstContour = dest->contours[contouri];
-				dstContour.numCurves = 0;
+				Path& dstPath = dest->paths[pathi];
+				dstPath.numCurves = 0;
 
-				for (int curvei = 0; curvei < src->contours[contouri].numCurves; curvei++)
+				for (int curvei = 0; curvei < src->paths[pathi].numCurves; curvei++)
 				{
-					const Curve& srcCurve = src->contours[contouri].curves[curvei];
+					const Curve& srcCurve = src->paths[pathi].curves[curvei];
 
-					dstContour.numCurves++;
-					checkResize(dstContour);
+					dstPath.numCurves++;
+					checkResize(dstPath);
 
 					// Copy the data
-					Curve& dstCurve = dstContour.curves[curvei];
+					Curve& dstCurve = dstPath.curves[curvei];
 					dstCurve.p0 = srcCurve.p0;
 					dstCurve.as = srcCurve.as;
 					dstCurve.type = srcCurve.type;
-					dstCurve.moveToP0 = srcCurve.moveToP0;
 				}
 
-				g_logger_assert(dstContour.numCurves == src->contours[contouri].numCurves, "How did this happen?");
+				g_logger_assert(dstPath.numCurves == src->paths[pathi].numCurves, "How did this happen?");
 			}
 
 			dest->calculateApproximatePerimeter();
 			dest->calculateBBox();
 		}
 
-		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t)
+		SvgObject* interpolate(const SvgObject* src, const SvgObject* dst, float t)
 		{
-			render2DInterpolation(vg, animObjectSrc, interpolationSrc, animObjectDst, interpolationDst, t);
-		}
+			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res = Svg::createDefault();
 
-		// ----------------- Internal functions -----------------
-		static void checkResize(Contour& contour)
-		{
-			if (contour.numCurves > contour.maxCapacity)
-			{
-				contour.maxCapacity *= 2;
-				contour.curves = (Curve*)g_memory_realloc(contour.curves, sizeof(Curve) * contour.maxCapacity);
-				g_logger_assert(contour.curves != nullptr, "Ran out of RAM.");
-			}
-		}
-
-		static void render2DInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t)
-		{
-			// Interpolate fill color
-			glm::vec4 fillColorSrc = glm::vec4(
-				(float)animObjectSrc->fillColor.r / 255.0f,
-				(float)animObjectSrc->fillColor.g / 255.0f,
-				(float)animObjectSrc->fillColor.b / 255.0f,
-				(float)animObjectSrc->fillColor.a / 255.0f
-			);
-			glm::vec4 fillColorDst = glm::vec4(
-				(float)animObjectDst->fillColor.r / 255.0f,
-				(float)animObjectDst->fillColor.g / 255.0f,
-				(float)animObjectDst->fillColor.b / 255.0f,
-				(float)animObjectDst->fillColor.a / 255.0f
-			);
-			glm::vec4 fillColorInterp = (fillColorDst - fillColorSrc) * t + fillColorSrc;
-			NVGcolor fillColor = nvgRGBA(
-				(uint8)(fillColorInterp.r * 255.0f),
-				(uint8)(fillColorInterp.g * 255.0f),
-				(uint8)(fillColorInterp.b * 255.0f),
-				(uint8)(fillColorInterp.a * 255.0f)
-			);
-
-			// Interpolate stroke color
-			glm::vec4 strokeColorSrc = glm::vec4(
-				(float)animObjectSrc->strokeColor.r / 255.0f,
-				(float)animObjectSrc->strokeColor.g / 255.0f,
-				(float)animObjectSrc->strokeColor.b / 255.0f,
-				(float)animObjectSrc->strokeColor.a / 255.0f
-			);
-			glm::vec4 strokeColorDst = glm::vec4(
-				(float)animObjectDst->strokeColor.r / 255.0f,
-				(float)animObjectDst->strokeColor.g / 255.0f,
-				(float)animObjectDst->strokeColor.b / 255.0f,
-				(float)animObjectDst->strokeColor.a / 255.0f
-			);
-			glm::vec4 strokeColorInterp = (strokeColorDst - strokeColorSrc) * t + strokeColorSrc;
-			NVGcolor strokeColor = nvgRGBA(
-				(uint8)(strokeColorInterp.r * 255.0f),
-				(uint8)(strokeColorInterp.g * 255.0f),
-				(uint8)(strokeColorInterp.b * 255.0f),
-				(uint8)(strokeColorInterp.a * 255.0f)
-			);
-
-			// Interpolate position
-			const Vec2& dstPos = CMath::vector2From3(animObjectDst->position);
-			const Vec2& srcPos = CMath::vector2From3(animObjectSrc->position);
-			glm::vec2 interpolatedPos = glm::vec2(
-				(dstPos.x - srcPos.x) * t + srcPos.x,
-				(dstPos.y - srcPos.y) * t + srcPos.y
-			);
-
-			// Interpolate rotation
-			const Vec3& dstRotation = animObjectDst->rotation;
-			const Vec3& srcRotation = animObjectSrc->rotation;
-			glm::vec3 interpolatedRotation = glm::vec3(
-				(dstRotation.x - srcRotation.x) * t + srcRotation.x,
-				(dstRotation.x - srcRotation.y) * t + srcRotation.y,
-				(dstRotation.x - srcRotation.z) * t + srcRotation.z
-			);
-
-			// Apply transformations
-			Vec2 cameraCenteredPos = Svg::orthoCamera->projectionSize / 2.0f - Svg::orthoCamera->position;
-			nvgTranslate(vg, interpolatedPos.x - cameraCenteredPos.x, interpolatedPos.y - cameraCenteredPos.y);
-			if (interpolatedRotation.z != 0.0f)
-			{
-				nvgRotate(vg, glm::radians(interpolatedRotation.z));
-			}
-
-			// Interpolate stroke width
-			float dstStrokeWidth = animObjectDst->strokeWidth;
-			if (glm::epsilonEqual(dstStrokeWidth, 0.0f, 0.01f))
-			{
-				dstStrokeWidth = 5.0f;
-			}
-			float srcStrokeWidth = animObjectSrc->strokeWidth;
-			if (glm::epsilonEqual(srcStrokeWidth, 0.0f, 0.01f))
-			{
-				srcStrokeWidth = 5.0f;
-			}
-			float strokeWidth = (dstStrokeWidth - srcStrokeWidth) * t + srcStrokeWidth;
-
-			// If one object has more contours than the other object,
+			// If one object has more paths than the other object,
 			// then we'll just skip every other contour for the object
 			// with less contours and hopefully it looks cool
-			const SvgObject* lessContours = interpolationSrc->numContours <= interpolationDst->numContours
-				? interpolationSrc
-				: interpolationDst;
-			const SvgObject* moreContours = interpolationSrc->numContours > interpolationDst->numContours
-				? interpolationSrc
-				: interpolationDst;
-			int numContoursToSkip = glm::max(moreContours->numContours / lessContours->numContours, 1);
-			int lessContouri = 0;
-			int moreContouri = 0;
-			while (lessContouri < lessContours->numContours)
+			const SvgObject* lessPaths = src->numPaths <= dst->numPaths
+				? src
+				: dst;
+			const SvgObject* morePaths = src->numPaths > dst->numPaths
+				? src
+				: dst;
+			int numPathsToSkip = glm::max(morePaths->numPaths / lessPaths->numPaths, 1);
+			int lessPathi = 0;
+			int morePathi = 0;
+			while (lessPathi < lessPaths->numPaths)
 			{
-				nvgBeginPath(vg);
 
-				nvgFillColor(vg, fillColor);
-				nvgStrokeColor(vg, strokeColor);
-				nvgStrokeWidth(vg, strokeWidth);
-
-				const Contour& lessCurves = lessContours->contours[lessContouri];
-				const Contour& moreCurves = moreContours->contours[moreContouri];
+				const Path& lessCurves = lessPaths->paths[lessPathi];
+				const Path& moreCurves = morePaths->paths[morePathi];
 
 				// It's undefined to interpolate between two contours if one of the contours has no curves
 				bool shouldLoop = moreCurves.numCurves > 0 && lessCurves.numCurves > 0;
@@ -610,7 +510,7 @@ namespace MathAnim
 						(p0b.y - p0a.y) * t + p0a.y
 					};
 
-					nvgMoveTo(vg, interpP0.x, interpP0.y);
+					Svg::beginPath(res, interpP0);
 				}
 
 				int maxNumCurves = glm::max(lessCurves.numCurves, moreCurves.numCurves);
@@ -694,25 +594,41 @@ namespace MathAnim
 					glm::vec2 interpP3 = (p3b - p3a) * t + p3a;
 
 					// Then draw
-					nvgBezierTo(vg,
-						interpP1.x, interpP1.y,
-						interpP2.x, interpP2.y,
-						interpP3.x, interpP3.y);
+					Svg::bezier3To(res,
+						Vec2{ interpP1.x, interpP1.y },
+						Vec2{ interpP2.x, interpP2.y },
+						Vec2{ interpP3.x, interpP3.y }
+					);
 				}
 
-				nvgStroke(vg);
-				nvgFill(vg);
-				nvgClosePath(vg);
-
-				lessContouri++;
-				moreContouri += numContoursToSkip;
-				if (moreContouri >= moreContours->numContours)
+				lessPathi++;
+				morePathi += numPathsToSkip;
+				if (morePathi >= morePaths->numPaths)
 				{
-					moreContouri = moreContours->numContours - 1;
+					morePathi = morePaths->numPaths - 1;
 				}
 			}
 
-			nvgResetTransform(vg);
+			res->calculateApproximatePerimeter();
+			res->calculateBBox();
+
+			return res;
+
+			// TODO: Check if this is necessary
+		errorCase:
+			g_memory_free(res);
+			return nullptr;
+		}
+
+		// ----------------- Internal functions -----------------
+		static void checkResize(Path& path)
+		{
+			if (path.numCurves > path.maxCapacity)
+			{
+				path.maxCapacity *= 2;
+				path.curves = (Curve*)g_memory_realloc(path.curves, sizeof(Curve) * path.maxCapacity);
+				g_logger_assert(path.curves != nullptr, "Ran out of RAM.");
+			}
 		}
 
 		static void generateSvgCache(uint32 width, uint32 height)
@@ -755,11 +671,11 @@ namespace MathAnim
 		Vec2 max = inMax;
 		if (min.x == FLT_MAX && min.y == FLT_MAX && max.x == FLT_MIN && max.y == FLT_MIN)
 		{
-			for (int contouri = 0; contouri < this->numContours; contouri++)
+			for (int pathi = 0; pathi < this->numPaths; pathi++)
 			{
-				for (int curvei = 0; curvei < this->contours[contouri].numCurves; curvei++)
+				for (int curvei = 0; curvei < this->paths[pathi].numCurves; curvei++)
 				{
-					const Curve& curve = contours[contouri].curves[curvei];
+					const Curve& curve = paths[pathi].curves[curvei];
 					const Vec2& p0 = curve.p0;
 
 					min = CMath::min(p0, min);
@@ -811,11 +727,11 @@ namespace MathAnim
 		// Then map everything to a [0.0-1.0] range from there
 		Vec2 hzOutputRange = Vec2{ 0.0f, 1.0f };
 		Vec2 vtOutputRange = Vec2{ 0.0f, 1.0f };
-		for (int contouri = 0; contouri < this->numContours; contouri++)
+		for (int pathi = 0; pathi < this->numPaths; pathi++)
 		{
-			for (int curvei = 0; curvei < this->contours[contouri].numCurves; curvei++)
+			for (int curvei = 0; curvei < this->paths[pathi].numCurves; curvei++)
 			{
-				Curve& curve = contours[contouri].curves[curvei];
+				Curve& curve = paths[pathi].curves[curvei];
 				curve.p0.x = CMath::mapRange(Vec2{ min.x, max.x }, hzOutputRange, curve.p0.x);
 				curve.p0.y = CMath::mapRange(Vec2{ min.y, max.y }, vtOutputRange, curve.p0.y);
 
@@ -858,11 +774,11 @@ namespace MathAnim
 	{
 		approximatePerimeter = 0.0f;
 
-		for (int contouri = 0; contouri < this->numContours; contouri++)
+		for (int pathi = 0; pathi < this->numPaths; pathi++)
 		{
-			for (int curvei = 0; curvei < this->contours[contouri].numCurves; curvei++)
+			for (int curvei = 0; curvei < this->paths[pathi].numCurves; curvei++)
 			{
-				const Curve& curve = contours[contouri].curves[curvei];
+				const Curve& curve = paths[pathi].curves[curvei];
 				const Vec2& p0 = curve.p0;
 
 				switch (curve.type)
@@ -906,13 +822,13 @@ namespace MathAnim
 		bbox.max.x = FLT_MIN;
 		bbox.max.y = FLT_MIN;
 
-		for (int contouri = 0; contouri < numContours; contouri++)
+		for (int pathi = 0; pathi < numPaths; pathi++)
 		{
-			if (contours[contouri].numCurves > 0)
+			if (paths[pathi].numCurves > 0)
 			{
-				for (int curvei = 0; curvei < contours[contouri].numCurves; curvei++)
+				for (int curvei = 0; curvei < paths[pathi].numCurves; curvei++)
 				{
-					const Curve& curve = contours[contouri].curves[curvei];
+					const Curve& curve = paths[pathi].curves[curvei];
 					Vec2 p0 = Vec2{ curve.p0.x, curve.p0.y };
 
 					switch (curve.type)
@@ -1074,22 +990,22 @@ namespace MathAnim
 
 	void SvgObject::free()
 	{
-		for (int contouri = 0; contouri < numContours; contouri++)
+		for (int pathi = 0; pathi < numPaths; pathi++)
 		{
-			if (contours[contouri].curves)
+			if (paths[pathi].curves)
 			{
-				g_memory_free(contours[contouri].curves);
+				g_memory_free(paths[pathi].curves);
 			}
-			contours[contouri].numCurves = 0;
-			contours[contouri].maxCapacity = 0;
+			paths[pathi].numCurves = 0;
+			paths[pathi].maxCapacity = 0;
 		}
 
-		if (contours)
+		if (paths)
 		{
-			g_memory_free(contours);
+			g_memory_free(paths);
 		}
 
-		numContours = 0;
+		numPaths = 0;
 		approximatePerimeter = 0.0f;
 	}
 
@@ -1377,15 +1293,15 @@ namespace MathAnim
 		Vec2 outXRange = Vec2{ minCoord.x, maxCoord.x };
 		Vec2 outYRange = Vec2{ minCoord.y, maxCoord.y };
 
-		if (lengthToDraw > 0)
+		if (lengthToDraw > 0 && obj->numPaths > 0)
 		{
 			float lengthDrawn = 0.0f;
-			for (int contouri = 0; contouri < obj->numContours; contouri++)
-			{
-				if (obj->contours[contouri].numCurves > 0)
-				{
-					nvgBeginPath(vg);
+			nvgBeginPath(vg);
 
+			for (int pathi = 0; pathi < obj->numPaths; pathi++)
+			{
+				if (obj->paths[pathi].numCurves > 0)
+				{
 					// Fade the stroke out as the svg fades in
 					const glm::u8vec4& strokeColor = parent->strokeColor;
 					if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
@@ -1400,7 +1316,7 @@ namespace MathAnim
 					}
 
 					{
-						Vec2 p0 = obj->contours[contouri].curves[0].p0;
+						Vec2 p0 = obj->paths[pathi].curves[0].p0;
 						p0.x *= parent->svgScale;
 						p0.y *= parent->svgScale;
 						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
@@ -1412,7 +1328,7 @@ namespace MathAnim
 						);
 					}
 
-					for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
+					for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
 					{
 						float lengthLeft = lengthToDraw - lengthDrawn;
 						if (lengthLeft < 0.0f)
@@ -1420,18 +1336,8 @@ namespace MathAnim
 							break;
 						}
 
-						const Curve& curve = obj->contours[contouri].curves[curvei];
+						const Curve& curve = obj->paths[pathi].curves[curvei];
 						Vec2 p0 = curve.p0;
-
-						if (curve.moveToP0)
-						{
-							Vec2 transformedP0 = p0;
-							transformedP0.x *= parent->svgScale;
-							transformedP0.y *= parent->svgScale;
-							transformedP0.x = CMath::mapRange(inXRange, outXRange, transformedP0.x);
-							transformedP0.y = CMath::mapRange(inYRange, outYRange, transformedP0.y);
-							nvgMoveTo(vg, transformedP0.x, transformedP0.y);
-						}
 
 						switch (curve.type)
 						{
@@ -1606,148 +1512,29 @@ namespace MathAnim
 					}
 				}
 
-				nvgStroke(vg);
+				if (obj->paths[pathi].isHole)
+				{
+					nvgPathWinding(vg, NVG_HOLE);
+				}
+				else
+				{
+					nvgPathWinding(vg, NVG_SOLID);
+				}
 
 				if (lengthDrawn > lengthToDraw)
 				{
 					break;
 				}
 			}
-		}
 
-		if (amountToFadeIn > 0)
-		{
-			for (int contouri = 0; contouri < obj->numContours; contouri++)
+			nvgStroke(vg);
+
+			// Fill the path as well if it's fading in
+			if (amountToFadeIn > 0)
 			{
-				if (obj->contours[contouri].numCurves > 0)
-				{
-					// Begin path
-					nvgBeginPath(vg);
-
-					{
-						Vec2 p0 = obj->contours[contouri].curves[0].p0;
-						p0.x *= parent->svgScale;
-						p0.y *= parent->svgScale;
-						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
-						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
-
-						nvgMoveTo(vg,
-							p0.x,
-							p0.y
-						);
-					}
-
-					for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
-					{
-						const Curve& curve = obj->contours[contouri].curves[curvei];
-						Vec2 p0 = curve.p0;
-
-						if (curvei != 0 && curve.moveToP0)
-						{
-							Vec2 transformedP0 = p0;
-							transformedP0.x *= parent->svgScale;
-							transformedP0.y *= parent->svgScale;
-							transformedP0.x = CMath::mapRange(inXRange, outXRange, transformedP0.x);
-							transformedP0.y = CMath::mapRange(inYRange, outYRange, transformedP0.y);
-							nvgMoveTo(vg, transformedP0.x, transformedP0.y);
-							// TODO: Does this work consistently???
-							nvgPathWinding(vg, NVG_HOLE);
-						}
-
-						switch (curve.type)
-						{
-						case CurveType::Bezier3:
-						{
-							Vec2 p1 = curve.as.bezier3.p1;
-							Vec2 p2 = curve.as.bezier3.p2;
-							Vec2 p3 = curve.as.bezier3.p3;
-
-							p1.x *= parent->svgScale;
-							p1.y *= parent->svgScale;
-							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
-							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
-
-							p2.x *= parent->svgScale;
-							p2.y *= parent->svgScale;
-							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
-							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
-
-							p3.x *= parent->svgScale;
-							p3.y *= parent->svgScale;
-							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
-							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
-
-							nvgBezierTo(
-								vg,
-								p1.x, p1.y,
-								p2.x, p2.y,
-								p3.x, p3.y
-							);
-						}
-						break;
-						case CurveType::Bezier2:
-						{
-							Vec2 p1 = curve.as.bezier2.p1;
-							Vec2 p2 = curve.as.bezier2.p1;
-							Vec2 p3 = curve.as.bezier2.p2;
-
-							// Degree elevated quadratic bezier curve
-							Vec2 pr0 = p0;
-							Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-							Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-							Vec2 pr3 = p3;
-
-							pr1.x *= parent->svgScale;
-							pr1.y *= parent->svgScale;
-							pr1.x = CMath::mapRange(inXRange, outXRange, pr1.x);
-							pr1.y = CMath::mapRange(inYRange, outYRange, pr1.y);
-
-							pr2.x *= parent->svgScale;
-							pr2.y *= parent->svgScale;
-							pr2.x = CMath::mapRange(inXRange, outXRange, pr2.x);
-							pr2.y = CMath::mapRange(inYRange, outYRange, pr2.y);
-
-							pr3.x *= parent->svgScale;
-							pr3.y *= parent->svgScale;
-							pr3.x = CMath::mapRange(inXRange, outXRange, pr3.x);
-							pr3.y = CMath::mapRange(inYRange, outYRange, pr3.y);
-
-							nvgBezierTo(
-								vg,
-								pr1.x, pr1.y,
-								pr2.x, pr2.y,
-								pr3.x, pr3.y
-							);
-						}
-						break;
-						case CurveType::Line:
-						{
-							Vec2 p1 = curve.as.line.p1;
-
-							p1.x *= parent->svgScale;
-							p1.y *= parent->svgScale;
-							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
-							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
-
-							nvgLineTo(vg, p1.x, p1.y);
-						}
-						break;
-						default:
-							g_logger_warning("Unknown curve type in render %d", (int)curve.type);
-							break;
-						}
-					}
-
-					// Fill path
-					const glm::u8vec4& fillColor = parent->fillColor;
-					nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)(fillColor.a * percentToFadeIn)));
-					nvgFill(vg);
-
-					if (obj->contours[contouri].isHole)
-					{
-						nvgPathWinding(vg, NVG_HOLE);
-					}
-				}
+				const glm::u8vec4& fillColor = parent->fillColor;
+				nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)(fillColor.a * percentToFadeIn)));
+				nvgFill(vg);
 			}
 		}
 
@@ -1759,13 +1546,13 @@ namespace MathAnim
 
 			if (parent->drawCurveDebugBoxes)
 			{
-				for (int contouri = 0; contouri < obj->numContours; contouri++)
+				for (int pathi = 0; pathi < obj->numPaths; pathi++)
 				{
-					if (obj->contours[contouri].numCurves > 0)
+					if (obj->paths[pathi].numCurves > 0)
 					{
-						for (int curvei = 0; curvei < obj->contours[contouri].numCurves; curvei++)
+						for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
 						{
-							const Curve& curve = obj->contours[contouri].curves[curvei];
+							const Curve& curve = obj->paths[pathi].curves[curvei];
 							Vec2 p0 = curve.p0;
 							p0.x *= parent->svgScale;
 							p0.y *= parent->svgScale;

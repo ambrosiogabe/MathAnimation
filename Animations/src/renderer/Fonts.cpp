@@ -647,14 +647,7 @@ namespace MathAnim
 
 					if (firstPointType == PointType::CurveTagOn)
 					{
-						if (c == 0)
-						{
-							Svg::beginContour(res.svg, firstPoint);
-						}
-						else
-						{
-							Svg::moveTo(res.svg, firstPoint);
-						}
+						Svg::moveTo(res.svg, firstPoint);
 					}
 					else if (firstPointType == PointType::CurveTagConic && previousPointType == PointType::CurveTagConic)
 					{
@@ -663,25 +656,11 @@ namespace MathAnim
 							(firstPoint.y - previousPosition.y) / 2.0f + previousPosition.y
 						};
 
-						if (c == 0)
-						{
-							Svg::beginContour(res.svg, hiddenPoint);
-						}
-						else
-						{
-							Svg::moveTo(res.svg, firstPoint);
-						}
+						Svg::moveTo(res.svg, firstPoint);
 					}
 					else if (firstPointType == PointType::CurveTagConic && previousPointType == PointType::CurveTagOn)
 					{
-						if (c == 0)
-						{
-							Svg::beginContour(res.svg, previousPosition);
-						}
-						else
-						{
-							Svg::moveTo(res.svg, firstPoint);
-						}
+						Svg::moveTo(res.svg, firstPoint);
 					}
 					else
 					{
@@ -775,7 +754,8 @@ namespace MathAnim
 
 				if (shouldCloseContour)
 				{
-					Svg::closeContour(res.svg);
+					bool isHole = outline->n_contours > 1;
+					Svg::closePath(res.svg, false, isHole);
 				}
 			}
 

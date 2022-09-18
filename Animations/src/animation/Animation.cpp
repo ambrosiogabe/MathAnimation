@@ -146,25 +146,36 @@ namespace MathAnim
 
 	void Animation::applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t) const
 	{
-		for (int i = 0; i < animObjectIds.size(); i++)
+		if (this->shouldDisplayAnimObjects())
 		{
-			float startT = 0.0f;
-			if (this->playbackType == PlaybackType::LaggedStart)
+			for (int i = 0; i < animObjectIds.size(); i++)
 			{
-				startT = (float)i / (float)animObjectIds.size() * lagRatio;
-			}
-
-			if (t >= startT)
-			{
-				float interpolatedT = CMath::mapRange(Vec2{ startT, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
-				interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
-
-				AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectIds[i]);
-				if (animObject != nullptr)
+				float startT = 0.0f;
+				if (this->playbackType == PlaybackType::LaggedStart)
 				{
-					applyAnimationToObj(am, vg, animObject, interpolatedT, this);
+					startT = (float)i / (float)animObjectIds.size() * lagRatio;
+				}
+
+				if (t >= startT)
+				{
+					float interpolatedT = CMath::mapRange(Vec2{ startT, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
+					interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
+
+					AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectIds[i]);
+					if (animObject != nullptr)
+					{
+						animObject->status = interpolatedT < 1.0f
+							? AnimObjectStatus::Animating
+							: AnimObjectStatus::Active;
+						applyAnimationToObj(am, vg, animObject, interpolatedT, this);
+					}
 				}
 			}
+		}
+		else
+		{
+			t = glm::clamp(CMath::ease(t, easeType, easeDirection), 0.0f, 1.0f);
+			applyAnimationToObj(am, vg, nullptr, t, this);
 		}
 	}
 
@@ -195,6 +206,32 @@ namespace MathAnim
 			g_logger_info("Unknown animation: %d", type);
 			break;
 		}
+	}
+
+	bool Animation::shouldDisplayAnimObjects() const
+	{
+		switch (type)
+		{
+		case AnimTypeV1::Create:
+		case AnimTypeV1::UnCreate:
+		case AnimTypeV1::FadeIn:
+		case AnimTypeV1::FadeOut:
+		case AnimTypeV1::WriteInText:
+		case AnimTypeV1::AnimateStrokeColor:
+		case AnimTypeV1::AnimateFillColor:
+		case AnimTypeV1::AnimateStrokeWidth:
+		case AnimTypeV1::MoveTo:
+		case AnimTypeV1::RotateTo:
+			return true;
+		case AnimTypeV1::CameraMoveTo:
+		case AnimTypeV1::Transform:
+			return false;
+		default:
+			g_logger_info("Unknown animation: %d", type);
+			break;
+		}
+
+		return true;
 	}
 
 	void Animation::onGizmo(const AnimObject* obj)
@@ -271,7 +308,6 @@ namespace MathAnim
 		{
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
-		case AnimTypeV1::Transform:
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
 		case AnimTypeV1::FadeOut:
@@ -292,10 +328,32 @@ namespace MathAnim
 		case AnimTypeV1::CameraMoveTo:
 			CMath::serialize(memory, this->as.modifyVec2.target);
 			break;
+		case AnimTypeV1::Transform:
+			this->as.replacementTransform.serialize(memory);
+			break;
 		default:
 			g_logger_warning("Unknown animation type: %d", (int)this->type);
 			break;
 		}
+	}
+
+	void ReplacementTransformData::serialize(RawMemory& memory) const
+	{
+		// srcObjectId -> int32
+		// dstObjectId -> int32
+		memory.write<int32>(&this->srcAnimObjectId);
+		memory.write<int32>(&this->dstAnimObjectId);
+	}
+
+	ReplacementTransformData ReplacementTransformData::deserialize(RawMemory& memory)
+	{
+		// srcObjectId -> int32
+		// dstObjectId -> int32
+		ReplacementTransformData res;
+		memory.read<int32>(&res.srcAnimObjectId);
+		memory.read<int32>(&res.dstAnimObjectId);
+
+		return res;
 	}
 
 	Animation Animation::deserialize(RawMemory& memory, uint32 version)
@@ -991,7 +1049,6 @@ namespace MathAnim
 		switch (res.type)
 		{
 		case AnimTypeV1::WriteInText:
-		case AnimTypeV1::Transform:
 		case AnimTypeV1::Create:
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
@@ -1013,6 +1070,9 @@ namespace MathAnim
 		case AnimTypeV1::CameraMoveTo:
 			res.as.modifyVec2.target = CMath::deserializeVec2(memory);
 			break;
+		case AnimTypeV1::Transform:
+			res.as.replacementTransform = ReplacementTransformData::deserialize(memory);
+			break;
 		default:
 			g_logger_warning("Unhandled animation deserialize for type %d", res.type);
 			break;
@@ -1027,9 +1087,56 @@ namespace MathAnim
 		{
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
-		case AnimTypeV1::Transform:
 			obj->percentCreated = t;
 			break;
+		case AnimTypeV1::Transform:
+		{
+			AnimObject* srcObject = AnimationManager::getMutableObject(am, animation->as.replacementTransform.srcAnimObjectId);
+			AnimObject* dstObject = AnimationManager::getMutableObject(am, animation->as.replacementTransform.dstAnimObjectId);
+			if (dstObject && srcObject)
+			{
+				g_logger_assert(srcObject->svgObject != nullptr, "Something went wrong.");
+
+				if (t < 1.0f)
+				{
+					SvgObject* interpolated = Svg::interpolate(srcObject->svgObject, dstObject->svgObject, t);
+					srcObject->svgObject->free();
+					g_memory_free(srcObject->svgObject);
+					srcObject->svgObject = interpolated;
+
+					// Interpolate other properties
+					srcObject->position = CMath::interpolate(t, srcObject->position, dstObject->position);
+					srcObject->rotation = CMath::interpolate(t, srcObject->rotation, dstObject->rotation);
+					srcObject->scale = CMath::interpolate(t, srcObject->scale, dstObject->scale);
+					srcObject->fillColor = CMath::interpolate(t, srcObject->fillColor, dstObject->fillColor);
+					srcObject->strokeColor = CMath::interpolate(t, srcObject->strokeColor, dstObject->strokeColor);
+					srcObject->strokeWidth = CMath::interpolate(t, srcObject->strokeWidth, dstObject->strokeWidth);
+					// TODO: Come up with _svgScaleStart so scales can be reset
+					// srcObject->svgScale = CMath::interpolate(t, srcObject->svgScale, dstObject->svgScale);
+					srcObject->percentCreated = 1.0f;
+
+					// Fade out dstObject
+					dstObject->fillColor = CMath::interpolate(t,
+						dstObject->fillColor,
+						glm::u8vec4(dstObject->fillColor.r, dstObject->fillColor.g, dstObject->fillColor.b, 0)
+					);
+					dstObject->strokeColor = CMath::interpolate(t,
+						dstObject->strokeColor,
+						glm::u8vec4(dstObject->strokeColor.r, dstObject->strokeColor.g, dstObject->strokeColor.b, 0)
+					);
+
+					srcObject->status = AnimObjectStatus::Animating;
+					dstObject->status = AnimObjectStatus::Animating;
+				}
+				else
+				{
+					srcObject->status = AnimObjectStatus::Inactive;
+					dstObject->status = AnimObjectStatus::Active;
+					dstObject->percentCreated = 1.0f;
+				}
+			}
+		}
+		break;
 		case AnimTypeV1::UnCreate:
 			obj->percentCreated = 1.0f - t;
 			break;

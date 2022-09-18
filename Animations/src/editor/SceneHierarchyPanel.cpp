@@ -3,6 +3,7 @@
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "utils/IconsFontAwesome5.h"
+#include "core/Colors.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -267,6 +268,19 @@ namespace MathAnim
 		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, SceneTreeMetadata& nextElement)
 		{
 			const AnimObject* nextAnimObject = AnimationManager::getObject(am, nextElement.animObjectId);
+			
+			if (animObject.status == AnimObjectStatus::Inactive)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Neutral[4]);
+			}
+			else if (animObject.status == AnimObjectStatus::Animating)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentGreen[1]);
+			}
+			else
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Neutral[0]);
+			}
 
 			ImGui::PushID(element.index);
 			ImGui::SetNextItemOpen(element.isOpen);
@@ -280,6 +294,9 @@ namespace MathAnim
 				"%s", animObject.name);
 			ImGui::PopID();
 			element.isOpen = open;
+
+			// Pop style color for tree node text
+			ImGui::PopStyleColor();
 
 			// Track the in-between size for this tree node
 			ImVec2 cursorPos = ImGui::GetCursorPos();

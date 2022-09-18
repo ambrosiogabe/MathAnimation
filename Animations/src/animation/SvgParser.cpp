@@ -226,13 +226,13 @@ namespace MathAnim
 							float h = hAttr->FloatValue();
 
 							SvgObject rect = Svg::createDefault();
-							Svg::beginContour(&rect, { 0, h });
+							Svg::beginPath(&rect, { 0, h });
 							Svg::lineTo(&rect, { w, h });
 							Svg::lineTo(&rect, { w, 0 });
 							Svg::lineTo(&rect, { 0, 0 });
 							Svg::lineTo(&rect, { 0, h });
-							Svg::closeContour(&rect);
-							
+							Svg::closePath(&rect);
+
 							static uint64 rCounter = 0;
 							rCounter++;
 							std::string rCounterStr = "rect-" + rCounter;
@@ -267,10 +267,23 @@ namespace MathAnim
 			parserInfo.textLength = pathTextLength;
 
 			Token token = parseNextToken(parserInfo);
+			bool lastTokenWasClosePath = false;
 			while (token.type != TokenType::EndOfFile)
 			{
 				interpretCommand(token, parserInfo, &res);
-				token = parseNextToken(parserInfo);
+				Token nextToken = parseNextToken(parserInfo);
+				if (nextToken.type == TokenType::EndOfFile)
+				{
+					lastTokenWasClosePath = token.type == TokenType::ClosePath;
+				}
+				token = nextToken;
+			}
+
+			// We should only do this if the path didn't end with a close_path command
+			if (!lastTokenWasClosePath)
+			{
+				bool isHole = res.numPaths > 1;
+				Svg::closePath(&res, false, isHole);
 			}
 
 			res.calculateApproximatePerimeter();
@@ -316,7 +329,8 @@ namespace MathAnim
 			break;
 			case TokenType::ClosePath:
 			{
-				Svg::closeContour(res, true);
+				bool isHole = res->numPaths > 1;
+				Svg::closePath(res, true);
 			}
 			break;
 			case TokenType::LineTo:

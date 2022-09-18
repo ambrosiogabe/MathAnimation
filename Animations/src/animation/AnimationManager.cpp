@@ -309,6 +309,7 @@ namespace MathAnim
 					objectIter->fillColor = objectIter->_fillColorStart;
 					objectIter->strokeColor = objectIter->_strokeColorStart;
 					objectIter->strokeWidth = objectIter->_strokeWidthStart;
+					objectIter->percentCreated = 0.0f;
 					objectIter->status = AnimObjectStatus::Inactive;
 
 					// Update any updateable objects
@@ -350,19 +351,6 @@ namespace MathAnim
 					if (frameStart <= am->currentFrame)
 					{
 						bool animationComplete = am->currentFrame >= animDeathTime;
-
-						// Set all objects this animation is acting on to animating/active status
-						for (auto objIter = animIter->animObjectIds.begin(); objIter != animIter->animObjectIds.end(); objIter++)
-						{
-							AnimObject* object = getMutableObject(am, *objIter);
-							// Omit the check in distribution builds								
-#ifndef _DIST
-							g_logger_assert(object != nullptr, "Somehow an animation had a reference to a non-existent object.");
-#endif
-							object->status = animationComplete
-								? AnimObjectStatus::Active
-								: AnimObjectStatus::Animating;
-						}
 
 						// TODO: Optimization, optimize and check this is the problem and if so 
 						// If it's the middle of an animation then make sure 

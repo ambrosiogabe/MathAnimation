@@ -46,6 +46,7 @@ namespace MathAnim
 		static void handleTextObjectInspector(AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
+		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation);
 		static void handleShiftInspector(Animation* animation);
 		static void handleRotateToAnimationInspector(Animation* animation);
 		static void handleAnimateStrokeColorAnimationInspector(Animation* animation);
@@ -681,64 +682,67 @@ namespace MathAnim
 				return;
 			}
 
-			if (ImGui::CollapsingHeader("Anim Objects"))
+			if (animation->shouldDisplayAnimObjects())
 			{
-				auto animObjectIdIter = animation->animObjectIds.begin();
-				while (animObjectIdIter != animation->animObjectIds.end())
+				if (ImGui::CollapsingHeader("Anim Objects"))
 				{
-					const AnimObject* obj = AnimationManager::getObject(am, *animObjectIdIter);
-					if (obj)
+					auto animObjectIdIter = animation->animObjectIds.begin();
+					while (animObjectIdIter != animation->animObjectIds.end())
 					{
-						ImGui::PushID(*animObjectIdIter);
-						ImGui::InputText("##AnimObjectId", (char*)obj->name, obj->nameLength, ImGuiInputTextFlags_ReadOnly);
-						ImGui::SameLine();
-						if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
+						const AnimObject* obj = AnimationManager::getObject(am, *animObjectIdIter);
+						if (obj)
 						{
-							animObjectIdIter = animation->animObjectIds.erase(animObjectIdIter);
-						}
-						else
-						{
-							animObjectIdIter++;
-						}
-						ImGui::PopID();
-					}
-				}
-
-				static bool isAddingAnimObject = false;
-				if (isAddingAnimObject)
-				{
-					const char dummyInputText[] = "Drag Object Here";
-					size_t dummyInputTextSize = sizeof(dummyInputText);
-					ImGui::InputText("##AnimObjectDropTarget", (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
-
-					if (ImGui::BeginDragDropTarget())
-					{
-						if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(ANIM_OBJECT_DROP_TARGET_ID))
-						{
-							if (payload->DataSize == sizeof(AnimObjectPayload))
+							ImGui::PushID(*animObjectIdIter);
+							ImGui::InputText("##AnimObjectId", (char*)obj->name, obj->nameLength, ImGuiInputTextFlags_ReadOnly);
+							ImGui::SameLine();
+							if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
 							{
-								const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
-								bool exists =
-									std::find(
-										animation->animObjectIds.begin(),
-										animation->animObjectIds.end(),
-										objPayload->animObjectId
-									) != animation->animObjectIds.end();
-
-								if (!exists)
-								{
-									animation->animObjectIds.push_back(objPayload->animObjectId);
-								}
-								isAddingAnimObject = false;
+								animObjectIdIter = animation->animObjectIds.erase(animObjectIdIter);
 							}
+							else
+							{
+								animObjectIdIter++;
+							}
+							ImGui::PopID();
 						}
-						ImGui::EndDragDropTarget();
 					}
-				}
 
-				if (ImGui::Button(ICON_FA_PLUS " Add Anim Object"))
-				{
-					isAddingAnimObject = true;
+					static bool isAddingAnimObject = false;
+					if (isAddingAnimObject)
+					{
+						const char dummyInputText[] = "Drag Object Here";
+						size_t dummyInputTextSize = sizeof(dummyInputText);
+						ImGui::InputText("##AnimObjectDropTarget", (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
+
+						if (ImGui::BeginDragDropTarget())
+						{
+							if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(ANIM_OBJECT_DROP_TARGET_ID))
+							{
+								if (payload->DataSize == sizeof(AnimObjectPayload))
+								{
+									const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
+									bool exists =
+										std::find(
+											animation->animObjectIds.begin(),
+											animation->animObjectIds.end(),
+											objPayload->animObjectId
+										) != animation->animObjectIds.end();
+
+									if (!exists)
+									{
+										animation->animObjectIds.push_back(objPayload->animObjectId);
+									}
+									isAddingAnimObject = false;
+								}
+							}
+							ImGui::EndDragDropTarget();
+						}
+					}
+
+					if (ImGui::Button(ICON_FA_PLUS " Add Anim Object"))
+					{
+						isAddingAnimObject = true;
+					}
 				}
 			}
 
@@ -771,11 +775,13 @@ namespace MathAnim
 			{
 			case AnimTypeV1::WriteInText:
 			case AnimTypeV1::Create:
-			case AnimTypeV1::Transform:
 			case AnimTypeV1::UnCreate:
 			case AnimTypeV1::FadeIn:
 			case AnimTypeV1::FadeOut:
 				// NOP
+				break;
+			case AnimTypeV1::Transform:
+				handleTransformAnimation(am, animation);
 				break;
 			case AnimTypeV1::MoveTo:
 				handleMoveToAnimationInspector(animation);
@@ -914,6 +920,66 @@ namespace MathAnim
 			{
 				ImGui::PopItemFlag();
 				ImGui::PopStyleVar();
+			}
+		}
+
+		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation)
+		{
+			// TODO: This code is duplicated, consider making a function
+			{
+				const AnimObject* srcObj = AnimationManager::getObject(am, animation->as.replacementTransform.srcAnimObjectId);
+
+				const char dummyInputText[] = "Drag Object Here";
+				size_t dummyInputTextSize = sizeof(dummyInputText);
+				if (srcObj == nullptr)
+				{
+					ImGui::InputText(": Source##ReplacementTransformSrcTarget", (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
+				}
+				else
+				{
+					ImGui::InputText(": Source##ReplacementTransformSrcTarget", (char*)srcObj->name, srcObj->nameLength, ImGuiInputTextFlags_ReadOnly);
+				}
+
+				if (ImGui::BeginDragDropTarget())
+				{
+					if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(ANIM_OBJECT_DROP_TARGET_ID))
+					{
+						if (payload->DataSize == sizeof(AnimObjectPayload))
+						{
+							const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
+							animation->as.replacementTransform.srcAnimObjectId = objPayload->animObjectId;
+						}
+					}
+					ImGui::EndDragDropTarget();
+				}
+			}
+
+			{
+				const AnimObject* dstObj = AnimationManager::getObject(am, animation->as.replacementTransform.dstAnimObjectId);
+
+				const char dummyInputText[] = "Drag Object Here";
+				size_t dummyInputTextSize = sizeof(dummyInputText);
+				if (dstObj == nullptr)
+				{
+					ImGui::InputText(": Replace To##ReplacementTransformDstTarget", (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
+				}
+				else
+				{
+					ImGui::InputText(": Replace To##ReplacementTransformDstTarget", (char*)dstObj->name, dstObj->nameLength, ImGuiInputTextFlags_ReadOnly);
+				}
+
+				if (ImGui::BeginDragDropTarget())
+				{
+					if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(ANIM_OBJECT_DROP_TARGET_ID))
+					{
+						if (payload->DataSize == sizeof(AnimObjectPayload))
+						{
+							const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
+							animation->as.replacementTransform.dstAnimObjectId = objPayload->animObjectId;
+						}
+					}
+					ImGui::EndDragDropTarget();
+				}
 			}
 		}
 

@@ -86,6 +86,15 @@ namespace MathAnim
 		Vec2 target;
 	};
 
+	struct ReplacementTransformData
+	{
+		int32 srcAnimObjectId;
+		int32 dstAnimObjectId;
+
+		void serialize(RawMemory& memory) const;
+		static ReplacementTransformData deserialize(RawMemory& memory);
+	};
+
 	// Base Structs
 	struct Animation
 	{
@@ -106,6 +115,7 @@ namespace MathAnim
 			ModifyVec3AnimData modifyVec3;
 			ModifyVec2AnimData modifyVec2;
 			ModifyU8Vec4AnimData modifyU8Vec4;
+			ReplacementTransformData replacementTransform;
 		} as;
 
 		// Apply the animation state using a interpolation t value
@@ -119,6 +129,8 @@ namespace MathAnim
 		void onGizmo(const AnimObject* obj);
 		// Render the gizmo for this animation with no relation to it's child objects
 		void onGizmo();
+
+		bool shouldDisplayAnimObjects() const;
 
 		void free();
 		void serialize(RawMemory& memory) const;

@@ -40,7 +40,6 @@ namespace MathAnim
 
 	struct Curve
 	{
-		bool moveToP0;
 		CurveType type;
 		// Every curve has at least one point
 		Vec2 p0;
@@ -52,7 +51,7 @@ namespace MathAnim
 		} as;
 	};
 
-	struct Contour
+	struct Path
 	{
 		Curve* curves;
 		int numCurves;
@@ -62,9 +61,8 @@ namespace MathAnim
 
 	struct SvgObject
 	{
-		// TODO: Have a Path struct which contains SubPath structs which are the holes...(possibly)
-		Contour* contours;
-		int numContours;
+		Path* paths;
+		int numPaths;
 		float approximatePerimeter;
 		BBox bbox;
 		
@@ -121,9 +119,10 @@ namespace MathAnim
 		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset);
 		void endSvgGroup(SvgGroup* group);
 
-		void beginContour(SvgObject* object, const Vec2& firstPoint);
-		void closeContour(SvgObject* object, bool lineToEndpoint = false, bool isHole = false);
+		void beginPath(SvgObject* object, const Vec2& firstPoint, bool isAbsolute = true);
+		void closePath(SvgObject* object, bool lineToEndpoint = false, bool isHole = false);
 
+		// This implicitly closes the current path and begins a new path
 		void moveTo(SvgObject* object, const Vec2& point, bool absolute = true);
 		void lineTo(SvgObject* object, const Vec2& point, bool absolute = true);
 		void hzLineTo(SvgObject* object, float xPoint, bool absolute = true);
@@ -135,7 +134,7 @@ namespace MathAnim
 		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec2& dst, bool absolute = true);
 
 		void copy(SvgObject* dest, const SvgObject* src);
-		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
+		SvgObject* interpolate(const SvgObject* src, const SvgObject* dst, float t);
 	}
 }
 
