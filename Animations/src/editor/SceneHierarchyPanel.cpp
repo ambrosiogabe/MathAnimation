@@ -44,6 +44,7 @@ namespace MathAnim
 		static void moveTreeTo(AnimationManagerData* am, int treeToMoveIndex, int placeToMoveToIndex, bool reparent = true);
 		static void updateLevel(int parentIndex, int newLevel);
 		static int getNumChildren(int parentIndex);
+		static void addExistingAnimObject(AnimationManagerData* am, const AnimObject& obj, int level);
 
 		void init(AnimationManagerData* am)
 		{
@@ -54,7 +55,11 @@ namespace MathAnim
 			const std::vector<AnimObject>& animObjects = AnimationManager::getAnimObjects(am);
 			for (int i = 0; i < animObjects.size(); i++)
 			{
-				addNewAnimObject(animObjects[i]);
+				// Root object
+				if (animObjects[i].parentId == INT32_MAX)
+				{
+					addExistingAnimObject(am, animObjects[i], 0);
+				}
 			}
 		}
 
@@ -63,12 +68,12 @@ namespace MathAnim
 
 		}
 
-		void addNewAnimObject(const AnimObject& animObject)
+		void addNewAnimObject(const AnimObject& animObject, int level)
 		{
 			// TODO: Consider making anim object creation a message then subscribing to this message type
 			int newIndex = orderedEntities.size();
-			orderedEntities.emplace_back(SceneTreeMetadata{ animObject.id, 0, newIndex, false });
-			orderedEntitiesCopy.emplace_back(SceneTreeMetadata{ animObject.id, 0, newIndex, false });
+			orderedEntities.emplace_back(SceneTreeMetadata{ animObject.id, level, newIndex, false });
+			orderedEntitiesCopy.emplace_back(SceneTreeMetadata{ animObject.id, level, newIndex, false });
 		}
 
 		void update(AnimationManagerData* am)
@@ -268,7 +273,7 @@ namespace MathAnim
 		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, SceneTreeMetadata& nextElement)
 		{
 			const AnimObject* nextAnimObject = AnimationManager::getObject(am, nextElement.animObjectId);
-			
+
 			if (animObject.status == AnimObjectStatus::Inactive)
 			{
 				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Neutral[4]);
@@ -547,7 +552,7 @@ namespace MathAnim
 						// Tricky, now we have to move the whole subtree
 						for (int i = placeToMoveToIndex + 1; i < orderedEntitiesCopy.size(); i++)
 						{
-							if (orderedEntitiesCopy[i].level == parentLevel)
+							if (orderedEntitiesCopy[i].level <= parentLevel)
 							{
 								break;
 							}
@@ -616,6 +621,21 @@ namespace MathAnim
 			}
 
 			return numChildren;
+		}
+
+		static void addExistingAnimObject(AnimationManagerData* am, const AnimObject& obj, int level)
+		{
+			// Add this object first
+			addNewAnimObject(obj, level);
+
+			// Recursively add all children
+			std::vector<int32> children = AnimationManager::getChildren(am, &obj);
+			while (children.size() > 0)
+			{
+				const AnimObject* child = AnimationManager::getObject(am, children.back());
+				addExistingAnimObject(am, *child, level + 1);
+				children.pop_back();
+			}
 		}
 	}
 }

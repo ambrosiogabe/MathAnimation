@@ -566,6 +566,134 @@ namespace MathAnim
 		this->_strokeWidthStart = parent->_strokeWidthStart;
 	}
 
+	void AnimObject::replacementTransform(AnimationManagerData* am, AnimObject* replacement, float t)
+	{
+		// Update statuses
+		AnimObjectStatus thisNewStatus = t < 1.0f
+			? AnimObjectStatus::Animating
+			: AnimObjectStatus::Inactive;
+		AnimObjectStatus replacementNewStatus = t >= 1.0f
+			? AnimObjectStatus::Active
+			: AnimObjectStatus::Animating;
+		this->status = thisNewStatus;
+		replacement->status = replacementNewStatus;
+
+		// Interpolate between shared children recursively
+		std::vector<int32> thisChildren = AnimationManager::getChildren(am, this);
+		std::vector<int32> replacementChildren = AnimationManager::getChildren(am, replacement);
+
+		for (int i = 0; i < thisChildren.size(); i++)
+		{
+			if (i < replacementChildren.size())
+			{
+				AnimObject* thisChild = AnimationManager::getMutableObject(am, thisChildren[i]);
+				AnimObject* otherChild = AnimationManager::getMutableObject(am, replacementChildren[i]);
+				g_logger_assert(thisChild != nullptr, "How did this happen?");
+				g_logger_assert(otherChild != nullptr, "How did this happen?");
+				thisChild->replacementTransform(am, otherChild, t);
+			}
+		}
+
+		// Fade in any extra *other* children
+		for (int i = thisChildren.size(); i < replacementChildren.size(); i++)
+		{
+			AnimObject* otherChild = AnimationManager::getMutableObject(am, replacementChildren[i]);
+			if (otherChild)
+			{
+				otherChild->fillColor = CMath::interpolate(t,
+					glm::u8vec4(otherChild->fillColor.r, otherChild->fillColor.g, otherChild->fillColor.b, 0),
+					otherChild->fillColor
+				);
+				otherChild->strokeColor = CMath::interpolate(t,
+					glm::u8vec4(otherChild->strokeColor.r, otherChild->strokeColor.g, otherChild->strokeColor.b, 0),
+					otherChild->strokeColor
+				);
+				otherChild->percentCreated = 1.0f;
+				otherChild->status = replacementNewStatus;
+
+				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, otherChild);
+				replacementChildren.insert(replacementChildren.end(), childrensChildren.begin(), childrensChildren.end());
+			}
+		}
+
+		// Fade out any extra *this* children
+		for (int i = replacementChildren.size(); i < thisChildren.size(); i++)
+		{
+			AnimObject* thisChild = AnimationManager::getMutableObject(am, thisChildren[i]);
+			if (thisChild)
+			{
+				thisChild->fillColor = CMath::interpolate(t,
+					thisChild->fillColor,
+					glm::u8vec4(thisChild->fillColor.r, thisChild->fillColor.g, thisChild->fillColor.b, 0)
+				);
+				thisChild->strokeColor = CMath::interpolate(t,
+					thisChild->strokeColor,
+					glm::u8vec4(thisChild->strokeColor.r, thisChild->strokeColor.g, thisChild->strokeColor.b, 0)
+				);
+				thisChild->status = thisNewStatus;
+
+				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, thisChild);
+				thisChildren.insert(thisChildren.end(), childrensChildren.begin(), childrensChildren.end());
+			}
+		}
+
+		// Interpolate between this svg and other svg
+		if (this->svgObject && replacement->svgObject)
+		{
+			if (t < 1.0f)
+			{
+				SvgObject* interpolated = Svg::interpolate(this->svgObject, replacement->svgObject, t);
+				this->svgObject->free();
+				g_memory_free(this->svgObject);
+				this->svgObject = interpolated;
+
+				// Interpolate other properties
+				this->position = CMath::interpolate(t, this->position, replacement->position);
+				this->rotation = CMath::interpolate(t, this->rotation, replacement->rotation);
+				this->scale = CMath::interpolate(t, this->scale, replacement->scale);
+				this->fillColor = CMath::interpolate(t, this->fillColor, replacement->fillColor);
+				this->strokeColor = CMath::interpolate(t, this->strokeColor, replacement->strokeColor);
+				this->strokeWidth = CMath::interpolate(t, this->strokeWidth, replacement->strokeWidth);
+				// TODO: Come up with _svgScaleStart so scales can be reset
+				// srcObject->svgScale = CMath::interpolate(t, srcObject->svgScale, dstObject->svgScale);
+				this->percentCreated = 1.0f;
+
+				// Fade out dstObject
+				replacement->fillColor = CMath::interpolate(t,
+					replacement->fillColor,
+					glm::u8vec4(replacement->fillColor.r, replacement->fillColor.g, replacement->fillColor.b, 0)
+				);
+				replacement->strokeColor = CMath::interpolate(t,
+					replacement->strokeColor,
+					glm::u8vec4(replacement->strokeColor.r, replacement->strokeColor.g, replacement->strokeColor.b, 0)
+				);
+			}
+			else
+			{
+				// Set all children as inactive as well
+				replacement->percentCreated = 1.0f;
+			}
+		}
+	}
+
+	void AnimObject::updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus)
+	{
+		this->status = newStatus;
+
+		std::vector<int32> children = AnimationManager::getChildren(am, this);
+		for (int i = 0; i < children.size(); i++)
+		{
+			// Push back all children's children
+			AnimObject* child = AnimationManager::getMutableObject(am, children[i]);
+			if (child)
+			{
+				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, child);
+				children.insert(children.end(), childrensChildren.begin(), childrensChildren.end());
+				child->status = newStatus;
+			}
+		}
+	}
+
 	void AnimObject::free()
 	{
 		if (this->svgObject)
@@ -1083,6 +1211,26 @@ namespace MathAnim
 
 	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation)
 	{
+		// TODO: How to handle this... Certain animations like moveTo
+		// should only move the parent because the changes propagate to the
+		// children when the transform updates. Other changes like creationPercent and fillColor
+		// don't propagate. So should those changes propagate, or should I automatically
+		// handle it here?
+		// 
+		// Apply animation to all children as well
+		//if (obj)
+		//{
+		//	std::vector<int32> children = AnimationManager::getChildren(am, obj);
+		//	for (int i = 0; i < children.size(); i++)
+		//	{
+		//		AnimObject* childObj = AnimationManager::getMutableObject(am, children[i]);
+		//		if (childObj)
+		//		{
+		//			applyAnimationToObj(am, vg, childObj, t, animation);
+		//		}
+		//	}
+		//}
+
 		switch (animation->type)
 		{
 		case AnimTypeV1::WriteInText:
@@ -1093,47 +1241,10 @@ namespace MathAnim
 		{
 			AnimObject* srcObject = AnimationManager::getMutableObject(am, animation->as.replacementTransform.srcAnimObjectId);
 			AnimObject* dstObject = AnimationManager::getMutableObject(am, animation->as.replacementTransform.dstAnimObjectId);
+
 			if (dstObject && srcObject)
 			{
-				g_logger_assert(srcObject->svgObject != nullptr, "Something went wrong.");
-
-				if (t < 1.0f)
-				{
-					SvgObject* interpolated = Svg::interpolate(srcObject->svgObject, dstObject->svgObject, t);
-					srcObject->svgObject->free();
-					g_memory_free(srcObject->svgObject);
-					srcObject->svgObject = interpolated;
-
-					// Interpolate other properties
-					srcObject->position = CMath::interpolate(t, srcObject->position, dstObject->position);
-					srcObject->rotation = CMath::interpolate(t, srcObject->rotation, dstObject->rotation);
-					srcObject->scale = CMath::interpolate(t, srcObject->scale, dstObject->scale);
-					srcObject->fillColor = CMath::interpolate(t, srcObject->fillColor, dstObject->fillColor);
-					srcObject->strokeColor = CMath::interpolate(t, srcObject->strokeColor, dstObject->strokeColor);
-					srcObject->strokeWidth = CMath::interpolate(t, srcObject->strokeWidth, dstObject->strokeWidth);
-					// TODO: Come up with _svgScaleStart so scales can be reset
-					// srcObject->svgScale = CMath::interpolate(t, srcObject->svgScale, dstObject->svgScale);
-					srcObject->percentCreated = 1.0f;
-
-					// Fade out dstObject
-					dstObject->fillColor = CMath::interpolate(t,
-						dstObject->fillColor,
-						glm::u8vec4(dstObject->fillColor.r, dstObject->fillColor.g, dstObject->fillColor.b, 0)
-					);
-					dstObject->strokeColor = CMath::interpolate(t,
-						dstObject->strokeColor,
-						glm::u8vec4(dstObject->strokeColor.r, dstObject->strokeColor.g, dstObject->strokeColor.b, 0)
-					);
-
-					srcObject->status = AnimObjectStatus::Animating;
-					dstObject->status = AnimObjectStatus::Animating;
-				}
-				else
-				{
-					srcObject->status = AnimObjectStatus::Inactive;
-					dstObject->status = AnimObjectStatus::Active;
-					dstObject->percentCreated = 1.0f;
-				}
+				srcObject->replacementTransform(am, dstObject, t);
 			}
 		}
 		break;

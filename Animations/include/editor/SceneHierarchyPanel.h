@@ -12,7 +12,7 @@ namespace MathAnim
 		void init(AnimationManagerData* am);
 		void free();
 
-		void addNewAnimObject(const AnimObject& animObject);
+		void addNewAnimObject(const AnimObject& animObject, int level = 0);
 		void update(AnimationManagerData* am);
 		void deleteAnimObject(const AnimObject& animObject);
 

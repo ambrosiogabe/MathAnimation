@@ -196,6 +196,8 @@ namespace MathAnim
 		void renderFadeInAnimation(NVGcontext* vg, float t);
 		void renderFadeOutAnimation(NVGcontext* vg, float t);
 		void takeParentAttributes(const AnimObject* parent);
+		void replacementTransform(AnimationManagerData* am, AnimObject* replacement, float t);
+		void updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus);
 		
 		void free();
 		void serialize(RawMemory& memory) const;

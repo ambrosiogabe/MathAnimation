@@ -43,6 +43,7 @@ namespace MathAnim
 		const std::vector<Animation>& getAnimations(const AnimationManagerData* am);
 
 		std::vector<int32> getAssociatedAnimations(const AnimationManagerData* am, const AnimObject* obj);
+		std::vector<int32> getChildren(const AnimationManagerData* am, const AnimObject* obj);
 
 		RawMemory serialize(const AnimationManagerData* am);
 		void deserialize(AnimationManagerData* am, RawMemory& memory);

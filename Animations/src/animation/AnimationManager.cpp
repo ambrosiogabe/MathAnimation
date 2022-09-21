@@ -496,6 +496,20 @@ namespace MathAnim
 			return res;
 		}
 
+		std::vector<int32> getChildren(const AnimationManagerData* am, const AnimObject* obj)
+		{
+			std::vector<int32> res;
+			for (int i = 0; i < am->objects.size(); i++)
+			{
+				if (am->objects[i].parentId == obj->id)
+				{
+					res.push_back(am->objects[i].id);
+				}
+			}
+
+			return res;
+		}
+
 		RawMemory serialize(const AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
