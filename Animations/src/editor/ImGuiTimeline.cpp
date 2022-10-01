@@ -114,7 +114,7 @@ namespace MathAnim
 	static int maxLengthAudioCache = 0;
 
 	// ----------- Internal Functions -----------
-	static bool handleLegendSplitter(float* legendWidth);
+	static bool handleLegendSplitter(float* legendWidth, bool mouseHovering);
 	static bool handleResizeElement(float* currentValue, DragState* state, const ImVec2& valueBounds, const ImVec2& mouseBounds, const ImVec2& hoverRectStart, const ImVec2& hoverRectEnd, ResizeFlags flags);
 	static bool handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, SegmentChangeType* changeType, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
 	static bool handleSubSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_SubSegment* segment, SegmentChangeType* changeType, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
@@ -150,6 +150,8 @@ namespace MathAnim
 			? &defaultZoom
 			: inZoom;
 		static bool magnetEnabled = false;
+		static bool mouseHoveringOverTimelineWindow = false;
+		mouseHoveringOverTimelineWindow = ImGui::IsWindowHovered();
 
 		// --------------------------- Handle Timeline Controls ---------------------------
 		{
@@ -269,7 +271,7 @@ namespace MathAnim
 		static float legendWidth = 0.2f;
 		legendSize = ImVec2{ canvasSize.x * legendWidth, canvasSize.y };
 		bool result = false;
-		handleLegendSplitter(&legendWidth);
+		handleLegendSplitter(&legendWidth, mouseHoveringOverTimelineWindow);
 		// ---------------------- Setup and Handle Legend ------------------------------
 
 		// ---------------------- Draw Timeline Ruler ------------------------------	
@@ -361,7 +363,7 @@ namespace MathAnim
 
 		// ---------------------- Handle horizontal/vertical scrolling ----------------------
 		// Handle horizontal scrolling while over the timeline or timeline ruler
-		if (ImGui::IsMouseHoveringRect(timelineRulerBegin, ImVec2(timelineRulerEnd.x, canvasPos.y + canvasSize.y)))
+		if (ImGui::IsMouseHoveringRect(timelineRulerBegin, ImVec2(timelineRulerEnd.x, canvasPos.y + canvasSize.y)) && mouseHoveringOverTimelineWindow)
 		{
 			if (io.MouseWheel != 0.0f && io.KeyCtrl)
 			{
@@ -375,7 +377,7 @@ namespace MathAnim
 		}
 
 		// Handle vertical scrolling while over the tracks area
-		if (ImGui::IsMouseHoveringRect(canvasPos + ImVec2(0, timelineRulerHeight), ImVec2(timelineRulerEnd.x, canvasPos.y + canvasSize.y)))
+		if (ImGui::IsMouseHoveringRect(canvasPos + ImVec2(0, timelineRulerHeight), ImVec2(timelineRulerEnd.x, canvasPos.y + canvasSize.y)) && mouseHoveringOverTimelineWindow)
 		{
 			if (io.MouseWheel != 0.0f && !io.KeyCtrl)
 			{
@@ -433,7 +435,7 @@ namespace MathAnim
 				ImGui::IsMouseHoveringRect(
 					timelineRulerBegin + ImVec2(0.0f, timelineRulerHeight),
 					canvasPos + canvasSize
-				);
+				) && mouseHoveringOverTimelineWindow;
 
 			float absTracksTop = canvasPos.y + timelineRulerHeight;
 			float currentTrackTop = canvasPos.y + timelineRulerHeight - scrollOffsetY;
@@ -487,7 +489,9 @@ namespace MathAnim
 						ImVec2 segmentStart = ImVec2(canvasPos.x + legendSize.x + offsetX, trackTopY);
 						ImVec2 segmentEnd = ImVec2(segmentStart.x + width, trackBottomY);
 						SegmentChangeType changeType;
-						if (handleSegment(segmentStart, segmentEnd, &segment, &changeType, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
+
+						// Only handleSegment logic if the window is actually hovered
+						if (mouseHoveringOverTimelineWindow && handleSegment(segmentStart, segmentEnd, &segment, &changeType, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
 						{
 							offsetX = calculateSegmentOffset(segment.frameStart, *firstFrame, amountOfTimeVisibleInTimeline);
 							width = calculateSegmentWidth(segment.frameDuration, amountOfTimeVisibleInTimeline);
@@ -548,9 +552,10 @@ namespace MathAnim
 						{
 							drawList->AddRect(segmentStart, segmentEnd, cursorColor, 10.0f, 0, 4.0f);
 
-							if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+							if (mouseHoveringOverTimelineWindow && ImGui::IsKeyPressed(ImGuiKey_Delete))
 							{
 								res.flags |= ImGuiTimelineResultFlags_DeleteActiveObject;
+								res.flags |= ImGuiTimelineResultFlags_ActiveObjectDeselected;
 								res.activeObjectIsSubSegment = false;
 								res.segmentIndex = si;
 								res.trackIndex = i;
@@ -619,7 +624,9 @@ namespace MathAnim
 								std::string strId = std::string("Track_") + std::to_string(i) + "_SubSegment_" + std::to_string(si) + "_" + std::to_string(subSegmenti);
 								ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
 								SegmentChangeType subChangeType;
-								if (handleSubSegment(subSegmentStart, subSegmentEnd, &subSegment, &subChangeType, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
+
+								// Same as above: Only handleSubSegment logic if the mouse is over the window
+								if (mouseHoveringOverTimelineWindow && handleSubSegment(subSegmentStart, subSegmentEnd, &subSegment, &subChangeType, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
 								{
 									float subOffsetX = calculateSegmentOffset(subSegment.frameStart, *firstFrame, amountOfTimeVisibleInTimeline);
 									float subWidth = calculateSegmentWidth(subSegment.frameDuration, amountOfTimeVisibleInTimeline);
@@ -685,9 +692,10 @@ namespace MathAnim
 									{
 										drawList->AddRect(subSegmentStart, subSegmentEnd, cursorColor, 10.0f, 0, 4.0f);
 
-										if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+										if (mouseHoveringOverTimelineWindow && ImGui::IsKeyPressed(ImGuiKey_Delete))
 										{
 											res.flags |= ImGuiTimelineResultFlags_DeleteActiveObject;
+											res.flags |= ImGuiTimelineResultFlags_ActiveObjectDeselected;
 											res.activeObjectIsSubSegment = true;
 											res.segmentIndex = si;
 											res.subSegmentIndex = subSegmenti;
@@ -908,7 +916,7 @@ namespace MathAnim
 			ImGuiStyle& style = ImGui::GetStyle();
 
 			static DragState timelineDragging = DragState::None;
-			if (ImGui::IsMouseHoveringRect(timelineRulerBegin, timelineRulerEnd))
+			if (mouseHoveringOverTimelineWindow && ImGui::IsMouseHoveringRect(timelineRulerBegin, timelineRulerEnd))
 			{
 				if (timelineDragging == DragState::None && !io.MouseDown[ImGuiMouseButton_Left])
 				{
@@ -1049,7 +1057,7 @@ namespace MathAnim
 				);
 				ImVec2 fullTracknameBottom = legendTrackNameBottom + ImVec2(trackNamePadding * 2.0f + expandButtonSize.x, 0.0f);
 
-				if (ImGui::IsMouseHoveringRect(legendTrackNameTop, fullTracknameBottom))
+				if (mouseHoveringOverTimelineWindow && ImGui::IsMouseHoveringRect(legendTrackNameTop, fullTracknameBottom))
 				{
 					// NOTE(voxel): Very Subtle Hover Highlight
 					drawList->AddRect(legendTrackNameTop, fullTracknameBottom, legendBorderHighlightColor);
@@ -1096,7 +1104,7 @@ namespace MathAnim
 				}
 
 				// Check if the user clicked the segment arrow to expand or un-expand it
-				if (ImGui::IsMouseHoveringRect(legendTrackNameTop, fullTracknameBottom) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+				if (mouseHoveringOverTimelineWindow && ImGui::IsMouseHoveringRect(legendTrackNameTop, fullTracknameBottom) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
 				{
 					tracks[i].isExpanded = !tracks[i].isExpanded;
 				}
@@ -1112,7 +1120,7 @@ namespace MathAnim
 				// Handle right clicking on the legend by popping up context menu
 				std::string id = std::string("TrackName_") + std::to_string(i) + tracks[i].trackName;
 
-				if (beginPopupContextTimelineItem(id.c_str(), legendTrackNameTop, legendTrackNameBottom))
+				if (mouseHoveringOverTimelineWindow && beginPopupContextTimelineItem(id.c_str(), legendTrackNameTop, legendTrackNameBottom))
 				{
 					if (ImGui::MenuItem("Add Track Above"))
 					{
@@ -1142,7 +1150,7 @@ namespace MathAnim
 			// Check if they right clicked in the empty area below track names
 			ImVec2 legendTrackNameTop = ImVec2(canvasPos.x, currentTrackTop);
 			ImVec2 legendTrackNameBottom = ImVec2(canvasPos.x + legendSize.x, canvasPos.y + canvasSize.y);
-			if (beginPopupContextTimelineItem("Track_Empty_Legend_Area", legendTrackNameTop, legendTrackNameBottom))
+			if (mouseHoveringOverTimelineWindow && beginPopupContextTimelineItem("Track_Empty_Legend_Area", legendTrackNameTop, legendTrackNameBottom))
 			{
 				if (ImGui::MenuItem("Add Track"))
 				{
@@ -1271,7 +1279,7 @@ namespace MathAnim
 		return res;
 	}
 
-	static bool handleLegendSplitter(float* legendWidth)
+	static bool handleLegendSplitter(float* legendWidth, bool mouseHovering)
 	{
 		static DragState state = DragState::None;
 
@@ -1285,7 +1293,7 @@ namespace MathAnim
 			*legendWidth = glm::min(glm::max(*legendWidth, 0.2f), 0.5f);
 		}
 
-		if (state == DragState::Hover)
+		if (state == DragState::Hover && mouseHovering)
 		{
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 			ImGuiStyle& style = ImGui::GetStyle();

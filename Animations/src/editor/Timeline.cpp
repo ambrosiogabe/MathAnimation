@@ -1314,7 +1314,7 @@ namespace MathAnim
 		{
 			// First delete it from our animations
 			ImGuiTimeline_Segment& segment = track.segments[segmentIndex];
-			AnimationManager::removeAnimObject(am, segment.userData.as.intData);
+			AnimationManager::removeAnimation(am, segment.userData.as.intData);
 
 			// Unset active object if needed
 			if (segment.userData.as.intData == activeAnimObjectId)
