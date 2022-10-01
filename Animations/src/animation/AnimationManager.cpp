@@ -134,10 +134,33 @@ namespace MathAnim
 			am->animationIdMap[animation.id] = am->animations.size() - 1;
 		}
 
+		static bool removeSingleAnimObject(AnimationManagerData* am, int animObjectId);
 		bool removeAnimObject(AnimationManagerData* am, int animObjectId)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
+			// First remove all children objects
+			bool success = true;
+			for (int i = 0; i < am->objects.size(); i++)
+			{
+				AnimObject& objIter = am->objects[i];
+				if (objIter.parentId == animObjectId)
+				{
+					bool singleSuccess = removeSingleAnimObject(am, objIter.id);
+					success = success && singleSuccess;
+					i--;
+				}
+			}
+
+			// Then remove the parent
+			bool singleSuccess = removeSingleAnimObject(am, animObjectId);
+			success = success && singleSuccess;
+
+			return success;
+		}
+
+		static bool removeSingleAnimObject(AnimationManagerData* am, int animObjectId)
+		{
 			// Remove the anim object
 			auto iter = am->objectIdMap.find(animObjectId);
 			if (iter != am->objectIdMap.end())
@@ -145,6 +168,8 @@ namespace MathAnim
 				int animObjectIndex = iter->second;
 				if (animObjectIndex >= 0 && animObjectIndex < am->objects.size())
 				{
+					am->objects[animObjectIndex].free();
+
 					auto updateIter = am->objects.erase(am->objects.begin() + animObjectIndex);
 					am->objectIdMap.erase(animObjectId);
 
@@ -154,7 +179,28 @@ namespace MathAnim
 						am->objectIdMap[updateIter->id] = updateIter - am->objects.begin();
 					}
 
-					// TODO: Also remove any references of this object from all animations
+					// Remove any references from old animations
+					for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
+					{
+						// TODO: The animIterIds should be a set not a vector
+						auto deleteIterAnimRef = std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), animObjectId);
+						if (deleteIterAnimRef != animIter->animObjectIds.end())
+						{
+							animIter->animObjectIds.erase(deleteIterAnimRef);
+						}
+						// TODO: This is gross, find some way to automatically update references
+						else if (animIter->type == AnimTypeV1::Transform)
+						{
+							if (animIter->as.replacementTransform.dstAnimObjectId == animObjectId)
+							{
+								animIter->as.replacementTransform.dstAnimObjectId = INT32_MAX;
+							}
+							else if (animIter->as.replacementTransform.srcAnimObjectId == animObjectId)
+							{
+								animIter->as.replacementTransform.srcAnimObjectId = INT32_MAX;
+							}
+						}
+					}
 
 					return true;
 				}

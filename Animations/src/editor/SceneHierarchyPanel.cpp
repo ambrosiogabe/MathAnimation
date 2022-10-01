@@ -4,6 +4,7 @@
 #include "animation/AnimationManager.h"
 #include "utils/IconsFontAwesome5.h"
 #include "core/Colors.h"
+#include "core/Input.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -84,10 +85,16 @@ namespace MathAnim
 			inBetweenBuffer.clear();
 
 			// Now iterate through all the entities
+			int activeElementIndex = -1;
 			for (size_t i = 0; i < orderedEntities.size(); i++)
 			{
 				SceneTreeMetadata& element = orderedEntities[i];
 				const AnimObject& animObject = *AnimationManager::getObject(am, element.animObjectId);
+
+				if (element.selected)
+				{
+					activeElementIndex = i;
+				}
 
 				// Next element wraps around to 0, which plays nice with all of our sorting logic
 				SceneTreeMetadata& nextElement = orderedEntities[(i + 1) % orderedEntities.size()];
@@ -147,6 +154,22 @@ namespace MathAnim
 
 			imGuiRightClickPopup(am);
 
+			// Handle delete animation object
+			if (ImGui::IsWindowHovered() && activeElementIndex != -1 && Input::keyPressed(GLFW_KEY_DELETE))
+			{
+				const AnimObject* animObject = AnimationManager::getObject(am, orderedEntities[activeElementIndex].animObjectId);
+				if (animObject)
+				{
+					// TODO: Have this create some sort of event that we can subscribe to like:
+					//    EVENT --- DeleteAnimObject
+					// That way I don't have to worry about who's responsibility it is to remove
+					// the anim objects from the animation manager and the timeline
+					deleteAnimObject(*animObject);
+					AnimationManager::removeAnimObject(am, animObject->id);
+					Timeline::setActiveAnimObject(INT32_MAX);
+				}
+			}
+
 			ImGui::End();
 		}
 
@@ -180,7 +203,7 @@ namespace MathAnim
 				for (int i = 0; i < numChildren + 1; i++)
 				{
 					orderedEntities.erase(orderedEntities.begin() + parentIndex);
-					orderedEntitiesCopy.erase(orderedEntities.begin() + parentIndex);
+					orderedEntitiesCopy.erase(orderedEntitiesCopy.begin() + parentIndex);
 				}
 
 				for (int i = parentIndex; i < orderedEntities.size(); i++)
