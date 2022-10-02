@@ -264,6 +264,7 @@ namespace MathAnim
 		static Vertex3DLine current3DPath[max3DPathSize];
 		static int numVertsIn3DPath;
 		static Texture defaultWhiteTexture;
+		static int debugMsgId = 0;
 
 		// Default screen rectangle
 		static float defaultScreenQuad[] = {
@@ -345,6 +346,9 @@ namespace MathAnim
 			g_logger_assert(framebuffer.colorAttachments.size() == 4, "Invalid framebuffer. Should have 3 color attachments.");
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
 
+			debugMsgId = 0;
+			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Main_Framebuffer_Pass");
+
 			// Clear the framebuffer attachments and set it up
 			framebuffer.bind();
 			glViewport(0, 0, framebuffer.width, framebuffer.height);
@@ -378,6 +382,8 @@ namespace MathAnim
 			{
 				renderPickingOutline(framebuffer);
 			}
+
+			glPopDebugGroup();
 		}
 
 		void renderFramebuffer(const Framebuffer& framebuffer)
@@ -910,6 +916,8 @@ namespace MathAnim
 
 		static void renderPickingOutline(const Framebuffer& mainFramebuffer)
 		{
+			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Active_Object_Outline_Pass");
+
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
 			glDrawBuffers(4, compositeDrawBuffers);
 			pickingOutlineShader.bind();
@@ -932,6 +940,8 @@ namespace MathAnim
 
 			glBindVertexArray(screenVao);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
+
+			glPopDebugGroup();
 		}
 
 		static uint32 getColorCompressed()
@@ -1150,6 +1160,8 @@ namespace MathAnim
 			return;
 		}
 
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_General_Pass");
+
 		shader.bind();
 		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
 		shader.uploadMat4("uView", camera.calculateViewMatrix());
@@ -1198,6 +1210,8 @@ namespace MathAnim
 				nullptr
 			);
 		}
+
+		glPopDebugGroup();
 	}
 
 	void DrawList2D::reset()
@@ -1332,6 +1346,13 @@ namespace MathAnim
 
 	void DrawListFont2D::render(const Shader& shader, const OrthoCamera& camera)
 	{
+		if (drawCommands.size() == 0)
+		{
+			return;
+		}
+
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_Font_Pass");
+
 		shader.bind();
 		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
 		shader.uploadMat4("uView", camera.calculateViewMatrix());
@@ -1374,6 +1395,8 @@ namespace MathAnim
 				nullptr
 			);
 		}
+
+		glPopDebugGroup();
 	}
 
 	void DrawListFont2D::reset()
@@ -1513,6 +1536,8 @@ namespace MathAnim
 			return;
 		}
 
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_Line_Pass");
+
 		glEnable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
 
@@ -1528,6 +1553,8 @@ namespace MathAnim
 		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
 		glDisable(GL_DEPTH_TEST);
+
+		glPopDebugGroup();
 	}
 
 	void DrawList3DLine::reset()
@@ -1748,6 +1775,8 @@ namespace MathAnim
 			return;
 		}
 
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_OIT_Pass");
+
 		Vec4 sunColor = "#ffffffff"_hex;
 
 		// Enable depth testing and depth buffer writes
@@ -1904,6 +1933,8 @@ namespace MathAnim
 		// Reset GL state
 		// Enable writing to the depth buffer again
 		glDepthMask(GL_TRUE);
+
+		glPopDebugGroup();
 	}
 
 	void DrawList3D::reset()

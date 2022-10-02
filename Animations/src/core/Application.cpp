@@ -188,10 +188,14 @@ namespace MathAnim
 				Renderer::clearColor(Vec4{ 0, 0, 0, 0 });
 
 				// Do ImGui stuff
+				int debugMsgId = 0;
+				glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "ImGui_Pass");
 				ImGuiLayer::beginFrame();
 				ImGui::ShowDemoWindow();
 				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
 				ImGuiLayer::endFrame();
+				glPopDebugGroup();
+
 				Svg::endFrame();
 
 				// Miscellaneous

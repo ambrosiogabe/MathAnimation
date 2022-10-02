@@ -24,6 +24,7 @@ namespace MathAnim
 		static OrthoCamera* orthoCamera;
 		static PerspectiveCamera* perspCamera;
 		static Vec2 cursor;
+		static int renderPassCounter = 0;
 
 		// ----------------- Internal functions -----------------
 		static void checkResize(Path& path);
@@ -77,6 +78,9 @@ namespace MathAnim
 
 		void endFrame()
 		{
+			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "SVG_Cache_Reset");
+
+			renderPassCounter = 0;
 			cacheCurrentPos.x = 0;
 			cacheCurrentPos.y = 0;
 
@@ -85,6 +89,8 @@ namespace MathAnim
 			//svgCache.clearColorAttachmentRgba(0, "#fc03ecFF"_hex);
 			svgCache.clearColorAttachmentRgba(0, "#00000000"_hex);
 			svgCache.clearDepthStencil();
+
+			glPopDebugGroup();
 		}
 
 		const Texture& getSvgCache()
@@ -142,7 +148,20 @@ namespace MathAnim
 
 		void endFrame(NVGcontext* vg)
 		{
+			const char message[] = "NanoVG_Render_Pass[";
+			constexpr size_t messageLength = sizeof(message) / sizeof(char);
+			constexpr size_t bufferLength = messageLength + 7;
+			char buffer[bufferLength] = {};
+			// Buffer overflow protection
+			if (renderPassCounter >= 9999)
+			{
+				renderPassCounter = 0;
+			}
+			snprintf(buffer, bufferLength, "%s%d]\0", message, renderPassCounter);
+			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, buffer);
 			nvgEndFrame(vg);
+			glPopDebugGroup();
+			renderPassCounter++;
 		}
 
 		PerspectiveCamera const& getPerspCamera()
