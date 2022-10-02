@@ -116,6 +116,9 @@ namespace MathAnim
 		void checkLineHeight(float newLineHeight);
 		void growCache();
 
+		void beginFrame(NVGcontext* vg);
+		void endFrame(NVGcontext* vg);
+
 		PerspectiveCamera const& getPerspCamera();
 		OrthoCamera const& getOrthoCamera();
 

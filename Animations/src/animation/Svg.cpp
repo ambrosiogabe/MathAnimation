@@ -128,6 +128,21 @@ namespace MathAnim
 		{
 			// Double the size of the texture (up to 8192x8192 max)
 			Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
+
+			// TODO: If the cache exceeds the size of this framebuffer do:
+			//   endFrame(vg);
+			//   Svg::generateSvgCache(...);
+			//   beginFrame(vg);
+		}
+
+		void beginFrame(NVGcontext* vg)
+		{
+			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
+		}
+
+		void endFrame(NVGcontext* vg)
+		{
+			nvgEndFrame(vg);
 		}
 
 		PerspectiveCamera const& getPerspCamera()
@@ -1186,9 +1201,7 @@ namespace MathAnim
 			svgTextureOffset.y += offset.y * parent->svgScale;
 		}
 
-		nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
 		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this, isSvgGroup);
-		nvgEndFrame(vg);
 
 		// Don't blit svg groups to a bunch of quads, they get rendered as one quad together
 		if (isSvgGroup)
@@ -1379,8 +1392,6 @@ namespace MathAnim
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
 			glDrawBuffers(4, compositeDrawBuffers);
 
-			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
-
 			float strokeWidthCorrectionPos = cachePadding.x * 0.5f;
 			float strokeWidthCorrectionNeg = -cachePadding.x;
 			nvgBeginPath(vg);
@@ -1398,7 +1409,6 @@ namespace MathAnim
 			);
 			nvgClosePath(vg);
 			nvgStroke(vg);
-			nvgEndFrame(vg);
 		}
 
 		// Then blit the SVG group to the screen

@@ -462,6 +462,10 @@ namespace MathAnim
 			//}
 
 			// Render any active/animating objects
+			// Make sure to initialize the NanoVG cache and then flush it after all the 
+			// draw calls are complete
+			Svg::beginFrame(vg);
+
 			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 			{
 				if (objectIter->status != AnimObjectStatus::Inactive)
@@ -469,6 +473,8 @@ namespace MathAnim
 					objectIter->render(vg);
 				}
 			}
+
+			Svg::endFrame(vg);
 		}
 
 		int lastAnimatedFrame(const AnimationManagerData* am)

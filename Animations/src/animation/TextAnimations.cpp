@@ -166,8 +166,6 @@ namespace MathAnim
 				GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
 				glDrawBuffers(4, compositeDrawBuffers);
 
-				nvgBeginFrame(vg, Svg::getSvgCache().width, Svg::getSvgCache().height, 1.0f);
-
 				float strokeWidthCorrectionPos = Svg::getCachePadding().x * 0.5f;
 				float strokeWidthCorrectionNeg = -Svg::getCachePadding().x;
 				nvgBeginPath(vg);
@@ -185,7 +183,6 @@ namespace MathAnim
 				);
 				nvgClosePath(vg);
 				nvgStroke(vg);
-				nvgEndFrame(vg);
 			}
 
 			if (parent->is3D)
