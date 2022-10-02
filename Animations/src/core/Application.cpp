@@ -68,6 +68,9 @@ namespace MathAnim
 
 		static const char* winTitle = "Math Animations";
 
+		static RawMemory serializeCameras();
+		static void deserializeCameras(RawMemory& cameraData);
+
 		void init(const char* projectFile)
 		{
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
@@ -293,17 +296,20 @@ namespace MathAnim
 		{
 			RawMemory animationData = AnimationManager::serialize(am);
 			RawMemory timelineData = Timeline::serialize(EditorGui::getTimelineData());
+			RawMemory cameraData = serializeCameras();
 
 			TableOfContents tableOfContents;
 			tableOfContents.init();
 
 			tableOfContents.addEntry(animationData, "Animation_Data");
 			tableOfContents.addEntry(timelineData, "Timeline_Data");
+			tableOfContents.addEntry(cameraData, "Camera_Data");
 
 			tableOfContents.serialize(currentProjectFilepath.c_str());
 
 			animationData.free();
 			timelineData.free();
+			cameraData.free();
 			tableOfContents.free();
 		}
 
@@ -330,14 +336,26 @@ namespace MathAnim
 
 			RawMemory animationData = toc.getEntry("Animation_Data");
 			RawMemory timelineData = toc.getEntry("Timeline_Data");
+			RawMemory cameraData = toc.getEntry("Camera_Data");
 			toc.free();
 
-			AnimationManager::deserialize(am, animationData);
-			TimelineData timeline = Timeline::deserialize(timelineData);
-			EditorGui::setTimelineData(timeline);
+			if (animationData.data)
+			{
+				AnimationManager::deserialize(am, animationData);
+			}
+			if (timelineData.data)
+			{
+				TimelineData timeline = Timeline::deserialize(timelineData);
+				EditorGui::setTimelineData(timeline);
+			}
+			if (cameraData.data)
+			{
+				deserializeCameras(cameraData);
+			}
 
 			animationData.free();
 			timelineData.free();
+			cameraData.free();
 		}
 
 		void setEditorPlayState(AnimState state)
@@ -426,6 +444,55 @@ namespace MathAnim
 		GlobalThreadPool* threadPool()
 		{
 			return globalThreadPool;
+		}
+
+		static RawMemory serializeCameras()
+		{
+			// 2D Editor Camera
+			//    position        -> Vec2
+			//    projectionSize  -> Vec2
+			//    zoom            -> float
+			// 3D Editor Camera
+			//    position        -> Vec3
+			//    orientation     -> Vec3
+			//    forward         -> Vec3
+			//    fov             -> float
+
+			RawMemory cameraData;
+			cameraData.init(sizeof(OrthoCamera) + sizeof(PerspectiveCamera));
+
+			CMath::serialize(cameraData, editorCamera2D.position);
+			CMath::serialize(cameraData, editorCamera2D.projectionSize);
+			cameraData.write<float>(&editorCamera2D.zoom);
+
+			CMath::serialize(cameraData, Vec3{ editorCamera3D.position.x, editorCamera3D.position.y, editorCamera3D.position.z });
+			CMath::serialize(cameraData, Vec3{ editorCamera3D.orientation.x, editorCamera3D.orientation.y, editorCamera3D.orientation.z });
+			CMath::serialize(cameraData, Vec3{ editorCamera3D.forward.x, editorCamera3D.forward.y, editorCamera3D.forward.z });
+			cameraData.write<float>(&editorCamera3D.fov);
+
+			cameraData.shrinkToFit();
+			return cameraData;
+		}
+
+		static void deserializeCameras(RawMemory& cameraData)
+		{
+			// 2D Editor Camera
+			//    position        -> Vec2
+			//    projectionSize  -> Vec2
+			//    zoom            -> float
+			// 3D Editor Camera
+			//    position        -> Vec3
+			//    orientation     -> Vec3
+			//    forward         -> Vec3
+			//    fov             -> float
+			editorCamera2D.position = CMath::deserializeVec2(cameraData);
+			editorCamera2D.projectionSize = CMath::deserializeVec2(cameraData);
+			cameraData.read<float>(&editorCamera2D.zoom);
+
+			editorCamera3D.position = CMath::convert(CMath::deserializeVec3(cameraData));
+			editorCamera3D.orientation = CMath::convert(CMath::deserializeVec3(cameraData));
+			editorCamera3D.forward = CMath::convert(CMath::deserializeVec3(cameraData));
+			cameraData.read<float>(&editorCamera3D.fov);
 		}
 	}
 }
