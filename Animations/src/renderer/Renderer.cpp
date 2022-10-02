@@ -136,7 +136,7 @@ namespace MathAnim
 		void init();
 
 		// TODO: Add a bunch of methods like this...
-		void addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, uint32 objId);
+		void addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform);
 		void addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color, uint32 objId);
 		void addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color, uint32 objId);
 
@@ -502,12 +502,7 @@ namespace MathAnim
 
 		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform)
 		{
-			glm::vec4 tmpMin = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
-			glm::vec4 tmpMax = transform * glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
-			Vec2 min = { tmpMin.x, tmpMin.y };
-			Vec2 max = { tmpMax.x, tmpMax.y };
-
-			drawList2D.addTexturedQuad(texture, min, max, uvMin, uvMax, objId);
+			drawList2D.addTexturedQuad(texture, size / -2.0f, size / 2.0f, uvMin, uvMax, objId, transform);
 		}
 
 		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, uint32 objId)
@@ -985,7 +980,7 @@ namespace MathAnim
 	}
 
 	// TODO: Add a bunch of methods like this...
-	void DrawList2D::addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, uint32 objId)
+	void DrawList2D::addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform)
 	{
 		// Check if we need to switch to a new batch
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != texture.graphicsId)
@@ -1002,6 +997,11 @@ namespace MathAnim
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
+		glm::vec4 bottomLeft = transform * glm::vec4(min.x, min.y, 0.0f, 1.0f);
+		glm::vec4 topLeft = transform * glm::vec4(min.x, max.y, 0.0f, 1.0f);
+		glm::vec4 topRight = transform * glm::vec4(max.x, max.y, 0.0f, 1.0f);
+		glm::vec4 bottomRight = transform * glm::vec4(max.x, min.y, 0.0f, 1.0f);
+
 		int rectStartIndex = cmd.elementCounter;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
@@ -1011,19 +1011,19 @@ namespace MathAnim
 		Vertex2D vert;
 		vert.color = Vec4{ 1, 1, 1, 1 };
 		vert.objId = objId;
-		vert.position = min;
+		vert.position = Vec2{bottomLeft.x, bottomLeft.y};
 		vert.textureCoords = uvMin;
 		vertices.push(vert);
 
-		vert.position = Vec2{ min.x, max.y };
+		vert.position = Vec2{ topLeft.x, topLeft.y };
 		vert.textureCoords = Vec2{ uvMin.x, uvMax.y };
 		vertices.push(vert);
 
-		vert.position = max;
+		vert.position = Vec2{topRight.x, topRight.y};
 		vert.textureCoords = uvMax;
 		vertices.push(vert);
 
-		vert.position = Vec2{ max.x, min.y };
+		vert.position = Vec2{ bottomRight.x, bottomRight.y };
 		vert.textureCoords = Vec2{ uvMax.x, uvMin.y };
 		vertices.push(vert);
 		cmd.numVerts += 4;

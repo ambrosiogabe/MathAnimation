@@ -127,7 +127,7 @@ namespace MathAnim
 			AnimObject* activeAnimObject = AnimationManager::getMutableObject(am, activeAnimObjectId);
 			if (activeAnimObject)
 			{
-				activeAnimObject->onGizmo();
+				activeAnimObject->onGizmo(am);
 
 				// Render any animations that contain this object
 				std::vector<int32> animations = AnimationManager::getAssociatedAnimations(am, activeAnimObject);

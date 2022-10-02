@@ -302,7 +302,7 @@ namespace MathAnim
 		return res;
 	}
 
-	void AnimObject::onGizmo()
+	void AnimObject::onGizmo(AnimationManagerData* am)
 	{
 		if (is3D)
 		{
@@ -312,7 +312,24 @@ namespace MathAnim
 		{
 			// TODO: Render and handle 2D gizmo logic based on edit mode
 			std::string gizmoName = std::string((char*)this->name) + std::to_string(this->id);
-			GizmoManager::translateGizmo(gizmoName.c_str(), &this->_positionStart);
+
+			// It's important to render the gizmo at the global location, and then transform
+			// the result back to local coordinates since the user is editing with gizmos in global
+			// space
+			Vec3 globalPositionStart = this->_globalPositionStart;
+			if (GizmoManager::translateGizmo(gizmoName.c_str(), &globalPositionStart))
+			{
+				this->_globalPositionStart = globalPositionStart;
+
+				// Then get local position
+				Vec3 localPosition = this->_globalPositionStart;
+				if (this->parentId != INT32_MAX)
+				{
+					const AnimObject* parent = AnimationManager::getObject(am, this->parentId);
+					localPosition = this->_globalPositionStart - parent->_globalPositionStart;
+				}
+				this->_positionStart = localPosition;
+			}
 		}
 
 		switch (objectType)

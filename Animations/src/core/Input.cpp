@@ -14,15 +14,15 @@ namespace MathAnim
 
 
 		// ----------- Internal Variables -----------
-		static bool keyDownLastFrame[GLFW_KEY_LAST + 1];
-		static bool keyDownData[GLFW_KEY_LAST + 1];
-		static bool keyUpData[GLFW_KEY_LAST + 1];
+		static bool keyDownLastFrame[GLFW_KEY_LAST + 1] = {};
+		static bool keyDownData[GLFW_KEY_LAST + 1] = {};
+		static bool keyUpData[GLFW_KEY_LAST + 1] = {};
 		static float lastMouseX;
 		static float lastMouseY;
 		static bool firstMouse = true;
-		static bool mouseButtonDownLastFrame[(uint8)MouseButton::Length];
-		static bool mouseButtonDown[(uint8)MouseButton::Length];
-		static bool mouseButtonUp[(uint8)MouseButton::Length];
+		static bool mouseButtonDownLastFrame[(uint8)MouseButton::Length] = {};
+		static bool mouseButtonDown[(uint8)MouseButton::Length] = {};
+		static bool mouseButtonUp[(uint8)MouseButton::Length] = {};
 
 		void mouseCallback(GLFWwindow* window, double xpos, double ypos)
 		{
@@ -57,7 +57,7 @@ namespace MathAnim
 		{
 			// Copy the mouse button down states to mouse button down last frame
 			g_memory_copyMem(mouseButtonDownLastFrame, mouseButtonDown, sizeof(bool) * (uint8)MouseButton::Length);
-			g_memory_copyMem(keyDownLastFrame, keyDownData, sizeof(int) * (GLFW_KEY_LAST + 1));
+			g_memory_copyMem(keyDownLastFrame, keyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
 			deltaMouseX = 0;
 			deltaMouseY = 0;
 			scrollX = 0;

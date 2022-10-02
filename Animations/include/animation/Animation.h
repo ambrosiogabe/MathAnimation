@@ -160,6 +160,13 @@ namespace MathAnim
 		// what to pass to renderCreateAnimation(...)
 		float percentCreated;
 
+		// Transform stuff
+		// TODO: Consider moving this to a Transform class
+		// This is the combined parent+child positions and transformations
+		Vec3 _globalPositionStart;
+		Vec3 globalPosition;
+		glm::mat4 globalTransform;
+
 		int32 id;
 		int32 parentId;
 		uint8* name;
@@ -190,7 +197,7 @@ namespace MathAnim
 			Axis axis;
 		} as;
 
-		void onGizmo();
+		void onGizmo(AnimationManagerData* am);
 		void render(NVGcontext* vg) const;
 		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target);
 		void renderFadeInAnimation(NVGcontext* vg, float t);

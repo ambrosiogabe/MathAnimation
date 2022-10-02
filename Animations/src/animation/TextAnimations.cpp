@@ -190,52 +190,24 @@ namespace MathAnim
 
 			if (parent->is3D)
 			{
-				glm::mat4 transform = glm::identity<glm::mat4>();
-				transform = glm::translate(
-					transform,
-					glm::vec3(
-						parent->position.x,
-						parent->position.y,
-						parent->position.z
-					)
-				);
-				transform = transform * glm::orientate4(glm::radians(glm::vec3(parent->rotation.x, parent->rotation.y, parent->rotation.z)));
-				transform = glm::scale(transform, glm::vec3(parent->scale.x, parent->scale.y, parent->scale.z));
-
 				Renderer::drawTexturedQuad3D(
 					Svg::getSvgCache(),
 					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
 					cacheUvMin,
 					cacheUvMax,
-					transform,
+					parent->globalTransform,
 					parent->isTransparent
 				);
 			}
 			else
 			{
-				glm::mat4 transform = glm::identity<glm::mat4>();
-				Vec2 cameraCenteredPos = Svg::getOrthoCamera().projectionSize / 2.0f - Svg::getOrthoCamera().position;
-				transform = glm::translate(
-					transform,
-					glm::vec3(
-						parent->position.x,
-						parent->position.y,
-						0.0f
-					)
-				);
-				if (!CMath::compare(parent->rotation.z, 0.0f))
-				{
-					transform = glm::rotate(transform, parent->rotation.z, glm::vec3(0, 0, 1));
-				}
-				transform = glm::scale(transform, glm::vec3(parent->scale.x, parent->scale.y, parent->scale.z));
-
 				Renderer::drawTexturedQuad(
 					Svg::getSvgCache(),
 					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
 					cacheUvMin,
 					cacheUvMax,
 					parent->id,
-					transform
+					parent->globalTransform
 				);
 			}
 

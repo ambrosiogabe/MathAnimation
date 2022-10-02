@@ -67,6 +67,7 @@ namespace MathAnim
 		// -------- Internal Functions --------
 		static void deserializeAnimationManagerExV1(AnimationManagerData* am, RawMemory& memory);
 		static bool compareAnimation(const Animation& a1, const Animation& a2);
+		static void updateGlobalTransform(AnimObject& obj);
 
 		AnimationManagerData* create(OrthoCamera& camera)
 		{
@@ -342,6 +343,7 @@ namespace MathAnim
 				// Reset everything to state at frame 0
 				am->sceneCamera2D->position = am->sceneCamera2DStartPos;
 
+				// Reset all object positions
 				for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 				{
 					// Reset to original state and apply animations in order
@@ -362,31 +364,7 @@ namespace MathAnim
 					if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
 					{
 						objectIter->as.laTexObject.update();
-					}
-
-					// Reset children state
-					//for (int i = 0; i < objectIter->children.size(); i++)
-					//{
-					//	AnimObject* child = &objectIter->children[i];
-					//	if (child->_svgObjectStart != nullptr && child->svgObject != nullptr)
-					//	{
-					//		Svg::copy(child->svgObject, child->_svgObjectStart);
-					//	}
-
-					//	// TODO: Create some sort of apply animation, then apply animations locally
-					//	// and then transform according to parent position after animation applications
-					//	child->position = child->_positionStart + objectIter->position;
-					//	child->rotation = child->_rotationStart + objectIter->rotation;
-					//	child->scale.x = child->_scaleStart.x * objectIter->scale.x;
-					//	child->scale.y = child->_scaleStart.y * objectIter->scale.y;
-					//	child->scale.z = child->_scaleStart.z * objectIter->scale.z;
-
-					//	// Update any updateable objects
-					//	if (child->objectType == AnimObjectTypeV1::LaTexObject)
-					//	{
-					//		child->as.laTexObject.update();
-					//	}
-					//}
+					}					
 				}
 
 				// Apply any changes from animations in order
@@ -405,6 +383,59 @@ namespace MathAnim
 						// Then apply the animation
 						float interpolatedT = ((float)am->currentFrame - frameStart) / (float)animIter->duration;
 						animIter->applyAnimation(am, vg, interpolatedT);
+					}
+				}
+
+				// ----- Apply the parent->child transformations -----
+				// First find all the root objects
+				std::queue<int32> rootObjects = {};
+				for (auto objIter = am->objects.begin(); objIter != am->objects.end(); objIter++)
+				{
+					// If the object has no parent, it's a root object.
+					// Update the transform then update children recursively
+					// and in order from parent->child
+					if (objIter->parentId == INT32_MAX)
+					{
+						rootObjects.push(objIter->id);
+					}
+				}
+
+				// Then update all children
+				// Loop through each root object and recursively update the transforms by appending children to the queue
+				while (rootObjects.size() > 0)
+				{
+					int32 nextObjId = rootObjects.front();
+					rootObjects.pop();
+
+					// Update child transform
+					AnimObject* nextObj = getMutableObject(am, nextObjId);
+					if (nextObj)
+					{
+						updateGlobalTransform(*nextObj);
+
+						// Then apply parent transformation if the parent exists
+						// At this point the parent should have been updated already
+						// since the queue is FIFO
+						if (nextObj->parentId != INT32_MAX)
+						{
+							const AnimObject* parent = getObject(am, nextObj->parentId);
+							if (parent)
+							{
+								nextObj->_globalPositionStart += parent->_globalPositionStart;
+								nextObj->globalPosition += parent->globalPosition;
+								nextObj->globalTransform *= parent->globalTransform;
+							}
+						}
+
+						// Then append all direct children to the queue so they are
+						// recursively updated
+						for (auto childIter = am->objects.begin(); childIter != am->objects.end(); childIter++)
+						{
+							if (childIter->parentId == nextObj->id)
+							{
+								rootObjects.push(childIter->id);
+							}
+						}
 					}
 				}
 
@@ -697,6 +728,19 @@ namespace MathAnim
 			}
 
 			return a1.frameStart < a2.frameStart;
+		}
+
+		static void updateGlobalTransform(AnimObject& obj)
+		{
+			obj._globalPositionStart = obj._positionStart;
+			obj.globalPosition = obj.position;
+			obj.globalTransform = glm::identity<glm::mat4>();
+			obj.globalTransform = glm::translate(obj.globalTransform, CMath::convert(obj.globalPosition));
+			glm::quat xRotation = glm::angleAxis(glm::radians(obj.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+			glm::quat yRotation = glm::angleAxis(glm::radians(obj.rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+			glm::quat zRotation = glm::angleAxis(glm::radians(obj.rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+			obj.globalTransform *= glm::toMat4(xRotation * yRotation * zRotation);
+			obj.globalTransform = glm::scale(obj.globalTransform, CMath::convert(obj.scale));
 		}
 	}
 }

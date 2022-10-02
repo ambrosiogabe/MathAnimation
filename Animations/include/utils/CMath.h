@@ -73,6 +73,22 @@ namespace MathAnim
 			return (-b - glm::sqrt(b * b - 4 * a * c)) / (2.0f * a);
 		}
 
+		// Implicit conversions from Vec to glm::vec
+		inline glm::vec2 convert(const Vec2& vec)
+		{
+			return glm::vec2(vec.x, vec.y);
+		}
+
+		inline glm::vec3 convert(const Vec3& vec)
+		{
+			return glm::vec3(vec.x, vec.y, vec.z);
+		}
+
+		inline glm::vec4 convert(const Vec4& vec)
+		{
+			return glm::vec4(vec.x, vec.y, vec.z, vec.w);
+		}
+
 		// Winding order stuff
 		bool isClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 		inline bool isCounterClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2) { return !isClockwise(p0, p1, p2); }
