@@ -180,6 +180,7 @@ namespace MathAnim
 		bool drawDebugBoxes;
 		bool drawCurveDebugBoxes;
 		bool is3D;
+		bool isGenerated;
 		float _strokeWidthStart;
 		float strokeWidth;
 		glm::u8vec4 _strokeColorStart;
@@ -208,9 +209,9 @@ namespace MathAnim
 		
 		void free();
 		void serialize(RawMemory& memory) const;
-		static AnimObject deserialize(RawMemory& memory, uint32 version);
-		static AnimObject createDefaultFromParent(AnimObjectTypeV1 type, const AnimObject* parent);
-		static AnimObject createDefault(AnimObjectTypeV1 type);
+		static AnimObject deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version);
+		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject* parent);
+		static AnimObject createDefault(AnimationManagerData* am, AnimObjectTypeV1 type);
 	};
 }
 

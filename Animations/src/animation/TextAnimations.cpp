@@ -1,5 +1,6 @@
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
+#include "animation/AnimationManager.h"
 #include "animation/SvgParser.h"
 #include "animation/Svg.h"
 #include "renderer/Renderer.h"
@@ -9,6 +10,7 @@
 #include "renderer/OrthoCamera.h"
 #include "core/Application.h"
 #include "latex/LaTexLayer.h"
+#include "editor/SceneHierarchyPanel.h"
 
 #include "nanovg.h"
 
@@ -27,6 +29,97 @@ namespace MathAnim
 		}
 	}
 
+	void TextObject::init(AnimationManagerData* am, AnimObject* obj)
+	{
+		if (obj->as.textObject.font == nullptr)
+		{
+			return;
+		}
+
+		float fontSizePixels = obj->svgScale;
+
+		// Calculate the string size
+		std::string textStr = std::string(text);
+		Vec2 strSize = Vec2{ 0, obj->as.textObject.font->lineHeight };
+		for (int i = 0; i < textStr.length(); i++)
+		{
+			uint32 codepoint = (uint32)textStr[i];
+			const GlyphOutline& glyphOutline = obj->as.textObject.font->getGlyphInfo(codepoint);
+
+			Vec2 glyphPos = strSize;
+			Vec2 offset = Vec2{
+				glyphOutline.bearingX,
+				obj->as.textObject.font->lineHeight - glyphOutline.bearingY
+			};
+
+			// TODO: I may have to add kerning info here
+			strSize += Vec2{ glyphOutline.advanceX, 0.0f };
+
+			float newMaxY = obj->as.textObject.font->lineHeight + glyphOutline.descentY;
+			strSize.y = glm::max(newMaxY, strSize.y);
+		}
+
+		// Generate children that represent each character of the text object `obj`
+		int numNonWhitespaceCharacters = 0;
+		for (int i = 0; i < textStr.length(); i++)
+		{
+			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
+			{
+				numNonWhitespaceCharacters++;
+			}
+		}
+
+		Vec2 cursorPos = Vec2{ 0, 0 };
+		for (int i = 0; i < textStr.length(); i++)
+		{
+			uint32 codepoint = (uint32)textStr[i];
+			const GlyphOutline& glyphOutline = obj->as.textObject.font->getGlyphInfo(codepoint);
+
+			Vec2 glyphPos = cursorPos;
+			Vec2 offset = Vec2{
+				glyphOutline.bearingX,
+				obj->as.textObject.font->lineHeight - glyphOutline.bearingY
+			};
+
+			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
+			{
+				// Add this character as a child
+				AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, obj);
+				childObj.parentId = obj->id;
+				Vec2 finalOffset = offset + glyphPos;
+				childObj.position = Vec3{finalOffset.x, finalOffset.y, 0.0f};
+				childObj.isGenerated = true;
+				AnimationManager::addAnimObject(am, childObj);
+				// TODO: Ugly what do I do???
+				SceneHierarchyPanel::addNewAnimObject(childObj);
+			}
+ 
+			// TODO: I may have to add kerning info here
+			cursorPos += Vec2{ glyphOutline.advanceX, 0.0f };
+		}
+	}
+
+	void TextObject::reInit(AnimationManagerData* am, AnimObject* obj)
+	{
+		// First remove all generated children, which were generated as a result
+		// of this object (presumably)
+		// NOTE: This is direct descendants, no recursive children here
+		std::vector<int32> children = AnimationManager::getChildren(am, obj);
+		for (auto childId : children)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, childId);
+			if (child && child->isGenerated)
+			{
+				AnimationManager::removeAnimObject(am, childId);
+			}
+		}
+
+		// Next init again which should regenerate the children
+		// TODO: Rethink how this is done because it's gross and doesn't work right
+		// pointers are not stable, what should I use instead??
+		AnimObject objCopy = *obj;
+		init(am, &objCopy);
+	}
 
 	void TextObject::render(NVGcontext* vg, const AnimObject* parent) const
 	{
@@ -35,7 +128,7 @@ namespace MathAnim
 		// then do a stroke, then repeat with a fill. I should consider looking into
 		// caching this stuff with nvgSave() or something which looks like it might cache
 		// drawings
-		renderWriteInAnimation(vg, 1.01f, parent);
+		//renderWriteInAnimation(vg, 1.01f, parent);
 	}
 
 	void TextObject::renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse) const

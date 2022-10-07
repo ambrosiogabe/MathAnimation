@@ -43,7 +43,7 @@ namespace MathAnim
 		static void deleteTrack(AnimationManagerData* am, int index);
 		static void handleAnimObjectInspector(AnimationManagerData* am, int animObjectId);
 		static void handleAnimationInspector(AnimationManagerData* am, int animationId);
-		static void handleTextObjectInspector(AnimObject* object);
+		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation);
@@ -649,7 +649,7 @@ namespace MathAnim
 			switch (animObject->objectType)
 			{
 			case AnimObjectTypeV1::TextObject:
-				handleTextObjectInspector(animObject);
+				handleTextObjectInspector(am, animObject);
 				break;
 			case AnimObjectTypeV1::LaTexObject:
 				handleLaTexObjectInspector(animObject);
@@ -807,8 +807,10 @@ namespace MathAnim
 			}
 		}
 
-		static void handleTextObjectInspector(AnimObject* object)
+		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object)
 		{
+			bool shouldRegenerate = false;
+
 			const std::vector<std::string>& fonts = Platform::getAvailableFonts();
 			int fontIndex = -1;
 			if (object->as.textObject.font != nullptr)
@@ -853,6 +855,7 @@ namespace MathAnim
 							Fonts::unloadFont(object->as.textObject.font);
 						}
 						object->as.textObject.font = Fonts::loadFont(fonts[n].c_str(), Application::getNvgContext());
+						shouldRegenerate = true;
 					}
 
 					// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
@@ -880,6 +883,12 @@ namespace MathAnim
 				object->as.textObject.textLength = (int32_t)newLength;
 				g_memory_copyMem(object->as.textObject.text, scratch, newLength * sizeof(char));
 				object->as.textObject.text[newLength] = '\0';
+				shouldRegenerate = true;
+			}
+
+			if (shouldRegenerate)
+			{
+				object->as.textObject.reInit(am, object);
 			}
 		}
 

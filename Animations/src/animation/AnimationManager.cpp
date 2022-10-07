@@ -364,7 +364,7 @@ namespace MathAnim
 					if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
 					{
 						objectIter->as.laTexObject.update();
-					}					
+					}
 				}
 
 				// Apply any changes from animations in order
@@ -627,7 +627,10 @@ namespace MathAnim
 			// Write out each anim object followed by 0xDEADBEEF
 			for (int i = 0; i < am->objects.size(); i++)
 			{
-				am->objects[i].serialize(memory);
+				if (!am->objects[i].isGenerated)
+				{
+					am->objects[i].serialize(memory);
+				}
 				memory.write<uint32>(&MAGIC_NUMBER);
 			}
 
@@ -715,7 +718,7 @@ namespace MathAnim
 			// Read each anim object followed by 0xDEADBEEF
 			for (uint32 i = 0; i < numAnimObjects; i++)
 			{
-				AnimObject animObject = AnimObject::deserialize(memory, version);
+				AnimObject animObject = AnimObject::deserialize(am, memory, version);
 				am->objects.push_back(animObject);
 				uint32 magicNumber;
 				memory.read<uint32>(&magicNumber);

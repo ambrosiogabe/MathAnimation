@@ -73,8 +73,9 @@ namespace MathAnim
 		{
 			// TODO: Consider making anim object creation a message then subscribing to this message type
 			int newIndex = orderedEntities.size();
-			orderedEntities.emplace_back(SceneTreeMetadata{ animObject.id, level, newIndex, false });
+			orderedEntities.insert(orderedEntities.begin() + newIndex, { animObject.id, level, newIndex, false });
 			orderedEntitiesCopy.emplace_back(SceneTreeMetadata{ animObject.id, level, newIndex, false });
+			// TODO: Figure out how to add elements as children
 		}
 
 		void update(AnimationManagerData* am)
@@ -282,7 +283,7 @@ namespace MathAnim
 					{
 						if (ImGui::MenuItem(buffer))
 						{
-							AnimObject animObject = AnimObject::createDefault((AnimObjectTypeV1)i);
+							AnimObject animObject = AnimObject::createDefault(am, (AnimObjectTypeV1)i);
 							AnimationManager::addAnimObject(am, animObject);
 							addNewAnimObject(animObject);
 						}

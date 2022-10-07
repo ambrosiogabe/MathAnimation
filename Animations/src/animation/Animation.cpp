@@ -15,7 +15,7 @@ namespace MathAnim
 	static int animationUidCounter = 0;
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV1(RawMemory& memory);
+	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory);
 	static Animation deserializeAnimationExV1(RawMemory& memory);
 	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation);
 
@@ -433,13 +433,6 @@ namespace MathAnim
 
 	void AnimObject::takeParentAttributes(const AnimObject* parent)
 	{
-		// Apply transformations
-		//this->position += parent->position;
-		//this->rotation += parent->rotation;
-		//this->scale.x *= parent->scale.x;
-		//this->scale.y *= parent->scale.y;
-		//this->scale.z *= parent->scale.z;
-
 		this->strokeColor = parent->strokeColor;
 		this->strokeWidth = parent->strokeWidth;
 		this->drawCurveDebugBoxes = parent->drawCurveDebugBoxes;
@@ -449,18 +442,12 @@ namespace MathAnim
 		this->status = parent->status;
 		this->isTransparent = parent->isTransparent;
 
-		// Apply transformations
-		//this->_positionStart += parent->_positionStart;
-		//this->_rotationStart += parent->_rotationStart;
-		//this->_scaleStart.x *= parent->_scaleStart.x;
-		//this->_scaleStart.y *= parent->_scaleStart.y;
-		//this->_scaleStart.z *= parent->_scaleStart.z;
-
 		this->_fillColorStart = parent->_fillColorStart;
 		this->_strokeColorStart = parent->_strokeColorStart;
 		this->_strokeWidthStart = parent->_strokeWidthStart;
 	}
 
+	static void replacementTransformTextObjs(AnimationManagerData* am, AnimObject* src, AnimObject* replacement, float t);
 	void AnimObject::replacementTransform(AnimationManagerData* am, AnimObject* replacement, float t)
 	{
 		// Update statuses
@@ -569,7 +556,46 @@ namespace MathAnim
 				replacement->percentCreated = 1.0f;
 			}
 		}
+		else if (this->objectType == AnimObjectTypeV1::TextObject && replacement->objectType == AnimObjectTypeV1::TextObject)
+		{
+			if (t < 1.0f)
+			{
+				//SvgObject* interpolated = Svg::interpolate(this->svgObject, replacement->svgObject, t);
+				//this->svgObject->free();
+				//g_memory_free(this->svgObject);
+				//this->svgObject = interpolated;
+
+				//// Interpolate other properties
+				//this->position = CMath::interpolate(t, this->position, replacement->position);
+				//this->rotation = CMath::interpolate(t, this->rotation, replacement->rotation);
+				//this->scale = CMath::interpolate(t, this->scale, replacement->scale);
+				//this->fillColor = CMath::interpolate(t, this->fillColor, replacement->fillColor);
+				//this->strokeColor = CMath::interpolate(t, this->strokeColor, replacement->strokeColor);
+				//this->strokeWidth = CMath::interpolate(t, this->strokeWidth, replacement->strokeWidth);
+				//// TODO: Come up with _svgScaleStart so scales can be reset
+				//// srcObject->svgScale = CMath::interpolate(t, srcObject->svgScale, dstObject->svgScale);
+				//this->percentCreated = 1.0f;
+
+				//// Fade out dstObject
+				//replacement->fillColor = CMath::interpolate(t,
+				//	replacement->fillColor,
+				//	glm::u8vec4(replacement->fillColor.r, replacement->fillColor.g, replacement->fillColor.b, 0)
+				//);
+				//replacement->strokeColor = CMath::interpolate(t,
+				//	replacement->strokeColor,
+				//	glm::u8vec4(replacement->strokeColor.r, replacement->strokeColor.g, replacement->strokeColor.b, 0)
+				//);
+			}
+			else
+			{
+				// Set all children as inactive as well
+				replacement->percentCreated = 1.0f;
+			}
+		}
 	}
+
+	static void replacementTransformTextObjs(AnimationManagerData* am, AnimObject* src, AnimObject* replacement, float t)
+	{ }
 
 	void AnimObject::updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus)
 	{
@@ -756,11 +782,11 @@ namespace MathAnim
 		}
 	}
 
-	AnimObject AnimObject::deserialize(RawMemory& memory, uint32 version)
+	AnimObject AnimObject::deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version)
 	{
 		if (version == 1)
 		{
-			return deserializeAnimObjectV1(memory);
+			return deserializeAnimObjectV1(am, memory);
 		}
 
 		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
@@ -769,14 +795,14 @@ namespace MathAnim
 		return res;
 	}
 
-	AnimObject AnimObject::createDefaultFromParent(AnimObjectTypeV1 type, const AnimObject* parent)
+	AnimObject AnimObject::createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject* parent)
 	{
-		AnimObject res = createDefault(type);
+		AnimObject res = createDefault(am, type);
 		res.takeParentAttributes(parent);
 		return res;
 	}
 
-	AnimObject AnimObject::createDefault(AnimObjectTypeV1 type)
+	AnimObject AnimObject::createDefault(AnimationManagerData* am, AnimObjectTypeV1 type)
 	{
 		AnimObject res;
 		res.id = animObjectUidCounter++;
@@ -804,6 +830,7 @@ namespace MathAnim
 		res.drawDebugBoxes = false;
 		res.drawCurveDebugBoxes = false;
 		res.is3D = false;
+		res.isGenerated = false;
 		res.svgScale = 1.0f;
 
 		res.strokeWidth = 0.0f;
@@ -829,6 +856,7 @@ namespace MathAnim
 		{
 		case AnimObjectTypeV1::TextObject:
 			res.as.textObject = TextObject::createDefault();
+			res.as.textObject.init(am, &res);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::createDefault();
@@ -876,7 +904,7 @@ namespace MathAnim
 	}
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV1(RawMemory& memory)
+	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory)
 	{
 		AnimObject res;
 
@@ -989,6 +1017,7 @@ namespace MathAnim
 		{
 		case AnimObjectTypeV1::TextObject:
 			res.as.textObject = TextObject::deserialize(memory, version);
+			res.as.textObject.init(am, &res);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::deserialize(memory, version);

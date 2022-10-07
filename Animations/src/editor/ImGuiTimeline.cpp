@@ -1120,7 +1120,7 @@ namespace MathAnim
 				// Handle right clicking on the legend by popping up context menu
 				std::string id = std::string("TrackName_") + std::to_string(i) + tracks[i].trackName;
 
-				if (mouseHoveringOverTimelineWindow && beginPopupContextTimelineItem(id.c_str(), legendTrackNameTop, legendTrackNameBottom))
+				if (beginPopupContextTimelineItem(id.c_str(), legendTrackNameTop, legendTrackNameBottom))
 				{
 					if (ImGui::MenuItem("Add Track Above"))
 					{
@@ -1150,7 +1150,7 @@ namespace MathAnim
 			// Check if they right clicked in the empty area below track names
 			ImVec2 legendTrackNameTop = ImVec2(canvasPos.x, currentTrackTop);
 			ImVec2 legendTrackNameBottom = ImVec2(canvasPos.x + legendSize.x, canvasPos.y + canvasSize.y);
-			if (mouseHoveringOverTimelineWindow && beginPopupContextTimelineItem("Track_Empty_Legend_Area", legendTrackNameTop, legendTrackNameBottom))
+			if (beginPopupContextTimelineItem("Track_Empty_Legend_Area", legendTrackNameTop, legendTrackNameBottom))
 			{
 				if (ImGui::MenuItem("Add Track"))
 				{
