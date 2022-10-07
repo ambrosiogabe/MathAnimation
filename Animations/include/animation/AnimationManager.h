@@ -18,12 +18,13 @@ namespace MathAnim
 	{
 		AnimationManagerData* create(OrthoCamera& camera);
 		void free(AnimationManagerData* animManager);
+		void endFrame(AnimationManagerData* am);
 
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object);
 		void addAnimation(AnimationManagerData* am, const Animation& animation);
 
-		bool removeAnimObject(AnimationManagerData* am, AnimObjId animObj);
-		bool removeAnimation(AnimationManagerData* am, AnimId anim);
+		void removeAnimObject(AnimationManagerData* am, AnimObjId animObj);
+		void removeAnimation(AnimationManagerData* am, AnimId anim);
 
 		bool setAnimationTime(AnimationManagerData* am, AnimId anim, int frameStart, int duration);
 		void setAnimationTrack(AnimationManagerData* am, AnimId anim, int track);

@@ -679,70 +679,32 @@ namespace MathAnim
 	void AnimObject::serialize(RawMemory& memory) const
 	{
 		// AnimObjectType     -> uint32
-		// _PositionStart
-		//   X                -> f32
-		//   Y                -> f32
-		//   Z                -> f32
-		// RotationStart
-		//   X                -> f32
-		//   Y                -> f32
-		//   Z                -> f32
-		// ScaleStart
-		//   X                -> f32
-		//   Y                -> f32
-		//   Z                -> f32
-		// _FillColorStart
-		//   R                -> u8
-		//   G                -> u8
-		//   B                -> u8
-		//   A                -> u8
-		// _StrokeColorStart 
-		//   R                -> u8
-		//   G                -> u8
-		//   B                -> u8
-		//   A                -> u8
+		// _PositionStart     -> Vec3
+		// RotationStart      -> Vec3
+		// ScaleStart         -> Vec3
+		// _FillColorStart    -> Vec4U8
+		// _StrokeColorStart  -> Vec4U8
+		// 
 		// _StrokeWidthStart  -> f32
 		// svgScale           -> f32
+		// 
 		// isTransparent      -> u8
 		// is3D               -> u8
 		// drawDebugBoxes     -> u8
 		// drawCurveDebugBoxes -> u8
-		// Id                 -> int32
-		// NameLength         -> uint32
-		// Name               -> uint8[NameLength]
 		// 
+		// Id                 -> int32
 		// ParentId           -> int32
-		// FrameStart         -> int32
-		// Duration           -> int32
-		// TimelineTrack      -> int32
-		// AnimationTypeSpecificData (This data will change depending on AnimObjectType)
-		// NumAnimations  -> uint32
-		// Animations     -> Animation[numAnimations]
-		// NumChildren    -> uint32
-		// Children       -> AnimObject[numChildren]
+		// NameLength         -> uint32
+		// Name               -> uint8[NameLength + 1]
+		// AnimObject Specific Data
 		uint32 animObjectType = (uint32)objectType;
 		memory.write<uint32>(&animObjectType);
-		memory.write<float>(&_positionStart.x);
-		memory.write<float>(&_positionStart.y);
-		memory.write<float>(&_positionStart.z);
-
-		memory.write<float>(&_rotationStart.x);
-		memory.write<float>(&_rotationStart.y);
-		memory.write<float>(&_rotationStart.z);
-
-		memory.write<float>(&_scaleStart.x);
-		memory.write<float>(&_scaleStart.y);
-		memory.write<float>(&_scaleStart.z);
-
-		memory.write<uint8>(&_fillColorStart.r);
-		memory.write<uint8>(&_fillColorStart.g);
-		memory.write<uint8>(&_fillColorStart.b);
-		memory.write<uint8>(&_fillColorStart.a);
-
-		memory.write<uint8>(&_strokeColorStart.r);
-		memory.write<uint8>(&_strokeColorStart.g);
-		memory.write<uint8>(&_strokeColorStart.b);
-		memory.write<uint8>(&_strokeColorStart.a);
+		CMath::serialize(memory, _positionStart);
+		CMath::serialize(memory, _rotationStart);
+		CMath::serialize(memory, _scaleStart);
+		CMath::serialize(memory, _fillColorStart);
+		CMath::serialize(memory, _strokeColorStart);
 
 		memory.write<float>(&_strokeWidthStart);
 		memory.write<float>(&svgScale);
@@ -919,72 +881,39 @@ namespace MathAnim
 	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory)
 	{
 		AnimObject res;
+		// If the object is being read in from the file then it's not
+		// generated since all generated objects don't get saved
+		res.isGenerated = false;
 
 		// AnimObjectType     -> uint32
-		// _PositionStart
-		//   X                -> f32
-		//   Y                -> f32
-		//   Z                -> f32
-		// _RotationStart
-		//   X				  -> f32
-		//   Y				  -> f32
-		//   Z                -> f32
-		//  _ScaleStart
-		//     X                -> f32
-		//     Y                -> f32
-		//     Z                -> f32
-		// _FillColorStart
-		//   R                -> u8
-		//   G                -> u8
-		//   B                -> u8
-		//   A                -> u8
-		// _StrokeColorStart 
-		//   R                -> u8
-		//   G                -> u8
-		//   B                -> u8
-		//   A                -> u8
+		// _PositionStart     -> Vec3
+		// RotationStart      -> Vec3
+		// ScaleStart         -> Vec3
+		// _FillColorStart    -> Vec4U8
+		// _StrokeColorStart  -> Vec4U8
+		// 
 		// _StrokeWidthStart  -> f32
 		// svgScale           -> f32
+		// 
 		// isTransparent      -> u8
 		// is3D               -> u8
 		// drawDebugBoxes     -> u8
 		// drawCurveDebugBoxes -> u8
-		// Id                 -> int32
-		// NameLength         -> uint32
-		// Name               -> uint8[NameLength]
 		// 
+		// Id                 -> int32
 		// ParentId           -> int32
-		// FrameStart         -> int32
-		// Duration           -> int32
-		// TimelineTrack      -> int32
-		// TimelineTrack      -> int32
-		// AnimObjectTypeDataSize -> uint64
-		// AnimObjectTypeSpecificData (This data will change depending on AnimObjectType)
+		// NameLength         -> uint32
+		// Name               -> uint8[NameLength + 1]
+		// AnimObject Specific Data
 		uint32 animObjectType;
 		memory.read<uint32>(&animObjectType);
 		g_logger_assert(animObjectType < (uint32)AnimObjectTypeV1::Length, "Invalid AnimObjectType '%d' from memory. Must be corrupted memory.", animObjectType);
 		res.objectType = (AnimObjectTypeV1)animObjectType;
-		memory.read<float>(&res._positionStart.x);
-		memory.read<float>(&res._positionStart.y);
-		memory.read<float>(&res._positionStart.z);
-
-		memory.read<float>(&res._rotationStart.x);
-		memory.read<float>(&res._rotationStart.y);
-		memory.read<float>(&res._rotationStart.z);
-
-		memory.read<float>(&res._scaleStart.x);
-		memory.read<float>(&res._scaleStart.y);
-		memory.read<float>(&res._scaleStart.z);
-
-		memory.read<uint8>(&res._fillColorStart.r);
-		memory.read<uint8>(&res._fillColorStart.g);
-		memory.read<uint8>(&res._fillColorStart.b);
-		memory.read<uint8>(&res._fillColorStart.a);
-
-		memory.read<uint8>(&res._strokeColorStart.r);
-		memory.read<uint8>(&res._strokeColorStart.g);
-		memory.read<uint8>(&res._strokeColorStart.b);
-		memory.read<uint8>(&res._strokeColorStart.a);
+		res._positionStart = CMath::deserializeVec3(memory);
+		res._rotationStart = CMath::deserializeVec3(memory);
+		res._scaleStart = CMath::deserializeVec3(memory);
+		res._fillColorStart = CMath::deserializeU8Vec4(memory);
+		res._strokeColorStart = CMath::deserializeU8Vec4(memory);
 
 		memory.read<float>(&res._strokeWidthStart);
 		memory.read<float>(&res.svgScale);
@@ -1005,10 +934,10 @@ namespace MathAnim
 		memory.read<uint8>(&drawCurveDebugBoxes);
 		res.drawCurveDebugBoxes = drawCurveDebugBoxes != 0;
 
-		memory.read<int32>(&res.id);
+		memory.read<AnimObjId>(&res.id);
 		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
+		memory.read<AnimObjId>(&res.parentId);
 
-		memory.read<int32>(&res.parentId);
 		if (!memory.read<uint32>(&res.nameLength))
 		{
 			g_logger_assert(false, "Corrupted project data. Irrecoverable.");
@@ -1016,6 +945,7 @@ namespace MathAnim
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
 		memory.readDangerous(res.name, res.nameLength + 1);
 
+		// Initialize other variables
 		res.position = res._positionStart;
 		res.strokeColor = res._strokeColorStart;
 		res.fillColor = res._fillColorStart;

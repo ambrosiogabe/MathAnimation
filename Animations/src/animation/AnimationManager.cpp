@@ -24,6 +24,14 @@ namespace MathAnim
 		// being rendered at the timeline cursor
 		std::vector<Animation> activeAnimations;
 
+		// These queues are so that we can add/remove elements
+		// in the middle of the frame without any re-allocations
+		// which would invalidate pointers
+		std::vector<AnimObject> queuedAddObjects;
+		std::vector<AnimObjId> queuedRemoveObjects;
+		std::vector<Animation> queuedAddAnimations;
+		std::vector<AnimId> queuedRemoveAnimations;
+
 		// NOTE(gabe): So this is due to my whacky architecture, but at the beginning of rendering
 		// each frame we actually need to reset the camera position to its start position. I really
 		// need to figure out a better architecture for this haha
@@ -68,6 +76,11 @@ namespace MathAnim
 		static void deserializeAnimationManagerExV1(AnimationManagerData* am, RawMemory& memory);
 		static bool compareAnimation(const Animation& a1, const Animation& a2);
 		static void updateGlobalTransform(AnimObject& obj);
+		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj);
+		static void addQueuedAnimation(AnimationManagerData* am, const Animation& anim);
+		static void removeQueuedAnimObject(AnimationManagerData* am, AnimObjId animObj);
+		static void removeQueuedAnimation(AnimationManagerData* am, AnimId animation);
+		static void removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj);
 
 		AnimationManagerData* create(OrthoCamera& camera)
 		{
@@ -102,140 +115,75 @@ namespace MathAnim
 			}
 		}
 
+		void endFrame(AnimationManagerData* am)
+		{
+			// Remove all queued delete objects
+			for (auto animObjId : am->queuedRemoveObjects)
+			{
+				removeQueuedAnimObject(am, animObjId);
+			}
+			// Clear queue
+			am->queuedRemoveObjects.clear();
+
+			// Remove all queued delete animations
+			for (auto animId : am->queuedRemoveAnimations)
+			{
+				removeQueuedAnimation(am, animId);
+			}
+			// Clear queue
+			am->queuedRemoveAnimations.clear();
+
+			// Add all queued objects
+			for (const auto& obj : am->queuedAddObjects)
+			{
+				addQueuedAnimObject(am, obj);
+			}
+			// Clear queue
+			am->queuedAddObjects.clear();
+
+			// Add all queued animations
+			for (const auto& animation : am->queuedAddAnimations)
+			{
+				addQueuedAnimation(am, animation);
+			}
+			// Clear queue
+			am->queuedAddAnimations.clear();
+		}
+
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			am->objects.push_back(object);
-			am->objectIdMap[object.id] = am->objects.size() - 1;
+			// These adds get queued until the end of the frame so that
+			// pointers are stable for at least the duration of one frame
+			am->queuedAddObjects.push_back(object);
 		}
 
 		void addAnimation(AnimationManagerData* am, const Animation& animation)
 		{
-			for (auto iter = am->animations.begin(); iter != am->animations.end(); iter++)
-			{
-				// Insert it here. The list will always be sorted
-				if (animation.frameStart < iter->frameStart)
-				{
-					auto updateIter = am->animations.insert(iter, animation);
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-					// Update indices
-					for (; updateIter != am->animations.end(); updateIter++)
-					{
-						am->animationIdMap[updateIter->id] = (updateIter - am->animations.begin());
-					}
-
-					return;
-				}
-			}
-
-			// If we didn't insert the animation that means it must start after all the
-			// current animation start times.
-			am->animations.push_back(animation);
-			am->animationIdMap[animation.id] = am->animations.size() - 1;
+			// These adds get queued until the end of the frame so that
+			// pointers are stable for at least the duration of one frame
+			am->queuedAddAnimations.push_back(animation);
 		}
 
-		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj);
-		bool removeAnimObject(AnimationManagerData* am, AnimObjId animObj)
+		void removeAnimObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			// First remove all children objects
-			bool success = true;
-			for (int i = 0; i < am->objects.size(); i++)
-			{
-				AnimObject& objIter = am->objects[i];
-				if (objIter.parentId == animObj)
-				{
-					bool singleSuccess = removeSingleAnimObject(am, objIter.id);
-					success = success && singleSuccess;
-					i--;
-				}
-			}
-
-			// Then remove the parent
-			bool singleSuccess = removeSingleAnimObject(am, animObj);
-			success = success && singleSuccess;
-
-			return success;
+			// These removes get queued until the end of the frame so that
+			// pointers are stable for at least the duration of one frame
+			am->queuedRemoveObjects.push_back(animObj);
 		}
 
-		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj)
-		{
-			// Remove the anim object
-			auto iter = am->objectIdMap.find(animObj);
-			if (iter != am->objectIdMap.end())
-			{
-				int animObjectIndex = iter->second;
-				if (animObjectIndex >= 0 && animObjectIndex < am->objects.size())
-				{
-					am->objects[animObjectIndex].free();
-
-					auto updateIter = am->objects.erase(am->objects.begin() + animObjectIndex);
-					am->objectIdMap.erase(animObj);
-
-					// Update indices
-					for (; updateIter != am->objects.end(); updateIter++)
-					{
-						am->objectIdMap[updateIter->id] = updateIter - am->objects.begin();
-					}
-
-					// Remove any references from old animations
-					for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
-					{
-						// TODO: The animIterIds should be a set not a vector
-						auto deleteIterAnimRef = std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), animObj);
-						if (deleteIterAnimRef != animIter->animObjectIds.end())
-						{
-							animIter->animObjectIds.erase(deleteIterAnimRef);
-						}
-						// TODO: This is gross, find some way to automatically update references
-						else if (animIter->type == AnimTypeV1::Transform)
-						{
-							if (animIter->as.replacementTransform.dstAnimObjectId == animObj)
-							{
-								animIter->as.replacementTransform.dstAnimObjectId = NULL_ANIM_OBJECT;
-							}
-							else if (animIter->as.replacementTransform.srcAnimObjectId == animObj)
-							{
-								animIter->as.replacementTransform.srcAnimObjectId = NULL_ANIM_OBJECT;
-							}
-						}
-					}
-
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		bool removeAnimation(AnimationManagerData* am, AnimId anim)
+		void removeAnimation(AnimationManagerData* am, AnimId anim)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			// Remove the animation
-			auto iter = am->animationIdMap.find(anim);
-			if (iter != am->animationIdMap.end())
-			{
-				int animationIndex = iter->second;
-				if (animationIndex >= 0 && animationIndex < am->animations.size())
-				{
-					auto updateIter = am->animations.erase(am->animations.begin() + animationIndex);
-					am->animationIdMap.erase(anim);
-
-					for (; updateIter != am->animations.end(); updateIter++)
-					{
-						am->animationIdMap[updateIter->id] = (updateIter - am->animations.begin());
-					}
-
-					// TODO: Also remove any references of this animation from all other animations
-
-					return true;
-				}
-			}
-
-			return false;
+			// These removes get queued until the end of the frame so that
+			// pointers are stable for at least the duration of one frame
+			am->queuedRemoveAnimations.push_back(anim);
 		}
 
 		bool setAnimationTime(AnimationManagerData* am, AnimId anim, int frameStart, int duration)
@@ -625,8 +573,8 @@ namespace MathAnim
 				if (!am->objects[i].isGenerated)
 				{
 					am->objects[i].serialize(memory);
+					memory.write<uint32>(&MAGIC_NUMBER);
 				}
-				memory.write<uint32>(&MAGIC_NUMBER);
 			}
 
 			memory.shrinkToFit();
@@ -745,6 +693,126 @@ namespace MathAnim
 			glm::quat zRotation = glm::angleAxis(glm::radians(obj.rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 			obj.globalTransform *= glm::toMat4(xRotation * yRotation * zRotation);
 			obj.globalTransform = glm::scale(obj.globalTransform, CMath::convert(obj.scale));
+		}
+
+		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj)
+		{
+			am->objects.push_back(obj);
+			am->objectIdMap[obj.id] = am->objects.size() - 1;
+		}
+
+		static void addQueuedAnimation(AnimationManagerData* am, const Animation& animation)
+		{
+			for (auto iter = am->animations.begin(); iter != am->animations.end(); iter++)
+			{
+				// Insert it here. The list will always be sorted
+				if (animation.frameStart < iter->frameStart)
+				{
+					auto updateIter = am->animations.insert(iter, animation);
+
+					// Update indices
+					for (; updateIter != am->animations.end(); updateIter++)
+					{
+						am->animationIdMap[updateIter->id] = (updateIter - am->animations.begin());
+					}
+
+					return;
+				}
+			}
+
+			// If we didn't insert the animation that means it must start after all the
+			// current animation start times.
+			am->animations.push_back(animation);
+			am->animationIdMap[animation.id] = am->animations.size() - 1;
+		}
+
+		static void removeQueuedAnimObject(AnimationManagerData* am, AnimObjId animObj)
+		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			// First remove all children objects
+			for (int i = 0; i < am->objects.size(); i++)
+			{
+				AnimObject& objIter = am->objects[i];
+				if (objIter.parentId == animObj)
+				{
+					removeSingleAnimObject(am, objIter.id);
+					i--;
+				}
+			}
+
+			// Then remove the parent
+			removeSingleAnimObject(am, animObj);
+		}
+
+		static void removeQueuedAnimation(AnimationManagerData* am, AnimId anim)
+		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			// Remove the animation
+			auto iter = am->animationIdMap.find(anim);
+			if (iter != am->animationIdMap.end())
+			{
+				int animationIndex = iter->second;
+				if (animationIndex >= 0 && animationIndex < am->animations.size())
+				{
+					auto updateIter = am->animations.erase(am->animations.begin() + animationIndex);
+					am->animationIdMap.erase(anim);
+
+					for (; updateIter != am->animations.end(); updateIter++)
+					{
+						am->animationIdMap[updateIter->id] = (updateIter - am->animations.begin());
+					}
+
+					// TODO: Also remove any references of this animation from all other animations
+				}
+			}
+		}
+
+		static void removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj)
+		{
+			// Remove the anim object
+			auto iter = am->objectIdMap.find(animObj);
+			if (iter != am->objectIdMap.end())
+			{
+				int animObjectIndex = iter->second;
+				if (animObjectIndex >= 0 && animObjectIndex < am->objects.size())
+				{
+					am->objects[animObjectIndex].free();
+
+					auto updateIter = am->objects.erase(am->objects.begin() + animObjectIndex);
+					am->objectIdMap.erase(animObj);
+
+					// Update indices
+					for (; updateIter != am->objects.end(); updateIter++)
+					{
+						am->objectIdMap[updateIter->id] = updateIter - am->objects.begin();
+					}
+
+					// Remove any references from old animations
+					for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
+					{
+						// TODO: The animIterIds should be a set not a vector
+						auto deleteIterAnimRef = std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), animObj);
+						if (deleteIterAnimRef != animIter->animObjectIds.end())
+						{
+							animIter->animObjectIds.erase(deleteIterAnimRef);
+						}
+						// TODO: This is gross, find some way to automatically update references
+						else if (animIter->type == AnimTypeV1::Transform)
+						{
+							if (animIter->as.replacementTransform.dstAnimObjectId == animObj)
+							{
+								animIter->as.replacementTransform.dstAnimObjectId = NULL_ANIM_OBJECT;
+							}
+							else if (animIter->as.replacementTransform.srcAnimObjectId == animObj)
+							{
+								animIter->as.replacementTransform.srcAnimObjectId = NULL_ANIM_OBJECT;
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }

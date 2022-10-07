@@ -200,6 +200,7 @@ namespace MathAnim
 				glPopDebugGroup();
 
 				Svg::endFrame();
+				AnimationManager::endFrame(am);
 
 				// Miscellaneous
 				// TODO: Abstract this stuff out of here
