@@ -12,12 +12,12 @@ namespace MathAnim
 	{
 		std::vector<AnimObject> objects;
 		// Maps from AnimObjectId -> Index in objects vector
-		std::unordered_map<int32, int32> objectIdMap;
+		std::unordered_map<AnimObjId, int32> objectIdMap;
 
 		// Always sorted by startFrame and trackIndex
 		std::vector<Animation> animations;
 		// Maps From AnimationId -> Index in animations vector
-		std::unordered_map<int32, int32> animationIdMap;
+		std::unordered_map<AnimId, int32> animationIdMap;
 
 		// This list gets updated whenever the timeline cursor moves
 		// It should hold the list of animations that are currently
@@ -135,8 +135,8 @@ namespace MathAnim
 			am->animationIdMap[animation.id] = am->animations.size() - 1;
 		}
 
-		static bool removeSingleAnimObject(AnimationManagerData* am, int animObjectId);
-		bool removeAnimObject(AnimationManagerData* am, int animObjectId)
+		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj);
+		bool removeAnimObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -145,7 +145,7 @@ namespace MathAnim
 			for (int i = 0; i < am->objects.size(); i++)
 			{
 				AnimObject& objIter = am->objects[i];
-				if (objIter.parentId == animObjectId)
+				if (objIter.parentId == animObj)
 				{
 					bool singleSuccess = removeSingleAnimObject(am, objIter.id);
 					success = success && singleSuccess;
@@ -154,16 +154,16 @@ namespace MathAnim
 			}
 
 			// Then remove the parent
-			bool singleSuccess = removeSingleAnimObject(am, animObjectId);
+			bool singleSuccess = removeSingleAnimObject(am, animObj);
 			success = success && singleSuccess;
 
 			return success;
 		}
 
-		static bool removeSingleAnimObject(AnimationManagerData* am, int animObjectId)
+		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			// Remove the anim object
-			auto iter = am->objectIdMap.find(animObjectId);
+			auto iter = am->objectIdMap.find(animObj);
 			if (iter != am->objectIdMap.end())
 			{
 				int animObjectIndex = iter->second;
@@ -172,7 +172,7 @@ namespace MathAnim
 					am->objects[animObjectIndex].free();
 
 					auto updateIter = am->objects.erase(am->objects.begin() + animObjectIndex);
-					am->objectIdMap.erase(animObjectId);
+					am->objectIdMap.erase(animObj);
 
 					// Update indices
 					for (; updateIter != am->objects.end(); updateIter++)
@@ -184,7 +184,7 @@ namespace MathAnim
 					for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
 					{
 						// TODO: The animIterIds should be a set not a vector
-						auto deleteIterAnimRef = std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), animObjectId);
+						auto deleteIterAnimRef = std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), animObj);
 						if (deleteIterAnimRef != animIter->animObjectIds.end())
 						{
 							animIter->animObjectIds.erase(deleteIterAnimRef);
@@ -192,13 +192,13 @@ namespace MathAnim
 						// TODO: This is gross, find some way to automatically update references
 						else if (animIter->type == AnimTypeV1::Transform)
 						{
-							if (animIter->as.replacementTransform.dstAnimObjectId == animObjectId)
+							if (animIter->as.replacementTransform.dstAnimObjectId == animObj)
 							{
-								animIter->as.replacementTransform.dstAnimObjectId = INT32_MAX;
+								animIter->as.replacementTransform.dstAnimObjectId = NULL_ANIM_OBJECT;
 							}
-							else if (animIter->as.replacementTransform.srcAnimObjectId == animObjectId)
+							else if (animIter->as.replacementTransform.srcAnimObjectId == animObj)
 							{
-								animIter->as.replacementTransform.srcAnimObjectId = INT32_MAX;
+								animIter->as.replacementTransform.srcAnimObjectId = NULL_ANIM_OBJECT;
 							}
 						}
 					}
@@ -210,19 +210,19 @@ namespace MathAnim
 			return false;
 		}
 
-		bool removeAnimation(AnimationManagerData* am, int animationId)
+		bool removeAnimation(AnimationManagerData* am, AnimId anim)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			// Remove the animation
-			auto iter = am->animationIdMap.find(animationId);
+			auto iter = am->animationIdMap.find(anim);
 			if (iter != am->animationIdMap.end())
 			{
 				int animationIndex = iter->second;
 				if (animationIndex >= 0 && animationIndex < am->animations.size())
 				{
 					auto updateIter = am->animations.erase(am->animations.begin() + animationIndex);
-					am->animationIdMap.erase(animationId);
+					am->animationIdMap.erase(anim);
 
 					for (; updateIter != am->animations.end(); updateIter++)
 					{
@@ -238,14 +238,14 @@ namespace MathAnim
 			return false;
 		}
 
-		bool setAnimationTime(AnimationManagerData* am, int animationId, int frameStart, int duration)
+		bool setAnimationTime(AnimationManagerData* am, AnimId anim, int frameStart, int duration)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			// Remove the animation then reinsert it. That way we make sure the list
 			// stays sorted
 			Animation animationCopy;
-			auto animationIndexIter = am->animationIdMap.find(animationId);
+			auto animationIndexIter = am->animationIdMap.find(anim);
 
 			if (animationIndexIter != am->animationIdMap.end())
 			{
@@ -253,7 +253,7 @@ namespace MathAnim
 				if (animationIndex >= 0 && animationIndex < am->animations.size())
 				{
 					animationCopy = am->animations[animationIndex];
-					removeAnimation(am, animationId);
+					removeAnimation(am, anim);
 
 					animationCopy.frameStart = frameStart;
 					animationCopy.duration = duration;
@@ -268,11 +268,11 @@ namespace MathAnim
 
 		}
 
-		void setAnimationTrack(AnimationManagerData* am, int animationId, int track)
+		void setAnimationTrack(AnimationManagerData* am, AnimId anim, int track)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			Animation* animation = getMutableAnimation(am, animationId);
+			Animation* animation = getMutableAnimation(am, anim);
 			if (animation)
 			{
 				animation->timelineTrack = track;
@@ -394,7 +394,7 @@ namespace MathAnim
 					// If the object has no parent, it's a root object.
 					// Update the transform then update children recursively
 					// and in order from parent->child
-					if (objIter->parentId == INT32_MAX)
+					if (isNull(objIter->parentId))
 					{
 						rootObjects.push(objIter->id);
 					}
@@ -416,7 +416,7 @@ namespace MathAnim
 						// Then apply parent transformation if the parent exists
 						// At this point the parent should have been updated already
 						// since the queue is FIFO
-						if (nextObj->parentId != INT32_MAX)
+						if (!isNull(nextObj->parentId))
 						{
 							const AnimObject* parent = getObject(am, nextObj->parentId);
 							if (parent)
@@ -491,26 +491,21 @@ namespace MathAnim
 			return lastFrame;
 		}
 
-		bool isObjectNull(int animObjectId)
+		const AnimObject* getObject(const AnimationManagerData* am, AnimObjId animObj)
 		{
-			return animObjectId == INT32_MAX;
+			return getMutableObject((AnimationManagerData*)am, animObj);
 		}
 
-		const AnimObject* getObject(const AnimationManagerData* am, int animObjectId)
-		{
-			return getMutableObject((AnimationManagerData*)am, animObjectId);
-		}
-
-		AnimObject* getMutableObject(AnimationManagerData* am, int animObjectId)
+		AnimObject* getMutableObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			if (animObjectId == INT32_MAX)
+			if (isNull(animObj))
 			{
 				return nullptr;
 			}
 
-			auto iter = am->objectIdMap.find(animObjectId);
+			auto iter = am->objectIdMap.find(animObj);
 			if (iter != am->objectIdMap.end())
 			{
 				int objectIndex = iter->second;
@@ -523,21 +518,21 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		const Animation* getAnimation(const AnimationManagerData* am, int animationId)
+		const Animation* getAnimation(const AnimationManagerData* am, AnimId anim)
 		{
-			return getMutableAnimation((AnimationManagerData*)am, animationId);
+			return getMutableAnimation((AnimationManagerData*)am, anim);
 		}
 
-		Animation* getMutableAnimation(AnimationManagerData* am, int animationId)
+		Animation* getMutableAnimation(AnimationManagerData* am, AnimId anim)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			if (animationId == INT32_MAX)
+			if (isNull(anim))
 			{
 				return nullptr;
 			}
 
-			auto iter = am->animationIdMap.find(animationId);
+			auto iter = am->animationIdMap.find(anim);
 			if (iter != am->animationIdMap.end())
 			{
 				int animationIndex = iter->second;
@@ -562,14 +557,14 @@ namespace MathAnim
 			return am->animations;
 		}
 
-		std::vector<int32> getAssociatedAnimations(const AnimationManagerData* am, const AnimObject* obj)
+		std::vector<AnimId> getAssociatedAnimations(const AnimationManagerData* am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			std::vector<int32> res;
 			for (auto anim : am->animations)
 			{
-				auto iter = std::find(anim.animObjectIds.begin(), anim.animObjectIds.end(), obj->id);
+				auto iter = std::find(anim.animObjectIds.begin(), anim.animObjectIds.end(), animObj);
 				if (iter != anim.animObjectIds.end())
 				{
 					res.push_back(anim.id);
@@ -579,12 +574,12 @@ namespace MathAnim
 			return res;
 		}
 
-		std::vector<int32> getChildren(const AnimationManagerData* am, const AnimObject* obj)
+		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId animObj)
 		{
-			std::vector<int32> res;
+			std::vector<AnimObjId> res;
 			for (int i = 0; i < am->objects.size(); i++)
 			{
-				if (am->objects[i].parentId == obj->id)
+				if (am->objects[i].parentId == animObj)
 				{
 					res.push_back(am->objects[i].id);
 				}

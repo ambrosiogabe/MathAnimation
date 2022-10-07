@@ -22,28 +22,27 @@ namespace MathAnim
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object);
 		void addAnimation(AnimationManagerData* am, const Animation& animation);
 
-		bool removeAnimObject(AnimationManagerData* am, int animObjectId);
-		bool removeAnimation(AnimationManagerData* am, int animationId);
+		bool removeAnimObject(AnimationManagerData* am, AnimObjId animObj);
+		bool removeAnimation(AnimationManagerData* am, AnimId anim);
 
-		bool setAnimationTime(AnimationManagerData* am, int animationId, int frameStart, int duration);
-		void setAnimationTrack(AnimationManagerData* am, int animationId, int track);
+		bool setAnimationTime(AnimationManagerData* am, AnimId anim, int frameStart, int duration);
+		void setAnimationTrack(AnimationManagerData* am, AnimId anim, int track);
 
 		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight);
 		void render(AnimationManagerData* am, NVGcontext* vg, int deltaFrame);
 
 		int lastAnimatedFrame(const AnimationManagerData* am);
 
-		bool isObjectNull(int animObjectId);
-		const AnimObject* getObject(const AnimationManagerData* am, int animObjectId);
-		AnimObject* getMutableObject(AnimationManagerData* am, int animObjectId);
-		const Animation* getAnimation(const AnimationManagerData* am, int animationId);
-		Animation* getMutableAnimation(AnimationManagerData* am, int animationId);
+		const AnimObject* getObject(const AnimationManagerData* am, AnimObjId animObj);
+		AnimObject* getMutableObject(AnimationManagerData* am, AnimObjId animObj);
+		const Animation* getAnimation(const AnimationManagerData* am, AnimId anim);
+		Animation* getMutableAnimation(AnimationManagerData* am, AnimId anim);
 
 		const std::vector<AnimObject>& getAnimObjects(const AnimationManagerData* am);
 		const std::vector<Animation>& getAnimations(const AnimationManagerData* am);
 
-		std::vector<int32> getAssociatedAnimations(const AnimationManagerData* am, const AnimObject* obj);
-		std::vector<int32> getChildren(const AnimationManagerData* am, const AnimObject* obj);
+		std::vector<AnimId> getAssociatedAnimations(const AnimationManagerData* am, AnimObjId obj);
+		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId obj);
 
 		RawMemory serialize(const AnimationManagerData* am);
 		void deserialize(AnimationManagerData* am, RawMemory& memory);

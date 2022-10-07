@@ -13,10 +13,17 @@ namespace MathAnim
 	struct Font;
 	struct SvgObject;
 	struct AnimationManagerData;
+
+	typedef int32 AnimObjId;
+	typedef int32 AnimId;
 	
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;
 	constexpr uint32 MAGIC_NUMBER = 0xDEADBEEF;
+	constexpr AnimObjId NULL_ANIM_OBJECT = INT32_MAX;
+	constexpr AnimId NULL_ANIM = INT32_MAX;
+
+	inline bool isNull(AnimObjId animObj) { return animObj == NULL_ANIM_OBJECT; }
 
 	// Types
 	enum class AnimObjectTypeV1 : uint32
@@ -101,13 +108,13 @@ namespace MathAnim
 		AnimTypeV1 type;
 		int32 frameStart;
 		int32 duration;
-		int32 id;
+		AnimId id;
 		int32 timelineTrack;
 		EaseType easeType;
 		EaseDirection easeDirection;
 		PlaybackType playbackType;
 		float lagRatio;
-		std::vector<int32> animObjectIds;
+		std::vector<AnimObjId> animObjectIds;
 
 		union
 		{
@@ -167,8 +174,8 @@ namespace MathAnim
 		Vec3 globalPosition;
 		glm::mat4 globalTransform;
 
-		int32 id;
-		int32 parentId;
+		AnimObjId id;
+		AnimObjId parentId;
 		uint8* name;
 		uint32 nameLength;
 
@@ -203,16 +210,20 @@ namespace MathAnim
 		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target);
 		void renderFadeInAnimation(NVGcontext* vg, float t);
 		void renderFadeOutAnimation(NVGcontext* vg, float t);
-		void takeParentAttributes(const AnimObject* parent);
-		void replacementTransform(AnimationManagerData* am, AnimObject* replacement, float t);
+		void takeParentAttributes(AnimationManagerData* am, AnimObjId parent);
+		void replacementTransform(AnimationManagerData* am, AnimObjId replacement, float t);
 		void updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus);
 		
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimObject deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version);
-		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject* parent);
+		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId);
 		static AnimObject createDefault(AnimationManagerData* am, AnimObjectTypeV1 type);
 	};
+
+	// Helpers
+	inline bool isNull(const Animation& anim) { return anim.id == NULL_ANIM; }
+	inline bool isNull(const AnimObject& animObject) { return animObject.id == NULL_ANIM_OBJECT; }
 }
 
 #endif

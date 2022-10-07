@@ -84,7 +84,7 @@ namespace MathAnim
 			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
 			{
 				// Add this character as a child
-				AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, obj);
+				AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, obj->id);
 				childObj.parentId = obj->id;
 				Vec2 finalOffset = offset + glyphPos;
 				childObj.position = Vec3{finalOffset.x, finalOffset.y, 0.0f};
@@ -104,7 +104,7 @@ namespace MathAnim
 		// First remove all generated children, which were generated as a result
 		// of this object (presumably)
 		// NOTE: This is direct descendants, no recursive children here
-		std::vector<int32> children = AnimationManager::getChildren(am, obj);
+		std::vector<int32> children = AnimationManager::getChildren(am, obj->id);
 		for (auto childId : children)
 		{
 			AnimObject* child = AnimationManager::getMutableObject(am, childId);

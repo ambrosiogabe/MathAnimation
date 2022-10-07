@@ -130,7 +130,7 @@ namespace MathAnim
 				activeAnimObject->onGizmo(am);
 
 				// Render any animations that contain this object
-				std::vector<int32> animations = AnimationManager::getAssociatedAnimations(am, activeAnimObject);
+				std::vector<int32> animations = AnimationManager::getAssociatedAnimations(am, activeAnimObject->id);
 				for (int32 animId : animations)
 				{
 					Animation* animation = AnimationManager::getMutableAnimation(am, animId);
@@ -233,7 +233,7 @@ namespace MathAnim
 					}
 					else
 					{
-						Timeline::setActiveAnimObject(INT32_MAX);
+						Timeline::setActiveAnimObject(NULL_ANIM_OBJECT);
 					}
 				}
 			}

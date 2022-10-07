@@ -323,7 +323,7 @@ namespace MathAnim
 
 				// Then get local position
 				Vec3 localPosition = this->_globalPositionStart;
-				if (this->parentId != INT32_MAX)
+				if (!isNull(this->parentId))
 				{
 					const AnimObject* parent = AnimationManager::getObject(am, this->parentId);
 					localPosition = this->_globalPositionStart - parent->_globalPositionStart;
@@ -431,25 +431,35 @@ namespace MathAnim
 		this->render(vg);
 	}
 
-	void AnimObject::takeParentAttributes(const AnimObject* parent)
+	void AnimObject::takeParentAttributes(AnimationManagerData* am, AnimObjId parentId)
 	{
-		this->strokeColor = parent->strokeColor;
-		this->strokeWidth = parent->strokeWidth;
-		this->drawCurveDebugBoxes = parent->drawCurveDebugBoxes;
-		this->drawDebugBoxes = parent->drawDebugBoxes;
-		this->fillColor = parent->fillColor;
-		this->is3D = parent->is3D;
-		this->status = parent->status;
-		this->isTransparent = parent->isTransparent;
+		const AnimObject* parent = AnimationManager::getObject(am, parentId);
+		if (parent)
+		{
+			this->strokeColor = parent->strokeColor;
+			this->strokeWidth = parent->strokeWidth;
+			this->drawCurveDebugBoxes = parent->drawCurveDebugBoxes;
+			this->drawDebugBoxes = parent->drawDebugBoxes;
+			this->fillColor = parent->fillColor;
+			this->is3D = parent->is3D;
+			this->status = parent->status;
+			this->isTransparent = parent->isTransparent;
 
-		this->_fillColorStart = parent->_fillColorStart;
-		this->_strokeColorStart = parent->_strokeColorStart;
-		this->_strokeWidthStart = parent->_strokeWidthStart;
+			this->_fillColorStart = parent->_fillColorStart;
+			this->_strokeColorStart = parent->_strokeColorStart;
+			this->_strokeWidthStart = parent->_strokeWidthStart;
+		}
 	}
 
 	static void replacementTransformTextObjs(AnimationManagerData* am, AnimObject* src, AnimObject* replacement, float t);
-	void AnimObject::replacementTransform(AnimationManagerData* am, AnimObject* replacement, float t)
+	void AnimObject::replacementTransform(AnimationManagerData* am, AnimObjId replacementId, float t)
 	{
+		AnimObject* replacement = AnimationManager::getMutableObject(am, replacementId);
+		if (!replacement)
+		{
+			return;
+		}
+
 		// Update statuses
 		AnimObjectStatus thisNewStatus = t < 1.0f
 			? AnimObjectStatus::Animating
@@ -461,8 +471,8 @@ namespace MathAnim
 		replacement->status = replacementNewStatus;
 
 		// Interpolate between shared children recursively
-		std::vector<int32> thisChildren = AnimationManager::getChildren(am, this);
-		std::vector<int32> replacementChildren = AnimationManager::getChildren(am, replacement);
+		std::vector<AnimObjId> thisChildren = AnimationManager::getChildren(am, this->id);
+		std::vector<AnimObjId> replacementChildren = AnimationManager::getChildren(am, replacement->id);
 
 		for (int i = 0; i < thisChildren.size(); i++)
 		{
@@ -472,7 +482,7 @@ namespace MathAnim
 				AnimObject* otherChild = AnimationManager::getMutableObject(am, replacementChildren[i]);
 				g_logger_assert(thisChild != nullptr, "How did this happen?");
 				g_logger_assert(otherChild != nullptr, "How did this happen?");
-				thisChild->replacementTransform(am, otherChild, t);
+				thisChild->replacementTransform(am, otherChild->id, t);
 			}
 		}
 
@@ -493,7 +503,7 @@ namespace MathAnim
 				otherChild->percentCreated = 1.0f;
 				otherChild->status = replacementNewStatus;
 
-				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, otherChild);
+				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, otherChild->id);
 				replacementChildren.insert(replacementChildren.end(), childrensChildren.begin(), childrensChildren.end());
 			}
 		}
@@ -514,7 +524,7 @@ namespace MathAnim
 				);
 				thisChild->status = thisNewStatus;
 
-				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, thisChild);
+				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, thisChild->id);
 				thisChildren.insert(thisChildren.end(), childrensChildren.begin(), childrensChildren.end());
 			}
 		}
@@ -595,20 +605,21 @@ namespace MathAnim
 	}
 
 	static void replacementTransformTextObjs(AnimationManagerData* am, AnimObject* src, AnimObject* replacement, float t)
-	{ }
+	{
+	}
 
 	void AnimObject::updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus)
 	{
 		this->status = newStatus;
 
-		std::vector<int32> children = AnimationManager::getChildren(am, this);
+		std::vector<int32> children = AnimationManager::getChildren(am, this->id);
 		for (int i = 0; i < children.size(); i++)
 		{
 			// Push back all children's children
 			AnimObject* child = AnimationManager::getMutableObject(am, children[i]);
 			if (child)
 			{
-				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, child);
+				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, child->id);
 				children.insert(children.end(), childrensChildren.begin(), childrensChildren.end());
 				child->status = newStatus;
 			}
@@ -661,8 +672,8 @@ namespace MathAnim
 			break;
 		}
 
-		this->parentId = INT32_MAX;
-		this->id = INT32_MAX;
+		this->parentId = NULL_ANIM_OBJECT;
+		this->id = NULL_ANIM_OBJECT;
 	}
 
 	void AnimObject::serialize(RawMemory& memory) const
@@ -795,10 +806,11 @@ namespace MathAnim
 		return res;
 	}
 
-	AnimObject AnimObject::createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject* parent)
+	AnimObject AnimObject::createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId)
 	{
+		const AnimObject* parent = AnimationManager::getObject(am, parentId);
 		AnimObject res = createDefault(am, type);
-		res.takeParentAttributes(parent);
+		res.takeParentAttributes(am, parent->id);
 		return res;
 	}
 
@@ -807,7 +819,7 @@ namespace MathAnim
 		AnimObject res;
 		res.id = animObjectUidCounter++;
 		g_logger_assert(animObjectUidCounter < INT32_MAX, "Somehow our UID counter reached '%d'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", INT32_MAX);
-		res.parentId = INT32_MAX;
+		res.parentId = NULL_ANIM_OBJECT;
 
 		const char* newObjName = "New Object";
 		res.nameLength = std::strlen(newObjName);
@@ -1092,7 +1104,7 @@ namespace MathAnim
 
 		uint32 numObjects;
 		memory.read<uint32>(&numObjects);
-		res.animObjectIds.resize(numObjects, INT32_MAX);
+		res.animObjectIds.resize(numObjects, NULL_ANIM_OBJECT);
 		for (uint32 i = 0; i < numObjects; i++)
 		{
 			memory.read<int32>(&res.animObjectIds[i]);
@@ -1168,7 +1180,7 @@ namespace MathAnim
 
 			if (dstObject && srcObject)
 			{
-				srcObject->replacementTransform(am, dstObject, t);
+				srcObject->replacementTransform(am, dstObject->id, t);
 			}
 		}
 		break;

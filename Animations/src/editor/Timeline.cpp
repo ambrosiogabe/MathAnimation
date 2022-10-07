@@ -25,8 +25,8 @@ namespace MathAnim
 		// ------- Private variables --------
 		static ImGuiTimeline_Track* tracks;
 		static int numTracks;
-		static int activeAnimObjectId = INT32_MAX;
-		static int activeAnimationId = INT32_MAX;
+		static int activeAnimObjectId = NULL_ANIM_OBJECT;
+		static int activeAnimationId = NULL_ANIM;
 		static AudioSource audioSource;
 		static WavData audioData;
 		static ImGuiTimeline_AudioData imguiAudioData;
@@ -262,7 +262,7 @@ namespace MathAnim
 
 			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectDeselected)
 			{
-				activeAnimationId = INT32_MAX;
+				activeAnimationId = NULL_ANIM;
 			}
 
 			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectChanged)
@@ -271,7 +271,7 @@ namespace MathAnim
 				{
 					// const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
 					// activeAnimationId = (int)(uintptr_t)subSegment.userData;
-					// activeAnimObjectId = INT32_MAX;
+					// activeAnimObjectId = NULL_ANIM;
 				}
 				else
 				{
@@ -284,14 +284,14 @@ namespace MathAnim
 			ImGui::PopStyleVar();
 
 			ImGui::Begin("Anim Object Inspector");
-			if (activeAnimObjectId != INT32_MAX)
+			if (!isNull(activeAnimObjectId))
 			{
 				handleAnimObjectInspector(am, activeAnimObjectId);
 			}
 			ImGui::End();
 
 			ImGui::Begin("Animation Inspector");
-			if (activeAnimationId != INT32_MAX)
+			if (!isNull(activeAnimationId))
 			{
 				handleAnimationInspector(am, activeAnimationId);
 			}
@@ -474,7 +474,7 @@ namespace MathAnim
 
 					if (animObjectId == activeAnimObjectId)
 					{
-						activeAnimObjectId = INT32_MAX;
+						activeAnimObjectId = NULL_ANIM_OBJECT;
 					}
 
 					AnimationManager::removeAnimation(am, animObjectId);
@@ -485,7 +485,7 @@ namespace MathAnim
 						{
 							if ((uintptr_t)track.segments[i].subSegments[subi].userData == activeAnimationId)
 							{
-								activeAnimationId = INT32_MAX;
+								activeAnimationId = NULL_ANIM;
 							}
 						}
 
@@ -575,7 +575,7 @@ namespace MathAnim
 			if (!animObject)
 			{
 				g_logger_error("No anim object with id '%d' exists", animObject);
-				activeAnimObjectId = INT32_MAX;
+				activeAnimObjectId = NULL_ANIM_OBJECT;
 				return;
 			}
 
@@ -678,7 +678,7 @@ namespace MathAnim
 			if (!animation)
 			{
 				g_logger_error("No animation with id '%d' exists", animationId);
-				activeAnimationId = INT32_MAX;
+				activeAnimationId = NULL_ANIM;
 				return;
 			}
 
@@ -1328,7 +1328,7 @@ namespace MathAnim
 			// Unset active object if needed
 			if (segment.userData.as.intData == activeAnimObjectId)
 			{
-				activeAnimObjectId = INT32_MAX;
+				activeAnimObjectId = NULL_ANIM_OBJECT;
 			}
 
 			// Then free the memory
@@ -1365,7 +1365,7 @@ namespace MathAnim
 			// Unset active object if needed
 			if ((uintptr_t)subSegment.userData == activeAnimationId)
 			{
-				activeAnimationId = INT32_MAX;
+				activeAnimationId = NULL_ANIM;
 			}
 
 			// Then zero the memory

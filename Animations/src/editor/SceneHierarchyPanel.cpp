@@ -57,7 +57,7 @@ namespace MathAnim
 			for (int i = 0; i < animObjects.size(); i++)
 			{
 				// Root object
-				if (animObjects[i].parentId == INT32_MAX)
+				if (isNull(animObjects[i].parentId))
 				{
 					addExistingAnimObject(am, animObjects[i], 0);
 				}
@@ -167,7 +167,7 @@ namespace MathAnim
 					// the anim objects from the animation manager and the timeline
 					deleteAnimObject(*animObject);
 					AnimationManager::removeAnimObject(am, animObject->id);
-					Timeline::setActiveAnimObject(INT32_MAX);
+					Timeline::setActiveAnimObject(NULL_ANIM_OBJECT);
 				}
 			}
 
@@ -398,7 +398,7 @@ namespace MathAnim
 				{
 					return true;
 				}
-				else if (!AnimationManager::isObjectNull(childObj->parentId))
+				else if (!isNull(childObj->parentId))
 				{
 					return isDescendantOf(am, childObj->parentId, parentAnimObjId);
 				}
@@ -527,7 +527,7 @@ namespace MathAnim
 					// 	Transform::createTransform();
 
 					// Check if parent is open or closed, if they are closed then we want to use their parent and level
-					if (!AnimationManager::isObjectNull(placeToMoveToObj->parentId))
+					if (!isNull(placeToMoveToObj->parentId))
 					{
 						// Need to start at the root and go down until you find a closed parent and thats the correct new parent
 						// TODO: Not sure if this is the actual root of the problem
@@ -653,7 +653,7 @@ namespace MathAnim
 			addNewAnimObject(obj, level);
 
 			// Recursively add all children
-			std::vector<int32> children = AnimationManager::getChildren(am, &obj);
+			std::vector<AnimObjId> children = AnimationManager::getChildren(am, obj.id);
 			while (children.size() > 0)
 			{
 				const AnimObject* child = AnimationManager::getObject(am, children.back());
