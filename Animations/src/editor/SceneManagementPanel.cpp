@@ -1,4 +1,8 @@
 #include "editor/SceneManagementPanel.h"
+#include "editor/ImGuiExtended.h"
+#include "core/Application.h"
+
+#include "utils/FontAwesome.h"
 
 namespace MathAnim
 {
@@ -13,7 +17,29 @@ namespace MathAnim
 		{
 			ImGui::Begin("Scene Manager");
 
+			ImVec2 buttonSize = ImVec2(256, 0);
+			for (int i = 0; i < sd.sceneNames.size(); i++)
+			{
+				const char* icon = i == sd.currentScene
+					? ICON_FA_FOLDER_OPEN
+					: ICON_FA_FOLDER;
+				if (ImGuiExtended::IconButton(icon, sd.sceneNames[i].c_str(), buttonSize))
+				{
+					Application::changeSceneTo(sd.sceneNames[i]);
+				}
 
+				if (ImGui::GetContentRegionAvail().x > buttonSize.x)
+				{
+					ImGui::SameLine();
+				}
+			}
+
+			if (ImGuiExtended::IconButton(ICON_FA_FOLDER_PLUS, "Add Scene", buttonSize))
+			{
+				std::string newSceneName = "New Scene " + std::to_string(sd.sceneNames.size());
+				sd.sceneNames.push_back(newSceneName);
+				Application::changeSceneTo(newSceneName);
+			}
 
 			ImGui::End();
 		}

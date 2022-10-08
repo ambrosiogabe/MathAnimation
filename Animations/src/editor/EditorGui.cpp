@@ -39,6 +39,7 @@ namespace MathAnim
 			if (!timelineLoaded)
 			{
 				timeline = Timeline::initInstance();
+				Application::setFrameIndex(0);
 			}
 			Timeline::init(am);
 
@@ -171,6 +172,7 @@ namespace MathAnim
 			AnimObjectPanel::free();
 			Timeline::freeInstance(timeline);
 			Timeline::free(am);
+			timelineLoaded = false;
 		}
 
 		const TimelineData& getTimelineData()

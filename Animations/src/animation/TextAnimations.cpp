@@ -20,15 +20,6 @@ namespace MathAnim
 	static TextObject deserializeTextV1(RawMemory& memory);
 	static LaTexObject deserializeLaTexV1(RawMemory& memory);
 
-	namespace TextAnimations
-	{
-		static OrthoCamera* camera;
-		void init(OrthoCamera& sceneCamera)
-		{
-			camera = &sceneCamera;
-		}
-	}
-
 	void TextObject::init(AnimationManagerData* am, AnimObject* obj)
 	{
 		if (obj->as.textObject.font == nullptr)

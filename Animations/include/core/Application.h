@@ -32,13 +32,16 @@ namespace MathAnim
 		void saveCurrentScene();
 		void loadProject(const std::string& projectRoot);
 		void loadScene(const std::string& sceneName);
+		void changeSceneTo(const std::string& sceneName);
 
 		void setEditorPlayState(AnimState state);
 		AnimState getEditorPlayState();
 
+		// TODO: Consolidate and remove some of these?
 		void setFrameIndex(int frame);
 		int getFrameIndex();
 		int getFrameratePerSecond();
+		void resetToFrame(int frame);
 
 		void exportVideoTo(const std::string& filename);
 		bool isExportingVideo();

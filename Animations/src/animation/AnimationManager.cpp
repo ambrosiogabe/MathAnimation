@@ -5,6 +5,7 @@
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/OrthoCamera.h"
+#include "core/Application.h"
 
 namespace MathAnim
 {
@@ -623,6 +624,7 @@ namespace MathAnim
 			if (serializerVersion == 1)
 			{
 				deserializeAnimationManagerExV1(am, memory);
+				Application::resetToFrame(am->currentFrame);
 			}
 			else
 			{

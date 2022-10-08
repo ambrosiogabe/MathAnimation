@@ -11,11 +11,6 @@ namespace MathAnim
 	struct AnimObject;
 	struct SvgGroup;
 	struct AnimationManagerData;
-	
-	namespace TextAnimations
-	{
-		void init(OrthoCamera& sceneCamera);
-	}
 
 	struct TextObject
 	{

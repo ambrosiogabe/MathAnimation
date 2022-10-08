@@ -313,6 +313,10 @@ namespace MathAnim
 
 		void free(AnimationManagerData* am)
 		{
+			// TODO: Serialize this with timelineData
+			activeAnimationId = NULL_ANIM;
+			activeAnimObjectId = NULL_ANIM_OBJECT;
+
 			// TODO: Synchronize this with freeInstance
 			if (tracks)
 			{
