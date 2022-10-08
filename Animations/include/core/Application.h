@@ -29,7 +29,9 @@ namespace MathAnim
 		glm::vec2 getViewportSize();
 
 		void saveProject();
-		void loadProject(const char* filepath);
+		void saveCurrentScene();
+		void loadProject(const std::string& projectRoot);
+		void loadScene(const std::string& sceneName);
 
 		void setEditorPlayState(AnimState state);
 		AnimState getEditorPlayState();
