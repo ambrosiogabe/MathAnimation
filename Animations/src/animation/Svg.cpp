@@ -808,6 +808,14 @@ namespace MathAnim
 					}
 				}
 
+				// TODO: This may break stuff...
+				if (lessPaths != src)
+				{
+					const Path* tmp = path0;
+					path0 = path1;
+					path1 = tmp;
+				}
+
 				// Move to the start, which is the interpolation between both of the
 				// first vertices
 				const Vec2& p0a = path0->curves[0].p0;
