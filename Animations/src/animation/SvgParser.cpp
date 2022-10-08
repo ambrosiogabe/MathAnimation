@@ -329,7 +329,6 @@ namespace MathAnim
 			break;
 			case TokenType::ClosePath:
 			{
-				bool isHole = res->numPaths > 1;
 				Svg::closePath(res, true);
 			}
 			break;

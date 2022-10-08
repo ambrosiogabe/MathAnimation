@@ -13,9 +13,6 @@ namespace MathAnim
 	struct Font;
 	struct SvgObject;
 	struct AnimationManagerData;
-
-	typedef int32 AnimObjId;
-	typedef int32 AnimId;
 	
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;
@@ -210,14 +207,17 @@ namespace MathAnim
 		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target);
 		void renderFadeInAnimation(NVGcontext* vg, float t);
 		void renderFadeOutAnimation(NVGcontext* vg, float t);
-		void takeParentAttributes(AnimationManagerData* am, AnimObjId parent);
+		void takeAttributesFrom(const AnimObject& obj);
 		void replacementTransform(AnimationManagerData* am, AnimObjId replacement, float t);
+
 		void updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus);
+		void updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated);
 		
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimObject deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version);
 		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId);
+		static AnimObject createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj);
 		static AnimObject createDefault(AnimationManagerData* am, AnimObjectTypeV1 type);
 	};
 

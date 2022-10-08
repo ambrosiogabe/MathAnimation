@@ -69,13 +69,34 @@ namespace MathAnim
 
 		}
 
-		void addNewAnimObject(const AnimObject& animObject, int level)
+		void addNewAnimObject(const AnimObject& animObject)
 		{
 			// TODO: Consider making anim object creation a message then subscribing to this message type
 			int newIndex = orderedEntities.size();
+			int level = 0;
+			if (!isNull(animObject.parentId))
+			{
+				// Find out where to insert object
+				for (int i = 0; i < orderedEntities.size(); i++)
+				{
+					const auto& element = orderedEntities[i];
+					if (element.animObjectId == animObject.parentId)
+					{
+						newIndex = i + 1;
+						level = element.level + 1;
+						break;
+					}
+				}
+			}
 			orderedEntities.insert(orderedEntities.begin() + newIndex, { animObject.id, level, newIndex, false });
-			orderedEntitiesCopy.emplace_back(SceneTreeMetadata{ animObject.id, level, newIndex, false });
-			// TODO: Figure out how to add elements as children
+			orderedEntitiesCopy.insert(orderedEntitiesCopy.begin() + newIndex, SceneTreeMetadata{ animObject.id, level, newIndex, false });
+
+			// Update indices
+			for (int i = newIndex; i < orderedEntities.size(); i++)
+			{
+				orderedEntities[i].index = i;
+				orderedEntitiesCopy[i].index = i;
+			}
 		}
 
 		void update(AnimationManagerData* am)
@@ -90,7 +111,12 @@ namespace MathAnim
 			for (size_t i = 0; i < orderedEntities.size(); i++)
 			{
 				SceneTreeMetadata& element = orderedEntities[i];
-				const AnimObject& animObject = *AnimationManager::getObject(am, element.animObjectId);
+				const AnimObject* animObject = AnimationManager::getObject(am, element.animObjectId);
+				if (!animObject)
+				{
+					animObject = AnimationManager::getPendingObject(am, element.animObjectId);
+					g_logger_assert(animObject != nullptr, "Scene hierarchy tried to access anim object with id '%d' that does not exist and is not pending addition.", element.animObjectId);
+				}
 
 				if (element.selected)
 				{
@@ -100,7 +126,7 @@ namespace MathAnim
 				// Next element wraps around to 0, which plays nice with all of our sorting logic
 				SceneTreeMetadata& nextElement = orderedEntities[(i + 1) % orderedEntities.size()];
 				int isOpen = 1;
-				if (!doTreeNode(am, element, animObject, nextElement))
+				if (!doTreeNode(am, element, *animObject, nextElement))
 				{
 					// If the tree node is not open, skip all the children
 					int lastIndex = orderedEntities.size() - 1;
@@ -650,7 +676,7 @@ namespace MathAnim
 		static void addExistingAnimObject(AnimationManagerData* am, const AnimObject& obj, int level)
 		{
 			// Add this object first
-			addNewAnimObject(obj, level);
+			addNewAnimObject(obj);
 
 			// Recursively add all children
 			std::vector<AnimObjId> children = AnimationManager::getChildren(am, obj.id);

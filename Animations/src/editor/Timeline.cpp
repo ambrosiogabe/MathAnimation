@@ -43,7 +43,7 @@ namespace MathAnim
 		static void deleteTrack(AnimationManagerData* am, int index);
 		static void handleAnimObjectInspector(AnimationManagerData* am, int animObjectId);
 		static void handleAnimationInspector(AnimationManagerData* am, int animationId);
-		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object, bool objChanged);
 		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation);
@@ -649,7 +649,7 @@ namespace MathAnim
 			switch (animObject->objectType)
 			{
 			case AnimObjectTypeV1::TextObject:
-				handleTextObjectInspector(am, animObject);
+				handleTextObjectInspector(am, animObject, objChanged);
 				break;
 			case AnimObjectTypeV1::LaTexObject:
 				handleLaTexObjectInspector(animObject);
@@ -665,6 +665,10 @@ namespace MathAnim
 				break;
 			case AnimObjectTypeV1::Axis:
 				handleAxisInspector(animObject);
+				break;
+			case AnimObjectTypeV1::SvgObject:
+				// NOP
+				// TODO: Add any custom attributes here?
 				break;
 			default:
 				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
@@ -807,9 +811,9 @@ namespace MathAnim
 			}
 		}
 
-		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object)
+		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object, bool objChanged)
 		{
-			bool shouldRegenerate = false;
+			bool shouldRegenerate = objChanged;
 
 			const std::vector<std::string>& fonts = Platform::getAvailableFonts();
 			int fontIndex = -1;

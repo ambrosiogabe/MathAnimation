@@ -431,27 +431,23 @@ namespace MathAnim
 		this->render(vg);
 	}
 
-	void AnimObject::takeParentAttributes(AnimationManagerData* am, AnimObjId parentId)
+	void AnimObject::takeAttributesFrom(const AnimObject& obj)
 	{
-		const AnimObject* parent = AnimationManager::getObject(am, parentId);
-		if (parent)
-		{
-			this->strokeColor = parent->strokeColor;
-			this->strokeWidth = parent->strokeWidth;
-			this->drawCurveDebugBoxes = parent->drawCurveDebugBoxes;
-			this->drawDebugBoxes = parent->drawDebugBoxes;
-			this->fillColor = parent->fillColor;
-			this->is3D = parent->is3D;
-			this->status = parent->status;
-			this->isTransparent = parent->isTransparent;
+		this->strokeColor = obj.strokeColor;
+		this->strokeWidth = obj.strokeWidth;
+		this->drawCurveDebugBoxes = obj.drawCurveDebugBoxes;
+		this->drawDebugBoxes = obj.drawDebugBoxes;
+		this->fillColor = obj.fillColor;
+		this->is3D = obj.is3D;
+		this->status = obj.status;
+		this->isTransparent = obj.isTransparent;
+		this->svgScale = obj.svgScale;
 
-			this->_fillColorStart = parent->_fillColorStart;
-			this->_strokeColorStart = parent->_strokeColorStart;
-			this->_strokeWidthStart = parent->_strokeWidthStart;
-		}
+		this->_fillColorStart = obj._fillColorStart;
+		this->_strokeColorStart = obj._strokeColorStart;
+		this->_strokeWidthStart = obj._strokeWidthStart;
 	}
 
-	static void replacementTransformTextObjs(AnimationManagerData* am, AnimObject* src, AnimObject* replacement, float t);
 	void AnimObject::replacementTransform(AnimationManagerData* am, AnimObjId replacementId, float t)
 	{
 		AnimObject* replacement = AnimationManager::getMutableObject(am, replacementId);
@@ -529,83 +525,44 @@ namespace MathAnim
 			}
 		}
 
-		// Interpolate between this svg and other svg
-		if (this->svgObject && replacement->svgObject)
+		if (t < 1.0f)
 		{
-			if (t < 1.0f)
+			// Interpolate between this svg and other svg
+			if (this->svgObject && replacement->svgObject)
 			{
 				SvgObject* interpolated = Svg::interpolate(this->svgObject, replacement->svgObject, t);
 				this->svgObject->free();
 				g_memory_free(this->svgObject);
 				this->svgObject = interpolated;
-
-				// Interpolate other properties
-				this->position = CMath::interpolate(t, this->position, replacement->position);
-				this->rotation = CMath::interpolate(t, this->rotation, replacement->rotation);
-				this->scale = CMath::interpolate(t, this->scale, replacement->scale);
-				this->fillColor = CMath::interpolate(t, this->fillColor, replacement->fillColor);
-				this->strokeColor = CMath::interpolate(t, this->strokeColor, replacement->strokeColor);
-				this->strokeWidth = CMath::interpolate(t, this->strokeWidth, replacement->strokeWidth);
-				// TODO: Come up with _svgScaleStart so scales can be reset
-				// srcObject->svgScale = CMath::interpolate(t, srcObject->svgScale, dstObject->svgScale);
-				this->percentCreated = 1.0f;
-
-				// Fade out dstObject
-				replacement->fillColor = CMath::interpolate(t,
-					replacement->fillColor,
-					glm::u8vec4(replacement->fillColor.r, replacement->fillColor.g, replacement->fillColor.b, 0)
-				);
-				replacement->strokeColor = CMath::interpolate(t,
-					replacement->strokeColor,
-					glm::u8vec4(replacement->strokeColor.r, replacement->strokeColor.g, replacement->strokeColor.b, 0)
-				);
 			}
-			else
-			{
-				// Set all children as inactive as well
-				replacement->percentCreated = 1.0f;
-			}
+
+			// Interpolate other properties
+			this->position = CMath::interpolate(t, this->position, replacement->position);
+			this->globalPosition = CMath::interpolate(t, this->globalPosition, replacement->globalPosition);
+			this->_globalPositionStart = CMath::interpolate(t, this->_globalPositionStart, replacement->_globalPositionStart);
+			this->rotation = CMath::interpolate(t, this->rotation, replacement->rotation);
+			this->scale = CMath::interpolate(t, this->scale, replacement->scale);
+			this->fillColor = CMath::interpolate(t, this->fillColor, replacement->fillColor);
+			this->strokeColor = CMath::interpolate(t, this->strokeColor, replacement->strokeColor);
+			this->strokeWidth = CMath::interpolate(t, this->strokeWidth, replacement->strokeWidth);
+			// TODO: Come up with _svgScaleStart so scales can be reset
+			// srcObject->svgScale = CMath::interpolate(t, srcObject->svgScale, dstObject->svgScale);
+			this->percentCreated = 1.0f;
+
+			// Fade out dstObject
+			replacement->fillColor = CMath::interpolate(t,
+				replacement->fillColor,
+				glm::u8vec4(replacement->fillColor.r, replacement->fillColor.g, replacement->fillColor.b, 0)
+			);
+			replacement->strokeColor = CMath::interpolate(t,
+				replacement->strokeColor,
+				glm::u8vec4(replacement->strokeColor.r, replacement->strokeColor.g, replacement->strokeColor.b, 0)
+			);
 		}
-		else if (this->objectType == AnimObjectTypeV1::TextObject && replacement->objectType == AnimObjectTypeV1::TextObject)
+		else
 		{
-			if (t < 1.0f)
-			{
-				//SvgObject* interpolated = Svg::interpolate(this->svgObject, replacement->svgObject, t);
-				//this->svgObject->free();
-				//g_memory_free(this->svgObject);
-				//this->svgObject = interpolated;
-
-				//// Interpolate other properties
-				//this->position = CMath::interpolate(t, this->position, replacement->position);
-				//this->rotation = CMath::interpolate(t, this->rotation, replacement->rotation);
-				//this->scale = CMath::interpolate(t, this->scale, replacement->scale);
-				//this->fillColor = CMath::interpolate(t, this->fillColor, replacement->fillColor);
-				//this->strokeColor = CMath::interpolate(t, this->strokeColor, replacement->strokeColor);
-				//this->strokeWidth = CMath::interpolate(t, this->strokeWidth, replacement->strokeWidth);
-				//// TODO: Come up with _svgScaleStart so scales can be reset
-				//// srcObject->svgScale = CMath::interpolate(t, srcObject->svgScale, dstObject->svgScale);
-				//this->percentCreated = 1.0f;
-
-				//// Fade out dstObject
-				//replacement->fillColor = CMath::interpolate(t,
-				//	replacement->fillColor,
-				//	glm::u8vec4(replacement->fillColor.r, replacement->fillColor.g, replacement->fillColor.b, 0)
-				//);
-				//replacement->strokeColor = CMath::interpolate(t,
-				//	replacement->strokeColor,
-				//	glm::u8vec4(replacement->strokeColor.r, replacement->strokeColor.g, replacement->strokeColor.b, 0)
-				//);
-			}
-			else
-			{
-				// Set all children as inactive as well
-				replacement->percentCreated = 1.0f;
-			}
+			replacement->percentCreated = 1.0f;
 		}
-	}
-
-	static void replacementTransformTextObjs(AnimationManagerData* am, AnimObject* src, AnimObject* replacement, float t)
-	{
 	}
 
 	void AnimObject::updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus)
@@ -622,6 +579,22 @@ namespace MathAnim
 				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, child->id);
 				children.insert(children.end(), childrensChildren.begin(), childrensChildren.end());
 				child->status = newStatus;
+			}
+		}
+	}
+
+	void AnimObject::updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated)
+	{
+		std::vector<int32> children = AnimationManager::getChildren(am, this->id);
+		for (int i = 0; i < children.size(); i++)
+		{
+			// Push back all children's children
+			AnimObject* child = AnimationManager::getMutableObject(am, children[i]);
+			if (child)
+			{
+				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, child->id);
+				children.insert(children.end(), childrensChildren.begin(), childrensChildren.end());
+				child->percentCreated = newPercentCreated;
 			}
 		}
 	}
@@ -772,7 +745,14 @@ namespace MathAnim
 	{
 		const AnimObject* parent = AnimationManager::getObject(am, parentId);
 		AnimObject res = createDefault(am, type);
-		res.takeParentAttributes(am, parent->id);
+		res.takeAttributesFrom(*parent);
+		return res;
+	}
+
+	AnimObject AnimObject::createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj)
+	{
+		AnimObject res = createDefault(am, type);
+		res.takeAttributesFrom(obj);
 		return res;
 	}
 
@@ -880,6 +860,10 @@ namespace MathAnim
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory)
 	{
+		// TODO: Replace this with some sort of library where you register 
+		// an object layout and it automatically serializes/deserializes stuff
+		// for you
+
 		AnimObject res;
 		// If the object is being read in from the file then it's not
 		// generated since all generated objects don't get saved
@@ -1102,6 +1086,9 @@ namespace MathAnim
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
 			obj->percentCreated = t;
+			obj->updateChildrenPercentCreated(am, t);
+			// TODO: Bleh... Figure something out!!!
+			obj->updateStatus(am, t > 0.0f && t < 1.0f ? AnimObjectStatus::Animating : t >= 1.0f ? AnimObjectStatus::Active : AnimObjectStatus::Inactive);
 			break;
 		case AnimTypeV1::Transform:
 		{

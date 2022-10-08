@@ -34,6 +34,8 @@ namespace MathAnim
 
 		int lastAnimatedFrame(const AnimationManagerData* am);
 
+		// NOTE: This function is slow, only use this as a backup if getObject fails
+		const AnimObject* getPendingObject(const AnimationManagerData* am, AnimObjId animObj);
 		const AnimObject* getObject(const AnimationManagerData* am, AnimObjId animObj);
 		AnimObject* getMutableObject(AnimationManagerData* am, AnimObjId animObj);
 		const Animation* getAnimation(const AnimationManagerData* am, AnimId anim);

@@ -485,6 +485,7 @@ namespace MathAnim
 			{
 				Path& dstPath = dest->paths[pathi];
 				dstPath.numCurves = 0;
+				dstPath.isHole = src->paths[pathi].isHole;
 
 				for (int curvei = 0; curvei < src->paths[pathi].numCurves; curvei++)
 				{
@@ -528,6 +529,20 @@ namespace MathAnim
 			{
 				const Path* path0 = &lessPaths->paths[lessPathi];
 				const Path* path1 = &morePaths->paths[morePathi];
+
+				bool isHole = false;
+				if (lessPaths == src)
+				{
+					isHole = t < 0.5f
+						? path0->isHole
+						: path1->isHole;
+				}
+				else
+				{
+					isHole = t > 0.5f
+						? path1->isHole
+						: path0->isHole;
+				}
 
 				// It's undefined to interpolate between two paths if one of the paths has no curves
 				bool shouldLoop = path0->numCurves > 0 && path1->numCurves > 0;
@@ -886,6 +901,8 @@ namespace MathAnim
 						Vec2{ interpP3.x, interpP3.y }
 					);
 				}
+
+				Svg::closePath(res, false, isHole);
 
 				if (pathToFree)
 				{
