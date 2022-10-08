@@ -444,7 +444,7 @@ namespace MathAnim
 			{
 				counter = 0;
 			}
-			char counterString[2];
+			char counterString[3];
 			_itoa_s(counter, counterString, 10);
 
 			if (inTrackName)
