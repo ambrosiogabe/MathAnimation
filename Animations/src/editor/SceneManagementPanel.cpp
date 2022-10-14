@@ -15,6 +15,9 @@ namespace MathAnim
 
 		void update(SceneData& sd)
 		{
+			constexpr size_t stringBufferSize = 256;
+			char stringBuffer[stringBufferSize];
+
 			ImGui::Begin("Scene Manager");
 
 			ImVec2 buttonSize = ImVec2(256, 0);
@@ -23,9 +26,28 @@ namespace MathAnim
 				const char* icon = i == sd.currentScene
 					? ICON_FA_FOLDER_OPEN
 					: ICON_FA_FOLDER;
-				if (ImGuiExtended::IconButton(icon, sd.sceneNames[i].c_str(), buttonSize))
+
+				// Shorten name length if it exceeds the buffer somehow
+				if (sd.sceneNames[i].length() >= stringBufferSize - 1)
 				{
-					Application::changeSceneTo(sd.sceneNames[i]);
+					sd.sceneNames[i] = sd.sceneNames[i].substr(0, stringBufferSize - 1);
+				}
+				g_memory_copyMem(stringBuffer, (void*)sd.sceneNames[i].c_str(), sd.sceneNames[i].length());
+				stringBuffer[sd.sceneNames[i].length()] = '\0';
+				if (ImGuiExtended::RenamableIconSelectable(icon, stringBuffer, stringBufferSize, i == sd.currentScene, 132.0f))
+				{
+					if (i != sd.currentScene)
+					{
+						Application::changeSceneTo(sd.sceneNames[i]);
+					}
+					else
+					{
+						// Scene was renamed, so rename it and save the result then delete the old scene
+						std::string oldSceneName = sd.sceneNames[i];
+						sd.sceneNames[i] = stringBuffer;
+						Application::saveCurrentScene();
+						Application::deleteScene(oldSceneName);
+					}
 				}
 
 				if (ImGui::GetContentRegionAvail().x > buttonSize.x)
@@ -34,7 +56,7 @@ namespace MathAnim
 				}
 			}
 
-			if (ImGuiExtended::IconButton(ICON_FA_FOLDER_PLUS, "Add Scene", buttonSize))
+			if (ImGuiExtended::VerticalIconButton(ICON_FA_FOLDER_PLUS, "Add Scene", 132.0f))
 			{
 				std::string newSceneName = "New Scene " + std::to_string(sd.sceneNames.size());
 				sd.sceneNames.push_back(newSceneName);

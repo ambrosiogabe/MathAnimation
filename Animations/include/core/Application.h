@@ -32,6 +32,7 @@ namespace MathAnim
 		void saveCurrentScene();
 		void loadProject(const std::string& projectRoot);
 		void loadScene(const std::string& sceneName);
+		void deleteScene(const std::string& sceneName);
 		void changeSceneTo(const std::string& sceneName);
 
 		void setEditorPlayState(AnimState state);

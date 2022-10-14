@@ -171,7 +171,8 @@ namespace MathAnim
 				bool renderPickingOutline = false;
 				if (EditorGui::mainViewportActive() || outputVideoFile)
 				{
-					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, renderPickingOutline);
+					//Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, renderPickingOutline);
+					Renderer::renderToFramebuffer(mainFramebuffer, Vec4{0, 0, 0, 0}, camera2D, camera3D, renderPickingOutline);
 				}
 				// Collect gizmo draw calls
 				GizmoManager::render(camera2D, camera3D, editorCamera2D);
@@ -420,6 +421,12 @@ namespace MathAnim
 			animationData.free();
 			timelineData.free();
 			cameraData.free();
+		}
+
+		void deleteScene(const std::string& sceneName)
+		{
+			std::string filepath = currentProjectRoot + sceneToFilename(sceneName);
+			remove(filepath.c_str());
 		}
 
 		void changeSceneTo(const std::string& sceneName)
