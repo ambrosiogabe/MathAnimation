@@ -259,7 +259,7 @@ namespace MathAnim
 
 			GlobalContext* g = gGizmoManager;
 			g->gizmos.push_back(gizmoState);
-			g->gizmoById[hash] = g->gizmos.size() - 1;
+			g->gizmoById[hash] = (uint32)g->gizmos.size() - 1;
 
 			return gizmoState;
 		}

@@ -25,6 +25,8 @@ namespace MathAnim
 		void uploadInt(const char* varName, int value) const;
 		void uploadIntArray(const char* varName, int length, const int* array) const;
 		void uploadUInt(const char* varName, uint32 value) const;
+		void uploadUVec2(const char* varName, const glm::uvec2& vec2) const;
+		void uploadU64AsUVec2(const char* varName, uint64 value) const;
 
 		void uploadMat4(const char* varName, const glm::mat4& mat4) const;
 		void uploadMat3(const char* varName, const glm::mat3& mat3) const;

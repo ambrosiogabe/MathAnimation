@@ -19,7 +19,7 @@ in vec2 fTexCoords;
 
 uniform sampler2D uColorTexture;
 uniform usampler2D uObjectIdTexture;
-uniform uint uActiveObjectId;
+uniform uvec2 uActiveObjectId;
 uniform vec2 uResolution;
 //uniform float uThreshold;
 
@@ -62,12 +62,12 @@ void main()
     float gradientY = 0.0;
     int numCorrectSamples = 0;
     for (int i = 0; i < 9; i++) {
-        uint sample = texture(uObjectIdTexture, fTexCoords + (offsets[i] * offsetSize)).r;
-        // Make sure not to use UINT32_MAX so that precision doesn't get messed up
-        float fSample = sample == 0xFFFFFFFFUL ? float(0xFFFFFUL) : sample;
-        gradientX += float(sample) * sobelXKernel[i];
-        gradientY += float(sample) * sobelYKernel[i];
-        numCorrectSamples += int(sample == uActiveObjectId);
+        uvec2 sample = texture(uObjectIdTexture, fTexCoords + (offsets[i] * offsetSize)).rg;
+        // Make sure not to use UINT64_MAX so that precision doesn't get messed up
+        float fSample = sample.r == 0xFFFFFFFFUL && sample.g == 0xFFFFFFFFUL ? float(0xFFFFFUL) : float(sample.g);
+        gradientX += float(sample.g) * sobelXKernel[i];
+        gradientY += float(sample.g) * sobelYKernel[i];
+        numCorrectSamples += int(sample.r == uActiveObjectId.r && sample.g == uActiveObjectId.g);
     }
     float gradient = sqrt(gradientX * gradientX + gradientY * gradientY);
     //uint sample = texture(uObjectIdTexture, fTexCoords).r;

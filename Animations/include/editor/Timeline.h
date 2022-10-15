@@ -15,7 +15,7 @@ namespace MathAnim
 
 	struct AnimObjectPayload
 	{
-		int32 animObjectId;
+		AnimObjId animObjectId;
 		int32 sceneHierarchyIndex;
 	};
 
@@ -38,9 +38,9 @@ namespace MathAnim
 		void freeInstance(TimelineData& data);
 		void free(AnimationManagerData* am);
 
-		void setActiveAnimObject(int animObjectId);
-		int getActiveAnimObject();
-		int getActiveAnimation();
+		void setActiveAnimObject(AnimObjId animObjectId);
+		AnimObjId getActiveAnimObject();
+		AnimId getActiveAnimation();
 
 		const char* getAnimObjectPayloadId();
 

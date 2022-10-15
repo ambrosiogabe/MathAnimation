@@ -326,7 +326,7 @@ namespace MathAnim
 				}
 
 				// Copy every row into our bitmap
-				for (int y = 0; y < bitmap.rows; y++)
+				for (uint32 y = 0; y < bitmap.rows; y++)
 				{
 					uint8* dst = textureMemory + cursorX + ((cursorY + y) * textureWidth);
 					uint8* src = bitmap.buffer + (y * bitmap.width);

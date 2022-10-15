@@ -124,15 +124,15 @@ namespace MathAnim
 
 		void onGizmo(AnimationManagerData* am)
 		{
-			int activeAnimObjectId = Timeline::getActiveAnimObject();
+			AnimObjId activeAnimObjectId = Timeline::getActiveAnimObject();
 			AnimObject* activeAnimObject = AnimationManager::getMutableObject(am, activeAnimObjectId);
 			if (activeAnimObject)
 			{
 				activeAnimObject->onGizmo(am);
 
 				// Render any animations that contain this object
-				std::vector<int32> animations = AnimationManager::getAssociatedAnimations(am, activeAnimObject->id);
-				for (int32 animId : animations)
+				std::vector<AnimId> animations = AnimationManager::getAssociatedAnimations(am, activeAnimObject->id);
+				for (AnimId animId : animations)
 				{
 					Animation* animation = AnimationManager::getMutableAnimation(am, animId);
 					if (animation)
@@ -142,7 +142,7 @@ namespace MathAnim
 				}
 			}
 
-			int activeAnimationId = Timeline::getActiveAnimation();
+			AnimId activeAnimationId = Timeline::getActiveAnimation();
 			Animation* activeAnimation = AnimationManager::getMutableAnimation(am, activeAnimationId);
 			if (activeAnimation)
 			{
@@ -228,8 +228,8 @@ namespace MathAnim
 						normalizedMousePos.x * (float)pickingTexture.width,
 						normalizedMousePos.y * (float)pickingTexture.height
 					};
-					uint32 objId = mainFramebuffer.readPixelUint32(3, (int)mousePixelPos.x, (int)mousePixelPos.y);
-					if (objId != UINT32_MAX)
+					AnimObjId objId = mainFramebuffer.readPixelUint64(3, (int)mousePixelPos.x, (int)mousePixelPos.y);
+					if (objId != NULL_ANIM_OBJECT)
 					{
 						Timeline::setActiveAnimObject((int)objId);
 					}

@@ -17,10 +17,8 @@ namespace MathAnim
 		char* text;
 		int32 textLength;
 		Font* font;
-		int32 numChildrenIds;
-		AnimObjId* childrenIds;
 
-		void init(AnimationManagerData* am, AnimObject* obj);
+		void init(AnimationManagerData* am, AnimObjId parentId, float svgScale);
 		void reInit(AnimationManagerData* am, AnimObject* obj);
 		void serialize(RawMemory& memory) const;
 		void free();

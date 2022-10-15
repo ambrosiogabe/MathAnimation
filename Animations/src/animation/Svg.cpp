@@ -144,7 +144,7 @@ namespace MathAnim
 
 		void beginFrame(NVGcontext* vg)
 		{
-			nvgBeginFrame(vg, svgCache.width, svgCache.height, 1.0f);
+			nvgBeginFrame(vg, (float)svgCache.width, (float)svgCache.height, 1.0f);
 		}
 
 		void endFrame(NVGcontext* vg)
@@ -591,10 +591,10 @@ namespace MathAnim
 						//   3.5 rounds to 4
 						//   3.49 rounds to 3
 						float fractionalSplits = numSplits - glm::floor(numSplits);
-						int roundedNumSplits = glm::floor(numSplits);
+						int roundedNumSplits = (int)glm::floor(numSplits);
 						if (fractionalSplits >= 0.5f)
 						{
-							roundedNumSplits = glm::ceil(numSplits);
+							roundedNumSplits = (int)glm::ceil(numSplits);
 						}
 						g_logger_assert(outputCurvei + roundedNumSplits <= outputPath->numCurves, "How did this happen? Somehow we are adding too many splits to an interpolated path.");
 						g_logger_assert(inputCurvei < pathToIncrease.numCurves, "How did this happen? Somehow we tried to increment past too many input curves in an interpolated path.");
@@ -934,11 +934,6 @@ namespace MathAnim
 			res->calculateBBox();
 
 			return res;
-
-			// TODO: Check if this is necessary
-		errorCase:
-			g_memory_free(res);
-			return nullptr;
 		}
 
 		// ----------------- Internal functions -----------------

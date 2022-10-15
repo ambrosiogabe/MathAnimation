@@ -26,6 +26,7 @@ namespace MathAnim
 		RGB8_UI,
 
 		R32_UI,
+		RG32_UI,
 		R8_UI,
 		R8_F,
 	};
@@ -101,6 +102,7 @@ namespace MathAnim
 
 		bool byteFormatIsInt(const Texture& texture);
 		bool byteFormatIsRgb(const Texture& texture);
+		bool byteFormatIsUint64(const Texture& texture);
 
 		void generateFromFile(Texture& texture);
 		void generateEmptyTexture(Texture& texture);

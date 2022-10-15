@@ -14,7 +14,7 @@ namespace MathAnim
 	// --------- Internal Structs ---------
 	struct SceneTreeMetadata
 	{
-		int32 animObjectId;
+		AnimObjId animObjectId;
 		int level;
 		int index;
 		bool selected;
@@ -39,7 +39,7 @@ namespace MathAnim
 		// --------- Internal functions ---------
 		static void imGuiRightClickPopup(AnimationManagerData* am);
 		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, SceneTreeMetadata& nextElement);
-		static bool isDescendantOf(AnimationManagerData* am, int32 childAnimObjId, int32 parentAnimObjId);
+		static bool isDescendantOf(AnimationManagerData* am, AnimObjId childAnimObjId, AnimObjId parentAnimObjId);
 		static bool imGuiSceneHeirarchyWindow(int* inBetweenIndex);
 		static void addElementAsChild(AnimationManagerData* am, int parentIndex, int newChildIndex);
 		static void moveTreeTo(AnimationManagerData* am, int treeToMoveIndex, int placeToMoveToIndex, bool reparent = true);
@@ -72,7 +72,7 @@ namespace MathAnim
 		void addNewAnimObject(const AnimObject& animObject)
 		{
 			// TODO: Consider making anim object creation a message then subscribing to this message type
-			int newIndex = orderedEntities.size();
+			int newIndex = (int32)orderedEntities.size();
 			int level = 0;
 			if (!isNull(animObject.parentId))
 			{
@@ -108,7 +108,7 @@ namespace MathAnim
 
 			// Now iterate through all the entities
 			int activeElementIndex = -1;
-			for (size_t i = 0; i < orderedEntities.size(); i++)
+			for (int i = 0; i < (int)orderedEntities.size(); i++)
 			{
 				SceneTreeMetadata& element = orderedEntities[i];
 				const AnimObject* animObject = AnimationManager::getObject(am, element.animObjectId);
@@ -129,8 +129,8 @@ namespace MathAnim
 				if (!doTreeNode(am, element, *animObject, nextElement))
 				{
 					// If the tree node is not open, skip all the children
-					int lastIndex = orderedEntities.size() - 1;
-					for (int j = i + 1; j < orderedEntities.size(); j++)
+					int lastIndex = (int)orderedEntities.size() - 1;
+					for (int j = i + 1; j < (int)orderedEntities.size(); j++)
 					{
 						if (orderedEntities[j].level <= element.level)
 						{
@@ -415,7 +415,7 @@ namespace MathAnim
 			return open;
 		}
 
-		static bool isDescendantOf(AnimationManagerData* am, int32 childAnimObjId, int32 parentAnimObjId)
+		static bool isDescendantOf(AnimationManagerData* am, AnimObjId childAnimObjId, AnimObjId parentAnimObjId)
 		{
 			const AnimObject* childObj = AnimationManager::getObject(am, childAnimObjId);
 			if (childObj)

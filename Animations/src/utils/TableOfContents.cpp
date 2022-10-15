@@ -60,7 +60,7 @@ namespace MathAnim
 		RawMemory res = {};
 
 		tocEntries.setCursor(0);
-		for (int entryIndex = 0; entryIndex < numEntries; entryIndex++)
+		for (uint32 entryIndex = 0; entryIndex < numEntries; entryIndex++)
 		{
 			uint32 currentEntryNameLength;
 			tocEntries.read<uint32>(&currentEntryNameLength);

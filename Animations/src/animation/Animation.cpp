@@ -11,8 +11,8 @@
 namespace MathAnim
 {
 	// ------- Private variables --------
-	static int animObjectUidCounter = 0;
-	static int animationUidCounter = 0;
+	static AnimObjId animObjectUidCounter = 0;
+	static AnimObjId animationUidCounter = 0;
 
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory);
@@ -164,7 +164,7 @@ namespace MathAnim
 		memory.write<uint32>(&animType);
 		memory.write<int32>(&frameStart);
 		memory.write<int32>(&duration);
-		memory.write<int32>(&id);
+		memory.write<AnimId>(&id);
 		uint8 easeTypeInt = (uint8)easeType;
 		memory.write<uint8>(&easeTypeInt);
 		uint8 easeDirectionInt = (uint8)easeDirection;
@@ -179,7 +179,7 @@ namespace MathAnim
 		memory.write<uint32>(&numObjects);
 		for (uint32 i = 0; i < numObjects; i++)
 		{
-			memory.write<int32>(&animObjectIds[i]);
+			memory.write<AnimObjId>(&animObjectIds[i]);
 		}
 
 		switch (this->type)
@@ -217,19 +217,19 @@ namespace MathAnim
 
 	void ReplacementTransformData::serialize(RawMemory& memory) const
 	{
-		// srcObjectId -> int32
-		// dstObjectId -> int32
-		memory.write<int32>(&this->srcAnimObjectId);
-		memory.write<int32>(&this->dstAnimObjectId);
+		// srcObjectId -> AnimObjId
+		// dstObjectId -> AnimObjId
+		memory.write<AnimObjId>(&this->srcAnimObjectId);
+		memory.write<AnimObjId>(&this->dstAnimObjectId);
 	}
 
 	ReplacementTransformData ReplacementTransformData::deserialize(RawMemory& memory)
 	{
-		// srcObjectId -> int32
-		// dstObjectId -> int32
+		// srcObjectId -> AnimObjId
+		// dstObjectId -> AnimObjId
 		ReplacementTransformData res;
-		memory.read<int32>(&res.srcAnimObjectId);
-		memory.read<int32>(&res.dstAnimObjectId);
+		memory.read<AnimObjId>(&res.srcAnimObjectId);
+		memory.read<AnimObjId>(&res.dstAnimObjectId);
 
 		return res;
 	}
@@ -418,15 +418,15 @@ namespace MathAnim
 
 	void AnimObject::renderFadeInAnimation(NVGcontext* vg, float t)
 	{
-		this->fillColor.a = this->fillColor.a * t;
-		this->strokeColor.a = this->strokeColor.a * t;
+		this->fillColor.a = (uint8)((float)this->fillColor.a * t);
+		this->strokeColor.a = (uint8)((float)this->strokeColor.a * t);
 		this->render(vg);
 	}
 
 	void AnimObject::renderFadeOutAnimation(NVGcontext* vg, float t)
 	{
-		this->fillColor.a = this->fillColor.a * (1.0f - t);
-		this->strokeColor.a = this->strokeColor.a * (1.0f - t);
+		this->fillColor.a = (uint8)((float)this->fillColor.a * (1.0f - t));
+		this->strokeColor.a = (uint8)((float)this->strokeColor.a * (1.0f - t));
 		this->render(vg);
 	}
 
@@ -482,7 +482,7 @@ namespace MathAnim
 		}
 
 		// Fade in any extra *other* children
-		for (int i = thisChildren.size(); i < replacementChildren.size(); i++)
+		for (size_t i = thisChildren.size(); i < replacementChildren.size(); i++)
 		{
 			AnimObject* otherChild = AnimationManager::getMutableObject(am, replacementChildren[i]);
 			if (otherChild)
@@ -498,13 +498,13 @@ namespace MathAnim
 				otherChild->percentCreated = 1.0f;
 				otherChild->status = replacementNewStatus;
 
-				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, otherChild->id);
+				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, otherChild->id);
 				replacementChildren.insert(replacementChildren.end(), childrensChildren.begin(), childrensChildren.end());
 			}
 		}
 
 		// Fade out any extra *this* children
-		for (int i = replacementChildren.size(); i < thisChildren.size(); i++)
+		for (size_t i = replacementChildren.size(); i < thisChildren.size(); i++)
 		{
 			AnimObject* thisChild = AnimationManager::getMutableObject(am, thisChildren[i]);
 			if (thisChild)
@@ -519,7 +519,7 @@ namespace MathAnim
 				);
 				thisChild->status = thisNewStatus;
 
-				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, thisChild->id);
+				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, thisChild->id);
 				thisChildren.insert(thisChildren.end(), childrensChildren.begin(), childrensChildren.end());
 			}
 		}
@@ -568,14 +568,14 @@ namespace MathAnim
 	{
 		this->status = newStatus;
 
-		std::vector<int32> children = AnimationManager::getChildren(am, this->id);
+		std::vector<AnimObjId> children = AnimationManager::getChildren(am, this->id);
 		for (int i = 0; i < children.size(); i++)
 		{
 			// Push back all children's children
 			AnimObject* child = AnimationManager::getMutableObject(am, children[i]);
 			if (child)
 			{
-				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, child->id);
+				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, child->id);
 				children.insert(children.end(), childrensChildren.begin(), childrensChildren.end());
 				child->status = newStatus;
 			}
@@ -584,14 +584,14 @@ namespace MathAnim
 
 	void AnimObject::updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated)
 	{
-		std::vector<int32> children = AnimationManager::getChildren(am, this->id);
-		for (int i = 0; i < children.size(); i++)
+		std::vector<AnimObjId> children = AnimationManager::getChildren(am, this->id);
+		for (size_t i = 0; i < children.size(); i++)
 		{
 			// Push back all children's children
 			AnimObject* child = AnimationManager::getMutableObject(am, children[i]);
 			if (child)
 			{
-				std::vector<int32> childrensChildren = AnimationManager::getChildren(am, child->id);
+				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, child->id);
 				children.insert(children.end(), childrensChildren.begin(), childrensChildren.end());
 				child->percentCreated = newPercentCreated;
 			}
@@ -665,8 +665,11 @@ namespace MathAnim
 		// drawDebugBoxes     -> u8
 		// drawCurveDebugBoxes -> u8
 		// 
-		// Id                 -> int32
-		// ParentId           -> int32
+		// Id                   -> AnimObjId
+		// ParentId             -> AnimObjId
+		// NumGeneratedChildren -> uint32 
+		// GeneratedChildrenIds -> AnimObjId[numGeneratedChildren]
+		// 
 		// NameLength         -> uint32
 		// Name               -> uint8[NameLength + 1]
 		// AnimObject Specific Data
@@ -693,8 +696,16 @@ namespace MathAnim
 		uint8 drawCurveDebugBoxesU8 = drawCurveDebugBoxes ? 1 : 0;
 		memory.write<uint8>(&drawCurveDebugBoxesU8);
 
-		memory.write<int32>(&id);
-		memory.write<int32>(&parentId);
+		memory.write<AnimObjId>(&id);
+		memory.write<AnimObjId>(&parentId);
+
+		uint32 numGeneratedChildren = (uint32)generatedChildrenIds.size();
+		memory.write<uint32>(&numGeneratedChildren);
+		for (uint32 i = 0; i < numGeneratedChildren; i++)
+		{
+			memory.write<AnimObjId>(&generatedChildrenIds[i]);
+		}
+
 		memory.write<uint32>(&nameLength);
 		memory.writeDangerous(name, (nameLength + 1));
 
@@ -741,11 +752,17 @@ namespace MathAnim
 		return res;
 	}
 
-	AnimObject AnimObject::createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId)
+	AnimObject AnimObject::createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId, bool addChildAsGenerated)
 	{
-		const AnimObject* parent = AnimationManager::getObject(am, parentId);
+		AnimObject* parent = AnimationManager::getMutableObject(am, parentId);
 		AnimObject res = createDefault(am, type);
 		res.takeAttributesFrom(*parent);
+
+		if (addChildAsGenerated)
+		{
+			parent->generatedChildrenIds.push_back(res.id);
+		}
+
 		return res;
 	}
 
@@ -764,7 +781,7 @@ namespace MathAnim
 		res.parentId = NULL_ANIM_OBJECT;
 
 		const char* newObjName = "New Object";
-		res.nameLength = std::strlen(newObjName);
+		res.nameLength = (uint32)std::strlen(newObjName);
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
 		g_memory_copyMem(res.name, (void*)newObjName, sizeof(uint8) * (res.nameLength + 1));
 
@@ -809,8 +826,9 @@ namespace MathAnim
 		switch (type)
 		{
 		case AnimObjectTypeV1::TextObject:
+			res.svgScale = 150.0f;
 			res.as.textObject = TextObject::createDefault();
-			res.as.textObject.init(am, &res);
+			res.as.textObject.init(am, res.id, res.svgScale);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::createDefault();
@@ -884,8 +902,11 @@ namespace MathAnim
 		// drawDebugBoxes     -> u8
 		// drawCurveDebugBoxes -> u8
 		// 
-		// Id                 -> int32
-		// ParentId           -> int32
+		// Id                   -> AnimObjId
+		// ParentId             -> AnimObjId
+		// NumGeneratedChildren -> uint32
+		// GeneratedChildrenIds -> AnimObjId[numGeneratedChildren]
+		// 
 		// NameLength         -> uint32
 		// Name               -> uint8[NameLength + 1]
 		// AnimObject Specific Data
@@ -921,6 +942,16 @@ namespace MathAnim
 		memory.read<AnimObjId>(&res.id);
 		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
 		memory.read<AnimObjId>(&res.parentId);
+
+		uint32 numGeneratedChildrenIds;
+		memory.read<uint32>(&numGeneratedChildrenIds);
+		res.generatedChildrenIds.reserve(numGeneratedChildrenIds);
+		for (uint32 i = 0; i < numGeneratedChildrenIds; i++)
+		{
+			AnimObjId childId;
+			memory.read<AnimObjId>(&childId);
+			res.generatedChildrenIds.push_back(childId);
+		}
 
 		if (!memory.read<uint32>(&res.nameLength))
 		{
@@ -1001,7 +1032,7 @@ namespace MathAnim
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);
 
-		memory.read<int32>(&res.id);
+		memory.read<AnimId>(&res.id);
 		animationUidCounter = glm::max(animationUidCounter, res.id + 1);
 
 		uint8 easeTypeInt, easeDirectionInt;
@@ -1024,7 +1055,7 @@ namespace MathAnim
 		res.animObjectIds.resize(numObjects, NULL_ANIM_OBJECT);
 		for (uint32 i = 0; i < numObjects; i++)
 		{
-			memory.read<int32>(&res.animObjectIds[i]);
+			memory.read<AnimObjId>(&res.animObjectIds[i]);
 		}
 
 		switch (res.type)

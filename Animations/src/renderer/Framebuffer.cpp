@@ -33,6 +33,17 @@ namespace MathAnim
 		glClearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
 	}
 
+	void Framebuffer::clearColorAttachmentUint64(int colorAttachment, uint64 clearColor) const
+	{
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		const Texture& texture = colorAttachments[colorAttachment];
+		g_logger_assert(TextureUtil::byteFormatIsUint64(texture), "Cannot clear non-uint texture as if it were a uint texture.");
+
+		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
+		uint32 formatType = TextureUtil::toGlDataType(texture.format);
+		glClearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
+	}
+
 	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, const glm::vec3& clearColor) const
 	{
 		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
@@ -77,7 +88,7 @@ namespace MathAnim
 		// TODO: Create clearColor member variable in color attachments and return that instead here
 		if (x < 0 || y < 0 || x >= colorAttachments[colorAttachment].width || y >= colorAttachments[colorAttachment].height)
 		{
-			return (uint32)-1;
+			return UINT32_MAX;
 		}
 
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -85,7 +96,35 @@ namespace MathAnim
 
 		// 128 bits should be big enough for 1 pixel of any format
 		// TODO: Come up with generic way to get any type of pixel data
-		static uint32 pixel;
+		uint32 pixel;
+		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
+		uint32 formatType = TextureUtil::toGlDataType(texture.format);
+		glReadPixels(x, y, 1, 1, externalFormat, formatType, &pixel);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		return pixel;
+	}
+
+	uint64 Framebuffer::readPixelUint64(int colorAttachment, int x, int y) const
+	{
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		const Texture& texture = colorAttachments[colorAttachment];
+		g_logger_assert(TextureUtil::byteFormatIsUint64(texture), "Cannot read non-uint texture as if it were a uint texture.");
+
+		// If we are requesting an out of bounds pixel, return max uint32 which should be a good flag I guess
+		// TODO: Create clearColor member variable in color attachments and return that instead here
+		if (x < 0 || y < 0 || x >= colorAttachments[colorAttachment].width || y >= colorAttachments[colorAttachment].height)
+		{
+			return UINT64_MAX;
+		}
+
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		glReadBuffer(GL_COLOR_ATTACHMENT0 + colorAttachment);
+
+		// 128 bits should be big enough for 1 pixel of any format
+		// TODO: Come up with generic way to get any type of pixel data
+		uint64 pixel;
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
 		glReadPixels(x, y, 1, 1, externalFormat, formatType, &pixel);

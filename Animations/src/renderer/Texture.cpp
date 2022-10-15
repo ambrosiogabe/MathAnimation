@@ -200,6 +200,8 @@ namespace MathAnim
 				return GL_RGB8;
 			case ByteFormat::R32_UI:
 				return GL_R32UI;
+			case ByteFormat::RG32_UI:
+				return GL_RG32UI;
 			case ByteFormat::R8_UI:
 				return GL_R8UI;
 			case ByteFormat::R8_F:
@@ -225,6 +227,8 @@ namespace MathAnim
 				return GL_RGB;
 			case ByteFormat::R32_UI:
 				return GL_RED_INTEGER;
+			case ByteFormat::RG32_UI:
+				return GL_RG_INTEGER;
 			case ByteFormat::R8_UI:
 				return GL_RED_INTEGER;
 			case ByteFormat::R8_F:
@@ -249,6 +253,8 @@ namespace MathAnim
 			case ByteFormat::RGB8_UI:
 				return GL_UNSIGNED_BYTE;
 			case ByteFormat::R32_UI:
+				return GL_UNSIGNED_INT;
+			case ByteFormat::RG32_UI:
 				return GL_UNSIGNED_INT;
 			case ByteFormat::R8_UI:
 				return GL_UNSIGNED_BYTE;
@@ -275,6 +281,8 @@ namespace MathAnim
 				return false;
 			case ByteFormat::R32_UI:
 				return true;
+			case ByteFormat::RG32_UI:
+				return false;
 			case ByteFormat::R8_UI:
 				return true;
 			case ByteFormat::None:
@@ -301,6 +309,35 @@ namespace MathAnim
 				return true;
 			case ByteFormat::R32_UI:
 				return false;
+			case ByteFormat::RG32_UI:
+				return false;
+			case ByteFormat::R8_UI:
+				return false;
+			case ByteFormat::None:
+				return false;
+			case ByteFormat::R8_F:
+				return false;
+			default:
+				g_logger_warning("Unknown glByteFormat '%d'", texture.format);
+			}
+
+			return false;
+		}
+
+		bool byteFormatIsUint64(const Texture& texture)
+		{
+			switch (texture.format)
+			{
+			case ByteFormat::RGBA8_UI:
+				return false;
+			case ByteFormat::RGBA16_F:
+				return false;
+			case ByteFormat::RGB8_UI:
+				return false;
+			case ByteFormat::R32_UI:
+				return false;
+			case ByteFormat::RG32_UI:
+				return true;
 			case ByteFormat::R8_UI:
 				return false;
 			case ByteFormat::None:

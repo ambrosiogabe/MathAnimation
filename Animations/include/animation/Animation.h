@@ -17,8 +17,8 @@ namespace MathAnim
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;
 	constexpr uint32 MAGIC_NUMBER = 0xDEADBEEF;
-	constexpr AnimObjId NULL_ANIM_OBJECT = INT32_MAX;
-	constexpr AnimId NULL_ANIM = INT32_MAX;
+	constexpr AnimObjId NULL_ANIM_OBJECT = UINT64_MAX;
+	constexpr AnimId NULL_ANIM = UINT64_MAX;
 
 	inline bool isNull(AnimObjId animObj) { return animObj == NULL_ANIM_OBJECT; }
 
@@ -92,8 +92,8 @@ namespace MathAnim
 
 	struct ReplacementTransformData
 	{
-		int32 srcAnimObjectId;
-		int32 dstAnimObjectId;
+		AnimObjId srcAnimObjectId;
+		AnimObjId dstAnimObjectId;
 
 		void serialize(RawMemory& memory) const;
 		static ReplacementTransformData deserialize(RawMemory& memory);
@@ -173,6 +173,8 @@ namespace MathAnim
 
 		AnimObjId id;
 		AnimObjId parentId;
+		std::vector<AnimObjId> generatedChildrenIds;
+
 		uint8* name;
 		uint32 nameLength;
 
@@ -216,7 +218,7 @@ namespace MathAnim
 		void free();
 		void serialize(RawMemory& memory) const;
 		static AnimObject deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version);
-		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId);
+		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId, bool addChildAsGenerated = false);
 		static AnimObject createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj);
 		static AnimObject createDefault(AnimationManagerData* am, AnimObjectTypeV1 type);
 	};

@@ -21,15 +21,15 @@ namespace MathAnim
 			.setFormat(ByteFormat::RGBA8_UI)
 			.setMinFilter(FilterMode::Linear)
 			.setMagFilter(FilterMode::Linear)
-			.setWidth(cacheSize.x)
-			.setHeight(cacheSize.y)
+			.setWidth((uint32)cacheSize.x)
+			.setHeight((uint32)cacheSize.y)
 			.build();
 		TextureConstraint initialTextureConstraint;
 		initialTextureConstraint.pos = {0, 0};
 		initialTextureConstraint.lineHeight = 0;
 		textureConstraints.push_back(initialTextureConstraint);
 
-		framebuffer = FramebufferBuilder(cacheSize.x, cacheSize.y)
+		framebuffer = FramebufferBuilder((uint32)cacheSize.x, (uint32)cacheSize.y)
 			.addColorAttachment(initialTexture)
 			.includeDepthStencil()
 			.generate();
@@ -90,7 +90,7 @@ namespace MathAnim
 			addAttachment();
 
 			// Texture should fit in here, so insert the quad and modify the constraint
-			int constraintIndex = textureConstraints.size() - 1;
+			int constraintIndex = (int)textureConstraints.size() - 1;
 			PackedTexture packedTexture;
 			packedTexture.colorAttachmentIndex = constraintIndex;
 			packedTexture.quadSize = quadSize;
@@ -162,15 +162,15 @@ namespace MathAnim
 	void TexturePacker::addAttachment()
 	{
 		// Generate a new framebuffer with 1 extra color attachment
-		FramebufferBuilder fbBuilder = FramebufferBuilder(cacheSize.x, cacheSize.y);
+		FramebufferBuilder fbBuilder = FramebufferBuilder((uint32)cacheSize.x, (uint32)cacheSize.y);
 		for (int i = 0; i < framebuffer.colorAttachments.size() + 1; i++)
 		{
 			Texture texture = TextureBuilder()
 				.setFormat(ByteFormat::RGBA8_UI)
 				.setMinFilter(FilterMode::Linear)
 				.setMagFilter(FilterMode::Linear)
-				.setWidth(cacheSize.x)
-				.setHeight(cacheSize.y)
+				.setWidth((uint32)cacheSize.x)
+				.setHeight((uint32)cacheSize.y)
 				.build();
 
 			if (i >= textureConstraints.size())

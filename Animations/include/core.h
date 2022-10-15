@@ -155,7 +155,7 @@ void unpack(const SizedMemory& memory, Types*... data)
 	MemoryHelper::unpackData<Types...>(memory, 0, data...);
 }
 
-typedef int32 AnimObjId;
-typedef int32 AnimId;
+typedef uint64 AnimObjId;
+typedef uint64 AnimId;
 
 #endif

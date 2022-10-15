@@ -13,12 +13,12 @@ namespace MathAnim
 	{
 		std::vector<AnimObject> objects;
 		// Maps from AnimObjectId -> Index in objects vector
-		std::unordered_map<AnimObjId, int32> objectIdMap;
+		std::unordered_map<AnimObjId, size_t> objectIdMap;
 
 		// Always sorted by startFrame and trackIndex
 		std::vector<Animation> animations;
 		// Maps From AnimationId -> Index in animations vector
-		std::unordered_map<AnimId, int32> animationIdMap;
+		std::unordered_map<AnimId, size_t> animationIdMap;
 
 		// This list gets updated whenever the timeline cursor moves
 		// It should hold the list of animations that are currently
@@ -198,7 +198,7 @@ namespace MathAnim
 
 			if (animationIndexIter != am->animationIdMap.end())
 			{
-				int animationIndex = animationIndexIter->second;
+				size_t animationIndex = animationIndexIter->second;
 				if (animationIndex >= 0 && animationIndex < am->animations.size())
 				{
 					animationCopy = am->animations[animationIndex];
@@ -255,7 +255,7 @@ namespace MathAnim
 				.build();
 
 			Texture objIdTexture = TextureBuilder()
-				.setFormat(ByteFormat::R32_UI)
+				.setFormat(ByteFormat::RG32_UI)
 				.setMinFilter(FilterMode::Nearest)
 				.setMagFilter(FilterMode::Nearest)
 				.setWidth(outputWidth)
@@ -337,7 +337,7 @@ namespace MathAnim
 
 				// ----- Apply the parent->child transformations -----
 				// First find all the root objects
-				std::queue<int32> rootObjects = {};
+				std::queue<AnimObjId> rootObjects = {};
 				for (auto objIter = am->objects.begin(); objIter != am->objects.end(); objIter++)
 				{
 					// If the object has no parent, it's a root object.
@@ -353,7 +353,7 @@ namespace MathAnim
 				// Loop through each root object and recursively update the transforms by appending children to the queue
 				while (rootObjects.size() > 0)
 				{
-					int32 nextObjId = rootObjects.front();
+					AnimObjId nextObjId = rootObjects.front();
 					rootObjects.pop();
 
 					// Update child transform
@@ -470,7 +470,7 @@ namespace MathAnim
 			auto iter = am->objectIdMap.find(animObj);
 			if (iter != am->objectIdMap.end())
 			{
-				int objectIndex = iter->second;
+				size_t objectIndex = iter->second;
 				if (objectIndex >= 0 && objectIndex < am->objects.size())
 				{
 					return &am->objects[objectIndex];
@@ -497,7 +497,7 @@ namespace MathAnim
 			auto iter = am->animationIdMap.find(anim);
 			if (iter != am->animationIdMap.end())
 			{
-				int animationIndex = iter->second;
+				size_t animationIndex = iter->second;
 				if (animationIndex >= 0 && animationIndex < am->animations.size())
 				{
 					return &am->animations[animationIndex];
@@ -523,7 +523,7 @@ namespace MathAnim
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			std::vector<int32> res;
+			std::vector<AnimId> res;
 			for (auto anim : am->animations)
 			{
 				auto iter = std::find(anim.animObjectIds.begin(), anim.animObjectIds.end(), animObj);
@@ -765,7 +765,7 @@ namespace MathAnim
 			auto iter = am->animationIdMap.find(anim);
 			if (iter != am->animationIdMap.end())
 			{
-				int animationIndex = iter->second;
+				size_t animationIndex = iter->second;
 				if (animationIndex >= 0 && animationIndex < am->animations.size())
 				{
 					auto updateIter = am->animations.erase(am->animations.begin() + animationIndex);
@@ -787,7 +787,7 @@ namespace MathAnim
 			auto iter = am->objectIdMap.find(animObj);
 			if (iter != am->objectIdMap.end())
 			{
-				int animObjectIndex = iter->second;
+				size_t animObjectIndex = iter->second;
 				if (animObjectIndex >= 0 && animObjectIndex < am->objects.size())
 				{
 					am->objects[animObjectIndex].free();

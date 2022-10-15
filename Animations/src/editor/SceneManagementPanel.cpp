@@ -116,7 +116,7 @@ namespace MathAnim
 			res.write<int32>(&numScenes);
 			for (int i = 0; i < numScenes; i++)
 			{
-				int32 strLength = data.sceneNames[i].length();
+				int32 strLength = (int32)data.sceneNames[i].length();
 				res.write<int32>(&strLength);
 				res.writeDangerous((uint8*)data.sceneNames[i].c_str(), strLength * sizeof(uint8));
 			}

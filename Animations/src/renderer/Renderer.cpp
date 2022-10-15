@@ -119,7 +119,7 @@ namespace MathAnim
 		Vec2 position;
 		Vec4 color;
 		Vec2 textureCoords;
-		uint32 objId;
+		uint64 objId;
 	};
 
 	struct DrawList2D
@@ -136,7 +136,7 @@ namespace MathAnim
 		void init();
 
 		// TODO: Add a bunch of methods like this...
-		void addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform);
+		void addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, AnimObjId objId, const glm::mat4& transform);
 		void addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color, uint32 objId);
 		void addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color, uint32 objId);
 
@@ -353,7 +353,7 @@ namespace MathAnim
 			framebuffer.bind();
 			glViewport(0, 0, framebuffer.width, framebuffer.height);
 			framebuffer.clearColorAttachmentRgba(0, clearColor);
-			framebuffer.clearColorAttachmentUint32(3, UINT32_MAX);
+			framebuffer.clearColorAttachmentUint64(3, NULL_ANIM_OBJECT);
 			framebuffer.clearDepthStencil();
 
 			// Reset the draw buffers to draw to FB_attachment_0
@@ -506,7 +506,7 @@ namespace MathAnim
 			drawList2D.addColoredQuad(min, max, Vec4{ color.r, color.g, color.b, color.a }, objId);
 		}
 
-		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform)
+		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, AnimObjId objId, const glm::mat4& transform)
 		{
 			drawList2D.addTexturedQuad(texture, size / -2.0f, size / 2.0f, uvMin, uvMax, objId, transform);
 		}
@@ -932,7 +932,7 @@ namespace MathAnim
 			colorTexture.bind();
 			pickingOutlineShader.uploadInt("uColorTexture", 1);
 
-			pickingOutlineShader.uploadUInt("uActiveObjectId", Timeline::getActiveAnimObject());
+			pickingOutlineShader.uploadU64AsUVec2("uActiveObjectId", Timeline::getActiveAnimObject());
 			glm::vec2 textureSize = glm::vec2((float)objIdTexture.width, (float)objIdTexture.height);
 			pickingOutlineShader.uploadVec2("uResolution", textureSize);
 
@@ -990,7 +990,7 @@ namespace MathAnim
 	}
 
 	// TODO: Add a bunch of methods like this...
-	void DrawList2D::addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, uint32 objId, const glm::mat4& transform)
+	void DrawList2D::addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, AnimObjId objId, const glm::mat4& transform)
 	{
 		// Check if we need to switch to a new batch
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != texture.graphicsId)
@@ -1149,7 +1149,7 @@ namespace MathAnim
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, textureCoords)));
 		glEnableVertexAttribArray(2);
 
-		glVertexAttribIPointer(3, 1, GL_UNSIGNED_INT, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, objId)));
+		glVertexAttribIPointer(3, 2, GL_UNSIGNED_INT, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, objId)));
 		glEnableVertexAttribArray(3);
 	}
 

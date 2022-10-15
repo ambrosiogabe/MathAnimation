@@ -15,11 +15,11 @@ namespace MathAnim
 	{
 		static ImFont* largeFont;
 		static ImFont* defaultFont;
-		static int titleBarHeight = 100;
-		static int buttonAreaHeight = 80;
+		static float titleBarHeight = 100.0f;
+		static float buttonAreaHeight = 80.0f;
 		static float dropShadowHeight = 20;
 
-		static int createProjectTitleBarHeight = 45;
+		static float createProjectTitleBarHeight = 45.0f;
 		static ImVec2 createProjectWindowSize = ImVec2(535.0f, 195.0f);
 
 		static ImVec2 projectAreaPadding = ImVec2(30, 0);
@@ -57,9 +57,9 @@ namespace MathAnim
 			borderSize *= dpiScale;
 			iconBorderRounding *= dpiScale;
 			iconBorderThickness *= dpiScale;
-			titleBarHeight = (int)((float)titleBarHeight * dpiScale);
-			buttonAreaHeight = (int)((float)buttonAreaHeight * dpiScale);
-			createProjectTitleBarHeight = (int)((float)createProjectTitleBarHeight * dpiScale);
+			titleBarHeight = (float)titleBarHeight * dpiScale;
+			buttonAreaHeight = (float)buttonAreaHeight * dpiScale;
+			createProjectTitleBarHeight = (float)createProjectTitleBarHeight * dpiScale;
 			createProjectWindowSize.x *= dpiScale;
 			createProjectWindowSize.y *= dpiScale;
 			createProjectInputPadding.x *= dpiScale;
@@ -389,7 +389,7 @@ namespace MathAnim
 				pi.previewImageFilepath = (ProjectApp::getAppRoot() / cleanProjectName / "projectPreview.png").string();
 				Platform::createDirIfNotExists((ProjectApp::getAppRoot() / cleanProjectName).string().c_str());
 				projects.push_back(pi);
-				selectedProjectIndex = projects.size() - 1;
+				selectedProjectIndex = (int32)projects.size() - 1;
 				res = true;
 			}
 			createButtonFocused = ImGui::IsItemHovered();
@@ -437,7 +437,7 @@ namespace MathAnim
 
 			uint32 numProjects;
 			memory.read<uint32>(&numProjects);
-			for (int i = 0; i < numProjects; i++)
+			for (uint32 i = 0; i < numProjects; i++)
 			{
 				// prjFilepathLength   -> uint32
 				// prjFilepath         -> uint8[prjFilepathLength]
@@ -488,7 +488,7 @@ namespace MathAnim
 
 			uint32 numProjects = (uint32)projects.size();
 			memory.write<uint32>(&numProjects);
-			for (int i = 0; i < numProjects; i++)
+			for (uint32 i = 0; i < numProjects; i++)
 			{
 				// prjFilepathLength   -> uint32
 				// prjFilepath         -> uint8[prjFilepathLength]

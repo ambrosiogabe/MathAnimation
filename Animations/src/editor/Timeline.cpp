@@ -25,8 +25,8 @@ namespace MathAnim
 		// ------- Private variables --------
 		static ImGuiTimeline_Track* tracks;
 		static int numTracks;
-		static int activeAnimObjectId = NULL_ANIM_OBJECT;
-		static int activeAnimationId = NULL_ANIM;
+		static AnimObjId activeAnimObjectId = NULL_ANIM_OBJECT;
+		static AnimId activeAnimationId = NULL_ANIM;
 		static AudioSource audioSource;
 		static WavData audioData;
 		static ImGuiTimeline_AudioData imguiAudioData;
@@ -41,8 +41,8 @@ namespace MathAnim
 		static void freeTrack(ImGuiTimeline_Track& track, AnimationManagerData* am);
 		static void addNewDefaultTrack(AnimationManagerData* am, int insertIndex = INT32_MAX);
 		static void deleteTrack(AnimationManagerData* am, int index);
-		static void handleAnimObjectInspector(AnimationManagerData* am, int animObjectId);
-		static void handleAnimationInspector(AnimationManagerData* am, int animationId);
+		static void handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId);
+		static void handleAnimationInspector(AnimationManagerData* am, AnimId animationId);
 		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object, bool objChanged);
 		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
@@ -334,17 +334,17 @@ namespace MathAnim
 			ImGuiTimeline_free();
 		}
 
-		void setActiveAnimObject(int animObjectId)
+		void setActiveAnimObject(AnimObjId animObjectId)
 		{
 			activeAnimObjectId = animObjectId;
 		}
 
-		int getActiveAnimObject()
+		AnimObjId getActiveAnimObject()
 		{
 			return activeAnimObjectId;
 		}
 
-		int getActiveAnimation()
+		AnimId getActiveAnimation()
 		{
 			return activeAnimationId;
 		}
@@ -575,7 +575,7 @@ namespace MathAnim
 			// resetImGuiData();
 		}
 
-		static void handleAnimObjectInspector(AnimationManagerData* am, int animObjectId)
+		static void handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId)
 		{
 			AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectId);
 			if (!animObject)
@@ -682,7 +682,7 @@ namespace MathAnim
 			}
 		}
 
-		static void handleAnimationInspector(AnimationManagerData* am, int animationId)
+		static void handleAnimationInspector(AnimationManagerData* am, AnimId animationId)
 		{
 			Animation* animation = AnimationManager::getMutableAnimation(am, animationId);
 			if (!animation)
@@ -702,7 +702,8 @@ namespace MathAnim
 						const AnimObject* obj = AnimationManager::getObject(am, *animObjectIdIter);
 						if (obj)
 						{
-							ImGui::PushID(*animObjectIdIter);
+							// Treat the uint64 as a pointer ID so ImGui hashes it into an int
+							ImGui::PushID((const void*)*animObjectIdIter);
 							ImGui::InputText("##AnimObjectId", (char*)obj->name, obj->nameLength, ImGuiInputTextFlags_ReadOnly);
 							ImGui::SameLine();
 							if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
@@ -1283,7 +1284,7 @@ namespace MathAnim
 					{
 						tracks[track].segments[segment].frameStart = animations[i].frameStart;
 						tracks[track].segments[segment].frameDuration = animations[i].duration;
-						tracks[track].segments[segment].userData.as.intData = animations[i].id;
+						tracks[track].segments[segment].userData.as.ptrData = (void*)animations[i].id;
 						tracks[track].segments[segment].segmentName = AnimationManager::getAnimationName(animations[i].type);
 
 						//for (int j = 0; j < animObjects[i].animations.size(); j++)
@@ -1324,7 +1325,7 @@ namespace MathAnim
 			track.segments[track.numSegments - 1].frameDuration = animation.duration;
 			track.segments[track.numSegments - 1].frameStart = animation.frameStart;
 			track.segments[track.numSegments - 1].segmentName = AnimationManager::getAnimationName(animation.type);
-			track.segments[track.numSegments - 1].userData.as.intData = animation.id;
+			track.segments[track.numSegments - 1].userData.as.ptrData = (void*)animation.id;
 			track.segments[track.numSegments - 1].numSubSegments = 0;
 			track.segments[track.numSegments - 1].subSegments = nullptr;
 		}

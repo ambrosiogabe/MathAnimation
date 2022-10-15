@@ -105,7 +105,7 @@ namespace MathAnim
 			stream->codecpar->width = output->width;
 			stream->codecpar->height = output->height;
 			stream->codecpar->format = AV_PIX_FMT_YUV420P;
-			stream->codecpar->bit_rate = bitrate * 10e4; // Bitrate * 10E4 should convert to Mbps
+			stream->codecpar->bit_rate = bitrate * (int64)10e4; // Bitrate * 10E4 should convert to Mbps
 			avcodec_parameters_to_context(output->codecContext, stream->codecpar);
 			output->codecContext->max_b_frames = 2;
 			output->codecContext->gop_size = 12;

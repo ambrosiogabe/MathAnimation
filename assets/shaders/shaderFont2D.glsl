@@ -3,11 +3,11 @@
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in vec4 aColor;
 layout (location = 2) in vec2 aTexCoord;
-layout (location = 3) in uint aObjId;
+layout (location = 3) in uvec2 aObjId;
 
 out vec4 fColor;
 out vec2 fTexCoord;
-flat out uint fObjId;
+flat out uvec2 fObjId;
 
 uniform mat4 uProjection;
 uniform mat4 uView;
@@ -23,11 +23,11 @@ void main()
 #type fragment
 #version 330 core
 layout (location = 0) out vec4 FragColor;
-layout (location = 3) out uint ObjId;
+layout (location = 3) out uvec2 ObjId;
 
 in vec4 fColor;
 in vec2 fTexCoord;
-flat in uint fObjId;
+flat in uvec2 fObjId;
 
 uniform sampler2D uTexture;
 
