@@ -92,191 +92,193 @@ namespace MathAnim
 			// NOTE: For best results, it's usually a good idea to specify 0 padding for the window
 			// so that the timeline can expand to the full width/height of the window
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-			ImGui::Begin("Timeline");
-
-			timelineData.currentFrame = Application::getFrameIndex();
-
-			ImGuiTimelineFlags flags = ImGuiTimelineFlags_None;
-			flags |= ImGuiTimelineFlags_EnableZoomControl;
-			flags |= ImGuiTimelineFlags_EnableMagnetControl;
-
-			if (Application::getEditorPlayState() == AnimState::PlayForward ||
-				Application::getEditorPlayState() == AnimState::PlayReverse)
+			if (ImGui::Begin("Timeline"))
 			{
-				flags |= ImGuiTimelineFlags_FollowTimelineCursor;
 
-				if (!Audio::isNull(audioSource) && !audioSource.isPlaying)
+				timelineData.currentFrame = Application::getFrameIndex();
+
+				ImGuiTimelineFlags flags = ImGuiTimelineFlags_None;
+				flags |= ImGuiTimelineFlags_EnableZoomControl;
+				flags |= ImGuiTimelineFlags_EnableMagnetControl;
+
+				if (Application::getEditorPlayState() == AnimState::PlayForward ||
+					Application::getEditorPlayState() == AnimState::PlayReverse)
 				{
-					float offset = 0.0f;
-					if (timelineData.currentFrame > 0)
+					flags |= ImGuiTimelineFlags_FollowTimelineCursor;
+
+					if (!Audio::isNull(audioSource) && !audioSource.isPlaying)
 					{
-						offset = timelineData.currentFrame / 60.0f;
+						float offset = 0.0f;
+						if (timelineData.currentFrame > 0)
+						{
+							offset = timelineData.currentFrame / 60.0f;
+						}
+						Audio::play(audioSource, offset);
 					}
-					Audio::play(audioSource, offset);
 				}
-			}
-			else
-			{
-				if (!Audio::isNull(audioSource) && audioSource.isPlaying)
+				else
 				{
-					Audio::stop(audioSource);
+					if (!Audio::isNull(audioSource) && audioSource.isPlaying)
+					{
+						Audio::stop(audioSource);
+					}
 				}
-			}
 
-			ImGuiTimeline_AudioData* imguiAudioDataPtr = Audio::isNull(audioSource)
-				? nullptr
-				: &imguiAudioData;
-			ImGuiTimelineResult res = ImGuiTimeline(
-				tracks,
-				numTracks,
-				&timelineData.currentFrame,
-				&timelineData.firstFrame,
-				&timelineData.zoomLevel,
-				imguiAudioDataPtr,
-				flags
-			);
+				ImGuiTimeline_AudioData* imguiAudioDataPtr = Audio::isNull(audioSource)
+					? nullptr
+					: &imguiAudioData;
+				ImGuiTimelineResult res = ImGuiTimeline(
+					tracks,
+					numTracks,
+					&timelineData.currentFrame,
+					&timelineData.firstFrame,
+					&timelineData.zoomLevel,
+					imguiAudioDataPtr,
+					flags
+				);
 
-			if (res.flags & ImGuiTimelineResultFlags_CurrentFrameChanged)
-			{
-				Application::setFrameIndex(timelineData.currentFrame);
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_AddTrackClicked)
-			{
-				addNewDefaultTrack(am, res.trackIndex);
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_DeleteTrackClicked)
-			{
-				deleteTrack(am, res.trackIndex);
-			}
-
-			// If we have a filepath for an audio source and the current audio source is null
-			// try to load it
-			if (timelineData.audioSourceFileLength > 0 && Audio::isNull(audioSource))
-			{
-				loadAudioSource((const char*)timelineData.audioSourceFile);
-
-				if (Audio::isNull(audioSource))
+				if (res.flags & ImGuiTimelineResultFlags_CurrentFrameChanged)
 				{
-					// Failed to load the file, there must be something wrong with it.
-					g_logger_error("Failed to load audio source file '%s'", timelineData.audioSourceFile);
-					g_memory_free(timelineData.audioSourceFile);
-					timelineData.audioSourceFile = nullptr;
+					Application::setFrameIndex(timelineData.currentFrame);
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_AddTrackClicked)
+				{
+					addNewDefaultTrack(am, res.trackIndex);
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_DeleteTrackClicked)
+				{
+					deleteTrack(am, res.trackIndex);
+				}
+
+				// If we have a filepath for an audio source and the current audio source is null
+				// try to load it
+				if (timelineData.audioSourceFileLength > 0 && Audio::isNull(audioSource))
+				{
+					loadAudioSource((const char*)timelineData.audioSourceFile);
+
+					if (Audio::isNull(audioSource))
+					{
+						// Failed to load the file, there must be something wrong with it.
+						g_logger_error("Failed to load audio source file '%s'", timelineData.audioSourceFile);
+						g_memory_free(timelineData.audioSourceFile);
+						timelineData.audioSourceFile = nullptr;
+						timelineData.audioSourceFileLength = 0;
+					}
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_DeleteAudioSource)
+				{
+					Audio::free(audioSource);
+					WavLoader::free(audioData);
+					timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8));
+					timelineData.audioSourceFile[0] = '\0';
 					timelineData.audioSourceFileLength = 0;
 				}
-			}
 
-			if (res.flags & ImGuiTimelineResultFlags_DeleteAudioSource)
-			{
-				Audio::free(audioSource);
-				WavLoader::free(audioData);
-				timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8));
-				timelineData.audioSourceFile[0] = '\0';
-				timelineData.audioSourceFileLength = 0;
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_AddAudioSource)
-			{
-				nfdchar_t* outPath = NULL;
-				nfdresult_t result = NFD_OpenDialog("wav", NULL, &outPath);
-
-				if (result == NFD_OKAY)
+				if (res.flags & ImGuiTimelineResultFlags_AddAudioSource)
 				{
-					loadAudioSource(outPath);
+					nfdchar_t* outPath = NULL;
+					nfdresult_t result = NFD_OpenDialog("wav", NULL, &outPath);
 
-					size_t pathLength = std::strlen(outPath);
-					timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8) * (pathLength + 1));
-					g_memory_copyMem(timelineData.audioSourceFile, outPath, sizeof(uint8) * (pathLength + 1));
-					timelineData.audioSourceFileLength = pathLength;
-
-					std::free(outPath);
-				}
-				else if (result == NFD_CANCEL)
-				{
-					g_logger_info("User cancelled adding audio source.");
-				}
-				else
-				{
-					g_logger_error("Error opening audio source:\n\t%s", NFD_GetError());
-				}
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_DeleteActiveObject)
-			{
-				if (res.activeObjectIsSubSegment)
-				{
-					ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-					deleteSubSegment(segment, res.subSegmentIndex, am);
-				}
-				else
-				{
-					ImGuiTimeline_Track& track = tracks[res.trackIndex];
-					deleteSegment(track, res.segmentIndex, am);
-				}
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_DragDropPayloadHit)
-			{
-				g_logger_assert(res.dragDropPayloadDataSize == sizeof(TimelinePayload), "Invalid payload.");
-				TimelinePayload* payloadData = (TimelinePayload*)res.dragDropPayloadData;
-				if (payloadData->isAnimObject)
-				{
-					if (!res.activeObjectIsSubSegment)
+					if (result == NFD_OKAY)
 					{
-						// AnimObject object = AnimObject::createDefault(payloadData->objectType, res.dragDropPayloadFirstFrame, 120);
-						// object.timelineTrack = res.trackIndex;
-						// AnimationManager::addAnimObject(am, object);
-						// SceneHierarchyPanel::addNewAnimObject(object);
-						// addAnimObject(object);
-						g_logger_warning("TODO: Implement me");
+						loadAudioSource(outPath);
+
+						size_t pathLength = std::strlen(outPath);
+						timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8) * (pathLength + 1));
+						g_memory_copyMem(timelineData.audioSourceFile, outPath, sizeof(uint8) * (pathLength + 1));
+						timelineData.audioSourceFileLength = pathLength;
+
+						std::free(outPath);
+					}
+					else if (result == NFD_CANCEL)
+					{
+						g_logger_info("User cancelled adding audio source.");
+					}
+					else
+					{
+						g_logger_error("Error opening audio source:\n\t%s", NFD_GetError());
 					}
 				}
-				else
+
+				if (res.flags & ImGuiTimelineResultFlags_DeleteActiveObject)
 				{
-					if (!res.activeObjectIsSubSegment)
+					if (res.activeObjectIsSubSegment)
 					{
-						Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 30);
-						animation.timelineTrack = res.trackIndex;
-						AnimationManager::addAnimation(am, animation);
-						addAnimation(animation);
+						ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
+						deleteSubSegment(segment, res.subSegmentIndex, am);
+					}
+					else
+					{
+						ImGuiTimeline_Track& track = tracks[res.trackIndex];
+						deleteSegment(track, res.segmentIndex, am);
 					}
 				}
-			}
 
-			if (res.flags & ImGuiTimelineResultFlags_SegmentTimeChanged)
-			{
-				const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-				int animationId = segment.userData.as.intData;
-				AnimationManager::setAnimationTime(am, animationId, segment.frameStart, segment.frameDuration);
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_SubSegmentTimeChanged)
-			{
-				// const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
-				// int animationId = (int)(uintptr_t)subSegment.userData;
-				// int animObjectId = tracks[res.trackIndex].segments[res.segmentIndex].userData.as.intData;
-				// AnimationManager::setAnimationTime(am, animObjectId, animationId, subSegment.frameStart, subSegment.frameDuration);
-				g_logger_warning("TODO: Implement me");
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectDeselected)
-			{
-				activeAnimationId = NULL_ANIM;
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectChanged)
-			{
-				if (res.activeObjectIsSubSegment)
+				if (res.flags & ImGuiTimelineResultFlags_DragDropPayloadHit)
 				{
-					// const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
-					// activeAnimationId = (int)(uintptr_t)subSegment.userData;
-					// activeAnimObjectId = NULL_ANIM;
+					g_logger_assert(res.dragDropPayloadDataSize == sizeof(TimelinePayload), "Invalid payload.");
+					TimelinePayload* payloadData = (TimelinePayload*)res.dragDropPayloadData;
+					if (payloadData->isAnimObject)
+					{
+						if (!res.activeObjectIsSubSegment)
+						{
+							// AnimObject object = AnimObject::createDefault(payloadData->objectType, res.dragDropPayloadFirstFrame, 120);
+							// object.timelineTrack = res.trackIndex;
+							// AnimationManager::addAnimObject(am, object);
+							// SceneHierarchyPanel::addNewAnimObject(object);
+							// addAnimObject(object);
+							g_logger_warning("TODO: Implement me");
+						}
+					}
+					else
+					{
+						if (!res.activeObjectIsSubSegment)
+						{
+							Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 30);
+							animation.timelineTrack = res.trackIndex;
+							AnimationManager::addAnimation(am, animation);
+							addAnimation(animation);
+						}
+					}
 				}
-				else
+
+				if (res.flags & ImGuiTimelineResultFlags_SegmentTimeChanged)
 				{
 					const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-					activeAnimationId = segment.userData.as.intData;
+					int animationId = segment.userData.as.intData;
+					AnimationManager::setAnimationTime(am, animationId, segment.frameStart, segment.frameDuration);
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_SubSegmentTimeChanged)
+				{
+					// const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
+					// int animationId = (int)(uintptr_t)subSegment.userData;
+					// int animObjectId = tracks[res.trackIndex].segments[res.segmentIndex].userData.as.intData;
+					// AnimationManager::setAnimationTime(am, animObjectId, animationId, subSegment.frameStart, subSegment.frameDuration);
+					g_logger_warning("TODO: Implement me");
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_ActiveObjectDeselected)
+				{
+					activeAnimationId = NULL_ANIM;
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_ActiveObjectChanged)
+				{
+					if (res.activeObjectIsSubSegment)
+					{
+						// const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
+						// activeAnimationId = (int)(uintptr_t)subSegment.userData;
+						// activeAnimObjectId = NULL_ANIM;
+					}
+					else
+					{
+						const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
+						activeAnimationId = segment.userData.as.intData;
+					}
 				}
 			}
 
@@ -313,6 +315,10 @@ namespace MathAnim
 
 		void free(AnimationManagerData* am)
 		{
+			// TODO: Serialize this with timelineData
+			activeAnimationId = NULL_ANIM;
+			activeAnimObjectId = NULL_ANIM_OBJECT;
+
 			// TODO: Synchronize this with freeInstance
 			if (tracks)
 			{
@@ -440,7 +446,7 @@ namespace MathAnim
 			{
 				counter = 0;
 			}
-			char counterString[2];
+			char counterString[3];
 			_itoa_s(counter, counterString, 10);
 
 			if (inTrackName)

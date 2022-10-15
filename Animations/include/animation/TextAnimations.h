@@ -11,22 +11,17 @@ namespace MathAnim
 	struct AnimObject;
 	struct SvgGroup;
 	struct AnimationManagerData;
-	
-	namespace TextAnimations
-	{
-		void init(OrthoCamera& sceneCamera);
-	}
 
 	struct TextObject
 	{
 		char* text;
 		int32 textLength;
 		Font* font;
+		int32 numChildrenIds;
+		AnimObjId* childrenIds;
 
 		void init(AnimationManagerData* am, AnimObject* obj);
 		void reInit(AnimationManagerData* am, AnimObject* obj);
-		void render(NVGcontext* vg, const AnimObject* parent) const;
-		void renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse = false) const;
 		void serialize(RawMemory& memory) const;
 		void free();
 

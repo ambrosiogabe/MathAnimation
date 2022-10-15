@@ -22,12 +22,12 @@
 #include "editor/Gizmos.h"
 #include "editor/EditorCameraController.h"
 #include "editor/EditorSettings.h"
+#include "editor/SceneManagementPanel.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
 #include "video/Encoder.h"
 #include "utils/TableOfContents.h"
-
 #include "animation/SvgParser.h"
 
 #include "nanovg.h"
@@ -63,13 +63,22 @@ namespace MathAnim
 		static int absoluteCurrentFrame = -1;
 		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
-		static std::string currentProjectFilepath;
+		static std::string currentProjectRoot;
 		static VideoEncoder encoder = {};
+		static SceneData sceneData = {};
+		static bool reloadCurrentScene = false;
+		static bool saveCurrentSceneOnReload = true;
+		static int sceneToChangeTo = -1;
 
 		static const char* winTitle = "Math Animations";
 
+		// ------- Internal Functions -------
 		static RawMemory serializeCameras();
 		static void deserializeCameras(RawMemory& cameraData);
+		static std::string sceneToFilename(const std::string& stringName);
+		static void reloadCurrentSceneInternal();
+		static void initializeSceneSystems();
+		static void freeSceneSystems();
 
 		void init(const char* projectFile)
 		{
@@ -80,21 +89,6 @@ namespace MathAnim
 			window = new Window(1920, 1080, winTitle);
 			window->setVSync(true);
 
-			camera2D.position = Vec2{ 0.0f, 0.0f };
-			camera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
-			camera2D.zoom = 1.0f;
-			editorCamera2D = camera2D;
-
-			camera3D.forward = glm::vec3(0, 0, 1);
-			camera3D.fov = 70.0f;
-			camera3D.orientation = glm::vec3(-15.0f, 50.0f, 0);
-			camera3D.position = glm::vec3(
-				-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)),
-				2.5f,
-				10.0f * glm::sin(glm::radians(-camera3D.orientation.y))
-			);
-			editorCamera3D = camera3D;
-
 			Fonts::init();
 			GladLayer::init();
 			Renderer::init(camera2D, camera3D);
@@ -103,9 +97,7 @@ namespace MathAnim
 			GizmoManager::init();
 			// NOTE(voxel): Just to initialize the camera
 			Svg::init(camera2D, camera3D);
-			TextAnimations::init(camera2D);
-			am = AnimationManager::create(camera2D);
-			EditorSettings::init();
+			SceneManagementPanel::init();
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)
@@ -119,8 +111,15 @@ namespace MathAnim
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 			editorFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
-			currentProjectFilepath = projectFile;
-			loadProject(currentProjectFilepath.c_str());
+			currentProjectRoot = std::filesystem::path(projectFile).parent_path().string() + "/";
+
+			initializeSceneSystems();
+			loadProject(currentProjectRoot.c_str());
+			if (sceneData.sceneNames.size() <= 0)
+			{
+				sceneData.sceneNames.push_back("New Scene");
+				sceneData.currentScene = 0;
+			}
 
 			EditorGui::init(am);
 
@@ -195,6 +194,7 @@ namespace MathAnim
 				glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "ImGui_Pass");
 				ImGuiLayer::beginFrame();
 				ImGui::ShowDemoWindow();
+				SceneManagementPanel::update(sceneData);
 				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
 				ImGuiLayer::endFrame();
 				glPopDebugGroup();
@@ -219,6 +219,12 @@ namespace MathAnim
 				}
 
 				window->swapBuffers();
+
+				if (reloadCurrentScene)
+				{
+					reloadCurrentSceneInternal();
+					reloadCurrentScene = false;
+				}
 			}
 
 			// If the window is closing, save the last rendered frame to a preview image
@@ -227,7 +233,7 @@ namespace MathAnim
 			AnimationManager::render(am, vg, deltaFrame);
 			Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, false);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
-			std::filesystem::path currentPath = std::filesystem::path(currentProjectFilepath).parent_path();
+			std::filesystem::path currentPath = std::filesystem::path(currentProjectRoot);
 			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
 			if (mainFramebuffer.width > 1280 || mainFramebuffer.height > 720)
 			{
@@ -279,6 +285,7 @@ namespace MathAnim
 
 			LaTexLayer::free();
 			EditorSettings::free();
+			SceneManagementPanel::free();
 			EditorGui::free(am);
 			AnimationManager::free(am);
 			nvgDeleteGL3(vg);
@@ -295,6 +302,23 @@ namespace MathAnim
 
 		void saveProject()
 		{
+			RawMemory sceneDataMemory = SceneManagementPanel::serialize(sceneData);
+
+			TableOfContents tableOfContents;
+			tableOfContents.init();
+			tableOfContents.addEntry(sceneDataMemory, "Scene_Data");
+
+			std::string projectFilepath = currentProjectRoot + "project.bin";
+			tableOfContents.serialize(projectFilepath.c_str());
+
+			sceneDataMemory.free();
+			tableOfContents.free();
+
+			saveCurrentScene();
+		}
+
+		void saveCurrentScene()
+		{
 			RawMemory animationData = AnimationManager::serialize(am);
 			RawMemory timelineData = Timeline::serialize(EditorGui::getTimelineData());
 			RawMemory cameraData = serializeCameras();
@@ -306,7 +330,8 @@ namespace MathAnim
 			tableOfContents.addEntry(timelineData, "Timeline_Data");
 			tableOfContents.addEntry(cameraData, "Camera_Data");
 
-			tableOfContents.serialize(currentProjectFilepath.c_str());
+			std::string filepath = currentProjectRoot + sceneToFilename(sceneData.sceneNames[sceneData.currentScene]);
+			tableOfContents.serialize(filepath.c_str());
 
 			animationData.free();
 			timelineData.free();
@@ -314,12 +339,48 @@ namespace MathAnim
 			tableOfContents.free();
 		}
 
-		void loadProject(const char* filepath)
+		void loadProject(const std::string& projectRoot)
 		{
-			FILE* fp = fopen(filepath, "rb");
+			std::string projectFilepath = projectRoot + "project.bin";
+			FILE* fp = fopen(projectFilepath.c_str(), "rb");
 			if (!fp)
 			{
-				g_logger_warning("Could not load project '%s', error opening file.", filepath);
+				g_logger_warning("Could not load project '%s', error opening file.", projectFilepath.c_str());
+				return;
+			}
+
+			fseek(fp, 0, SEEK_END);
+			size_t fileSize = ftell(fp);
+			fseek(fp, 0, SEEK_SET);
+
+			RawMemory memory;
+			memory.init(fileSize);
+			fread(memory.data, fileSize, 1, fp);
+			fclose(fp);
+
+			TableOfContents toc = TableOfContents::deserialize(memory);
+			memory.free();
+
+			RawMemory sceneDataMemory = toc.getEntry("Scene_Data");
+			toc.free();
+
+			if (sceneDataMemory.data)
+			{
+				sceneData = SceneManagementPanel::deserialize(sceneDataMemory);
+				loadScene(sceneData.sceneNames[sceneData.currentScene]);
+			}
+
+			sceneDataMemory.free();
+		}
+
+		void loadScene(const std::string& sceneName)
+		{
+			std::string filepath = currentProjectRoot + sceneToFilename(sceneName);
+			FILE* fp = fopen(filepath.c_str(), "rb");
+			if (!fp)
+			{
+				g_logger_warning("Could not load scene '%s', error opening file.", filepath);
+				resetToFrame(0);
 				return;
 			}
 
@@ -345,6 +406,7 @@ namespace MathAnim
 				AnimationManager::deserialize(am, animationData);
 				// Flush any pending objects to be created for real
 				AnimationManager::endFrame(am);
+
 			}
 			if (timelineData.data)
 			{
@@ -359,6 +421,28 @@ namespace MathAnim
 			animationData.free();
 			timelineData.free();
 			cameraData.free();
+		}
+
+		void deleteScene(const std::string& sceneName)
+		{
+			std::string filepath = currentProjectRoot + sceneToFilename(sceneName);
+			remove(filepath.c_str());
+		}
+
+		void changeSceneTo(const std::string& sceneName, bool saveCurrentScene)
+		{
+			for (int i = 0; i < sceneData.sceneNames.size(); i++)
+			{
+				if (sceneData.sceneNames[i] == sceneName)
+				{
+					sceneToChangeTo = i;
+					reloadCurrentScene = true;
+					saveCurrentSceneOnReload = saveCurrentScene;
+					return;
+				}
+			}
+
+			g_logger_warning("Cannot change to unknown scene name '%s'", sceneName.c_str());
 		}
 
 		void setEditorPlayState(AnimState state)
@@ -403,6 +487,12 @@ namespace MathAnim
 		int getFrameratePerSecond()
 		{
 			return framerate;
+		}
+
+		void resetToFrame(int frame)
+		{
+			absoluteCurrentFrame = frame;
+			absolutePrevFrame = frame;
 		}
 
 		void exportVideoTo(const std::string& filename)
@@ -496,6 +586,56 @@ namespace MathAnim
 			editorCamera3D.orientation = CMath::convert(CMath::deserializeVec3(cameraData));
 			editorCamera3D.forward = CMath::convert(CMath::deserializeVec3(cameraData));
 			cameraData.read<float>(&editorCamera3D.fov);
+		}
+
+		static std::string sceneToFilename(const std::string& stringName)
+		{
+			return "Scene_" + stringName + ".bin";
+		}
+
+		static void reloadCurrentSceneInternal()
+		{
+			if (saveCurrentSceneOnReload)
+			{
+				saveCurrentScene();
+			}
+			sceneData.currentScene = sceneToChangeTo;
+
+			// Reset to a blank slate
+			EditorGui::free(am);
+			freeSceneSystems();
+			initializeSceneSystems();
+
+			loadScene(sceneData.sceneNames[sceneData.currentScene]);
+
+			EditorGui::init(am);
+		}
+
+		static void freeSceneSystems()
+		{
+			AnimationManager::free(am);
+			EditorSettings::free();
+		}
+
+		static void initializeSceneSystems()
+		{
+			camera2D.position = Vec2{ 0.0f, 0.0f };
+			camera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
+			camera2D.zoom = 1.0f;
+			editorCamera2D = camera2D;
+
+			camera3D.forward = glm::vec3(0, 0, 1);
+			camera3D.fov = 70.0f;
+			camera3D.orientation = glm::vec3(-15.0f, 50.0f, 0);
+			camera3D.position = glm::vec3(
+				-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)),
+				2.5f,
+				10.0f * glm::sin(glm::radians(-camera3D.orientation.y))
+			);
+			editorCamera3D = camera3D;
+
+			am = AnimationManager::create(camera2D);
+			EditorSettings::init();
 		}
 	}
 }

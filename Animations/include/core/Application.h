@@ -29,14 +29,20 @@ namespace MathAnim
 		glm::vec2 getViewportSize();
 
 		void saveProject();
-		void loadProject(const char* filepath);
+		void saveCurrentScene();
+		void loadProject(const std::string& projectRoot);
+		void loadScene(const std::string& sceneName);
+		void deleteScene(const std::string& sceneName);
+		void changeSceneTo(const std::string& sceneName, bool saveCurrentScene = true);
 
 		void setEditorPlayState(AnimState state);
 		AnimState getEditorPlayState();
 
+		// TODO: Consolidate and remove some of these?
 		void setFrameIndex(int frame);
 		int getFrameIndex();
 		int getFrameratePerSecond();
+		void resetToFrame(int frame);
 
 		void exportVideoTo(const std::string& filename);
 		bool isExportingVideo();

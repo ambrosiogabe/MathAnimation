@@ -1,5 +1,6 @@
 #include "animation/Svg.h"
 #include "animation/Animation.h"
+#include "animation/SvgParser.h"
 #include "utils/CMath.h"
 #include "renderer/Renderer.h"
 #include "renderer/Framebuffer.h"
@@ -1311,6 +1312,122 @@ namespace MathAnim
 
 		numPaths = 0;
 		approximatePerimeter = 0.0f;
+	}
+
+	static void growBufferIfNeeded(uint8** buffer, size_t* capacity, size_t numElements, size_t numElementsToAdd)
+	{
+		if (numElements + numElementsToAdd >= *capacity)
+		{
+			*capacity = (numElements + numElementsToAdd) * 2;
+			*buffer = (uint8*)g_memory_realloc(*buffer, *capacity);
+			g_logger_assert(*buffer != nullptr, "Ran out of RAM.");
+		}
+	}
+
+	static void writeBuffer(uint8** buffer, size_t* capacity, size_t* numElements, char* string, size_t stringLength = 0)
+	{
+		if (stringLength == 0)
+		{
+			stringLength = std::strlen(string);
+		}
+
+		growBufferIfNeeded(buffer, capacity, *numElements, stringLength);
+		g_memory_copyMem(*buffer + *numElements, (void*)string, stringLength * sizeof(uint8));
+		*numElements += stringLength;
+	}
+
+	void SvgObject::serialize(RawMemory& memory) const
+	{
+		size_t numElements = 0;
+		size_t capacity = 256;
+		uint8* buffer = (uint8*)g_memory_allocate(sizeof(uint8) * capacity);
+		constexpr size_t tmpBufferSize = 256;
+		char tmpBuffer[tmpBufferSize];
+		for (int pathi = 0; pathi < numPaths; pathi++)
+		{
+			// Move to the first path point
+			Path& path = paths[pathi];
+			if (path.numCurves > 0)
+			{
+				size_t numBytesWritten = snprintf(tmpBuffer, tmpBufferSize, "M%0.6f %0.6f ", path.curves[0].p0.x, path.curves[0].p0.y);
+				g_logger_assert(numBytesWritten >= 0 && numBytesWritten < tmpBufferSize, "Tmp buffer is too small to write out.");
+				writeBuffer(&buffer, &capacity, &numElements, tmpBuffer);
+			}
+
+			for (int curvei = 0; curvei < path.numCurves; curvei++)
+			{
+				Curve& curve = path.curves[curvei];
+				switch (curve.type)
+				{
+				case CurveType::Line:
+				{
+					writeBuffer(&buffer, &capacity, &numElements, "L", 1);
+					size_t numBytesWritten = snprintf(tmpBuffer, tmpBufferSize, "%0.6f %0.6f ", curve.as.line.p1.x, curve.as.line.p1.y);
+					g_logger_assert(numBytesWritten >= 0 && numBytesWritten < tmpBufferSize, "Tmp buffer is too small to write out.");
+					writeBuffer(&buffer, &capacity, &numElements, tmpBuffer);
+				}
+				break;
+				case CurveType::Bezier2:
+				{
+					writeBuffer(&buffer, &capacity, &numElements, "Q", 1);
+					size_t numBytesWritten = snprintf(
+						tmpBuffer,
+						tmpBufferSize,
+						"%0.6f %0.6f %0.6f %0.6f ",
+						curve.as.bezier2.p1.x,
+						curve.as.bezier2.p1.y,
+						curve.as.bezier2.p2.x,
+						curve.as.bezier2.p2.y
+					);
+					g_logger_assert(numBytesWritten >= 0 && numBytesWritten < tmpBufferSize, "Tmp buffer is too small to write out.");
+					writeBuffer(&buffer, &capacity, &numElements, tmpBuffer);
+				}
+				break;
+				case CurveType::Bezier3:
+				{
+					writeBuffer(&buffer, &capacity, &numElements, "C", 1);
+					size_t numBytesWritten = snprintf(
+						tmpBuffer,
+						tmpBufferSize,
+						"%0.6f %0.6f %0.6f %0.6f %0.6f %0.6f ",
+						curve.as.bezier3.p1.x,
+						curve.as.bezier3.p1.y,
+						curve.as.bezier3.p2.x,
+						curve.as.bezier3.p2.y,
+						curve.as.bezier3.p3.x,
+						curve.as.bezier3.p3.y
+					);
+					g_logger_assert(numBytesWritten >= 0 && numBytesWritten < tmpBufferSize, "Tmp buffer is too small to write out.");
+					writeBuffer(&buffer, &capacity, &numElements, tmpBuffer);
+				}
+				break;
+				default:
+					g_logger_error("Unknown curve type: %d", curve.type);
+					break;
+				}
+			}
+		}
+
+		uint64 stringLength = (uint64)numElements;
+		memory.write<uint64>(&stringLength);
+		memory.writeDangerous(buffer, numElements);
+
+		g_memory_free(buffer);
+	}
+
+	SvgObject* SvgObject::deserialize(RawMemory& memory, uint32 version)
+	{
+		SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		uint64 stringLength;
+		memory.read<uint64>(&stringLength);
+		uint8* string = (uint8*)g_memory_allocate(sizeof(uint8) * (stringLength + 1));
+		memory.readDangerous(string, stringLength);
+		string[stringLength] = '\0';
+
+		*res = SvgParser::parseSvgPath((const char*)string, stringLength);
+		g_memory_free(string);
+
+		return res;
 	}
 
 	void SvgGroup::normalize()
