@@ -76,6 +76,9 @@ namespace MathAnim
 		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}) const;
 		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, bool reverse = false, bool isSvgGroup = false) const;
 		void free();
+
+		void serialize(RawMemory& memory) const;
+		static SvgObject* deserialize(RawMemory& memory, uint32 version);
 	};
 
 	struct SvgGroup

@@ -28,10 +28,28 @@ namespace MathAnim
 		}
 
 		float fontSizePixels = obj->svgScale;
+		std::string textStr = std::string(text);
+
+		// First count how many non-whitespace characters there are
+		int32 numNonwhiteSpaceChars = 0;
+		for (int i = 0; i < textStr.length(); i++)
+		{
+			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
+			{
+				numNonwhiteSpaceChars++;
+			}
+		}
+
+		numChildrenIds = numNonwhiteSpaceChars;
+		if (childrenIds)
+		{
+			g_memory_free(childrenIds);
+		}
+		childrenIds = (int32*)g_memory_allocate(sizeof(int32) * numNonwhiteSpaceChars);
 
 		// Generate children that represent each character of the text object `obj`
-		std::string textStr = std::string(text);
 		Vec2 cursorPos = Vec2{ 0, 0 };
+		int childIndex = 0;
 		for (int i = 0; i < textStr.length(); i++)
 		{
 			uint32 codepoint = (uint32)textStr[i];
@@ -67,6 +85,10 @@ namespace MathAnim
 				AnimationManager::addAnimObject(am, childObj);
 				// TODO: Ugly what do I do???
 				SceneHierarchyPanel::addNewAnimObject(childObj);
+
+				g_logger_assert(childIndex < numChildrenIds, "Somehow we exceeded the number of children ids.");
+				childrenIds[childIndex] = childObj.id;
+				childIndex++;
 			}
  
 			// TODO: I may have to add kerning info here
@@ -79,14 +101,13 @@ namespace MathAnim
 		// First remove all generated children, which were generated as a result
 		// of this object (presumably)
 		// NOTE: This is direct descendants, no recursive children here
-		std::vector<int32> children = AnimationManager::getChildren(am, obj->id);
-		for (auto childId : children)
+		for (int i = 0; i < numChildrenIds; i++)
 		{
-			AnimObject* child = AnimationManager::getMutableObject(am, childId);
-			if (child && child->isGenerated)
+			AnimObject* child = AnimationManager::getMutableObject(am, childrenIds[i]);
+			if (child)
 			{
 				SceneHierarchyPanel::deleteAnimObject(*child);
-				AnimationManager::removeAnimObject(am, childId);
+				AnimationManager::removeAnimObject(am, childrenIds[i]);
 			}
 		}
 
@@ -97,217 +118,26 @@ namespace MathAnim
 		init(am, &objCopy);
 	}
 
-	void TextObject::render(NVGcontext* vg, const AnimObject* parent) const
-	{
-		// TODO: This may lead to performance degradation with larger projects because
-		// we can't just stroke an object we have to manually draw the svg curves
-		// then do a stroke, then repeat with a fill. I should consider looking into
-		// caching this stuff with nvgSave() or something which looks like it might cache
-		// drawings
-		//renderWriteInAnimation(vg, 1.01f, parent);
-	}
-
-	void TextObject::renderWriteInAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse) const
-	{
-		//if (parent->as.textObject.font == nullptr)
-		//{
-		//	return;
-		//}
-
-		//float fontSizePixels = parent->svgScale;
-
-		//// Calculate the string size
-		//std::string textStr = std::string(text);
-		//Vec2 strSize = Vec2{ 0, font->lineHeight };
-		//for (int i = 0; i < textStr.length(); i++)
-		//{
-		//	uint32 codepoint = (uint32)textStr[i];
-		//	const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
-
-		//	Vec2 glyphPos = strSize;
-		//	Vec2 offset = Vec2{
-		//		glyphOutline.bearingX,
-		//		font->lineHeight - glyphOutline.bearingY
-		//	};
-
-		//	// TODO: I may have to add kerning info here
-		//	strSize += Vec2{ glyphOutline.advanceX, 0.0f };
-		//	
-		//	float newMaxY = font->lineHeight + glyphOutline.descentY;
-		//	strSize.y = glm::max(newMaxY, strSize.y);
-		//}
-
-		//// TODO: Offload all this stuff into some sort of TexturePacker data structure
-		//{
-		//	Vec2 svgTextureOffset = Vec2{
-		//		(float)Svg::getCacheCurrentPos().x + parent->strokeWidth * 0.5f,
-		//		(float)Svg::getCacheCurrentPos().y + parent->strokeWidth * 0.5f
-		//	};
-
-		//	// Check if the SVG cache needs to regenerate
-		//	float svgTotalWidth = (strSize.x * parent->svgScale) + parent->strokeWidth;
-		//	float svgTotalHeight = (strSize.y * parent->svgScale) + parent->strokeWidth;
-		//	{
-		//		float newRightX = svgTextureOffset.x + svgTotalWidth;
-		//		if (newRightX >= Svg::getSvgCache().width)
-		//		{
-		//			// Move to the newline
-		//			Svg::incrementCacheCurrentY();
-		//		}
-
-		//		float newBottomY = svgTextureOffset.y + svgTotalHeight;
-		//		if (newBottomY >= Svg::getSvgCache().height)
-		//		{
-		//			// TODO: Get position on new cache if needed
-		//			Svg::growCache();
-		//		}
-		//	}
-		//}
-
-		//// Draw the string to the cache
-		//int numNonWhitespaceCharacters = 0;
-		//for (int i = 0; i < textStr.length(); i++)
-		//{
-		//	if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
-		//	{
-		//		numNonWhitespaceCharacters++;
-		//	}
-		//}
-
-		//Vec2 cursorPos = Vec2{ 0, 0 };
-		//float numberLettersToDraw = t * (float)numNonWhitespaceCharacters;
-		//int numNonWhitespaceLettersDrawn = 0;
-		//constexpr float numLettersToLag = 2.0f;
-		//for (int i = 0; i < textStr.length(); i++)
-		//{
-		//	uint32 codepoint = (uint32)textStr[i];
-		//	const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
-
-		//	float denominator = i == textStr.length() - 1 ? 1.0f : numLettersToLag;
-		//	float percentOfLetterToDraw = (numberLettersToDraw - (float)numNonWhitespaceLettersDrawn) / denominator;
-		//	Vec2 glyphPos = cursorPos;
-		//	Vec2 offset = Vec2{
-		//		glyphOutline.bearingX,
-		//		font->lineHeight - glyphOutline.bearingY
-		//	};
-
-		//	if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
-		//	{
-		//		glyphOutline.svg->renderCreateAnimation(vg, t, parent, offset + glyphPos, reverse, true);
-		//		numNonWhitespaceLettersDrawn++;
-		//	}
-
-		//	// TODO: I may have to add kerning info here
-		//	cursorPos += Vec2{ glyphOutline.advanceX, 0.0f };
-
-		//	if ((float)numNonWhitespaceLettersDrawn >= numberLettersToDraw)
-		//	{
-		//		break;
-		//	}
-		//}
-
-		//// Blit the cached quad to the screen
-		//{
-		//	Vec2 svgTextureOffset = Vec2 {
-		//		(float)Svg::getCacheCurrentPos().x + parent->strokeWidth * 0.5f,
-		//		(float)Svg::getCacheCurrentPos().y + parent->strokeWidth * 0.5f
-		//	};
-		//	float svgTotalWidth = (strSize.x * parent->svgScale) + parent->strokeWidth;
-		//	float svgTotalHeight = (strSize.y * parent->svgScale) + parent->strokeWidth;
-
-		//	Vec2 cacheUvMin = Vec2{
-		//		svgTextureOffset.x / Svg::getSvgCache().width,
-		//		1.0f - (svgTextureOffset.y / Svg::getSvgCache().height) - (svgTotalHeight / Svg::getSvgCache().height)
-		//	};
-		//	Vec2 cacheUvMax = cacheUvMin +
-		//		Vec2{
-		//			svgTotalWidth / Svg::getSvgCache().width,
-		//			svgTotalHeight / Svg::getSvgCache().height
-		//	};
-
-		//	if (parent->drawDebugBoxes)
-		//	{
-		//		// First render to the cache
-		//		Svg::getSvgCacheFb().bind();
-		//		glViewport(0, 0, Svg::getSvgCache().width, Svg::getSvgCache().height);
-
-		//		// Reset the draw buffers to draw to FB_attachment_0
-		//		GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
-		//		glDrawBuffers(4, compositeDrawBuffers);
-
-		//		float strokeWidthCorrectionPos = Svg::getCachePadding().x * 0.5f;
-		//		float strokeWidthCorrectionNeg = -Svg::getCachePadding().x;
-		//		nvgBeginPath(vg);
-		//		nvgStrokeColor(vg, nvgRGBA(0, 255, 255, 255));
-		//		nvgStrokeWidth(vg, Svg::getCachePadding().x);
-		//		nvgMoveTo(vg,
-		//			cacheUvMin.x * Svg::getSvgCache().width + strokeWidthCorrectionPos,
-		//			(1.0f - cacheUvMax.y) * Svg::getSvgCache().height + strokeWidthCorrectionPos
-		//		);
-		//		nvgRect(vg,
-		//			cacheUvMin.x * Svg::getSvgCache().width + strokeWidthCorrectionPos,
-		//			(1.0f - cacheUvMax.y) * Svg::getSvgCache().height + strokeWidthCorrectionPos,
-		//			(cacheUvMax.x - cacheUvMin.x) * Svg::getSvgCache().width + strokeWidthCorrectionNeg,
-		//			(cacheUvMax.y - cacheUvMin.y) * Svg::getSvgCache().height + strokeWidthCorrectionNeg
-		//		);
-		//		nvgClosePath(vg);
-		//		nvgStroke(vg);
-		//	}
-
-		//	if (parent->is3D)
-		//	{
-		//		Renderer::drawTexturedQuad3D(
-		//			Svg::getSvgCache(),
-		//			Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
-		//			cacheUvMin,
-		//			cacheUvMax,
-		//			parent->globalTransform,
-		//			parent->isTransparent
-		//		);
-		//	}
-		//	else
-		//	{
-		//		Renderer::drawTexturedQuad(
-		//			Svg::getSvgCache(),
-		//			Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
-		//			cacheUvMin,
-		//			cacheUvMax,
-		//			parent->id,
-		//			parent->globalTransform
-		//		);
-		//	}
-
-		//	Svg::incrementCacheCurrentX(strSize.x * parent->svgScale + parent->strokeWidth + Svg::getCachePadding().x);
-		//	Svg::checkLineHeight(strSize.y * parent->svgScale + parent->strokeWidth);
-		//}
-	}
-
 	void TextObject::serialize(RawMemory& memory) const
 	{
+		// numChildrenIds       => int32
+		// childrenIds          -> int32[numChildrenIds]
 		// textLength           -> int32
 		// text                 -> char[textLength]
 		// fontFilepathLength   -> int32
 		// fontFilepath         -> char[fontFilepathLength]
+		memory.write<int32>(&numChildrenIds);
+		memory.writeDangerous((uint8*)childrenIds, sizeof(int32) * numChildrenIds);
 
-		// TODO: Specialize std::string or const char* in template so
-		// we don't have to write out text char by char
 		memory.write<int32>(&textLength);
-		for (int i = 0; i < textLength; i++)
-		{
-			memory.write<char>(&text[i]);
-		}
-		constexpr char nullByte = '\0';
-		memory.write<char>(&nullByte);
+		memory.writeDangerous((uint8*)text, sizeof(uint8) * textLength);
 
 		// TODO: Overflow error checking would be good here
 		if (font != nullptr)
 		{
 			int32 fontFilepathLength = (int32)font->fontFilepath.size();
 			memory.write<int32>(&fontFilepathLength);
-			for (int i = 0; i < fontFilepathLength; i++)
-			{
-				memory.write<char>(&font->fontFilepath[i]);
-			}
+			memory.writeDangerous((uint8*)font->fontFilepath.c_str(), sizeof(uint8) * fontFilepathLength);
 		}
 		else
 		{
@@ -316,10 +146,7 @@ namespace MathAnim
 			// Subtract null byte
 			fontFilepathLength -= 1;
 			memory.write<int32>(&fontFilepathLength);
-			for (int i = 0; i < fontFilepathLength; i++)
-			{
-				memory.write<char>(&stringToWrite[i]);
-			}
+			memory.writeDangerous((uint8*)stringToWrite, sizeof(uint8) * fontFilepathLength);
 		}
 	}
 
@@ -336,6 +163,13 @@ namespace MathAnim
 			g_memory_free(this->text);
 			this->text = nullptr;
 			this->textLength = 0;
+		}
+
+		if (this->childrenIds)
+		{
+			g_memory_free(this->childrenIds);
+			this->childrenIds = nullptr;
+			this->numChildrenIds = 0;
 		}
 	}
 
@@ -512,20 +346,23 @@ namespace MathAnim
 	{
 		TextObject res;
 
+		// numChildrenIds       => int32
+		// childrenIds          -> int32[numChildrenIds]
 		// textLength           -> int32
 		// text                 -> char[textLength]
 		// fontFilepathLength   -> int32
 		// fontFilepath         -> char[fontFilepathLength]
 
+		memory.read<int32>(&res.numChildrenIds);
+		res.childrenIds = (int32*)g_memory_allocate(sizeof(int32) * res.numChildrenIds);
+		memory.readDangerous((uint8*)res.childrenIds, sizeof(int32) * res.numChildrenIds);
+
 		// TODO: Specialize std::string or const char* in template so
 		// we don't have to read in text char by char
 		memory.read<int32>(&res.textLength);
 		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
-		for (int i = 0; i < res.textLength; i++)
-		{
-			memory.read<char>(&res.text[i]);
-		}
-		memory.read<char>(&res.text[res.textLength]);
+		memory.readDangerous((uint8*)res.text, sizeof(uint8) * res.textLength);
+		res.text[res.textLength] = '\0';
 
 		// TODO: Error checking would be good here
 		int32 fontFilepathLength;

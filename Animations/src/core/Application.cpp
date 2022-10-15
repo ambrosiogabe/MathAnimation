@@ -67,6 +67,7 @@ namespace MathAnim
 		static VideoEncoder encoder = {};
 		static SceneData sceneData = {};
 		static bool reloadCurrentScene = false;
+		static bool saveCurrentSceneOnReload = true;
 		static int sceneToChangeTo = -1;
 
 		static const char* winTitle = "Math Animations";
@@ -171,8 +172,7 @@ namespace MathAnim
 				bool renderPickingOutline = false;
 				if (EditorGui::mainViewportActive() || outputVideoFile)
 				{
-					//Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, renderPickingOutline);
-					Renderer::renderToFramebuffer(mainFramebuffer, Vec4{0, 0, 0, 0}, camera2D, camera3D, renderPickingOutline);
+					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, renderPickingOutline);
 				}
 				// Collect gizmo draw calls
 				GizmoManager::render(camera2D, camera3D, editorCamera2D);
@@ -406,7 +406,7 @@ namespace MathAnim
 				AnimationManager::deserialize(am, animationData);
 				// Flush any pending objects to be created for real
 				AnimationManager::endFrame(am);
-				
+
 			}
 			if (timelineData.data)
 			{
@@ -429,7 +429,7 @@ namespace MathAnim
 			remove(filepath.c_str());
 		}
 
-		void changeSceneTo(const std::string& sceneName)
+		void changeSceneTo(const std::string& sceneName, bool saveCurrentScene)
 		{
 			for (int i = 0; i < sceneData.sceneNames.size(); i++)
 			{
@@ -437,6 +437,7 @@ namespace MathAnim
 				{
 					sceneToChangeTo = i;
 					reloadCurrentScene = true;
+					saveCurrentSceneOnReload = saveCurrentScene;
 					return;
 				}
 			}
@@ -594,7 +595,10 @@ namespace MathAnim
 
 		static void reloadCurrentSceneInternal()
 		{
-			saveCurrentScene();
+			if (saveCurrentSceneOnReload)
+			{
+				saveCurrentScene();
+			}
 			sceneData.currentScene = sceneToChangeTo;
 
 			// Reset to a blank slate
@@ -629,7 +633,7 @@ namespace MathAnim
 				10.0f * glm::sin(glm::radians(-camera3D.orientation.y))
 			);
 			editorCamera3D = camera3D;
-		
+
 			am = AnimationManager::create(camera2D);
 			EditorSettings::init();
 		}

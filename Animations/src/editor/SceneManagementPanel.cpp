@@ -1,6 +1,7 @@
 #include "editor/SceneManagementPanel.h"
 #include "editor/ImGuiExtended.h"
 #include "core/Application.h"
+#include "core/Colors.h"
 
 #include "utils/FontAwesome.h"
 
@@ -23,9 +24,7 @@ namespace MathAnim
 			ImVec2 buttonSize = ImVec2(256, 0);
 			for (int i = 0; i < sd.sceneNames.size(); i++)
 			{
-				const char* icon = i == sd.currentScene
-					? ICON_FA_FOLDER_OPEN
-					: ICON_FA_FOLDER;
+				const char* icon = ICON_FA_FILE;
 
 				// Shorten name length if it exceeds the buffer somehow
 				if (sd.sceneNames[i].length() >= stringBufferSize - 1)
@@ -34,6 +33,12 @@ namespace MathAnim
 				}
 				g_memory_copyMem(stringBuffer, (void*)sd.sceneNames[i].c_str(), sd.sceneNames[i].length());
 				stringBuffer[sd.sceneNames[i].length()] = '\0';
+
+				if (i == sd.currentScene)
+				{
+					ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentGreen[1]);
+				}
+
 				if (ImGuiExtended::RenamableIconSelectable(icon, stringBuffer, stringBufferSize, i == sd.currentScene, 132.0f))
 				{
 					if (i != sd.currentScene)
@@ -50,13 +55,39 @@ namespace MathAnim
 					}
 				}
 
+				if (i == sd.currentScene)
+				{
+					ImGui::PopStyleColor();
+				}
+
+				if (ImGui::BeginPopupContextItem(stringBuffer))
+				{
+					bool isDisabled = sd.sceneNames.size() == 1;
+					ImGui::BeginDisabled(isDisabled);
+					if (ImGui::MenuItem("Delete"))
+					{
+						// Delete the current scene
+						Application::deleteScene(sd.sceneNames[i]);
+						if (i == sd.currentScene)
+						{
+							// Change to the next scene if we deleted the current scene
+							sd.currentScene = (sd.currentScene + 1) % sd.sceneNames.size();
+							Application::changeSceneTo(sd.sceneNames[sd.currentScene], false);
+						}
+						sd.sceneNames.erase(sd.sceneNames.begin() + i);
+						i--;
+					}
+					ImGui::EndDisabled();
+					ImGui::EndPopup();
+				}
+
 				if (ImGui::GetContentRegionAvail().x > buttonSize.x)
 				{
 					ImGui::SameLine();
 				}
 			}
 
-			if (ImGuiExtended::VerticalIconButton(ICON_FA_FOLDER_PLUS, "Add Scene", 132.0f))
+			if (ImGuiExtended::VerticalIconButton(ICON_FA_PLUS, "Add Scene", 132.0f))
 			{
 				std::string newSceneName = "New Scene " + std::to_string(sd.sceneNames.size());
 				sd.sceneNames.push_back(newSceneName);

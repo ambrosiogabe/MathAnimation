@@ -576,28 +576,16 @@ namespace MathAnim
 				memory.write<uint32>(&MAGIC_NUMBER);
 			}
 
-			// Count the number of non-generated objects
-			uint32 numAnimObjects = 0;
-			for (int i = 0; i < am->objects.size(); i++)
-			{
-				if (!am->objects[i].isGenerated)
-				{
-					numAnimObjects++;
-				}
-			}
-
 			// numAnimObjects -> uint32
 			// animObjects    -> dynamic
+			uint32 numAnimObjects = (uint32)am->objects.size();
 			memory.write<uint32>(&numAnimObjects);
 
 			// Write out each anim object followed by 0xDEADBEEF
 			for (int i = 0; i < am->objects.size(); i++)
 			{
-				if (!am->objects[i].isGenerated)
-				{
-					am->objects[i].serialize(memory);
-					memory.write<uint32>(&MAGIC_NUMBER);
-				}
+				am->objects[i].serialize(memory);
+				memory.write<uint32>(&MAGIC_NUMBER);
 			}
 
 			memory.shrinkToFit();

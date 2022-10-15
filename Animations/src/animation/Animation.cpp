@@ -389,10 +389,9 @@ namespace MathAnim
 		// NOP: Cube just has a bunch of children anim objects that get rendered
 		break;
 		case AnimObjectTypeV1::Axis:
+		case AnimObjectTypeV1::TextObject:
 			// NOP: Axis just has a bunch of children anim objects that get rendered
 			break;
-		case AnimObjectTypeV1::TextObject:
-			this->as.textObject.renderWriteInAnimation(vg, this->percentCreated, this);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			this->as.laTexObject.renderCreateAnimation(vg, this->percentCreated, this, false);
@@ -708,7 +707,8 @@ namespace MathAnim
 			this->as.laTexObject.serialize(memory);
 			break;
 		case AnimObjectTypeV1::SvgObject:
-			g_logger_warning("No serialization for SVG objects yet. Maybe there should be a NOP svg object for objects that don't require serialization.");
+			g_logger_assert(this->_svgObjectStart != nullptr, "Somehow SVGObject has no object allocated.");
+			this->_svgObjectStart->serialize(memory);
 			break;
 		case AnimObjectTypeV1::Square:
 			this->as.square.serialize(memory);
@@ -943,7 +943,7 @@ namespace MathAnim
 		{
 		case AnimObjectTypeV1::TextObject:
 			res.as.textObject = TextObject::deserialize(memory, version);
-			res.as.textObject.init(am, &res);
+			//res.as.textObject.init(am, &res);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::deserialize(memory, version);
@@ -953,7 +953,10 @@ namespace MathAnim
 			res.as.square.init(&res);
 			break;
 		case AnimObjectTypeV1::SvgObject:
-			g_logger_warning("No deserialization available for svg objects yet.");
+			res._svgObjectStart = SvgObject::deserialize(memory, version);
+			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res.svgObject = Svg::createDefault();
+			Svg::copy(res.svgObject, res._svgObjectStart);
 			break;
 		case AnimObjectTypeV1::Circle:
 			res.as.circle = Circle::deserialize(memory, version);
