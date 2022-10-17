@@ -1032,7 +1032,7 @@ namespace MathAnim
 			size_t strBufferSize = sizeof(strBuffer) / sizeof(strBuffer[0]);
 			framesToTimeStr(strBuffer, strBufferSize, *currentFrame);
 
-			ImGui::PushFont(ImGuiLayer::getLargeFont());
+			ImGui::PushFont(ImGuiLayer::getMediumFont());
 			ImVec2 textSize = ImGui::CalcTextSize(strBuffer, strBuffer + strBufferSize - 1);
 			ImVec2 textPos = canvasPos + ((timecodeRectSize - textSize) / 2.0f);
 			ImVec4& fontColor = style.Colors[ImGuiCol_Text];

@@ -404,6 +404,45 @@ namespace MathAnim
 		}
 	}
 
+	// ----------------------------- Iterators -----------------------------
+	AnimObjectBreadthFirstIter::AnimObjectBreadthFirstIter(AnimationManagerData* am, AnimObjId parentId)
+	{
+		this->am = am;
+		std::vector<AnimObjId> children = AnimationManager::getChildren(am, parentId);
+		if (children.size() > 0)
+		{
+			childrenLeft = std::deque<AnimObjId>(children.begin(), children.end());
+			currentId = childrenLeft.front();
+			childrenLeft.pop_front();
+		}
+		else
+		{
+			currentId = NULL_ANIM_OBJECT;
+		}
+	}
+
+	void AnimObjectBreadthFirstIter::operator++()
+	{
+		if (childrenLeft.size() > 0)
+		{
+			// Push back all children's children
+			AnimObjId childId = childrenLeft.front();
+			childrenLeft.pop_front();
+			AnimObject* child = AnimationManager::getMutableObject(am, childId);
+			if (child)
+			{
+				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, child->id);
+				childrenLeft.insert(childrenLeft.end(), childrensChildren.begin(), childrensChildren.end());
+			}
+
+			currentId = childId;
+		}
+		else
+		{
+			currentId = NULL_ANIM_OBJECT;
+		}
+	}
+
 	// ----------------------------- AnimObject Functions -----------------------------
 	void AnimObject::renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target)
 	{
@@ -568,15 +607,11 @@ namespace MathAnim
 	{
 		this->status = newStatus;
 
-		std::vector<AnimObjId> children = AnimationManager::getChildren(am, this->id);
-		for (int i = 0; i < children.size(); i++)
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
 		{
-			// Push back all children's children
-			AnimObject* child = AnimationManager::getMutableObject(am, children[i]);
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
 			if (child)
 			{
-				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, child->id);
-				children.insert(children.end(), childrensChildren.begin(), childrensChildren.end());
 				child->status = newStatus;
 			}
 		}
@@ -584,18 +619,67 @@ namespace MathAnim
 
 	void AnimObject::updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated)
 	{
-		std::vector<AnimObjId> children = AnimationManager::getChildren(am, this->id);
-		for (size_t i = 0; i < children.size(); i++)
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
 		{
-			// Push back all children's children
-			AnimObject* child = AnimationManager::getMutableObject(am, children[i]);
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
 			if (child)
 			{
-				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, child->id);
-				children.insert(children.end(), childrensChildren.begin(), childrensChildren.end());
 				child->percentCreated = newPercentCreated;
 			}
 		}
+	}
+
+	void AnimObject::copySvgScaleToChildren(AnimationManagerData* am) const
+	{
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->svgScale = this->svgScale;
+			}
+		}
+	}
+
+	void AnimObject::copyStrokeWidthToChildren(AnimationManagerData* am) const
+	{
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->_strokeWidthStart = this->_strokeWidthStart;
+			}
+		}
+	}
+
+	void AnimObject::copyStrokeColorToChildren(AnimationManagerData* am) const
+	{
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->_strokeColorStart = this->_strokeColorStart;
+			}
+		}
+	}
+
+	void AnimObject::copyFillColorToChildren(AnimationManagerData* am) const
+	{
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->_fillColorStart = this->_fillColorStart;
+			}
+		}
+	}
+
+	AnimObjectBreadthFirstIter AnimObject::beginBreadthFirst(AnimationManagerData* am) const
+	{
+		return AnimObjectBreadthFirstIter(am, this->id);
 	}
 
 	void AnimObject::free()

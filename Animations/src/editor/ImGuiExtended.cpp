@@ -1,8 +1,7 @@
-#include "editor/ImGuiExtended.h"
 #include "core.h"
+#include "editor/ImGuiExtended.h"
 #include "core/ImGuiLayer.h"
-
-#include "imgui.h"
+#include "core/Colors.h"
 
 namespace MathAnim
 {
@@ -12,11 +11,69 @@ namespace MathAnim
 		Vec2 groupSize;
 	};
 
+	struct ToggleState
+	{
+		bool isToggled;
+	};
+
 	namespace ImGuiExtended
 	{
 		// -------- Internal Vars --------
 		static std::unordered_map<std::string, RenamableState> renamableStates;
+		static std::unordered_map<std::string, ToggleState> toggleStates;
 		static constexpr bool drawDebugBoxes = false;
+
+		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size)
+		{
+			auto toggleIter = toggleStates.find(string);
+			ToggleState* state = nullptr;
+			if (toggleIter == toggleStates.end())
+			{
+				toggleStates[string] = { false };
+				state = &toggleStates[string];
+			}
+			else
+			{
+				state = &toggleIter->second;
+			}
+
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
+			ImGui::PushStyleColor(
+				ImGuiCol_Button, 
+				state->isToggled 
+				? Colors::Neutral[6]
+				: Colors::Neutral[8]
+			);
+			ImGui::PushStyleColor(ImGuiCol_Border, Colors::Neutral[5]);
+			bool clicked = ImGui::Button(string, size);
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Apply property to all children");
+			ImGui::PopStyleColor(2);
+			ImGui::PopStyleVar(2);
+
+			if (clicked)
+			{
+				state->isToggled = !state->isToggled;
+			}
+			*enabled = state->isToggled;
+
+			return clicked;
+		}
+
+		bool OutlineButton(const char* string, const ImVec2& size)
+		{
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
+			ImGui::PushStyleColor(ImGuiCol_Button, Colors::Neutral[8]);
+			ImGui::PushStyleColor(ImGuiCol_Border, Colors::Neutral[5]);
+			bool res = ImGui::Button(string, size);
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("Apply property to all children");
+			ImGui::PopStyleColor(2);
+			ImGui::PopStyleVar(2);
+			return res;
+		}
 
 		bool IconButton(const char* icon, const char* string, const ImVec2& inSize)
 		{
@@ -150,8 +207,8 @@ namespace MathAnim
 			}
 			else
 			{
-				ImGui::PushFont(ImGuiLayer::getRegularIconFont());
-				float fontSize = ImGuiLayer::getRegularIconFont()->FontSize;
+				ImGui::PushFont(ImGuiLayer::getMediumRegularIconFont());
+				float fontSize = ImGuiLayer::getMediumRegularIconFont()->FontSize;
 				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (lineHeight - fontSize) / 2.0f - ImGui::GetStyle().FramePadding.y);
 				ImGui::Text(icon);
 				ImGui::PopFont();

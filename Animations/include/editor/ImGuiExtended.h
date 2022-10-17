@@ -9,6 +9,8 @@ namespace MathAnim
 {
 	namespace ImGuiExtended
 	{
+		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size = ImVec2(0, 0));
+		bool OutlineButton(const char* string, const ImVec2& size = ImVec2(0, 0));
 		bool IconButton(const char* icon, const char* string, const ImVec2& size = ImVec2(0, 0));
 		bool VerticalIconButton(const char* icon, const char* buttonText, float width);
 

@@ -149,6 +149,23 @@ namespace MathAnim
 		Active
 	};
 
+	class AnimObjectBreadthFirstIter
+	{
+	public:
+		AnimObjectBreadthFirstIter(AnimationManagerData* am, AnimObjId parentId);
+
+		void operator++();
+
+		inline bool operator==(AnimObjId other) const { return currentId == other; }
+		inline bool operator!=(AnimObjId other) const { return currentId != other; }
+		inline AnimObjId operator*() const { return currentId; }
+
+	private: 
+		AnimationManagerData* am;
+		std::deque<AnimObjId> childrenLeft;
+		AnimObjId currentId;
+	};
+
 	struct AnimObject
 	{
 		AnimObjectTypeV1 objectType;
@@ -214,6 +231,13 @@ namespace MathAnim
 
 		void updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus);
 		void updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated);
+		void copySvgScaleToChildren(AnimationManagerData* am) const;
+		void copyStrokeWidthToChildren(AnimationManagerData* am) const;
+		void copyStrokeColorToChildren(AnimationManagerData* am) const;
+		void copyFillColorToChildren(AnimationManagerData* am) const;
+
+		AnimObjectBreadthFirstIter beginBreadthFirst(AnimationManagerData* am) const;
+		inline AnimObjId end() const { return NULL_ANIM_OBJECT; }
 		
 		void free();
 		void serialize(RawMemory& memory) const;

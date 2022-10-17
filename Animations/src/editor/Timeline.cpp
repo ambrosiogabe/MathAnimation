@@ -4,6 +4,7 @@
 #include "editor/Timeline.h"
 #include "editor/ImGuiTimeline.h"
 #include "editor/SceneHierarchyPanel.h"
+#include "editor/ImGuiExtended.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "animation/Svg.h"
@@ -43,7 +44,7 @@ namespace MathAnim
 		static void deleteTrack(AnimationManagerData* am, int index);
 		static void handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId);
 		static void handleAnimationInspector(AnimationManagerData* am, AnimId animationId);
-		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object, bool objChanged);
+		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation);
@@ -56,6 +57,8 @@ namespace MathAnim
 		static void handleCircleInspector(AnimObject* object);
 		static void handleCubeInspector(AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
+
+		static bool applySettingToChildren(const char* id, bool* toggled);
 
 		static void setupImGuiTimelineDataFromAnimations(AnimationManagerData* am, int numTracksToCreate = INT32_MAX);
 		static void addAnimation(const Animation& animation);
@@ -585,8 +588,6 @@ namespace MathAnim
 				return;
 			}
 
-			bool objChanged = false;
-
 			constexpr int scratchLength = 256;
 			char scratch[scratchLength] = {};
 			if (animObject->nameLength < scratchLength - 1)
@@ -607,27 +608,51 @@ namespace MathAnim
 				g_logger_error("Anim Object name has more 256 characters. Tell Gabe to increase scratch length for Anim Object names.");
 			}
 
-			objChanged = ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed) || objChanged;
-			objChanged = ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x) || objChanged;
-			objChanged = ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed) || objChanged;
-			objChanged = ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed) || objChanged;
+			ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed);
+			ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
+			ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
+
+			static bool scaleToggled = false;
+			if (ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed))
+			{
+				if (scaleToggled)
+				{
+					animObject->copySvgScaleToChildren(am);
+				}
+			}
+			applySettingToChildren("##SvgScaleChildrenApply", &scaleToggled);
 
 			// NanoVG only allows stroke width between [0-200] so we reflect that here
-			objChanged = ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, slowDragSpeed, 0.0f, 10.0f) || objChanged;
+			static bool strokeWidthToggled = false;
+			if (ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f))
+			{
+				if (strokeWidthToggled)
+				{
+					animObject->copyStrokeWidthToChildren(am);
+				}
+			}
+			applySettingToChildren("##StrokeWidthChildrenApply", &strokeWidthToggled);
+
 			float strokeColor[4] = {
 				(float)animObject->_strokeColorStart.r / 255.0f,
 				(float)animObject->_strokeColorStart.g / 255.0f,
 				(float)animObject->_strokeColorStart.b / 255.0f,
 				(float)animObject->_strokeColorStart.a / 255.0f,
 			};
+			static bool strokeColorToggled = false;
 			if (ImGui::ColorEdit4(": Stroke Color", strokeColor))
 			{
 				animObject->_strokeColorStart.r = (uint8)(strokeColor[0] * 255.0f);
 				animObject->_strokeColorStart.g = (uint8)(strokeColor[1] * 255.0f);
 				animObject->_strokeColorStart.b = (uint8)(strokeColor[2] * 255.0f);
 				animObject->_strokeColorStart.a = (uint8)(strokeColor[3] * 255.0f);
-				objChanged = true;
+
+				if (strokeColorToggled)
+				{
+					animObject->copyStrokeColorToChildren(am);
+				}
 			}
+			applySettingToChildren("##StrokeColorChildrenApply", &strokeColorToggled);
 
 			float fillColor[4] = {
 				(float)animObject->_fillColorStart.r / 255.0f,
@@ -635,27 +660,33 @@ namespace MathAnim
 				(float)animObject->_fillColorStart.b / 255.0f,
 				(float)animObject->_fillColorStart.a / 255.0f,
 			};
+			static bool fillColorToggled = false;
 			if (ImGui::ColorEdit4(": Fill Color", fillColor))
 			{
 				animObject->_fillColorStart.r = (uint8)(fillColor[0] * 255.0f);
 				animObject->_fillColorStart.g = (uint8)(fillColor[1] * 255.0f);
 				animObject->_fillColorStart.b = (uint8)(fillColor[2] * 255.0f);
 				animObject->_fillColorStart.a = (uint8)(fillColor[3] * 255.0f);
-				objChanged = true;
-			}
 
-			objChanged = ImGui::Checkbox(": Is Transparent", &animObject->isTransparent) || objChanged;
-			objChanged = ImGui::Checkbox(": Is 3D", &animObject->is3D) || objChanged;
-			objChanged = ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes) || objChanged;
+				if (fillColorToggled)
+				{
+					animObject->copyFillColorToChildren(am);
+				}
+			}
+			applySettingToChildren("##FillColorChildrenApply", &fillColorToggled);
+
+			ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
+			ImGui::Checkbox(": Is 3D", &animObject->is3D);
+			ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
 			if (animObject->drawDebugBoxes)
 			{
-				objChanged = ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes) || objChanged;
+				ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
 			}
 
 			switch (animObject->objectType)
 			{
 			case AnimObjectTypeV1::TextObject:
-				handleTextObjectInspector(am, animObject, objChanged);
+				handleTextObjectInspector(am, animObject);
 				break;
 			case AnimObjectTypeV1::LaTexObject:
 				handleLaTexObjectInspector(animObject);
@@ -818,9 +849,9 @@ namespace MathAnim
 			}
 		}
 
-		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object, bool objChanged)
+		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object)
 		{
-			bool shouldRegenerate = objChanged;
+			bool shouldRegenerate = false;
 
 			const std::vector<std::string>& fonts = Platform::getAvailableFonts();
 			int fontIndex = -1;
@@ -1197,6 +1228,13 @@ namespace MathAnim
 
 				object->as.axis.init(object);
 			}
+		}
+
+		static bool applySettingToChildren(const char* id, bool* toggled)
+		{
+			std::string fullId = std::string(ICON_FA_CLONE) + std::string(id);
+			ImGui::SameLine();
+			return ImGuiExtended::ToggleButton(fullId.c_str(), toggled);
 		}
 
 		static void setupImGuiTimelineDataFromAnimations(AnimationManagerData* am, int numTracksToCreate)

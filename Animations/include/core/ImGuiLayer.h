@@ -20,8 +20,12 @@ namespace MathAnim
 		void free();
 
 		ImFont* getDefaultFont();
-		ImFont* getLargeFont();
-		ImFont* getRegularIconFont();
+		ImFont* getMediumFont();
+
+		ImFont* getLargeSolidIconFont();
+		ImFont* getMediumSolidIconFont();
+		ImFont* getLargeRegularIconFont();
+		ImFont* getMediumRegularIconFont();
 	}
 }
 

@@ -14,9 +14,13 @@ namespace MathAnim
 {
 	namespace ImGuiLayer
 	{
-		static ImFont* smallFont;
-		static ImFont* bigFont;
-		static ImFont* regularIconFont;
+		static ImFont* defaultFont;
+		static ImFont* mediumFont;
+
+		static ImFont* largeSolidIconFont;
+		static ImFont* mediumSolidIconFont;
+		static ImFont* largeRegularIconFont;
+		static ImFont* mediumRegularIconFont;
 
 		// ---------- Internal Functions ----------
 		static void loadCustomTheme();
@@ -26,37 +30,36 @@ namespace MathAnim
 			// Set up dear imgui
 			ImGui::CreateContext();
             
-			ImGuiIO& io = ImGui::GetIO(); (void)io;
+			ImGuiIO& io = ImGui::GetIO();
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
-			//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
 			io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
-			//io.ConfigViewportsNoAutoMerge = true;
-			//io.ConfigViewportsNoTaskBarIcon = true;
             
             // NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
 			glm::ivec2 monitor_size = Window::getMonitorWorkingSize();
             float fontSize = monitor_size.x / (128.f + 16.0f);
-			smallFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize);
+			defaultFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize);
             
 			static const ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-			ImFontConfig config; 
+			ImFontConfig config = {};
 			config.MergeMode = true;
-			//config.GlyphMinAdvanceX = fontSize; // Use this if you want the icon to be monospaced
 			// TODO: Optimize ram usage here...
-			config.SizePixels = fontSize * 1.5f;
+			config.SizePixels = fontSize;
 			config.PixelSnapH = true;
-			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 1.5f, &config, iconRanges);
-			bigFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize * 1.5f);
-            
-			// Add this font separately
+			io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize, &config, iconRanges);
+
+			// Add the rest of the fonts separately
 			config.MergeMode = false;
 			config.SizePixels = fontSize * 1.5f;
-			regularIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-regular-400.ttf", fontSize * 1.5f, &config, iconRanges);
-			
-			// config.MergeMode = false;
-			//const ImWchar iconRangesBrands[] = { ICON_MIN_FAB, ICON_MAX_FAB, 0 };
-			//io.Fonts->AddFontFromFileTTF("assets/fonts/fa-brands-400.ttf", fontSize, &config, iconRanges);
+			mediumFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize * 1.5f);
+            
+			config.SizePixels = fontSize * 1.5f;
+			mediumSolidIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 1.5f, &config, iconRanges);
+			mediumRegularIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-regular-400.ttf", fontSize * 1.5f, &config, iconRanges);
+
+			config.SizePixels = fontSize * 2.0f;
+			largeSolidIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 2.0f, &config, iconRanges);
+			largeRegularIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-regular-400.ttf", fontSize * 2.0f, &config, iconRanges);
             
 			ImGui::StyleColorsDark();
             
@@ -119,9 +122,13 @@ namespace MathAnim
         
 		void free()
 		{
-			smallFont = nullptr;
-			bigFont = nullptr;
-			regularIconFont = nullptr;
+			defaultFont = nullptr;
+			mediumFont = nullptr;
+			
+			largeSolidIconFont = nullptr;
+			largeRegularIconFont = nullptr;
+			mediumSolidIconFont = nullptr;
+			mediumRegularIconFont = nullptr;
             
 			// Cleanup
 			ImGui_ImplOpenGL3_Shutdown();
@@ -131,17 +138,32 @@ namespace MathAnim
         
 		ImFont* getDefaultFont()
 		{
-			return smallFont;
+			return defaultFont;
 		}
         
-		ImFont* getLargeFont()
+		ImFont* getMediumFont()
 		{
-			return bigFont;
+			return mediumFont;
 		}
         
-		ImFont* getRegularIconFont()
+		ImFont* getLargeSolidIconFont()
 		{
-			return regularIconFont;
+			return largeSolidIconFont;
+		}
+
+		ImFont* getMediumSolidIconFont()
+		{
+			return mediumSolidIconFont;
+		}
+
+		ImFont* getLargeRegularIconFont()
+		{
+			return largeRegularIconFont;
+		}
+
+		ImFont* getMediumRegularIconFont()
+		{
+			return mediumRegularIconFont;
 		}
 
 		// ---------- Internal Functions ----------

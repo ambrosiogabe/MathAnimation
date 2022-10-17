@@ -531,20 +531,6 @@ namespace MathAnim
 				const Path* path0 = &lessPaths->paths[lessPathi];
 				const Path* path1 = &morePaths->paths[morePathi];
 
-				bool isHole = false;
-				if (lessPaths == src)
-				{
-					isHole = t < 0.5f
-						? path0->isHole
-						: path1->isHole;
-				}
-				else
-				{
-					isHole = t > 0.5f
-						? path1->isHole
-						: path0->isHole;
-				}
-
 				// It's undefined to interpolate between two paths if one of the paths has no curves
 				bool shouldLoop = path0->numCurves > 0 && path1->numCurves > 0;
 				if (!shouldLoop)
@@ -567,6 +553,9 @@ namespace MathAnim
 					outputPath->curves = (Curve*)g_memory_allocate(sizeof(Curve) * desiredNumCurves);
 					outputPath->numCurves = desiredNumCurves;
 					outputPath->maxCapacity = desiredNumCurves;
+					outputPath->isHole = path0->numCurves < path1->numCurves
+						? path0->isHole
+						: path1->isHole;
 
 					// Sometimes math is beautiful...
 					// This algorithm works by splitting each curve a similar number of times
@@ -809,13 +798,16 @@ namespace MathAnim
 					}
 				}
 
-				// TODO: This may break stuff...
 				if (lessPaths != src)
 				{
 					const Path* tmp = path0;
 					path0 = path1;
 					path1 = tmp;
 				}
+
+				bool isHole = t < 0.5f
+					? path0->isHole
+					: path1->isHole;
 
 				// Move to the start, which is the interpolation between both of the
 				// first vertices
