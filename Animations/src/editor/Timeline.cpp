@@ -682,6 +682,8 @@ namespace MathAnim
 			{
 				ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
 			}
+			ImGui::Checkbox(": Draw Curves", &animObject->drawCurves);
+			ImGui::Checkbox(": Draw Control Points", &animObject->drawControlPoints);
 
 			switch (animObject->objectType)
 			{

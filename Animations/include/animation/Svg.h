@@ -69,6 +69,7 @@ namespace MathAnim
 		int numPaths;
 		float approximatePerimeter;
 		BBox bbox;
+		Vec2 _cursor;
 		
 		void normalize(const Vec2& min = Vec2{ FLT_MAX, FLT_MAX }, const Vec2& max = Vec2{ FLT_MIN, FLT_MIN });
 		void calculateApproximatePerimeter();
@@ -142,6 +143,9 @@ namespace MathAnim
 		void smoothBezier2To(SvgObject* object, const Vec2& dest, bool absolute = true);
 		void smoothBezier3To(SvgObject* object, const Vec2& control1, const Vec2& dest, bool absolute = true);
 		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec2& dst, bool absolute = true);
+
+		// Manually add a curve
+		void addCurveManually(SvgObject* object, const Curve& curve);
 
 		void copy(SvgObject* dest, const SvgObject* src);
 		SvgObject* interpolate(const SvgObject* src, const SvgObject* dst, float t);

@@ -24,7 +24,6 @@ namespace MathAnim
 		constexpr int initialMaxCapacity = 5;
 		static OrthoCamera* orthoCamera;
 		static PerspectiveCamera* perspCamera;
-		static Vec2 cursor;
 		static int renderPassCounter = 0;
 
 		// ----------------- Internal functions -----------------
@@ -39,6 +38,9 @@ namespace MathAnim
 			// TODO: Fix the dang memory allocation library so I don't have to do this!
 			res.paths = (Path*)g_memory_allocate(sizeof(Path));
 			res.numPaths = 0;
+			res.bbox.min = Vec2{ 0, 0 };
+			res.bbox.max = Vec2{ 0, 0 };
+			res._cursor = Vec2{ 0, 0 };
 			return res;
 		}
 
@@ -251,13 +253,13 @@ namespace MathAnim
 
 			if (isAbsolute)
 			{
-				cursor = firstPoint;
+				object->_cursor = firstPoint;
 			}
 			else
 			{
-				cursor = firstPoint + cursor;
+				object->_cursor = firstPoint + object->_cursor;
 			}
-			object->paths[object->numPaths - 1].curves[0].p0 = cursor;
+			object->paths[object->numPaths - 1].curves[0].p0 = object->_cursor;
 		}
 
 		void closePath(SvgObject* object, bool lineToEndpoint, bool isHole)
@@ -274,8 +276,6 @@ namespace MathAnim
 					lineTo(object, firstPoint, true);
 				}
 			}
-
-			cursor = Vec2{ 0, 0 };
 		}
 
 		void moveTo(SvgObject* object, const Vec2& point, bool absolute)
@@ -292,8 +292,8 @@ namespace MathAnim
 				// TODO: Should this close the old path with a lineto?
 				bool isHole = object->numPaths > 1;
 				closePath(object, true, isHole);
-				cursor = absolute ? point : cursor + point;
-				beginPath(object, cursor);
+				object->_cursor = absolute ? point : object->_cursor + point;
+				beginPath(object, object->_cursor);
 			}
 		}
 
@@ -304,26 +304,26 @@ namespace MathAnim
 			path.numCurves++;
 			checkResize(path);
 
-			path.curves[path.numCurves - 1].p0 = cursor;
-			path.curves[path.numCurves - 1].as.line.p1 = absolute ? point : point + cursor;
+			path.curves[path.numCurves - 1].p0 = object->_cursor;
+			path.curves[path.numCurves - 1].as.line.p1 = absolute ? point : point + object->_cursor;
 			path.curves[path.numCurves - 1].type = CurveType::Line;
 
-			cursor = path.curves[path.numCurves - 1].as.line.p1;
+			object->_cursor = path.curves[path.numCurves - 1].as.line.p1;
 		}
 
 		void hzLineTo(SvgObject* object, float xPoint, bool absolute)
 		{
 			Vec2 position = absolute
-				? Vec2{ xPoint, cursor.y }
-			: Vec2{ xPoint, 0.0f } + cursor;
+				? Vec2{ xPoint, object->_cursor.y }
+			: Vec2{ xPoint, 0.0f } + object->_cursor;
 			lineTo(object, position, true);
 		}
 
 		void vtLineTo(SvgObject* object, float yPoint, bool absolute)
 		{
 			Vec2 position = absolute
-				? Vec2{ cursor.x, yPoint }
-			: Vec2{ 0.0f, yPoint } + cursor;
+				? Vec2{ object->_cursor.x, yPoint }
+			: Vec2{ 0.0f, yPoint } + object->_cursor;
 			lineTo(object, position, true);
 		}
 
@@ -334,13 +334,13 @@ namespace MathAnim
 			path.numCurves++;
 			checkResize(path);
 
-			path.curves[path.numCurves - 1].p0 = cursor;
+			path.curves[path.numCurves - 1].p0 = object->_cursor;
 
-			path.curves[path.numCurves - 1].as.bezier2.p1 = absolute ? control : control + cursor;
-			cursor = path.curves[path.numCurves - 1].as.bezier2.p1;
+			path.curves[path.numCurves - 1].as.bezier2.p1 = absolute ? control : control + object->_cursor;
+			object->_cursor = path.curves[path.numCurves - 1].as.bezier2.p1;
 
-			path.curves[path.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + cursor;
-			cursor = path.curves[path.numCurves - 1].as.bezier2.p2;
+			path.curves[path.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + object->_cursor;
+			object->_cursor = path.curves[path.numCurves - 1].as.bezier2.p2;
 
 			path.curves[path.numCurves - 1].type = CurveType::Bezier2;
 		}
@@ -352,16 +352,16 @@ namespace MathAnim
 			path.numCurves++;
 			checkResize(path);
 
-			path.curves[path.numCurves - 1].p0 = cursor;
+			path.curves[path.numCurves - 1].p0 = object->_cursor;
 
-			path.curves[path.numCurves - 1].as.bezier3.p1 = absolute ? control0 : control0 + cursor;
-			cursor = path.curves[path.numCurves - 1].as.bezier3.p1;
+			path.curves[path.numCurves - 1].as.bezier3.p1 = absolute ? control0 : control0 + object->_cursor;
+			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p1;
 
-			path.curves[path.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + cursor;
-			cursor = path.curves[path.numCurves - 1].as.bezier3.p2;
+			path.curves[path.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + object->_cursor;
+			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p2;
 
-			path.curves[path.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + cursor;
-			cursor = path.curves[path.numCurves - 1].as.bezier3.p3;
+			path.curves[path.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + object->_cursor;
+			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p3;
 
 			path.curves[path.numCurves - 1].type = CurveType::Bezier3;
 		}
@@ -373,23 +373,23 @@ namespace MathAnim
 			path.numCurves++;
 			checkResize(path);
 
-			path.curves[path.numCurves - 1].p0 = cursor;
+			path.curves[path.numCurves - 1].p0 = object->_cursor;
 
-			Vec2 control0 = cursor;
+			Vec2 control0 = object->_cursor;
 			if (path.numCurves > 1)
 			{
 				if (path.curves[path.numCurves - 2].type == CurveType::Bezier2)
 				{
 					Vec2 prevControl1 = path.curves[path.numCurves - 2].as.bezier2.p1;
 					// Reflect the previous c2 about the current cursor
-					control0 = (-1.0f * (prevControl1 - cursor)) + cursor;
+					control0 = (-1.0f * (prevControl1 - object->_cursor)) + object->_cursor;
 				}
 			}
 			path.curves[path.numCurves - 1].as.bezier2.p1 = control0;
-			cursor = path.curves[path.numCurves - 1].as.bezier2.p1;
+			object->_cursor = path.curves[path.numCurves - 1].as.bezier2.p1;
 
-			path.curves[path.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + cursor;
-			cursor = path.curves[path.numCurves - 1].as.bezier2.p2;
+			path.curves[path.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + object->_cursor;
+			object->_cursor = path.curves[path.numCurves - 1].as.bezier2.p2;
 
 			path.curves[path.numCurves - 1].type = CurveType::Bezier2;
 		}
@@ -401,26 +401,26 @@ namespace MathAnim
 			path.numCurves++;
 			checkResize(path);
 
-			path.curves[path.numCurves - 1].p0 = cursor;
+			path.curves[path.numCurves - 1].p0 = object->_cursor;
 
-			Vec2 control0 = cursor;
+			Vec2 control0 = object->_cursor;
 			if (path.numCurves > 1)
 			{
 				if (path.curves[path.numCurves - 2].type == CurveType::Bezier3)
 				{
 					Vec2 prevControl1 = path.curves[path.numCurves - 2].as.bezier3.p2;
 					// Reflect the previous c2 about the current cursor
-					control0 = (-1.0f * (prevControl1 - cursor)) + cursor;
+					control0 = (-1.0f * (prevControl1 - object->_cursor)) + object->_cursor;
 				}
 			}
 			path.curves[path.numCurves - 1].as.bezier3.p1 = control0;
-			cursor = path.curves[path.numCurves - 1].as.bezier3.p1;
+			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p1;
 
-			path.curves[path.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + cursor;
-			cursor = path.curves[path.numCurves - 1].as.bezier3.p2;
+			path.curves[path.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + object->_cursor;
+			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p2;
 
-			path.curves[path.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + cursor;
-			cursor = path.curves[path.numCurves - 1].as.bezier3.p3;
+			path.curves[path.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + object->_cursor;
+			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p3;
 
 			path.curves[path.numCurves - 1].type = CurveType::Bezier3;
 		}
@@ -428,7 +428,7 @@ namespace MathAnim
 		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec2& dst, bool absolute)
 		{
 			// TODO: All this should probably be implementation details...
-			if (CMath::compare(cursor, dst))
+			if (CMath::compare(object->_cursor, dst))
 			{
 				// If the cursor == dst then no arc is emitted
 				return;
@@ -447,6 +447,32 @@ namespace MathAnim
 			// float rx = glm::abs(radius.x);
 			// float ry = glm::abs(radius.y);
 			// xAxisRot = fmodf(xAxisRot, 360.0f);
+		}
+
+		void addCurveManually(SvgObject* object, const Curve& curve)
+		{
+			g_logger_assert(object->numPaths > 0, "object->numPaths == 0. Cannot create a lineTo when no path exists.");
+			Path& path = object->paths[object->numPaths - 1];
+			path.numCurves++;
+			checkResize(path);
+
+			path.curves[path.numCurves - 1] = curve;
+
+			switch (curve.type)
+			{
+			case CurveType::Line:
+				object->_cursor = curve.as.line.p1;
+				break;
+			case CurveType::Bezier2:
+				object->_cursor = curve.as.bezier2.p2;
+				break;
+			case CurveType::Bezier3:
+				object->_cursor = curve.as.bezier3.p3;
+				break;
+			default:
+				g_logger_error("Unknown curve type: %d", curve.type);
+				break;
+			}
 		}
 
 		void copy(SvgObject* dest, const SvgObject* src)
@@ -511,303 +537,402 @@ namespace MathAnim
 
 		SvgObject* interpolate(const SvgObject* src, const SvgObject* dst, float t)
 		{
-			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-			*res = Svg::createDefault();
-
-			// If one object has more paths than the other object,
-			// then we'll just skip every other contour for the object
-			// with less contours and hopefully it looks cool
-			const SvgObject* lessPaths = src->numPaths <= dst->numPaths
-				? src
-				: dst;
-			const SvgObject* morePaths = src->numPaths > dst->numPaths
-				? src
-				: dst;
-			int numPathsToSkip = glm::max(morePaths->numPaths / lessPaths->numPaths, 1);
-			int lessPathi = 0;
-			int morePathi = 0;
-			while (lessPathi < lessPaths->numPaths)
+			// Count the total number of curves in all paths
+			int srcNumCurves = 0;
+			int dstNumCurves = 0;
+			for (int pathi = 0; pathi < src->numPaths; pathi++)
 			{
-				const Path* path0 = &lessPaths->paths[lessPathi];
-				const Path* path1 = &morePaths->paths[morePathi];
+				srcNumCurves += src->paths[pathi].numCurves;
+			}
+			for (int pathi = 0; pathi < dst->numPaths; pathi++)
+			{
+				dstNumCurves += dst->paths[pathi].numCurves;
+			}
 
-				// It's undefined to interpolate between two paths if one of the paths has no curves
-				bool shouldLoop = path0->numCurves > 0 && path1->numCurves > 0;
-				if (!shouldLoop)
+			SvgObject* modifiedSrcObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			SvgObject* modifiedDstObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*modifiedSrcObject = Svg::createDefault();
+			*modifiedDstObject = Svg::createDefault();
+
+			const SvgObject* splitObj = srcNumCurves < dstNumCurves
+				? src
+				: dst;
+			const SvgObject* nonSplitObj = srcNumCurves < dstNumCurves
+				? dst
+				: src;
+
+			// After we finish splitting everything, we may need to swap
+			// the objects so that we interpolate in the proper direction
+			bool shouldSwapSplitObjs = splitObj != src;
+
+			// We need to make them equal to interpolate properly.
+			// So this algorithm will make sure we end up with two
+			// SVGObjects that have an equal number of subpaths and
+			// total curves while the SVGObjects are identical to the
+			// originals
+			int desiredNumCurves = glm::max(srcNumCurves, dstNumCurves);
+			int splitPathi = 0;
+			int nonSplitPathi = 0;
+
+			const Path* splitPath = splitObj->paths + splitPathi;
+			const Path* nonSplitPath = nonSplitObj->paths + nonSplitPathi;
+
+			g_logger_assert(splitPath->numCurves > 0, "It's undefined to interpolate between a path with 0 curves.");
+			g_logger_assert(nonSplitPath->numCurves > 0, "It's undefined to interpolate between a path with 0 curves.");
+
+			// Begin the paths
+			Svg::beginPath(modifiedSrcObject, splitPath->curves[0].p0);
+			Svg::beginPath(modifiedDstObject, nonSplitPath->curves[0].p0);
+
+			// Sometimes math is beautiful...
+			// This algorithm works by splitting each curve a similar number of times
+			// So if you need the curve to have 10 points but it has 4 points the algorithm
+			// will split like the following:
+			//    Curve 0: 3 split curves
+			//    Curve 1: 2 split curves
+			//    Curve 2: 3 split curves
+			//    Curve 3: 2 split curves
+			//
+			//    Total Split Curves: 10 curves (which is the desired number of curves)
+			// The math here just kind of works out by using natural rounding to determine
+			// how many splits to apply to each curve in the sequence
+			int numCurvesAdded = 0;
+			int splitCurvei = 0;
+			int nonSplitCurvei = 0;
+			int numNonSplitCurvesLeft = desiredNumCurves;
+			int numSplitCurvesLeft = glm::min(srcNumCurves, dstNumCurves);
+			while (numCurvesAdded < desiredNumCurves)
+			{
+				float numSplits = (float)numNonSplitCurvesLeft / (float)numSplitCurvesLeft;
+				// Round to the nearest half. 
+				//   3.5 rounds to 4
+				//   3.49 rounds to 3
+				float fractionalSplits = numSplits - glm::floor(numSplits);
+				int roundedNumSplits = glm::max((int)glm::floor(numSplits), 1);
+				if (fractionalSplits >= 0.5f)
 				{
-					continue;
+					roundedNumSplits = (int)glm::ceil(numSplits);
 				}
+				g_logger_assert(nonSplitCurvei + roundedNumSplits <= desiredNumCurves, "How did this happen? Somehow we are adding too many splits to an interpolated path.");
 
-				const Path* pathToFree = nullptr;
-				if (path0->numCurves != path1->numCurves)
 				{
-					// We need to make them equal to interpolate properly
-					// we'll add extra points to the path with less curves
-					// to make sure the interpolation is 1-1
-					const Path& pathToIncrease = path0->numCurves < path1->numCurves
-						? *path0
-						: *path1;
-					int desiredNumCurves = glm::max(path0->numCurves, path1->numCurves);
-
-					Path* outputPath = (Path*)g_memory_allocate(sizeof(Path));
-					outputPath->curves = (Curve*)g_memory_allocate(sizeof(Curve) * desiredNumCurves);
-					outputPath->numCurves = desiredNumCurves;
-					outputPath->maxCapacity = desiredNumCurves;
-					outputPath->isHole = path0->numCurves < path1->numCurves
-						? path0->isHole
-						: path1->isHole;
-
-					// Sometimes math is beautiful...
-					// This algorithm works by splitting each curve a similar number of times
-					// So if you need the curve to have 10 points but it has 4 points the algorithm
-					// will split like the following:
-					//    Curve 0: 3 split curves
-					//    Curve 1: 2 split curves
-					//    Curve 2: 3 split curves
-					//    Curve 3: 2 split curves
-					//
-					//    Total Split Curves: 10 curves (which is the desired number of curves)
-					// The math here just kind of works out by using natural rounding to determine
-					// how many splits to apply to each curve in the sequence
-					int inputCurvei = 0;
-					int outputCurvei = 0;
-					int numCurvesAdded = 0;
-					int numCurvesLeft = pathToIncrease.numCurves;
-					while (outputCurvei < desiredNumCurves)
+					// Check if we're starting a new sub-path for split obj
+					bool beginNewSubpath = false;
+					bool splitIsHole, nonSplitIsHole;
+					bool closeSplitPath = true;
+					bool closeNonSplitPath = true;
+					if (splitCurvei >= splitPath->numCurves)
 					{
-						float numSplits = (float)(desiredNumCurves - numCurvesAdded) / (float)numCurvesLeft;
-						// Round to the nearest half. 
-						//   3.5 rounds to 4
-						//   3.49 rounds to 3
-						float fractionalSplits = numSplits - glm::floor(numSplits);
-						int roundedNumSplits = (int)glm::floor(numSplits);
-						if (fractionalSplits >= 0.5f)
-						{
-							roundedNumSplits = (int)glm::ceil(numSplits);
-						}
-						g_logger_assert(outputCurvei + roundedNumSplits <= outputPath->numCurves, "How did this happen? Somehow we are adding too many splits to an interpolated path.");
-						g_logger_assert(inputCurvei < pathToIncrease.numCurves, "How did this happen? Somehow we tried to increment past too many input curves in an interpolated path.");
+						splitIsHole = splitObj->paths[splitPathi].isHole;
+						nonSplitIsHole = nonSplitObj->paths[nonSplitPathi].isHole;
+						beginNewSubpath = true;
+						Svg::lineTo(modifiedDstObject, nonSplitPath->curves[0].p0);
+						closeNonSplitPath = false;
 
-						// Increment the totals to what they will be for the next iteration
-						numCurvesLeft--;
-						numCurvesAdded += roundedNumSplits;
-
-						// Split this curve roundedNumSplits number of times evenly
-						Curve nextCurve = pathToIncrease.curves[inputCurvei];
-						while (roundedNumSplits > 1)
-						{
-							float tSplit = 1.0f / (float)roundedNumSplits;
-
-							const Vec2& p0 = nextCurve.p0;
-							outputPath->curves[outputCurvei].p0 = p0;
-
-							// Interpolate the curve by tSplit
-							float percentOfCurveToDraw = tSplit;
-
-							switch (nextCurve.type)
-							{
-							case CurveType::Bezier3:
-							{
-								const Vec2& p1 = nextCurve.as.bezier3.p1;
-								const Vec2& p2 = nextCurve.as.bezier3.p2;
-								const Vec2& p3 = nextCurve.as.bezier3.p3;
-
-								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
-								{
-									// First split
-									float t0 = 0.0f;
-									float t1 = percentOfCurveToDraw;
-									float u0 = 1.0f - t0;
-									float u1 = (1.0f - t1);
-
-									Vec2 q0 = ((u0 * u0 * u0) * p0) +
-										((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-										((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-										((t0 * t0 * t0) * p3);
-									Vec2 q1 = ((u0 * u0 * u1) * p0) +
-										((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-										((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-										((t0 * t0 * t1) * p3);
-									Vec2 q2 = ((u0 * u1 * u1) * p0) +
-										((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-										((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-										((t0 * t1 * t1) * p3);
-									Vec2 q3 = ((u1 * u1 * u1) * p0) +
-										((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-										((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-										((t1 * t1 * t1) * p3);
-
-									// Copy the split position into output curve
-									outputPath->curves[outputCurvei].type = CurveType::Bezier3;
-									outputPath->curves[outputCurvei].as.bezier3.p1 = q1;
-									outputPath->curves[outputCurvei].as.bezier3.p2 = q2;
-									outputPath->curves[outputCurvei].as.bezier3.p3 = q3;
-								}
-
-								{
-									// Second split
-									float t0 = 1.0f - percentOfCurveToDraw;
-									float t1 = 1.0f;
-									float u0 = 1.0f - t0;
-									float u1 = (1.0f - t1);
-
-									Vec2 q0 = ((u0 * u0 * u0) * p0) +
-										((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-										((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-										((t0 * t0 * t0) * p3);
-									Vec2 q1 = ((u0 * u0 * u1) * p0) +
-										((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-										((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-										((t0 * t0 * t1) * p3);
-									Vec2 q2 = ((u0 * u1 * u1) * p0) +
-										((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-										((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-										((t0 * t1 * t1) * p3);
-									Vec2 q3 = ((u1 * u1 * u1) * p0) +
-										((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-										((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-										((t1 * t1 * t1) * p3);
-
-									// Copy the second split position into next curve
-									nextCurve.type = CurveType::Bezier3;
-									nextCurve.p0 = q0;
-									nextCurve.as.bezier3.p1 = q1;
-									nextCurve.as.bezier3.p2 = q2;
-									nextCurve.as.bezier3.p3 = q3;
-								}
-							}
-							break;
-							case CurveType::Bezier2:
-							{
-								Vec2 p1 = nextCurve.as.bezier2.p1;
-								Vec2 p2 = nextCurve.as.bezier2.p1;
-								Vec2 p3 = nextCurve.as.bezier2.p2;
-
-								// Degree elevated quadratic bezier curve
-								Vec2 pr0 = p0;
-								Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-								Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-								Vec2 pr3 = p3;
-
-								p1 = pr1;
-								p2 = pr2;
-								p3 = pr3;
-
-								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
-								{
-									// Split 1
-									float t0 = 0.0f;
-									float t1 = percentOfCurveToDraw;
-									float u0 = 1.0f - t0;
-									float u1 = (1.0f - t1);
-
-									Vec2 q0 = ((u0 * u0 * u0) * p0) +
-										((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-										((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-										((t0 * t0 * t0) * p3);
-									Vec2 q1 = ((u0 * u0 * u1) * p0) +
-										((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-										((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-										((t0 * t0 * t1) * p3);
-									Vec2 q2 = ((u0 * u1 * u1) * p0) +
-										((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-										((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-										((t0 * t1 * t1) * p3);
-									Vec2 q3 = ((u1 * u1 * u1) * p0) +
-										((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-										((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-										((t1 * t1 * t1) * p3);
-
-									// Copy the split position into output curve
-									outputPath->curves[outputCurvei].type = CurveType::Bezier3;
-									outputPath->curves[outputCurvei].as.bezier3.p1 = q1;
-									outputPath->curves[outputCurvei].as.bezier3.p2 = q2;
-									outputPath->curves[outputCurvei].as.bezier3.p3 = q3;
-								}
-
-								{
-									// Split 2
-									float t0 = (1.0f - percentOfCurveToDraw);
-									float t1 = 1.0f;
-									float u0 = 1.0f - t0;
-									float u1 = (1.0f - t1);
-
-									Vec2 q0 = ((u0 * u0 * u0) * p0) +
-										((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-										((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-										((t0 * t0 * t0) * p3);
-									Vec2 q1 = ((u0 * u0 * u1) * p0) +
-										((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-										((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-										((t0 * t0 * t1) * p3);
-									Vec2 q2 = ((u0 * u1 * u1) * p0) +
-										((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-										((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-										((t0 * t1 * t1) * p3);
-									Vec2 q3 = ((u1 * u1 * u1) * p0) +
-										((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-										((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-										((t1 * t1 * t1) * p3);
-
-									// Copy the second split position into next curve
-									nextCurve.type = CurveType::Bezier3;
-									nextCurve.p0 = q0;
-									nextCurve.as.bezier3.p1 = q1;
-									nextCurve.as.bezier3.p2 = q2;
-									nextCurve.as.bezier3.p3 = q3;
-								}
-							}
-							break;
-							case CurveType::Line:
-							{
-								Vec2 p1 = nextCurve.as.line.p1;
-								// First split
-								outputPath->curves[outputCurvei].type = CurveType::Line;
-								outputPath->curves[outputCurvei].p0 = p0;
-								outputPath->curves[outputCurvei].as.line.p1 = ((p1 - p0) * percentOfCurveToDraw) + p0;
-
-								// Set up next split
-								nextCurve.type = CurveType::Line;
-								nextCurve.p0 = outputPath->curves[outputCurvei].as.line.p1;
-								nextCurve.as.line.p1 = p1;
-							}
-							break;
-							default:
-								g_logger_warning("Unknown curve type in render %d", (int)nextCurve.type);
-								break;
-							}
-
-							outputCurvei++;
-							roundedNumSplits--;
-						}
-
-						outputPath->curves[outputCurvei] = nextCurve;
-						outputCurvei++;
-						inputCurvei++;
+						splitPathi++;
+						g_logger_assert(splitPathi < splitObj->numPaths, "How did this happen? Somehow we tried to increment past too many paths while interpolating SVG objects.");
+						splitPath = splitObj->paths + splitPathi;
+						g_logger_assert(splitPath->numCurves > 0, "It's undefined to interpolate between a path with 0 curves.");
+						splitCurvei = 0;
 					}
 
-					pathToFree = outputPath;
-					// Re-assign whichever path we had to increase
-					if (path0->numCurves < path1->numCurves)
+					// Check if we're starting a new sub-path for nonsplit obj
+					if (nonSplitCurvei >= nonSplitPath->numCurves)
 					{
-						path0 = pathToFree;
+						nonSplitIsHole = nonSplitObj->paths[nonSplitPathi].isHole;
+						splitIsHole = splitObj->paths[splitPathi].isHole;
+						beginNewSubpath = true;
+						Svg::lineTo(modifiedSrcObject, splitPath->curves[0].p0);
+						closeSplitPath = false;
+
+						nonSplitPathi++;
+						g_logger_assert(nonSplitPathi < nonSplitObj->numPaths, "How did this happen? Somehow we tried to increment past too many paths while interpolating SVG objects.");
+						nonSplitPath = nonSplitObj->paths + nonSplitPathi;
+						g_logger_assert(nonSplitPath->numCurves > 0, "It's undefined to interpolate between a path with 0 curves.");
+						nonSplitCurvei = 0;
+					}
+
+					// Begin new sub-path if determined necessary
+					if (beginNewSubpath)
+					{
+						// Close both paths so we have equal sub-path splits
+						Svg::closePath(modifiedSrcObject, closeSplitPath, splitIsHole);
+						Svg::closePath(modifiedDstObject, closeNonSplitPath, nonSplitIsHole);
+
+						Vec2 splitFirstP0 = splitPath->curves[splitCurvei].p0;
+						Vec2 nonSplitFirstP0 = nonSplitPath->curves[nonSplitCurvei].p0;
+						Svg::beginPath(modifiedSrcObject, splitFirstP0);
+						Svg::beginPath(modifiedDstObject, nonSplitFirstP0);
+					}
+				}
+
+				// Check if we have enough curves in the nonSplit object to add 
+				// to the split object. If not, reduce the number of times
+				// we'll split to avoid buffer overflow
+				int beginNewNonSplitPathAt = -1;
+				int beginNewSplitPathAt = -1;
+				if (nonSplitCurvei + roundedNumSplits > nonSplitPath->numCurves)
+				{
+					// The split is between a pathStart/pathEnd so, we'll have to just end the path early
+					// and recalculate stuff...
+					// How many can we add without buffer overrun?
+					beginNewNonSplitPathAt = nonSplitPath->numCurves - nonSplitCurvei;
+					beginNewSplitPathAt = roundedNumSplits - beginNewNonSplitPathAt;
+				}
+
+				// Increment the totals to what they will be for the next iteration
+				numNonSplitCurvesLeft -= roundedNumSplits; // Subtract the number of splits from numerator
+				numSplitCurvesLeft -= 1; // Subtract 1 from denominator
+				numCurvesAdded += roundedNumSplits; // Keep track of the total number added
+
+				// First copy the non-split curves to the new object
+				for (int i = 0; i < roundedNumSplits; i++)
+				{
+					if (i == beginNewNonSplitPathAt)
+					{
+						bool isHole = nonSplitObj->paths[nonSplitPathi].isHole;
+						nonSplitPathi++;
+						g_logger_assert(nonSplitPathi < nonSplitObj->numPaths, "How did this happen? Somehow we tried to increment past too many paths while interpolating SVG objects.");
+						nonSplitPath = nonSplitObj->paths + nonSplitPathi;
+						g_logger_assert(nonSplitPath->numCurves > 0, "It's undefined to interpolate between a path with 0 curves.");
+						nonSplitCurvei = 0;
+
+						// Begin new path so that things don't get weird
+						Svg::closePath(modifiedDstObject, true, isHole);
+
+						Vec2 nonSplitFirstP0 = nonSplitPath->curves[nonSplitCurvei].p0;
+						Svg::beginPath(modifiedDstObject, nonSplitFirstP0);
+					}
+
+					Svg::addCurveManually(modifiedDstObject, nonSplitPath->curves[nonSplitCurvei]);
+					nonSplitCurvei++;
+				}
+
+				// Then add the split curves to the other new object
+				// Split this curve roundedNumSplits number of times evenly
+				// Copy the curve because it gets modified
+				Curve nextCurve = splitPath->curves[splitCurvei];
+				while (roundedNumSplits > 0)
+				{
+					float tSplit = 1.0f / (float)roundedNumSplits;
+
+					const Vec2& p0 = nextCurve.p0;
+
+					if (roundedNumSplits == beginNewSplitPathAt)
+					{
+						// Begin new path so things don't get weird...
+						bool isHole = splitObj->paths[splitPathi].isHole;
+
+						// Begin new path so that things don't get weird
+						Svg::closePath(modifiedSrcObject, true, isHole);
+						Svg::beginPath(modifiedSrcObject, p0);
+					}
+
+					// Interpolate the curve by tSplit
+					float percentOfCurveToDraw = tSplit;
+
+					if (roundedNumSplits > 1)
+					{
+						switch (nextCurve.type)
+						{
+						case CurveType::Bezier3:
+						{
+							const Vec2& p1 = nextCurve.as.bezier3.p1;
+							const Vec2& p2 = nextCurve.as.bezier3.p2;
+							const Vec2& p3 = nextCurve.as.bezier3.p3;
+
+							// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+							{
+								// First split
+								float t0 = 0.0f;
+								float t1 = percentOfCurveToDraw;
+								float u0 = 1.0f - t0;
+								float u1 = 1.0f - t1;
+
+								Vec2 q0 = ((u0 * u0 * u0) * p0) +
+									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
+									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
+									((t0 * t0 * t0) * p3);
+								Vec2 q1 = ((u0 * u0 * u1) * p0) +
+									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
+									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
+									((t0 * t0 * t1) * p3);
+								Vec2 q2 = ((u0 * u1 * u1) * p0) +
+									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
+									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
+									((t0 * t1 * t1) * p3);
+								Vec2 q3 = ((u1 * u1 * u1) * p0) +
+									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
+									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
+									((t1 * t1 * t1) * p3);
+
+								// Copy the split position into output curve
+								Svg::bezier3To(modifiedSrcObject, q1, q2, q3);
+								nextCurve.p0 = q3;
+							}
+
+							{
+								// Second split
+								float t0 = percentOfCurveToDraw;
+								float t1 = 1.0f;
+								float u0 = 1.0f - t0;
+								float u1 = 1.0f - t1;
+
+								Vec2 q0 = ((u0 * u0 * u0) * p0) +
+									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
+									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
+									((t0 * t0 * t0) * p3);
+								Vec2 q1 = ((u0 * u0 * u1) * p0) +
+									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
+									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
+									((t0 * t0 * t1) * p3);
+								Vec2 q2 = ((u0 * u1 * u1) * p0) +
+									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
+									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
+									((t0 * t1 * t1) * p3);
+								Vec2 q3 = ((u1 * u1 * u1) * p0) +
+									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
+									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
+									((t1 * t1 * t1) * p3);
+
+								// Copy the second split position into next curve
+								nextCurve.type = CurveType::Bezier3;
+								nextCurve.as.bezier3.p1 = q1;
+								nextCurve.as.bezier3.p2 = q2;
+								nextCurve.as.bezier3.p3 = q3;
+							}
+						}
+						break;
+						case CurveType::Bezier2:
+						{
+							Vec2 p1 = nextCurve.as.bezier2.p1;
+							Vec2 p2 = nextCurve.as.bezier2.p2;
+
+							// Degree elevated quadratic bezier curve
+							Vec2 pr1 = ((1.0f / 3.0f) * p0) + ((2.0f / 3.0f) * p1);
+							Vec2 pr2 = ((2.0f / 3.0f) * p1) + ((1.0f / 3.0f) * p2);
+
+							p1 = pr1;
+							p2 = pr2;
+							Vec2 p3 = p2;
+
+							// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+							{
+								// Split 1
+								float t0 = 0.0f;
+								float t1 = percentOfCurveToDraw;
+								float u0 = 1.0f - t0;
+								float u1 = 1.0f - t1;
+
+								Vec2 q0 = ((u0 * u0 * u0) * p0) +
+									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
+									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
+									((t0 * t0 * t0) * p3);
+								Vec2 q1 = ((u0 * u0 * u1) * p0) +
+									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
+									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
+									((t0 * t0 * t1) * p3);
+								Vec2 q2 = ((u0 * u1 * u1) * p0) +
+									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
+									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
+									((t0 * t1 * t1) * p3);
+								Vec2 q3 = ((u1 * u1 * u1) * p0) +
+									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
+									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
+									((t1 * t1 * t1) * p3);
+
+								// Copy the split position into output curve
+								Svg::bezier3To(modifiedSrcObject, q1, q2, q3);
+								nextCurve.p0 = q3;
+							}
+
+							{
+								// Split 2
+								float t0 = percentOfCurveToDraw;
+								float t1 = 1.0f;
+								float u0 = 1.0f - t0;
+								float u1 = 1.0f - t1;
+
+								Vec2 q0 = ((u0 * u0 * u0) * p0) +
+									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
+									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
+									((t0 * t0 * t0) * p3);
+								Vec2 q1 = ((u0 * u0 * u1) * p0) +
+									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
+									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
+									((t0 * t0 * t1) * p3);
+								Vec2 q2 = ((u0 * u1 * u1) * p0) +
+									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
+									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
+									((t0 * t1 * t1) * p3);
+								Vec2 q3 = ((u1 * u1 * u1) * p0) +
+									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
+									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
+									((t1 * t1 * t1) * p3);
+
+								// Copy the second split position into next curve
+								nextCurve.type = CurveType::Bezier3;
+								nextCurve.as.bezier3.p1 = q1;
+								nextCurve.as.bezier3.p2 = q2;
+								nextCurve.as.bezier3.p3 = q3;
+							}
+						}
+						break;
+						case CurveType::Line:
+						{
+							Vec2 p1 = nextCurve.as.line.p1;
+
+							// First split
+							Vec2 interpP1 = ((p1 - p0) * percentOfCurveToDraw) + p0;
+							Svg::lineTo(modifiedSrcObject, interpP1);
+
+							// Set up next split
+							nextCurve.type = CurveType::Line;
+							nextCurve.p0 = interpP1;
+							nextCurve.as.line.p1 = p1;
+						}
+						break;
+						default:
+							g_logger_warning("Unknown curve type in render %d", (int)nextCurve.type);
+							break;
+						}
 					}
 					else
 					{
-						path1 = pathToFree;
+						// Add the last curve manually
+						Svg::addCurveManually(modifiedSrcObject, nextCurve);
 					}
+
+					roundedNumSplits--;
 				}
 
-				if (lessPaths != src)
-				{
-					const Path* tmp = path0;
-					path0 = path1;
-					path1 = tmp;
-				}
+				// Increment split curve
+				splitCurvei++;
+			}
 
-				bool isHole = t < 0.5f
-					? path0->isHole
-					: path1->isHole;
+			// Close the paths
+			Svg::lineTo(modifiedSrcObject, splitPath->curves[0].p0);
+			Svg::lineTo(modifiedDstObject, nonSplitPath->curves[0].p0);
+			Svg::closePath(modifiedSrcObject, false, splitPath->isHole);
+			Svg::closePath(modifiedDstObject, false, nonSplitPath->isHole);
+
+			if (shouldSwapSplitObjs)
+			{
+				SvgObject* tmp = modifiedDstObject;
+				modifiedDstObject = modifiedSrcObject;
+				modifiedSrcObject = tmp;
+			}
+
+			g_logger_assert(modifiedDstObject->numPaths == modifiedSrcObject->numPaths, "Somehow the interpolated objects didn't end up with the same number of sub-paths.");
+
+			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res = Svg::createDefault();
+			for (int pathi = 0; pathi < modifiedSrcObject->numPaths; pathi++)
+			{
+				const Path* path0 = modifiedSrcObject->paths + pathi;
+				const Path* path1 = modifiedDstObject->paths + pathi;
+
+				g_logger_assert(path0->numCurves == path1->numCurves, "Somehow the interpolated objects didn't end up with the same number of curves in a sub-path.");
 
 				// Move to the start, which is the interpolation between both of the
 				// first vertices
@@ -824,106 +949,104 @@ namespace MathAnim
 				{
 					// Interpolate between the two curves, treat both curves
 					// as bezier3 curves no matter what to make it easier
-					glm::vec2 p1a, p2a, p3a;
-					glm::vec2 p1b, p2b, p3b;
+					Vec2 p1a, p2a, p3a;
+					Vec2 p1b, p2b, p3b;
 
-					g_logger_assert(curvei < path1->numCurves, "Path1 has an inequal number of curves for some reason.");
-					const Curve& lessCurve = path0->curves[curvei];
-					const Curve& moreCurve = path1->curves[curvei];
+					const Curve& srcCurve = path0->curves[curvei];
+					const Curve& dstCurve = path1->curves[curvei];
 
 					// First get the control points depending on the type of the curve
-					switch (lessCurve.type)
+					switch (srcCurve.type)
 					{
 					case CurveType::Bezier3:
-						p1a = glm::vec2(lessCurve.as.bezier3.p1.x, lessCurve.as.bezier3.p1.y);
-						p2a = glm::vec2(lessCurve.as.bezier3.p2.x, lessCurve.as.bezier3.p2.y);
-						p3a = glm::vec2(lessCurve.as.bezier3.p3.x, lessCurve.as.bezier3.p3.y);
+						p1a = srcCurve.as.bezier3.p1;
+						p2a = srcCurve.as.bezier3.p2;
+						p3a = srcCurve.as.bezier3.p3;
 						break;
 					case CurveType::Bezier2:
 					{
-						glm::vec2 p0 = glm::vec2(lessCurve.p0.x, lessCurve.p0.y);
-						glm::vec2 p1 = glm::vec2(lessCurve.as.bezier2.p1.x, lessCurve.as.bezier2.p1.y);
-						glm::vec2 p2 = glm::vec2(lessCurve.as.bezier2.p2.x, lessCurve.as.bezier2.p2.y);
+						Vec2 p0 = srcCurve.p0;
+						Vec2 p1 = srcCurve.as.bezier2.p1;
+						Vec2 p2 = srcCurve.as.bezier2.p2;
 
 						// Degree elevated quadratic bezier curve
-						p1a = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-						p2a = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+						p1a = ((1.0f / 3.0f) * p0) + ((2.0f / 3.0f) * p1);
+						p2a = ((2.0f / 3.0f) * p1) + ((1.0f / 3.0f) * p2);
 						p3a = p2;
 					}
 					break;
 					case CurveType::Line:
-						p1a = glm::vec2(lessCurve.p0.x, lessCurve.p0.y);
-						p2a = glm::vec2(lessCurve.as.line.p1.x, lessCurve.as.line.p1.y);
-						p3a = p2a;
-						break;
+					{
+						Vec2 tmpP1a = (srcCurve.as.line.p1 - srcCurve.p0) * (1.0f / 3.0f) + srcCurve.p0;
+						Vec2 tmpP2a = (srcCurve.as.line.p1 - srcCurve.p0) * (2.0f / 3.0f) + srcCurve.p0;
+						p1a = tmpP1a;
+						p2a = tmpP2a;
+						p3a = srcCurve.as.line.p1;
+					}
+					break;
 					default:
-						g_logger_warning("Unknown curve type %d", lessCurve.type);
+						g_logger_warning("Unknown curve type %d", srcCurve.type);
 						break;
 					}
 
-					switch (moreCurve.type)
+					switch (dstCurve.type)
 					{
 					case CurveType::Bezier3:
-						p1b = glm::vec2(moreCurve.as.bezier3.p1.x, moreCurve.as.bezier3.p1.y);
-						p2b = glm::vec2(moreCurve.as.bezier3.p2.x, moreCurve.as.bezier3.p2.y);
-						p3b = glm::vec2(moreCurve.as.bezier3.p3.x, moreCurve.as.bezier3.p3.y);
+						p1b = dstCurve.as.bezier3.p1;
+						p2b = dstCurve.as.bezier3.p2;
+						p3b = dstCurve.as.bezier3.p3;
 						break;
 					case CurveType::Bezier2:
 					{
-						glm::vec2 p0 = glm::vec2(moreCurve.p0.x, moreCurve.p0.y);
-						glm::vec2 p1 = glm::vec2(moreCurve.as.bezier2.p1.x, moreCurve.as.bezier2.p1.y);
-						glm::vec2 p2 = glm::vec2(moreCurve.as.bezier2.p2.x, moreCurve.as.bezier2.p2.y);
+						Vec2 p0 = dstCurve.p0;
+						Vec2 p1 = dstCurve.as.bezier2.p1;
+						Vec2 p2 = dstCurve.as.bezier2.p2;
 
 						// Degree elevated quadratic bezier curve
-						p1b = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-						p2b = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+						p1b = ((1.0f / 3.0f) * p0) + ((2.0f / 3.0f) * p1);
+						p2b = ((2.0f / 3.0f) * p1) + ((1.0f / 3.0f) * p2);
 						p3b = p2;
 					}
 					break;
 					case CurveType::Line:
-						p1b = glm::vec2(moreCurve.p0.x, moreCurve.p0.y);
-						p2b = glm::vec2(moreCurve.as.line.p1.x, moreCurve.as.line.p1.y);
-						p3b = p2b;
-						break;
+					{
+						Vec2 tmpP1b = (dstCurve.as.line.p1 - dstCurve.p0) * (1.0f / 3.0f) + dstCurve.p0;
+						Vec2 tmpP2b = (dstCurve.as.line.p1 - dstCurve.p0) * (2.0f / 3.0f) + dstCurve.p0;
+						p1b = tmpP1b;
+						p2b = tmpP2b;
+						p3b = dstCurve.as.line.p1;
+					}
+					break;
 					default:
-						g_logger_warning("Unknown curve type %d", moreCurve.type);
+						g_logger_warning("Unknown curve type %d", dstCurve.type);
 						break;
 					}
 
 					// Then interpolate between the control points
-					glm::vec2 interpP1 = (p1b - p1a) * t + p1a;
-					glm::vec2 interpP2 = (p2b - p2a) * t + p2a;
-					glm::vec2 interpP3 = (p3b - p3a) * t + p3a;
+					Vec2 interpP1 = (p1b - p1a) * t + p1a;
+					Vec2 interpP2 = (p2b - p2a) * t + p2a;
+					Vec2 interpP3 = (p3b - p3a) * t + p3a;
 
 					// Then draw
-					Svg::bezier3To(res,
-						Vec2{ interpP1.x, interpP1.y },
-						Vec2{ interpP2.x, interpP2.y },
-						Vec2{ interpP3.x, interpP3.y }
-					);
+					Svg::bezier3To(res, interpP1, interpP2, interpP3);
 				}
 
-				Svg::closePath(res, false, isHole);
-
-				if (pathToFree)
-				{
-					if (pathToFree->curves)
-					{
-						g_memory_free(pathToFree->curves);
-					}
-					g_memory_free((void*)pathToFree);
-				}
-
-				lessPathi++;
-				morePathi += numPathsToSkip;
-				if (morePathi >= morePaths->numPaths)
-				{
-					morePathi = morePaths->numPaths - 1;
-				}
+				bool isHole = t < 0.5
+					? path0->isHole
+					: path1->isHole;
+				Svg::closePath(res, true, isHole);
 			}
 
 			res->calculateApproximatePerimeter();
 			res->calculateBBox();
+
+			// Free temporary memory
+			modifiedSrcObject->free();
+			modifiedDstObject->free();
+			g_memory_free(modifiedSrcObject);
+			g_memory_free(modifiedDstObject);
+			modifiedSrcObject = nullptr;
+			modifiedDstObject = nullptr;
 
 			return res;
 		}
@@ -2081,6 +2204,150 @@ namespace MathAnim
 			);
 			nvgStroke(vg);
 			nvgClosePath(vg);
+		}
+
+		if (parent->drawCurves)
+		{
+			float debugStrokeWidth = parent->strokeWidth;
+			float circleWidth = debugStrokeWidth * 1.5f;
+
+			for (int pathi = 0; pathi < obj->numPaths; pathi++)
+			{
+				if (obj->paths[pathi].numCurves > 0)
+				{
+					{
+						Vec2 p0 = obj->paths[pathi].curves[0].p0;
+						p0.x *= parent->svgScale;
+						p0.y *= parent->svgScale;
+						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
+						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
+
+						if (parent->drawControlPoints)
+						{
+							nvgBeginPath(vg);
+							nvgFillColor(vg, nvgRGBA(230, 83, 105, 255));
+							nvgCircle(vg, p0.x, p0.y, circleWidth * 2.0f);
+							nvgClosePath(vg);
+							nvgFill(vg);
+						}
+
+						nvgBeginPath(vg);
+						nvgMoveTo(vg, p0.x, p0.y);
+					}
+
+					if (obj->paths[pathi].isHole)
+					{
+						// Red for holes
+						nvgStrokeColor(vg, nvgRGBA(227, 11, 18, 255));
+					}
+					else
+					{
+						// Green for fill
+						nvgStrokeColor(vg, nvgRGBA(12, 223, 18, 255));
+					}
+
+					nvgStrokeWidth(vg, debugStrokeWidth);
+
+					Vec2 lastEndpoint = Vec2{ 0, 0 };
+					for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
+					{
+						const Curve& curve = obj->paths[pathi].curves[curvei];
+						Vec2 p0 = curve.p0;
+						p0.x *= parent->svgScale;
+						p0.y *= parent->svgScale;
+						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
+						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
+
+						switch (curve.type)
+						{
+						case CurveType::Bezier3:
+						{
+							Vec2 p1 = curve.as.bezier3.p1;
+							Vec2 p2 = curve.as.bezier3.p2;
+							Vec2 p3 = curve.as.bezier3.p3;
+
+							p1.x *= parent->svgScale;
+							p1.y *= parent->svgScale;
+							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+							p2.x *= parent->svgScale;
+							p2.y *= parent->svgScale;
+							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
+							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
+
+							p3.x *= parent->svgScale;
+							p3.y *= parent->svgScale;
+							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
+							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
+
+							lastEndpoint = p3;
+							nvgBezierTo(vg, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+						}
+						break;
+						case CurveType::Bezier2:
+						{
+							Vec2 p1 = curve.as.bezier2.p1;
+							Vec2 p2 = curve.as.bezier2.p1;
+							Vec2 p3 = curve.as.bezier2.p2;
+
+							p1.x *= parent->svgScale;
+							p1.y *= parent->svgScale;
+							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+							p2.x *= parent->svgScale;
+							p2.y *= parent->svgScale;
+							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
+							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
+
+							p3.x *= parent->svgScale;
+							p3.y *= parent->svgScale;
+							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
+							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
+
+							// Degree elevated quadratic bezier curve
+							Vec2 pr0 = p0;
+							Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
+							Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+							Vec2 pr3 = p3;
+
+							lastEndpoint = pr3;
+							nvgBezierTo(vg, pr1.x, pr1.y, pr2.x, pr2.y, pr3.x, pr3.y);
+						}
+						break;
+						case CurveType::Line:
+						{
+							Vec2 p1 = curve.as.line.p1;
+
+							p1.x *= parent->svgScale;
+							p1.y *= parent->svgScale;
+							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+							lastEndpoint = p1;
+							nvgLineTo(vg, p1.x, p1.y);
+						}
+						break;
+						default:
+							g_logger_warning("Unknown curve type in render %d", (int)curve.type);
+							break;
+						}
+					}
+
+					nvgClosePath(vg);
+					nvgStroke(vg);
+
+					if (parent->drawControlPoints)
+					{
+						nvgBeginPath(vg);
+						nvgFillColor(vg, nvgRGBA(235, 178, 80, 255));
+						nvgCircle(vg, lastEndpoint.x, lastEndpoint.y, circleWidth * 1.1f);
+						nvgClosePath(vg);
+						nvgFill(vg);
+					}
+				}
+			}
 		}
 
 		nvgResetTransform(vg);
