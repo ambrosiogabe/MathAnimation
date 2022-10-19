@@ -1,7 +1,7 @@
 #include "renderer/Fonts.h"
 #include "renderer/Renderer.h"
 #include "core/Application.h"
-#include "animation/Svg.h"
+#include "svg/Svg.h"
 #include "utils/CMath.h"
 
 #include <nanovg.h>

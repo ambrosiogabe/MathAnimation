@@ -1,10 +1,10 @@
 #include "animation/AnimationManager.h"
 #include "animation/Animation.h"
-#include "animation/Svg.h"
 #include "renderer/Renderer.h"
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/OrthoCamera.h"
+#include "svg/Svg.h"
 #include "core/Application.h"
 
 namespace MathAnim
@@ -413,17 +413,13 @@ namespace MathAnim
 			// Render any active/animating objects
 			// Make sure to initialize the NanoVG cache and then flush it after all the 
 			// draw calls are complete
-			Svg::beginFrame(vg);
-
 			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 			{
 				if (objectIter->status != AnimObjectStatus::Inactive)
 				{
-					objectIter->render(vg);
+					objectIter->render(vg, am);
 				}
 			}
-
-			Svg::endFrame(vg);
 		}
 
 		int lastAnimatedFrame(const AnimationManagerData* am)

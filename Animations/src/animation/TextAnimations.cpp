@@ -1,8 +1,8 @@
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
-#include "animation/SvgParser.h"
-#include "animation/Svg.h"
+#include "svg/SvgParser.h"
+#include "svg/Svg.h"
 #include "renderer/Renderer.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Fonts.h"
@@ -54,7 +54,7 @@ namespace MathAnim
 				AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, parentId, true);
 				childObj.parentId = parentId;
 				Vec2 finalOffset = offset + cursorPos;
-				childObj._positionStart = Vec3{finalOffset.x, finalOffset.y, 0.0f};
+				childObj._positionStart = Vec3{ finalOffset.x, finalOffset.y, 0.0f };
 				childObj.isGenerated = true;
 				// Copy the glyph as the svg object here
 				childObj._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
@@ -72,7 +72,7 @@ namespace MathAnim
 				// TODO: Ugly what do I do???
 				SceneHierarchyPanel::addNewAnimObject(childObj);
 			}
- 
+
 			// TODO: I may have to add kerning info here
 			cursorPos += Vec2{ glyphOutline.advanceX, 0.0f };
 		}
@@ -228,7 +228,6 @@ namespace MathAnim
 	{
 		if (svgGroup)
 		{
-			// TODO: Ugly hack
 			svgGroup->render(vg, (AnimObject*)parent);
 		}
 	}
@@ -237,8 +236,13 @@ namespace MathAnim
 	{
 		if (svgGroup)
 		{
-			// TODO: Super ugly hack...
-			svgGroup->renderCreateAnimation(vg, t, (AnimObject*)parent, reverse);
+			//svgGroup->renderCreateAnimation(vg, t, (AnimObject*)parent, reverse);
+			static bool displayMessage = true;
+			if (displayMessage)
+			{
+				g_logger_error("TODO: LaTexObject::renderCreateAnimation() is not implemented yet. This message will suppress itself.");
+				displayMessage = false;
+			}
 		}
 	}
 

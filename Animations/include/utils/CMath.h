@@ -102,6 +102,27 @@ namespace MathAnim
 		bool compare(const Vec2& vec1, const Vec2& vec2, float epsilon = std::numeric_limits<float>::min());
 		bool compare(const Vec4& vec1, const Vec4& vec2, float epsilon = std::numeric_limits<float>::min());
 
+		template<typename T>
+		inline uint64 combineHash(const T& t, uint64 hash)
+		{
+			// Taken from https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values
+			return (hash ^ (std::hash<T>(t) + 0x9e3779b9 + (hash << 6) + (hash >> 2)));
+		}
+
+		template<>
+		inline uint64 combineHash(const float& t, uint64 hash)
+		{
+			// Taken from https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values
+			return (hash ^ ((int32)t + 0x9e3779b9 + (hash << 6) + (hash >> 2)));
+		}
+
+		template<>
+		inline uint64 combineHash(const int& t, uint64 hash)
+		{
+			// Taken from https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values
+			return (hash ^ ((int32)t + 0x9e3779b9 + (hash << 6) + (hash >> 2)));
+		}
+
 		// Vector conversions
 		Vec2 vector2From3(const Vec3& vec);
 		Vec3 vector3From2(const Vec2& vec);

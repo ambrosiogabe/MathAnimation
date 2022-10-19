@@ -7,7 +7,7 @@
 #include "editor/ImGuiExtended.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
-#include "animation/Svg.h"
+#include "svg/Svg.h"
 #include "renderer/Fonts.h"
 #include "audio/Audio.h"
 #include "audio/WavLoader.h"

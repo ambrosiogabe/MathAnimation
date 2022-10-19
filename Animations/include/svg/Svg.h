@@ -74,8 +74,8 @@ namespace MathAnim
 		void normalize(const Vec2& min = Vec2{ FLT_MAX, FLT_MAX }, const Vec2& max = Vec2{ FLT_MIN, FLT_MIN });
 		void calculateApproximatePerimeter();
 		void calculateBBox();
-		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, bool reverse = false, bool isSvgGroup = false) const;
+		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& textureOffset) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool isSvgGroup) const;
 		void free();
 
 		void serialize(RawMemory& memory) const;
@@ -97,7 +97,7 @@ namespace MathAnim
 		void normalize();
 		void calculateBBox();
 		void render(NVGcontext* vg, AnimObject* parent) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse = false) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent) const;
 		void free();
 	};
 
@@ -107,21 +107,6 @@ namespace MathAnim
 		SvgGroup createDefaultGroup();
 		
 		void init(OrthoCamera& sceneCamera2d, PerspectiveCamera& sceneCamera3d);
-		void free();
-
-		void endFrame();
-
-		const Texture& getSvgCache();
-		Framebuffer const& getSvgCacheFb();
-		const Vec2& getCacheCurrentPos();
-		const Vec2& getCachePadding();
-		void incrementCacheCurrentY();
-		void incrementCacheCurrentX(float distance);
-		void checkLineHeight(float newLineHeight);
-		void growCache();
-
-		void beginFrame(NVGcontext* vg);
-		void endFrame(NVGcontext* vg);
 
 		PerspectiveCamera const& getPerspCamera();
 		OrthoCamera const& getOrthoCamera();

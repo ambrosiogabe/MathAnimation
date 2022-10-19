@@ -8,6 +8,7 @@ namespace MathAnim
 {
 	class GlobalThreadPool;
 	struct OrthoCamera;
+	class SvgCache;
 
 	enum class AnimState : uint8
 	{
@@ -50,6 +51,8 @@ namespace MathAnim
 
 		// TODO: Ugly hack
 		OrthoCamera* getEditorCamera();
+		// TODO: Ugly hack
+		SvgCache* getSvgCache();
 
 		NVGcontext* getNvgContext();
 		GlobalThreadPool* threadPool();

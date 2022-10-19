@@ -1,5 +1,5 @@
-#include "animation/SvgParser.h"
-#include "animation/Svg.h"
+#include "svg/SvgParser.h"
+#include "svg/Svg.h"
 
 #include <../tinyxml2/tinyxml2.h>
 

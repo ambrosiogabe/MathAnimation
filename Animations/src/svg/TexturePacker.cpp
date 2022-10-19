@@ -1,4 +1,4 @@
-#include "utils/TexturePacker.h"
+#include "svg/TexturePacker.h"
 
 namespace MathAnim
 {

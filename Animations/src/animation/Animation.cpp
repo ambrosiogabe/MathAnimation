@@ -2,7 +2,8 @@
 #include "core.h"
 #include "core/Application.h"
 #include "animation/AnimationManager.h"
-#include "animation/Svg.h"
+#include "svg/Svg.h"
+#include "svg/SvgCache.h"
 #include "renderer/Renderer.h"
 #include "renderer/Fonts.h"
 #include "utils/CMath.h"
@@ -350,7 +351,7 @@ namespace MathAnim
 		}
 	}
 
-	void AnimObject::render(NVGcontext* vg) const
+	void AnimObject::render(NVGcontext* vg, AnimationManagerData* am) const
 	{
 		switch (objectType)
 		{
@@ -371,7 +372,7 @@ namespace MathAnim
 			}
 
 			// Default SVG objects will just render the svgObject component
-			this->svgObject->renderCreateAnimation(vg, this->percentCreated, this);
+			Application::getSvgCache()->render(vg, am, this->svgObject, this->id);
 		}
 		break;
 		case AnimObjectTypeV1::Cube:
@@ -444,7 +445,7 @@ namespace MathAnim
 	}
 
 	// ----------------------------- AnimObject Functions -----------------------------
-	void AnimObject::renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target)
+	void AnimObject::renderMoveToAnimation(NVGcontext* vg, AnimationManagerData* am, float t, const Vec3& target)
 	{
 		Vec3 pos = Vec3{
 			((target.x - position.x) * t) + position.x,
@@ -452,21 +453,21 @@ namespace MathAnim
 			((target.z - position.z) * t) + position.z,
 		};
 		this->position = pos;
-		this->render(vg);
+		this->render(vg, am);
 	}
 
-	void AnimObject::renderFadeInAnimation(NVGcontext* vg, float t)
+	void AnimObject::renderFadeInAnimation(NVGcontext* vg, AnimationManagerData* am, float t)
 	{
 		this->fillColor.a = (uint8)((float)this->fillColor.a * t);
 		this->strokeColor.a = (uint8)((float)this->strokeColor.a * t);
-		this->render(vg);
+		this->render(vg, am);
 	}
 
-	void AnimObject::renderFadeOutAnimation(NVGcontext* vg, float t)
+	void AnimObject::renderFadeOutAnimation(NVGcontext* vg, AnimationManagerData* am, float t)
 	{
 		this->fillColor.a = (uint8)((float)this->fillColor.a * (1.0f - t));
 		this->strokeColor.a = (uint8)((float)this->strokeColor.a * (1.0f - t));
-		this->render(vg);
+		this->render(vg, am);
 	}
 
 	void AnimObject::takeAttributesFrom(const AnimObject& obj)
@@ -568,6 +569,11 @@ namespace MathAnim
 			// Interpolate between this svg and other svg
 			if (this->svgObject && replacement->svgObject)
 			{
+				//if (this->name[0] == 'o' && replacement->name[0] == 'b')
+				//{
+				//	g_logger_info("HERE");
+				//}
+
 				SvgObject* interpolated = Svg::interpolate(this->svgObject, replacement->svgObject, t);
 				this->svgObject->free();
 				g_memory_free(this->svgObject);

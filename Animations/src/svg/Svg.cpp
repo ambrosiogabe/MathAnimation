@@ -1,6 +1,7 @@
-#include "animation/Svg.h"
+#include "svg/Svg.h"
+#include "svg/SvgParser.h"
+#include "svg/SvgCache.h"
 #include "animation/Animation.h"
-#include "animation/SvgParser.h"
 #include "utils/CMath.h"
 #include "renderer/Renderer.h"
 #include "renderer/Framebuffer.h"
@@ -13,22 +14,15 @@
 
 namespace MathAnim
 {
-	static float cacheLineHeight;
-	static Vec2 cachePadding = { 10.0f, 10.0f };
-	static Vec2 cacheCurrentPos;
-	static Framebuffer svgCache;
-
 	namespace Svg
 	{
 		// ----------------- Private Variables -----------------
 		constexpr int initialMaxCapacity = 5;
 		static OrthoCamera* orthoCamera;
 		static PerspectiveCamera* perspCamera;
-		static int renderPassCounter = 0;
 
 		// ----------------- Internal functions -----------------
 		static void checkResize(Path& path);
-		static void generateSvgCache(uint32 width, uint32 height);
 
 		SvgObject createDefault()
 		{
@@ -63,108 +57,6 @@ namespace MathAnim
 		{
 			orthoCamera = &sceneCamera2d;
 			perspCamera = &sceneCamera3d;
-
-			constexpr int defaultWidth = 4096;
-			generateSvgCache(defaultWidth, defaultWidth);
-
-			cacheCurrentPos.x = 0;
-			cacheCurrentPos.y = 0;
-		}
-
-		void free()
-		{
-			if (svgCache.fbo != UINT32_MAX)
-			{
-				svgCache.destroy();
-			}
-		}
-
-		void endFrame()
-		{
-			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "SVG_Cache_Reset");
-
-			renderPassCounter = 0;
-			cacheCurrentPos.x = 0;
-			cacheCurrentPos.y = 0;
-
-			svgCache.bind();
-			glViewport(0, 0, svgCache.width, svgCache.height);
-			//svgCache.clearColorAttachmentRgba(0, "#fc03ecFF"_hex);
-			svgCache.clearColorAttachmentRgba(0, "#00000000"_hex);
-			svgCache.clearDepthStencil();
-
-			glPopDebugGroup();
-		}
-
-		const Texture& getSvgCache()
-		{
-			return svgCache.getColorAttachment(0);
-		}
-
-		Framebuffer const& getSvgCacheFb()
-		{
-			return svgCache;
-		}
-
-		const Vec2& getCacheCurrentPos()
-		{
-			return cacheCurrentPos;
-		}
-
-		const Vec2& getCachePadding()
-		{
-			return cachePadding;
-		}
-
-		void incrementCacheCurrentY()
-		{
-			cacheCurrentPos.y += cacheLineHeight + cachePadding.y;
-			cacheLineHeight = 0;
-			cacheCurrentPos.x = 0;
-		}
-
-		void incrementCacheCurrentX(float distance)
-		{
-			cacheCurrentPos.x += distance;
-		}
-
-		void checkLineHeight(float newLineHeight)
-		{
-			cacheLineHeight = glm::max(cacheLineHeight, newLineHeight);
-		}
-
-		void growCache()
-		{
-			// Double the size of the texture (up to 8192x8192 max)
-			Svg::generateSvgCache(svgCache.width * 2, svgCache.height * 2);
-
-			// TODO: If the cache exceeds the size of this framebuffer do:
-			//   endFrame(vg);
-			//   Svg::generateSvgCache(...);
-			//   beginFrame(vg);
-		}
-
-		void beginFrame(NVGcontext* vg)
-		{
-			nvgBeginFrame(vg, (float)svgCache.width, (float)svgCache.height, 1.0f);
-		}
-
-		void endFrame(NVGcontext* vg)
-		{
-			const char message[] = "NanoVG_Render_Pass[";
-			constexpr size_t messageLength = sizeof(message) / sizeof(char);
-			constexpr size_t bufferLength = messageLength + 7;
-			char buffer[bufferLength] = {};
-			// Buffer overflow protection
-			if (renderPassCounter >= 9999)
-			{
-				renderPassCounter = 0;
-			}
-			snprintf(buffer, bufferLength, "%s%d]\0", message, renderPassCounter);
-			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, buffer);
-			nvgEndFrame(vg);
-			glPopDebugGroup();
-			renderPassCounter++;
 		}
 
 		PerspectiveCamera const& getPerspCamera()
@@ -1061,39 +953,11 @@ namespace MathAnim
 				g_logger_assert(path.curves != nullptr, "Ran out of RAM.");
 			}
 		}
-
-		static void generateSvgCache(uint32 width, uint32 height)
-		{
-			if (svgCache.fbo != UINT32_MAX)
-			{
-				svgCache.destroy();
-			}
-
-			if (width > 4096 || height > 4096)
-			{
-				g_logger_error("SVG cache cannot be bigger than 4096x4096 pixels. The SVG will be truncated.");
-				width = 4096;
-				height = 4096;
-			}
-
-			// Default the svg framebuffer cache to 1024x1024 and resize if necessary
-			Texture cacheTexture = TextureBuilder()
-				.setFormat(ByteFormat::RGBA8_UI)
-				.setMinFilter(FilterMode::Linear)
-				.setMagFilter(FilterMode::Linear)
-				.setWidth(width)
-				.setHeight(height)
-				.build();
-			svgCache = FramebufferBuilder(width, height)
-				.addColorAttachment(cacheTexture)
-				.includeDepthStencil()
-				.generate();
-		}
 	}
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool reverse, const SvgObject* obj, bool isSvgGroup);
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj, bool isSvgGroup);
 
 	void SvgObject::normalize(const Vec2& inMin, const Vec2& inMax)
 	{
@@ -1307,100 +1171,14 @@ namespace MathAnim
 		}
 	}
 
-	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset) const
+	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec2& textureOffset) const
 	{
-		renderCreateAnimation(vg, 1.01f, parent, offset, false, false);
+		renderCreateAnimation(vg, 1.0f, parent, textureOffset, false);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset, bool reverse, bool isSvgGroup) const
+	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool isSvgGroup) const
 	{
-		Vec2 svgTextureOffset = Vec2{
-			(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
-			(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
-		};
-
-		// Check if the SVG cache needs to regenerate
-		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->svgScale) + parent->strokeWidth;
-		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->svgScale) + parent->strokeWidth;
-		{
-			float newRightX = svgTextureOffset.x + svgTotalWidth;
-			if (newRightX >= svgCache.width)
-			{
-				// Move to the newline
-				Svg::incrementCacheCurrentY();
-			}
-
-			float newBottomY = svgTextureOffset.y + svgTotalHeight;
-			if (newBottomY >= svgCache.height)
-			{
-				Svg::growCache();
-			}
-
-			svgTextureOffset = Vec2{
-				(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
-				(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
-			};
-		}
-
-		// First render to the cache
-		svgCache.bind();
-		glViewport(0, 0, svgCache.width, svgCache.height);
-
-		// Reset the draw buffers to draw to FB_attachment_0
-		GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
-		glDrawBuffers(4, compositeDrawBuffers);
-
-		if (isSvgGroup)
-		{
-			svgTextureOffset.x += offset.x * parent->svgScale;
-			svgTextureOffset.y += offset.y * parent->svgScale;
-		}
-
-		renderCreateAnimation2D(vg, t, parent, svgTextureOffset, reverse, this, isSvgGroup);
-
-		// Don't blit svg groups to a bunch of quads, they get rendered as one quad together
-		if (isSvgGroup)
-		{
-			return;
-		}
-
-		// Subtract half stroke width to make sure it's getting the correct coords
-		svgTextureOffset -= Vec2{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f };
-		Vec2 cacheUvMin = Vec2{
-			svgTextureOffset.x / svgCache.width,
-			1.0f - (svgTextureOffset.y / svgCache.width) - (svgTotalHeight / svgCache.height)
-		};
-		Vec2 cacheUvMax = cacheUvMin +
-			Vec2{
-				svgTotalWidth / svgCache.width,
-				svgTotalHeight / svgCache.height
-		};
-
-		Svg::incrementCacheCurrentX(svgTotalWidth + cachePadding.x);
-		Svg::checkLineHeight(svgTotalHeight);
-
-		if (parent->is3D)
-		{
-			Renderer::drawTexturedQuad3D(
-				svgCache.getColorAttachment(0),
-				Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
-				cacheUvMin,
-				cacheUvMax,
-				parent->globalTransform,
-				parent->isTransparent
-			);
-		}
-		else
-		{
-			Renderer::drawTexturedQuad(
-				svgCache.getColorAttachment(0),
-				Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
-				cacheUvMin,
-				cacheUvMax,
-				parent->id,
-				parent->globalTransform
-			);
-		}
+		renderCreateAnimation2D(vg, t, parent, textureOffset, this, isSvgGroup);
 	}
 
 	void SvgObject::free()
@@ -1582,132 +1360,133 @@ namespace MathAnim
 
 	void SvgGroup::render(NVGcontext* vg, AnimObject* parent) const
 	{
-		renderCreateAnimation(vg, 1.01f, parent, false);
+		renderCreateAnimation(vg, 1.0f, parent);
 	}
 
-	void SvgGroup::renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse) const
+	void SvgGroup::renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent) const
 	{
-		Vec2 translation = Vec2{ viewbox.values[0], viewbox.values[1] };
-		Vec2 bboxOffset = Vec2{ bbox.min.x, bbox.min.y };
+		// TODO: This should just render the SVGs as children...
+		//Vec2 translation = Vec2{ viewbox.values[0], viewbox.values[1] };
+		//Vec2 bboxOffset = Vec2{ bbox.min.x, bbox.min.y };
 
-		// TODO: Offload all this stuff into some sort of TexturePacker data structure
-		{
-			Vec2 svgTextureOffset = Vec2{
-				(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
-				(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
-			};
+		//// TODO: Offload all this stuff into some sort of TexturePacker data structure
+		//{
+		//	Vec2 svgTextureOffset = Vec2{
+		//		(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
+		//		(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
+		//	};
 
-			// Check if the SVG cache needs to regenerate
-			float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->svgScale) + parent->strokeWidth;
-			float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->svgScale) + parent->strokeWidth;
-			{
-				float newRightX = svgTextureOffset.x + svgTotalWidth;
-				if (newRightX >= svgCache.width)
-				{
-					// Move to the newline
-					Svg::incrementCacheCurrentY();
-				}
+		//	// Check if the SVG cache needs to regenerate
+		//	float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->svgScale) + parent->strokeWidth;
+		//	float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->svgScale) + parent->strokeWidth;
+		//	{
+		//		float newRightX = svgTextureOffset.x + svgTotalWidth;
+		//		if (newRightX >= svgCache.width)
+		//		{
+		//			// Move to the newline
+		//			Svg::incrementCacheCurrentY();
+		//		}
 
-				float newBottomY = svgTextureOffset.y + svgTotalHeight;
-				if (newBottomY >= svgCache.height)
-				{
-					Svg::growCache();
-				}
-			}
-		}
+		//		float newBottomY = svgTextureOffset.y + svgTotalHeight;
+		//		if (newBottomY >= svgCache.height)
+		//		{
+		//			Svg::growCache();
+		//		}
+		//	}
+		//}
 
-		float numberObjectsToDraw = t * (float)numObjects;
-		constexpr float numObjectsToLag = 2.0f;
-		float numObjectsDrawn = 0.0f;
-		for (int i = 0; i < numObjects; i++)
-		{
-			const SvgObject& obj = objects[i];
-			const Vec2& offset = objectOffsets[i];
+		//float numberObjectsToDraw = t * (float)numObjects;
+		//constexpr float numObjectsToLag = 2.0f;
+		//float numObjectsDrawn = 0.0f;
+		//for (int i = 0; i < numObjects; i++)
+		//{
+		//	const SvgObject& obj = objects[i];
+		//	const Vec2& offset = objectOffsets[i];
 
-			float denominator = i == numObjects - 1 ? 1.0f : numObjectsToLag;
-			float percentOfLetterToDraw = (numberObjectsToDraw - numObjectsDrawn) / denominator;
-			Vec2 absOffset = offset - translation - bboxOffset;
-			obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, absOffset, reverse, true);
-			numObjectsDrawn += 1.0f;
+		//	float denominator = i == numObjects - 1 ? 1.0f : numObjectsToLag;
+		//	float percentOfLetterToDraw = (numberObjectsToDraw - numObjectsDrawn) / denominator;
+		//	Vec2 absOffset = offset - translation - bboxOffset;
+		//	obj.renderCreateAnimation(vg, percentOfLetterToDraw, parent, absOffset, true);
+		//	numObjectsDrawn += 1.0f;
 
-			if (numObjectsDrawn >= numberObjectsToDraw)
-			{
-				break;
-			}
-		}
+		//	if (numObjectsDrawn >= numberObjectsToDraw)
+		//	{
+		//		break;
+		//	}
+		//}
 
-		Vec2 svgTextureOffset = Vec2{
-			(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
-			(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
-		};
-		float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->svgScale) + parent->strokeWidth;
-		float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->svgScale) + parent->strokeWidth;
+		//Vec2 svgTextureOffset = Vec2{
+		//	(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
+		//	(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
+		//};
+		//float svgTotalWidth = ((bbox.max.x - bbox.min.x) * parent->svgScale) + parent->strokeWidth;
+		//float svgTotalHeight = ((bbox.max.y - bbox.min.y) * parent->svgScale) + parent->strokeWidth;
 
-		Vec2 cacheUvMin = Vec2{
-			svgTextureOffset.x / svgCache.width,
-			1.0f - (svgTextureOffset.y / svgCache.height) - (svgTotalHeight / svgCache.height)
-		};
-		Vec2 cacheUvMax = cacheUvMin +
-			Vec2{
-				svgTotalWidth / svgCache.width,
-				svgTotalHeight / svgCache.height
-		};
+		//Vec2 cacheUvMin = Vec2{
+		//	svgTextureOffset.x / svgCache.width,
+		//	1.0f - (svgTextureOffset.y / svgCache.height) - (svgTotalHeight / svgCache.height)
+		//};
+		//Vec2 cacheUvMax = cacheUvMin +
+		//	Vec2{
+		//		svgTotalWidth / svgCache.width,
+		//		svgTotalHeight / svgCache.height
+		//};
 
-		if (parent->drawDebugBoxes)
-		{
-			// First render to the cache
-			svgCache.bind();
-			glViewport(0, 0, svgCache.width, svgCache.height);
+		//if (parent->drawDebugBoxes)
+		//{
+		//	// First render to the cache
+		//	svgCache.bind();
+		//	glViewport(0, 0, svgCache.width, svgCache.height);
 
-			// Reset the draw buffers to draw to FB_attachment_0
-			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
-			glDrawBuffers(4, compositeDrawBuffers);
+		//	// Reset the draw buffers to draw to FB_attachment_0
+		//	GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
+		//	glDrawBuffers(4, compositeDrawBuffers);
 
-			float strokeWidthCorrectionPos = cachePadding.x * 0.5f;
-			float strokeWidthCorrectionNeg = -cachePadding.x;
-			nvgBeginPath(vg);
-			nvgStrokeColor(vg, nvgRGBA(0, 255, 255, 255));
-			nvgStrokeWidth(vg, cachePadding.x);
-			nvgMoveTo(vg,
-				cacheUvMin.x * svgCache.width + strokeWidthCorrectionPos,
-				(1.0f - cacheUvMax.y) * svgCache.height + strokeWidthCorrectionPos
-			);
-			nvgRect(vg,
-				cacheUvMin.x * svgCache.width + strokeWidthCorrectionPos,
-				(1.0f - cacheUvMax.y) * svgCache.height + strokeWidthCorrectionPos,
-				(cacheUvMax.x - cacheUvMin.x) * svgCache.width + strokeWidthCorrectionNeg,
-				(cacheUvMax.y - cacheUvMin.y) * svgCache.height + strokeWidthCorrectionNeg
-			);
-			nvgClosePath(vg);
-			nvgStroke(vg);
-		}
+		//	float strokeWidthCorrectionPos = cachePadding.x * 0.5f;
+		//	float strokeWidthCorrectionNeg = -cachePadding.x;
+		//	nvgBeginPath(vg);
+		//	nvgStrokeColor(vg, nvgRGBA(0, 255, 255, 255));
+		//	nvgStrokeWidth(vg, cachePadding.x);
+		//	nvgMoveTo(vg,
+		//		cacheUvMin.x * svgCache.width + strokeWidthCorrectionPos,
+		//		(1.0f - cacheUvMax.y) * svgCache.height + strokeWidthCorrectionPos
+		//	);
+		//	nvgRect(vg,
+		//		cacheUvMin.x * svgCache.width + strokeWidthCorrectionPos,
+		//		(1.0f - cacheUvMax.y) * svgCache.height + strokeWidthCorrectionPos,
+		//		(cacheUvMax.x - cacheUvMin.x) * svgCache.width + strokeWidthCorrectionNeg,
+		//		(cacheUvMax.y - cacheUvMin.y) * svgCache.height + strokeWidthCorrectionNeg
+		//	);
+		//	nvgClosePath(vg);
+		//	nvgStroke(vg);
+		//}
 
-		// Then blit the SVG group to the screen
-		if (parent->is3D)
-		{
-			Renderer::drawTexturedQuad3D(
-				svgCache.getColorAttachment(0),
-				Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
-				cacheUvMin,
-				cacheUvMax,
-				parent->globalTransform,
-				parent->isTransparent
-			);
-		}
-		else
-		{
-			Renderer::drawTexturedQuad(
-				svgCache.getColorAttachment(0),
-				Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
-				cacheUvMin,
-				cacheUvMax,
-				parent->id,
-				parent->globalTransform
-			);
-		}
+		//// Then blit the SVG group to the screen
+		//if (parent->is3D)
+		//{
+		//	Renderer::drawTexturedQuad3D(
+		//		svgCache.getColorAttachment(0),
+		//		Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
+		//		cacheUvMin,
+		//		cacheUvMax,
+		//		parent->globalTransform,
+		//		parent->isTransparent
+		//	);
+		//}
+		//else
+		//{
+		//	Renderer::drawTexturedQuad(
+		//		svgCache.getColorAttachment(0),
+		//		Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
+		//		cacheUvMin,
+		//		cacheUvMax,
+		//		parent->id,
+		//		parent->globalTransform
+		//	);
+		//}
 
-		Svg::incrementCacheCurrentX(((bbox.max.x - bbox.min.x) * parent->svgScale) + parent->strokeWidth + cachePadding.x);
-		Svg::checkLineHeight(((bbox.max.y - bbox.min.y) * parent->svgScale) + parent->strokeWidth);
+		//Svg::incrementCacheCurrentX(((bbox.max.x - bbox.min.x) * parent->svgScale) + parent->strokeWidth + cachePadding.x);
+		//Svg::checkLineHeight(((bbox.max.y - bbox.min.y) * parent->svgScale) + parent->strokeWidth);
 	}
 
 	void SvgGroup::free()
@@ -1756,14 +1535,9 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool reverse, const SvgObject* obj, bool isSvgGroup)
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj, bool isSvgGroup)
 	{
 		constexpr float defaultStrokeWidth = 5.0f;
-
-		if (reverse)
-		{
-			t = 1.0f - t;
-		}
 
 		// Start the fade in after 80% of the svg object is drawn
 		constexpr float fadeInStart = 0.8f;
@@ -2041,7 +1815,7 @@ namespace MathAnim
 
 		if (parent->drawDebugBoxes)
 		{
-			float debugStrokeWidth = cachePadding.x;
+			float debugStrokeWidth = SvgCache::cachePadding.x;
 			float strokeWidthCorrectionPos = debugStrokeWidth * 0.5f;
 			float strokeWidthCorrectionNeg = -debugStrokeWidth;
 

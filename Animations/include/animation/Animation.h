@@ -224,10 +224,10 @@ namespace MathAnim
 		} as;
 
 		void onGizmo(AnimationManagerData* am);
-		void render(NVGcontext* vg) const;
-		void renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target);
-		void renderFadeInAnimation(NVGcontext* vg, float t);
-		void renderFadeOutAnimation(NVGcontext* vg, float t);
+		void render(NVGcontext* vg, AnimationManagerData* am) const;
+		void renderMoveToAnimation(NVGcontext* vg, AnimationManagerData* am, float t, const Vec3& target);
+		void renderFadeInAnimation(NVGcontext* vg, AnimationManagerData* am, float t);
+		void renderFadeOutAnimation(NVGcontext* vg, AnimationManagerData* am, float t);
 		void takeAttributesFrom(const AnimObject& obj);
 		void replacementTransform(AnimationManagerData* am, AnimObjId replacement, float t);
 

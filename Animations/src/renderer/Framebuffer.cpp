@@ -199,26 +199,32 @@ namespace MathAnim
 
 	void Framebuffer::destroy(bool clearColorAttachmentSpecs)
 	{
-		g_logger_assert(fbo != UINT32_MAX, "Tried to delete invalid framebuffer.");
-		glDeleteFramebuffers(1, &fbo);
-		fbo = UINT32_MAX;
-
-		for (int i = 0; i < colorAttachments.size(); i++)
+		if (fbo != UINT32_MAX)
 		{
-			Texture& texture = colorAttachments[i];
-			texture.destroy();
+			glDeleteFramebuffers(1, &fbo);
+			fbo = UINT32_MAX;
+
+			for (int i = 0; i < colorAttachments.size(); i++)
+			{
+				Texture& texture = colorAttachments[i];
+				texture.destroy();
+			}
+
+			if (clearColorAttachmentSpecs)
+			{
+				colorAttachments.clear();
+			}
+
+			if (includeDepthStencil)
+			{
+				g_logger_assert(rbo != UINT32_MAX, "Tried to delete invalid renderbuffer.");
+				glDeleteRenderbuffers(1, &rbo);
+				rbo = UINT32_MAX;
+			}
 		}
-
-		if (clearColorAttachmentSpecs)
+		else
 		{
-			colorAttachments.clear();
-		}
-
-		if (includeDepthStencil)
-		{
-			g_logger_assert(rbo != UINT32_MAX, "Tried to delete invalid renderbuffer.");
-			glDeleteRenderbuffers(1, &rbo);
-			rbo = UINT32_MAX;
+			g_logger_warning("Tried to delete invalid framebuffer.");
 		}
 	}
 

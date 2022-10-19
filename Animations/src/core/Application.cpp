@@ -13,10 +13,12 @@
 #include "renderer/Texture.h"
 #include "renderer/Fonts.h"
 #include "renderer/Colors.h"
-#include "animation/Svg.h"
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
+#include "svg/Svg.h"
+#include "svg/SvgParser.h"
+#include "svg/SvgCache.h"
 #include "editor/EditorGui.h"
 #include "editor/Timeline.h"
 #include "editor/Gizmos.h"
@@ -28,7 +30,6 @@
 #include "multithreading/GlobalThreadPool.h"
 #include "video/Encoder.h"
 #include "utils/TableOfContents.h"
-#include "animation/SvgParser.h"
 
 #include "nanovg.h"
 #define NANOVG_GL3_IMPLEMENTATION
@@ -69,6 +70,7 @@ namespace MathAnim
 		static bool reloadCurrentScene = false;
 		static bool saveCurrentSceneOnReload = true;
 		static int sceneToChangeTo = -1;
+		static SvgCache* svgCache = nullptr;
 
 		static const char* winTitle = "Math Animations";
 
@@ -123,6 +125,9 @@ namespace MathAnim
 
 			EditorGui::init(am);
 
+			svgCache = new SvgCache();
+			svgCache->init();
+
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
@@ -160,6 +165,11 @@ namespace MathAnim
 				}
 
 				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
+				if (deltaFrame != 0)
+				{
+					svgCache->clearAll();
+				}
+
 				absolutePrevFrame = absoluteCurrentFrame;
 
 				// Update systems all systems/collect systems draw calls
@@ -199,7 +209,6 @@ namespace MathAnim
 				ImGuiLayer::endFrame();
 				glPopDebugGroup();
 
-				Svg::endFrame();
 				AnimationManager::endFrame(am);
 
 				// Miscellaneous
@@ -275,6 +284,9 @@ namespace MathAnim
 
 		void free()
 		{
+			svgCache->free();
+			delete svgCache;
+
 			// Free it just in case, if the encoder isn't active this does nothing
 			VideoWriter::freeEncoder(encoder);
 
@@ -290,7 +302,6 @@ namespace MathAnim
 			AnimationManager::free(am);
 			nvgDeleteGL3(vg);
 			Fonts::unloadAllFonts();
-			Svg::free();
 			Renderer::free();
 			GizmoManager::free();
 			Audio::free();
@@ -298,6 +309,7 @@ namespace MathAnim
 			ImGuiLayer::free();
 			Window::cleanup();
 			globalThreadPool->free();
+			delete globalThreadPool;
 		}
 
 		void saveProject()
@@ -527,6 +539,11 @@ namespace MathAnim
 		OrthoCamera* getEditorCamera()
 		{
 			return &editorCamera2D;
+		}
+
+		SvgCache* getSvgCache()
+		{
+			return svgCache;
 		}
 
 		NVGcontext* getNvgContext()
