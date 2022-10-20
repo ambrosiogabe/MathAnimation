@@ -73,8 +73,6 @@ namespace MathAnim
 		auto iter = this->cachedSvgs.find(hashValue);
 		if (iter == this->cachedSvgs.end())
 		{
-			nvgBeginFrame(vg, (float)framebuffer.width, (float)framebuffer.height, 1.0f);
-
 			// Setup the texture coords and everything 
 			Vec2 svgTextureOffset = Vec2{
 				(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
@@ -105,14 +103,6 @@ namespace MathAnim
 					(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
 				};
 			}
-
-			// First render to the cache
-			framebuffer.bind();
-			glViewport(0, 0, framebuffer.width, framebuffer.height);
-
-			// Reset the draw buffers to draw to FB_attachment_0
-			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
-			glDrawBuffers(4, compositeDrawBuffers);
 
 			if (isSvgGroup)
 			{
@@ -155,13 +145,6 @@ namespace MathAnim
 			res.texCoordsMin = cacheUvMin;
 			res.texCoordsMax = cacheUvMax;
 			this->cachedSvgs[hashValue] = res;
-
-			constexpr size_t bufferLength = 256;
-			char buffer[bufferLength];
-			snprintf(buffer, bufferLength, "NanoVG_RenderSVG[%s]\0", parent->name);
-			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, buffer);
-			nvgEndFrame(vg);
-			glPopDebugGroup();
 		}
 	}
 
@@ -224,6 +207,29 @@ namespace MathAnim
 		}
 		framebuffer.clearDepthStencil();
 
+		glPopDebugGroup();
+	}
+
+	void SvgCache::flushCacheToFramebuffer(NVGcontext* vg)
+	{
+		// First render to the cache
+		framebuffer.bind();
+		glViewport(0, 0, framebuffer.width, framebuffer.height);
+
+		// Reset the draw buffers to draw to FB_attachment_0
+		GLenum compositeDrawBuffers[] = { 
+			GL_COLOR_ATTACHMENT0 + this->cacheCurrentColorAttachment, 
+			GL_NONE, 
+			GL_NONE, 
+			GL_COLOR_ATTACHMENT3 
+		};
+		glDrawBuffers(4, compositeDrawBuffers);
+
+		constexpr size_t bufferLength = 256;
+		char buffer[bufferLength];
+		snprintf(buffer, bufferLength, "NanoVG_RenderSVG[%d]\0", this->cacheCurrentColorAttachment);
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, buffer);
+		nvgEndFrame(vg);
 		glPopDebugGroup();
 	}
 

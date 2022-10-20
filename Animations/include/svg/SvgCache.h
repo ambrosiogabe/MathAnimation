@@ -47,6 +47,7 @@ namespace MathAnim
 
 		void put(NVGcontext* vg, const AnimObject* parent, SvgObject* svg, bool isSvgGroup);
 		void clearAll();
+		void flushCacheToFramebuffer(NVGcontext* vg);
 
 		void render(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj, bool isSvgGroup = false);
 

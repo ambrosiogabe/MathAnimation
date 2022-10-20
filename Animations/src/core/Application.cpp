@@ -176,7 +176,9 @@ namespace MathAnim
 				GizmoManager::update(am);
 				EditorCameraController::updateOrtho(editorCamera2D);
 				// Update Animation logic and collect draw calls
+				nvgBeginFrame(vg, (float)svgCache->getFramebuffer().width, (float)svgCache->getFramebuffer().height, 1.0f);
 				AnimationManager::render(am, vg, deltaFrame);
+				svgCache->flushCacheToFramebuffer(vg);
 
 				// Render all animation draw calls to main framebuffer
 				bool renderPickingOutline = false;

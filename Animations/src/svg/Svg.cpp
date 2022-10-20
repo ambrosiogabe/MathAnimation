@@ -511,15 +511,11 @@ namespace MathAnim
 					// Check if we're starting a new sub-path for split obj
 					bool beginNewSubpath = false;
 					bool splitIsHole, nonSplitIsHole;
-					bool closeSplitPath = true;
-					bool closeNonSplitPath = true;
 					if (splitCurvei >= splitPath->numCurves)
 					{
 						splitIsHole = splitObj->paths[splitPathi].isHole;
 						nonSplitIsHole = nonSplitObj->paths[nonSplitPathi].isHole;
 						beginNewSubpath = true;
-						Svg::lineTo(modifiedDstObject, nonSplitPath->curves[0].p0);
-						closeNonSplitPath = false;
 
 						splitPathi++;
 						g_logger_assert(splitPathi < splitObj->numPaths, "How did this happen? Somehow we tried to increment past too many paths while interpolating SVG objects.");
@@ -534,8 +530,6 @@ namespace MathAnim
 						nonSplitIsHole = nonSplitObj->paths[nonSplitPathi].isHole;
 						splitIsHole = splitObj->paths[splitPathi].isHole;
 						beginNewSubpath = true;
-						Svg::lineTo(modifiedSrcObject, splitPath->curves[0].p0);
-						closeSplitPath = false;
 
 						nonSplitPathi++;
 						g_logger_assert(nonSplitPathi < nonSplitObj->numPaths, "How did this happen? Somehow we tried to increment past too many paths while interpolating SVG objects.");
@@ -548,8 +542,18 @@ namespace MathAnim
 					if (beginNewSubpath)
 					{
 						// Close both paths so we have equal sub-path splits
-						Svg::closePath(modifiedSrcObject, closeSplitPath, splitIsHole);
-						Svg::closePath(modifiedDstObject, closeNonSplitPath, nonSplitIsHole);
+						Svg::closePath(modifiedSrcObject, true, splitIsHole);
+						Svg::closePath(modifiedDstObject, true, nonSplitIsHole);
+
+						//Vec2 splitFirstPathP0 = splitPath->curves[0].p0;
+						//Vec2 nonSplitFirstPathP0 = nonSplitPath->curves[0].p0;
+						//Svg::beginPath(modifiedSrcObject, splitFirstPathP0);
+						//Svg::beginPath(modifiedDstObject, nonSplitFirstPathP0);
+						//
+						//Vec2 splitFirstP0 = splitPath->curves[splitCurvei].p0;
+						//Vec2 nonSplitFirstP0 = nonSplitPath->curves[nonSplitCurvei].p0;
+						//Svg::lineTo(modifiedSrcObject, splitFirstP0);
+						//Svg::lineTo(modifiedDstObject, nonSplitFirstP0);
 
 						Vec2 splitFirstP0 = splitPath->curves[splitCurvei].p0;
 						Vec2 nonSplitFirstP0 = nonSplitPath->curves[nonSplitCurvei].p0;
@@ -623,7 +627,7 @@ namespace MathAnim
 					// Interpolate the curve by tSplit
 					float percentOfCurveToDraw = tSplit;
 
-					if (roundedNumSplits > 1)
+					if (roundedNumSplits > 2)
 					{
 						switch (nextCurve.type)
 						{
@@ -803,8 +807,8 @@ namespace MathAnim
 			}
 
 			// Close the paths
-			Svg::lineTo(modifiedSrcObject, splitPath->curves[0].p0);
-			Svg::lineTo(modifiedDstObject, nonSplitPath->curves[0].p0);
+			//Svg::lineTo(modifiedSrcObject, splitPath->curves[0].p0);
+			//Svg::lineTo(modifiedDstObject, nonSplitPath->curves[0].p0);
 			Svg::closePath(modifiedSrcObject, false, splitPath->isHole);
 			Svg::closePath(modifiedDstObject, false, nonSplitPath->isHole);
 
@@ -1989,6 +1993,8 @@ namespace MathAnim
 			{
 				if (obj->paths[pathi].numCurves > 0)
 				{
+					Vec4 gradientPathColorStart = Vec4{ 230, 24, 12, 255 };
+					Vec4 gradientPathColorEnd = Vec4{ 15, 240, 21, 255 };
 					{
 						Vec2 p0 = obj->paths[pathi].curves[0].p0;
 						p0.x *= parent->svgScale;
@@ -1999,7 +2005,7 @@ namespace MathAnim
 						if (parent->drawControlPoints)
 						{
 							nvgBeginPath(vg);
-							nvgFillColor(vg, nvgRGBA(230, 83, 105, 255));
+							nvgFillColor(vg, nvgRGBA(gradientPathColorStart.b, gradientPathColorStart.g, gradientPathColorStart.r, 255));
 							nvgCircle(vg, p0.x, p0.y, circleWidth * 2.0f);
 							nvgClosePath(vg);
 							nvgFill(vg);
@@ -2009,28 +2015,28 @@ namespace MathAnim
 						nvgMoveTo(vg, p0.x, p0.y);
 					}
 
-					if (obj->paths[pathi].isHole)
-					{
-						// Red for holes
-						nvgStrokeColor(vg, nvgRGBA(227, 11, 18, 255));
-					}
-					else
-					{
-						// Green for fill
-						nvgStrokeColor(vg, nvgRGBA(12, 223, 18, 255));
-					}
-
 					nvgStrokeWidth(vg, debugStrokeWidth);
 
 					Vec2 lastEndpoint = Vec2{ 0, 0 };
 					for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
 					{
+						Vec4 gColor = ((gradientPathColorEnd - gradientPathColorStart) * ((float)curvei / (float)obj->paths[pathi].numCurves)) + gradientPathColorStart;
+
 						const Curve& curve = obj->paths[pathi].curves[curvei];
 						Vec2 p0 = curve.p0;
 						p0.x *= parent->svgScale;
 						p0.y *= parent->svgScale;
 						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
 						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
+
+						if (parent->drawControlPoints)
+						{
+							nvgBeginPath(vg);
+							nvgFillColor(vg, nvgRGBA(gColor.r, gColor.g, gColor.b, 255));
+							nvgCircle(vg, p0.x, p0.y, circleWidth);
+							nvgClosePath(vg);
+							nvgFill(vg);
+						}
 
 						switch (curve.type)
 						{
@@ -2057,6 +2063,15 @@ namespace MathAnim
 
 							lastEndpoint = p3;
 							nvgBezierTo(vg, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+
+							if (parent->drawControlPoints)
+							{
+								nvgBeginPath(vg);
+								nvgFillColor(vg, nvgRGBA(gColor.r, gColor.g, gColor.b, 255));
+								nvgCircle(vg, lastEndpoint.x, lastEndpoint.y, circleWidth);
+								nvgClosePath(vg);
+								nvgFill(vg);
+							}
 						}
 						break;
 						case CurveType::Bezier2:
@@ -2088,6 +2103,15 @@ namespace MathAnim
 
 							lastEndpoint = pr3;
 							nvgBezierTo(vg, pr1.x, pr1.y, pr2.x, pr2.y, pr3.x, pr3.y);
+
+							if (parent->drawControlPoints)
+							{
+								nvgBeginPath(vg);
+								nvgFillColor(vg, nvgRGBA(gColor.r, gColor.g, gColor.b, 255));
+								nvgCircle(vg, lastEndpoint.x, lastEndpoint.y, circleWidth);
+								nvgClosePath(vg);
+								nvgFill(vg);
+							}
 						}
 						break;
 						case CurveType::Line:
@@ -2101,6 +2125,15 @@ namespace MathAnim
 
 							lastEndpoint = p1;
 							nvgLineTo(vg, p1.x, p1.y);
+
+							if (parent->drawControlPoints)
+							{
+								nvgBeginPath(vg);
+								nvgFillColor(vg, nvgRGBA(gColor.r, gColor.g, gColor.b, 255));
+								nvgCircle(vg, lastEndpoint.x, lastEndpoint.y, circleWidth);
+								nvgClosePath(vg);
+								nvgFill(vg);
+							}
 						}
 						break;
 						default:
@@ -2110,13 +2143,24 @@ namespace MathAnim
 					}
 
 					nvgClosePath(vg);
+
+					if (obj->paths[pathi].isHole)
+					{
+						// Red for holes
+						nvgStrokeColor(vg, nvgRGBA(227, 11, 18, 255));
+					}
+					else
+					{
+						// Green for fill
+						nvgStrokeColor(vg, nvgRGBA(12, 223, 18, 255));
+					}
 					nvgStroke(vg);
 
 					if (parent->drawControlPoints)
 					{
 						nvgBeginPath(vg);
-						nvgFillColor(vg, nvgRGBA(235, 178, 80, 255));
-						nvgCircle(vg, lastEndpoint.x, lastEndpoint.y, circleWidth * 1.1f);
+						nvgFillColor(vg, nvgRGBA(gradientPathColorEnd.r, gradientPathColorEnd.g, gradientPathColorEnd.b, 255));
+						nvgCircle(vg, lastEndpoint.x, lastEndpoint.y, circleWidth * 1.5f);
 						nvgClosePath(vg);
 						nvgFill(vg);
 					}

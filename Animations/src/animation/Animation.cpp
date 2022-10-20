@@ -976,6 +976,8 @@ namespace MathAnim
 		// If the object is being read in from the file then it's not
 		// generated since all generated objects don't get saved
 		res.isGenerated = false;
+		res.drawCurves = false;
+		res.drawControlPoints = false;
 
 		// AnimObjectType     -> uint32
 		// _PositionStart     -> Vec3
