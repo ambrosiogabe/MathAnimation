@@ -166,6 +166,50 @@ namespace MathAnim
 		AnimObjId currentId;
 	};
 
+	struct AnimObjectState
+	{
+		AnimObjectTypeV1 objectType;
+		Vec3 position;
+		Vec3 rotation;
+		Vec3 scale;
+		SvgObject* svgObject;
+		float svgScale;
+		// This is the percent created ranging from [0.0-1.0] which determines 
+		// what to pass to renderCreateAnimation(...)
+		float percentCreated;
+		float strokeWidth;
+		glm::u8vec4 strokeColor;
+		glm::u8vec4 fillColor;
+
+		// Transform stuff
+		// TODO: Consider moving this to a Transform class
+		// This is the combined parent+child positions and transformations
+		Vec3 globalPosition;
+		glm::mat4 globalTransform;
+
+		AnimObjId id;
+		AnimObjId parentId;
+		std::vector<AnimObjId> generatedChildrenIds;
+
+		bool isTransparent;
+		bool drawDebugBoxes;
+		bool drawCurveDebugBoxes;
+		bool drawCurves;
+		bool drawControlPoints;
+		bool is3D;
+		bool isGenerated;
+
+		union
+		{
+			TextObject textObject;
+			LaTexObject laTexObject;
+			Square square;
+			Circle circle;
+			Cube cube;
+			Axis axis;
+		} as;
+	};
+
 	struct AnimObject
 	{
 		AnimObjectTypeV1 objectType;
@@ -247,6 +291,7 @@ namespace MathAnim
 		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId, bool addChildAsGenerated = false);
 		static AnimObject createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj);
 		static AnimObject createDefault(AnimationManagerData* am, AnimObjectTypeV1 type);
+		static AnimObject createCopy(const AnimObject& from);
 	};
 
 	// Helpers

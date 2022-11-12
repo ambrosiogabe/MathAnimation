@@ -452,6 +452,7 @@ namespace MathAnim
 			// TODO: Turn the preset characters into a parameter
 			generateDefaultCharset(font, defaultCharset);
 
+			g_logger_assert(vg != nullptr, "Cannot load font without nanovg context.");
 			int vgFontError = nvgCreateFont(vg, font.fontFilepath.c_str(), font.fontFilepath.c_str());
 			if (vgFontError == -1)
 			{

@@ -25,6 +25,7 @@ namespace MathAnim
 
 		static TextObject deserialize(RawMemory& memory, uint32 version);
 		static TextObject createDefault();
+		static TextObject createCopy(const TextObject& from);
 	};
 
 	// TODO: Create some sort of layout machine using MicroTex

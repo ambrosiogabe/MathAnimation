@@ -11,19 +11,14 @@ namespace MathAnim
 {
 	struct AnimationManagerData
 	{
-		std::vector<AnimObject> objects;
-		// Maps from AnimObjectId -> Index in objects vector
-		std::unordered_map<AnimObjId, size_t> objectIdMap;
+		SceneSnapshot startingSnapshot;
+		SceneSnapshot currentSnapshot;
+		std::vector<SceneSnapshot> snapshots;
 
 		// Always sorted by startFrame and trackIndex
 		std::vector<Animation> animations;
 		// Maps From AnimationId -> Index in animations vector
 		std::unordered_map<AnimId, size_t> animationIdMap;
-
-		// This list gets updated whenever the timeline cursor moves
-		// It should hold the list of animations that are currently
-		// being rendered at the timeline cursor
-		std::vector<Animation> activeAnimations;
 
 		// These queues are so that we can add/remove elements
 		// in the middle of the frame without any re-allocations
@@ -100,9 +95,9 @@ namespace MathAnim
 		{
 			if (am)
 			{
-				for (int i = 0; i < am->objects.size(); i++)
+				for (int i = 0; i < am->currentSnapshot.objectIdMap.size(); i++)
 				{
-					am->objects[i].free();
+					am->currentSnapshot.objects[i].free();
 				}
 
 				for (int i = 0; i < am->animations.size(); i++)
@@ -149,6 +144,104 @@ namespace MathAnim
 			}
 			// Clear queue
 			am->queuedAddAnimations.clear();
+		}
+
+		SceneSnapshot buildSnapshot(AnimationManagerData* am, NVGcontext* vg, uint32 absoluteFrame)
+		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			// Reset everything to state at frame 0
+			SceneSnapshot newSnapshot;
+
+			newSnapshot.camera2DPos = am->startingSnapshot.camera2DPos;
+
+			// Reset all anim object states
+			for (auto objectIter = am->startingSnapshot.objects.begin(); objectIter != am->startingSnapshot.objects.end(); objectIter++)
+			{
+				// Reset to original state and apply animations in order
+				AnimObject obj = AnimObject::createCopy(*objectIter);
+				newSnapshot.objectIdMap[obj.id] = newSnapshot.objects.size();
+				newSnapshot.objects.emplace_back(obj);
+			}
+
+			// Then apply each animation up to the current frame
+			for (auto objectIter = newSnapshot.objects.begin(); objectIter != newSnapshot.objects.end(); objectIter++)
+			{
+				// Update any updateable objects
+				// TODO: Is this important?
+				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
+				{
+					objectIter->as.laTexObject.update();
+				}
+
+				// Apply any changes from animations in order
+				for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
+				{
+					float frameStart = (float)animIter->frameStart;
+					int animDeathTime = (int)frameStart + animIter->duration;
+					if (frameStart <= absoluteFrame)
+					{
+						// Then apply the animation
+						float interpolatedT = ((float)am->currentFrame - frameStart) / (float)animIter->duration;
+						animIter->applyAnimation(am, vg, interpolatedT);
+					}
+				}
+
+				// ----- Apply the parent->child transformations -----
+				// First find all the root objects
+				std::queue<AnimObjId> rootObjects = {};
+				for (auto objIter = am->currentSnapshot.objects.begin(); objIter != am->currentSnapshot.objects.end(); objIter++)
+				{
+					// If the object has no parent, it's a root object.
+					// Update the transform then update children recursively
+					// and in order from parent->child
+					if (isNull(objIter->parentId))
+					{
+						rootObjects.push(objIter->id);
+					}
+				}
+
+				// Then update all children
+				// Loop through each root object and recursively update the transforms by appending children to the queue
+				while (rootObjects.size() > 0)
+				{
+					AnimObjId nextObjId = rootObjects.front();
+					rootObjects.pop();
+
+					// Update child transform
+					AnimObject* nextObj = getMutableObject(am, nextObjId);
+					if (nextObj)
+					{
+						updateGlobalTransform(*nextObj);
+
+						// Then apply parent transformation if the parent exists
+						// At this point the parent should have been updated already
+						// since the queue is FIFO
+						if (!isNull(nextObj->parentId))
+						{
+							const AnimObject* parent = getObject(am, nextObj->parentId);
+							if (parent)
+							{
+								nextObj->_globalPositionStart += parent->_globalPositionStart;
+								nextObj->globalPosition += parent->globalPosition;
+								nextObj->globalTransform *= parent->globalTransform;
+							}
+						}
+
+						// Then append all direct children to the queue so they are
+						// recursively updated
+						for (auto childIter = am->currentSnapshot.objects.begin(); childIter != am->currentSnapshot.objects.end(); childIter++)
+						{
+							if (childIter->parentId == nextObj->id)
+							{
+								rootObjects.push(childIter->id);
+							}
+						}
+					}
+				}
+			}
+
+			return newSnapshot;
 		}
 
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object)
@@ -277,143 +370,18 @@ namespace MathAnim
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			// If the current frame has changed, then apply the delta changes
-			// TODO: Optimization, optimize and check this is the problem and if so 
-			// if (deltaFrame != 0)
+			if (deltaFrame != 0)
 			{
-				// TODO: Optimization, optimize and check this is the problem and if so 
-				// am->activeAnimations.clear();
 				am->currentFrame += deltaFrame;
-
-				// TODO: Add unApply/apply to all animations to go backwards and forwards
-				// deltas.
-				// For now I'll just reapply all changes from the start of the scene
-
-				// Reset everything to state at frame 0
-				am->sceneCamera2D->position = am->sceneCamera2DStartPos;
-
-				// Reset all object positions
-				for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
-				{
-					// Reset to original state and apply animations in order
-					if (objectIter->_svgObjectStart != nullptr && objectIter->svgObject != nullptr)
-					{
-						Svg::copy(objectIter->svgObject, objectIter->_svgObjectStart);
-					}
-					objectIter->position = objectIter->_positionStart;
-					objectIter->rotation = objectIter->_rotationStart;
-					objectIter->scale = objectIter->_scaleStart;
-					objectIter->fillColor = objectIter->_fillColorStart;
-					objectIter->strokeColor = objectIter->_strokeColorStart;
-					objectIter->strokeWidth = objectIter->_strokeWidthStart;
-					objectIter->percentCreated = 0.0f;
-					objectIter->status = AnimObjectStatus::Inactive;
-
-					// Update any updateable objects
-					if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
-					{
-						objectIter->as.laTexObject.update();
-					}
-				}
-
-				// Apply any changes from animations in order
-				for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
-				{
-					float frameStart = (float)animIter->frameStart;
-					int animDeathTime = (int)frameStart + animIter->duration;
-					if (frameStart <= am->currentFrame)
-					{
-						bool animationComplete = am->currentFrame >= animDeathTime;
-
-						// TODO: Optimization, optimize and check this is the problem and if so 
-						// If it's the middle of an animation then make sure 
-						// to keep track of it
-						// am->activeAnimations.push_back(*animIter);
-						// Then apply the animation
-						float interpolatedT = ((float)am->currentFrame - frameStart) / (float)animIter->duration;
-						animIter->applyAnimation(am, vg, interpolatedT);
-					}
-				}
-
-				// ----- Apply the parent->child transformations -----
-				// First find all the root objects
-				std::queue<AnimObjId> rootObjects = {};
-				for (auto objIter = am->objects.begin(); objIter != am->objects.end(); objIter++)
-				{
-					// If the object has no parent, it's a root object.
-					// Update the transform then update children recursively
-					// and in order from parent->child
-					if (isNull(objIter->parentId))
-					{
-						rootObjects.push(objIter->id);
-					}
-				}
-
-				// Then update all children
-				// Loop through each root object and recursively update the transforms by appending children to the queue
-				while (rootObjects.size() > 0)
-				{
-					AnimObjId nextObjId = rootObjects.front();
-					rootObjects.pop();
-
-					// Update child transform
-					AnimObject* nextObj = getMutableObject(am, nextObjId);
-					if (nextObj)
-					{
-						updateGlobalTransform(*nextObj);
-
-						// Then apply parent transformation if the parent exists
-						// At this point the parent should have been updated already
-						// since the queue is FIFO
-						if (!isNull(nextObj->parentId))
-						{
-							const AnimObject* parent = getObject(am, nextObj->parentId);
-							if (parent)
-							{
-								nextObj->_globalPositionStart += parent->_globalPositionStart;
-								nextObj->globalPosition += parent->globalPosition;
-								nextObj->globalTransform *= parent->globalTransform;
-							}
-						}
-
-						// Then append all direct children to the queue so they are
-						// recursively updated
-						for (auto childIter = am->objects.begin(); childIter != am->objects.end(); childIter++)
-						{
-							if (childIter->parentId == nextObj->id)
-							{
-								rootObjects.push(childIter->id);
-							}
-						}
-					}
-				}
-
-				// TODO: Optimization, optimize and check this is the problem and if so 
-				// Sort the active animations list so they're always applied in order
-				// std::sort(am->activeAnimations.begin(), am->activeAnimations.end(), compareAnimation);
+				//am->currentSnapshot = findSnapshot(am->currentFrame);
+				//am->currentSnapshot.free();
+				//am->currentSnapshot = buildSnapshot(am, vg, am->currentFrame);
 			}
-
-			// TODO: Optimization, optimize and check this is the problem and if so 
-			// get this working if large scenes start lagging
-			// 
-			// If the frame didn't change re-apply active animations
-			// so that any changes to object properties take effect
-			//if (deltaFrame == 0)
-			//{
-			//	// Apply any active animations
-			//	for (auto animIter = am->activeAnimations.begin(); animIter != am->activeAnimations.end(); animIter++)
-			//	{
-			//		float frameStart = (float)animIter->frameStart;
-			//		float interpolatedT = ((float)am->currentFrame - frameStart) / (float)animIter->duration;
-			//		//animIter->render(am, vg, interpolatedT);
-			//		animIter->applyAnimation(am, vg, interpolatedT);
-			//	}
-			//}
 
 			// Render any active/animating objects
 			// Make sure to initialize the NanoVG cache and then flush it after all the 
 			// draw calls are complete
-			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
+			for (auto objectIter = am->currentSnapshot.objects.begin(); objectIter != am->currentSnapshot.objects.end(); objectIter++)
 			{
 				if (objectIter->status != AnimObjectStatus::Inactive)
 				{
@@ -463,13 +431,13 @@ namespace MathAnim
 				return nullptr;
 			}
 
-			auto iter = am->objectIdMap.find(animObj);
-			if (iter != am->objectIdMap.end())
+			auto iter = am->currentSnapshot.objectIdMap.find(animObj);
+			if (iter != am->currentSnapshot.objectIdMap.end())
 			{
 				size_t objectIndex = iter->second;
-				if (objectIndex >= 0 && objectIndex < am->objects.size())
+				if (objectIndex >= 0 && objectIndex < am->currentSnapshot.objects.size())
 				{
-					return &am->objects[objectIndex];
+					return &am->currentSnapshot.objects[objectIndex];
 				}
 			}
 
@@ -506,7 +474,7 @@ namespace MathAnim
 		const std::vector<AnimObject>& getAnimObjects(const AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
-			return am->objects;
+			return am->currentSnapshot.objects;
 		}
 
 		const std::vector<Animation>& getAnimations(const AnimationManagerData* am)
@@ -535,11 +503,11 @@ namespace MathAnim
 		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId animObj)
 		{
 			std::vector<AnimObjId> res;
-			for (int i = 0; i < am->objects.size(); i++)
+			for (int i = 0; i < am->currentSnapshot.objects.size(); i++)
 			{
-				if (am->objects[i].parentId == animObj)
+				if (am->currentSnapshot.objects[i].parentId == animObj)
 				{
-					res.push_back(am->objects[i].id);
+					res.push_back(am->currentSnapshot.objects[i].id);
 				}
 			}
 
@@ -574,13 +542,13 @@ namespace MathAnim
 
 			// numAnimObjects -> uint32
 			// animObjects    -> dynamic
-			uint32 numAnimObjects = (uint32)am->objects.size();
+			uint32 numAnimObjects = (uint32)am->startingSnapshot.objects.size();
 			memory.write<uint32>(&numAnimObjects);
 
 			// Write out each anim object followed by 0xDEADBEEF
-			for (int i = 0; i < am->objects.size(); i++)
+			for (int i = 0; i < am->startingSnapshot.objects.size(); i++)
 			{
-				am->objects[i].serialize(memory);
+				am->startingSnapshot.objects[i].serialize(memory);
 				memory.write<uint32>(&MAGIC_NUMBER);
 			}
 
@@ -589,7 +557,7 @@ namespace MathAnim
 			return memory;
 		}
 
-		void deserialize(AnimationManagerData* am, RawMemory& memory)
+		void deserialize(AnimationManagerData* am, NVGcontext* vg, RawMemory& memory)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -609,6 +577,7 @@ namespace MathAnim
 			{
 				deserializeAnimationManagerExV1(am, memory);
 				Application::resetToFrame(am->currentFrame);
+				am->currentSnapshot = buildSnapshot(am, vg, am->currentFrame);
 			}
 			else
 			{
@@ -670,12 +639,12 @@ namespace MathAnim
 			for (uint32 i = 0; i < numAnimObjects; i++)
 			{
 				AnimObject animObject = AnimObject::deserialize(am, memory, version);
-				am->objects.push_back(animObject);
+				am->startingSnapshot.objects.push_back(animObject);
 				uint32 magicNumber;
 				memory.read<uint32>(&magicNumber);
 				g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
 
-				am->objectIdMap[animObject.id] = i;
+				am->startingSnapshot.objectIdMap[animObject.id] = i;
 			}
 		}
 
@@ -705,8 +674,8 @@ namespace MathAnim
 
 		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj)
 		{
-			am->objects.push_back(obj);
-			am->objectIdMap[obj.id] = am->objects.size() - 1;
+			am->currentSnapshot.objects.push_back(obj);
+			am->currentSnapshot.objectIdMap[obj.id] = am->currentSnapshot.objects.size() - 1;
 		}
 
 		static void addQueuedAnimation(AnimationManagerData* am, const Animation& animation)
@@ -739,9 +708,9 @@ namespace MathAnim
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			// First remove all children objects
-			for (int i = 0; i < am->objects.size(); i++)
+			for (int i = 0; i < am->currentSnapshot.objects.size(); i++)
 			{
-				AnimObject& objIter = am->objects[i];
+				AnimObject& objIter = am->currentSnapshot.objects[i];
 				if (objIter.parentId == animObj)
 				{
 					removeSingleAnimObject(am, objIter.id);
@@ -780,21 +749,21 @@ namespace MathAnim
 		static void removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			// Remove the anim object
-			auto iter = am->objectIdMap.find(animObj);
-			if (iter != am->objectIdMap.end())
+			auto iter = am->currentSnapshot.objectIdMap.find(animObj);
+			if (iter != am->currentSnapshot.objectIdMap.end())
 			{
 				size_t animObjectIndex = iter->second;
-				if (animObjectIndex >= 0 && animObjectIndex < am->objects.size())
+				if (animObjectIndex >= 0 && animObjectIndex < am->currentSnapshot.objects.size())
 				{
-					am->objects[animObjectIndex].free();
+					am->currentSnapshot.objects[animObjectIndex].free();
 
-					auto updateIter = am->objects.erase(am->objects.begin() + animObjectIndex);
-					am->objectIdMap.erase(animObj);
+					auto updateIter = am->currentSnapshot.objects.erase(am->currentSnapshot.objects.begin() + animObjectIndex);
+					am->currentSnapshot.objectIdMap.erase(animObj);
 
 					// Update indices
-					for (; updateIter != am->objects.end(); updateIter++)
+					for (; updateIter != am->currentSnapshot.objects.end(); updateIter++)
 					{
-						am->objectIdMap[updateIter->id] = updateIter - am->objects.begin();
+						am->currentSnapshot.objectIdMap[updateIter->id] = updateIter - am->currentSnapshot.objects.begin();
 					}
 
 					// Remove any references from old animations

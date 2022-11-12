@@ -417,7 +417,7 @@ namespace MathAnim
 
 			if (animationData.data)
 			{
-				AnimationManager::deserialize(am, animationData);
+				AnimationManager::deserialize(am, vg, animationData);
 				// Flush any pending objects to be created for real
 				AnimationManager::endFrame(am);
 

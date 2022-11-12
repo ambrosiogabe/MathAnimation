@@ -965,6 +965,95 @@ namespace MathAnim
 		return res;
 	}
 
+	AnimObject AnimObject::createCopy(const AnimObject& from)
+	{
+		AnimObject res;
+		res.id = from.id;
+		res.parentId = from.parentId;
+
+		res.nameLength = from.nameLength;
+		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
+		g_memory_copyMem(res.name, (void*)from.name, sizeof(uint8) * (res.nameLength + 1));
+
+		res.status = from.status;
+		res.objectType = from.objectType;
+
+		res.rotation = from.rotation;
+		res._rotationStart = from._rotationStart;
+
+		res.scale = from.scale;
+		res._scaleStart = from._scaleStart;
+
+		res.position = from.position;
+		res._positionStart = from._positionStart;
+		res._globalPositionStart = from._globalPositionStart;
+		res.globalPosition = from.globalPosition;
+
+		res.svgObject = nullptr;
+		res._svgObjectStart = nullptr;
+
+		if (from.svgObject)
+		{
+			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res.svgObject = Svg::createDefault();
+			Svg::copy(res.svgObject, from.svgObject);
+		}
+		if (from._svgObjectStart)
+		{
+			res._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res._svgObjectStart = Svg::createDefault();
+			Svg::copy(res._svgObjectStart, from._svgObjectStart);
+		}
+
+		res.isTransparent = from.isTransparent;
+		res.drawDebugBoxes = from.drawDebugBoxes;
+		res.drawCurveDebugBoxes = from.drawCurveDebugBoxes;
+		res.is3D = from.is3D;
+		res.isGenerated = from.isGenerated;
+		res.svgScale = from.svgScale;
+
+		res.strokeWidth = from.strokeWidth;
+		res._strokeWidthStart = from._strokeWidthStart;
+		res.strokeColor = from.strokeColor;
+		res._strokeColorStart = from._strokeColorStart;
+		res.fillColor = from.fillColor;
+		res._fillColorStart = from._fillColorStart;
+
+		res.objectType = from.objectType;
+
+		res.generatedChildrenIds = from.generatedChildrenIds;
+
+		switch (from.objectType)
+		{
+		case AnimObjectTypeV1::TextObject:
+			res.as.textObject = TextObject::createCopy(from.as.textObject);
+			break;
+		case AnimObjectTypeV1::LaTexObject:
+			// TODO: Copy
+			break;
+		case AnimObjectTypeV1::SvgObject:
+			// TODO: Copy
+			break;
+		case AnimObjectTypeV1::Square:
+			// TODO: Copy
+			break;
+		case AnimObjectTypeV1::Circle:
+			// TODO: Copy
+			break;
+		case AnimObjectTypeV1::Cube:
+			// TODO: Copy
+			break;
+		case AnimObjectTypeV1::Axis:
+			// TODO: Copy
+			break;
+		default:
+			g_logger_error("Cannot create default animation object of type %d", (int)from.objectType);
+			break;
+		}
+
+		return res;
+	}
+
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory)
 	{

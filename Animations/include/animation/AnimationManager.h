@@ -13,12 +13,26 @@ namespace MathAnim
 	struct OrthoCamera;
 
 	struct AnimationManagerData;
+	
+	struct SceneSnapshot
+	{
+		// Frame of the animation that this correlates too
+		uint32 absoluteFrame;
+		// Current state of the scene is stored in here
+		std::vector<AnimObjectState> objectStates;
+		std::vector<AnimObject> objects;
+		// Maps from AnimObjectId -> Index in objects vector
+		std::unordered_map<AnimObjId, size_t> objectIdMap;
+
+		Vec2 camera2DPos;
+	};
 
 	namespace AnimationManager
 	{
 		AnimationManagerData* create(OrthoCamera& camera);
 		void free(AnimationManagerData* animManager);
 		void endFrame(AnimationManagerData* am);
+		SceneSnapshot buildSnapshot(AnimationManagerData* am, NVGcontext* vg, uint32 absoluteFrame);
 
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object);
 		void addAnimation(AnimationManagerData* am, const Animation& animation);
@@ -48,7 +62,7 @@ namespace MathAnim
 		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId obj);
 
 		RawMemory serialize(const AnimationManagerData* am);
-		void deserialize(AnimationManagerData* am, RawMemory& memory);
+		void deserialize(AnimationManagerData* am, NVGcontext* vg, RawMemory& memory);
 		void sortAnimations(AnimationManagerData* am);
 
 		const char* getAnimObjectName(AnimObjectTypeV1 type);
