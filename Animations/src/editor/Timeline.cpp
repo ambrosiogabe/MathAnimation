@@ -933,6 +933,7 @@ namespace MathAnim
 			if (shouldRegenerate)
 			{
 				object->as.textObject.reInit(am, object);
+				AnimationManager::updateAnimObjectAllSnapshots(am, *object);
 			}
 		}
 

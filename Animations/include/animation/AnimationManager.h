@@ -36,6 +36,7 @@ namespace MathAnim
 
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object);
 		void addAnimation(AnimationManagerData* am, const Animation& animation);
+		void updateAnimObjectAllSnapshots(AnimationManagerData* am, const AnimObject& objRef);
 
 		void removeAnimObject(AnimationManagerData* am, AnimObjId animObj);
 		void removeAnimation(AnimationManagerData* am, AnimId anim);

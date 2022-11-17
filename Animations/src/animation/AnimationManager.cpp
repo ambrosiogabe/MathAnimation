@@ -270,6 +270,28 @@ namespace MathAnim
 			am->queuedAddAnimations.push_back(animation);
 		}
 
+		void updateAnimObjectAllSnapshots(AnimationManagerData* am, const AnimObject& objRef)
+		{
+			AnimObject reference = AnimObject::createCopy(objRef);
+
+			for (auto& snapshot : am->snapshots)
+			{
+				AnimObject* obj = getMutableObjectFromSnapshot(snapshot, objRef.id);
+				obj->free();
+				*obj = AnimObject::createCopy(reference);
+			}
+
+			AnimObject* obj1 = getMutableObjectFromSnapshot(am->startingSnapshot, objRef.id);
+			obj1->free();
+			*obj1 = AnimObject::createCopy(reference);
+
+			AnimObject* obj2 = getMutableObjectFromSnapshot(am->currentSnapshot, objRef.id);
+			obj2->free();
+			*obj2 = AnimObject::createCopy(reference);
+
+			reference.free();
+		}
+
 		void removeAnimObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
