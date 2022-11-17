@@ -18,12 +18,17 @@ namespace MathAnim
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory);
 	static Animation deserializeAnimationExV1(RawMemory& memory);
-	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation);
+	static void applyAnimationToObj(SceneSnapshot& snapshot, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation);
 
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
 
 	// ----------------------------- Animation Functions -----------------------------
 	void Animation::applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t) const
+	{
+		applyAnimationToSnapshot(AnimationManager::getMutableCurrentSnapshot(am), vg, t);
+	}
+
+	void Animation::applyAnimationToSnapshot(SceneSnapshot& snapshot, NVGcontext* vg, float t) const
 	{
 		if (this->shouldDisplayAnimObjects())
 		{
@@ -40,13 +45,13 @@ namespace MathAnim
 					float interpolatedT = CMath::mapRange(Vec2{ startT, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
 					interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
 
-					AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectIds[i]);
+					AnimObject* animObject = AnimationManager::getMutableObjectFromSnapshot(snapshot, animObjectIds[i]);
 					if (animObject != nullptr)
 					{
 						animObject->status = interpolatedT < 1.0f
 							? AnimObjectStatus::Animating
 							: AnimObjectStatus::Active;
-						applyAnimationToObj(am, vg, animObject, interpolatedT, this);
+						applyAnimationToObj(snapshot, vg, animObject, interpolatedT, this);
 					}
 				}
 			}
@@ -54,7 +59,7 @@ namespace MathAnim
 		else
 		{
 			t = glm::clamp(CMath::ease(t, easeType, easeDirection), 0.0f, 1.0f);
-			applyAnimationToObj(am, vg, nullptr, t, this);
+			applyAnimationToObj(snapshot, vg, nullptr, t, this);
 		}
 	}
 
@@ -444,6 +449,43 @@ namespace MathAnim
 		}
 	}
 
+	void AnimObjectBreadthFirstIterSnapshot::init(AnimObjId parentId)
+	{
+		std::vector<AnimObjId> children = AnimationManager::getChildrenFromSnapshot(snapshot, parentId);
+		if (children.size() > 0)
+		{
+			childrenLeft = std::deque<AnimObjId>(children.begin(), children.end());
+			currentId = childrenLeft.front();
+			childrenLeft.pop_front();
+		}
+		else
+		{
+			currentId = NULL_ANIM_OBJECT;
+		}
+	}
+
+	void AnimObjectBreadthFirstIterSnapshot::operator++()
+	{
+		if (childrenLeft.size() > 0)
+		{
+			// Push back all children's children
+			AnimObjId childId = childrenLeft.front();
+			childrenLeft.pop_front();
+			AnimObject* child = AnimationManager::getMutableObjectFromSnapshot(snapshot, childId);
+			if (child)
+			{
+				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildrenFromSnapshot(snapshot, child->id);
+				childrenLeft.insert(childrenLeft.end(), childrensChildren.begin(), childrensChildren.end());
+			}
+
+			currentId = childId;
+		}
+		else
+		{
+			currentId = NULL_ANIM_OBJECT;
+		}
+	}
+
 	// ----------------------------- AnimObject Functions -----------------------------
 	void AnimObject::renderMoveToAnimation(NVGcontext* vg, AnimationManagerData* am, float t, const Vec3& target)
 	{
@@ -481,6 +523,7 @@ namespace MathAnim
 		this->status = obj.status;
 		this->isTransparent = obj.isTransparent;
 		this->svgScale = obj.svgScale;
+		this->percentCreated = obj.percentCreated;
 
 		this->_fillColorStart = obj._fillColorStart;
 		this->_strokeColorStart = obj._strokeColorStart;
@@ -611,11 +654,16 @@ namespace MathAnim
 
 	void AnimObject::updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus)
 	{
+		updateStatusSnapshot(AnimationManager::getMutableCurrentSnapshot(am), newStatus);
+	}
+
+	void AnimObject::updateStatusSnapshot(SceneSnapshot& snapshot, AnimObjectStatus newStatus)
+	{
 		this->status = newStatus;
 
-		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		for (auto iter = beginBreadthFirst(snapshot); iter != end(); ++iter)
 		{
-			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			AnimObject* child = AnimationManager::getMutableObjectFromSnapshot(snapshot, *iter);
 			if (child)
 			{
 				child->status = newStatus;
@@ -628,6 +676,18 @@ namespace MathAnim
 		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
 		{
 			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->percentCreated = newPercentCreated;
+			}
+		}
+	}
+
+	void AnimObject::updateChildrenPercentCreatedSnapshot(SceneSnapshot& snapshot, float newPercentCreated)
+	{
+		for (auto iter = beginBreadthFirst(snapshot); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObjectFromSnapshot(snapshot, *iter);
 			if (child)
 			{
 				child->percentCreated = newPercentCreated;
@@ -686,6 +746,11 @@ namespace MathAnim
 	AnimObjectBreadthFirstIter AnimObject::beginBreadthFirst(AnimationManagerData* am) const
 	{
 		return AnimObjectBreadthFirstIter(am, this->id);
+	}
+
+	AnimObjectBreadthFirstIterSnapshot AnimObject::beginBreadthFirst(SceneSnapshot& snapshot) const
+	{
+		return AnimObjectBreadthFirstIterSnapshot(snapshot, this->id);
 	}
 
 	void AnimObject::free()
@@ -869,6 +934,7 @@ namespace MathAnim
 		res.id = animObjectUidCounter++;
 		g_logger_assert(animObjectUidCounter < INT32_MAX, "Somehow our UID counter reached '%d'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", INT32_MAX);
 		res.parentId = NULL_ANIM_OBJECT;
+		res.percentCreated = 0.0f;
 
 		const char* newObjName = "New Object";
 		res.nameLength = (uint32)std::strlen(newObjName);
@@ -970,6 +1036,7 @@ namespace MathAnim
 		AnimObject res;
 		res.id = from.id;
 		res.parentId = from.parentId;
+		res.percentCreated = from.percentCreated;
 
 		res.nameLength = from.nameLength;
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
@@ -1067,6 +1134,7 @@ namespace MathAnim
 		res.isGenerated = false;
 		res.drawCurves = false;
 		res.drawControlPoints = false;
+		res.percentCreated = 0.0f;
 
 		// AnimObjectType     -> uint32
 		// _PositionStart     -> Vec3
@@ -1143,6 +1211,8 @@ namespace MathAnim
 
 		// Initialize other variables
 		res.position = res._positionStart;
+		res.rotation = res._rotationStart;
+		res.scale = res._scaleStart;
 		res.strokeColor = res._strokeColorStart;
 		res.fillColor = res._fillColorStart;
 		res.strokeWidth = res._strokeWidthStart;
@@ -1274,7 +1344,7 @@ namespace MathAnim
 		return res;
 	}
 
-	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation)
+	static void applyAnimationToObj(SceneSnapshot& snapshot, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation)
 	{
 		// TODO: How to handle this... Certain animations like moveTo
 		// should only move the parent because the changes propagate to the
@@ -1301,18 +1371,19 @@ namespace MathAnim
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
 			obj->percentCreated = t;
-			obj->updateChildrenPercentCreated(am, t);
+			obj->updateChildrenPercentCreatedSnapshot(snapshot, t);
 			// TODO: Bleh... Figure something out!!!
-			obj->updateStatus(am, t > 0.0f && t < 1.0f ? AnimObjectStatus::Animating : t >= 1.0f ? AnimObjectStatus::Active : AnimObjectStatus::Inactive);
+			obj->updateStatusSnapshot(snapshot, t > 0.0f && t < 1.0f ? AnimObjectStatus::Animating : t >= 1.0f ? AnimObjectStatus::Active : AnimObjectStatus::Inactive);
 			break;
 		case AnimTypeV1::Transform:
 		{
-			AnimObject* srcObject = AnimationManager::getMutableObject(am, animation->as.replacementTransform.srcAnimObjectId);
-			AnimObject* dstObject = AnimationManager::getMutableObject(am, animation->as.replacementTransform.dstAnimObjectId);
+			AnimObject* srcObject = AnimationManager::getMutableObjectFromSnapshot(snapshot, animation->as.replacementTransform.srcAnimObjectId);
+			AnimObject* dstObject = AnimationManager::getMutableObjectFromSnapshot(snapshot, animation->as.replacementTransform.dstAnimObjectId);
 
 			if (dstObject && srcObject)
 			{
-				srcObject->replacementTransform(am, dstObject->id, t);
+				// TODO: Reimplement me
+				//srcObject->replacementTransform(am, dstObject->id, t);
 			}
 		}
 		break;

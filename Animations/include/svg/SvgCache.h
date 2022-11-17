@@ -2,6 +2,7 @@
 #define MATH_ANIM_SVG_CACHE_H
 #include "core.h"
 #include "renderer/Framebuffer.h"
+#include "utils/LRUCache.hpp"
 
 struct NVGcontext;
 
@@ -23,16 +24,19 @@ namespace MathAnim
 	{
 		Vec2 texCoordsMin;
 		Vec2 texCoordsMax;
+		Vec2 svgSize;
+		Vec2 allottedSize;
+		Vec2 textureOffset;
 		int colorAttachment;
 	};
 
 	class SvgCache
 	{
 	public:
-		SvgCache() : 
-			cachedSvgs(), 
-			framebuffer(), 
-			cacheCurrentPos(Vec2{0, 0}),
+		SvgCache() :
+			cachedSvgs(),
+			framebuffer(),
+			cacheCurrentPos(Vec2{ 0, 0 }),
 			cacheCurrentColorAttachment(0),
 			cacheLineHeight(0.0f)
 		{
@@ -72,9 +76,12 @@ namespace MathAnim
 		// TODO: Add LRU-cache for long term storage
 		// and temporary cache for objects that are currently
 		// being animated
-		std::unordered_map<uint64, _SvgCacheEntryInternal> cachedSvgs;
+		//std::unordered_map<uint64, _SvgCacheEntryInternal> cachedSvgs;
+		LRUCache<uint64, _SvgCacheEntryInternal> cachedSvgs;
 		Framebuffer framebuffer;
+	public:
 		Vec2 cacheCurrentPos;
+	private:
 		int cacheCurrentColorAttachment;
 		float cacheLineHeight;
 	};

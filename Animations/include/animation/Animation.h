@@ -13,6 +13,7 @@ namespace MathAnim
 	struct Font;
 	struct SvgObject;
 	struct AnimationManagerData;
+	struct SceneSnapshot;
 	
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;
@@ -127,7 +128,8 @@ namespace MathAnim
 		//   t: is a float that ranges from [0, 1] where 0 is the
 		//      beginning of the animation and 1 is the end of the
 		//      animation
-		void applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t = 1.0) const;
+		void applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t = 1.0f) const;
+		void applyAnimationToSnapshot(SceneSnapshot& snapshot, NVGcontext* vg, float t = 1.0f) const;
 
 		// Render the gizmo with relation to this object
 		void onGizmo(const AnimObject* obj);
@@ -162,6 +164,29 @@ namespace MathAnim
 
 	private: 
 		AnimationManagerData* am;
+		std::deque<AnimObjId> childrenLeft;
+		AnimObjId currentId;
+	};
+
+	class AnimObjectBreadthFirstIterSnapshot
+	{
+	public:
+		AnimObjectBreadthFirstIterSnapshot(SceneSnapshot& am, AnimObjId parentId)
+			: snapshot(am)
+		{
+			init(parentId);
+		}
+
+		void init(AnimObjId parentId);
+
+		void operator++();
+
+		inline bool operator==(AnimObjId other) const { return currentId == other; }
+		inline bool operator!=(AnimObjId other) const { return currentId != other; }
+		inline AnimObjId operator*() const { return currentId; }
+
+	private:
+		SceneSnapshot& snapshot;
 		std::deque<AnimObjId> childrenLeft;
 		AnimObjId currentId;
 	};
@@ -276,13 +301,16 @@ namespace MathAnim
 		void replacementTransform(AnimationManagerData* am, AnimObjId replacement, float t);
 
 		void updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus);
+		void updateStatusSnapshot(SceneSnapshot& snapshot, AnimObjectStatus newStatus);
 		void updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated);
+		void updateChildrenPercentCreatedSnapshot(SceneSnapshot& snapshot, float newPercentCreated);
 		void copySvgScaleToChildren(AnimationManagerData* am) const;
 		void copyStrokeWidthToChildren(AnimationManagerData* am) const;
 		void copyStrokeColorToChildren(AnimationManagerData* am) const;
 		void copyFillColorToChildren(AnimationManagerData* am) const;
 
 		AnimObjectBreadthFirstIter beginBreadthFirst(AnimationManagerData* am) const;
+		AnimObjectBreadthFirstIterSnapshot beginBreadthFirst(SceneSnapshot& snapshot) const;
 		inline AnimObjId end() const { return NULL_ANIM_OBJECT; }
 		
 		void free();

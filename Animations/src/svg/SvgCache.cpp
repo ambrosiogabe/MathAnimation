@@ -21,25 +21,25 @@ namespace MathAnim
 	void SvgCache::free()
 	{
 		framebuffer.destroy();
+		this->cachedSvgs.clear();
 	}
 
 	bool SvgCache::exists(AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
-		auto iter = this->cachedSvgs.find(hash(obj, animObj->percentCreated, animObj->svgScale));
-		return iter != this->cachedSvgs.end();
+		return this->cachedSvgs.exists(hash(obj, animObj->percentCreated, animObj->svgScale));
 	}
 
 	SvgCacheEntry SvgCache::get(AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
-		auto iter = this->cachedSvgs.find(hash(obj, animObj->percentCreated, animObj->svgScale));
-		if (iter != this->cachedSvgs.end())
+		auto entry = this->cachedSvgs.get(hash(obj, animObj->percentCreated, animObj->svgScale));
+		if (entry.has_value())
 		{
 			return SvgCacheEntry{
-				iter->second.texCoordsMin,
-				iter->second.texCoordsMax,
-				framebuffer.getColorAttachment(iter->second.colorAttachment)
+				entry->texCoordsMin,
+				entry->texCoordsMax,
+				framebuffer.getColorAttachment(entry->colorAttachment)
 			};
 		}
 
@@ -50,13 +50,13 @@ namespace MathAnim
 	SvgCacheEntry SvgCache::getOrCreateIfNotExist(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj, bool isSvgGroup)
 	{
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
-		auto iter = this->cachedSvgs.find(hash(obj, animObj->percentCreated, animObj->svgScale));
-		if (iter != this->cachedSvgs.end())
+		auto entry = this->cachedSvgs.get(hash(obj, animObj->percentCreated, animObj->svgScale));
+		if (entry.has_value())
 		{
 			return SvgCacheEntry{
-				iter->second.texCoordsMin,
-				iter->second.texCoordsMax,
-				framebuffer.getColorAttachment(iter->second.colorAttachment)
+				entry->texCoordsMin,
+				entry->texCoordsMax,
+				framebuffer.getColorAttachment(entry->colorAttachment)
 			};
 		}
 
@@ -70,8 +70,9 @@ namespace MathAnim
 		uint64 hashValue = hash(parent->id, parent->percentCreated, parent->svgScale);
 
 		// Only add the SVG if it hasn't already been added
-		auto iter = this->cachedSvgs.find(hashValue);
-		if (iter == this->cachedSvgs.end())
+		//auto iter = this->cachedSvgs.find(hashValue);
+		//if (iter == this->cachedSvgs.end())
+		if (!this->cachedSvgs.exists(hashValue))
 		{
 			// Setup the texture coords and everything 
 			Vec2 svgTextureOffset = Vec2{
@@ -82,6 +83,7 @@ namespace MathAnim
 			// Check if the SVG cache needs to regenerate
 			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale) + parent->strokeWidth;
 			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale) + parent->strokeWidth;
+			Vec2 allottedSize = Vec2{ svgTotalWidth, svgTotalHeight };
 			{
 				float newRightX = svgTextureOffset.x + svgTotalWidth;
 				if (newRightX >= framebuffer.width)
@@ -93,15 +95,53 @@ namespace MathAnim
 				float newBottomY = svgTextureOffset.y + svgTotalHeight;
 				if (newBottomY >= framebuffer.height)
 				{
-					// TODO: Bad!!! Fix Me!!!
-					clearAll();
-					//growCache();
-				}
+					// Evict the first potential result from the LRU cache that
+					// can contain the size of this SVG
+					LRUCacheEntry<uint64, _SvgCacheEntryInternal>* oldest = this->cachedSvgs.getOldest();
+					while (oldest != nullptr)
+					{
+						if (oldest->data.allottedSize.x >= svgTotalWidth && oldest->data.allottedSize.y >= svgTotalHeight)
+						{
+							allottedSize = oldest->data.allottedSize;
 
-				svgTextureOffset = Vec2{
-					(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
-					(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
-				};
+							// We found an entry that will fit this 
+							// in the future we could evict this entry, 
+							// repack the texture and then insert the new svg
+							// but in practice this will probably be too slow
+							// 
+							// So for now I'll just "evict" then re-insert the new entry
+							svgTextureOffset = Vec2{
+								(float)oldest->data.textureOffset.x + parent->strokeWidth * 0.5f,
+								(float)oldest->data.textureOffset.y + parent->strokeWidth * 0.5f
+							};
+							this->cachedSvgs.evict(oldest->key);
+							// The svg will get reinserted below
+							break;
+						}
+
+						// Try to find an entry that will fit this new SVG
+						oldest = oldest->newerEntry;
+					}
+
+					if (oldest == nullptr)
+					{
+						// Didn't find room
+						static bool displayMessage = true;
+						if (displayMessage)
+						{
+							g_logger_error("Ran out of room in LRU-Cache.");
+							displayMessage = false;
+						}
+						return;
+					}
+				}
+				else
+				{
+					svgTextureOffset = Vec2{
+						(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
+						(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
+					};
+				}
 			}
 
 			if (isSvgGroup)
@@ -144,7 +184,10 @@ namespace MathAnim
 			res.colorAttachment = cacheCurrentColorAttachment;
 			res.texCoordsMin = cacheUvMin;
 			res.texCoordsMax = cacheUvMax;
-			this->cachedSvgs[hashValue] = res;
+			res.svgSize = Vec2{ svgTotalWidth, svgTotalHeight };
+			res.allottedSize = allottedSize;
+			res.textureOffset = svgTextureOffset;
+			this->cachedSvgs.insert(hashValue, res);
 		}
 	}
 
@@ -217,11 +260,11 @@ namespace MathAnim
 		glViewport(0, 0, framebuffer.width, framebuffer.height);
 
 		// Reset the draw buffers to draw to FB_attachment_0
-		GLenum compositeDrawBuffers[] = { 
-			GL_COLOR_ATTACHMENT0 + this->cacheCurrentColorAttachment, 
-			GL_NONE, 
-			GL_NONE, 
-			GL_COLOR_ATTACHMENT3 
+		GLenum compositeDrawBuffers[] = {
+			GL_COLOR_ATTACHMENT0 + this->cacheCurrentColorAttachment,
+			GL_NONE,
+			GL_NONE,
+			GL_COLOR_ATTACHMENT3
 		};
 		glDrawBuffers(4, compositeDrawBuffers);
 
@@ -312,6 +355,7 @@ namespace MathAnim
 	{
 		uint64 hash = obj;
 		// Only hash floating point numbers to 3 decimal places
+		// This allows up to 16 seconds unique frames in an animation
 		int roundedPercentCreated = (int)(percentCreated * 1000.0f);
 		hash = CMath::combineHash<int>(roundedPercentCreated, hash);
 		int roundedSvgScale = (int)(svgScale * 1000.0f);

@@ -141,6 +141,8 @@ namespace MathAnim
 			constexpr float fixedDeltaTime = 1.0f / 60.0f;
 			int deltaFrame = 0;
 
+			svgCache->clearAll();
+
 			while (isRunning && !window->shouldClose())
 			{
 				float deltaTime = (float)(glfwGetTime() - previousTime);
@@ -167,7 +169,8 @@ namespace MathAnim
 				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
 				if (deltaFrame != 0)
 				{
-					svgCache->clearAll();
+					// TODO: Do something here...
+					//svgCache->clearAll();
 				}
 
 				absolutePrevFrame = absoluteCurrentFrame;
@@ -415,17 +418,19 @@ namespace MathAnim
 			RawMemory cameraData = toc.getEntry("Camera_Data");
 			toc.free();
 
-			if (animationData.data)
-			{
-				AnimationManager::deserialize(am, vg, animationData);
-				// Flush any pending objects to be created for real
-				AnimationManager::endFrame(am);
-
-			}
+			int loadedProjectCurrentFrame = 0;
 			if (timelineData.data)
 			{
 				TimelineData timeline = Timeline::deserialize(timelineData);
 				EditorGui::setTimelineData(timeline);
+				loadedProjectCurrentFrame = timeline.currentFrame;
+			}
+			if (animationData.data)
+			{
+				AnimationManager::deserialize(am, vg, animationData, loadedProjectCurrentFrame);
+				// Flush any pending objects to be created for real
+				AnimationManager::endFrame(am);
+
 			}
 			if (cameraData.data)
 			{

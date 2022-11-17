@@ -427,6 +427,7 @@ namespace MathAnim
 			fp = nullptr;
 
 			// magicNumber         -> uint64 0xDEADBEEF
+			// selectedProject     -> int32
 			// numProjects         -> uint32
 			uint64 magicNumber;
 			memory.read<uint64>(&magicNumber);
@@ -434,6 +435,7 @@ namespace MathAnim
 			{
 				goto cleanup;
 			}
+			memory.read<int32>(&selectedProjectIndex);
 
 			uint32 numProjects;
 			memory.read<uint32>(&numProjects);
@@ -482,9 +484,11 @@ namespace MathAnim
 			memory.init(sizeof(uint64));
 
 			// magicNumber         -> uint64 0xDEADBEEF
+			// selectedProject    -> int32
 			// numProjects         -> uint32
 			uint64 magicNumber = 0xDEADBEEF;
 			memory.write<uint64>(&magicNumber);
+			memory.write<int32>(&selectedProjectIndex);
 
 			uint32 numProjects = (uint32)projects.size();
 			memory.write<uint32>(&numProjects);

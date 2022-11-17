@@ -51,7 +51,9 @@ namespace MathAnim
 		// NOTE: This function is slow, only use this as a backup if getObject fails
 		const AnimObject* getPendingObject(const AnimationManagerData* am, AnimObjId animObj);
 		const AnimObject* getObject(const AnimationManagerData* am, AnimObjId animObj);
+		const AnimObject* getObjectFromSnapshot(const SceneSnapshot& snapshot, AnimObjId animObj);
 		AnimObject* getMutableObject(AnimationManagerData* am, AnimObjId animObj);
+		AnimObject* getMutableObjectFromSnapshot(SceneSnapshot& snapshot, AnimObjId animObj);
 		const Animation* getAnimation(const AnimationManagerData* am, AnimId anim);
 		Animation* getMutableAnimation(AnimationManagerData* am, AnimId anim);
 
@@ -60,9 +62,13 @@ namespace MathAnim
 
 		std::vector<AnimId> getAssociatedAnimations(const AnimationManagerData* am, AnimObjId obj);
 		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId obj);
+		std::vector<AnimObjId> getChildrenFromSnapshot(const SceneSnapshot& snapshot, AnimObjId obj);
+
+		const SceneSnapshot& getCurrentSnapshot(const AnimationManagerData* am);
+		SceneSnapshot& getMutableCurrentSnapshot(AnimationManagerData* am);
 
 		RawMemory serialize(const AnimationManagerData* am);
-		void deserialize(AnimationManagerData* am, NVGcontext* vg, RawMemory& memory);
+		void deserialize(AnimationManagerData* am, NVGcontext* vg, RawMemory& memory, int currentFrame);
 		void sortAnimations(AnimationManagerData* am);
 
 		const char* getAnimObjectName(AnimObjectTypeV1 type);
