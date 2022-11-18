@@ -9,8 +9,8 @@ namespace MathAnim
 	{
 		Key key;
 		Value data;
-		LRUCacheEntry* newerEntry;
-		LRUCacheEntry* olderEntry;
+		LRUCacheEntry* next;
+		LRUCacheEntry* prev;
 	};
 
 	template<typename Key, typename Value>
@@ -27,33 +27,41 @@ namespace MathAnim
 			if (exists(key))
 			{
 				auto iter = indexLookup.find(key);
+				LRUCacheEntry<Key, Value>* entry = iter->second;
 
-				// Update the surrounding nodes in the doubly linked list
-				if (iter->second->newerEntry != nullptr)
+				// If this is already the newest entry, no need to promote it
+				if (entry == newestEntry)
 				{
-					iter->second->newerEntry->olderEntry = iter->second->olderEntry;
+					return entry->data;
 				}
 
-				if (iter->second->olderEntry != nullptr)
+				// Update the surrounding nodes in the doubly linked list
+				if (entry->next)
 				{
-					iter->second->olderEntry->newerEntry = iter->second->newerEntry;
+					entry->next->prev = entry->prev;
+				}
+
+				if (entry->prev)
+				{
+					entry->prev->next = entry->next;
 				}
 
 				// Set the new newest to have no older entry just in case there is none
-				iter->second->olderEntry = nullptr;
+				entry->prev = nullptr;
+				entry->next = nullptr;
 
 				// If there is a newest, update it's next pointer
 				if (newestEntry)
 				{
-					newestEntry->newerEntry = iter->second;
+					newestEntry->next = entry;
 					// Update the new newest older entry... confusing stuff
-					iter->second->olderEntry = newestEntry;
+					entry->prev = newestEntry;
 				}
 
 				// Move this to the front of the list since this is the new "newest"
-				newestEntry = iter->second;
+				newestEntry = entry;
 
-				return iter->second->data;
+				return entry->data;
 			}
 
 			return std::nullopt;
@@ -62,19 +70,22 @@ namespace MathAnim
 		void insert(const Key& key, const Value& value)
 		{
 			LRUCacheEntry<Key, Value>* newEntry = (LRUCacheEntry<Key, Value>*)g_memory_allocate(sizeof(LRUCacheEntry<Key, Value>));
+			*newEntry = {};
 			newEntry->data = value;
-			newEntry->newerEntry = nullptr;
-			newEntry->olderEntry = nullptr;
+			newEntry->key = key; 
+			newEntry->next = nullptr;
+			newEntry->prev = nullptr;
 
 			// Update the newest entry if it exists
 			if (newestEntry)
 			{
-				newestEntry->newerEntry = newEntry;
-				newEntry->olderEntry = newestEntry;
+				newestEntry->next = newEntry;
+				newEntry->prev = newestEntry;
 			}
 			else
 			{
 				// Otherwise, this node is both the newest entry and the oldest entry
+				g_logger_assert(indexLookup.size() == 0, "We should only be assigning this as the oldest when it's the first node in the LRU.");
 				oldestEntry = newEntry;
 			}
 
@@ -82,7 +93,7 @@ namespace MathAnim
 			indexLookup[key] = newEntry;
 		}
 
-		void evict(const Key& key)
+		bool evict(const Key& key)
 		{
 			if (exists(key))
 			{
@@ -91,31 +102,36 @@ namespace MathAnim
 				LRUCacheEntry<Key, Value>* entryToEvict = entryToEvictIter->second;
 
 				// Update the surrounding nodes next/prev pointers
-				if (entryToEvict->olderEntry)
+				if (entryToEvict->prev)
 				{
-					entryToEvict->olderEntry->newerEntry = entryToEvict->newerEntry;
+					entryToEvict->prev->next = entryToEvict->next;
 				}
 
-				if (entryToEvict->newerEntry)
+				if (entryToEvict->next)
 				{
-					entryToEvict->newerEntry->olderEntry = entryToEvict->olderEntry;
+					entryToEvict->next->prev = entryToEvict->prev;
 				}
 
 				// Update oldest and/or newest entry if we're evicting them
 				if (oldestEntry == entryToEvict)
 				{
 					// Update the oldest entry
-					oldestEntry = oldestEntry->newerEntry;
+					oldestEntry = oldestEntry->next;
 				}
 
 				if (newestEntry == entryToEvict)
 				{
-					newestEntry = newestEntry->olderEntry;
+					newestEntry = newestEntry->prev;
 				}
 
 				// Free the memory now and get rid of this entry
 				indexLookup.erase(entryToEvictIter);
 				g_memory_free(entryToEvict);
+				return true;
+			}
+			else
+			{
+				return false;
 			}
 		}
 

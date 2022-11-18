@@ -43,8 +43,14 @@ namespace MathAnim
 			};
 		}
 
-		static Texture dummy = TextureBuilder().build();
-		return SvgCacheEntry{ Vec2{0, 0}, Vec2{0, 0}, dummy };
+		static Texture dummy = TextureBuilder()
+			.setWidth(1)
+			.setHeight(1)
+			.setFormat(ByteFormat::RGB8_UI)
+			.setMagFilter(FilterMode::Linear)
+			.setMinFilter(FilterMode::Linear)
+			.generate();
+		return SvgCacheEntry{ Vec2{0, 0}, Vec2{1, 1}, dummy };
 	}
 
 	SvgCacheEntry SvgCache::getOrCreateIfNotExist(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj, bool isSvgGroup)
@@ -114,13 +120,16 @@ namespace MathAnim
 								(float)oldest->data.textureOffset.x + parent->strokeWidth * 0.5f,
 								(float)oldest->data.textureOffset.y + parent->strokeWidth * 0.5f
 							};
-							this->cachedSvgs.evict(oldest->key);
+							if (!this->cachedSvgs.evict(oldest->key))
+							{
+								g_logger_error("Eviction failed: 0x%8x", oldest->key);
+							}
 							// The svg will get reinserted below
 							break;
 						}
 
 						// Try to find an entry that will fit this new SVG
-						oldest = oldest->newerEntry;
+						oldest = oldest->next;
 					}
 
 					if (oldest == nullptr)
@@ -134,6 +143,16 @@ namespace MathAnim
 						}
 						return;
 					}
+
+					uint32 clearColor[] = { 0, 0, 0, 0 };
+					glClearTexSubImage(
+						framebuffer.colorAttachments[this->cacheCurrentColorAttachment].graphicsId,
+						0,
+						svgTextureOffset.x, svgTextureOffset.y, 0,
+						allottedSize.x, allottedSize.y, 0,
+						GL_RGBA, GL_UNSIGNED_INT,
+						clearColor
+					);
 				}
 				else
 				{
