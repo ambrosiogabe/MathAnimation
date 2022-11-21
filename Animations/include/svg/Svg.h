@@ -76,6 +76,7 @@ namespace MathAnim
 		void calculateBBox();
 		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& textureOffset) const;
 		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool isSvgGroup) const;
+		void renderOutline(float t, const AnimObject* parent) const;
 		void free();
 
 		void serialize(RawMemory& memory) const;
@@ -98,6 +99,7 @@ namespace MathAnim
 		void calculateBBox();
 		void render(NVGcontext* vg, AnimObject* parent) const;
 		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent) const;
+		void renderOutline(float t, const AnimObject* parent) const;
 		void free();
 	};
 

@@ -143,6 +143,13 @@ namespace MathAnim
 		int min(int a, int b);
 		float saturate(float val);
 
+		inline float dot(const Vec2& a, const Vec2& b) { return a.x * b.x + a.y * b.y; }
+		inline float dot(const Vec3& a, const Vec3& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+
+		inline float abs(float a) { return a > 0 ? a : -a; }
+		inline Vec2 abs(const Vec2& a) { return Vec2{ abs(a.x), abs(a.y) }; }
+		inline Vec3 abs(const Vec3& a) { return Vec3{ abs(a.x), abs(a.y), abs(a.z)}; }
+
 		// Max, Min helpers
 		Vec2 max(const Vec2& a, const Vec2& b);
 		Vec2 min(const Vec2& a, const Vec2& b);
@@ -165,6 +172,14 @@ namespace MathAnim
 		Vec3 bezier1(const Vec3& p0, const Vec3& p1, float t);
 		Vec3 bezier2(const Vec3& p0, const Vec3& p1, const Vec3& p2, float t);
 		Vec3 bezier3(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t);
+
+		Vec2 bezier1Normal(const Vec2& p0, const Vec2& p1, float t);
+		Vec2 bezier2Normal(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t);
+		Vec2 bezier3Normal(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float t);
+
+		Vec3 bezier1Normal(const Vec3& p0, const Vec3& p1, float t);
+		Vec3 bezier2Normal(const Vec3& p0, const Vec3& p1, const Vec3& p2, float t);
+		Vec3 bezier3Normal(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t);
 
 		// Bezier extremities
 		// Returns pair <xRoot, yRoot> in tValues

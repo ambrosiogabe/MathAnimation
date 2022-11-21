@@ -378,6 +378,8 @@ namespace MathAnim
 
 			// Default SVG objects will just render the svgObject component
 			Application::getSvgCache()->render(vg, am, this->svgObject, this->id);
+			// Render outline
+			this->svgObject->renderOutline(this->percentCreated, this);
 		}
 		break;
 		case AnimObjectTypeV1::Cube:
@@ -691,6 +693,7 @@ namespace MathAnim
 			if (child)
 			{
 				child->percentCreated = newPercentCreated;
+				child->fillColor.a = (uint8)(newPercentCreated * 255.0f);
 			}
 		}
 	}
@@ -1371,6 +1374,7 @@ namespace MathAnim
 		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
 			obj->percentCreated = t;
+			obj->fillColor.a = (uint8)(t * 255.0f);
 			obj->updateChildrenPercentCreatedSnapshot(snapshot, t);
 			// TODO: Bleh... Figure something out!!!
 			obj->updateStatusSnapshot(snapshot, t > 0.0f && t < 1.0f ? AnimObjectStatus::Animating : t >= 1.0f ? AnimObjectStatus::Active : AnimObjectStatus::Inactive);

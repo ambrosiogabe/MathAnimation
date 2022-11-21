@@ -962,6 +962,7 @@ namespace MathAnim
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
 	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj, bool isSvgGroup);
+	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj);
 
 	void SvgObject::normalize(const Vec2& inMin, const Vec2& inMax)
 	{
@@ -1183,6 +1184,11 @@ namespace MathAnim
 	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool isSvgGroup) const
 	{
 		renderCreateAnimation2D(vg, t, parent, textureOffset, this, isSvgGroup);
+	}
+
+	void SvgObject::renderOutline(float t, const AnimObject* parent) const
+	{
+		renderOutline2D(t, parent, this);
 	}
 
 	void SvgObject::free()
@@ -1551,7 +1557,6 @@ namespace MathAnim
 
 		// Instead of translating, we'll map every coordinate from the SVG min-max range to
 		// the preferred coordinate range
-		//nvgTranslate(vg, textureOffset.x, textureOffset.y);
 		Vec2 scaledBboxMin = obj->bbox.min;
 		scaledBboxMin.x *= parent->svgScale;
 		scaledBboxMin.y *= parent->svgScale;
@@ -1572,27 +1577,16 @@ namespace MathAnim
 		Vec2 outXRange = Vec2{ minCoord.x, maxCoord.x };
 		Vec2 outYRange = Vec2{ minCoord.y, maxCoord.y };
 
-		if (lengthToDraw > 0 && obj->numPaths > 0)
+		if (obj->numPaths > 0)
 		{
-			float lengthDrawn = 0.0f;
 			nvgBeginPath(vg);
 
 			for (int pathi = 0; pathi < obj->numPaths; pathi++)
 			{
 				if (obj->paths[pathi].numCurves > 0)
 				{
-					// Fade the stroke out as the svg fades in
-					const glm::u8vec4& strokeColor = parent->strokeColor;
-					if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
-					{
-						nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, (unsigned char)((float)strokeColor.a * (1.0f - percentToFadeIn))));
-						nvgStrokeWidth(vg, defaultStrokeWidth);
-					}
-					else
-					{
-						nvgStrokeColor(vg, nvgRGBA(strokeColor.r, strokeColor.g, strokeColor.b, strokeColor.a));
-						nvgStrokeWidth(vg, parent->strokeWidth);
-					}
+					nvgStrokeColor(vg, nvgRGBA(0, 0, 0, 0));
+					nvgStrokeWidth(vg, 0.0f);
 
 					{
 						Vec2 p0 = obj->paths[pathi].curves[0].p0;
@@ -1609,12 +1603,6 @@ namespace MathAnim
 
 					for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
 					{
-						float lengthLeft = lengthToDraw - lengthDrawn;
-						if (lengthLeft < 0.0f)
-						{
-							break;
-						}
-
 						const Curve& curve = obj->paths[pathi].curves[curvei];
 						Vec2 p0 = curve.p0;
 
@@ -1625,44 +1613,6 @@ namespace MathAnim
 							Vec2 p1 = curve.as.bezier3.p1;
 							Vec2 p2 = curve.as.bezier3.p2;
 							Vec2 p3 = curve.as.bezier3.p3;
-
-							float chordLength = CMath::length(p3 - p0);
-							float controlNetLength = CMath::length(p1 - p0) + CMath::length(p2 - p1) + CMath::length(p3 - p2);
-							float approxLength = (chordLength + controlNetLength) / 2.0f;
-							lengthDrawn += approxLength;
-
-							if (lengthLeft < approxLength)
-							{
-								// Interpolate the curve
-								float percentOfCurveToDraw = lengthLeft / approxLength;
-
-								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
-								float t0 = 0.0f;
-								float t1 = percentOfCurveToDraw;
-								float u0 = 1.0f;
-								float u1 = (1.0f - t1);
-
-								Vec2 q0 = ((u0 * u0 * u0) * p0) +
-									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-									((t0 * t0 * t0) * p3);
-								Vec2 q1 = ((u0 * u0 * u1) * p0) +
-									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-									((t0 * t0 * t1) * p3);
-								Vec2 q2 = ((u0 * u1 * u1) * p0) +
-									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-									((t0 * t1 * t1) * p3);
-								Vec2 q3 = ((u1 * u1 * u1) * p0) +
-									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-									((t1 * t1 * t1) * p3);
-
-								p1 = q1;
-								p2 = q2;
-								p3 = q3;
-							}
 
 							p1.x *= parent->svgScale;
 							p1.y *= parent->svgScale;
@@ -1699,48 +1649,6 @@ namespace MathAnim
 							Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
 							Vec2 pr3 = p3;
 
-							float chordLength = CMath::length(pr3 - pr0);
-							float controlNetLength = CMath::length(pr1 - pr0) + CMath::length(pr2 - pr1) + CMath::length(pr3 - pr2);
-							float approxLength = (chordLength + controlNetLength) / 2.0f;
-							lengthDrawn += approxLength;
-
-							if (lengthLeft < approxLength)
-							{
-								// Interpolate the curve
-								float percentOfCurveToDraw = lengthLeft / approxLength;
-
-								p1 = (pr1 - pr0) * percentOfCurveToDraw + pr0;
-								p2 = (pr2 - pr1) * percentOfCurveToDraw + pr1;
-								p3 = (pr3 - pr2) * percentOfCurveToDraw + pr2;
-
-								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
-								float t0 = 0.0f;
-								float t1 = percentOfCurveToDraw;
-								float u0 = 1.0f;
-								float u1 = (1.0f - t1);
-
-								Vec2 q0 = ((u0 * u0 * u0) * p0) +
-									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-									((t0 * t0 * t0) * p3);
-								Vec2 q1 = ((u0 * u0 * u1) * p0) +
-									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-									((t0 * t0 * t1) * p3);
-								Vec2 q2 = ((u0 * u1 * u1) * p0) +
-									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-									((t0 * t1 * t1) * p3);
-								Vec2 q3 = ((u1 * u1 * u1) * p0) +
-									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-									((t1 * t1 * t1) * p3);
-
-								pr1 = q1;
-								pr2 = q2;
-								pr3 = q3;
-							}
-
 							pr1.x *= parent->svgScale;
 							pr1.y *= parent->svgScale;
 							pr1.x = CMath::mapRange(inXRange, outXRange, pr1.x);
@@ -1767,14 +1675,6 @@ namespace MathAnim
 						case CurveType::Line:
 						{
 							Vec2 p1 = curve.as.line.p1;
-							float curveLength = CMath::length(p1 - p0);
-							lengthDrawn += curveLength;
-
-							if (lengthLeft < curveLength)
-							{
-								float percentOfCurveToDraw = lengthLeft / curveLength;
-								p1 = (p1 - p0) * percentOfCurveToDraw + p0;
-							}
 
 							p1.x *= parent->svgScale;
 							p1.y *= parent->svgScale;
@@ -1799,22 +1699,12 @@ namespace MathAnim
 				{
 					nvgPathWinding(vg, NVG_SOLID);
 				}
-
-				if (lengthDrawn > lengthToDraw)
-				{
-					break;
-				}
 			}
 
-			nvgStroke(vg);
-
-			// Fill the path as well if it's fading in
-			if (amountToFadeIn > 0)
-			{
-				const glm::u8vec4& fillColor = parent->fillColor;
-				nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, (unsigned char)(fillColor.a * percentToFadeIn)));
-				nvgFill(vg);
-			}
+			// Draw the SVG with full alpha since we apply alpha changes at the compositing level
+			const glm::u8vec4& fillColor = parent->fillColor;
+			nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, 255));
+			nvgFill(vg);
 		}
 
 		if (parent->drawDebugBoxes)
@@ -2169,5 +2059,235 @@ namespace MathAnim
 		}
 
 		nvgResetTransform(vg);
+	}
+
+	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj)
+	{
+		constexpr float defaultStrokeWidth = 0.02f;
+
+		// Start the fade in after 80% of the svg object is drawn
+		float lengthToDraw = t * (float)obj->approximatePerimeter;
+		Vec2 svgSize = obj->bbox.max - obj->bbox.min;
+
+		Vec2 inXRange = Vec2{ obj->bbox.min.x, obj->bbox.max.x };
+		Vec2 inYRange = Vec2{ obj->bbox.min.y, obj->bbox.max.y };
+		Vec2 outXRange = Vec2{ -svgSize.x / 2.0f, svgSize.x / 2.0f };
+		Vec2 outYRange = Vec2{ svgSize.y / 2.0f, -svgSize.y / 2.0f };
+
+		if (lengthToDraw > 0 && obj->numPaths > 0)
+		{
+			float lengthDrawn = 0.0f;
+			Renderer::setTransform(parent->globalTransform);
+
+			for (int pathi = 0; pathi < obj->numPaths; pathi++)
+			{
+				if (obj->paths[pathi].numCurves > 0)
+				{
+					// Fade the stroke out as the svg fades in
+					const glm::u8vec4& strokeColor = parent->strokeColor;
+					if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
+					{
+						//Renderer::pushColor(strokeColor);
+						Renderer::pushColor("#F30101"_hex);
+						Renderer::pushStrokeWidth(defaultStrokeWidth);
+					}
+					else
+					{
+						//Renderer::pushColor(strokeColor);
+						Renderer::pushColor("#F30101"_hex);
+						Renderer::pushStrokeWidth(parent->strokeWidth);
+					}
+
+					{
+						Vec2 p0 = obj->paths[pathi].curves[0].p0;
+
+						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
+						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
+
+						Renderer::beginPath3D(Vec3{ p0.x, p0.y, 0.0f });
+					}
+
+					for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
+					{
+						float lengthLeft = lengthToDraw - lengthDrawn;
+						if (lengthLeft < 0.0f)
+						{
+							break;
+						}
+
+						const Curve& curve = obj->paths[pathi].curves[curvei];
+						Vec2 p0 = curve.p0;
+
+						switch (curve.type)
+						{
+						case CurveType::Bezier3:
+						{
+							Vec2 p1 = curve.as.bezier3.p1;
+							Vec2 p2 = curve.as.bezier3.p2;
+							Vec2 p3 = curve.as.bezier3.p3;
+
+							float chordLength = CMath::length(p3 - p0);
+							float controlNetLength = CMath::length(p1 - p0) + CMath::length(p2 - p1) + CMath::length(p3 - p2);
+							float approxLength = (chordLength + controlNetLength) / 2.0f;
+							lengthDrawn += approxLength;
+
+							if (lengthLeft < approxLength)
+							{
+								// Interpolate the curve
+								float percentOfCurveToDraw = lengthLeft / approxLength;
+
+								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+								float t0 = 0.0f;
+								float t1 = percentOfCurveToDraw;
+								float u0 = 1.0f;
+								float u1 = (1.0f - t1);
+
+								Vec2 q0 = ((u0 * u0 * u0) * p0) +
+									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
+									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
+									((t0 * t0 * t0) * p3);
+								Vec2 q1 = ((u0 * u0 * u1) * p0) +
+									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
+									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
+									((t0 * t0 * t1) * p3);
+								Vec2 q2 = ((u0 * u1 * u1) * p0) +
+									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
+									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
+									((t0 * t1 * t1) * p3);
+								Vec2 q3 = ((u1 * u1 * u1) * p0) +
+									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
+									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
+									((t1 * t1 * t1) * p3);
+
+								p1 = q1;
+								p2 = q2;
+								p3 = q3;
+							}
+
+							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
+							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
+
+							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
+							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
+
+							Renderer::bezier3To3D(
+								Vec3{ p1.x, p1.y, 0.0f },
+								Vec3{ p2.x, p2.y, 0.0f },
+								Vec3{ p3.x, p3.y, 0.0f }
+							);
+						}
+						break;
+						case CurveType::Bezier2:
+						{
+							Vec2 p1 = curve.as.bezier2.p1;
+							Vec2 p2 = curve.as.bezier2.p1;
+							Vec2 p3 = curve.as.bezier2.p2;
+
+							// Degree elevated quadratic bezier curve
+							Vec2 pr0 = p0;
+							Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
+							Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+							Vec2 pr3 = p3;
+
+							float chordLength = CMath::length(pr3 - pr0);
+							float controlNetLength = CMath::length(pr1 - pr0) + CMath::length(pr2 - pr1) + CMath::length(pr3 - pr2);
+							float approxLength = (chordLength + controlNetLength) / 2.0f;
+							lengthDrawn += approxLength;
+
+							if (lengthLeft < approxLength)
+							{
+								// Interpolate the curve
+								float percentOfCurveToDraw = lengthLeft / approxLength;
+
+								p1 = (pr1 - pr0) * percentOfCurveToDraw + pr0;
+								p2 = (pr2 - pr1) * percentOfCurveToDraw + pr1;
+								p3 = (pr3 - pr2) * percentOfCurveToDraw + pr2;
+
+								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+								float t0 = 0.0f;
+								float t1 = percentOfCurveToDraw;
+								float u0 = 1.0f;
+								float u1 = (1.0f - t1);
+
+								Vec2 q0 = ((u0 * u0 * u0) * p0) +
+									((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
+									((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
+									((t0 * t0 * t0) * p3);
+								Vec2 q1 = ((u0 * u0 * u1) * p0) +
+									((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
+									((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
+									((t0 * t0 * t1) * p3);
+								Vec2 q2 = ((u0 * u1 * u1) * p0) +
+									((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
+									((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
+									((t0 * t1 * t1) * p3);
+								Vec2 q3 = ((u1 * u1 * u1) * p0) +
+									((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
+									((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
+									((t1 * t1 * t1) * p3);
+
+								pr1 = q1;
+								pr2 = q2;
+								pr3 = q3;
+							}
+
+							pr1.x = CMath::mapRange(inXRange, outXRange, pr1.x);
+							pr1.y = CMath::mapRange(inYRange, outYRange, pr1.y);
+
+							pr2.x = CMath::mapRange(inXRange, outXRange, pr2.x);
+							pr2.y = CMath::mapRange(inYRange, outYRange, pr2.y);
+
+							pr3.x = CMath::mapRange(inXRange, outXRange, pr3.x);
+							pr3.y = CMath::mapRange(inYRange, outYRange, pr3.y);
+
+							Renderer::bezier3To3D(
+								Vec3{ pr1.x, pr1.y, 0.0f },
+								Vec3{ pr2.x, pr2.y, 0.0f },
+								Vec3{ pr3.x, pr3.y, 0.0f }
+							);
+						}
+						break;
+						case CurveType::Line:
+						{
+							Vec2 p1 = curve.as.line.p1;
+							float curveLength = CMath::length(p1 - p0);
+							lengthDrawn += curveLength;
+
+							if (lengthLeft < curveLength)
+							{
+								float percentOfCurveToDraw = lengthLeft / curveLength;
+								p1 = ((p1 - p0) * percentOfCurveToDraw) + p0;
+							}
+
+							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+							Renderer::lineTo3D(Vec3{ p1.x, p1.y, 0.0f });
+						}
+						break;
+						default:
+							g_logger_warning("Unknown curve type in render %d", (int)curve.type);
+							break;
+						}
+					}
+
+					Renderer::popStrokeWidth();
+					Renderer::popColor();
+				}
+
+				if (lengthDrawn > lengthToDraw)
+				{
+					Renderer::endPath3D(false);
+					break;
+				}
+				else
+				{
+					Renderer::endPath3D(true);
+				}
+			}
+		}
 	}
 }

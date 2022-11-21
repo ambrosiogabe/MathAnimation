@@ -70,7 +70,7 @@ namespace MathAnim
 		void generateDefaultFramebuffer(uint32 width, uint32 height);
 		void addColorAttachment();
 
-		uint64 hash(AnimObjId obj, float percentCreated, float svgScale);
+		uint64 hash(AnimObjId obj, float svgScale);
 
 	private:
 		// TODO: Add LRU-cache for long term storage

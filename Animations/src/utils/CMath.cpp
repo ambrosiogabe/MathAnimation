@@ -250,6 +250,58 @@ namespace MathAnim
 				t * t * t * p3;
 		}
 
+		Vec2 bezier1Normal(const Vec2& p0, const Vec2& p1, float t)
+		{
+			return normalize(p1 - p0);
+		}
+
+		Vec2 bezier2Normal(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t)
+		{
+			// Derivative taken from https://en.wikipedia.org/wiki/Bézier_curve#Quadratic_Bézier_curves
+			// Just return the normalized derivative at point t
+			return normalize(
+				(2.0f * (1.0f - t) * (p1 - p0)) + 
+				(2.0f * t * (p2 - p1))
+			);
+		}
+
+		Vec2 bezier3Normal(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float t)
+		{
+			// Derivative taken from https://en.wikipedia.org/wiki/Bézier_curve#Cubic_Bézier_curves
+			// Just return the normalized derivative at point t
+			return normalize(
+				(3.0f * (1.0f - t) * (1.0f - t) * (p1 - p0)) +
+				(6.0f * (1.0f - t) * t * (p2 - p1)) + 
+				(3.0f * t * t * (p3 - p2))
+			);
+		}
+
+		Vec3 bezier1Normal(const Vec3& p0, const Vec3& p1, float t)
+		{
+			return normalize(p1 -  p0);
+		}
+
+		Vec3 bezier2Normal(const Vec3& p0, const Vec3& p1, const Vec3& p2, float t)
+		{
+			// Derivative taken from https://en.wikipedia.org/wiki/Bézier_curve#Quadratic_Bézier_curves
+			// Just return the normalized derivative at point t
+			return normalize(
+				(2.0f * (1.0f - t) * (p1 - p0)) +
+				(2.0f * t * (p2 - p1))
+			);
+		}
+
+		Vec3 bezier3Normal(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t)
+		{
+			// Derivative taken from https://en.wikipedia.org/wiki/Bézier_curve#Cubic_Bézier_curves
+			// Just return the normalized derivative at point t
+			return normalize(
+				(3.0f * (1.0f - t) * (1.0f - t) * (p1 - p0)) +
+				(6.0f * (1.0f - t) * t * (p2 - p1)) +
+				(3.0f * t * t * (p3 - p2))
+			);
+		}
+
 		Vec2 tRootBezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2)
 		{
 			Vec2 w0 = 2.0f * (p1 - p0);

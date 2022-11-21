@@ -4,7 +4,21 @@ namespace MathAnim
 {
 	namespace EditorSettings
 	{
+		enum class ViewMode : int
+		{
+			WireMesh,
+			Normal,
+			Length
+		};
+
+		static const char* viewModeStrings[(uint8)ViewMode::Length + 1] = {
+			"Wire Mesh View",
+			"Normal View",
+			"Length"
+		};
+
 		static EditorSettingsData* data = nullptr;
+		static ViewMode viewMode = ViewMode::Normal;
 
 		void init()
 		{
@@ -24,6 +38,32 @@ namespace MathAnim
 
 				ImGui::DragFloat(": Camera Pan Sensitivity", &data->mouseSensitivity, 0.2f, 1.0f, 20.0f);
 				ImGui::DragFloat(": Camera Zoom Sensitivity", &data->scrollSensitvity, 0.2f, 1.0f, 20.0f);
+
+				if (ImGui::BeginCombo("View Mode", viewModeStrings[(int)viewMode]))
+				{
+					for (int i = 0; i < (int)ViewMode::Length; i++)
+					{
+						if (ImGui::Selectable(viewModeStrings[i]))
+						{
+							viewMode = (ViewMode)i;
+							switch (viewMode)
+							{
+							case ViewMode::WireMesh:
+								glLineWidth(3.0f);
+								glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+								break;
+							case ViewMode::Normal:
+								glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+								break;
+							default:
+								g_logger_error("Unknown view mode: %d", viewMode);
+								break;
+							}
+							ImGui::CloseCurrentPopup();
+						}
+					}
+					ImGui::EndCombo();
+				}
 
 				ImGui::End();
 			}

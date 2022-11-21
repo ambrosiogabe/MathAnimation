@@ -668,7 +668,7 @@ namespace MathAnim
 						g_logger_assert(false, "Unknown curve start.");
 					}
 
-					for (int p = 0; p <= numPoints; p++)
+					for (int p = 1; p <= numPoints; p++)
 					{
 						shouldCloseContour = true;
 
@@ -750,7 +750,7 @@ namespace MathAnim
 					}
 
 					// Close the contour
-					Svg::lineTo(res.svg, previousPosition);
+					//Svg::lineTo(res.svg, previousPosition);
 				}
 
 				if (shouldCloseContour)

@@ -27,13 +27,13 @@ namespace MathAnim
 	bool SvgCache::exists(AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
-		return this->cachedSvgs.exists(hash(obj, animObj->percentCreated, animObj->svgScale));
+		return this->cachedSvgs.exists(hash(obj, animObj->svgScale));
 	}
 
 	SvgCacheEntry SvgCache::get(AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
-		auto entry = this->cachedSvgs.get(hash(obj, animObj->percentCreated, animObj->svgScale));
+		auto entry = this->cachedSvgs.get(hash(obj, animObj->svgScale));
 		if (entry.has_value())
 		{
 			return SvgCacheEntry{
@@ -56,7 +56,7 @@ namespace MathAnim
 	SvgCacheEntry SvgCache::getOrCreateIfNotExist(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj, bool isSvgGroup)
 	{
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
-		auto entry = this->cachedSvgs.get(hash(obj, animObj->percentCreated, animObj->svgScale));
+		auto entry = this->cachedSvgs.get(hash(obj, animObj->svgScale));
 		if (entry.has_value())
 		{
 			return SvgCacheEntry{
@@ -73,7 +73,7 @@ namespace MathAnim
 
 	void SvgCache::put(NVGcontext* vg, const AnimObject* parent, SvgObject* svg, bool isSvgGroup)
 	{
-		uint64 hashValue = hash(parent->id, parent->percentCreated, parent->svgScale);
+		uint64 hashValue = hash(parent->id, parent->svgScale);
 
 		// Only add the SVG if it hasn't already been added
 		//auto iter = this->cachedSvgs.find(hashValue);
@@ -238,6 +238,12 @@ namespace MathAnim
 					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
 					metadata.texCoordsMin,
 					metadata.texCoordsMax,
+					Vec4{
+						(float)parent->fillColor.r / 255.0f, 
+						(float)parent->fillColor.g / 255.0f, 
+						(float)parent->fillColor.b / 255.0f, 
+						(float)parent->fillColor.a / 255.0f
+					},
 					parent->id,
 					parent->globalTransform
 				);
@@ -370,13 +376,10 @@ namespace MathAnim
 		//	.generate();
 	}
 
-	uint64 SvgCache::hash(AnimObjId obj, float percentCreated, float svgScale)
+	uint64 SvgCache::hash(AnimObjId obj, float svgScale)
 	{
 		uint64 hash = obj;
 		// Only hash floating point numbers to 3 decimal places
-		// This allows up to 16 seconds unique frames in an animation
-		int roundedPercentCreated = (int)(percentCreated * 1000.0f);
-		hash = CMath::combineHash<int>(roundedPercentCreated, hash);
 		int roundedSvgScale = (int)(svgScale * 1000.0f);
 		hash = CMath::combineHash<int>(roundedSvgScale, hash);
 		return hash;

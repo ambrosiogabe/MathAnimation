@@ -59,22 +59,23 @@ namespace MathAnim
 		// batch draw calls together and improve performance
 		void drawSquare(const Vec2& start, const Vec2& size);
 		void drawFilledQuad(const Vec2& start, const Vec2& size, uint32 objId = UINT32_MAX);
-		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, AnimObjId objId, const glm::mat4& transform = glm::identity<glm::mat4>());
+		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, uint32 objId = UINT32_MAX);
-		void drawLine(const Vec2& start, const Vec2& end);
+		void drawLine(const Vec2& start, const Vec2& end, const Vec2& startNormal = {FLT_MAX, FLT_MAX}, float startThickness = 0.0f, const Vec2& endNormal = {FLT_MAX, FLT_MAX}, float endThickness = 0.0f);
 		void drawString(const std::string& string, const Vec2& start, uint32 objId);
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
 
 		// ----------- 3D Line stuff ----------- 
-		void beginPath3D(const Vec3& start);
+		void beginPath3D(const Vec3& start, const Vec3& normal = Vec3{FLT_MAX, FLT_MAX, FLT_MAX});
 		void endPath3D(bool closePath = true);
 
-		void lineTo3D(const Vec3& point, bool applyTransform = true);
+		void lineTo3D(const Vec3& point, bool applyTransform = true, const Vec3& normal = Vec3{FLT_MAX, FLT_MAX, FLT_MAX});
 		void bezier2To3D(const Vec3& p1, const Vec3& p2);
 		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3);
 
 		void translate3D(const Vec3& translation);
 		void rotate3D(const Vec3& eulerAngles);
+		void setTransform(const glm::mat4& transform);
 		void resetTransform3D();
 
 		// ----------- 3D stuff ----------- 
