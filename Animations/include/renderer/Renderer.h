@@ -14,6 +14,7 @@ namespace MathAnim
 	struct Font;
 	struct SizedFont;
 	struct AnimationManagerData;
+	struct Path2DContext;
 
 	enum class CapType
 	{
@@ -64,6 +65,17 @@ namespace MathAnim
 		void drawLine(const Vec2& start, const Vec2& end, const Vec2& startNormal = {FLT_MAX, FLT_MAX}, float startThickness = 0.0f, const Vec2& endNormal = {FLT_MAX, FLT_MAX}, float endThickness = 0.0f);
 		void drawString(const std::string& string, const Vec2& start, uint32 objId);
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
+
+		// ----------- 2D Line stuff ----------- 
+		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform = glm::identity<glm::mat4>(), const Vec2& normal = Vec2{ FLT_MAX, FLT_MAX });
+		void free(Path2DContext* path);
+		void endPath(Path2DContext* path, bool closePath = true);
+
+		void lineTo(Path2DContext* path, const Vec2& point, bool applyTransform = true, const Vec2& normal = Vec2{ FLT_MAX, FLT_MAX });
+		void quadTo(Path2DContext* path, const Vec2& p1, const Vec2& p2);
+		void cubicTo(Path2DContext* path, const Vec2& p1, const Vec2& p2, const Vec2& p3);
+
+		void setTransform(Path2DContext* path, const glm::mat4& transform);
 
 		// ----------- 3D Line stuff ----------- 
 		void beginPath3D(const Vec3& start, const Vec3& normal = Vec3{FLT_MAX, FLT_MAX, FLT_MAX});

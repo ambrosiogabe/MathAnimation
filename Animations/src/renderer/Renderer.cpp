@@ -177,6 +177,20 @@ namespace MathAnim
 		Vec3 normal;
 	};
 
+	struct Path_Vertex2DLine
+	{
+		Vec2 position;
+		Vec2 normal;
+		float thickness;
+		Vec4 color;
+	};
+
+	struct Path2DContext
+	{
+		std::vector<Path_Vertex2DLine> data;
+		glm::mat4 transform;
+	};
+
 	struct Path_Vertex3DLine
 	{
 		Vec3 position;
@@ -295,6 +309,8 @@ namespace MathAnim
 		static uint32 getColorCompressed();
 		static const glm::vec4& getColor();
 		static float getStrokeWidth();
+		static void generateMiter(const Vec2& previousPoint, const Vec2& currentPoint, const Vec2& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth);
+		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth);
 
 		void init(OrthoCamera& inOrthoCamera, PerspectiveCamera& inPerspCamera)
 		{
@@ -683,6 +699,224 @@ namespace MathAnim
 			}
 		}
 
+		// ----------- 2D Line stuff ----------- 
+		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform, const Vec2& normal)
+		{
+			Path2DContext* context = (Path2DContext*)g_memory_allocate(sizeof(Path2DContext));
+			new(context)Path2DContext();
+
+			float strokeWidth = strokeWidthStackPtr > 0
+				? strokeWidthStack[strokeWidthStackPtr - 1]
+				: defaultStrokeWidth;
+
+			glm::vec4 color = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+
+			context->transform = transform;
+			glm::vec4 translatedPos = glm::vec4(start.x, start.y, 0.0f, 1.0f);
+			translatedPos = context->transform * translatedPos;
+
+			Path_Vertex2DLine vert;
+			vert.position = Vec2{ translatedPos.x, translatedPos.y };
+			vert.color = Vec4{
+				color.r,
+				color.g,
+				color.b,
+				color.a
+			};
+			vert.thickness = strokeWidth;
+			vert.normal = normal;
+			context->data.emplace_back(vert);
+
+			return context;
+		}
+
+		void free(Path2DContext* path)
+		{
+			path->~Path2DContext();
+			g_memory_free(path);
+		}
+
+		void endPath(Path2DContext* path, bool closePath)
+		{
+			g_logger_assert(path != nullptr, "Null path.");
+
+			int endPoint = (int)path->data.size();
+			if (closePath && current3DPath[0].position == current3DPath[numVertsIn3DPath - 1].position)
+			{
+				endPoint--;
+			}
+
+			for (int vert = 0; vert < endPoint; vert++)
+			{
+				Vec2 currentPos = path->data[vert].position;
+				Vec2 nextPos = vert + 1 < endPoint
+					? path->data[vert + 1].position
+					: closePath
+					? path->data[(vert + 1) % endPoint].position
+					: path->data[endPoint - 1].position;
+				Vec2 nextNextPos = vert + 2 < endPoint
+					? path->data[vert + 2].position
+					: closePath
+					? path->data[(vert + 2) % endPoint].position
+					: path->data[endPoint - 1].position;
+				Vec2 previousPos = vert > 0
+					? path->data[vert - 1].position
+					: closePath
+					? path->data[endPoint - 1].position
+					: path->data[0].position;
+				Vec4 unpackedColor = path->data[vert].color;
+				float thickness = path->data[vert].thickness;
+
+				Renderer::pushStrokeWidth(thickness);
+				Renderer::pushColor(unpackedColor);
+
+				Vec2 firstNormal = path->data[vert].normal;
+				Vec2 secondNormal = path->data[(vert + 1) % endPoint].normal;
+
+				float firstThickness = 0.0f;
+				float secondThickness = 0.0f;
+				if (firstNormal == Vec2{ FLT_MAX, FLT_MAX })
+				{
+					generateMiter(previousPos, currentPos, nextPos, thickness, &firstNormal, &firstThickness);
+				}
+				if (secondNormal == Vec2{ FLT_MAX, FLT_MAX })
+				{
+					generateMiter(currentPos, nextPos, nextNextPos, thickness, &secondNormal, &secondThickness);
+				}
+
+				if (currentPos == previousPos)
+				{
+					// If we're drawing the beginning of the path, just
+					// do a straight cap on the line segment
+					firstNormal = CMath::normalize(nextPos - currentPos);
+					firstThickness = thickness;
+				}
+				if (nextPos == nextNextPos)
+				{
+					// If we're drawing the end of the path, just
+					// do a straight cap on the line segment
+					secondNormal = CMath::normalize(nextPos - currentPos);
+					secondThickness = thickness;
+				}
+
+				drawLine(currentPos, nextPos, firstNormal, firstThickness, secondNormal, secondThickness);
+
+				Renderer::popStrokeWidth();
+				Renderer::popColor();
+			}
+		}
+
+		void lineTo(Path2DContext* path, const Vec2& point, bool applyTransform, const Vec2& normal)
+		{
+			g_logger_assert(path != nullptr, "Null path.");
+
+			float strokeWidth = strokeWidthStackPtr > 0
+				? strokeWidthStack[strokeWidthStackPtr - 1]
+				: defaultStrokeWidth;
+
+			glm::vec4 color = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+
+			glm::vec4 translatedPos = glm::vec4(point.x, point.y, 0.0f, 1.0f);
+			if (applyTransform)
+			{
+				translatedPos = path->transform * translatedPos;
+			}
+
+			Path_Vertex2DLine vert;
+			vert.position = Vec2{ translatedPos.x, translatedPos.y };
+			vert.color = Vec4{
+				color.r,
+				color.g,
+				color.b,
+				color.a
+			};
+			vert.thickness = strokeWidth;
+			vert.normal = normal;
+			path->data.emplace_back(vert);
+		}
+
+		void quadTo(Path2DContext* path, const Vec2& p1, const Vec2& p2)
+		{
+			g_logger_assert(path != nullptr, "Null path.");
+			g_logger_assert(path->data.size() > 0, "Cannot do a quadTo on an empty path.");
+
+			glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, 0.0f, 1.0f);
+			glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, 0.0f, 1.0f);
+
+			tmpP1 = path->transform * tmpP1;
+			tmpP2 = path->transform * tmpP2;
+
+			Vec2 transformedP0 = path->data[path->data.size() - 1].position;
+			Vec2 transformedP1 = Vec2{ tmpP1.x, tmpP1.y };
+			Vec2 transformedP2 = Vec2{ tmpP2.x, tmpP2.y };
+
+			// Estimate the length of the bezier curve to get an approximate for the
+			// number of line segments to use
+			Vec2 chord1 = transformedP1 - transformedP0;
+			Vec2 chord2 = transformedP2 - transformedP1;
+			float chordLengthSq = CMath::lengthSquared(chord1) + CMath::lengthSquared(chord2);
+			float lineLengthSq = CMath::lengthSquared(transformedP2 - transformedP0);
+			float approxLength = glm::sqrt(lineLengthSq + chordLengthSq) / 2.0f;
+			int numSegments = (int)(approxLength * 40.0f);
+			for (int i = 1; i < numSegments - 1; i++)
+			{
+				float t = (float)i / (float)numSegments;
+				Vec2 interpPoint = CMath::bezier2(transformedP0, transformedP1, transformedP2, t);
+				Vec2 normal = CMath::bezier2Normal(transformedP0, transformedP1, transformedP2, t);
+				lineTo(path, interpPoint, false, normal);
+			}
+
+			lineTo(path, transformedP2, false);
+		}
+
+		void cubicTo(Path2DContext* path, const Vec2& p1, const Vec2& p2, const Vec2& p3)
+		{
+			g_logger_assert(path != nullptr, "Null path.");
+			g_logger_assert(path->data.size() > 0, "Cannot do a cubicTo on an empty path.");
+
+			glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, 0.0f, 1.0f);
+			glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, 0.0f, 1.0f);
+			glm::vec4 tmpP3 = glm::vec4(p3.x, p3.y, 0.0f, 1.0f);
+
+			tmpP1 = path->transform * tmpP1;
+			tmpP2 = path->transform * tmpP2;
+			tmpP3 = path->transform * tmpP3;
+
+			Vec2 transformedP0 = path->data[path->data.size() - 1].position;
+			Vec2 transformedP1 = Vec2{ tmpP1.x, tmpP1.y };
+			Vec2 transformedP2 = Vec2{ tmpP2.x, tmpP2.y };
+			Vec2 transformedP3 = Vec2{ tmpP3.x, tmpP3.y };
+
+			// Estimate the length of the bezier curve to get an approximate for the
+			// number of line segments to use
+			Vec2 chord1 = transformedP1 - transformedP0;
+			Vec2 chord2 = transformedP2 - transformedP1;
+			Vec2 chord3 = transformedP3 - transformedP2;
+			float chordLengthSq = CMath::lengthSquared(chord1) + CMath::lengthSquared(chord2) + CMath::lengthSquared(chord3);
+			float lineLengthSq = CMath::lengthSquared(transformedP3 - transformedP0);
+			float approxLength = glm::sqrt(lineLengthSq + chordLengthSq) / 2.0f;
+			int numSegments = (int)(approxLength * 40.0f);
+			for (int i = 1; i < numSegments - 1; i++)
+			{
+				float t = (float)i / (float)numSegments;
+				Vec2 interpPoint = CMath::bezier3(transformedP0, transformedP1, transformedP2, transformedP3, t);
+				Vec2 normal = CMath::bezier3Normal(transformedP0, transformedP1, transformedP2, transformedP3, t);
+				lineTo(path, interpPoint, false, normal);
+			}
+
+			lineTo(path, transformedP3, false);
+		}
+
+		void setTransform(Path2DContext* path, const glm::mat4& transform)
+		{
+			g_logger_assert(path != nullptr, "Null path.");
+			path->transform = transform;
+		}
+
 		// ----------- 3D stuff ----------- 
 		// TODO: Consider just making these glm::vec3's. I'm not sure what kind
 		// of impact, if any that will have
@@ -713,19 +947,6 @@ namespace MathAnim
 			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
 			current3DPath[numVertsIn3DPath].normal = normal;
 			numVertsIn3DPath++;
-		}
-
-		static void generateMiter(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth)
-		{
-			Vec2 dirA = CMath::normalize(CMath::vector2From3(currentPoint - previousPoint));
-			Vec2 dirB = CMath::normalize(CMath::vector2From3(nextPoint - currentPoint));
-			Vec2 bisection = CMath::normalize(dirA + dirB);
-			Vec2 secondLinePerp = Vec2{ -dirB.y, dirB.x };
-			// This is the miter
-			Vec2 bisectionPerp = Vec2{ -bisection.y, bisection.x };
-			*outNormal = bisection;
-			*outStrokeWidth = strokeWidth / CMath::dot(bisectionPerp, secondLinePerp);
-			//*outStrokeWidth = CMath::max(CMath::min(CMath::abs(*outStrokeWidth), strokeWidth), -CMath::abs(strokeWidth));
 		}
 
 		void endPath3D(bool closePath)
@@ -779,11 +1000,11 @@ namespace MathAnim
 				float secondThickness = 0.0f;
 				if (firstNormal == Vec2{ FLT_MAX, FLT_MAX })
 				{
-					generateMiter(previousPos, currentPos, nextPos, thickness, &firstNormal, &firstThickness);
+					generateMiter3D(previousPos, currentPos, nextPos, thickness, &firstNormal, &firstThickness);
 				}
 				if (secondNormal == Vec2{ FLT_MAX, FLT_MAX })
 				{
-					generateMiter(currentPos, nextPos, nextNextPos, thickness, &secondNormal, &secondThickness);
+					generateMiter3D(currentPos, nextPos, nextNextPos, thickness, &secondNormal, &secondThickness);
 				}
 
 				if (currentPos == previousPos)
@@ -1059,6 +1280,32 @@ namespace MathAnim
 				? strokeWidthStack[strokeWidthStackPtr - 1]
 				: defaultStrokeWidth;
 			return strokeWidth;
+		}
+
+		static void generateMiter(const Vec2& previousPoint, const Vec2& currentPoint, const Vec2& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth)
+		{
+			Vec2 dirA = CMath::normalize(currentPoint - previousPoint);
+			Vec2 dirB = CMath::normalize(nextPoint - currentPoint);
+			Vec2 bisection = CMath::normalize(dirA + dirB);
+			Vec2 secondLinePerp = Vec2{ -dirB.y, dirB.x };
+			// This is the miter
+			Vec2 bisectionPerp = Vec2{ -bisection.y, bisection.x };
+			*outNormal = bisection;
+			*outStrokeWidth = strokeWidth / CMath::dot(bisectionPerp, secondLinePerp);
+			//*outStrokeWidth = CMath::max(CMath::min(CMath::abs(*outStrokeWidth), strokeWidth), -CMath::abs(strokeWidth));
+		}
+
+		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth)
+		{
+			Vec2 dirA = CMath::normalize(CMath::vector2From3(currentPoint - previousPoint));
+			Vec2 dirB = CMath::normalize(CMath::vector2From3(nextPoint - currentPoint));
+			Vec2 bisection = CMath::normalize(dirA + dirB);
+			Vec2 secondLinePerp = Vec2{ -dirB.y, dirB.x };
+			// This is the miter
+			Vec2 bisectionPerp = Vec2{ -bisection.y, bisection.x };
+			*outNormal = bisection;
+			*outStrokeWidth = strokeWidth / CMath::dot(bisectionPerp, secondLinePerp);
+			//*outStrokeWidth = CMath::max(CMath::min(CMath::abs(*outStrokeWidth), strokeWidth), -CMath::abs(strokeWidth));
 		}
 		// ---------------------- End Internal Functions ----------------------
 	}

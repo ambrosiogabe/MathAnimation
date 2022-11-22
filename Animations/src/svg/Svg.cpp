@@ -2077,10 +2077,10 @@ namespace MathAnim
 		if (lengthToDraw > 0 && obj->numPaths > 0)
 		{
 			float lengthDrawn = 0.0f;
-			Renderer::setTransform(parent->globalTransform);
 
 			for (int pathi = 0; pathi < obj->numPaths; pathi++)
 			{
+				Path2DContext* context = nullptr;
 				if (obj->paths[pathi].numCurves > 0)
 				{
 					// Fade the stroke out as the svg fades in
@@ -2104,8 +2104,9 @@ namespace MathAnim
 						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
 						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
 
-						Renderer::beginPath3D(Vec3{ p0.x, p0.y, 0.0f });
+						context = Renderer::beginPath(Vec2{ p0.x, p0.y }, parent->globalTransform);
 					}
+					g_logger_assert(context != nullptr, "We have bigger problems.");
 
 					for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
 					{
@@ -2173,10 +2174,11 @@ namespace MathAnim
 							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
 							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
 
-							Renderer::bezier3To3D(
-								Vec3{ p1.x, p1.y, 0.0f },
-								Vec3{ p2.x, p2.y, 0.0f },
-								Vec3{ p3.x, p3.y, 0.0f }
+							Renderer::cubicTo(
+								context,
+								p1,
+								p2,
+								p3
 							);
 						}
 						break;
@@ -2243,10 +2245,11 @@ namespace MathAnim
 							pr3.x = CMath::mapRange(inXRange, outXRange, pr3.x);
 							pr3.y = CMath::mapRange(inYRange, outYRange, pr3.y);
 
-							Renderer::bezier3To3D(
-								Vec3{ pr1.x, pr1.y, 0.0f },
-								Vec3{ pr2.x, pr2.y, 0.0f },
-								Vec3{ pr3.x, pr3.y, 0.0f }
+							Renderer::cubicTo(
+								context,
+								pr1,
+								pr2,
+								pr3
 							);
 						}
 						break;
@@ -2265,7 +2268,10 @@ namespace MathAnim
 							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
-							Renderer::lineTo3D(Vec3{ p1.x, p1.y, 0.0f });
+							Renderer::lineTo(
+								context,
+								p1
+							);
 						}
 						break;
 						default:
@@ -2280,12 +2286,14 @@ namespace MathAnim
 
 				if (lengthDrawn > lengthToDraw)
 				{
-					Renderer::endPath3D(false);
+					Renderer::endPath(context);
+					Renderer::free(context);
 					break;
 				}
 				else
 				{
-					Renderer::endPath3D(true);
+					Renderer::endPath(context);
+					Renderer::free(context);
 				}
 			}
 		}
