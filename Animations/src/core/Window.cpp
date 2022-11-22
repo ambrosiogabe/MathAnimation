@@ -20,6 +20,7 @@ namespace MathAnim
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		glfwWindowHint(GLFW_SAMPLES, 4);
+		glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 
 		windowPtr = (void*)glfwCreateWindow(width, height, title, nullptr, nullptr);
 		if (windowPtr == nullptr)
