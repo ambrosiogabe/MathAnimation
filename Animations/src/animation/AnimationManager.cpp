@@ -48,6 +48,8 @@ namespace MathAnim
 			"Circle",
 			"Cube",
 			"Axis",
+			"SVG Object",
+			"SVG File Object",
 			"Length"
 		};
 

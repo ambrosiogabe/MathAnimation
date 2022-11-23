@@ -4,6 +4,7 @@
 #include "utils/CMath.h"
 
 #include "animation/TextAnimations.h"
+#include "animation/SvgFileObject.h"
 #include "animation/Shapes.h"
 #include "animation/Axis.h"
 #include "renderer/OrthoCamera.h"
@@ -33,6 +34,7 @@ namespace MathAnim
 		Cube,
 		Axis,
 		SvgObject,
+		SvgFileObject,
 		Length
 	};
 
@@ -221,6 +223,7 @@ namespace MathAnim
 			Circle circle;
 			Cube cube;
 			Axis axis;
+			SvgFileObject svgFile;
 		} as;
 
 		void onGizmo(AnimationManagerData* am, NVGcontext* vg);
@@ -249,6 +252,7 @@ namespace MathAnim
 		static AnimObject createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj);
 		static AnimObject createDefault(AnimationManagerData* am, AnimObjectTypeV1 type);
 		static AnimObject createCopy(const AnimObject& from);
+		static bool isInternalObjectOnly(AnimObjectTypeV1 type);
 	};
 
 	// Helpers

@@ -54,6 +54,7 @@ namespace MathAnim
 	namespace SvgParser
 	{
 		// ----------- Internal Functions -----------
+		static bool parseSvgPathTag(XMLElement* element, SvgObject* output);
 		static void interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res);
 		static bool parseVec2List(std::vector<Vec2>& list, ParserInfo& parserInfo);
 		static bool parseHzNumberList(std::vector<float>& list, ParserInfo& parserInfo);
@@ -63,7 +64,7 @@ namespace MathAnim
 		static Token parseNextToken(ParserInfo& parserInfo);
 		static bool parseNumber(ParserInfo& parserInfo, float* out);
 		static Token consume(TokenType expected, ParserInfo& parserInfo);
-		static void skipWhitespace(ParserInfo& parserInfo);
+		static void skipWhitespaceAndCommas(ParserInfo& parserInfo);
 		static inline char advance(ParserInfo& parserInfo) { char c = parserInfo.cursor < parserInfo.textLength ? parserInfo.text[parserInfo.cursor] : '\0'; parserInfo.cursor++; return c; }
 		static inline char peek(const ParserInfo& parserInfo, int advance = 0) { return parserInfo.cursor + advance >= parserInfo.textLength - 1 ? '\0' : parserInfo.text[parserInfo.cursor + advance]; }
 		static inline bool isDigit(char c) { return (c >= '0' && c <= '9'); }
@@ -128,13 +129,10 @@ namespace MathAnim
 				return nullptr;
 			}
 
+			// NOTE: <defs> is not required. If there's no <defs></defs> tag
+			// then we can assume all SVG paths are embedded directly in the
+			// <g></g> group tags
 			XMLElement* defsElement = svgElement->FirstChildElement("defs");
-			if (defsElement == nullptr)
-			{
-				g_logger_warning("SVG doc '%s' had no <defs> block.", filepath);
-				return nullptr;
-			}
-
 			XMLElement* groupElement = svgElement->FirstChildElement("g");
 			if (!groupElement)
 			{
@@ -144,20 +142,19 @@ namespace MathAnim
 
 			std::unordered_map<std::string, SvgObject> objIds;
 
+			if (defsElement)
 			{
 				XMLElement* childEl = defsElement->FirstChildElement();
 				// Loop through all the definitions and save the svg objects
 				while (childEl != nullptr)
 				{
-					const XMLAttribute* pathAttribute = childEl->FindAttribute("d");
 					const XMLAttribute* id = childEl->FindAttribute("id");
-					if (pathAttribute == nullptr) g_logger_warning("Child element '%s' had no path attribute.", childEl->Name());
 					if (id == nullptr) g_logger_warning("Child element '%s' had no id attribute.", childEl->Name());
 
-					if (pathAttribute && id)
+					const XMLAttribute* pathAttribute = childEl->FindAttribute("d");
+					SvgObject obj;
+					if (parseSvgPathTag(childEl, &obj))
 					{
-						size_t textLength = std::strlen(pathAttribute->Value());
-						SvgObject obj = parseSvgPath(pathAttribute->Value(), textLength);
 						std::string idStr = std::string(id->Value());
 						auto iter = objIds.find(idStr);
 						g_logger_assert(iter == objIds.end(), "Tried to insert duplicate ID '%s' in SVG object map", idStr.c_str());
@@ -177,15 +174,15 @@ namespace MathAnim
 				XMLElement* childEl = groupElement->FirstChildElement();
 				while (childEl != nullptr)
 				{
-					const XMLAttribute* xAttr = childEl->FindAttribute("x");
-					const XMLAttribute* yAttr = childEl->FindAttribute("y");
-					const XMLAttribute* linkAttr = childEl->FindAttribute("xlink:href");
-
-					if (!xAttr) g_logger_warning("Child element '%s' had no x attribute.", childEl->Name());
-					if (!yAttr) g_logger_warning("Child element '%s' had no y attribute.", childEl->Name());
-
 					if (std::strcmp(childEl->Name(), "use") == 0)
 					{
+						const XMLAttribute* xAttr = childEl->FindAttribute("x");
+						const XMLAttribute* yAttr = childEl->FindAttribute("y");
+						const XMLAttribute* linkAttr = childEl->FindAttribute("xlink:href");
+
+						if (!xAttr) g_logger_warning("Child element '%s' had no x attribute.", childEl->Name());
+						if (!yAttr) g_logger_warning("Child element '%s' had no y attribute.", childEl->Name());
+
 						if (!linkAttr) g_logger_warning("Child element '%s' had no xlink:href attribute.", childEl->Name());
 
 						if (xAttr && yAttr && linkAttr)
@@ -212,6 +209,12 @@ namespace MathAnim
 					}
 					else if (std::strcmp(childEl->Name(), "rect") == 0)
 					{
+						const XMLAttribute* xAttr = childEl->FindAttribute("x");
+						const XMLAttribute* yAttr = childEl->FindAttribute("y");
+
+						if (!xAttr) g_logger_warning("Child element '%s' had no x attribute.", childEl->Name());
+						if (!yAttr) g_logger_warning("Child element '%s' had no y attribute.", childEl->Name());
+
 						const XMLAttribute* wAttr = childEl->FindAttribute("width");
 						const XMLAttribute* hAttr = childEl->FindAttribute("height");
 
@@ -237,6 +240,22 @@ namespace MathAnim
 							rCounter++;
 							std::string rCounterStr = "rect-" + rCounter;
 							Svg::pushSvgToGroup(group, rect, rCounterStr, Vec2{ x, y });
+						}
+					}
+					else if (std::strcmp(childEl->Name(), "path") == 0)
+					{
+						SvgObject obj;
+						if (parseSvgPathTag(childEl, &obj))
+						{
+							static uint64 uniqueName = 0;
+							uniqueName++;
+							// Embedded paths are assumed to have (0, 0) coordinates
+							std::string name = std::to_string(uniqueName);
+							Svg::pushSvgToGroup(group, obj, name, Vec2{ 0.0f, 0.0f });
+						}
+						else
+						{
+							g_logger_warning("Failed to parse path tag in SVG '%s'", filepath);
 						}
 					}
 					else
@@ -293,6 +312,27 @@ namespace MathAnim
 		}
 
 		// ----------- Internal Functions -----------
+		static bool parseSvgPathTag(XMLElement* element, SvgObject* output)
+		{
+			if (std::strcmp(element->Name(), "path") != 0)
+			{
+				g_logger_warning("Tried to parse tag <%s> as SVG path, but this tag is not a path tag.", element->Name());
+				return false;
+			}
+
+			const XMLAttribute* pathAttribute = element->FindAttribute("d");
+			if (pathAttribute == nullptr) g_logger_warning("Element '%s' had no path attribute.", element->Name());
+
+			if (pathAttribute)
+			{
+				size_t textLength = std::strlen(pathAttribute->Value());
+				*output = parseSvgPath(pathAttribute->Value(), textLength);
+				return true;
+			}
+
+			return false;
+		}
+
 		static void interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res)
 		{
 			TokenType commandType = token.type;
@@ -726,7 +766,7 @@ namespace MathAnim
 				result.type = TokenType::EndOfFile;
 			}
 
-			skipWhitespace(parserInfo);
+			skipWhitespaceAndCommas(parserInfo);
 			return result;
 		}
 
@@ -775,9 +815,9 @@ namespace MathAnim
 			return false;
 		}
 
-		static void skipWhitespace(ParserInfo& parserInfo)
+		static void skipWhitespaceAndCommas(ParserInfo& parserInfo)
 		{
-			while (isWhitespace(peek(parserInfo)))
+			while (isWhitespace(peek(parserInfo)) || peek(parserInfo) == ',')
 			{
 				advance(parserInfo);
 				if (peek(parserInfo) == '\0')

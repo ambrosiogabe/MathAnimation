@@ -20,14 +20,13 @@ namespace MathAnim
 	static TextObject deserializeTextV1(RawMemory& memory);
 	static LaTexObject deserializeLaTexV1(RawMemory& memory);
 
-	void TextObject::init(AnimationManagerData* am, AnimObjId parentId, float svgScale)
+	void TextObject::init(AnimationManagerData* am, AnimObjId parentId)
 	{
 		if (font == nullptr)
 		{
 			return;
 		}
 
-		float fontSizePixels = svgScale;
 		std::string textStr = std::string(text);
 
 		// Generate children that represent each character of the text object `obj`
@@ -100,7 +99,7 @@ namespace MathAnim
 		}
 
 		// Next init again which should regenerate the children
-		init(am, obj->id, obj->svgScale);
+		init(am, obj->id);
 	}
 
 	void TextObject::serialize(RawMemory& memory) const
@@ -229,19 +228,7 @@ namespace MathAnim
 
 	void LaTexObject::setText(const char* cStr)
 	{
-		if (text)
-		{
-			g_memory_free(text);
-			text = nullptr;
-			textLength = 0;
-		}
-
-		size_t strLength = std::strlen(cStr);
-		this->text = (char*)g_memory_allocate(sizeof(char) * (strLength + 1));
-		this->textLength = (int32)strLength;
-
-		g_memory_copyMem(this->text, (void*)cStr, sizeof(char) * strLength);
-		this->text[this->textLength] = '\0';
+		setText(std::string(cStr));
 	}
 
 	void LaTexObject::parseLaTex()

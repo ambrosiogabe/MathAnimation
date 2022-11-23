@@ -18,7 +18,7 @@ namespace MathAnim
 		int32 textLength;
 		Font* font;
 
-		void init(AnimationManagerData* am, AnimObjId parentId, float svgScale);
+		void init(AnimationManagerData* am, AnimObjId parentId);
 		void reInit(AnimationManagerData* am, AnimObject* obj);
 		void serialize(RawMemory& memory) const;
 		void free();

@@ -229,9 +229,9 @@ namespace MathAnim
 			path.curves[path.numCurves - 1].p0 = object->_cursor;
 
 			path.curves[path.numCurves - 1].as.bezier2.p1 = absolute ? control : control + object->_cursor;
-			object->_cursor = path.curves[path.numCurves - 1].as.bezier2.p1;
-
 			path.curves[path.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + object->_cursor;
+
+			// Only update the cursor to the final point of the curve
 			object->_cursor = path.curves[path.numCurves - 1].as.bezier2.p2;
 
 			path.curves[path.numCurves - 1].type = CurveType::Bezier2;
@@ -247,12 +247,10 @@ namespace MathAnim
 			path.curves[path.numCurves - 1].p0 = object->_cursor;
 
 			path.curves[path.numCurves - 1].as.bezier3.p1 = absolute ? control0 : control0 + object->_cursor;
-			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p1;
-
 			path.curves[path.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + object->_cursor;
-			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p2;
-
 			path.curves[path.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + object->_cursor;
+
+			// Only update the cursor to the final point of the curve
 			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p3;
 
 			path.curves[path.numCurves - 1].type = CurveType::Bezier3;
@@ -278,9 +276,9 @@ namespace MathAnim
 				}
 			}
 			path.curves[path.numCurves - 1].as.bezier2.p1 = control0;
-			object->_cursor = path.curves[path.numCurves - 1].as.bezier2.p1;
-
 			path.curves[path.numCurves - 1].as.bezier2.p2 = absolute ? dest : dest + object->_cursor;
+
+			// Only update the cursor to the final point on the curve
 			object->_cursor = path.curves[path.numCurves - 1].as.bezier2.p2;
 
 			path.curves[path.numCurves - 1].type = CurveType::Bezier2;
@@ -306,12 +304,10 @@ namespace MathAnim
 				}
 			}
 			path.curves[path.numCurves - 1].as.bezier3.p1 = control0;
-			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p1;
-
 			path.curves[path.numCurves - 1].as.bezier3.p2 = absolute ? control1 : control1 + object->_cursor;
-			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p2;
-
 			path.curves[path.numCurves - 1].as.bezier3.p3 = absolute ? dest : dest + object->_cursor;
+
+			// Only update the cursor to the final point on the curve
 			object->_cursor = path.curves[path.numCurves - 1].as.bezier3.p3;
 
 			path.curves[path.numCurves - 1].type = CurveType::Bezier3;

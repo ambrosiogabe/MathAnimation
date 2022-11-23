@@ -463,6 +463,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::TextObject:
 		case AnimObjectTypeV1::LaTexObject:
 		case AnimObjectTypeV1::Cube:
+		case AnimObjectTypeV1::SvgFileObject:
 			// NOP: No Special logic, but I'll leave this just in case I think
 			// of something
 			break;
@@ -522,6 +523,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			this->as.laTexObject.renderCreateAnimation(vg, this->percentCreated, this, false);
+			break;
+		case AnimObjectTypeV1::SvgFileObject:
+			this->as.svgFile.renderCreateAnimation(vg, this->percentCreated, this);
 			break;
 		default:
 			// TODO: Add magic_enum
@@ -872,6 +876,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::LaTexObject:
 			this->as.laTexObject.free();
 			break;
+		case AnimObjectTypeV1::SvgFileObject:
+			this->as.svgFile.free();
+			break;
 		default:
 			g_logger_error("Cannot free unknown animation object of type %d", (int)objectType);
 			break;
@@ -965,6 +972,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Axis:
 			this->as.axis.serialize(memory);
+			break;
+		case AnimObjectTypeV1::SvgFileObject:
+			this->as.svgFile.serialize(memory);
 			break;
 		default:
 			g_logger_warning("Unknown object type %d when serializing.", (int)objectType);
@@ -1062,7 +1072,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::TextObject:
 			res.svgScale = 150.0f;
 			res.as.textObject = TextObject::createDefault();
-			res.as.textObject.init(am, res.id, res.svgScale);
+			res.as.textObject.init(am, res.id);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::createDefault();
@@ -1100,6 +1110,9 @@ namespace MathAnim
 			res.as.axis.fontSizePixels = 9.5f;
 			res.as.axis.labelPadding = 25.0f;
 			res.as.axis.init(&res);
+			break;
+		case AnimObjectTypeV1::SvgFileObject:
+			res.as.svgFile = SvgFileObject::createDefault();
 			break;
 		default:
 			g_logger_error("Cannot create default animation object of type %d", (int)type);
@@ -1174,22 +1187,13 @@ namespace MathAnim
 			res.as.textObject = TextObject::createCopy(from.as.textObject);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
-			// TODO: Copy
-			break;
 		case AnimObjectTypeV1::SvgObject:
-			// TODO: Copy
-			break;
 		case AnimObjectTypeV1::Square:
-			// TODO: Copy
-			break;
 		case AnimObjectTypeV1::Circle:
-			// TODO: Copy
-			break;
 		case AnimObjectTypeV1::Cube:
-			// TODO: Copy
-			break;
 		case AnimObjectTypeV1::Axis:
-			// TODO: Copy
+		case AnimObjectTypeV1::SvgFileObject:
+			// TODO: Implement Copy for these
 			break;
 		default:
 			g_logger_error("Cannot create default animation object of type %d", (int)from.objectType);
@@ -1197,6 +1201,17 @@ namespace MathAnim
 		}
 
 		return res;
+	}
+
+	bool AnimObject::isInternalObjectOnly(AnimObjectTypeV1 type)
+	{
+		switch (type)
+		{
+		case AnimObjectTypeV1::SvgObject:
+			return true;
+		}
+
+		return false;
 	}
 
 	// ----------------------------- Internal Functions -----------------------------
@@ -1303,7 +1318,6 @@ namespace MathAnim
 		{
 		case AnimObjectTypeV1::TextObject:
 			res.as.textObject = TextObject::deserialize(memory, version);
-			//res.as.textObject.init(am, &res);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::deserialize(memory, version);
@@ -1329,6 +1343,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::Axis:
 			res.as.axis = Axis::deserialize(memory, version);
 			res.as.axis.init(&res);
+			break;
+		case AnimObjectTypeV1::SvgFileObject:
+			res.as.svgFile = SvgFileObject::deserialize(memory, version);
 			break;
 		default:
 			g_logger_error("Unknown anim object type: %d. Corrupted memory.", res.objectType);

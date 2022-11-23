@@ -46,6 +46,7 @@ namespace MathAnim
 		static void handleAnimationInspector(AnimationManagerData* am, AnimId animationId);
 		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
+		static void handleSvgFileObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation);
 		static void handleShiftInspector(Animation* animation);
@@ -704,9 +705,11 @@ namespace MathAnim
 			case AnimObjectTypeV1::Axis:
 				handleAxisInspector(animObject);
 				break;
+			case AnimObjectTypeV1::SvgFileObject:
+				handleSvgFileObjectInspector(am, animObject);
+				break;
 			case AnimObjectTypeV1::SvgObject:
 				// NOP
-				// TODO: Add any custom attributes here?
 				break;
 			default:
 				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
@@ -968,6 +971,60 @@ namespace MathAnim
 			{
 				ImGui::PopItemFlag();
 				ImGui::PopStyleVar();
+			}
+		}
+
+		static void handleSvgFileObjectInspector(AnimationManagerData* am, AnimObject* object)
+		{
+			ImGui::BeginDisabled();
+			char* filepathStr = object->as.svgFile.filepath;
+			size_t filepathStrLength = object->as.svgFile.filepathLength * sizeof(char);
+			if (!filepathStr)
+			{
+				filepathStr = "Select a File";
+				filepathStrLength = sizeof("Select a File");
+			}
+			ImGui::InputText(
+				": Filepath",
+				filepathStr,
+				filepathStrLength,
+				ImGuiInputTextFlags_ReadOnly
+			);
+			ImGui::EndDisabled();
+			ImGui::SameLine();
+
+			bool shouldRegenerate = false;
+
+			if (ImGui::Button(ICON_FA_FILE_UPLOAD))
+			{
+				nfdchar_t* outPath = NULL;
+				nfdresult_t result = NFD_OpenDialog("svg", NULL, &outPath);
+
+				if (result == NFD_OKAY)
+				{
+					if (!object->as.svgFile.setFilepath(outPath))
+					{
+						g_logger_error("Parsing svg for filepath '%s' failed for some reason.", outPath);
+					}
+					else
+					{
+						shouldRegenerate = true;
+					}
+					std::free(outPath);
+				}
+				else if (result == NFD_CANCEL)
+				{
+					// NOP;
+				}
+				else
+				{
+					g_logger_error("Error opening SVGFileObject:\n\t%s", NFD_GetError());
+				}
+			}
+
+			if (shouldRegenerate)
+			{
+				object->as.svgFile.reInit(am, object);
 			}
 		}
 

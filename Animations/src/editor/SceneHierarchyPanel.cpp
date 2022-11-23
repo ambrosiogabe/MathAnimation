@@ -302,8 +302,13 @@ namespace MathAnim
 
 			if (ImGui::BeginPopupContextWindow())
 			{
-				for (int i = 1; i < (int)AnimObjectTypeV1::Length - 1; i++)
+				for (int i = 1; i < (int)AnimObjectTypeV1::Length; i++)
 				{
+					if (AnimObject::isInternalObjectOnly((AnimObjectTypeV1)i))
+					{
+						continue;
+					}
+
 					int strRes = sprintf_s(buffer, bufferSize, "Add %s\0", AnimationManager::getAnimObjectName((AnimObjectTypeV1)i));
 					if (strRes != -1)
 					{
