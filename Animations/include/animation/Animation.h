@@ -39,18 +39,16 @@ namespace MathAnim
 	enum class AnimTypeV1 : uint32
 	{
 		None = 0,
-		WriteInText,
 		MoveTo,
 		Create,
-		Transform,
 		UnCreate,
 		FadeIn,
 		FadeOut,
+		Transform,
 		RotateTo,
 		AnimateStrokeColor,
 		AnimateFillColor,
 		AnimateStrokeWidth,
-        CameraMoveTo,
 		Shift,
 		Length
 	};
@@ -141,6 +139,7 @@ namespace MathAnim
 		void serialize(RawMemory& memory) const;
 		static Animation deserialize(RawMemory& memory, uint32 version);
 		static Animation createDefault(AnimTypeV1 type, int32 frameStart, int32 duration);
+		static bool appliesToChildren(AnimTypeV1 type);
 	};
 
 	enum class AnimObjectStatus : uint8

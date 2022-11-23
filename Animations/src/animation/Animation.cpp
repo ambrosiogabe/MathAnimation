@@ -36,7 +36,7 @@ namespace MathAnim
 
 				if (t >= startT)
 				{
-					float interpolatedT = CMath::mapRange(Vec2{ startT, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
+					float interpolatedT = CMath::mapRange(Vec2{ 0.0f, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
 					interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
 
 					applyAnimationToObj(am, vg, animObjectIds[i], interpolatedT);
@@ -59,40 +59,51 @@ namespace MathAnim
 			return;
 		}
 
-		obj->status = t < 1.0f
+		AnimObjectStatus newStatus = t < 1.0f
 			? AnimObjectStatus::Animating
 			: AnimObjectStatus::Active;
+		obj->updateStatus(am, newStatus);
 
-		// TODO: How to handle this... Certain animations like moveTo
-		// should only move the parent because the changes propagate to the
-		// children when the transform updates. Other changes like creationPercent and fillColor
-		// don't propagate. So should those changes propagate, or should I automatically
-		// handle it here?
-		// 
 		// Apply animation to all children as well
-		//if (obj)
-		//{
-		//	std::vector<int32> children = AnimationManager::getChildren(am, obj);
-		//	for (int i = 0; i < children.size(); i++)
-		//	{
-		//		AnimObject* childObj = AnimationManager::getMutableObject(am, children[i]);
-		//		if (childObj)
-		//		{
-		//			applyAnimationToObj(am, vg, childObj, t, animation);
-		//		}
-		//	}
-		//}
+		if (obj)
+		{
+			std::vector<AnimObjId> children = AnimationManager::getChildren(am, obj->id);
+			for (int i = 0; i < children.size(); i++)
+			{
+				if (Animation::appliesToChildren(this->type))
+				{
+					// TODO: This is duplicating the lagged start logic above
+					// group this together into one function that determines
+					// a new t-value depending on lag position
+					float startT = 0.0f;
+					if (this->playbackType == PlaybackType::LaggedStart)
+					{
+						startT = (float)i / (float)children.size() * lagRatio;
+					}
+
+					float interpolatedT = CMath::mapRange(Vec2{ 0.0f, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
+					applyAnimationToObj(am, vg, children[i], interpolatedT);
+				}
+			}
+		}
 
 		switch (type)
 		{
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
+		{
 			obj->percentCreated = t;
-			obj->fillColor.a = (uint8)(t * 255.0f);
-			obj->updateChildrenPercentCreated(am, t);
-			// TODO: Bleh... Figure something out!!!
-			obj->updateStatus(am, t > 0.0f && t < 1.0f ? AnimObjectStatus::Animating : t >= 1.0f ? AnimObjectStatus::Active : AnimObjectStatus::Inactive);
-			break;
+			// Start the fade in after 80% of the drawing is complete
+			constexpr float fadeInStart = 0.8f;
+			float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
+			float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
+			obj->fillColor.a = (uint8)(percentToFadeIn * 255.0f);
+
+			if (obj->strokeWidth <= 0.0f)
+			{
+				obj->strokeColor.a = (uint8)((1.0f - percentToFadeIn) * 255.0f);
+			}
+		}
+		break;
 		case AnimTypeV1::Transform:
 		{
 			AnimObject* srcObject = AnimationManager::getMutableObject(am, this->as.replacementTransform.srcAnimObjectId);
@@ -107,6 +118,7 @@ namespace MathAnim
 		break;
 		case AnimTypeV1::UnCreate:
 			obj->percentCreated = 1.0f - t;
+			obj->fillColor.a = (uint8)((1.0f - t) * 255.0f);
 			break;
 		case AnimTypeV1::FadeIn:
 		{
@@ -149,10 +161,6 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me");
 			break;
-		case AnimTypeV1::CameraMoveTo:
-			//Renderer::getMutableOrthoCamera()->position = animation->as.modifyVec2.target;
-			g_logger_warning("TODO: Implement me");
-			break;
 		default:
 			// TODO: Add magic_enum
 			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
@@ -169,7 +177,6 @@ namespace MathAnim
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
 		case AnimTypeV1::FadeOut:
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Transform:
 		case AnimTypeV1::AnimateStrokeColor:
 		case AnimTypeV1::AnimateFillColor:
@@ -180,9 +187,6 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
-			break;
-		case AnimTypeV1::CameraMoveTo:
-			// TODO: Render and handle move to gizmo logic
 			break;
 		default:
 			g_logger_info("Unknown animation: %d", type);
@@ -198,14 +202,12 @@ namespace MathAnim
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
 		case AnimTypeV1::FadeOut:
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::AnimateStrokeColor:
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeWidth:
 		case AnimTypeV1::MoveTo:
 		case AnimTypeV1::RotateTo:
 			return true;
-		case AnimTypeV1::CameraMoveTo:
 		case AnimTypeV1::Transform:
 			return false;
 		default:
@@ -224,7 +226,6 @@ namespace MathAnim
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
 		case AnimTypeV1::FadeOut:
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Transform:
 		case AnimTypeV1::AnimateStrokeColor:
 		case AnimTypeV1::AnimateFillColor:
@@ -235,9 +236,6 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
-			break;
-		case AnimTypeV1::CameraMoveTo:
-			// TODO: Render and handle move to gizmo logic
 			break;
 		default:
 			g_logger_info("Unknown animation: %d", type);
@@ -288,7 +286,6 @@ namespace MathAnim
 
 		switch (this->type)
 		{
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
@@ -306,9 +303,6 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
-			break;
-		case AnimTypeV1::CameraMoveTo:
-			CMath::serialize(memory, this->as.modifyVec2.target);
 			break;
 		case AnimTypeV1::Transform:
 			this->as.replacementTransform.serialize(memory);
@@ -372,7 +366,6 @@ namespace MathAnim
 		switch (type)
 		{
 		case AnimTypeV1::Create:
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Transform:
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
@@ -395,15 +388,39 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me");
 			break;
-		case AnimTypeV1::CameraMoveTo:
-			res.as.modifyVec2.target = Vec2{ 0.f, 0.f };
-			break;
 		default:
 			g_logger_error("Cannot create default animation of type %d", (int)type);
 			break;
 		}
 
 		return res;
+	}
+
+	bool Animation::appliesToChildren(AnimTypeV1 type)
+	{
+		switch (type)
+		{
+		case AnimTypeV1::Create:
+		case AnimTypeV1::UnCreate:
+		case AnimTypeV1::FadeIn:
+		case AnimTypeV1::FadeOut:
+			return true;
+		case AnimTypeV1::MoveTo:
+		case AnimTypeV1::RotateTo:
+		case AnimTypeV1::Shift:
+		case AnimTypeV1::AnimateFillColor:
+		case AnimTypeV1::AnimateStrokeColor:
+		case AnimTypeV1::AnimateStrokeWidth:
+			return false;
+		case AnimTypeV1::Transform:
+			// TODO: Investigate whether this should apply to children or not
+			break;
+		default:
+			g_logger_error("Unknown animation of type %d", (int)type);
+			break;
+		}
+
+		return false;
 	}
 
 	void AnimObject::onGizmo(AnimationManagerData* am, NVGcontext* vg)
@@ -1372,7 +1389,6 @@ namespace MathAnim
 
 		switch (res.type)
 		{
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
@@ -1390,9 +1406,6 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
-			break;
-		case AnimTypeV1::CameraMoveTo:
-			res.as.modifyVec2.target = CMath::deserializeVec2(memory);
 			break;
 		case AnimTypeV1::Transform:
 			res.as.replacementTransform = ReplacementTransformData::deserialize(memory);

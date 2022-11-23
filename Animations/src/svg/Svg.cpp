@@ -1548,12 +1548,7 @@ namespace MathAnim
 	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj, bool isSvgGroup)
 	{
 		constexpr float defaultStrokeWidth = 5.0f;
-
-		// Start the fade in after 80% of the svg object is drawn
-		constexpr float fadeInStart = 0.8f;
 		float lengthToDraw = t * (float)obj->approximatePerimeter;
-		float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
-		float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
 
 		// Instead of translating, we'll map every coordinate from the SVG min-max range to
 		// the preferred coordinate range
@@ -2083,16 +2078,13 @@ namespace MathAnim
 				Path2DContext* context = nullptr;
 				if (obj->paths[pathi].numCurves > 0)
 				{
-					// Fade the stroke out as the svg fades in
-					const glm::u8vec4& strokeColor = parent->strokeColor;
+					Renderer::pushColor(parent->strokeColor);
 					if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
 					{
-						Renderer::pushColor(parent->fillColor);
 						Renderer::pushStrokeWidth(defaultStrokeWidth);
 					}
 					else
 					{
-						Renderer::pushColor(strokeColor);
 						Renderer::pushStrokeWidth(parent->strokeWidth);
 					}
 

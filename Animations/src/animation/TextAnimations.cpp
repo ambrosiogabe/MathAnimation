@@ -34,6 +34,12 @@ namespace MathAnim
 		Vec2 cursorPos = Vec2{ 0, 0 };
 		for (int i = 0; i < textStr.length(); i++)
 		{
+			if (textStr[i] == '\n')
+			{
+				cursorPos = Vec2{ 0.0f, cursorPos.y - font->lineHeight };
+				continue;
+			}
+
 			uint32 codepoint = (uint32)textStr[i];
 			const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
 			if (!glyphOutline.svg)
@@ -48,7 +54,7 @@ namespace MathAnim
 				halfGlyphHeight - glyphOutline.descentY
 			};
 
-			if (textStr[i] != ' ' && textStr[i] != '\t' && textStr[i] != '\n')
+			if (textStr[i] != ' ' && textStr[i] != '\t')
 			{
 				// Add this character as a child
 				AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, parentId, true);

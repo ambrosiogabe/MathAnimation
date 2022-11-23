@@ -53,18 +53,16 @@ namespace MathAnim
 
 		static const char* animationTypeNames[] = {
 			"None",
-			"Write In Text",
 			"Move To",
 			"Create",
-			"Replacement Transform",
 			"Un-Create",
 			"Fade In",
 			"Fade Out",
+			"Replacement Transform",
 			"Rotate To",
 			"Animate Stroke Color",
 			"Animate Fill Color",
 			"Animate Stroke Width",
-			"Move Camera To",
 			"Shift",
 			"Length",
 		};
@@ -172,7 +170,10 @@ namespace MathAnim
 			}
 
 			// Then apply each animation up to the current frame
-			applyAnimationsFrom(am, vg, 0, absoluteFrame);
+			if (absoluteFrame > 0)
+			{
+				applyAnimationsFrom(am, vg, 0, absoluteFrame);
+			}
 			applyGlobalTransforms(am);
 		}
 
@@ -613,7 +614,7 @@ namespace MathAnim
 			// Apply any changes from animations in order
 			for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
 			{
-				bool objExistsInAnim = 
+				bool objExistsInAnim =
 					std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), animObjId) != animIter->animObjectIds.end();
 				if (!objExistsInAnim)
 				{

@@ -52,7 +52,6 @@ namespace MathAnim
 		static void handleRotateToAnimationInspector(Animation* animation);
 		static void handleAnimateStrokeColorAnimationInspector(Animation* animation);
 		static void handleAnimateFillColorAnimationInspector(Animation* animation);
-		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation);
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
 		static void handleCubeInspector(AnimObject* object);
@@ -817,7 +816,6 @@ namespace MathAnim
 
 			switch (animation->type)
 			{
-			case AnimTypeV1::WriteInText:
 			case AnimTypeV1::Create:
 			case AnimTypeV1::UnCreate:
 			case AnimTypeV1::FadeIn:
@@ -841,9 +839,6 @@ namespace MathAnim
 				break;
 			case AnimTypeV1::AnimateStrokeColor:
 				handleAnimateStrokeColorAnimationInspector(animation);
-				break;
-			case AnimTypeV1::CameraMoveTo:
-				handleAnimateCameraMoveToAnimationInspector(animation);
 				break;
 			default:
 				g_logger_error("Unknown animation type: %d", (int)animation->type);
@@ -1083,11 +1078,6 @@ namespace MathAnim
 				animation->as.modifyU8Vec4.target.b = (uint8)(strokeColor[2] * 255.0f);
 				animation->as.modifyU8Vec4.target.a = (uint8)(strokeColor[3] * 255.0f);
 			}
-		}
-
-		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation)
-		{
-			ImGui::DragFloat2(": Camera Target Position", &animation->as.modifyVec2.target.x, slowDragSpeed);
 		}
 
 		static void handleSquareInspector(AnimObject* object)
