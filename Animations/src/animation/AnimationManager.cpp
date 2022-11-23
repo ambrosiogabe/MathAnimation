@@ -77,9 +77,8 @@ namespace MathAnim
 		static void addQueuedAnimation(AnimationManagerData* am, const Animation& anim);
 		static void removeQueuedAnimObject(AnimationManagerData* am, AnimObjId animObj);
 		static void removeQueuedAnimation(AnimationManagerData* am, AnimId animation);
-		static void removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj);
+		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj);
 		static void applyDelta(AnimationManagerData* am, NVGcontext* vg, int deltaFrame);
-		static void applyGlobalTransforms(AnimationManagerData* am);
 		static void applyAnimationsFrom(AnimationManagerData* am, NVGcontext* vg, int startIndex, int frame);
 
 		AnimationManagerData* create(OrthoCamera& camera)
@@ -162,37 +161,17 @@ namespace MathAnim
 			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 			{
 				// Reset to original state and apply animations in order
-				if (objectIter->_svgObjectStart != nullptr && objectIter->svgObject != nullptr)
-				{
-					Svg::copy(objectIter->svgObject, objectIter->_svgObjectStart);
-				}
-				objectIter->position = objectIter->_positionStart;
-				objectIter->rotation = objectIter->_rotationStart;
-				objectIter->scale = objectIter->_scaleStart;
-				objectIter->fillColor = objectIter->_fillColorStart;
-				objectIter->strokeColor = objectIter->_strokeColorStart;
-				objectIter->strokeWidth = objectIter->_strokeWidthStart;
-				objectIter->percentCreated = 0.0f;
-				objectIter->status = AnimObjectStatus::Inactive;
+				objectIter->resetAllState();
 
 				// Update any updateable objects
 				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
 				{
+					// TODO: Is this still important?
 					objectIter->as.laTexObject.update();
 				}
 			}
 
 			// Then apply each animation up to the current frame
-			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
-			{
-				// Update any updateable objects
-				// TODO: Is this important?
-				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
-				{
-					objectIter->as.laTexObject.update();
-				}
-			}
-
 			applyAnimationsFrom(am, vg, 0, absoluteFrame);
 			applyGlobalTransforms(am);
 		}
@@ -558,6 +537,102 @@ namespace MathAnim
 			return animationTypeNames[(int)type];
 		}
 
+		void applyGlobalTransforms(AnimationManagerData* am)
+		{
+			// ----- Apply the parent->child transformations -----
+			// Find all root objects and update recursively
+			for (auto objIter = am->objects.begin(); objIter != am->objects.end(); objIter++)
+			{
+				// If the object has no parent, it's a root object.
+				// Update the transform then update children recursively
+				// and in order from parent->child
+				if (isNull(objIter->parentId))
+				{
+					applyGlobalTransformsTo(am, objIter->id);
+				}
+			}
+		}
+
+		void applyGlobalTransformsTo(AnimationManagerData* am, AnimObjId obj)
+		{
+			// Initialize the queue with the object to update
+			std::queue<AnimObjId> objects = {};
+			objects.push(obj);
+
+			// Then update all children
+			// Loop through each object and recursively update the transforms by appending children to the queue
+			while (objects.size() > 0)
+			{
+				AnimObjId nextObjId = objects.front();
+				objects.pop();
+
+				// Update child transform
+				AnimObject* nextObj = getMutableObject(am, nextObjId);
+				if (nextObj)
+				{
+					updateGlobalTransform(*nextObj);
+
+					// Then apply parent transformation if the parent exists
+					// At this point the parent should have been updated already
+					// since the queue is FIFO
+					if (!isNull(nextObj->parentId))
+					{
+						const AnimObject* parent = getObject(am, nextObj->parentId);
+						if (parent)
+						{
+							nextObj->_globalPositionStart += parent->_globalPositionStart;
+							nextObj->globalPosition += parent->globalPosition;
+							nextObj->globalTransform *= parent->globalTransform;
+						}
+					}
+
+					// Then append all direct children to the queue so they are
+					// recursively updated
+					for (auto childIter = am->objects.begin(); childIter != am->objects.end(); childIter++)
+					{
+						if (childIter->parentId == nextObj->id)
+						{
+							objects.push(childIter->id);
+						}
+					}
+				}
+			}
+		}
+
+		void updateObjectState(AnimationManagerData* am, NVGcontext* vg, AnimObjId animObjId)
+		{
+			AnimObject* obj = getMutableObject(am, animObjId);
+			if (!obj)
+			{
+				g_logger_warning("Cannot update state of object that does not exist for AnimObjID: '%d'", animObjId);
+				return;
+			}
+
+			obj->resetAllState();
+
+			// Apply any changes from animations in order
+			for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
+			{
+				bool objExistsInAnim = 
+					std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), animObjId) != animIter->animObjectIds.end();
+				if (!objExistsInAnim)
+				{
+					continue;
+				}
+
+				float frameStart = (float)animIter->frameStart;
+				int animDeathTime = (int)frameStart + animIter->duration;
+				if (frameStart <= am->currentFrame)
+				{
+					// Then apply the animation
+					float interpolatedT = ((float)am->currentFrame - frameStart) / (float)animIter->duration;
+					animIter->applyAnimationToObj(am, vg, animObjId, interpolatedT);
+				}
+			}
+
+			applyGlobalTransformsTo(am, animObjId);
+		}
+
 		// -------- Internal Functions --------
 		static void deserializeAnimationManagerExV1(AnimationManagerData* am, RawMemory& memory)
 		{
@@ -627,9 +702,6 @@ namespace MathAnim
 		{
 			am->objects.push_back(obj);
 			am->objectIdMap[obj.id] = am->objects.size() - 1;
-
-			am->objects.push_back(obj);
-			am->objectIdMap[obj.id] = am->objects.size() - 1;
 		}
 
 		static void addQueuedAnimation(AnimationManagerData* am, const Animation& animation)
@@ -667,13 +739,22 @@ namespace MathAnim
 				AnimObject& objIter = am->objects[i];
 				if (objIter.parentId == animObj)
 				{
-					removeSingleAnimObject(am, objIter.id);
-					i--;
+					if (removeSingleAnimObject(am, objIter.id))
+					{
+						i--;
+					}
+					else
+					{
+						g_logger_warning("Tried to delete AnimObject<ID: '%d'>, which does not exist.", objIter.id);
+					}
 				}
 			}
 
 			// Then remove the parent
-			removeSingleAnimObject(am, animObj);
+			if (!removeSingleAnimObject(am, animObj))
+			{
+				g_logger_warning("Tried to delete AnimObject<ID: '%d'>, which does not exist.", animObj);
+			}
 		}
 
 		static void removeQueuedAnimation(AnimationManagerData* am, AnimId anim)
@@ -700,25 +781,27 @@ namespace MathAnim
 			}
 		}
 
-		static void removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj)
+		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			// Remove the anim object
 			auto iter = am->objectIdMap.find(animObj);
-			if (iter != am->objectIdMap.end())
+			if (iter == am->objectIdMap.end())
 			{
-				size_t animObjectIndex = iter->second;
-				if (animObjectIndex >= 0 && animObjectIndex < am->objects.size())
+				return false;
+			}
+
+			size_t animObjectIndex = iter->second;
+			if (animObjectIndex >= 0 && animObjectIndex < am->objects.size())
+			{
+				am->objects[animObjectIndex].free();
+
+				auto updateIter = am->objects.erase(am->objects.begin() + animObjectIndex);
+				am->objectIdMap.erase(animObj);
+
+				// Update indices
+				for (; updateIter != am->objects.end(); updateIter++)
 				{
-					am->objects[animObjectIndex].free();
-
-					auto updateIter = am->objects.erase(am->objects.begin() + animObjectIndex);
-					am->objectIdMap.erase(animObj);
-
-					// Update indices
-					for (; updateIter != am->objects.end(); updateIter++)
-					{
-						am->objectIdMap[updateIter->id] = updateIter - am->objects.begin();
-					}
+					am->objectIdMap[updateIter->id] = updateIter - am->objects.begin();
 				}
 			}
 
@@ -744,6 +827,8 @@ namespace MathAnim
 					}
 				}
 			}
+
+			return true;
 		}
 
 		static void applyDelta(AnimationManagerData* am, NVGcontext* vg, int deltaFrame)
@@ -793,66 +878,10 @@ namespace MathAnim
 			applyGlobalTransforms(am);
 		}
 
-		static void applyGlobalTransforms(AnimationManagerData* am)
-		{
-			// ----- Apply the parent->child transformations -----
-			// First find all the root objects
-			std::queue<AnimObjId> rootObjects = {};
-			for (auto objIter = am->objects.begin(); objIter != am->objects.end(); objIter++)
-			{
-				// If the object has no parent, it's a root object.
-				// Update the transform then update children recursively
-				// and in order from parent->child
-				if (isNull(objIter->parentId))
-				{
-					rootObjects.push(objIter->id);
-				}
-			}
-
-			// Then update all children
-			// Loop through each root object and recursively update the transforms by appending children to the queue
-			while (rootObjects.size() > 0)
-			{
-				AnimObjId nextObjId = rootObjects.front();
-				rootObjects.pop();
-
-				// Update child transform
-				AnimObject* nextObj = getMutableObject(am, nextObjId);
-				if (nextObj)
-				{
-					updateGlobalTransform(*nextObj);
-
-					// Then apply parent transformation if the parent exists
-					// At this point the parent should have been updated already
-					// since the queue is FIFO
-					if (!isNull(nextObj->parentId))
-					{
-						const AnimObject* parent = getObject(am, nextObj->parentId);
-						if (parent)
-						{
-							nextObj->_globalPositionStart += parent->_globalPositionStart;
-							nextObj->globalPosition += parent->globalPosition;
-							nextObj->globalTransform *= parent->globalTransform;
-						}
-					}
-
-					// Then append all direct children to the queue so they are
-					// recursively updated
-					for (auto childIter = am->objects.begin(); childIter != am->objects.end(); childIter++)
-					{
-						if (childIter->parentId == nextObj->id)
-						{
-							rootObjects.push(childIter->id);
-						}
-					}
-				}
-			}
-		}
-
 		static void applyAnimationsFrom(AnimationManagerData* am, NVGcontext* vg, int startIndex, int currentFrame)
 		{
 			// Apply any changes from animations in order
-			for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
+			for (auto animIter = am->animations.begin() + startIndex; animIter != am->animations.end(); animIter++)
 			{
 				float frameStart = (float)animIter->frameStart;
 				int animDeathTime = (int)frameStart + animIter->duration;

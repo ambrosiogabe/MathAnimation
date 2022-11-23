@@ -88,7 +88,7 @@ namespace MathAnim
 			//globalThreadPool = new GlobalThreadPool(true);
 
 			// Initiaize GLFW/Glad
-			window = new Window(1920, 1080, winTitle);
+			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
 			window->setVSync(true);
 
 			Fonts::init();
@@ -176,7 +176,7 @@ namespace MathAnim
 				absolutePrevFrame = absoluteCurrentFrame;
 
 				// Update systems all systems/collect systems draw calls
-				GizmoManager::update(am);
+				GizmoManager::update(am, vg);
 				EditorCameraController::updateOrtho(editorCamera2D);
 				// Update Animation logic and collect draw calls
 				nvgBeginFrame(vg, (float)svgCache->getFramebuffer().width, (float)svgCache->getFramebuffer().height, 1.0f);

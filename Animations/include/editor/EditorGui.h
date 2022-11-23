@@ -2,6 +2,8 @@
 #define MATH_ANIM_EDITOR_GUI_H
 #include "core.h"
 
+struct NVGcontext;
+
 namespace MathAnim
 {
 	struct TimelineData;
@@ -13,7 +15,7 @@ namespace MathAnim
 		void init(AnimationManagerData* am);
 
 		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am);
-		void onGizmo(AnimationManagerData* am);
+		void onGizmo(AnimationManagerData* am, NVGcontext* vg);
 		Vec2 mouseToNormalizedViewport();
 		Vec2 mouseToViewportCoords();
 

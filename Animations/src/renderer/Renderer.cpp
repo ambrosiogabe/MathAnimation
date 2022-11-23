@@ -779,7 +779,7 @@ namespace MathAnim
 				Vec2 extrusionNormal = bisection;
 				float miterThickness = vertex.thickness / CMath::dot(bisection, secondLinePerp);
 
-				constexpr float strokeMiterLimit = 4.0f;
+				constexpr float strokeMiterLimit = 2.0f;
 				bool shouldConvertToBevel = miterThickness / vertex.thickness > strokeMiterLimit;
 				if (shouldConvertToBevel)
 				{

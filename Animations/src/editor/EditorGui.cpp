@@ -121,13 +121,13 @@ namespace MathAnim
 			EditorSettings::imgui();
 		}
 
-		void onGizmo(AnimationManagerData* am)
+		void onGizmo(AnimationManagerData* am, NVGcontext* vg)
 		{
 			AnimObjId activeAnimObjectId = Timeline::getActiveAnimObject();
 			AnimObject* activeAnimObject = AnimationManager::getMutableObject(am, activeAnimObjectId);
 			if (activeAnimObject)
 			{
-				activeAnimObject->onGizmo(am);
+				activeAnimObject->onGizmo(am, vg);
 
 				// Render any animations that contain this object
 				std::vector<AnimId> animations = AnimationManager::getAssociatedAnimations(am, activeAnimObject->id);

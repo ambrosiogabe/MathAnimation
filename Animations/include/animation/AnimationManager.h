@@ -54,6 +54,10 @@ namespace MathAnim
 
 		const char* getAnimObjectName(AnimObjectTypeV1 type);
 		const char* getAnimationName(AnimTypeV1 type);
+
+		void applyGlobalTransforms(AnimationManagerData* am);
+		void applyGlobalTransformsTo(AnimationManagerData* am, AnimObjId obj);
+		void updateObjectState(AnimationManagerData* am, NVGcontext* vg, AnimObjId animObj);
 	}
 }
 

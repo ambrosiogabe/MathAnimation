@@ -18,7 +18,6 @@ namespace MathAnim
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory);
 	static Animation deserializeAnimationExV1(RawMemory& memory);
-	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation);
 
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
 
@@ -40,21 +39,125 @@ namespace MathAnim
 					float interpolatedT = CMath::mapRange(Vec2{ startT, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
 					interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
 
-					AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectIds[i]);
-					if (animObject != nullptr)
-					{
-						animObject->status = interpolatedT < 1.0f
-							? AnimObjectStatus::Animating
-							: AnimObjectStatus::Active;
-						applyAnimationToObj(am, vg, animObject, interpolatedT, this);
-					}
+					applyAnimationToObj(am, vg, animObjectIds[i], interpolatedT);
 				}
 			}
 		}
 		else
 		{
 			t = glm::clamp(CMath::ease(t, easeType, easeDirection), 0.0f, 1.0f);
-			applyAnimationToObj(am, vg, nullptr, t, this);
+			// TODO: This may not be necessary anymore
+			//applyAnimationToObj(am, vg, nullptr, t, this);
+		}
+	}
+
+	void Animation::applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObjId animObjId, float t) const
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, animObjId);
+		if (obj == nullptr)
+		{
+			return;
+		}
+
+		obj->status = t < 1.0f
+			? AnimObjectStatus::Animating
+			: AnimObjectStatus::Active;
+
+		// TODO: How to handle this... Certain animations like moveTo
+		// should only move the parent because the changes propagate to the
+		// children when the transform updates. Other changes like creationPercent and fillColor
+		// don't propagate. So should those changes propagate, or should I automatically
+		// handle it here?
+		// 
+		// Apply animation to all children as well
+		//if (obj)
+		//{
+		//	std::vector<int32> children = AnimationManager::getChildren(am, obj);
+		//	for (int i = 0; i < children.size(); i++)
+		//	{
+		//		AnimObject* childObj = AnimationManager::getMutableObject(am, children[i]);
+		//		if (childObj)
+		//		{
+		//			applyAnimationToObj(am, vg, childObj, t, animation);
+		//		}
+		//	}
+		//}
+
+		switch (type)
+		{
+		case AnimTypeV1::WriteInText:
+		case AnimTypeV1::Create:
+			obj->percentCreated = t;
+			obj->fillColor.a = (uint8)(t * 255.0f);
+			obj->updateChildrenPercentCreated(am, t);
+			// TODO: Bleh... Figure something out!!!
+			obj->updateStatus(am, t > 0.0f && t < 1.0f ? AnimObjectStatus::Animating : t >= 1.0f ? AnimObjectStatus::Active : AnimObjectStatus::Inactive);
+			break;
+		case AnimTypeV1::Transform:
+		{
+			AnimObject* srcObject = AnimationManager::getMutableObject(am, this->as.replacementTransform.srcAnimObjectId);
+			AnimObject* dstObject = AnimationManager::getMutableObject(am, this->as.replacementTransform.dstAnimObjectId);
+
+			if (dstObject && srcObject)
+			{
+				// TODO: Reimplement me
+				//srcObject->replacementTransform(am, dstObject->id, t);
+			}
+		}
+		break;
+		case AnimTypeV1::UnCreate:
+			obj->percentCreated = 1.0f - t;
+			break;
+		case AnimTypeV1::FadeIn:
+		{
+			static bool logWarning = true;
+			if (logWarning)
+			{
+				g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
+				logWarning = false;
+			}
+			obj->fillColor.a = (uint8)(255.0f * t);
+			obj->strokeColor.a = (uint8)(255.0f * t);
+		}
+		break;
+		case AnimTypeV1::FadeOut:
+			obj->fillColor.a = 255 - (uint8)(255.0f * t);
+			obj->strokeColor.a = 255 - (uint8)(255.0f * t);
+			break;
+		case AnimTypeV1::MoveTo:
+		{
+			const Vec3& target = this->as.modifyVec3.target;
+			obj->position = Vec3{
+				((target.x - obj->position.x) * t) + obj->position.x,
+				((target.y - obj->position.y) * t) + obj->position.y,
+				((target.z - obj->position.z) * t) + obj->position.z,
+			};
+		}
+		break;
+		case AnimTypeV1::Shift:
+			obj->position += (this->as.modifyVec3.target * t);
+			break;
+		case AnimTypeV1::RotateTo:
+			obj->rotation = this->as.modifyVec3.target;
+			break;
+		case AnimTypeV1::AnimateFillColor:
+			obj->fillColor = this->as.modifyU8Vec4.target;
+			break;
+		case AnimTypeV1::AnimateStrokeColor:
+			obj->strokeColor = this->as.modifyU8Vec4.target;
+			break;
+		case AnimTypeV1::AnimateStrokeWidth:
+			g_logger_warning("TODO: Implement me");
+			break;
+		case AnimTypeV1::CameraMoveTo:
+			//Renderer::getMutableOrthoCamera()->position = animation->as.modifyVec2.target;
+			g_logger_warning("TODO: Implement me");
+			break;
+		default:
+			// TODO: Add magic_enum
+			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
+			g_logger_info("Unknown animation: %d", type);
+			break;
 		}
 	}
 
@@ -303,7 +406,7 @@ namespace MathAnim
 		return res;
 	}
 
-	void AnimObject::onGizmo(AnimationManagerData* am)
+	void AnimObject::onGizmo(AnimationManagerData* am, NVGcontext* vg)
 	{
 		if (is3D)
 		{
@@ -330,6 +433,7 @@ namespace MathAnim
 					localPosition = this->_globalPositionStart - parent->_globalPositionStart;
 				}
 				this->_positionStart = localPosition;
+				AnimationManager::updateObjectState(am, vg, this->id);
 			}
 		}
 
@@ -373,8 +477,11 @@ namespace MathAnim
 
 			// Default SVG objects will just render the svgObject component
 			Application::getSvgCache()->render(vg, am, this->svgObject, this->id);
-			// Render outline
-			this->svgObject->renderOutline(this->percentCreated, this);
+			if (this->strokeWidth > 0.0f || this->percentCreated < 1.0f)
+			{
+				// Render outline
+				this->svgObject->renderOutline(this->percentCreated, this);
+			}
 		}
 		break;
 		case AnimObjectTypeV1::Cube:
@@ -610,6 +717,22 @@ namespace MathAnim
 		{
 			replacement->percentCreated = 1.0f;
 		}
+	}
+
+	void AnimObject::resetAllState()
+	{
+		if (_svgObjectStart != nullptr && svgObject != nullptr)
+		{
+			Svg::copy(svgObject, _svgObjectStart);
+		}
+		position = _positionStart;
+		rotation = _rotationStart;
+		scale = _scaleStart;
+		fillColor = _fillColorStart;
+		strokeColor = _strokeColorStart;
+		strokeWidth = _strokeWidthStart;
+		percentCreated = 0.0f;
+		status = AnimObjectStatus::Inactive;
 	}
 
 	void AnimObject::updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus)
@@ -1280,106 +1403,6 @@ namespace MathAnim
 		}
 
 		return res;
-	}
-
-	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation)
-	{
-		// TODO: How to handle this... Certain animations like moveTo
-		// should only move the parent because the changes propagate to the
-		// children when the transform updates. Other changes like creationPercent and fillColor
-		// don't propagate. So should those changes propagate, or should I automatically
-		// handle it here?
-		// 
-		// Apply animation to all children as well
-		//if (obj)
-		//{
-		//	std::vector<int32> children = AnimationManager::getChildren(am, obj);
-		//	for (int i = 0; i < children.size(); i++)
-		//	{
-		//		AnimObject* childObj = AnimationManager::getMutableObject(am, children[i]);
-		//		if (childObj)
-		//		{
-		//			applyAnimationToObj(am, vg, childObj, t, animation);
-		//		}
-		//	}
-		//}
-
-		switch (animation->type)
-		{
-		case AnimTypeV1::WriteInText:
-		case AnimTypeV1::Create:
-			obj->percentCreated = t;
-			obj->fillColor.a = (uint8)(t * 255.0f);
-			obj->updateChildrenPercentCreated(am, t);
-			// TODO: Bleh... Figure something out!!!
-			obj->updateStatus(am, t > 0.0f && t < 1.0f ? AnimObjectStatus::Animating : t >= 1.0f ? AnimObjectStatus::Active : AnimObjectStatus::Inactive);
-			break;
-		case AnimTypeV1::Transform:
-		{
-			AnimObject* srcObject = AnimationManager::getMutableObject(am, animation->as.replacementTransform.srcAnimObjectId);
-			AnimObject* dstObject = AnimationManager::getMutableObject(am, animation->as.replacementTransform.dstAnimObjectId);
-
-			if (dstObject && srcObject)
-			{
-				// TODO: Reimplement me
-				//srcObject->replacementTransform(am, dstObject->id, t);
-			}
-		}
-		break;
-		case AnimTypeV1::UnCreate:
-			obj->percentCreated = 1.0f - t;
-			break;
-		case AnimTypeV1::FadeIn:
-		{
-			static bool logWarning = true;
-			if (logWarning)
-			{
-				g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
-				logWarning = false;
-			}
-			obj->fillColor.a = (uint8)(255.0f * t);
-			obj->strokeColor.a = (uint8)(255.0f * t);
-		}
-		break;
-		case AnimTypeV1::FadeOut:
-			obj->fillColor.a = 255 - (uint8)(255.0f * t);
-			obj->strokeColor.a = 255 - (uint8)(255.0f * t);
-			break;
-		case AnimTypeV1::MoveTo:
-		{
-			const Vec3& target = animation->as.modifyVec3.target;
-			obj->position = Vec3{
-				((target.x - obj->position.x) * t) + obj->position.x,
-				((target.y - obj->position.y) * t) + obj->position.y,
-				((target.z - obj->position.z) * t) + obj->position.z,
-			};
-		}
-		break;
-		case AnimTypeV1::Shift:
-			obj->position += (animation->as.modifyVec3.target * t);
-			break;
-		case AnimTypeV1::RotateTo:
-			obj->rotation = animation->as.modifyVec3.target;
-			break;
-		case AnimTypeV1::AnimateFillColor:
-			obj->fillColor = animation->as.modifyU8Vec4.target;
-			break;
-		case AnimTypeV1::AnimateStrokeColor:
-			obj->strokeColor = animation->as.modifyU8Vec4.target;
-			break;
-		case AnimTypeV1::AnimateStrokeWidth:
-			g_logger_warning("TODO: Implement me");
-			break;
-		case AnimTypeV1::CameraMoveTo:
-			//Renderer::getMutableOrthoCamera()->position = animation->as.modifyVec2.target;
-			g_logger_warning("TODO: Implement me");
-			break;
-		default:
-			// TODO: Add magic_enum
-			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
-			g_logger_info("Unknown animation: %d", animation->type);
-			break;
-		}
 	}
 
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim)

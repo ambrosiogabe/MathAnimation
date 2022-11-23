@@ -12,7 +12,7 @@ namespace MathAnim
 		glViewport(0, 0, newWidth, newHeight);
 	}
 
-	Window::Window(int width, int height, const char* title)
+	Window::Window(int width, int height, const char* title, WindowFlags flags)
 		: width(width), height(height), title(title)
 	{
 		glfwInit();
@@ -20,7 +20,10 @@ namespace MathAnim
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		glfwWindowHint(GLFW_SAMPLES, 4);
-		glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+		if (flags & WindowFlags::OpenMaximized)
+		{
+			glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+		}
 
 		windowPtr = (void*)glfwCreateWindow(width, height, title, nullptr, nullptr);
 		if (windowPtr == nullptr)

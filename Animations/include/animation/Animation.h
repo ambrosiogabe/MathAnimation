@@ -128,6 +128,7 @@ namespace MathAnim
 		//      beginning of the animation and 1 is the end of the
 		//      animation
 		void applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t = 1.0f) const;
+		void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObjId animObj, float t = 1.0f) const;
 
 		// Render the gizmo with relation to this object
 		void onGizmo(const AnimObject* obj);
@@ -223,7 +224,7 @@ namespace MathAnim
 			Axis axis;
 		} as;
 
-		void onGizmo(AnimationManagerData* am);
+		void onGizmo(AnimationManagerData* am, NVGcontext* vg);
 		void render(NVGcontext* vg, AnimationManagerData* am) const;
 		void renderMoveToAnimation(NVGcontext* vg, AnimationManagerData* am, float t, const Vec3& target);
 		void renderFadeInAnimation(NVGcontext* vg, AnimationManagerData* am, float t);
@@ -231,6 +232,7 @@ namespace MathAnim
 		void takeAttributesFrom(const AnimObject& obj);
 		void replacementTransform(AnimationManagerData* am, AnimObjId replacement, float t);
 
+		void resetAllState();
 		void updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus);
 		void updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated);
 		void copySvgScaleToChildren(AnimationManagerData* am) const;

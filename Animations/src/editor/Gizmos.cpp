@@ -67,12 +67,12 @@ namespace MathAnim
 			gGizmoManager->activeGizmo = UINT64_MAX;
 		}
 
-		void update(AnimationManagerData* am)
+		void update(AnimationManagerData* am, NVGcontext* vg)
 		{
 			GlobalContext* g = gGizmoManager;
 			g->lastActiveGizmo = g->activeGizmo;
 
-			EditorGui::onGizmo(am);
+			EditorGui::onGizmo(am, vg);
 		}
 
 		void render(const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera)
