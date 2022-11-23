@@ -26,7 +26,7 @@ namespace MathAnim
 
 		SvgObject createDefault()
 		{
-			SvgObject res;
+			SvgObject res = {};
 			res.approximatePerimeter = 0.0f;
 			// Dummy allocation to allow memory tracking when reallocing 
 			// TODO: Fix the dang memory allocation library so I don't have to do this!
@@ -1326,24 +1326,24 @@ namespace MathAnim
 
 	void SvgGroup::normalize()
 	{
-		Vec3 translation = Vec3{ viewbox.values[0], viewbox.values[1], 0.0f };
+		Vec2 translation = Vec2{ viewbox.values[0], viewbox.values[1] };
 
 		calculateBBox();
-		//for (int i = 0; i < numObjects; i++)
-		//{
-		//	SvgObject& obj = objects[i];
-		//	Vec3& offset = objectOffsets[i];
-		//	Vec2 absOffset = CMath::vector2From3(offset - translation);
-		//	obj.normalize(bbox.min, bbox.max);
-		//	offset.x = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, absOffset.x);
-		//	offset.y = CMath::mapRange(Vec2{ bbox.min.y, bbox.max.y }, Vec2{ 0.0f, 1.0f }, absOffset.y);
-		//	obj.calculateSvgSize();
-		//}
-		//viewbox.values[0] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[0]);
-		//viewbox.values[1] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[1]);
-		//viewbox.values[2] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[2]);
-		//viewbox.values[3] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[3]);
-		//calculateBBox();
+		for (int i = 0; i < numObjects; i++)
+		{
+			SvgObject& obj = objects[i];
+			Vec2& offset = objectOffsets[i];
+			Vec2 absOffset = offset - translation;
+			obj.normalize(bbox.min, bbox.max);
+			offset.x = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, absOffset.x);
+			offset.y = CMath::mapRange(Vec2{ bbox.min.y, bbox.max.y }, Vec2{ 0.0f, 1.0f }, absOffset.y);
+			obj.calculateApproximatePerimeter();
+		}
+		viewbox.values[0] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[0]);
+		viewbox.values[1] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[1]);
+		viewbox.values[2] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[2]);
+		viewbox.values[3] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[3]);
+		calculateBBox();
 	}
 
 	void SvgGroup::calculateBBox()

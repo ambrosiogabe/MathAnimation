@@ -16,7 +16,7 @@ namespace MathAnim
 
 	enum class TokenType : uint8
 	{
-		Error = 0,
+		Panic = 0,
 		MoveTo,
 		ClosePath,
 		LineTo,
@@ -55,7 +55,7 @@ namespace MathAnim
 	{
 		// ----------- Internal Functions -----------
 		static bool parseSvgPathTag(XMLElement* element, SvgObject* output);
-		static void interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res);
+		static bool interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res);
 		static bool parseVec2List(std::vector<Vec2>& list, ParserInfo& parserInfo);
 		static bool parseHzNumberList(std::vector<float>& list, ParserInfo& parserInfo);
 		static bool parseVtNumberList(std::vector<float>& list, ParserInfo& parserInfo);
@@ -289,13 +289,28 @@ namespace MathAnim
 			bool lastTokenWasClosePath = false;
 			while (token.type != TokenType::EndOfFile)
 			{
-				interpretCommand(token, parserInfo, &res);
-				Token nextToken = parseNextToken(parserInfo);
-				if (nextToken.type == TokenType::EndOfFile)
+				// panic if we fail to interpret a command
+				bool panic = !interpretCommand(token, parserInfo, &res);
+				if (!panic)
 				{
-					lastTokenWasClosePath = token.type == TokenType::ClosePath;
+					Token nextToken = parseNextToken(parserInfo);
+					if (nextToken.type == TokenType::EndOfFile)
+					{
+						lastTokenWasClosePath = token.type == TokenType::ClosePath;
+					}
+					else if (nextToken.type == TokenType::Panic)
+					{
+						panic = true;
+					}
+					token = nextToken;
 				}
-				token = nextToken;
+
+				if (panic)
+				{
+					res.free();
+					g_logger_error("Had an error while parsing svg path and panicked");
+					return Svg::createDefault();
+				}
 			}
 
 			// We should only do this if the path didn't end with a close_path command
@@ -333,13 +348,13 @@ namespace MathAnim
 			return false;
 		}
 
-		static void interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res)
+		static bool interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res)
 		{
 			TokenType commandType = token.type;
 			bool isAbsolute = token.isAbsolute;
-			if (commandType == TokenType::Error)
+			if (commandType == TokenType::Panic)
 			{
-				return;
+				return false;
 			}
 
 			// Parse as many {x, y} pairs as possible
@@ -351,12 +366,12 @@ namespace MathAnim
 				if (!parseVec2List(vec2List, parserInfo))
 				{
 					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
-					return;
+					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
 					g_logger_error("Error interpreting move to command. No coordinates provided.");
-					return;
+					return false;
 				}
 
 				const Vec2& firstPoint = vec2List[0];
@@ -378,12 +393,12 @@ namespace MathAnim
 				if (!parseVec2List(vec2List, parserInfo))
 				{
 					g_logger_error("Error interpreting line to command. Invalid coordinate encountered.");
-					return;
+					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
 					g_logger_error("Error interpreting line to command. No coordinates provided.");
-					return;
+					return false;
 				}
 
 				for (int i = 0; i < vec2List.size(); i++)
@@ -398,12 +413,12 @@ namespace MathAnim
 				if (!parseHzNumberList(numberList, parserInfo))
 				{
 					g_logger_error("Error interpreting line to command. Invalid coordinate encountered.");
-					return;
+					return false;
 				}
 				if (numberList.size() <= 0)
 				{
 					g_logger_error("Error interpreting line to command. No coordinates provided.");
-					return;
+					return false;
 				}
 
 				for (int i = 0; i < numberList.size(); i++)
@@ -418,12 +433,12 @@ namespace MathAnim
 				if (!parseVtNumberList(numberList, parserInfo))
 				{
 					g_logger_error("Error interpreting line to command. Invalid coordinate encountered.");
-					return;
+					return false;
 				}
 				if (numberList.size() <= 0)
 				{
 					g_logger_error("Error interpreting line to command. No coordinates provided.");
-					return;
+					return false;
 				}
 
 				for (int i = 0; i < numberList.size(); i++)
@@ -438,18 +453,18 @@ namespace MathAnim
 				if (!parseVec2List(vec2List, parserInfo))
 				{
 					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
-					return;
+					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
 					g_logger_error("Error interpreting move to command. No coordinates provided.");
-					return;
+					return false;
 				}
 
 				if (vec2List.size() != 3)
 				{
 					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
-					return;
+					return false;
 				}
 
 				Vec2 c0 = Vec2{ vec2List[0].x, vec2List[0].y };
@@ -464,18 +479,18 @@ namespace MathAnim
 				if (!parseVec2List(vec2List, parserInfo))
 				{
 					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
-					return;
+					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
 					g_logger_error("Error interpreting move to command. No coordinates provided.");
-					return;
+					return false;
 				}
 
 				if (vec2List.size() != 2)
 				{
 					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
-					return;
+					return false;
 				}
 
 				Svg::smoothBezier3To(res, vec2List[0], vec2List[1], isAbsolute);
@@ -487,18 +502,18 @@ namespace MathAnim
 				if (!parseVec2List(vec2List, parserInfo))
 				{
 					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
-					return;
+					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
 					g_logger_error("Error interpreting move to command. No coordinates provided.");
-					return;
+					return false;
 				}
 
 				if (vec2List.size() != 2)
 				{
 					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
-					return;
+					return false;
 				}
 
 				Svg::bezier2To(res, vec2List[0], vec2List[1], isAbsolute);
@@ -510,18 +525,18 @@ namespace MathAnim
 				if (!parseVec2List(vec2List, parserInfo))
 				{
 					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
-					return;
+					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
 					g_logger_error("Error interpreting move to command. No coordinates provided.");
-					return;
+					return false;
 				}
 
 				if (vec2List.size() != 1)
 				{
 					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
-					return;
+					return false;
 				}
 
 				Svg::smoothBezier2To(res, vec2List[0], isAbsolute);
@@ -533,27 +548,30 @@ namespace MathAnim
 				if (!parseArcParamsList(arcParamsList, parserInfo))
 				{
 					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
-					return;
+					return false;
 				}
 				if (arcParamsList.size() <= 0)
 				{
 					g_logger_error("Error interpreting arc to command. No coordinates provided.");
-					return;
+					return false;
 				}
 
 				if (arcParamsList.size() != 1)
 				{
 					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
-					return;
+					return false;
 				}
 
-
+				g_logger_error("TODO: Implement me. Arc command not supported yet.");
+				return false;
 			}
 			break;
 			default:
 				g_logger_error("Unknown SVG command type: %d", commandType);
-				break;
+				return false;
 			}
+
+			return true;
 		}
 
 		static bool parseVec2List(std::vector<Vec2>& list, ParserInfo& parserInfo)
@@ -687,7 +705,7 @@ namespace MathAnim
 		static Token parseNextToken(ParserInfo& parserInfo)
 		{
 			Token result;
-			result.type = TokenType::Error;
+			result.type = TokenType::Panic;
 
 			if (isAlpha(peek(parserInfo)))
 			{
@@ -775,7 +793,7 @@ namespace MathAnim
 			Token token = parseNextToken(parserInfo);
 			if (token.type != expected)
 			{
-				token.type = TokenType::Error;
+				token.type = TokenType::Panic;
 				parserInfo.cursor = parserInfo.textLength;
 			}
 

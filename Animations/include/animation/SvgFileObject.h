@@ -20,8 +20,6 @@ namespace MathAnim
 		void reInit(AnimationManagerData* am, AnimObject* obj);
 		bool setFilepath(const std::string& newFilepath);
 		bool setFilepath(const char* newFilepath);
-		void render(AnimationManagerData* am, NVGcontext* vg, AnimObjId obj) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent) const;
 		void serialize(RawMemory& memory) const;
 		void free();
 

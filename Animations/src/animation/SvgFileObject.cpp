@@ -20,6 +20,7 @@ namespace MathAnim
 		// Generate children that represent each group sub-object
 		Vec2 translation = Vec2{ svgGroup->viewbox.values[0], svgGroup->viewbox.values[1] };
 		Vec2 bboxOffset = Vec2{ svgGroup->bbox.min.x, svgGroup->bbox.min.y };
+		svgGroup->normalize();
 
 		for (int i = 0; i < svgGroup->numObjects; i++)
 		{
@@ -63,6 +64,7 @@ namespace MathAnim
 				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
 			}
 		}
+		obj->generatedChildrenIds.clear();
 
 		// Next init again which should regenerate the children
 		init(am, obj->id);
@@ -101,30 +103,6 @@ namespace MathAnim
 	bool SvgFileObject::setFilepath(const char* newFilepath)
 	{
 		return setFilepath(std::string(newFilepath));
-	}
-
-	void SvgFileObject::render(AnimationManagerData* am, NVGcontext* vg, AnimObjId objId) const
-	{
-		AnimObject* obj = AnimationManager::getMutableObject(am, objId);
-
-		if (svgGroup)
-		{
-			svgGroup->render(vg, obj);
-		}
-	}
-
-	void SvgFileObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent) const
-	{
-		if (svgGroup)
-		{
-			svgGroup->renderCreateAnimation(vg, t, (AnimObject*)parent);
-			static bool displayMessage = true;
-			if (displayMessage)
-			{
-				g_logger_error("TODO: SvgFileObject::renderCreateAnimation() is not implemented yet. This message will suppress itself.");
-				displayMessage = false;
-			}
-		}
 	}
 
 	void SvgFileObject::serialize(RawMemory& memory) const

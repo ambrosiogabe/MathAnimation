@@ -583,9 +583,10 @@ namespace MathAnim
 						const AnimObject* parent = getObject(am, nextObj->parentId);
 						if (parent)
 						{
+							// Apply parent transform to child
+							nextObj->globalTransform = parent->globalTransform * nextObj->globalTransform;
 							nextObj->_globalPositionStart += parent->_globalPositionStart;
 							nextObj->globalPosition += parent->globalPosition;
-							nextObj->globalTransform *= parent->globalTransform;
 						}
 					}
 
