@@ -179,10 +179,12 @@ namespace MathAnim
 
 	struct Path_Vertex2DLine
 	{
-		Vec2 position;
-		Vec2 normal;
-		float thickness;
+		Vec2 position;;
 		Vec4 color;
+		float thickness;
+
+		Vec2 frontP1, frontP2;
+		Vec2 backP1, backP2;
 	};
 
 	struct Path2DContext
@@ -309,7 +311,6 @@ namespace MathAnim
 		static uint32 getColorCompressed();
 		static const glm::vec4& getColor();
 		static float getStrokeWidth();
-		static void generateMiter(const Vec2& previousPoint, const Vec2& currentPoint, const Vec2& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth);
 		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth);
 
 		void init(OrthoCamera& inOrthoCamera, PerspectiveCamera& inPerspCamera)
@@ -542,7 +543,7 @@ namespace MathAnim
 			drawList2D.addColoredTri(p0, p1, p2, Vec4{ color.r, color.g, color.b, color.a }, objId);
 		}
 
-		void drawLine(const Vec2& start, const Vec2& end, const Vec2& inStartNormal, float inStartThickness, const Vec2& inEndNormal, float inEndThickness)
+		void drawLine(const Vec2& start, const Vec2& end)
 		{
 			CapType lineEnding = lineEndingStackPtr > 0
 				? lineEndingStack[lineEndingStackPtr - 1]
@@ -553,30 +554,15 @@ namespace MathAnim
 				: defaultStrokeWidth;
 
 			Vec2 direction = end - start;
-			Vec2 startNormalDirection = inStartNormal == Vec2{ FLT_MAX, FLT_MAX }
-				? CMath::normalize(direction)
-				: inStartNormal;
-			Vec2 startPerpVector = Vec2{ -startNormalDirection.y, startNormalDirection.x };
-			float startThickness = inStartThickness == 0.0f
-				? strokeWidth
-				: inStartThickness;
-			startThickness *= 0.5f;
-
-			Vec2 endNormalDirection = inEndNormal == Vec2{ FLT_MAX, FLT_MAX }
-				? CMath::normalize(direction)
-				: inEndNormal;
-			Vec2 endPerpVector = Vec2{ -endNormalDirection.y, endNormalDirection.x };
-			float endThickness = inEndThickness == 0.0f
-				? strokeWidth
-				: inEndThickness;
-			endThickness *= 0.5f;
+			Vec2 normalDirection = CMath::normalize(direction);
+			Vec2 perpVector = Vec2{ -normalDirection.y, normalDirection.x };
 
 			// Triangle 1
 			// "Bottom-left" corner of line
-			Vec2 bottomLeft = start - (startPerpVector * startThickness);
-			Vec2 bottomRight = start + (startPerpVector * startThickness);
-			Vec2 topLeft = end + (endPerpVector * endThickness);
-			Vec2 topRight = end - (endPerpVector * endThickness);
+			Vec2 bottomLeft = start - (perpVector * strokeWidth * 0.5f);
+			Vec2 bottomRight = start + (perpVector * strokeWidth * 0.5f);
+			Vec2 topLeft = end + (perpVector * strokeWidth * 0.5f);
+			Vec2 topRight = end - (perpVector * strokeWidth * 0.5f);
 
 			drawFilledTri(bottomLeft, bottomRight, topLeft);
 			drawFilledTri(bottomLeft, topLeft, topRight);
@@ -700,7 +686,7 @@ namespace MathAnim
 		}
 
 		// ----------- 2D Line stuff ----------- 
-		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform, const Vec2& normal)
+		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform)
 		{
 			Path2DContext* context = (Path2DContext*)g_memory_allocate(sizeof(Path2DContext));
 			new(context)Path2DContext();
@@ -726,7 +712,6 @@ namespace MathAnim
 				color.a
 			};
 			vert.thickness = strokeWidth;
-			vert.normal = normal;
 			context->data.emplace_back(vert);
 
 			return context;
@@ -742,73 +727,133 @@ namespace MathAnim
 		{
 			g_logger_assert(path != nullptr, "Null path.");
 
+			// NOTE: This is some weird shenanigans in order to get the path
+			// to close correctly and join the last vertex to the first vertex
+			// This hack is followed up in the second loop by a similar hack
 			int endPoint = (int)path->data.size();
 			if (closePath && current3DPath[0].position == current3DPath[numVertsIn3DPath - 1].position)
 			{
 				endPoint--;
 			}
 
-			for (int vert = 0; vert < endPoint; vert++)
+			// Do two loops:
+			// 
+			// The first loop extrudes all the vertices
+			// and forms the tesselated path. It also creates 
+			// any bevels/miters/rounded corners and adds
+			// them immediately and just saves the connection
+			// points for the second loop.
+			// 
+			// The second loop
+			// connects the verts into quads to form the stroke
+
+			for (int vertIndex = 0; vertIndex < path->data.size(); vertIndex++)
 			{
-				Vec2 currentPos = path->data[vert].position;
-				Vec2 nextPos = vert + 1 < endPoint
-					? path->data[vert + 1].position
+				Path_Vertex2DLine& vertex = path->data[vertIndex];
+				Vec2 currentPos = vertex.position;
+				Vec2 nextPos = vertIndex + 1 < endPoint
+					? path->data[vertIndex + 1].position
 					: closePath
-					? path->data[(vert + 1) % endPoint].position
+					? path->data[(vertIndex + 1) % endPoint].position
 					: path->data[endPoint - 1].position;
-				Vec2 nextNextPos = vert + 2 < endPoint
-					? path->data[vert + 2].position
-					: closePath
-					? path->data[(vert + 2) % endPoint].position
-					: path->data[endPoint - 1].position;
-				Vec2 previousPos = vert > 0
-					? path->data[vert - 1].position
+				Vec2 previousPos = vertIndex > 0
+					? path->data[vertIndex - 1].position
 					: closePath
 					? path->data[endPoint - 1].position
 					: path->data[0].position;
-				Vec4 unpackedColor = path->data[vert].color;
-				float thickness = path->data[vert].thickness;
 
-				Renderer::pushStrokeWidth(thickness);
-				Renderer::pushColor(unpackedColor);
+				Renderer::pushColor(vertex.color);
 
-				Vec2 firstNormal = path->data[vert].normal;
-				Vec2 secondNormal = path->data[(vert + 1) % endPoint].normal;
+				// Generate a miter
+				bool generateVerts = true;
 
-				float firstThickness = 0.0f;
-				float secondThickness = 0.0f;
-				if (firstNormal == Vec2{ FLT_MAX, FLT_MAX })
+				Vec2 dirA = CMath::normalize(currentPos - previousPos);
+				Vec2 dirB = CMath::normalize(nextPos - currentPos);
+				Vec2 bisectionPerp = CMath::normalize(dirA + dirB);
+				Vec2 secondLinePerp = Vec2{ -dirB.y, dirB.x };
+				// This is the miter
+				Vec2 bisection = Vec2{ -bisectionPerp.y, bisectionPerp.x };
+				Vec2 extrusionNormal = bisection;
+				float miterThickness = vertex.thickness / CMath::dot(bisection, secondLinePerp);
+
+				constexpr float strokeMiterLimit = 4.0f;
+				bool shouldConvertToBevel = miterThickness / vertex.thickness > strokeMiterLimit;
+				if (shouldConvertToBevel)
 				{
-					generateMiter(previousPos, currentPos, nextPos, thickness, &firstNormal, &firstThickness);
-				}
-				if (secondNormal == Vec2{ FLT_MAX, FLT_MAX })
-				{
-					generateMiter(currentPos, nextPos, nextNextPos, thickness, &secondNormal, &secondThickness);
+					float firstBevelWidth = vertex.thickness / CMath::dot(bisection, dirA) * 0.5f;
+					float secondBevelWidth = vertex.thickness / CMath::dot(bisection, dirB) * 0.5f;
+					Vec2 firstPoint = currentPos + (bisectionPerp * firstBevelWidth);
+					Vec2 secondPoint = currentPos + (bisectionPerp * secondBevelWidth);
+					
+					float centerBevelWidth = vertex.thickness / CMath::dot(bisectionPerp, CMath::normalize(currentPos - previousPos));
+					centerBevelWidth = glm::min(centerBevelWidth, vertex.thickness);
+					Vec2 centerPoint = currentPos + (bisection * centerBevelWidth);
+					Renderer::drawFilledTri(firstPoint, secondPoint, centerPoint);
+
+					// Save the "front" and "back" for the connection loop
+					vertex.frontP1 = centerPoint;
+					vertex.frontP2 = secondPoint;
+
+					vertex.backP1 = centerPoint;
+					vertex.backP2 = firstPoint;
+					generateVerts = false;
 				}
 
-				if (currentPos == previousPos)
+				// If we're drawing the beginning/end of the path, just
+				// do a straight cap on the line segment
+				if (vertIndex == 0 && !closePath)
 				{
-					// If we're drawing the beginning of the path, just
-					// do a straight cap on the line segment
-					firstNormal = CMath::normalize(nextPos - currentPos);
-					firstThickness = thickness;
+					generateVerts = true;
+					Vec2 normal = CMath::normalize(nextPos - currentPos);
+					extrusionNormal = Vec2{ -normal.y, normal.x };
+					miterThickness = vertex.thickness;
 				}
-				if (nextPos == nextNextPos)
+				else if (vertIndex == endPoint - 1 && !closePath)
 				{
-					// If we're drawing the end of the path, just
-					// do a straight cap on the line segment
-					secondNormal = CMath::normalize(nextPos - currentPos);
-					secondThickness = thickness;
+					generateVerts = true;
+					Vec2 normal = CMath::normalize(currentPos - previousPos);
+					extrusionNormal = Vec2{ -normal.y, normal.x };
+					miterThickness = vertex.thickness;
 				}
 
-				drawLine(currentPos, nextPos, firstNormal, firstThickness, secondNormal, secondThickness);
+				// If we're doing a bevel or something, that uses special vertices
+				// to join segments. Otherwise we can just use the extrusion normal
+				// and miterThickness to join the segments
+				if (generateVerts)
+				{
+					vertex.frontP1 = vertex.position + extrusionNormal * miterThickness * 0.5f;
+					vertex.frontP2 = vertex.position - extrusionNormal * miterThickness * 0.5f;
 
-				Renderer::popStrokeWidth();
+					vertex.backP1 = vertex.position + extrusionNormal * miterThickness * 0.5f;
+					vertex.backP2 = vertex.position - extrusionNormal * miterThickness * 0.5f;
+				}
+
 				Renderer::popColor();
+			}
+
+			// NOTE: This is some weird shenanigans in order to get the path
+			// to close correctly and join the last vertex to the first vertex
+			if (!closePath)
+			{
+				endPoint--;
+			}
+
+			for (int vertIndex = 0; vertIndex < endPoint; vertIndex++)
+			{
+				const Path_Vertex2DLine& vertex = path->data[vertIndex % path->data.size()];
+				const Path_Vertex2DLine& nextVertex = path->data[(vertIndex + 1) % path->data.size()];
+
+				pushColor(vertex.color);
+
+				// Draw the start and endpoints of the path as caps
+				drawFilledTri(vertex.frontP1, vertex.frontP2, nextVertex.backP1);
+				drawFilledTri(vertex.frontP2, nextVertex.backP2, nextVertex.backP1);
+
+				popColor();
 			}
 		}
 
-		void lineTo(Path2DContext* path, const Vec2& point, bool applyTransform, const Vec2& normal)
+		void lineTo(Path2DContext* path, const Vec2& point, bool applyTransform)
 		{
 			g_logger_assert(path != nullptr, "Null path.");
 
@@ -835,8 +880,12 @@ namespace MathAnim
 				color.a
 			};
 			vert.thickness = strokeWidth;
-			vert.normal = normal;
-			path->data.emplace_back(vert);
+
+			// Don't add the vertex if it's goint to itself
+			if (path->data.size() > 0 && path->data[path->data.size() - 1].position != vert.position)
+			{
+				path->data.emplace_back(vert);
+			}
 		}
 
 		void quadTo(Path2DContext* path, const Vec2& p1, const Vec2& p2)
@@ -866,8 +915,7 @@ namespace MathAnim
 			{
 				float t = (float)i / (float)numSegments;
 				Vec2 interpPoint = CMath::bezier2(transformedP0, transformedP1, transformedP2, t);
-				Vec2 normal = CMath::bezier2Normal(transformedP0, transformedP1, transformedP2, t);
-				lineTo(path, interpPoint, false, normal);
+				lineTo(path, interpPoint, false);
 			}
 
 			lineTo(path, transformedP2, false);
@@ -904,8 +952,7 @@ namespace MathAnim
 			{
 				float t = (float)i / (float)numSegments;
 				Vec2 interpPoint = CMath::bezier3(transformedP0, transformedP1, transformedP2, transformedP3, t);
-				Vec2 normal = CMath::bezier3Normal(transformedP0, transformedP1, transformedP2, transformedP3, t);
-				lineTo(path, interpPoint, false, normal);
+				lineTo(path, interpPoint, false);
 			}
 
 			lineTo(path, transformedP3, false);
@@ -961,19 +1008,19 @@ namespace MathAnim
 				Vec3 currentPos = current3DPath[vert].position;
 				Vec3 nextPos = vert + 1 < numVertsIn3DPath
 					? current3DPath[vert + 1].position
-					: closePath 
-					  ? current3DPath[(vert + 1) % numVertsIn3DPath].position
-					  : current3DPath[numVertsIn3DPath - 1].position;
+					: closePath
+					? current3DPath[(vert + 1) % numVertsIn3DPath].position
+					: current3DPath[numVertsIn3DPath - 1].position;
 				Vec3 nextNextPos = vert + 2 < numVertsIn3DPath
 					? current3DPath[vert + 2].position
 					: closePath
-					  ? current3DPath[(vert + 2) % numVertsIn3DPath].position
-					  : current3DPath[numVertsIn3DPath - 1].position;
+					? current3DPath[(vert + 2) % numVertsIn3DPath].position
+					: current3DPath[numVertsIn3DPath - 1].position;
 				Vec3 previousPos = vert > 0
 					? current3DPath[vert - 1].position
 					: closePath
-					  ? current3DPath[numVertsIn3DPath - 1].position
-					  : current3DPath[0].position;
+					? current3DPath[numVertsIn3DPath - 1].position
+					: current3DPath[0].position;
 				uint32 packedColor = current3DPath[vert].color;
 				float thickness = current3DPath[vert].thickness;
 
@@ -1022,7 +1069,7 @@ namespace MathAnim
 					secondThickness = thickness;
 				}
 
-				drawLine(CMath::vector2From3(currentPos), CMath::vector2From3(nextPos), firstNormal, firstThickness, secondNormal, secondThickness);
+				drawLine(CMath::vector2From3(currentPos), CMath::vector2From3(nextPos));
 
 				Renderer::popStrokeWidth();
 				Renderer::popColor();
@@ -1280,19 +1327,6 @@ namespace MathAnim
 				? strokeWidthStack[strokeWidthStackPtr - 1]
 				: defaultStrokeWidth;
 			return strokeWidth;
-		}
-
-		static void generateMiter(const Vec2& previousPoint, const Vec2& currentPoint, const Vec2& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth)
-		{
-			Vec2 dirA = CMath::normalize(currentPoint - previousPoint);
-			Vec2 dirB = CMath::normalize(nextPoint - currentPoint);
-			Vec2 bisection = CMath::normalize(dirA + dirB);
-			Vec2 secondLinePerp = Vec2{ -dirB.y, dirB.x };
-			// This is the miter
-			Vec2 bisectionPerp = Vec2{ -bisection.y, bisection.x };
-			*outNormal = bisection;
-			*outStrokeWidth = strokeWidth / CMath::dot(bisectionPerp, secondLinePerp);
-			//*outStrokeWidth = CMath::max(CMath::min(CMath::abs(*outStrokeWidth), strokeWidth), -CMath::abs(strokeWidth));
 		}
 
 		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth)

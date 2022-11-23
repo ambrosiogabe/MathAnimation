@@ -2284,9 +2284,9 @@ namespace MathAnim
 					Renderer::popColor();
 				}
 
-				if (lengthDrawn > lengthToDraw)
+				if (lengthDrawn >= lengthToDraw && t < 1.0f)
 				{
-					Renderer::endPath(context);
+					Renderer::endPath(context, false);
 					Renderer::free(context);
 					break;
 				}
