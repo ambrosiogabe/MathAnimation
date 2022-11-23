@@ -517,10 +517,13 @@ namespace MathAnim
 		// ----------- 2D stuff ----------- 
 		void drawSquare(const Vec2& start, const Vec2& size)
 		{
-			drawLine(start, start + Vec2{ size.x, 0 });
-			drawLine(start + Vec2{ 0, size.y }, start + size);
-			drawLine(start, start + Vec2{ 0, size.y });
-			drawLine(start + Vec2{ size.x, 0 }, start + size);
+			Path2DContext* path = beginPath(start);
+			lineTo(path, start + Vec2{ size.x, 0 });
+			lineTo(path, start + size);
+			lineTo(path, start + Vec2{ 0, size.y });
+			lineTo(path, start);
+			endPath(path);
+			free(path);
 		}
 
 		void drawFilledQuad(const Vec2& start, const Vec2& size, uint32 objId)
