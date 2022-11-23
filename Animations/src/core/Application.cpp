@@ -493,6 +493,11 @@ namespace MathAnim
 			return glm::vec2(viewportWidth, viewportHeight);
 		}
 
+		glm::vec2 getAppWindowSize()
+		{
+			return glm::vec2(window->width, window->height);
+		}
+
 		void setFrameIndex(int frame)
 		{
 			absoluteCurrentFrame = frame;

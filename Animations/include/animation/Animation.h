@@ -13,7 +13,6 @@ namespace MathAnim
 	struct Font;
 	struct SvgObject;
 	struct AnimationManagerData;
-	struct SceneSnapshot;
 	
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;
@@ -129,7 +128,6 @@ namespace MathAnim
 		//      beginning of the animation and 1 is the end of the
 		//      animation
 		void applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t = 1.0f) const;
-		void applyAnimationToSnapshot(SceneSnapshot& snapshot, NVGcontext* vg, float t = 1.0f) const;
 
 		// Render the gizmo with relation to this object
 		void onGizmo(const AnimObject* obj);
@@ -166,73 +164,6 @@ namespace MathAnim
 		AnimationManagerData* am;
 		std::deque<AnimObjId> childrenLeft;
 		AnimObjId currentId;
-	};
-
-	class AnimObjectBreadthFirstIterSnapshot
-	{
-	public:
-		AnimObjectBreadthFirstIterSnapshot(SceneSnapshot& am, AnimObjId parentId)
-			: snapshot(am)
-		{
-			init(parentId);
-		}
-
-		void init(AnimObjId parentId);
-
-		void operator++();
-
-		inline bool operator==(AnimObjId other) const { return currentId == other; }
-		inline bool operator!=(AnimObjId other) const { return currentId != other; }
-		inline AnimObjId operator*() const { return currentId; }
-
-	private:
-		SceneSnapshot& snapshot;
-		std::deque<AnimObjId> childrenLeft;
-		AnimObjId currentId;
-	};
-
-	struct AnimObjectState
-	{
-		AnimObjectTypeV1 objectType;
-		Vec3 position;
-		Vec3 rotation;
-		Vec3 scale;
-		SvgObject* svgObject;
-		float svgScale;
-		// This is the percent created ranging from [0.0-1.0] which determines 
-		// what to pass to renderCreateAnimation(...)
-		float percentCreated;
-		float strokeWidth;
-		glm::u8vec4 strokeColor;
-		glm::u8vec4 fillColor;
-
-		// Transform stuff
-		// TODO: Consider moving this to a Transform class
-		// This is the combined parent+child positions and transformations
-		Vec3 globalPosition;
-		glm::mat4 globalTransform;
-
-		AnimObjId id;
-		AnimObjId parentId;
-		std::vector<AnimObjId> generatedChildrenIds;
-
-		bool isTransparent;
-		bool drawDebugBoxes;
-		bool drawCurveDebugBoxes;
-		bool drawCurves;
-		bool drawControlPoints;
-		bool is3D;
-		bool isGenerated;
-
-		union
-		{
-			TextObject textObject;
-			LaTexObject laTexObject;
-			Square square;
-			Circle circle;
-			Cube cube;
-			Axis axis;
-		} as;
 	};
 
 	struct AnimObject
@@ -301,16 +232,13 @@ namespace MathAnim
 		void replacementTransform(AnimationManagerData* am, AnimObjId replacement, float t);
 
 		void updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus);
-		void updateStatusSnapshot(SceneSnapshot& snapshot, AnimObjectStatus newStatus);
 		void updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated);
-		void updateChildrenPercentCreatedSnapshot(SceneSnapshot& snapshot, float newPercentCreated);
 		void copySvgScaleToChildren(AnimationManagerData* am) const;
 		void copyStrokeWidthToChildren(AnimationManagerData* am) const;
 		void copyStrokeColorToChildren(AnimationManagerData* am) const;
 		void copyFillColorToChildren(AnimationManagerData* am) const;
 
 		AnimObjectBreadthFirstIter beginBreadthFirst(AnimationManagerData* am) const;
-		AnimObjectBreadthFirstIterSnapshot beginBreadthFirst(SceneSnapshot& snapshot) const;
 		inline AnimObjId end() const { return NULL_ANIM_OBJECT; }
 		
 		void free();

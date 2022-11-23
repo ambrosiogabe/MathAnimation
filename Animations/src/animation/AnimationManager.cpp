@@ -11,9 +11,9 @@ namespace MathAnim
 {
 	struct AnimationManagerData
 	{
-		SceneSnapshot startingSnapshot;
-		SceneSnapshot currentSnapshot;
-		std::vector<SceneSnapshot> snapshots;
+		std::vector<AnimObject> objects;
+		// Maps from AnimObjectId -> Index in objects vector
+		std::unordered_map<AnimObjId, size_t> objectIdMap;
 
 		// Always sorted by startFrame and trackIndex
 		std::vector<Animation> animations;
@@ -32,6 +32,7 @@ namespace MathAnim
 		// each frame we actually need to reset the camera position to its start position. I really
 		// need to figure out a better architecture for this haha
 		Vec2 sceneCamera2DStartPos;
+		Vec2 camera2DPos;
 		OrthoCamera* sceneCamera2D;
 		int currentFrame;
 	};
@@ -77,11 +78,9 @@ namespace MathAnim
 		static void removeQueuedAnimObject(AnimationManagerData* am, AnimObjId animObj);
 		static void removeQueuedAnimation(AnimationManagerData* am, AnimId animation);
 		static void removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj);
-		static void removeSingleAnimObjectSnapshot(SceneSnapshot& snapshot, AnimObjId animObj);
-		static void freeSnapshot(SceneSnapshot& snapshot);
 		static void applyDelta(AnimationManagerData* am, NVGcontext* vg, int deltaFrame);
-		static void applyGlobalTransforms(SceneSnapshot& snapshot);
-		static void applyAnimationsFrom(AnimationManagerData* am, NVGcontext* vg, SceneSnapshot& snapshot, int startIndex, int frame);
+		static void applyGlobalTransforms(AnimationManagerData* am);
+		static void applyAnimationsFrom(AnimationManagerData* am, NVGcontext* vg, int startIndex, int frame);
 
 		AnimationManagerData* create(OrthoCamera& camera)
 		{
@@ -100,15 +99,11 @@ namespace MathAnim
 		{
 			if (am)
 			{
-				// Free all snapshots
-				for (auto& snapshot : am->snapshots)
+				// Free animation objects
+				for (int i = 0; i < am->objects.size(); i++)
 				{
-					freeSnapshot(snapshot);
+					am->objects[i].free();
 				}
-
-				// Free starting and current snapshot
-				freeSnapshot(am->startingSnapshot);
-				freeSnapshot(am->currentSnapshot);
 
 				// Free animations and stuff
 				for (int i = 0; i < am->animations.size(); i++)
@@ -157,26 +152,38 @@ namespace MathAnim
 			am->queuedAddAnimations.clear();
 		}
 
-		SceneSnapshot buildSnapshot(AnimationManagerData* am, NVGcontext* vg, uint32 absoluteFrame)
+		void resetToFrame(AnimationManagerData* am, NVGcontext* vg, uint32 absoluteFrame)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			// Reset everything to state at frame 0
-			SceneSnapshot newSnapshot;
+			am->camera2DPos = am->sceneCamera2DStartPos;
 
-			newSnapshot.camera2DPos = am->startingSnapshot.camera2DPos;
-
-			// Copy all the starting anim objects to the new snapshot
-			for (auto objectIter = am->startingSnapshot.objects.begin(); objectIter != am->startingSnapshot.objects.end(); objectIter++)
+			// Reset all object states
+			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 			{
 				// Reset to original state and apply animations in order
-				AnimObject obj = AnimObject::createCopy(*objectIter);
-				newSnapshot.objectIdMap[obj.id] = newSnapshot.objects.size();
-				newSnapshot.objects.emplace_back(obj);
+				if (objectIter->_svgObjectStart != nullptr && objectIter->svgObject != nullptr)
+				{
+					Svg::copy(objectIter->svgObject, objectIter->_svgObjectStart);
+				}
+				objectIter->position = objectIter->_positionStart;
+				objectIter->rotation = objectIter->_rotationStart;
+				objectIter->scale = objectIter->_scaleStart;
+				objectIter->fillColor = objectIter->_fillColorStart;
+				objectIter->strokeColor = objectIter->_strokeColorStart;
+				objectIter->strokeWidth = objectIter->_strokeWidthStart;
+				objectIter->percentCreated = 0.0f;
+				objectIter->status = AnimObjectStatus::Inactive;
+
+				// Update any updateable objects
+				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
+				{
+					objectIter->as.laTexObject.update();
+				}
 			}
 
 			// Then apply each animation up to the current frame
-			for (auto objectIter = newSnapshot.objects.begin(); objectIter != newSnapshot.objects.end(); objectIter++)
+			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 			{
 				// Update any updateable objects
 				// TODO: Is this important?
@@ -186,10 +193,8 @@ namespace MathAnim
 				}
 			}
 
-			applyAnimationsFrom(am, vg, newSnapshot, 0, absoluteFrame);
-			applyGlobalTransforms(newSnapshot);
-
-			return newSnapshot;
+			applyAnimationsFrom(am, vg, 0, absoluteFrame);
+			applyGlobalTransforms(am);
 		}
 
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object)
@@ -208,28 +213,6 @@ namespace MathAnim
 			// These adds get queued until the end of the frame so that
 			// pointers are stable for at least the duration of one frame
 			am->queuedAddAnimations.push_back(animation);
-		}
-
-		void updateAnimObjectAllSnapshots(AnimationManagerData* am, const AnimObject& objRef)
-		{
-			AnimObject reference = AnimObject::createCopy(objRef);
-
-			for (auto& snapshot : am->snapshots)
-			{
-				AnimObject* obj = getMutableObjectFromSnapshot(snapshot, objRef.id);
-				obj->free();
-				*obj = AnimObject::createCopy(reference);
-			}
-
-			AnimObject* obj1 = getMutableObjectFromSnapshot(am->startingSnapshot, objRef.id);
-			obj1->free();
-			*obj1 = AnimObject::createCopy(reference);
-
-			AnimObject* obj2 = getMutableObjectFromSnapshot(am->currentSnapshot, objRef.id);
-			obj2->free();
-			*obj2 = AnimObject::createCopy(reference);
-
-			reference.free();
 		}
 
 		void removeAnimObject(AnimationManagerData* am, AnimObjId animObj)
@@ -343,16 +326,12 @@ namespace MathAnim
 			if (deltaFrame != 0)
 			{
 				applyDelta(am, vg, deltaFrame);
-				//am->currentFrame += deltaFrame;
-				//am->currentSnapshot = findSnapshot(am->currentFrame);
-				//freeSnapshot(am->currentSnapshot);
-				//am->currentSnapshot = buildSnapshot(am, vg, am->currentFrame);
 			}
 
 			// Render any active/animating objects
 			// Make sure to initialize the NanoVG cache and then flush it after all the 
 			// draw calls are complete
-			for (auto objectIter = am->currentSnapshot.objects.begin(); objectIter != am->currentSnapshot.objects.end(); objectIter++)
+			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 			{
 				if (objectIter->status != AnimObjectStatus::Inactive)
 				{
@@ -393,32 +372,22 @@ namespace MathAnim
 			return getMutableObject((AnimationManagerData*)am, animObj);
 		}
 
-		const AnimObject* getObjectFromSnapshot(const SceneSnapshot& snapshot, AnimObjId animObj)
-		{
-			return getMutableObjectFromSnapshot((SceneSnapshot&)snapshot, animObj);
-		}
-
 		AnimObject* getMutableObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			return getMutableObjectFromSnapshot(am->currentSnapshot, animObj);
-		}
-
-		AnimObject* getMutableObjectFromSnapshot(SceneSnapshot& snapshot, AnimObjId animObj)
-		{
 			if (isNull(animObj))
 			{
 				return nullptr;
 			}
 
-			auto iter = snapshot.objectIdMap.find(animObj);
-			if (iter != snapshot.objectIdMap.end())
+			auto iter = am->objectIdMap.find(animObj);
+			if (iter != am->objectIdMap.end())
 			{
 				size_t objectIndex = iter->second;
-				if (objectIndex >= 0 && objectIndex < snapshot.objects.size())
+				if (objectIndex >= 0 && objectIndex < am->objects.size())
 				{
-					return &snapshot.objects[objectIndex];
+					return &am->objects[objectIndex];
 				}
 			}
 
@@ -455,7 +424,7 @@ namespace MathAnim
 		const std::vector<AnimObject>& getAnimObjects(const AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
-			return am->currentSnapshot.objects;
+			return am->objects;
 		}
 
 		const std::vector<Animation>& getAnimations(const AnimationManagerData* am)
@@ -483,31 +452,16 @@ namespace MathAnim
 
 		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId animObj)
 		{
-			return getChildrenFromSnapshot(am->currentSnapshot, animObj);
-		}
-
-		std::vector<AnimObjId> getChildrenFromSnapshot(const SceneSnapshot& snapshot, AnimObjId animObj)
-		{
 			std::vector<AnimObjId> res;
-			for (int i = 0; i < snapshot.objects.size(); i++)
+			for (int i = 0; i < am->objects.size(); i++)
 			{
-				if (snapshot.objects[i].parentId == animObj)
+				if (am->objects[i].parentId == animObj)
 				{
-					res.push_back(snapshot.objects[i].id);
+					res.push_back(am->objects[i].id);
 				}
 			}
 
 			return res;
-		}
-
-		const SceneSnapshot& getCurrentSnapshot(const AnimationManagerData* am)
-		{
-			return getCurrentSnapshot((AnimationManagerData*)am);
-		}
-
-		SceneSnapshot& getMutableCurrentSnapshot(AnimationManagerData* am)
-		{
-			return am->currentSnapshot;
 		}
 
 		RawMemory serialize(const AnimationManagerData* am)
@@ -538,13 +492,13 @@ namespace MathAnim
 
 			// numAnimObjects -> uint32
 			// animObjects    -> dynamic
-			uint32 numAnimObjects = (uint32)am->startingSnapshot.objects.size();
+			uint32 numAnimObjects = (uint32)am->objects.size();
 			memory.write<uint32>(&numAnimObjects);
 
 			// Write out each anim object followed by 0xDEADBEEF
-			for (int i = 0; i < am->startingSnapshot.objects.size(); i++)
+			for (int i = 0; i < am->objects.size(); i++)
 			{
-				am->startingSnapshot.objects[i].serialize(memory);
+				am->objects[i].serialize(memory);
 				memory.write<uint32>(&MAGIC_NUMBER);
 			}
 
@@ -574,7 +528,7 @@ namespace MathAnim
 				deserializeAnimationManagerExV1(am, memory);
 				am->currentFrame = currentFrame;
 				Application::resetToFrame(currentFrame);
-				am->currentSnapshot = buildSnapshot(am, vg, currentFrame);
+				resetToFrame(am, vg, currentFrame);
 			}
 			else
 			{
@@ -583,18 +537,6 @@ namespace MathAnim
 
 			// Need to sort animations they get applied in the correct order
 			sortAnimations(am);
-
-			// Build snapshots at key moments
-			for (size_t i = 0; i < am->animations.size(); i++)
-			{
-				const Animation& anim = am->animations[i];
-				int animStart = anim.frameStart;
-				int animEnd = anim.frameStart + anim.duration;
-				am->snapshots.emplace_back(buildSnapshot(am, vg, animStart));
-				am->snapshots.emplace_back(buildSnapshot(am, vg, animEnd));
-			}
-
-			g_logger_info("Number of snapshots in deserialized scene: %d", am->snapshots.size());
 		}
 
 		void sortAnimations(AnimationManagerData* am)
@@ -648,12 +590,12 @@ namespace MathAnim
 			for (uint32 i = 0; i < numAnimObjects; i++)
 			{
 				AnimObject animObject = AnimObject::deserialize(am, memory, version);
-				am->startingSnapshot.objects.push_back(animObject);
+				am->objects.push_back(animObject);
 				uint32 magicNumber;
 				memory.read<uint32>(&magicNumber);
 				g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
 
-				am->startingSnapshot.objectIdMap[animObject.id] = i;
+				am->objectIdMap[animObject.id] = i;
 			}
 		}
 
@@ -683,19 +625,11 @@ namespace MathAnim
 
 		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj)
 		{
-			am->startingSnapshot.objects.push_back(obj);
-			am->startingSnapshot.objectIdMap[obj.id] = am->startingSnapshot.objects.size() - 1;
+			am->objects.push_back(obj);
+			am->objectIdMap[obj.id] = am->objects.size() - 1;
 
-			AnimObject copy1 = AnimObject::createCopy(obj);
-			am->currentSnapshot.objects.push_back(copy1);
-			am->currentSnapshot.objectIdMap[obj.id] = am->currentSnapshot.objects.size() - 1;
-
-			for (auto& snapshot : am->snapshots)
-			{
-				AnimObject copy2 = AnimObject::createCopy(obj);
-				snapshot.objects.push_back(copy2);
-				snapshot.objectIdMap[obj.id] = snapshot.objects.size() - 1;
-			}
+			am->objects.push_back(obj);
+			am->objectIdMap[obj.id] = am->objects.size() - 1;
 		}
 
 		static void addQueuedAnimation(AnimationManagerData* am, const Animation& animation)
@@ -728,9 +662,9 @@ namespace MathAnim
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			// First remove all children objects
-			for (int i = 0; i < am->currentSnapshot.objects.size(); i++)
+			for (int i = 0; i < am->objects.size(); i++)
 			{
-				AnimObject& objIter = am->currentSnapshot.objects[i];
+				AnimObject& objIter = am->objects[i];
 				if (objIter.parentId == animObj)
 				{
 					removeSingleAnimObject(am, objIter.id);
@@ -768,11 +702,24 @@ namespace MathAnim
 
 		static void removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj)
 		{
-			removeSingleAnimObjectSnapshot(am->currentSnapshot, animObj);
-			removeSingleAnimObjectSnapshot(am->startingSnapshot, animObj);
-			for (auto& snapshot : am->snapshots)
+			// Remove the anim object
+			auto iter = am->objectIdMap.find(animObj);
+			if (iter != am->objectIdMap.end())
 			{
-				removeSingleAnimObjectSnapshot(snapshot, animObj);
+				size_t animObjectIndex = iter->second;
+				if (animObjectIndex >= 0 && animObjectIndex < am->objects.size())
+				{
+					am->objects[animObjectIndex].free();
+
+					auto updateIter = am->objects.erase(am->objects.begin() + animObjectIndex);
+					am->objectIdMap.erase(animObj);
+
+					// Update indices
+					for (; updateIter != am->objects.end(); updateIter++)
+					{
+						am->objectIdMap[updateIter->id] = updateIter - am->objects.begin();
+					}
+				}
 			}
 
 			// Remove any references from old animations
@@ -796,37 +743,6 @@ namespace MathAnim
 						animIter->as.replacementTransform.srcAnimObjectId = NULL_ANIM_OBJECT;
 					}
 				}
-			}
-		}
-
-		static void removeSingleAnimObjectSnapshot(SceneSnapshot& snapshot, AnimObjId animObj)
-		{
-			// Remove the anim object
-			auto iter = snapshot.objectIdMap.find(animObj);
-			if (iter != snapshot.objectIdMap.end())
-			{
-				size_t animObjectIndex = iter->second;
-				if (animObjectIndex >= 0 && animObjectIndex < snapshot.objects.size())
-				{
-					snapshot.objects[animObjectIndex].free();
-
-					auto updateIter = snapshot.objects.erase(snapshot.objects.begin() + animObjectIndex);
-					snapshot.objectIdMap.erase(animObj);
-
-					// Update indices
-					for (; updateIter != snapshot.objects.end(); updateIter++)
-					{
-						snapshot.objectIdMap[updateIter->id] = updateIter - snapshot.objects.begin();
-					}
-				}
-			}
-		}
-
-		static void freeSnapshot(SceneSnapshot& snapshot)
-		{
-			for (int i = 0; i < snapshot.objectIdMap.size(); i++)
-			{
-				snapshot.objects[i].free();
 			}
 		}
 
@@ -863,7 +779,7 @@ namespace MathAnim
 				bool intersecting = newFrame <= animStart && animEnd <= previousFrame;
 				if (intersecting)
 				{
-					anim.applyAnimationToSnapshot(am->currentSnapshot, vg, 0.0f);
+					anim.applyAnimation(am, vg, 0.0f);
 				}
 				else
 				{
@@ -873,16 +789,16 @@ namespace MathAnim
 				}
 			}
 
-			applyAnimationsFrom(am, vg, am->currentSnapshot, animIndexToStartFrom, newFrame);
-			applyGlobalTransforms(am->currentSnapshot);
+			applyAnimationsFrom(am, vg, animIndexToStartFrom, newFrame);
+			applyGlobalTransforms(am);
 		}
 
-		static void applyGlobalTransforms(SceneSnapshot& snapshot)
+		static void applyGlobalTransforms(AnimationManagerData* am)
 		{
 			// ----- Apply the parent->child transformations -----
 			// First find all the root objects
 			std::queue<AnimObjId> rootObjects = {};
-			for (auto objIter = snapshot.objects.begin(); objIter != snapshot.objects.end(); objIter++)
+			for (auto objIter = am->objects.begin(); objIter != am->objects.end(); objIter++)
 			{
 				// If the object has no parent, it's a root object.
 				// Update the transform then update children recursively
@@ -901,7 +817,7 @@ namespace MathAnim
 				rootObjects.pop();
 
 				// Update child transform
-				AnimObject* nextObj = getMutableObjectFromSnapshot(snapshot, nextObjId);
+				AnimObject* nextObj = getMutableObject(am, nextObjId);
 				if (nextObj)
 				{
 					updateGlobalTransform(*nextObj);
@@ -911,7 +827,7 @@ namespace MathAnim
 					// since the queue is FIFO
 					if (!isNull(nextObj->parentId))
 					{
-						const AnimObject* parent = getObjectFromSnapshot(snapshot, nextObj->parentId);
+						const AnimObject* parent = getObject(am, nextObj->parentId);
 						if (parent)
 						{
 							nextObj->_globalPositionStart += parent->_globalPositionStart;
@@ -922,7 +838,7 @@ namespace MathAnim
 
 					// Then append all direct children to the queue so they are
 					// recursively updated
-					for (auto childIter = snapshot.objects.begin(); childIter != snapshot.objects.end(); childIter++)
+					for (auto childIter = am->objects.begin(); childIter != am->objects.end(); childIter++)
 					{
 						if (childIter->parentId == nextObj->id)
 						{
@@ -933,7 +849,7 @@ namespace MathAnim
 			}
 		}
 
-		static void applyAnimationsFrom(AnimationManagerData* am, NVGcontext* vg, SceneSnapshot& snapshot, int startIndex, int currentFrame)
+		static void applyAnimationsFrom(AnimationManagerData* am, NVGcontext* vg, int startIndex, int currentFrame)
 		{
 			// Apply any changes from animations in order
 			for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
@@ -944,7 +860,7 @@ namespace MathAnim
 				{
 					// Then apply the animation
 					float interpolatedT = ((float)currentFrame - frameStart) / (float)animIter->duration;
-					animIter->applyAnimationToSnapshot(snapshot, vg, interpolatedT);
+					animIter->applyAnimation(am, vg, interpolatedT);
 				}
 			}
 		}

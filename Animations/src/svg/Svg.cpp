@@ -2087,14 +2087,12 @@ namespace MathAnim
 					const glm::u8vec4& strokeColor = parent->strokeColor;
 					if (glm::epsilonEqual(parent->strokeWidth, 0.0f, 0.01f))
 					{
-						//Renderer::pushColor(strokeColor);
-						Renderer::pushColor("#F30101"_hex);
+						Renderer::pushColor(parent->fillColor);
 						Renderer::pushStrokeWidth(defaultStrokeWidth);
 					}
 					else
 					{
-						//Renderer::pushColor(strokeColor);
-						Renderer::pushColor("#F30101"_hex);
+						Renderer::pushColor(strokeColor);
 						Renderer::pushStrokeWidth(parent->strokeWidth);
 					}
 

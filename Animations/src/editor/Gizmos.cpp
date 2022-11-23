@@ -196,14 +196,17 @@ namespace MathAnim
 					if (g->hotGizmoVariant == GizmoVariant::Free)
 					{
 						// Don't modify the z-coord since this is a 2D gizmo
+						newPos.y -= defaultFreeMoveSize.y;
 						*position = Vec3{ newPos.x, newPos.y, position->z };
 					}
 					else if (g->hotGizmoVariant == GizmoVariant::Vertical)
 					{
+						newPos.y -= defaultVerticalMoveSize.y;
 						*position = Vec3{ position->x, newPos.y, position->z };
 					}
 					else if (g->hotGizmoVariant == GizmoVariant::Horizontal)
 					{
+						newPos.y -= defaultHorizontalMoveSize.y;
 						*position = Vec3{ newPos.x, position->y, position->z };
 					}
 					gizmo->position = *position;
@@ -269,7 +272,7 @@ namespace MathAnim
 			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
 			OrthoCamera* camera = Application::getEditorCamera();
 			Vec2 worldCoords = camera->reverseProject(normalizedMousePos);
-			Vec2 bottomLeft = centerPosition - (size / 2.0f);
+			Vec2 bottomLeft = centerPosition - (Vec2{ size.x, -size.y } / 2.0f);
 
 			return worldCoords.x >= bottomLeft.x && worldCoords.x <= bottomLeft.x + size.x &&
 				worldCoords.y >= bottomLeft.y && worldCoords.y <= bottomLeft.y + size.y;
