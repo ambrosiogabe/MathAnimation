@@ -2,6 +2,8 @@
 #define MATH_ANIM_TIMELINE_H
 #include "animation/Animation.h"
 
+struct NVGcontext;
+
 namespace MathAnim
 {
 	struct AnimationManagerData;
@@ -33,7 +35,7 @@ namespace MathAnim
 		TimelineData initInstance();
 		void init(AnimationManagerData* am);
 
-		void update(TimelineData& data, AnimationManagerData* am);
+		void update(TimelineData& data, AnimationManagerData* am, NVGcontext* vg);
 
 		void freeInstance(TimelineData& data);
 		void free(AnimationManagerData* am);

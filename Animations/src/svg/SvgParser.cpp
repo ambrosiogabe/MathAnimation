@@ -97,24 +97,6 @@ namespace MathAnim
 				return nullptr;
 			}
 
-			// TODO: Do these even matter if we always get a viewbox?
-			// TODO: Is there ever a case when we don't get a viewbox??
-			//const XMLAttribute* widthAttribute = svgElement->FindAttribute("width");
-			//if (!widthAttribute)
-			//{
-			//	g_logger_error("Unknown svg width. No width attribute provided for '%s'.", filepath);
-			//	return nullptr;
-			//}
-			//float overallWidth = (float)atof(widthAttribute->Value());
-
-			//const XMLAttribute* heightAttribute = svgElement->FindAttribute("height");
-			//if (!heightAttribute)
-			//{
-			//	g_logger_error("Unknown svg height. No height attribute provided for '%s'.", filepath);
-			//	return nullptr;
-			//}
-			//float overallHeight = (float)atof(heightAttribute->Value());
-
 			const XMLAttribute* viewboxAttribute = svgElement->FindAttribute("viewBox");
 			if (!viewboxAttribute)
 			{

@@ -49,7 +49,7 @@ namespace MathAnim
 			timelineLoaded = true;
 		}
 
-		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am)
+		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am, NVGcontext* vg)
 		{
 			// TODO: Do this in a central file
 			checkHotKeys();
@@ -113,7 +113,7 @@ namespace MathAnim
 
 			ImGui::PopStyleVar();
 
-			Timeline::update(timeline, am);
+			Timeline::update(timeline, am, vg);
 			AnimObjectPanel::update();
 			DebugPanel::update();
 			ExportPanel::update();

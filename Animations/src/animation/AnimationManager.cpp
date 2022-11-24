@@ -612,13 +612,35 @@ namespace MathAnim
 				return;
 			}
 
+			// It's easiest to just apply all updates from the
+			// root of the scene, so we'll find the root of this
+			// object, reset all the children then update from there
+
+			if (!isNull(obj->parentId))
+			{
+				AnimObject* parent;
+				while ((parent = getMutableObject(am, obj->parentId)) != nullptr)
+				{
+					obj = parent;
+				}
+			}
+
 			obj->resetAllState();
+			for (auto childIter = obj->beginBreadthFirst(am); childIter != obj->end(); ++childIter)
+			{
+				AnimObjId childId = *childIter;
+				AnimObject* child = getMutableObject(am, childId);
+				if (child)
+				{
+					child->resetAllState();
+				}
+			}
 
 			// Apply any changes from animations in order
 			for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
 			{
 				bool objExistsInAnim =
-					std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), animObjId) != animIter->animObjectIds.end();
+					std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), obj->id) != animIter->animObjectIds.end();
 				if (!objExistsInAnim)
 				{
 					continue;

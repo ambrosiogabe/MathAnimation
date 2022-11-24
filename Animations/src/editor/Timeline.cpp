@@ -90,7 +90,7 @@ namespace MathAnim
 			setupImGuiTimelineDataFromAnimations(am);
 		}
 
-		void update(TimelineData& timelineData, AnimationManagerData* am)
+		void update(TimelineData& timelineData, AnimationManagerData* am, NVGcontext* vg)
 		{
 			// NOTE: For best results, it's usually a good idea to specify 0 padding for the window
 			// so that the timeline can expand to the full width/height of the window
@@ -292,6 +292,8 @@ namespace MathAnim
 			if (!isNull(activeAnimObjectId))
 			{
 				handleAnimObjectInspector(am, activeAnimObjectId);
+				// TODO: Does this slow stuff down or does it even matter?
+				AnimationManager::updateObjectState(am, vg, activeAnimObjectId);
 			}
 			ImGui::End();
 

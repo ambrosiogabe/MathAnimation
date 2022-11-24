@@ -39,9 +39,12 @@ namespace MathAnim
 			*(childObj._svgObjectStart) = Svg::createDefault();
 			*(childObj.svgObject) = Svg::createDefault();
 			Svg::copy(childObj._svgObjectStart, &obj);
+			Svg::copy(childObj.svgObject, &obj);
 
-			childObj.nameLength = sizeof("Generated Child");
+			const char childName[] = "Generated Child";
+			childObj.nameLength = sizeof(childName);
 			childObj.name = (uint8*)g_memory_realloc(childObj.name, sizeof(uint8) * (childObj.nameLength + 1));
+			g_memory_copyMem(childObj.name, (void*)childName, sizeof(childName) / sizeof(char));
 			childObj.name[childObj.nameLength] = '\0';
 
 			AnimationManager::addAnimObject(am, childObj);
@@ -82,6 +85,7 @@ namespace MathAnim
 		if (svgGroup)
 		{
 			svgGroup->free();
+			g_memory_free(svgGroup);
 			svgGroup = nullptr;
 		}
 

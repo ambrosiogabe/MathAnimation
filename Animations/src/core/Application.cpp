@@ -210,7 +210,7 @@ namespace MathAnim
 				ImGuiLayer::beginFrame();
 				ImGui::ShowDemoWindow();
 				SceneManagementPanel::update(sceneData);
-				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
+				EditorGui::update(mainFramebuffer, editorFramebuffer, am, vg);
 				ImGuiLayer::endFrame();
 				glPopDebugGroup();
 

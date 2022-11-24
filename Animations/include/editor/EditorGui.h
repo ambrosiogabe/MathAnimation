@@ -14,7 +14,7 @@ namespace MathAnim
 	{
 		void init(AnimationManagerData* am);
 
-		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am);
+		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am, NVGcontext* vg);
 		void onGizmo(AnimationManagerData* am, NVGcontext* vg);
 		Vec2 mouseToNormalizedViewport();
 		Vec2 mouseToViewportCoords();

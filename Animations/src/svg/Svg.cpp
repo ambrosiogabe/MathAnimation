@@ -1694,7 +1694,9 @@ namespace MathAnim
 
 			// Draw the SVG with full alpha since we apply alpha changes at the compositing level
 			const glm::u8vec4& fillColor = parent->fillColor;
-			nvgFillColor(vg, nvgRGBA(fillColor.r, fillColor.g, fillColor.b, 255));
+			// Render the SVG in white then color it when blitting the
+			// texture to a quad
+			nvgFillColor(vg, nvgRGBA(255, 255, 255, 255));
 			nvgFill(vg);
 		}
 
