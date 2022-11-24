@@ -99,14 +99,14 @@ namespace MathAnim
 			const XMLAttribute* versionAttribute = svgElement->FindAttribute("version");
 			if (!versionAttribute)
 			{
-				g_logger_warning("Unknown svg version. No version attribute provided for '%s'.\nWill attempt to parse, but no guarantees it will succeed.", filepath);
+				g_logger_warning("Unknown svg version. No version attribute provided for '%s'. Will attempt to parse, but no guarantees it will succeed.", filepath);
 			}
 			else
 			{
 				const char* version = versionAttribute->Value();
 				if (std::strcmp(version, "1.1") != 0)
 				{
-					g_logger_warning("Only support for SVG version 1.1 right now. Doc '%s' had version '%s'.\nWill attempt to parse, but no guarantees it will succeed.", filepath, version);
+					g_logger_warning("Only support for SVG version 1.1 right now. Doc '%s' had version '%s'. Will attempt to parse, but no guarantees it will succeed.", filepath, version);
 				}
 			}
 
@@ -476,10 +476,7 @@ namespace MathAnim
 				for (size_t i = 0; i < vec2List.size(); i += 3)
 				{
 					g_logger_assert(i + 2 < vec2List.size(), "Somehow ended up with a non-multiple of 3.");
-					Vec2 c0 = Vec2{ vec2List[i + 0].x, vec2List[i + 0].y };
-					Vec2 c1 = Vec2{ vec2List[i + 1].x, vec2List[i + 1].y };
-					Vec2 p2 = Vec2{ vec2List[i + 2].x, vec2List[i + 2].y };
-					Svg::bezier3To(res, c0, c1, p2, isAbsolute);
+					Svg::bezier3To(res, vec2List[i + 0], vec2List[i + 1], vec2List[i + 2], isAbsolute);
 				}
 			}
 			break;
@@ -497,13 +494,17 @@ namespace MathAnim
 					return false;
 				}
 
-				if (vec2List.size() != 2)
+				if (vec2List.size() % 2 != 0)
 				{
-					PANIC("Error. I do not support SVG paths with polybezier curves yet.");
+					PANIC("Smooth cubic polybezier curve must have a multiple of 2 coordinates, otherwise it's not a valid polybezier curve.");
 					return false;
 				}
 
-				Svg::smoothBezier3To(res, vec2List[0], vec2List[1], isAbsolute);
+				for (size_t i = 0; i < vec2List.size(); i += 2)
+				{
+					g_logger_assert(i + 1 < vec2List.size(), "Somehow ended up with a non-multiple of 2.");
+					Svg::smoothBezier3To(res, vec2List[i + 0], vec2List[i + 1], isAbsolute);
+				}
 			}
 			break;
 			case TokenType::QuadCurveTo:
@@ -520,13 +521,17 @@ namespace MathAnim
 					return false;
 				}
 
-				if (vec2List.size() != 2)
+				if (vec2List.size() % 2 != 0)
 				{
-					PANIC("Error. I do not support SVG paths with polybezier curves yet.");
+					PANIC("Quadratic polybezier curve must have a multiple of 2 coordinates, otherwise it's not a valid polybezier curve.");
 					return false;
 				}
 
-				Svg::bezier2To(res, vec2List[0], vec2List[1], isAbsolute);
+				for (size_t i = 0; i < vec2List.size(); i += 2)
+				{
+					g_logger_assert(i + 1 < vec2List.size(), "Somehow ended up with a non-multiple of 2.");
+					Svg::bezier2To(res, vec2List[i + 0], vec2List[i + 1], isAbsolute);
+				}
 			}
 			break;
 			case TokenType::SmoothQuadCurveTo:
@@ -543,13 +548,10 @@ namespace MathAnim
 					return false;
 				}
 
-				if (vec2List.size() != 1)
+				for (size_t i = 0; i < vec2List.size(); i++)
 				{
-					PANIC("Error. I do not support SVG paths with polybezier curves yet.");
-					return false;
+					Svg::smoothBezier2To(res, vec2List[i], isAbsolute);
 				}
-
-				Svg::smoothBezier2To(res, vec2List[0], isAbsolute);
 			}
 			break;
 			case TokenType::ArcTo:
@@ -568,7 +570,7 @@ namespace MathAnim
 
 				if (arcParamsList.size() != 1)
 				{
-					PANIC("Error. I do not support SVG paths with polybezier curves yet.");
+					PANIC("TODO: Implement me. Arc command not supported yet.");
 					return false;
 				}
 

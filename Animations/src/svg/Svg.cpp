@@ -1338,8 +1338,8 @@ namespace MathAnim
 			Vec2& offset = objectOffsets[i];
 			Vec2 absOffset = offset - translation;
 			obj.normalize(bbox.min, bbox.max);
-			offset.x = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, absOffset.x);
-			offset.y = CMath::mapRange(Vec2{ bbox.min.y, bbox.max.y }, Vec2{ 0.0f, 1.0f }, absOffset.y);
+			offset.x = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, offset.x);
+			offset.y = CMath::mapRange(Vec2{ bbox.min.y, bbox.max.y }, Vec2{ 0.0f, 1.0f }, offset.y);
 			obj.calculateApproximatePerimeter();
 		}
 		viewbox.values[0] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[0]);
