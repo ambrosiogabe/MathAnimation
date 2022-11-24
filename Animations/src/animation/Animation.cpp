@@ -1064,6 +1064,8 @@ namespace MathAnim
 		};
 		res.position = res._positionStart;
 
+		res.globalTransform = glm::identity<glm::mat4>();
+
 		switch (type)
 		{
 		case AnimObjectTypeV1::TextObject:
