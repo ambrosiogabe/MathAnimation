@@ -1,6 +1,7 @@
 #include "core.h"
 #include "core/Application.h"
 #include "core/Platform.h"
+#include "core/Colors.h"
 #include "editor/Timeline.h"
 #include "editor/ImGuiTimeline.h"
 #include "editor/SceneHierarchyPanel.h"
@@ -8,6 +9,7 @@
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "svg/Svg.h"
+#include "svg/SvgParser.h"
 #include "renderer/Fonts.h"
 #include "audio/Audio.h"
 #include "audio/WavLoader.h"
@@ -33,6 +35,8 @@ namespace MathAnim
 		static ImGuiTimeline_AudioData imguiAudioData;
 
 		static constexpr float slowDragSpeed = 0.02f;
+		static bool svgErrorPopupOpen = false;
+		static const char* ERROR_IMPORTING_SVG_POPUP = "Error Importing SVG##ERROR_IMPORTING_SVG";
 		static const char* ANIM_OBJECT_DROP_TARGET_ID = "ANIM_OBJECT_DROP_TARGET_ID";
 
 		// ------- Internal Functions --------
@@ -58,6 +62,7 @@ namespace MathAnim
 		static void handleCubeInspector(AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
 
+		static void checkSvgErrorPopup();
 		static bool applySettingToChildren(const char* id, bool* toggled);
 
 		static void setupImGuiTimelineDataFromAnimations(AnimationManagerData* am, int numTracksToCreate = INT32_MAX);
@@ -303,6 +308,8 @@ namespace MathAnim
 				handleAnimationInspector(am, activeAnimationId);
 			}
 			ImGui::End();
+
+			checkSvgErrorPopup();
 		}
 
 		void freeInstance(TimelineData& timelineData)
@@ -1006,7 +1013,8 @@ namespace MathAnim
 				{
 					if (!object->as.svgFile.setFilepath(outPath))
 					{
-						g_logger_error("Parsing svg for filepath '%s' failed for some reason.", outPath);
+						g_logger_info("Opening error popup");
+						svgErrorPopupOpen = true;
 					}
 					else
 					{
@@ -1278,6 +1286,35 @@ namespace MathAnim
 				g_logger_warning("TODO: Fix me");
 
 				object->as.axis.init(object);
+			}
+		}
+
+		static void checkSvgErrorPopup()
+		{
+			if (svgErrorPopupOpen)
+			{
+				ImGui::OpenPopup(ERROR_IMPORTING_SVG_POPUP);
+				svgErrorPopupOpen = false;
+			}
+
+			// Always center this window when appearing
+			ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+			ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+			if (ImGui::BeginPopupModal(ERROR_IMPORTING_SVG_POPUP, NULL, ImGuiWindowFlags_AlwaysAutoResize))
+			{
+				ImGui::TextColored(Colors::AccentRed[3], "Error:");
+				ImGui::SameLine();
+				ImGui::Text("%s", SvgParser::getLastError());
+				ImGui::NewLine();
+				ImGui::Separator();
+
+				if (ImGui::Button("OK", ImVec2(120, 0))) 
+				{ 
+					ImGui::CloseCurrentPopup(); 
+				}
+				ImGui::SetItemDefaultFocus();
+				ImGui::EndPopup();
 			}
 		}
 

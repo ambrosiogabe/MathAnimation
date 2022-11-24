@@ -1318,7 +1318,10 @@ namespace MathAnim
 		memory.readDangerous(string, stringLength);
 		string[stringLength] = '\0';
 
-		*res = SvgParser::parseSvgPath((const char*)string, stringLength);
+		if (!SvgParser::parseSvgPath((const char*)string, stringLength, res))
+		{
+			g_logger_error("Error deserializing SVG. Bad path data: '%s'", string);
+		}
 		g_memory_free(string);
 
 		return res;

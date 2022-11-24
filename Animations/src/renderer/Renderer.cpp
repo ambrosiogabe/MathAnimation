@@ -13,6 +13,7 @@
 #include "core/Application.h"
 #include "editor/Timeline.h"
 #include "editor/EditorGui.h"
+#include "editor/EditorSettings.h"
 
 // TODO: Tmp remove me
 #include "latex/LaTexLayer.h"
@@ -1539,6 +1540,7 @@ namespace MathAnim
 		shader.bind();
 		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
 		shader.uploadMat4("uView", camera.calculateViewMatrix());
+		shader.uploadInt("uWireframeOn", EditorSettings::getSettings().viewMode == ViewMode::WireMesh);
 
 		for (int i = 0; i < drawCommands.size(); i++)
 		{

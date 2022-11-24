@@ -30,9 +30,16 @@ in vec2 fTexCoord;
 flat in uvec2 fObjId;
 
 uniform sampler2D uTexture;
+uniform int uWireframeOn;
 
 void main()
 {
+    // Just early out for wireframe
+    if (uWireframeOn != 0) {
+        FragColor = vec4(1);
+        return;
+    }
+
     vec4 texColor = texture(uTexture, fTexCoord);
     if (texColor.a < 0.05) {
         discard;

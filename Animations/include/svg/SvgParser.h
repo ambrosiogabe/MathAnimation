@@ -9,9 +9,13 @@ namespace MathAnim
 
 	namespace SvgParser
 	{
+		void init();
+
 		SvgGroup* parseSvgDoc(const char* filepath);
 
-		SvgObject parseSvgPath(const char* pathText, size_t pathTextLength);
+		bool parseSvgPath(const char* pathText, size_t pathTextLength, SvgObject* output);
+
+		const char* getLastError();
 	}
 }
 

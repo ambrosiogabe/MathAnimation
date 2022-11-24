@@ -100,6 +100,7 @@ namespace MathAnim
 			// NOTE(voxel): Just to initialize the camera
 			Svg::init(camera2D, camera3D);
 			SceneManagementPanel::init();
+			SvgParser::init();
 
 			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
 			if (vg == NULL)

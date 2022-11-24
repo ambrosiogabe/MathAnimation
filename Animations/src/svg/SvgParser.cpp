@@ -5,6 +5,10 @@
 
 using namespace tinyxml2;
 
+#define PANIC(formatStr, ...) \
+	snprintf(errorBuffer, errorBufferSize, formatStr, __VA_ARGS__); \
+	g_logger_error(formatStr, __VA_ARGS__);
+
 namespace MathAnim
 {
 	struct ParserInfo
@@ -53,6 +57,10 @@ namespace MathAnim
 
 	namespace SvgParser
 	{
+		// Internal variables
+		static constexpr size_t errorBufferSize = 1024;
+		static char errorBuffer[errorBufferSize];
+
 		// ----------- Internal Functions -----------
 		static bool parseSvgPathTag(XMLElement* element, SvgObject* output);
 		static bool interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res);
@@ -72,6 +80,11 @@ namespace MathAnim
 		static inline bool isAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
 		static inline bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\0'; }
 
+		void init()
+		{
+			errorBuffer[0] = '\0';
+		}
+
 		SvgGroup* parseSvgDoc(const char* filepath)
 		{
 			XMLDocument doc;
@@ -79,48 +92,42 @@ namespace MathAnim
 			XMLElement* svgElement = doc.FirstChildElement("svg");
 			if (!svgElement)
 			{
-				g_logger_error("No svg element found in document '%s'.", filepath);
+				PANIC("No <svg> element found in document '%s'.", filepath);
 				return nullptr;
 			}
 
 			const XMLAttribute* versionAttribute = svgElement->FindAttribute("version");
 			if (!versionAttribute)
 			{
-				g_logger_error("Unknown svg version. No version attribute provided for '%s'.", filepath);
-				return nullptr;
+				g_logger_warning("Unknown svg version. No version attribute provided for '%s'.\nWill attempt to parse, but no guarantees it will succeed.", filepath);
 			}
-
-			const char* version = versionAttribute->Value();
-			if (std::strcmp(version, "1.1") != 0)
+			else
 			{
-				g_logger_error("Only support for SVG version 1.1 right now. Doc '%s' had version '%s'", filepath, version);
-				return nullptr;
+				const char* version = versionAttribute->Value();
+				if (std::strcmp(version, "1.1") != 0)
+				{
+					g_logger_warning("Only support for SVG version 1.1 right now. Doc '%s' had version '%s'.\nWill attempt to parse, but no guarantees it will succeed.", filepath, version);
+				}
 			}
 
 			const XMLAttribute* viewboxAttribute = svgElement->FindAttribute("viewBox");
 			if (!viewboxAttribute)
 			{
-				g_logger_error("SVG '%s' has no viewBox attribute.", filepath);
+				PANIC("SVG '%s' has no viewBox attribute.", filepath);
 				return nullptr;
 			}
 
 			Vec4 viewbox;
 			if (!parseViewbox(&viewbox, viewboxAttribute->Value()))
 			{
-				g_logger_error("Failed to parse viewBox attribute for SVG '%s'.", filepath);
+				PANIC("Failed to parse viewBox attribute for SVG '%s'.", filepath);
 				return nullptr;
 			}
 
-			// NOTE: <defs> is not required. If there's no <defs></defs> tag
-			// then we can assume all SVG paths are embedded directly in the
-			// <g></g> group tags
+			// NOTE: <defs> and <g> elements are not required apparently
+			// The SVG paths can be embedded as children of <svg> directly
 			XMLElement* defsElement = svgElement->FirstChildElement("defs");
 			XMLElement* groupElement = svgElement->FirstChildElement("g");
-			if (!groupElement)
-			{
-				g_logger_warning("SVG doc '%s' has no <g> block.", filepath);
-				return nullptr;
-			}
 
 			std::unordered_map<std::string, SvgObject> objIds;
 
@@ -153,7 +160,9 @@ namespace MathAnim
 			Svg::beginSvgGroup(group, viewbox);
 
 			{
-				XMLElement* childEl = groupElement->FirstChildElement();
+				XMLElement* childEl = groupElement != nullptr
+					? groupElement->FirstChildElement()
+					: svgElement->FirstChildElement();
 				while (childEl != nullptr)
 				{
 					if (std::strcmp(childEl->Name(), "use") == 0)
@@ -238,6 +247,7 @@ namespace MathAnim
 						else
 						{
 							g_logger_warning("Failed to parse path tag in SVG '%s'", filepath);
+							goto error_cleanup;
 						}
 					}
 					else
@@ -249,17 +259,27 @@ namespace MathAnim
 				}
 			}
 
+			if (group->numObjects <= 0)
+			{
+			error_cleanup:
+				PANIC("Did not find any <path> elements or other SVG elements in file '%s'. Check the logs for more information.", filepath);
+				group->free();
+				g_memory_free(group);
+				return nullptr;
+			}
+
 			Svg::endSvgGroup(group);
 
 			return group;
 		}
 
-		SvgObject parseSvgPath(const char* pathText, size_t pathTextLength)
+		bool parseSvgPath(const char* pathText, size_t pathTextLength, SvgObject* output)
 		{
 			SvgObject res = Svg::createDefault();
 			if (pathTextLength <= 0)
 			{
-				return res;
+				PANIC("Cannot parse an SVG path that has no text.");
+				return false;
 			}
 
 			ParserInfo parserInfo;
@@ -291,7 +311,7 @@ namespace MathAnim
 				{
 					res.free();
 					g_logger_error("Had an error while parsing svg path and panicked");
-					return Svg::createDefault();
+					return false;
 				}
 			}
 
@@ -304,8 +324,14 @@ namespace MathAnim
 
 			res.calculateApproximatePerimeter();
 			res.calculateBBox();
+			*output = res;
 
-			return res;
+			return true;
+		}
+
+		const char* getLastError()
+		{
+			return errorBuffer;
 		}
 
 		// ----------- Internal Functions -----------
@@ -313,21 +339,19 @@ namespace MathAnim
 		{
 			if (std::strcmp(element->Name(), "path") != 0)
 			{
-				g_logger_warning("Tried to parse tag <%s> as SVG path, but this tag is not a path tag.", element->Name());
+				PANIC("Tried to parse tag <%s> as SVG path, but this tag is not a path tag.", element->Name());
 				return false;
 			}
 
 			const XMLAttribute* pathAttribute = element->FindAttribute("d");
-			if (pathAttribute == nullptr) g_logger_warning("Element '%s' had no path attribute.", element->Name());
-
-			if (pathAttribute)
+			if (pathAttribute == nullptr)
 			{
-				size_t textLength = std::strlen(pathAttribute->Value());
-				*output = parseSvgPath(pathAttribute->Value(), textLength);
-				return true;
+				PANIC("Element '%s' had no path attribute.", element->Name());
+				return false;
 			}
 
-			return false;
+			size_t textLength = std::strlen(pathAttribute->Value());
+			return parseSvgPath(pathAttribute->Value(), textLength, output);
 		}
 
 		static bool interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res)
@@ -347,12 +371,12 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					g_logger_error("Error interpreting move to command. No coordinates provided.");
+					PANIC("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
@@ -374,12 +398,12 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					g_logger_error("Error interpreting line to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting line to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					g_logger_error("Error interpreting line to command. No coordinates provided.");
+					PANIC("Error interpreting line to command. No coordinates provided.");
 					return false;
 				}
 
@@ -394,12 +418,12 @@ namespace MathAnim
 				std::vector<float> numberList;
 				if (!parseHzNumberList(numberList, parserInfo))
 				{
-					g_logger_error("Error interpreting line to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting line to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (numberList.size() <= 0)
 				{
-					g_logger_error("Error interpreting line to command. No coordinates provided.");
+					PANIC("Error interpreting line to command. No coordinates provided.");
 					return false;
 				}
 
@@ -414,12 +438,12 @@ namespace MathAnim
 				std::vector<float> numberList;
 				if (!parseVtNumberList(numberList, parserInfo))
 				{
-					g_logger_error("Error interpreting line to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting line to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (numberList.size() <= 0)
 				{
-					g_logger_error("Error interpreting line to command. No coordinates provided.");
+					PANIC("Error interpreting line to command. No coordinates provided.");
 					return false;
 				}
 
@@ -434,25 +458,29 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					g_logger_error("Error interpreting move to command. No coordinates provided.");
+					PANIC("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
-				if (vec2List.size() != 3)
+				if (vec2List.size() % 3 != 0)
 				{
-					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
+					PANIC("Cubic polybezier curve must have a multiple of 3 coordinates, otherwise it's not a valid polybezier curve.");
 					return false;
 				}
 
-				Vec2 c0 = Vec2{ vec2List[0].x, vec2List[0].y };
-				Vec2 c1 = Vec2{ vec2List[1].x, vec2List[1].y };
-				Vec2 p2 = Vec2{ vec2List[2].x, vec2List[2].y };
-				Svg::bezier3To(res, c0, c1, p2, isAbsolute);
+				for (size_t i = 0; i < vec2List.size(); i += 3)
+				{
+					g_logger_assert(i + 2 < vec2List.size(), "Somehow ended up with a non-multiple of 3.");
+					Vec2 c0 = Vec2{ vec2List[i + 0].x, vec2List[i + 0].y };
+					Vec2 c1 = Vec2{ vec2List[i + 1].x, vec2List[i + 1].y };
+					Vec2 p2 = Vec2{ vec2List[i + 2].x, vec2List[i + 2].y };
+					Svg::bezier3To(res, c0, c1, p2, isAbsolute);
+				}
 			}
 			break;
 			case TokenType::SmoothCurveTo:
@@ -460,18 +488,18 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					g_logger_error("Error interpreting move to command. No coordinates provided.");
+					PANIC("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
 				if (vec2List.size() != 2)
 				{
-					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
+					PANIC("Error. I do not support SVG paths with polybezier curves yet.");
 					return false;
 				}
 
@@ -483,18 +511,18 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					g_logger_error("Error interpreting move to command. No coordinates provided.");
+					PANIC("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
 				if (vec2List.size() != 2)
 				{
-					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
+					PANIC("Error. I do not support SVG paths with polybezier curves yet.");
 					return false;
 				}
 
@@ -506,18 +534,18 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					g_logger_error("Error interpreting move to command. No coordinates provided.");
+					PANIC("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
 				if (vec2List.size() != 1)
 				{
-					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
+					PANIC("Error. I do not support SVG paths with polybezier curves yet.");
 					return false;
 				}
 
@@ -529,27 +557,27 @@ namespace MathAnim
 				std::vector<ArcParams> arcParamsList;
 				if (!parseArcParamsList(arcParamsList, parserInfo))
 				{
-					g_logger_error("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (arcParamsList.size() <= 0)
 				{
-					g_logger_error("Error interpreting arc to command. No coordinates provided.");
+					PANIC("Error interpreting arc to command. No coordinates provided.");
 					return false;
 				}
 
 				if (arcParamsList.size() != 1)
 				{
-					g_logger_error("Error. I do not support SVG paths with polybezier curves yet.");
+					PANIC("Error. I do not support SVG paths with polybezier curves yet.");
 					return false;
 				}
 
-				g_logger_error("TODO: Implement me. Arc command not supported yet.");
+				PANIC("TODO: Implement me. Arc command not supported yet.");
 				return false;
 			}
 			break;
 			default:
-				g_logger_error("Unknown SVG command type: %d", commandType);
+				PANIC("Unknown SVG command type: %d", commandType);
 				return false;
 			}
 
@@ -673,7 +701,7 @@ namespace MathAnim
 
 			if (x.type != TokenType::Number || y.type != TokenType::Number || w.type != TokenType::Number || h.type != TokenType::Number)
 			{
-				g_logger_error("Malformed viewBox '%s'", viewboxStr);
+				PANIC("Malformed viewBox '%s'", viewboxStr);
 				return false;
 			}
 
@@ -744,16 +772,19 @@ namespace MathAnim
 					result.isAbsolute = commandLetter == 'A';
 					break;
 				default:
-					g_logger_error("Unknown SVG command: %c", commandLetter);
+					PANIC("Unknown SVG command: %c", commandLetter);
 					break;
 				}
 			}
 			else if (isNumberPart(peek(parserInfo)))
 			{
 				float number;
+				size_t cursorStart = parserInfo.cursor;
 				if (!parseNumber(parserInfo, &number))
 				{
-					g_logger_error("Could not parse number 'TODO: Put error message'");
+					size_t previewEnd = glm::min(cursorStart + 10, parserInfo.textLength);
+					std::string errorPreview = std::string(&parserInfo.text[cursorStart], &parserInfo.text[previewEnd]);
+					PANIC("Could not parse number while parsing SVG path: '%s'", errorPreview.c_str());
 				}
 				else
 				{
@@ -827,3 +858,4 @@ namespace MathAnim
 	}
 }
 
+#undef PANIC;
