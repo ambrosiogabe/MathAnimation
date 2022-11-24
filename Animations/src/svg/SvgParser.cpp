@@ -74,7 +74,7 @@ namespace MathAnim
 		static Token consume(TokenType expected, ParserInfo& parserInfo);
 		static void skipWhitespaceAndCommas(ParserInfo& parserInfo);
 		static inline char advance(ParserInfo& parserInfo) { char c = parserInfo.cursor < parserInfo.textLength ? parserInfo.text[parserInfo.cursor] : '\0'; parserInfo.cursor++; return c; }
-		static inline char peek(const ParserInfo& parserInfo, int advance = 0) { return parserInfo.cursor + advance >= parserInfo.textLength - 1 ? '\0' : parserInfo.text[parserInfo.cursor + advance]; }
+		static inline char peek(const ParserInfo& parserInfo, int advance = 0) { return parserInfo.cursor + advance > parserInfo.textLength - 1 ? '\0' : parserInfo.text[parserInfo.cursor + advance]; }
 		static inline bool isDigit(char c) { return (c >= '0' && c <= '9'); }
 		static inline bool isNumberPart(char c) { return isDigit(c) || c == '-' || c == '.'; }
 		static inline bool isAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
@@ -795,6 +795,10 @@ namespace MathAnim
 			else if (parserInfo.cursor >= parserInfo.textLength)
 			{
 				result.type = TokenType::EndOfFile;
+			}
+			else
+			{
+				PANIC("Unknown symbol encountered while parsing SVG path. ParserInfo[%d/%d]:'%c'", parserInfo.cursor, parserInfo.textLength, peek(parserInfo));
 			}
 
 			skipWhitespaceAndCommas(parserInfo);
