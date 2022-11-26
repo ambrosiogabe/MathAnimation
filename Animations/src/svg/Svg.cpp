@@ -957,7 +957,7 @@ namespace MathAnim
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj, bool isSvgGroup);
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj);
 	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj);
 
 	void SvgObject::normalize(const Vec2& inMin, const Vec2& inMax)
@@ -1174,12 +1174,12 @@ namespace MathAnim
 
 	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec2& textureOffset) const
 	{
-		renderCreateAnimation(vg, 1.0f, parent, textureOffset, false);
+		renderCreateAnimation(vg, 1.0f, parent, textureOffset);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool isSvgGroup) const
+	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset) const
 	{
-		renderCreateAnimation2D(vg, t, parent, textureOffset, this, isSvgGroup);
+		renderCreateAnimation2D(vg, t, parent, textureOffset, this);
 	}
 
 	void SvgObject::renderOutline(float t, const AnimObject* parent) const
@@ -1413,7 +1413,7 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj, bool isSvgGroup)
+	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj)
 	{
 		constexpr float defaultStrokeWidth = 5.0f;
 		float lengthToDraw = t * (float)obj->approximatePerimeter;
@@ -1423,12 +1423,6 @@ namespace MathAnim
 		Vec2 scaledBboxMin = obj->bbox.min;
 		scaledBboxMin.x *= parent->svgScale;
 		scaledBboxMin.y *= parent->svgScale;
-		// TODO: This may cause issues with SVGs that have negative values
-		// Comment out this if-statement if it does
-		if (!isSvgGroup)
-		{
-			scaledBboxMin = CMath::max(scaledBboxMin, Vec2{ 0, 0 });
-		}
 		Vec2 minCoord = textureOffset + scaledBboxMin;
 		Vec2 bboxSize = (obj->bbox.max - obj->bbox.min);
 		bboxSize.x *= parent->svgScale;

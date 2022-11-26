@@ -53,7 +53,7 @@ namespace MathAnim
 		return SvgCacheEntry{ Vec2{0, 0}, Vec2{1, 1}, dummy };
 	}
 
-	SvgCacheEntry SvgCache::getOrCreateIfNotExist(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj, bool isSvgGroup)
+	SvgCacheEntry SvgCache::getOrCreateIfNotExist(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
 		auto entry = this->cachedSvgs.get(hash(obj, animObj->svgScale));
@@ -67,11 +67,11 @@ namespace MathAnim
 		}
 
 		// Doesn't exist, create it
-		put(vg, animObj, svg, isSvgGroup);
+		put(vg, animObj, svg);
 		return get(am, svg, obj);
 	}
 
-	void SvgCache::put(NVGcontext* vg, const AnimObject* parent, SvgObject* svg, bool isSvgGroup)
+	void SvgCache::put(NVGcontext* vg, const AnimObject* parent, SvgObject* svg)
 	{
 		uint64 hashValue = hash(parent->id, parent->svgScale);
 
@@ -157,25 +157,7 @@ namespace MathAnim
 				}
 			}
 
-			if (isSvgGroup)
-			{
-				//svgTextureOffset.x += offset.x * parent->svgScale;
-				//svgTextureOffset.y += offset.y * parent->svgScale;
-				static bool displayMessage = true;
-				if (displayMessage)
-				{
-					g_logger_error("TODO: SVG Groups are not working at the moment, implement me. This message will now be suppressed.");
-					displayMessage = false;
-				}
-			}
-
-			svg->renderCreateAnimation(vg, parent->percentCreated, parent, svgTextureOffset, isSvgGroup);
-
-			// Don't blit svg groups to a bunch of quads, they get rendered as one quad together
-			if (isSvgGroup)
-			{
-				return;
-			}
+			svg->renderCreateAnimation(vg, parent->percentCreated, parent, svgTextureOffset);
 
 			Vec2 cacheUvMin = Vec2{
 				svgTextureOffset.x / framebuffer.width,
@@ -202,12 +184,12 @@ namespace MathAnim
 		}
 	}
 
-	void SvgCache::render(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj, bool isSvgGroup)
+	void SvgCache::render(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
 		const AnimObject* parent = AnimationManager::getObject(am, obj);
 		if (parent)
 		{
-			SvgCacheEntry metadata = getOrCreateIfNotExist(vg, am, svg, obj, isSvgGroup);
+			SvgCacheEntry metadata = getOrCreateIfNotExist(vg, am, svg, obj);
 			// TODO: See if I can get rid of this duplication, see the function above
 			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale);
 			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);

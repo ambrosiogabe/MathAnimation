@@ -75,7 +75,7 @@ namespace MathAnim
 		void calculateApproximatePerimeter();
 		void calculateBBox();
 		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& textureOffset) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, bool isSvgGroup) const;
+		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset) const;
 		void renderOutline(float t, const AnimObject* parent) const;
 		void free();
 

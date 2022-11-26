@@ -47,13 +47,13 @@ namespace MathAnim
 
 		bool exists(AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
 		SvgCacheEntry get(AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
-		SvgCacheEntry getOrCreateIfNotExist(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj, bool isSvgGroup);
+		SvgCacheEntry getOrCreateIfNotExist(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
 
-		void put(NVGcontext* vg, const AnimObject* parent, SvgObject* svg, bool isSvgGroup);
+		void put(NVGcontext* vg, const AnimObject* parent, SvgObject* svg);
 		void clearAll();
 		void flushCacheToFramebuffer(NVGcontext* vg);
 
-		void render(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj, bool isSvgGroup = false);
+		void render(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
 
 		const Framebuffer& getFramebuffer();
 
