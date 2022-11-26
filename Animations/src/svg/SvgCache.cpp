@@ -82,13 +82,13 @@ namespace MathAnim
 		{
 			// Setup the texture coords and everything 
 			Vec2 svgTextureOffset = Vec2{
-				(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
-				(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
+				(float)cacheCurrentPos.x,
+				(float)cacheCurrentPos.y
 			};
 
 			// Check if the SVG cache needs to regenerate
-			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale) + parent->strokeWidth;
-			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale) + parent->strokeWidth;
+			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale);
+			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);
 			Vec2 allottedSize = Vec2{ svgTotalWidth, svgTotalHeight };
 			{
 				float newRightX = svgTextureOffset.x + svgTotalWidth;
@@ -116,10 +116,7 @@ namespace MathAnim
 							// but in practice this will probably be too slow
 							// 
 							// So for now I'll just "evict" then re-insert the new entry
-							svgTextureOffset = Vec2{
-								(float)oldest->data.textureOffset.x + parent->strokeWidth * 0.5f,
-								(float)oldest->data.textureOffset.y + parent->strokeWidth * 0.5f
-							};
+							svgTextureOffset = oldest->data.textureOffset;
 							if (!this->cachedSvgs.evict(oldest->key))
 							{
 								g_logger_error("Eviction failed: 0x%8x", oldest->key);
@@ -156,10 +153,7 @@ namespace MathAnim
 				}
 				else
 				{
-					svgTextureOffset = Vec2{
-						(float)cacheCurrentPos.x + parent->strokeWidth * 0.5f,
-						(float)cacheCurrentPos.y + parent->strokeWidth * 0.5f
-					};
+					svgTextureOffset = cacheCurrentPos;
 				}
 			}
 
@@ -183,8 +177,6 @@ namespace MathAnim
 				return;
 			}
 
-			// Subtract half stroke width to make sure it's getting the correct coords
-			svgTextureOffset -= Vec2{ parent->strokeWidth * 0.5f, parent->strokeWidth * 0.5f };
 			Vec2 cacheUvMin = Vec2{
 				svgTextureOffset.x / framebuffer.width,
 				1.0f - (svgTextureOffset.y / framebuffer.width) - (svgTotalHeight / framebuffer.height)
@@ -217,8 +209,8 @@ namespace MathAnim
 		{
 			SvgCacheEntry metadata = getOrCreateIfNotExist(vg, am, svg, obj, isSvgGroup);
 			// TODO: See if I can get rid of this duplication, see the function above
-			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale) + parent->strokeWidth;
-			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale) + parent->strokeWidth;
+			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale);
+			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);
 
 			if (parent->is3D)
 			{

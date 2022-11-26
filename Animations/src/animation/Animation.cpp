@@ -519,10 +519,8 @@ namespace MathAnim
 		case AnimObjectTypeV1::Axis:
 		case AnimObjectTypeV1::TextObject:
 		case AnimObjectTypeV1::SvgFileObject:
-			// NOP: These just have a bunch of children anim objects that get rendered
-			break;
 		case AnimObjectTypeV1::LaTexObject:
-			this->as.laTexObject.renderCreateAnimation(vg, this->percentCreated, this, false);
+			// NOP: These just have a bunch of children anim objects that get rendered
 			break;
 		default:
 			// TODO: Add magic_enum

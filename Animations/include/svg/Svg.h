@@ -97,9 +97,6 @@ namespace MathAnim
 
 		void normalize();
 		void calculateBBox();
-		void render(NVGcontext* vg, AnimObject* parent) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent) const;
-		void renderOutline(float t, const AnimObject* parent) const;
 		void free();
 	};
 

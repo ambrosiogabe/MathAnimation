@@ -48,8 +48,6 @@ namespace MathAnim
 		void setText(const std::string& str);
 		void setText(const char* str);
 		void parseLaTex();
-		void render(NVGcontext* vg, const AnimObject* parent) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse) const;
 		void serialize(RawMemory& memory) const;
 		void free();
 

@@ -237,28 +237,6 @@ namespace MathAnim
 		isParsingLaTex = true;
 	}
 
-	void LaTexObject::render(NVGcontext* vg, const AnimObject* parent) const
-	{
-		if (svgGroup)
-		{
-			svgGroup->render(vg, (AnimObject*)parent);
-		}
-	}
-
-	void LaTexObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, bool reverse) const
-	{
-		if (svgGroup)
-		{
-			//svgGroup->renderCreateAnimation(vg, t, (AnimObject*)parent, reverse);
-			static bool displayMessage = true;
-			if (displayMessage)
-			{
-				g_logger_error("TODO: LaTexObject::renderCreateAnimation() is not implemented yet. This message will suppress itself.");
-				displayMessage = false;
-			}
-		}
-	}
-
 	void LaTexObject::serialize(RawMemory& memory) const
 	{
 		// textLength       -> i32
