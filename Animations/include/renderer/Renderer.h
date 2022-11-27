@@ -96,6 +96,17 @@ namespace MathAnim
 
 		// ----------- Miscellaneous ----------- 
 		void clearColor(const Vec4& color);
+
+		// ----------- Metrics ----------- 
+		int getTotalNumDrawCalls();
+		int getDrawList2DNumDrawCalls();
+		int getDrawListFont2DNumDrawCalls();
+		int getDrawList3DNumDrawCalls();
+
+		int getTotalNumTris();
+		int getDrawList2DNumTris();
+		int getDrawListFont2DNumTris();
+		int getDrawList3DNumTris();
 	}
 }
 

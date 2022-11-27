@@ -574,8 +574,15 @@ namespace MathAnim
 					return false;
 				}
 
-				PANIC("TODO: Implement me. Arc command not supported yet.");
-				return false;
+				Svg::arcTo(
+					res, 
+					arcParamsList[0].radius, 
+					arcParamsList[0].xAxisRotation, 
+					arcParamsList[0].largeArcFlag,
+					arcParamsList[0].sweepFlag,
+					arcParamsList[0].endpoint, 
+					isAbsolute
+				);
 			}
 			break;
 			default:
@@ -827,6 +834,7 @@ namespace MathAnim
 			bool seenDot = false;
 			if (peek(parserInfo) == '-')
 			{
+				numberEnd++;
 				advance(parserInfo);
 			}
 

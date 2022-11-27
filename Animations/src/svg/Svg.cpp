@@ -300,28 +300,200 @@ namespace MathAnim
 			path.curves[path.numCurves - 1].type = CurveType::Bezier3;
 		}
 
-		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec2& dst, bool absolute)
+		// Implementation taken from https://github.com/BigBadaboom/androidsvg/blob/5db71ef0007b41644258c1f139f941017aef7de3/androidsvg/src/main/java/com/caverock/androidsvg/utils/SVGAndroidRenderer.java#L2889
+		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec2& inDst, bool absolute)
 		{
-			// TODO: All this should probably be implementation details...
-			if (CMath::compare(object->_cursor, dst))
+			Vec2 dst = inDst;
+			if (!absolute)
 			{
-				// If the cursor == dst then no arc is emitted
+				dst += object->_cursor;
+			}
+
+			if (CMath::compare(object->_cursor, dst, 0.001f))
+			{
+				// If the endpoints (x, y) and (x0, y0) are identical, then this
+				// is equivalent to omitting the elliptical arc segment entirely.
+				// (behaviour specified by the spec)
 				return;
 			}
 
-			if (CMath::compare(radius.x, 0.0f) || CMath::compare(radius.y, 0.0f))
+			// Handle degenerate case (behaviour specified by the spec)
+			if (CMath::compare(radius.x, 0.0f, 0.001f) || CMath::compare(radius.y, 0.001f))
 			{
-				// Treat the arc as a line to if the radius x or y is 0
-				lineTo(object, dst, absolute);
+				lineTo(object, dst);
 				return;
 			}
 
-			// TMP: Implement actual arcTo functionality
-			lineTo(object, dst, absolute);
+			// Sign of the radii is ignored (behaviour specified by the spec)
+			float rx = CMath::abs(radius.x);
+			float ry = CMath::abs(radius.y);
 
-			// float rx = glm::abs(radius.x);
-			// float ry = glm::abs(radius.y);
-			// xAxisRot = fmodf(xAxisRot, 360.0f);
+			// Convert angle from degrees to radians
+			typedef float Precision;
+			Precision angleRad = CMath::toRadians(fmodf(xAxisRot, 360.0f));
+			Precision cosAngle = glm::cos(angleRad);
+			Precision sinAngle = glm::sin(angleRad);
+
+			// We simplify the calculations by transforming the arc so that the origin is at the
+			// midpoint calculated above followed by a rotation to line up the coordinate axes
+			// with the axes of the ellipse.
+
+			// Compute the midpoint of the line between the current and the end point
+			Precision dx2 = (object->_cursor.x - dst.x) / 2.0;
+			Precision dy2 = (object->_cursor.y - dst.y) / 2.0;
+
+			// Step 1 : Compute (x1', y1')
+			// x1,y1 is the midpoint vector rotated to take the arc's angle out of consideration
+			Precision x1 = (cosAngle * dx2 + sinAngle * dy2);
+			Precision y1 = (-sinAngle * dx2 + cosAngle * dy2);
+
+			Precision rx_sq = rx * rx;
+			Precision ry_sq = ry * ry;
+			Precision x1_sq = x1 * x1;
+			Precision y1_sq = y1 * y1;
+
+			// Check that radii are large enough.
+			// If they are not, the spec says to scale them up so they are.
+			// This is to compensate for potential rounding errors/differences between SVG implementations.
+			Precision radiiCheck = x1_sq / rx_sq + y1_sq / ry_sq;
+			if (radiiCheck > 0.99999)
+			{
+				Precision radiiScale = glm::sqrt(radiiCheck) * 1.00001;
+				rx = (float)(radiiScale * rx);
+				ry = (float)(radiiScale * ry);
+				rx_sq = rx * rx;
+				ry_sq = ry * ry;
+			}
+
+			// Step 2 : Compute (cx1, cy1) - the transformed centre point
+			Precision sign = (largeArc == sweep) ? -1 : 1;
+			Precision sq = ((rx_sq * ry_sq) - (rx_sq * y1_sq) - (ry_sq * x1_sq)) / ((rx_sq * y1_sq) + (ry_sq * x1_sq));
+			sq = (sq < 0) ? 0 : sq;
+			Precision coef = (sign * glm::sqrt(sq));
+			Precision cx1 = coef * ((rx * y1) / ry);
+			Precision cy1 = coef * -((ry * x1) / rx);
+
+			// Step 3 : Compute (cx, cy) from (cx1, cy1)
+			Precision sx2 = (object->_cursor.x + dst.x) / 2.0;
+			Precision sy2 = (object->_cursor.y + dst.y) / 2.0;
+			Precision cx = sx2 + (cosAngle * cx1 - sinAngle * cy1);
+			Precision cy = sy2 + (sinAngle * cx1 + cosAngle * cy1);
+
+			// Step 4 : Compute the angleStart (angle1) and the angleExtent (dangle)
+			Precision ux = (x1 - cx1) / rx;
+			Precision uy = (y1 - cy1) / ry;
+			Precision vx = (-x1 - cx1) / rx;
+			Precision vy = (-y1 - cy1) / ry;
+			Precision p, n;
+
+			// Angle betwen two vectors is +/- acos( u.v / len(u) * len(v))
+			// Where '.' is the dot product. And +/- is calculated from the sign of the cross product (u x v)
+
+			// Compute the start angle
+			// The angle between (ux,uy) and the 0deg angle (1,0)
+			n = glm::sqrt((ux * ux) + (uy * uy));  // len(u) * len(1,0) == len(u)
+			p = ux;                                // u.v == (ux,uy).(1,0) == (1 * ux) + (0 * uy) == ux
+			sign = (uy < 0) ? -1.0 : 1.0;          // u x v == (1 * uy - ux * 0) == uy
+			Precision angleStart = sign * glm::acos(p / n);  // No need for checkedArcCos() here. (p >= n) should always be true.
+
+			// Compute the angle extent
+			n = glm::sqrt((ux * ux + uy * uy) * (vx * vx + vy * vy));
+			p = ux * vx + uy * vy;
+			sign = (ux * vy - uy * vx < 0) ? -1.0f : 1.0f;
+			Precision angleExtent = sign * (
+				(p / n < -1.0) ? glm::pi<Precision>() : (p / n > 1.0) ? 0 : glm::acos(p / n)
+				);
+
+			// Catch angleExtents of 0, which will cause problems later in arcToBeziers
+			if (CMath::compare(angleExtent, 0.001f))
+			{
+				lineTo(object, dst);
+				return;
+			}
+
+			if (!sweep && angleExtent > 0)
+			{
+				angleExtent -= glm::two_pi<Precision>();
+			}
+			else if (sweep && angleExtent < 0)
+			{
+				angleExtent += glm::two_pi<Precision>();
+			}
+			angleExtent = fmodf(angleExtent, glm::two_pi<Precision>());
+			angleStart = fmodf(angleStart, glm::two_pi<Precision>());
+
+			// Many elliptical arc implementations including the Java2D and Android ones, only
+			// support arcs that are axis aligned.  Therefore we need to substitute the arc
+			// with bezier curves.  The following method call will generate the beziers for
+			// a unit circle that covers the arc angles we want.
+			int numSegments = (int)glm::ceil(glm::abs(angleExtent) * 2.0 / glm::pi<Precision>());  // (angleExtent / 90deg)
+
+			Precision angleIncrement = angleExtent / numSegments;
+
+			// The length of each control point vector is given by the following formula.
+			Precision controlLength = 4.0 / 3.0 * glm::sin(angleIncrement / 2.0) / (1.0 + glm::cos(angleIncrement / 2.0));
+
+			const int bezierPointsLength = numSegments * 6;
+			float* bezierPoints = (float*)g_memory_allocate(sizeof(float) * bezierPointsLength);
+			int pos = 0;
+
+			for (int i = 0; i < numSegments; i++)
+			{
+				Precision angle = angleStart + i * angleIncrement;
+				// Calculate the control vector at this angle
+				Precision dx = glm::cos(angle);
+				Precision dy = glm::sin(angle);
+				// First control point
+				bezierPoints[pos++] = (float)(dx - controlLength * dy);
+				bezierPoints[pos++] = (float)(dy + controlLength * dx);
+				// Second control point
+				angle += angleIncrement;
+				dx = glm::cos(angle);
+				dy = glm::sin(angle);
+				bezierPoints[pos++] = (float)(dx + controlLength * dy);
+				bezierPoints[pos++] = (float)(dy - controlLength * dx);
+				// Endpoint of bezier
+				bezierPoints[pos++] = (float)dx;
+				bezierPoints[pos++] = (float)dy;
+			}
+
+			// Calculate a transformation matrix that will move and scale these bezier points to the correct location.
+			glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(rx, ry, 0.0f));
+			glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), xAxisRot, glm::vec3(1.0f, 0.0f, 0.0f));
+			glm::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(cx, cy, 0.0f));
+			glm::mat4 transformation = translation * rotation * scale;
+
+			// The last point in the bezier set should match exactly the last coord pair in the arc (ie: x,y). But
+			// considering all the mathematical manipulation we have been doing, it is bound to be off by a tiny
+			// fraction. Experiments show that it can be up to around 0.00002.  So why don't we just set it to
+			// exactly what it ought to be.
+			bezierPoints[bezierPointsLength - 2] = dst.x;
+			bezierPoints[bezierPointsLength - 1] = dst.y;
+
+			// Final step is to add the bezier curves to the path
+			for (int i = 0; i < bezierPointsLength; i += 6)
+			{
+				glm::vec4 c1 = glm::vec4(bezierPoints[i], bezierPoints[i + 1], 0.0f, 1.0f);
+				glm::vec4 c2 = glm::vec4(bezierPoints[i + 2], bezierPoints[i + 3], 0.0f, 1.0f);
+				glm::vec4 p2 = glm::vec4(bezierPoints[i + 4], bezierPoints[i + 5], 0.0f, 1.0f);
+
+				c1 = transformation * c1;
+				c2 = transformation * c2;
+
+				if (i != bezierPointsLength - 6)
+				{
+					p2 = transformation * p2;
+				}
+
+				bezier3To(
+					object,
+					Vec2{ c1.x, c1.y },
+					Vec2{ c2.x, c2.y },
+					Vec2{ p2.x, p2.y }
+				);
+			}
+
+			g_memory_free(bezierPoints);
 		}
 
 		void addCurveManually(SvgObject* object, const Curve& curve)
@@ -1381,6 +1553,8 @@ namespace MathAnim
 
 			// Map everything to [0.0, 1.0] range except it needs to be scaled
 			// relative to the size in the overall svg group
+			Vec2 hzInputRange = Vec2{ objMin.x, objMax.x };
+			Vec2 vtInputRange = Vec2{ objMin.y, objMax.y };
 			float outputWidth = (objMax.x - objMin.x) / svgGroupSize.x;
 			float outputHeight = (objMax.y - objMin.y) / svgGroupSize.y;
 			Vec2 hzOutputRange = Vec2{ 0.0f, outputWidth };
@@ -1390,37 +1564,36 @@ namespace MathAnim
 				for (int curvei = 0; curvei < obj.paths[pathi].numCurves; curvei++)
 				{
 					Curve& curve = obj.paths[pathi].curves[curvei];
-					curve.p0.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.p0.x);
-					curve.p0.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.p0.y);
+					curve.p0.x = CMath::mapRange(hzInputRange, hzOutputRange, curve.p0.x);
+					curve.p0.y = CMath::mapRange(vtInputRange, vtOutputRange, curve.p0.y);
 
 					switch (curve.type)
 					{
 					case CurveType::Bezier3:
 					{
-						curve.as.bezier3.p1.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.bezier3.p1.x);
-						curve.as.bezier3.p1.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.bezier3.p1.y);
+						curve.as.bezier3.p1.x = CMath::mapRange(hzInputRange, hzOutputRange, curve.as.bezier3.p1.x);
+						curve.as.bezier3.p1.y = CMath::mapRange(vtInputRange, vtOutputRange, curve.as.bezier3.p1.y);
 
-						curve.as.bezier3.p2.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.bezier3.p2.x);
-						curve.as.bezier3.p2.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.bezier3.p2.y);
+						curve.as.bezier3.p2.x = CMath::mapRange(hzInputRange, hzOutputRange, curve.as.bezier3.p2.x);
+						curve.as.bezier3.p2.y = CMath::mapRange(vtInputRange, vtOutputRange, curve.as.bezier3.p2.y);
 
-						curve.as.bezier3.p3.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.bezier3.p3.x);
-						curve.as.bezier3.p3.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.bezier3.p3.y);
-
+						curve.as.bezier3.p3.x = CMath::mapRange(hzInputRange, hzOutputRange, curve.as.bezier3.p3.x);
+						curve.as.bezier3.p3.y = CMath::mapRange(vtInputRange, vtOutputRange, curve.as.bezier3.p3.y);
 					}
 					break;
 					case CurveType::Bezier2:
 					{
-						curve.as.bezier2.p1.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.bezier2.p1.x);
-						curve.as.bezier2.p1.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.bezier2.p1.y);
+						curve.as.bezier2.p1.x = CMath::mapRange(hzInputRange, hzOutputRange, curve.as.bezier2.p1.x);
+						curve.as.bezier2.p1.y = CMath::mapRange(vtInputRange, vtOutputRange, curve.as.bezier2.p1.y);
 
-						curve.as.bezier2.p2.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.bezier2.p2.x);
-						curve.as.bezier2.p2.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.bezier2.p2.y);
+						curve.as.bezier2.p2.x = CMath::mapRange(hzInputRange, hzOutputRange, curve.as.bezier2.p2.x);
+						curve.as.bezier2.p2.y = CMath::mapRange(vtInputRange, vtOutputRange, curve.as.bezier2.p2.y);
 					}
 					break;
 					case CurveType::Line:
 					{
-						curve.as.line.p1.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.line.p1.x);
-						curve.as.line.p1.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.line.p1.y);
+						curve.as.line.p1.x = CMath::mapRange(hzInputRange, hzOutputRange, curve.as.line.p1.x);
+						curve.as.line.p1.y = CMath::mapRange(vtInputRange, vtOutputRange, curve.as.line.p1.y);
 					}
 					break;
 					}
@@ -1432,12 +1605,12 @@ namespace MathAnim
 
 			float outputGroupWidth = 1.0f;
 			float outputGroupHeight = svgGroupSize.y / svgGroupSize.x;
-			offset.x = CMath::mapRange(Vec2{ this->bbox.min.x, this->bbox.max.x }, Vec2{0.0f, outputGroupWidth }, objMin.x);
-			offset.y = CMath::mapRange(Vec2{ this->bbox.min.y, this->bbox.max.y }, Vec2{0.0f, outputGroupHeight }, objMin.y);
+			offset.x = CMath::mapRange(Vec2{ this->bbox.min.x, this->bbox.max.x }, Vec2{ 0.0f, outputGroupWidth }, objMin.x);
+			offset.y = CMath::mapRange(Vec2{ this->bbox.min.y, this->bbox.max.y }, Vec2{ 0.0f, outputGroupHeight }, objMin.y);
 			offset.y = outputGroupHeight - offset.y;
 			Vec2 centerOffset = Vec2{
 				(obj.bbox.max.x - obj.bbox.min.x) / 2.0f,
-				-(obj.bbox.max.y - obj.bbox.min.y) / 2.0f * outputGroupHeight
+				-(obj.bbox.max.y - obj.bbox.min.y) / 2.0f
 			};
 			offset += centerOffset;
 			// Center the whole object
@@ -1521,17 +1694,14 @@ namespace MathAnim
 
 		// Instead of translating, we'll map every coordinate from the SVG min-max range to
 		// the preferred coordinate range
-		Vec2 scaledBboxMin = obj->bbox.min;
-		scaledBboxMin.x *= parent->svgScale;
-		scaledBboxMin.y *= parent->svgScale;
-		Vec2 minCoord = textureOffset + scaledBboxMin;
-		Vec2 bboxSize = (obj->bbox.max - obj->bbox.min);
-		bboxSize.x *= parent->svgScale;
-		bboxSize.y *= parent->svgScale;
-		Vec2 maxCoord = minCoord + bboxSize;
+		Vec2 scaledBboxMin = obj->bbox.min * parent->svgScale;
+		Vec2 scaledBboxMax = obj->bbox.max * parent->svgScale;
+		Vec2 inXRange = Vec2{ scaledBboxMin.x, scaledBboxMax.x };
+		Vec2 inYRange = Vec2{ scaledBboxMin.y, scaledBboxMax.y };
 
-		Vec2 inXRange = Vec2{ obj->bbox.min.x * parent->svgScale, obj->bbox.max.x * parent->svgScale };
-		Vec2 inYRange = Vec2{ obj->bbox.min.y * parent->svgScale, obj->bbox.max.y * parent->svgScale };
+		Vec2 bboxSize = scaledBboxMax - scaledBboxMin;
+		Vec2 minCoord = textureOffset;
+		Vec2 maxCoord = minCoord + bboxSize;
 		Vec2 outXRange = Vec2{ minCoord.x, maxCoord.x };
 		Vec2 outYRange = Vec2{ minCoord.y, maxCoord.y };
 

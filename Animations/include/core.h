@@ -54,6 +54,9 @@
 // User defined literals
 MathAnim::Vec4 operator""_hex(const char* hexColor, size_t length);
 
+// SIMD intrinsics
+#include <xmmintrin.h>
+
 struct RawMemory
 {
 	uint8* data;

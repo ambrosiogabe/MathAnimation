@@ -1,9 +1,11 @@
 #include "editor/DebugPanel.h"
 #include "core.h"
 #include "core/Application.h"
+#include "core/Colors.h"
 #include "svg/Svg.h"
 #include "svg/SvgCache.h"
 #include "renderer/Texture.h"
+#include "renderer/Renderer.h"
 
 namespace MathAnim
 {
@@ -74,15 +76,94 @@ namespace MathAnim
 
 			ImGui::Begin("App Metrics");
 
-			float avgFrameTime = 0.0f;
-			for (int i = 0; i < previousFrameTimesLength; i++)
+			// Draw the FPS and color it according to how fast/slow it's going
 			{
-				avgFrameTime += previousFrameTimes[i];
+				float avgFrameTime = 0.0f;
+				for (int i = 0; i < previousFrameTimesLength; i++)
+				{
+					avgFrameTime += previousFrameTimes[i];
+				}
+				avgFrameTime /= (float)previousFrameTimesLength;
+				ImGui::Text("Average Frame Time: ");
+				ImGui::SameLine();
+				Vec4 fpsIndicatorColor = Colors::AccentGreen[3];
+				if ((1.0f / avgFrameTime) < 31.0f)
+				{
+					fpsIndicatorColor = Colors::AccentRed[3];
+				}
+				else if ((1.0f / avgFrameTime) < 45.0f)
+				{
+					fpsIndicatorColor = Colors::AccentYellow[3];
+				}
+				ImGui::TextColored(fpsIndicatorColor, "%2.3fms (%2.3f FPS)", avgFrameTime, 1.0f / avgFrameTime);
+
+				// Update the array of previous frame times
+				previousFrameTimes[previousFrameTimesIndex] = Application::getDeltaTime();
+				previousFrameTimesIndex = (previousFrameTimesIndex + 1) % previousFrameTimesLength;
 			}
-			avgFrameTime /= (float)previousFrameTimesLength;
-			ImGui::Text("Average Frame Time: %2.3fms (%2.3f FPS)", avgFrameTime, 1.0f / avgFrameTime);
-			previousFrameTimes[previousFrameTimesIndex] = Application::getDeltaTime();
-			previousFrameTimesIndex = (previousFrameTimesIndex + 1) % previousFrameTimesLength;
+
+			// Draw call breakdown
+			if (ImGui::TreeNodeEx("###DrawCallBreakdown_Tab", ImGuiTreeNodeFlags_FramePadding, "Num Draw Calls: %d", Renderer::getTotalNumDrawCalls()))
+			{
+				if (ImGui::BeginTable("##DrawCallBreakdown", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders))
+				{
+					ImGui::TableSetupColumn("Draw List Type");
+					ImGui::TableSetupColumn("# of Draw Calls");
+					ImGui::TableHeadersRow();
+
+					ImGui::TableNextColumn();
+					ImGui::Text("Draw List 2D:");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", Renderer::getDrawList2DNumDrawCalls());
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn();
+					ImGui::Text("Draw List Font 2D:");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", Renderer::getDrawListFont2DNumDrawCalls());
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn();
+					ImGui::Text("Draw List 3D:");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", Renderer::getDrawList3DNumDrawCalls());
+
+					ImGui::EndTable();
+				}
+				ImGui::TreePop();
+			}
+
+			// Number of triangles breakdown
+			if (ImGui::TreeNodeEx("###TriBreakdown_Tab", ImGuiTreeNodeFlags_FramePadding, "Num Tris: %d", Renderer::getTotalNumTris()))
+			{
+				if (ImGui::BeginTable("##DrawCallBreakdown", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders))
+				{
+					ImGui::TableSetupColumn("Draw List Type");
+					ImGui::TableSetupColumn("# of Tris");
+					ImGui::TableHeadersRow();
+
+					ImGui::TableNextColumn();
+					ImGui::Text("Draw List 2D:");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", Renderer::getDrawList2DNumTris());
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn();
+					ImGui::Text("Draw List Font 2D:");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", Renderer::getDrawListFont2DNumTris());
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn();
+					ImGui::Text("Draw List 3D:");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", Renderer::getDrawList3DNumTris());
+
+					ImGui::EndTable();
+				}
+
+				ImGui::TreePop();
+			}
 
 			ImGui::End();
 		}

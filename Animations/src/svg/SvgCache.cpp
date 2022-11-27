@@ -76,8 +76,6 @@ namespace MathAnim
 		uint64 hashValue = hash(parent->id, parent->svgScale);
 
 		// Only add the SVG if it hasn't already been added
-		//auto iter = this->cachedSvgs.find(hashValue);
-		//if (iter == this->cachedSvgs.end())
 		if (!this->cachedSvgs.exists(hashValue))
 		{
 			// Setup the texture coords and everything 

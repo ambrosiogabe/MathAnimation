@@ -259,6 +259,14 @@ namespace MathAnim
 		static DrawList3DLine drawList3DLine;
 		static DrawList3D drawList3D;
 
+		static int list2DNumDrawCalls = 0;
+		static int listFont2DNumDrawCalls = 0;
+		static int list3DNumDrawCalls = 0;
+
+		static int list2DNumTris = 0;
+		static int listFont2DNumTris = 0;
+		static int list3DNumTris = 0;
+
 		static Shader shader2D;
 		static Shader shaderFont2D;
 		static Shader shader3DLine;
@@ -428,6 +436,15 @@ namespace MathAnim
 
 		void endFrame()
 		{
+			// Track metrics
+			list2DNumDrawCalls = drawList2D.drawCommands.size();
+			listFont2DNumDrawCalls = drawListFont2D.drawCommands.size();
+			list3DNumDrawCalls = drawList3D.drawCommands.size();
+
+			list2DNumTris = drawList2D.indices.size() / 3;
+			listFont2DNumTris = drawListFont2D.indices.size() / 3;
+			list3DNumTris = drawList3D.indices.size() / 3;
+
 			// Do all the draw calls
 			drawList3DLine.reset();
 			drawListFont2D.reset();
@@ -788,7 +805,7 @@ namespace MathAnim
 					float secondBevelWidth = vertex.thickness / CMath::dot(bisection, dirB) * 0.5f;
 					Vec2 firstPoint = currentPos + (bisectionPerp * firstBevelWidth);
 					Vec2 secondPoint = currentPos + (bisectionPerp * secondBevelWidth);
-					
+
 					float centerBevelWidth = vertex.thickness / CMath::dot(bisectionPerp, CMath::normalize(currentPos - previousPos));
 					centerBevelWidth = glm::min(centerBevelWidth, vertex.thickness);
 					Vec2 centerPoint = currentPos + (bisection * centerBevelWidth);
@@ -1236,6 +1253,51 @@ namespace MathAnim
 		{
 			glClearColor(color.r, color.g, color.b, color.a);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		}
+
+		// ----------- Metrics ----------- 
+		int getTotalNumDrawCalls()
+		{
+			return getDrawList2DNumDrawCalls() +
+				getDrawListFont2DNumDrawCalls() +
+				getDrawList3DNumDrawCalls();
+		}
+
+		int getDrawList2DNumDrawCalls()
+		{
+			return list2DNumDrawCalls;
+		}
+
+		int getDrawListFont2DNumDrawCalls()
+		{
+			return listFont2DNumDrawCalls;
+		}
+
+		int getDrawList3DNumDrawCalls()
+		{
+			return list3DNumDrawCalls;
+		}
+
+		int getTotalNumTris()
+		{
+			return getDrawList2DNumTris() +
+				getDrawListFont2DNumTris() +
+				getDrawList3DNumTris();
+		}
+
+		int getDrawList2DNumTris()
+		{
+			return list2DNumTris;
+		}
+
+		int getDrawListFont2DNumTris()
+		{
+			return listFont2DNumTris;
+		}
+
+		int getDrawList3DNumTris()
+		{
+			return list3DNumTris;
 		}
 
 		// ---------------------- Begin Internal Functions ----------------------
