@@ -31,10 +31,6 @@
 #include "video/Encoder.h"
 #include "utils/TableOfContents.h"
 
-#include "nanovg.h"
-#define NANOVG_GL3_IMPLEMENTATION
-#include "nanovg_gl.h"
-
 #include "imgui.h"
 
 namespace MathAnim
@@ -50,7 +46,6 @@ namespace MathAnim
 		static int outputHeight = 2160;
 		static float viewportWidth = 18.0f;
 		static float viewportHeight = 9.0f;
-		static NVGcontext* vg = NULL;
 		static AnimationManagerData* am = nullptr;
 
 		static GlobalThreadPool* globalThreadPool = nullptr;
@@ -102,13 +97,6 @@ namespace MathAnim
 			Svg::init(camera2D, camera3D);
 			SceneManagementPanel::init();
 			SvgParser::init();
-
-			vg = nvgCreateGL3(NVG_STENCIL_STROKES | NVG_DEBUG);
-			if (vg == NULL)
-			{
-				g_logger_error("Failed to initialize nanovg.");
-				return;
-			}
 
 			LaTexLayer::init();
 
@@ -178,12 +166,10 @@ namespace MathAnim
 				absolutePrevFrame = absoluteCurrentFrame;
 
 				// Update systems all systems/collect systems draw calls
-				GizmoManager::update(am, vg);
+				GizmoManager::update(am);
 				EditorCameraController::updateOrtho(editorCamera2D);
 				// Update Animation logic and collect draw calls
-				nvgBeginFrame(vg, (float)svgCache->getFramebuffer().width, (float)svgCache->getFramebuffer().height, 1.0f);
-				AnimationManager::render(am, vg, deltaFrame);
-				svgCache->flushCacheToFramebuffer(vg);
+				AnimationManager::render(am, deltaFrame);
 
 				// Render all animation draw calls to main framebuffer
 				bool renderPickingOutline = false;
@@ -212,7 +198,7 @@ namespace MathAnim
 				ImGuiLayer::beginFrame();
 				ImGui::ShowDemoWindow();
 				SceneManagementPanel::update(sceneData);
-				EditorGui::update(mainFramebuffer, editorFramebuffer, am, vg);
+				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
 				ImGuiLayer::endFrame();
 				glPopDebugGroup();
 
@@ -246,7 +232,7 @@ namespace MathAnim
 			// If the window is closing, save the last rendered frame to a preview image
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
-			AnimationManager::render(am, vg, deltaFrame);
+			AnimationManager::render(am, deltaFrame);
 			Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, false);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path currentPath = std::filesystem::path(currentProjectRoot);
@@ -307,7 +293,6 @@ namespace MathAnim
 			SceneManagementPanel::free();
 			EditorGui::free(am);
 			AnimationManager::free(am);
-			nvgDeleteGL3(vg);
 			Fonts::unloadAllFonts();
 			Renderer::free();
 			GizmoManager::free();
@@ -429,7 +414,7 @@ namespace MathAnim
 			}
 			if (animationData.data)
 			{
-				AnimationManager::deserialize(am, vg, animationData, loadedProjectCurrentFrame);
+				AnimationManager::deserialize(am, animationData, loadedProjectCurrentFrame);
 				// Flush any pending objects to be created for real
 				AnimationManager::endFrame(am);
 
@@ -563,11 +548,6 @@ namespace MathAnim
 		SvgCache* getSvgCache()
 		{
 			return svgCache;
-		}
-
-		NVGcontext* getNvgContext()
-		{
-			return vg;
 		}
 
 		GlobalThreadPool* threadPool()

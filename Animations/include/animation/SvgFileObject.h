@@ -2,8 +2,6 @@
 #define MATH_ANIM_SVG_FILE_OBJECT_H
 #include "core.h"
 
-struct NVGcontext;
-
 namespace MathAnim
 {
 	struct AnimationManagerData;

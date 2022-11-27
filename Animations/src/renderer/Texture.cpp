@@ -136,14 +136,33 @@ namespace MathAnim
 		);
 	}
 
-	void Texture::uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer) const
+	void Texture::uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer, size_t bufferLength, bool flipVertically) const
 	{
 		g_logger_assert(format != ByteFormat::None, "Cannot generate texture without color format.");
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(format);
 		uint32 dataType = TextureUtil::toGlDataType(format);
+		size_t componentsSize = TextureUtil::formatSize(format);
+
+		g_logger_assert(componentsSize * width * height <= bufferLength, "Buffer overrun when trying to upload texture subimage to GPU.");
+
+		if (flipVertically)
+		{
+			int stride = (int)(width * componentsSize);
+			uint8* newBuffer = (uint8*)g_memory_allocate(stride * height);
+			for (int i = 0; i < height; i++)
+			{
+				g_memory_copyMem(newBuffer + (i * stride), buffer + ((height - i - 1) * stride), stride);
+			}
+			buffer = newBuffer;
+		}
 
 		glTexSubImage2D(GL_TEXTURE_2D, 0, offsetX, offsetY, width, height, externalFormat, dataType, buffer);
+
+		if (flipVertically)
+		{
+			g_memory_free(buffer);
+		}
 	}
 
 	bool Texture::isNull() const
@@ -372,6 +391,33 @@ namespace MathAnim
 			}
 
 			return GL_ONE;
+		}
+
+		size_t formatSize(ByteFormat format)
+		{
+			switch (format)
+			{
+			case ByteFormat::RGBA8_UI:
+				return sizeof(uint8) * 4;
+			case ByteFormat::RGBA16_F:
+				return sizeof(uint16) * 4;
+			case ByteFormat::RGB8_UI:
+				return sizeof(uint8) * 3;
+			case ByteFormat::R32_UI:
+				return sizeof(uint32);
+			case ByteFormat::RG32_UI:
+				return sizeof(uint32) * 2;
+			case ByteFormat::R8_UI:
+				return sizeof(uint8);
+			case ByteFormat::R8_F:
+				return sizeof(uint8);
+			case ByteFormat::None:
+				return 0;
+			default:
+				g_logger_warning("Unknown glByteFormat '%d'", format);
+			}
+
+			return 0;
 		}
 
 		void generateFromFile(Texture& texture)

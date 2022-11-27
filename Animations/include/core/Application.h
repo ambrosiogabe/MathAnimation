@@ -2,8 +2,6 @@
 #define MATH_ANIM_APPLICATION_H
 #include "core.h"
 
-struct NVGcontext;
-
 namespace MathAnim
 {
 	class GlobalThreadPool;
@@ -56,7 +54,6 @@ namespace MathAnim
 		// TODO: Ugly hack
 		SvgCache* getSvgCache();
 
-		NVGcontext* getNvgContext();
 		GlobalThreadPool* threadPool();
 	}
 }

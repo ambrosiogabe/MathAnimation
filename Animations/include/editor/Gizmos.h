@@ -2,8 +2,6 @@
 #define MATH_ANIM_GIZMOS_H
 #include "core.h"
 
-struct NVGcontext;
-
 namespace MathAnim
 {
 	struct Framebuffer;
@@ -31,7 +29,7 @@ namespace MathAnim
 	namespace GizmoManager
 	{
 		void init();
-		void update(AnimationManagerData* am, NVGcontext* vg);
+		void update(AnimationManagerData* am);
 		void render(const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera);
 		void free();
 

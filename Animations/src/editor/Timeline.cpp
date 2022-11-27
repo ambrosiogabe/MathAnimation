@@ -95,7 +95,7 @@ namespace MathAnim
 			setupImGuiTimelineDataFromAnimations(am);
 		}
 
-		void update(TimelineData& timelineData, AnimationManagerData* am, NVGcontext* vg)
+		void update(TimelineData& timelineData, AnimationManagerData* am)
 		{
 			// NOTE: For best results, it's usually a good idea to specify 0 padding for the window
 			// so that the timeline can expand to the full width/height of the window
@@ -298,7 +298,7 @@ namespace MathAnim
 			{
 				handleAnimObjectInspector(am, activeAnimObjectId);
 				// TODO: Does this slow stuff down or does it even matter?
-				AnimationManager::updateObjectState(am, vg, activeAnimObjectId);
+				AnimationManager::updateObjectState(am, activeAnimObjectId);
 			}
 			ImGui::End();
 
@@ -905,7 +905,7 @@ namespace MathAnim
 						{
 							Fonts::unloadFont(object->as.textObject.font);
 						}
-						object->as.textObject.font = Fonts::loadFont(fonts[n].c_str(), Application::getNvgContext());
+						object->as.textObject.font = Fonts::loadFont(fonts[n].c_str());
 						shouldRegenerate = true;
 					}
 

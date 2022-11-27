@@ -3,8 +3,6 @@
 #include "core.h"
 #include "renderer/OrthoCamera.h"
 
-struct NVGcontext;
-
 namespace MathAnim
 {
 	struct Font;

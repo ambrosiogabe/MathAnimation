@@ -10,7 +10,7 @@
 #include "renderer/PerspectiveCamera.h"
 #include "core/Application.h"
 
-#include <nanovg.h>
+#include <plutovg.h>
 
 namespace MathAnim
 {
@@ -1116,7 +1116,7 @@ namespace MathAnim
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj);
+	static void renderCreateAnimation2D(float t, const AnimObject* parent, const Texture& texture, const Vec2& textureOffset, const SvgObject* obj);
 	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj);
 
 	void SvgObject::normalize()
@@ -1329,14 +1329,14 @@ namespace MathAnim
 		}
 	}
 
-	void SvgObject::render(NVGcontext* vg, const AnimObject* parent, const Vec2& textureOffset) const
+	void SvgObject::render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const
 	{
-		renderCreateAnimation(vg, 1.0f, parent, textureOffset);
+		renderCreateAnimation(1.0f, parent, texture, textureOffset);
 	}
 
-	void SvgObject::renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset) const
+	void SvgObject::renderCreateAnimation(float t, const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const
 	{
-		renderCreateAnimation2D(vg, t, parent, textureOffset, this);
+		renderCreateAnimation2D(t, parent, texture, textureOffset, this);
 	}
 
 	void SvgObject::renderOutline(float t, const AnimObject* parent) const
@@ -1687,8 +1687,14 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj)
+	static void renderCreateAnimation2D(float t, const AnimObject* parent, const Texture& texture, const Vec2& textureOffset, const SvgObject* obj)
 	{
+		// Can't render SVG's with 0 paths
+		if (obj->numPaths <= 0)
+		{
+			return;
+		}
+
 		constexpr float defaultStrokeWidth = 5.0f;
 		float lengthToDraw = t * (float)obj->approximatePerimeter;
 
@@ -1700,495 +1706,144 @@ namespace MathAnim
 		Vec2 inYRange = Vec2{ scaledBboxMin.y, scaledBboxMax.y };
 
 		Vec2 bboxSize = scaledBboxMax - scaledBboxMin;
-		Vec2 minCoord = textureOffset;
+		Vec2 minCoord = Vec2{ 0, 0 };
 		Vec2 maxCoord = minCoord + bboxSize;
 		Vec2 outXRange = Vec2{ minCoord.x, maxCoord.x };
 		Vec2 outYRange = Vec2{ minCoord.y, maxCoord.y };
 
-		if (obj->numPaths > 0)
+		// Setup pluto context to render SVG to
+		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
+		plutovg_t* pluto = plutovg_create(surface);
+
+		plutovg_new_path(pluto);
+
+		for (int pathi = 0; pathi < obj->numPaths; pathi++)
 		{
-			nvgBeginPath(vg);
-
-			for (int pathi = 0; pathi < obj->numPaths; pathi++)
+			if (obj->paths[pathi].numCurves > 0)
 			{
-				if (obj->paths[pathi].numCurves > 0)
 				{
-					nvgStrokeColor(vg, nvgRGBA(0, 0, 0, 0));
-					nvgStrokeWidth(vg, 0.0f);
+					Vec2 p0 = obj->paths[pathi].curves[0].p0;
+					p0.x *= parent->svgScale;
+					p0.y *= parent->svgScale;
+					p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
+					p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
 
+					plutovg_move_to(pluto,
+						p0.x,
+						p0.y
+					);
+				}
+
+				for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
+				{
+					const Curve& curve = obj->paths[pathi].curves[curvei];
+					Vec2 p0 = curve.p0;
+
+					switch (curve.type)
 					{
-						Vec2 p0 = obj->paths[pathi].curves[0].p0;
-						p0.x *= parent->svgScale;
-						p0.y *= parent->svgScale;
-						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
-						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
+					case CurveType::Bezier3:
+					{
+						Vec2 p1 = curve.as.bezier3.p1;
+						Vec2 p2 = curve.as.bezier3.p2;
+						Vec2 p3 = curve.as.bezier3.p3;
 
-						nvgMoveTo(vg,
-							p0.x,
-							p0.y
+						p1.x *= parent->svgScale;
+						p1.y *= parent->svgScale;
+						p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+						p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+
+						p2.x *= parent->svgScale;
+						p2.y *= parent->svgScale;
+						p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
+						p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
+
+						p3.x *= parent->svgScale;
+						p3.y *= parent->svgScale;
+						p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
+						p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
+
+						plutovg_cubic_to(
+							pluto,
+							p1.x, p1.y,
+							p2.x, p2.y,
+							p3.x, p3.y
 						);
 					}
-
-					for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
+					break;
+					case CurveType::Bezier2:
 					{
-						const Curve& curve = obj->paths[pathi].curves[curvei];
-						Vec2 p0 = curve.p0;
+						Vec2 p1 = curve.as.bezier2.p1;
+						Vec2 p2 = curve.as.bezier2.p2;
 
-						switch (curve.type)
-						{
-						case CurveType::Bezier3:
-						{
-							Vec2 p1 = curve.as.bezier3.p1;
-							Vec2 p2 = curve.as.bezier3.p2;
-							Vec2 p3 = curve.as.bezier3.p3;
+						p1.x *= parent->svgScale;
+						p1.y *= parent->svgScale;
+						p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+						p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
-							p1.x *= parent->svgScale;
-							p1.y *= parent->svgScale;
-							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
-							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
+						p2.x *= parent->svgScale;
+						p2.y *= parent->svgScale;
+						p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
+						p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
 
-							p2.x *= parent->svgScale;
-							p2.y *= parent->svgScale;
-							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
-							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
-
-							p3.x *= parent->svgScale;
-							p3.y *= parent->svgScale;
-							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
-							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
-
-							nvgBezierTo(
-								vg,
-								p1.x, p1.y,
-								p2.x, p2.y,
-								p3.x, p3.y
-							);
-						}
-						break;
-						case CurveType::Bezier2:
-						{
-							Vec2 p1 = curve.as.bezier2.p1;
-							Vec2 p2 = curve.as.bezier2.p1;
-							Vec2 p3 = curve.as.bezier2.p2;
-
-							// Degree elevated quadratic bezier curve
-							Vec2 pr0 = p0;
-							Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-							Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-							Vec2 pr3 = p3;
-
-							pr1.x *= parent->svgScale;
-							pr1.y *= parent->svgScale;
-							pr1.x = CMath::mapRange(inXRange, outXRange, pr1.x);
-							pr1.y = CMath::mapRange(inYRange, outYRange, pr1.y);
-
-							pr2.x *= parent->svgScale;
-							pr2.y *= parent->svgScale;
-							pr2.x = CMath::mapRange(inXRange, outXRange, pr2.x);
-							pr2.y = CMath::mapRange(inYRange, outYRange, pr2.y);
-
-							pr3.x *= parent->svgScale;
-							pr3.y *= parent->svgScale;
-							pr3.x = CMath::mapRange(inXRange, outXRange, pr3.x);
-							pr3.y = CMath::mapRange(inYRange, outYRange, pr3.y);
-
-							nvgBezierTo(
-								vg,
-								pr1.x, pr1.y,
-								pr2.x, pr2.y,
-								pr3.x, pr3.y
-							);
-						}
-						break;
-						case CurveType::Line:
-						{
-							Vec2 p1 = curve.as.line.p1;
-
-							p1.x *= parent->svgScale;
-							p1.y *= parent->svgScale;
-							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
-							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
-
-							nvgLineTo(vg, p1.x, p1.y);
-						}
-						break;
-						default:
-							g_logger_warning("Unknown curve type in render %d", (int)curve.type);
-							break;
-						}
+						plutovg_quad_to(
+							pluto,
+							p1.x, p1.y,
+							p2.x, p2.y
+						);
 					}
-				}
-
-				if (obj->paths[pathi].isHole)
-				{
-					nvgPathWinding(vg, NVG_HOLE);
-				}
-				else
-				{
-					nvgPathWinding(vg, NVG_SOLID);
-				}
-			}
-
-			// Draw the SVG with full alpha since we apply alpha changes at the compositing level
-			const glm::u8vec4& fillColor = parent->fillColor;
-			// Render the SVG in white then color it when blitting the
-			// texture to a quad
-			nvgFillColor(vg, nvgRGBA(255, 255, 255, 255));
-			nvgFill(vg);
-		}
-
-		if (parent->drawDebugBoxes)
-		{
-			float debugStrokeWidth = SvgCache::cachePadding.x;
-			float strokeWidthCorrectionPos = debugStrokeWidth * 0.5f;
-			float strokeWidthCorrectionNeg = -debugStrokeWidth;
-
-			if (parent->drawCurveDebugBoxes)
-			{
-				for (int pathi = 0; pathi < obj->numPaths; pathi++)
-				{
-					if (obj->paths[pathi].numCurves > 0)
+					break;
+					case CurveType::Line:
 					{
-						for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
-						{
-							const Curve& curve = obj->paths[pathi].curves[curvei];
-							Vec2 p0 = curve.p0;
-							p0.x *= parent->svgScale;
-							p0.y *= parent->svgScale;
-							p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
-							p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
+						Vec2 p1 = curve.as.line.p1;
 
-							switch (curve.type)
-							{
-							case CurveType::Bezier3:
-							{
-								Vec2 p1 = curve.as.bezier3.p1;
-								Vec2 p2 = curve.as.bezier3.p2;
-								Vec2 p3 = curve.as.bezier3.p3;
+						p1.x *= parent->svgScale;
+						p1.y *= parent->svgScale;
+						p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
+						p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
-								p1.x *= parent->svgScale;
-								p1.y *= parent->svgScale;
-								p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
-								p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
-
-								p2.x *= parent->svgScale;
-								p2.y *= parent->svgScale;
-								p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
-								p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
-
-								p3.x *= parent->svgScale;
-								p3.y *= parent->svgScale;
-								p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
-								p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
-
-								BBox bbox = CMath::bezier3BBox(p0, p1, p2, p3);
-
-								nvgBeginPath(vg);
-								nvgStrokeWidth(vg, debugStrokeWidth);
-								nvgStrokeColor(vg, nvgRGB(255, 0, 0));
-								nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
-								nvgMoveTo(vg,
-									bbox.min.x + strokeWidthCorrectionPos,
-									bbox.min.y + strokeWidthCorrectionPos
-								);
-								nvgRect(vg,
-									bbox.min.x + strokeWidthCorrectionPos,
-									bbox.min.y + strokeWidthCorrectionPos,
-									bbox.max.x - bbox.min.x + strokeWidthCorrectionNeg,
-									bbox.max.y - bbox.min.y + strokeWidthCorrectionNeg
-								);
-								nvgClosePath(vg);
-								nvgStroke(vg);
-							}
-							break;
-							case CurveType::Bezier2:
-							{
-								Vec2 p1 = curve.as.bezier2.p1;
-								Vec2 p2 = curve.as.bezier2.p1;
-								Vec2 p3 = curve.as.bezier2.p2;
-
-								p1.x *= parent->svgScale;
-								p1.y *= parent->svgScale;
-								p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
-								p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
-
-								p2.x *= parent->svgScale;
-								p2.y *= parent->svgScale;
-								p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
-								p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
-
-								p3.x *= parent->svgScale;
-								p3.y *= parent->svgScale;
-								p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
-								p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
-
-								// Degree elevated quadratic bezier curve
-								Vec2 pr0 = p0;
-								Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-								Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-								Vec2 pr3 = p3;
-
-								BBox bbox = CMath::bezier3BBox(pr0, pr1, pr2, pr3);
-
-								nvgBeginPath(vg);
-								nvgStrokeWidth(vg, debugStrokeWidth);
-								nvgStrokeColor(vg, nvgRGB(255, 0, 0));
-								nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
-								nvgMoveTo(vg,
-									bbox.min.x + strokeWidthCorrectionPos,
-									bbox.min.y + strokeWidthCorrectionPos
-								);
-								nvgRect(vg,
-									bbox.min.x + strokeWidthCorrectionPos,
-									bbox.min.y + strokeWidthCorrectionPos,
-									bbox.max.x - bbox.min.x + strokeWidthCorrectionNeg,
-									bbox.max.y - bbox.min.y + strokeWidthCorrectionNeg
-								);
-								nvgClosePath(vg);
-								nvgStroke(vg);
-							}
-							break;
-							case CurveType::Line:
-							{
-								Vec2 p1 = curve.as.line.p1;
-
-								p1.x *= parent->svgScale;
-								p1.y *= parent->svgScale;
-								p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
-								p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
-
-								BBox bbox = CMath::bezier1BBox(p0, p1);
-
-								nvgBeginPath(vg);
-								nvgStrokeWidth(vg, debugStrokeWidth);
-								nvgStrokeColor(vg, nvgRGB(255, 0, 0));
-								nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
-								nvgMoveTo(vg,
-									bbox.min.x + strokeWidthCorrectionPos,
-									bbox.min.y + strokeWidthCorrectionPos
-								);
-								nvgRect(vg,
-									bbox.min.x + strokeWidthCorrectionPos,
-									bbox.min.y + strokeWidthCorrectionPos,
-									bbox.max.x - bbox.min.x + strokeWidthCorrectionNeg,
-									bbox.max.y - bbox.min.y + strokeWidthCorrectionNeg
-								);
-								nvgClosePath(vg);
-								nvgStroke(vg);
-							}
-							break;
-							default:
-								g_logger_warning("Unknown curve type in render %d", (int)curve.type);
-								break;
-							}
-						}
+						plutovg_line_to(
+							pluto,
+							p1.x, p1.y
+						);
 					}
-				}
-			}
-
-			nvgBeginPath(vg);
-			nvgStrokeWidth(vg, debugStrokeWidth);
-			nvgStrokeColor(vg, nvgRGB(0, 255, 0));
-			nvgFillColor(vg, nvgRGBA(0, 0, 0, 0));
-			nvgMoveTo(vg,
-				scaledBboxMin.x + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
-				scaledBboxMin.y + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos
-			);
-			nvgRect(vg,
-				scaledBboxMin.x + textureOffset.x - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
-				scaledBboxMin.y + textureOffset.y - (parent->strokeWidth * 0.5f) + strokeWidthCorrectionPos,
-				bboxSize.x + parent->strokeWidth + strokeWidthCorrectionNeg,
-				bboxSize.y + parent->strokeWidth + strokeWidthCorrectionNeg
-			);
-			nvgStroke(vg);
-			nvgClosePath(vg);
-		}
-
-		if (parent->drawCurves)
-		{
-			float debugStrokeWidth = parent->strokeWidth;
-			float circleWidth = debugStrokeWidth * 1.5f;
-
-			for (int pathi = 0; pathi < obj->numPaths; pathi++)
-			{
-				if (obj->paths[pathi].numCurves > 0)
-				{
-					Vec4 gradientPathColorStart = Vec4{ 230, 24, 12, 255 };
-					Vec4 gradientPathColorEnd = Vec4{ 15, 240, 21, 255 };
-					{
-						Vec2 p0 = obj->paths[pathi].curves[0].p0;
-						p0.x *= parent->svgScale;
-						p0.y *= parent->svgScale;
-						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
-						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
-
-						if (parent->drawControlPoints)
-						{
-							nvgBeginPath(vg);
-							nvgFillColor(vg, nvgRGBA(gradientPathColorStart.b, gradientPathColorStart.g, gradientPathColorStart.r, 255));
-							nvgCircle(vg, p0.x, p0.y, circleWidth * 2.0f);
-							nvgClosePath(vg);
-							nvgFill(vg);
-						}
-
-						nvgBeginPath(vg);
-						nvgMoveTo(vg, p0.x, p0.y);
-					}
-
-					nvgStrokeWidth(vg, debugStrokeWidth);
-
-					Vec2 lastEndpoint = Vec2{ 0, 0 };
-					for (int curvei = 0; curvei < obj->paths[pathi].numCurves; curvei++)
-					{
-						Vec4 gColor = ((gradientPathColorEnd - gradientPathColorStart) * ((float)curvei / (float)obj->paths[pathi].numCurves)) + gradientPathColorStart;
-
-						const Curve& curve = obj->paths[pathi].curves[curvei];
-						Vec2 p0 = curve.p0;
-						p0.x *= parent->svgScale;
-						p0.y *= parent->svgScale;
-						p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
-						p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
-
-						if (parent->drawControlPoints)
-						{
-							nvgBeginPath(vg);
-							nvgFillColor(vg, nvgRGBA(gColor.r, gColor.g, gColor.b, 255));
-							nvgCircle(vg, p0.x, p0.y, circleWidth);
-							nvgClosePath(vg);
-							nvgFill(vg);
-						}
-
-						switch (curve.type)
-						{
-						case CurveType::Bezier3:
-						{
-							Vec2 p1 = curve.as.bezier3.p1;
-							Vec2 p2 = curve.as.bezier3.p2;
-							Vec2 p3 = curve.as.bezier3.p3;
-
-							p1.x *= parent->svgScale;
-							p1.y *= parent->svgScale;
-							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
-							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
-
-							p2.x *= parent->svgScale;
-							p2.y *= parent->svgScale;
-							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
-							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
-
-							p3.x *= parent->svgScale;
-							p3.y *= parent->svgScale;
-							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
-							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
-
-							lastEndpoint = p3;
-							nvgBezierTo(vg, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
-
-							if (parent->drawControlPoints)
-							{
-								nvgBeginPath(vg);
-								nvgFillColor(vg, nvgRGBA(gColor.r, gColor.g, gColor.b, 255));
-								nvgCircle(vg, lastEndpoint.x, lastEndpoint.y, circleWidth);
-								nvgClosePath(vg);
-								nvgFill(vg);
-							}
-						}
+					break;
+					default:
+						g_logger_warning("Unknown curve type in render %d", (int)curve.type);
 						break;
-						case CurveType::Bezier2:
-						{
-							Vec2 p1 = curve.as.bezier2.p1;
-							Vec2 p2 = curve.as.bezier2.p1;
-							Vec2 p3 = curve.as.bezier2.p2;
-
-							p1.x *= parent->svgScale;
-							p1.y *= parent->svgScale;
-							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
-							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
-
-							p2.x *= parent->svgScale;
-							p2.y *= parent->svgScale;
-							p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
-							p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
-
-							p3.x *= parent->svgScale;
-							p3.y *= parent->svgScale;
-							p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
-							p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
-
-							// Degree elevated quadratic bezier curve
-							Vec2 pr0 = p0;
-							Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
-							Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
-							Vec2 pr3 = p3;
-
-							lastEndpoint = pr3;
-							nvgBezierTo(vg, pr1.x, pr1.y, pr2.x, pr2.y, pr3.x, pr3.y);
-
-							if (parent->drawControlPoints)
-							{
-								nvgBeginPath(vg);
-								nvgFillColor(vg, nvgRGBA(gColor.r, gColor.g, gColor.b, 255));
-								nvgCircle(vg, lastEndpoint.x, lastEndpoint.y, circleWidth);
-								nvgClosePath(vg);
-								nvgFill(vg);
-							}
-						}
-						break;
-						case CurveType::Line:
-						{
-							Vec2 p1 = curve.as.line.p1;
-
-							p1.x *= parent->svgScale;
-							p1.y *= parent->svgScale;
-							p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
-							p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
-
-							lastEndpoint = p1;
-							nvgLineTo(vg, p1.x, p1.y);
-
-							if (parent->drawControlPoints)
-							{
-								nvgBeginPath(vg);
-								nvgFillColor(vg, nvgRGBA(gColor.r, gColor.g, gColor.b, 255));
-								nvgCircle(vg, lastEndpoint.x, lastEndpoint.y, circleWidth);
-								nvgClosePath(vg);
-								nvgFill(vg);
-							}
-						}
-						break;
-						default:
-							g_logger_warning("Unknown curve type in render %d", (int)curve.type);
-							break;
-						}
-					}
-
-					nvgClosePath(vg);
-
-					if (obj->paths[pathi].isHole)
-					{
-						// Red for holes
-						nvgStrokeColor(vg, nvgRGBA(227, 11, 18, 255));
-					}
-					else
-					{
-						// Green for fill
-						nvgStrokeColor(vg, nvgRGBA(12, 223, 18, 255));
-					}
-					nvgStroke(vg);
-
-					if (parent->drawControlPoints)
-					{
-						nvgBeginPath(vg);
-						nvgFillColor(vg, nvgRGBA(gradientPathColorEnd.r, gradientPathColorEnd.g, gradientPathColorEnd.b, 255));
-						nvgCircle(vg, lastEndpoint.x, lastEndpoint.y, circleWidth * 1.5f);
-						nvgClosePath(vg);
-						nvgFill(vg);
 					}
 				}
 			}
 		}
 
-		nvgResetTransform(vg);
+		// Draw the SVG with full alpha since we apply alpha changes at the compositing level
+		const glm::u8vec4& fillColor = parent->fillColor;
+		// Render the SVG in white then color it when blitting the
+		// texture to a quad
+		plutovg_set_rgba(
+			pluto,
+			(double)fillColor.r / 255.0,
+			(double)fillColor.g / 255.0,
+			(double)fillColor.b / 255.0,
+			(double)fillColor.a / 255.0
+		);
+		plutovg_close_path(pluto);
+		plutovg_fill_preserve(pluto);
+
+		unsigned char* pixels = plutovg_surface_get_data(surface);
+		int surfaceWidth = plutovg_surface_get_width(surface);
+		int surfaceHeight = plutovg_surface_get_height(surface);
+		texture.uploadSubImage(
+			(int)textureOffset.x,
+			(int)(texture.height - textureOffset.y - surfaceHeight),
+			surfaceWidth, 
+			surfaceHeight, 
+			pixels, 
+			surfaceWidth * surfaceHeight * sizeof(uint8) * 4, 
+			true
+		);
+
+		plutovg_surface_destroy(surface);
+		plutovg_destroy(pluto);
 	}
 
 	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj)

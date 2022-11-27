@@ -127,8 +127,8 @@ namespace MathAnim
 		//   t: is a float that ranges from [0, 1] where 0 is the
 		//      beginning of the animation and 1 is the end of the
 		//      animation
-		void applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t = 1.0f) const;
-		void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObjId animObj, float t = 1.0f) const;
+		void applyAnimation(AnimationManagerData* am, float t = 1.0f) const;
+		void applyAnimationToObj(AnimationManagerData* am, AnimObjId animObj, float t = 1.0f) const;
 
 		// Render the gizmo with relation to this object
 		void onGizmo(const AnimObject* obj);
@@ -226,11 +226,11 @@ namespace MathAnim
 			SvgFileObject svgFile;
 		} as;
 
-		void onGizmo(AnimationManagerData* am, NVGcontext* vg);
-		void render(NVGcontext* vg, AnimationManagerData* am) const;
-		void renderMoveToAnimation(NVGcontext* vg, AnimationManagerData* am, float t, const Vec3& target);
-		void renderFadeInAnimation(NVGcontext* vg, AnimationManagerData* am, float t);
-		void renderFadeOutAnimation(NVGcontext* vg, AnimationManagerData* am, float t);
+		void onGizmo(AnimationManagerData* am);
+		void render(AnimationManagerData* am) const;
+		void renderMoveToAnimation(AnimationManagerData* am, float t, const Vec3& target);
+		void renderFadeInAnimation(AnimationManagerData* am, float t);
+		void renderFadeOutAnimation(AnimationManagerData* am, float t);
 		void takeAttributesFrom(const AnimObject& obj);
 		void replacementTransform(AnimationManagerData* am, AnimObjId replacement, float t);
 

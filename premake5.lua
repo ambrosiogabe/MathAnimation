@@ -62,6 +62,7 @@ project "Animations"
         "Animations/vendor/ffmpeg/build/include",
         "Animations/vendor/freetype/include",
         "Animations/vendor/nanovg/src",
+        "Animations/vendor/plutovg/include",
         "Animations/vendor/dearimgui",
         "Animations/vendor/openal/include",
         "Animations/vendor/nativeFileDialog/src/include",
@@ -132,6 +133,7 @@ project "Animations"
             "nanovg",
             "DearImGui",
             "TinyXml2",
+            "plutovg",
             -- Windows static libs required for ffmepg
             "Ws2_32.lib",
             "Secur32.lib",
@@ -192,6 +194,38 @@ project "nanovg"
         defines { "NDEBUG", "NVG_NO_STB" }
         symbols "Off"
         warnings "Extra"
+
+project "plutovg"
+    language "C"
+    kind "StaticLib"
+    staticruntime "on"
+    
+    targetdir("_bin/" .. outputdir .. "/%{prj.name}")
+    objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
+
+    includedirs { 
+        "./Animations/vendor/plutovg/include" 
+    }
+
+    files { 
+        "./Animations/vendor/plutovg/source/*.c",
+        "./Animations/vendor/plutovg/source/*.h",
+        "./Animations/vendor/plutovg/include/*.h" 
+    }
+
+    defines { "_CRT_SECURE_NO_WARNINGS" }
+
+    filter "configurations:Debug"
+        buildoptions "/MTd"
+        defines { "DEBUG" }
+        symbols "On"
+        warnings "Extra"
+
+    filter "configurations:Release"
+        buildoptions "/MT"
+        defines { "NDEBUG" }
+        symbols "Off"
+        warnings "Extra"        
 
 project "TinyXml2"
     kind "StaticLib"

@@ -15,11 +15,6 @@
 #include "editor/EditorGui.h"
 #include "editor/EditorSettings.h"
 
-// TODO: Tmp remove me
-#include "latex/LaTexLayer.h"
-
-#include <nanovg.h>
-
 #ifdef _RELEASE
 #include "shaders/default.glsl.hpp"
 #include "shaders/screen.glsl.hpp"
@@ -1311,7 +1306,7 @@ namespace MathAnim
 				.setFormat(ByteFormat::RGBA8_UI)
 				.generate();
 			uint32 whitePixel = 0xFFFFFFFF;
-			defaultWhiteTexture.uploadSubImage(0, 0, 1, 1, (uint8*)&whitePixel);
+			defaultWhiteTexture.uploadSubImage(0, 0, 1, 1, (uint8*)&whitePixel, sizeof(uint32));
 		}
 
 		static void setupScreenVao()

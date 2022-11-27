@@ -49,7 +49,7 @@ namespace MathAnim
 			timelineLoaded = true;
 		}
 
-		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am, NVGcontext* vg)
+		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am)
 		{
 			// TODO: Do this in a central file
 			checkHotKeys();
@@ -113,7 +113,7 @@ namespace MathAnim
 
 			ImGui::PopStyleVar();
 
-			Timeline::update(timeline, am, vg);
+			Timeline::update(timeline, am);
 			AnimObjectPanel::update();
 			DebugPanel::update();
 			ExportPanel::update();
@@ -121,13 +121,13 @@ namespace MathAnim
 			EditorSettings::imgui();
 		}
 
-		void onGizmo(AnimationManagerData* am, NVGcontext* vg)
+		void onGizmo(AnimationManagerData* am)
 		{
 			AnimObjId activeAnimObjectId = Timeline::getActiveAnimObject();
 			AnimObject* activeAnimObject = AnimationManager::getMutableObject(am, activeAnimObjectId);
 			if (activeAnimObject)
 			{
-				activeAnimObject->onGizmo(am, vg);
+				activeAnimObject->onGizmo(am);
 
 				// Render any animations that contain this object
 				std::vector<AnimId> animations = AnimationManager::getAssociatedAnimations(am, activeAnimObject->id);

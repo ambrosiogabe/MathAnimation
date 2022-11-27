@@ -2,8 +2,6 @@
 #define MATH_ANIM_RENDERER_H
 #include "core.h"
 
-struct NVGcontext;
-
 namespace MathAnim
 {
 	struct OrthoCamera;

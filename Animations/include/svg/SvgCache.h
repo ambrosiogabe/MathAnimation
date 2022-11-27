@@ -4,8 +4,6 @@
 #include "renderer/Framebuffer.h"
 #include "utils/LRUCache.hpp"
 
-struct NVGcontext;
-
 namespace MathAnim
 {
 	struct SvgObject;
@@ -47,13 +45,12 @@ namespace MathAnim
 
 		bool exists(AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
 		SvgCacheEntry get(AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
-		SvgCacheEntry getOrCreateIfNotExist(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
+		SvgCacheEntry getOrCreateIfNotExist(AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
 
-		void put(NVGcontext* vg, const AnimObject* parent, SvgObject* svg);
+		void put(const AnimObject* parent, SvgObject* svg);
 		void clearAll();
-		void flushCacheToFramebuffer(NVGcontext* vg);
 
-		void render(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
+		void render(AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
 
 		const Framebuffer& getFramebuffer();
 

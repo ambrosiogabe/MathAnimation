@@ -29,3 +29,6 @@
 [submodule "Animations/vendor/tinyxml2"]
 	path = Animations/vendor/tinyxml2
 	url = https://github.com/leethomason/tinyxml2
+[submodule "Animations/vendor/plutovg"]
+	path = Animations/vendor/plutovg
+	url = https://github.com/sammycage/plutovg

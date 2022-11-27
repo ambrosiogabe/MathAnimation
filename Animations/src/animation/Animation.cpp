@@ -22,7 +22,7 @@ namespace MathAnim
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
 
 	// ----------------------------- Animation Functions -----------------------------
-	void Animation::applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t) const
+	void Animation::applyAnimation(AnimationManagerData* am, float t) const
 	{
 		if (this->shouldDisplayAnimObjects())
 		{
@@ -39,7 +39,7 @@ namespace MathAnim
 					float interpolatedT = CMath::mapRange(Vec2{ 0.0f, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
 					interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
 
-					applyAnimationToObj(am, vg, animObjectIds[i], interpolatedT);
+					applyAnimationToObj(am, animObjectIds[i], interpolatedT);
 				}
 			}
 		}
@@ -47,11 +47,11 @@ namespace MathAnim
 		{
 			t = glm::clamp(CMath::ease(t, easeType, easeDirection), 0.0f, 1.0f);
 			// TODO: This may not be necessary anymore
-			//applyAnimationToObj(am, vg, nullptr, t, this);
+			//applyAnimationToObj(am, nullptr, t, this);
 		}
 	}
 
-	void Animation::applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObjId animObjId, float t) const
+	void Animation::applyAnimationToObj(AnimationManagerData* am, AnimObjId animObjId, float t) const
 	{
 		AnimObject* obj = AnimationManager::getMutableObject(am, animObjId);
 		if (obj == nullptr)
@@ -82,7 +82,7 @@ namespace MathAnim
 					}
 
 					float interpolatedT = CMath::mapRange(Vec2{ 0.0f, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
-					applyAnimationToObj(am, vg, children[i], interpolatedT);
+					applyAnimationToObj(am, children[i], interpolatedT);
 				}
 			}
 		}
@@ -423,7 +423,7 @@ namespace MathAnim
 		return false;
 	}
 
-	void AnimObject::onGizmo(AnimationManagerData* am, NVGcontext* vg)
+	void AnimObject::onGizmo(AnimationManagerData* am)
 	{
 		if (is3D)
 		{
@@ -450,7 +450,7 @@ namespace MathAnim
 					localPosition = this->_globalPositionStart - parent->_globalPositionStart;
 				}
 				this->_positionStart = localPosition;
-				AnimationManager::updateObjectState(am, vg, this->id);
+				AnimationManager::updateObjectState(am, this->id);
 			}
 		}
 
@@ -473,7 +473,7 @@ namespace MathAnim
 		}
 	}
 
-	void AnimObject::render(NVGcontext* vg, AnimationManagerData* am) const
+	void AnimObject::render(AnimationManagerData* am) const
 	{
 		switch (objectType)
 		{
@@ -494,7 +494,7 @@ namespace MathAnim
 			}
 
 			// Default SVG objects will just render the svgObject component
-			Application::getSvgCache()->render(vg, am, this->svgObject, this->id);
+			Application::getSvgCache()->render(am, this->svgObject, this->id);
 			if (this->strokeWidth > 0.0f || this->percentCreated < 1.0f)
 			{
 				// Render outline
@@ -507,7 +507,7 @@ namespace MathAnim
 			// if (!this->isAnimating)
 			// {
 			// 	g_logger_assert(this->svgObject != nullptr, "Cannot render SVG object that is nullptr.");
-			// 	this->svgObject->render(vg, this);
+			// 	this->svgObject->render(this);
 			// }
 			// float sideLength = this->as.cube.sideLength - 0.01f;
 			// Renderer::pushColor(this->fillColor);
@@ -570,7 +570,7 @@ namespace MathAnim
 	}
 
 	// ----------------------------- AnimObject Functions -----------------------------
-	void AnimObject::renderMoveToAnimation(NVGcontext* vg, AnimationManagerData* am, float t, const Vec3& target)
+	void AnimObject::renderMoveToAnimation(AnimationManagerData* am, float t, const Vec3& target)
 	{
 		Vec3 pos = Vec3{
 			((target.x - position.x) * t) + position.x,
@@ -578,21 +578,21 @@ namespace MathAnim
 			((target.z - position.z) * t) + position.z,
 		};
 		this->position = pos;
-		this->render(vg, am);
+		this->render(am);
 	}
 
-	void AnimObject::renderFadeInAnimation(NVGcontext* vg, AnimationManagerData* am, float t)
+	void AnimObject::renderFadeInAnimation(AnimationManagerData* am, float t)
 	{
 		this->fillColor.a = (uint8)((float)this->fillColor.a * t);
 		this->strokeColor.a = (uint8)((float)this->strokeColor.a * t);
-		this->render(vg, am);
+		this->render(am);
 	}
 
-	void AnimObject::renderFadeOutAnimation(NVGcontext* vg, AnimationManagerData* am, float t)
+	void AnimObject::renderFadeOutAnimation(AnimationManagerData* am, float t)
 	{
 		this->fillColor.a = (uint8)((float)this->fillColor.a * (1.0f - t));
 		this->strokeColor.a = (uint8)((float)this->strokeColor.a * (1.0f - t));
-		this->render(vg, am);
+		this->render(am);
 	}
 
 	void AnimObject::takeAttributesFrom(const AnimObject& obj)

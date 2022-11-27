@@ -12,8 +12,6 @@
 #include "latex/LaTexLayer.h"
 #include "editor/SceneHierarchyPanel.h"
 
-#include "nanovg.h"
-
 namespace MathAnim
 {
 	// ------------- Internal Functions -------------
@@ -177,7 +175,7 @@ namespace MathAnim
 		if (from.font)
 		{
 			// NOTE: We can pass nullptr for vg here because it shouldn't actually need it
-			res.font = Fonts::loadFont(from.font->fontFilepath.c_str(), nullptr);
+			res.font = Fonts::loadFont(from.font->fontFilepath.c_str());
 		}
 		else
 		{
@@ -317,7 +315,7 @@ namespace MathAnim
 		memory.readDangerous((uint8*)fontFilepath, sizeof(uint8) * fontFilepathLength);
 		fontFilepath[fontFilepathLength] = '\0';
 
-		res.font = Fonts::loadFont((const char*)fontFilepath, Application::getNvgContext());
+		res.font = Fonts::loadFont((const char*)fontFilepath);
 		g_memory_free(fontFilepath);
 
 		return res;

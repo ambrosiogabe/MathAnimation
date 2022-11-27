@@ -3,8 +3,6 @@
 #include "core.h"
 #include "animation/Animation.h"
 
-struct NVGcontext;
-
 namespace MathAnim
 {
 	struct AnimObject;
@@ -19,7 +17,7 @@ namespace MathAnim
 		AnimationManagerData* create(OrthoCamera& camera);
 		void free(AnimationManagerData* animManager);
 		void endFrame(AnimationManagerData* am);
-		void resetToFrame(AnimationManagerData* am, NVGcontext* vg, uint32 absoluteFrame);
+		void resetToFrame(AnimationManagerData* am, uint32 absoluteFrame);
 
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object);
 		void addAnimation(AnimationManagerData* am, const Animation& animation);
@@ -31,7 +29,7 @@ namespace MathAnim
 		void setAnimationTrack(AnimationManagerData* am, AnimId anim, int track);
 
 		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight);
-		void render(AnimationManagerData* am, NVGcontext* vg, int deltaFrame);
+		void render(AnimationManagerData* am, int deltaFrame);
 
 		int lastAnimatedFrame(const AnimationManagerData* am);
 
@@ -49,7 +47,7 @@ namespace MathAnim
 		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId obj);
 
 		RawMemory serialize(const AnimationManagerData* am);
-		void deserialize(AnimationManagerData* am, NVGcontext* vg, RawMemory& memory, int currentFrame);
+		void deserialize(AnimationManagerData* am, RawMemory& memory, int currentFrame);
 		void sortAnimations(AnimationManagerData* am);
 
 		const char* getAnimObjectName(AnimObjectTypeV1 type);
@@ -57,7 +55,7 @@ namespace MathAnim
 
 		void applyGlobalTransforms(AnimationManagerData* am);
 		void applyGlobalTransformsTo(AnimationManagerData* am, AnimObjId obj);
-		void updateObjectState(AnimationManagerData* am, NVGcontext* vg, AnimObjId animObj);
+		void updateObjectState(AnimationManagerData* am, AnimObjId animObj);
 	}
 }
 

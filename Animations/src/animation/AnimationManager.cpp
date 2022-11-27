@@ -78,8 +78,8 @@ namespace MathAnim
 		static void removeQueuedAnimObject(AnimationManagerData* am, AnimObjId animObj);
 		static void removeQueuedAnimation(AnimationManagerData* am, AnimId animation);
 		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj);
-		static void applyDelta(AnimationManagerData* am, NVGcontext* vg, int deltaFrame);
-		static void applyAnimationsFrom(AnimationManagerData* am, NVGcontext* vg, int startIndex, int frame);
+		static void applyDelta(AnimationManagerData* am, int deltaFrame);
+		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int frame);
 
 		AnimationManagerData* create(OrthoCamera& camera)
 		{
@@ -151,7 +151,7 @@ namespace MathAnim
 			am->queuedAddAnimations.clear();
 		}
 
-		void resetToFrame(AnimationManagerData* am, NVGcontext* vg, uint32 absoluteFrame)
+		void resetToFrame(AnimationManagerData* am, uint32 absoluteFrame)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -174,7 +174,7 @@ namespace MathAnim
 			// Then apply each animation up to the current frame
 			if (absoluteFrame > 0)
 			{
-				applyAnimationsFrom(am, vg, 0, absoluteFrame);
+				applyAnimationsFrom(am, 0, absoluteFrame);
 			}
 			applyGlobalTransforms(am);
 		}
@@ -301,13 +301,13 @@ namespace MathAnim
 			return res;
 		}
 
-		void render(AnimationManagerData* am, NVGcontext* vg, int deltaFrame)
+		void render(AnimationManagerData* am, int deltaFrame)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			if (deltaFrame != 0)
 			{
-				applyDelta(am, vg, deltaFrame);
+				applyDelta(am, deltaFrame);
 			}
 
 			// Render any active/animating objects
@@ -317,7 +317,7 @@ namespace MathAnim
 			{
 				if (objectIter->status != AnimObjectStatus::Inactive)
 				{
-					objectIter->render(vg, am);
+					objectIter->render(am);
 				}
 			}
 		}
@@ -489,7 +489,7 @@ namespace MathAnim
 			return memory;
 		}
 
-		void deserialize(AnimationManagerData* am, NVGcontext* vg, RawMemory& memory, int currentFrame)
+		void deserialize(AnimationManagerData* am, RawMemory& memory, int currentFrame)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -510,7 +510,7 @@ namespace MathAnim
 				deserializeAnimationManagerExV1(am, memory);
 				am->currentFrame = currentFrame;
 				Application::resetToFrame(currentFrame);
-				resetToFrame(am, vg, currentFrame);
+				resetToFrame(am, currentFrame);
 			}
 			else
 			{
@@ -603,7 +603,7 @@ namespace MathAnim
 			}
 		}
 
-		void updateObjectState(AnimationManagerData* am, NVGcontext* vg, AnimObjId animObjId)
+		void updateObjectState(AnimationManagerData* am, AnimObjId animObjId)
 		{
 			AnimObject* obj = getMutableObject(am, animObjId);
 			if (!obj)
@@ -652,7 +652,7 @@ namespace MathAnim
 				{
 					// Then apply the animation
 					float interpolatedT = ((float)am->currentFrame - frameStart) / (float)animIter->duration;
-					animIter->applyAnimationToObj(am, vg, animObjId, interpolatedT);
+					animIter->applyAnimationToObj(am, animObjId, interpolatedT);
 				}
 			}
 
@@ -859,7 +859,7 @@ namespace MathAnim
 			return true;
 		}
 
-		static void applyDelta(AnimationManagerData* am, NVGcontext* vg, int deltaFrame)
+		static void applyDelta(AnimationManagerData* am, int deltaFrame)
 		{
 			int previousFrame = am->currentFrame;
 			am->currentFrame += deltaFrame;
@@ -892,7 +892,7 @@ namespace MathAnim
 				bool intersecting = newFrame <= animStart && animEnd <= previousFrame;
 				if (intersecting)
 				{
-					anim.applyAnimation(am, vg, 0.0f);
+					anim.applyAnimation(am, 0.0f);
 				}
 				else
 				{
@@ -902,11 +902,11 @@ namespace MathAnim
 				}
 			}
 
-			applyAnimationsFrom(am, vg, animIndexToStartFrom, newFrame);
+			applyAnimationsFrom(am, animIndexToStartFrom, newFrame);
 			applyGlobalTransforms(am);
 		}
 
-		static void applyAnimationsFrom(AnimationManagerData* am, NVGcontext* vg, int startIndex, int currentFrame)
+		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int currentFrame)
 		{
 			// Apply any changes from animations in order
 			for (auto animIter = am->animations.begin() + startIndex; animIter != am->animations.end(); animIter++)
@@ -917,7 +917,7 @@ namespace MathAnim
 				{
 					// Then apply the animation
 					float interpolatedT = ((float)currentFrame - frameStart) / (float)animIter->duration;
-					animIter->applyAnimation(am, vg, interpolatedT);
+					animIter->applyAnimation(am, interpolatedT);
 				}
 			}
 		}

@@ -6,8 +6,6 @@
 #include "renderer/Renderer.h"
 #include "utils/CMath.h"
 
-#include <nanovg.h>
-
 namespace MathAnim
 {
 	Vec2 SvgCache::cachePadding = { 10.0f, 10.0f };
@@ -53,7 +51,7 @@ namespace MathAnim
 		return SvgCacheEntry{ Vec2{0, 0}, Vec2{1, 1}, dummy };
 	}
 
-	SvgCacheEntry SvgCache::getOrCreateIfNotExist(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
+	SvgCacheEntry SvgCache::getOrCreateIfNotExist(AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
 		auto entry = this->cachedSvgs.get(hash(obj, animObj->svgScale));
@@ -67,11 +65,11 @@ namespace MathAnim
 		}
 
 		// Doesn't exist, create it
-		put(vg, animObj, svg);
+		put(animObj, svg);
 		return get(am, svg, obj);
 	}
 
-	void SvgCache::put(NVGcontext* vg, const AnimObject* parent, SvgObject* svg)
+	void SvgCache::put(const AnimObject* parent, SvgObject* svg)
 	{
 		uint64 hashValue = hash(parent->id, parent->svgScale);
 
@@ -89,7 +87,7 @@ namespace MathAnim
 			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);
 			Vec2 allottedSize = Vec2{ svgTotalWidth, svgTotalHeight };
 			{
-				float newRightX = svgTextureOffset.x + svgTotalWidth;
+				int newRightX = (int)(svgTextureOffset.x + svgTotalWidth + cachePadding.x);
 				if (newRightX >= framebuffer.width)
 				{
 					// Move to the newline
@@ -155,7 +153,12 @@ namespace MathAnim
 				}
 			}
 
-			svg->renderCreateAnimation(vg, parent->percentCreated, parent, svgTextureOffset);
+			svg->renderCreateAnimation(
+				parent->percentCreated, 
+				parent, 
+				framebuffer.colorAttachments[this->cacheCurrentColorAttachment], 
+				svgTextureOffset
+			);
 
 			Vec2 cacheUvMin = Vec2{
 				svgTextureOffset.x / framebuffer.width,
@@ -182,12 +185,12 @@ namespace MathAnim
 		}
 	}
 
-	void SvgCache::render(NVGcontext* vg, AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
+	void SvgCache::render(AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
 		const AnimObject* parent = AnimationManager::getObject(am, obj);
 		if (parent)
 		{
-			SvgCacheEntry metadata = getOrCreateIfNotExist(vg, am, svg, obj);
+			SvgCacheEntry metadata = getOrCreateIfNotExist(am, svg, obj);
 			// TODO: See if I can get rid of this duplication, see the function above
 			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale);
 			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);
@@ -242,34 +245,10 @@ namespace MathAnim
 		glViewport(0, 0, framebuffer.width, framebuffer.height);
 		for (int i = 0; i < framebuffer.colorAttachments.size(); i++)
 		{
-			//svgCache.clearColorAttachmentRgba(0, "#fc03ecFF"_hex);
 			framebuffer.clearColorAttachmentRgba(i, "#00000000"_hex);
 		}
 		framebuffer.clearDepthStencil();
 
-		glPopDebugGroup();
-	}
-
-	void SvgCache::flushCacheToFramebuffer(NVGcontext* vg)
-	{
-		// First render to the cache
-		framebuffer.bind();
-		glViewport(0, 0, framebuffer.width, framebuffer.height);
-
-		// Reset the draw buffers to draw to FB_attachment_0
-		GLenum compositeDrawBuffers[] = {
-			GL_COLOR_ATTACHMENT0 + this->cacheCurrentColorAttachment,
-			GL_NONE,
-			GL_NONE,
-			GL_COLOR_ATTACHMENT3
-		};
-		glDrawBuffers(4, compositeDrawBuffers);
-
-		constexpr size_t bufferLength = 256;
-		char buffer[bufferLength];
-		snprintf(buffer, bufferLength, "NanoVG_RenderSVG[%d]\0", this->cacheCurrentColorAttachment);
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, buffer);
-		nvgEndFrame(vg);
 		glPopDebugGroup();
 	}
 

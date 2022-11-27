@@ -2,8 +2,6 @@
 #define MATH_ANIM_SVG_OBJECT_H
 #include "core.h"
 
-struct NVGcontext;
-
 namespace MathAnim
 {
 	struct AnimObject;
@@ -74,8 +72,8 @@ namespace MathAnim
 		void normalize();
 		void calculateApproximatePerimeter();
 		void calculateBBox();
-		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& textureOffset) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset) const;
+		void render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const;
+		void renderCreateAnimation(float t, const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const;
 		void renderOutline(float t, const AnimObject* parent) const;
 		void free();
 
