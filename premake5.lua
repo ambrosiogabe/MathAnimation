@@ -61,7 +61,6 @@ project "Animations"
         "Animations/vendor/vlc/include",
         "Animations/vendor/ffmpeg/build/include",
         "Animations/vendor/freetype/include",
-        "Animations/vendor/nanovg/src",
         "Animations/vendor/plutovg/include",
         "Animations/vendor/dearimgui",
         "Animations/vendor/openal/include",
@@ -130,7 +129,6 @@ project "Animations"
             "libswresample",
             "libswscale",
             -- Other premake projects
-            "nanovg",
             "DearImGui",
             "TinyXml2",
             "plutovg",
@@ -164,36 +162,6 @@ project "Animations"
         defines {
             "_DIST"
         }
-
-project "nanovg"
-    language "C"
-    kind "StaticLib"
-    staticruntime "on"
-    
-    targetdir("_bin/" .. outputdir .. "/%{prj.name}")
-    objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
-
-    includedirs { 
-        "./Animations/vendor/nanovg/src" 
-    }
-
-    files { 
-        "./Animations/vendor/nanovg/src/*.c" 
-    }
-
-    defines { "_CRT_SECURE_NO_WARNINGS" } --,"FONS_USE_FREETYPE" } Uncomment to compile with FreeType support
-
-    filter "configurations:Debug"
-        buildoptions "/MTd"
-        defines { "DEBUG", "NVG_NO_STB" }
-        symbols "On"
-        warnings "Extra"
-
-    filter "configurations:Release"
-        buildoptions "/MT"
-        defines { "NDEBUG", "NVG_NO_STB" }
-        symbols "Off"
-        warnings "Extra"
 
 project "plutovg"
     language "C"
