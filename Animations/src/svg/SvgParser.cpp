@@ -390,7 +390,8 @@ namespace MathAnim
 			break;
 			case TokenType::ClosePath:
 			{
-				Svg::closePath(res, true);
+				bool isHole = res->numPaths > 1;
+				Svg::closePath(res, true, isHole);
 			}
 			break;
 			case TokenType::LineTo:
@@ -568,21 +569,18 @@ namespace MathAnim
 					return false;
 				}
 
-				if (arcParamsList.size() != 1)
+				for (size_t i = 0; i < arcParamsList.size(); i++)
 				{
-					PANIC("TODO: Implement me. Arc command not supported yet.");
-					return false;
+					Svg::arcTo(
+						res,
+						arcParamsList[i].radius,
+						arcParamsList[i].xAxisRotation,
+						arcParamsList[i].largeArcFlag,
+						arcParamsList[i].sweepFlag,
+						arcParamsList[i].endpoint,
+						isAbsolute
+					);
 				}
-
-				Svg::arcTo(
-					res, 
-					arcParamsList[0].radius, 
-					arcParamsList[0].xAxisRotation, 
-					arcParamsList[0].largeArcFlag,
-					arcParamsList[0].sweepFlag,
-					arcParamsList[0].endpoint, 
-					isAbsolute
-				);
 			}
 			break;
 			default:
