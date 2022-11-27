@@ -1496,67 +1496,13 @@ namespace MathAnim
 			Vec2& offset = objectOffsets[i];
 
 			// Normalize the SVG object with respsect to the size of the group
-			// First find the min max of the entire curve
-			Vec2 objMin = { FLT_MAX, FLT_MAX };
-			Vec2 objMax = { FLT_MIN, FLT_MIN };
-			for (int pathi = 0; pathi < obj.numPaths; pathi++)
-			{
-				for (int curvei = 0; curvei < obj.paths[pathi].numCurves; curvei++)
-				{
-					const Curve& curve = obj.paths[pathi].curves[curvei];
-					const Vec2& p0 = curve.p0;
-
-					objMin = CMath::min(p0, objMin);
-					objMax = CMath::max(p0, objMax);
-
-					switch (curve.type)
-					{
-					case CurveType::Bezier3:
-					{
-						const Vec2& p1 = curve.as.bezier3.p1;
-						const Vec2& p2 = curve.as.bezier3.p2;
-						const Vec2& p3 = curve.as.bezier3.p3;
-
-						objMin = CMath::min(p1, objMin);
-						objMax = CMath::max(p1, objMax);
-
-						objMin = CMath::min(p2, objMin);
-						objMax = CMath::max(p2, objMax);
-
-						objMin = CMath::min(p3, objMin);
-						objMax = CMath::max(p3, objMax);
-					}
-					break;
-					case CurveType::Bezier2:
-					{
-						const Vec2& p1 = curve.as.bezier2.p1;
-						const Vec2& p2 = curve.as.bezier2.p2;
-
-						objMin = CMath::min(p1, objMin);
-						objMax = CMath::max(p1, objMax);
-
-						objMin = CMath::min(p2, objMin);
-						objMax = CMath::max(p2, objMax);
-					}
-					break;
-					case CurveType::Line:
-					{
-						const Vec2& p1 = curve.as.line.p1;
-
-						objMin = CMath::min(p1, objMin);
-						objMax = CMath::max(p1, objMax);
-					}
-					break;
-					}
-				}
-			}
 
 			// Map everything to [0.0, 1.0] range except it needs to be scaled
 			// relative to the size in the overall svg group
-			Vec2 hzInputRange = Vec2{ objMin.x, objMax.x };
-			Vec2 vtInputRange = Vec2{ objMin.y, objMax.y };
-			float outputWidth = (objMax.x - objMin.x) / svgGroupSize.x;
-			float outputHeight = (objMax.y - objMin.y) / svgGroupSize.y;
+			Vec2 hzInputRange = Vec2{ obj.bbox.min.x, obj.bbox.max.x };
+			Vec2 vtInputRange = Vec2{ obj.bbox.min.y, obj.bbox.max.y };
+			float outputWidth = (obj.bbox.max.x - obj.bbox.min.x) / svgGroupSize.x;
+			float outputHeight = (obj.bbox.max.y - obj.bbox.min.y) / svgGroupSize.y * (svgGroupSize.y / svgGroupSize.x);
 			Vec2 hzOutputRange = Vec2{ 0.0f, outputWidth };
 			Vec2 vtOutputRange = Vec2{ 0.0f, outputHeight };
 			for (int pathi = 0; pathi < obj.numPaths; pathi++)
@@ -1600,13 +1546,15 @@ namespace MathAnim
 				}
 			}
 
+			Vec2 originalBboxMin = obj.bbox.min;
+			// Calculate the boundaries using the new ranges
 			obj.calculateBBox();
 			obj.calculateApproximatePerimeter();
 
 			float outputGroupWidth = 1.0f;
-			float outputGroupHeight = svgGroupSize.y / svgGroupSize.x;
-			offset.x = CMath::mapRange(Vec2{ this->bbox.min.x, this->bbox.max.x }, Vec2{ 0.0f, outputGroupWidth }, objMin.x);
-			offset.y = CMath::mapRange(Vec2{ this->bbox.min.y, this->bbox.max.y }, Vec2{ 0.0f, outputGroupHeight }, objMin.y);
+			float outputGroupHeight = (svgGroupSize.y / svgGroupSize.x);
+			offset.x = CMath::mapRange(Vec2{ this->bbox.min.x, this->bbox.max.x }, Vec2{ 0.0f, outputGroupWidth }, originalBboxMin.x);
+			offset.y = CMath::mapRange(Vec2{ this->bbox.min.y, this->bbox.max.y }, Vec2{ 0.0f, outputGroupHeight }, originalBboxMin.y);
 			offset.y = outputGroupHeight - offset.y;
 			Vec2 centerOffset = Vec2{
 				(obj.bbox.max.x - obj.bbox.min.x) / 2.0f,

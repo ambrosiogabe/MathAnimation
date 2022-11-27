@@ -139,6 +139,8 @@ namespace MathAnim
 	void Texture::uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer, size_t bufferLength, bool flipVertically) const
 	{
 		g_logger_assert(format != ByteFormat::None, "Cannot generate texture without color format.");
+		g_logger_assert(offsetX + width <= this->width, "Sub-image out of range. OffsetX + width = %d which is greater than the texture width: %d", offsetX + width, this->width);
+		g_logger_assert(offsetY + height <= this->height, "Sub-image out of range. OffsetY + height = %d which is greater than the texture height: %d", offsetY + height, this->height);
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(format);
 		uint32 dataType = TextureUtil::toGlDataType(format);
@@ -157,6 +159,7 @@ namespace MathAnim
 			buffer = newBuffer;
 		}
 
+		this->bind();
 		glTexSubImage2D(GL_TEXTURE_2D, 0, offsetX, offsetY, width, height, externalFormat, dataType, buffer);
 
 		if (flipVertically)
