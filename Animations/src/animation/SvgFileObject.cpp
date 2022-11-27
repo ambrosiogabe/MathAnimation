@@ -20,7 +20,6 @@ namespace MathAnim
 		// Generate children that represent each group sub-object
 		Vec2 translation = Vec2{ svgGroup->viewbox.values[0], svgGroup->viewbox.values[1] };
 		Vec2 bboxOffset = Vec2{ svgGroup->bbox.min.x, svgGroup->bbox.min.y };
-		svgGroup->normalize();
 
 		for (int i = 0; i < svgGroup->numObjects; i++)
 		{
@@ -30,7 +29,7 @@ namespace MathAnim
 			// Add this sub-object as a child
 			AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, parentId, true);
 			childObj.parentId = parentId;
-			Vec2 finalOffset = offset - translation - bboxOffset;
+			Vec2 finalOffset = offset;// -translation - bboxOffset;
 			childObj._positionStart = Vec3{ finalOffset.x, finalOffset.y, 0.0f };
 			childObj.isGenerated = true;
 			// Copy the sub-object as the svg object here

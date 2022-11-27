@@ -71,7 +71,7 @@ namespace MathAnim
 		BBox bbox;
 		Vec2 _cursor;
 		
-		void normalize(const Vec2& min = Vec2{ FLT_MAX, FLT_MAX }, const Vec2& max = Vec2{ FLT_MIN, FLT_MIN });
+		void normalize();
 		void calculateApproximatePerimeter();
 		void calculateBBox();
 		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& textureOffset) const;

@@ -715,13 +715,15 @@ namespace MathAnim
 		{
 			obj._globalPositionStart = obj._positionStart;
 			obj.globalPosition = obj.position;
-			obj.globalTransform = glm::identity<glm::mat4>();
-			obj.globalTransform = glm::translate(obj.globalTransform, CMath::convert(obj.globalPosition));
+
 			glm::quat xRotation = glm::angleAxis(glm::radians(obj.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
 			glm::quat yRotation = glm::angleAxis(glm::radians(obj.rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
 			glm::quat zRotation = glm::angleAxis(glm::radians(obj.rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-			obj.globalTransform *= glm::toMat4(xRotation * yRotation * zRotation);
-			obj.globalTransform = glm::scale(obj.globalTransform, CMath::convert(obj.scale));
+
+			glm::mat4 rotation = glm::toMat4(xRotation * yRotation * zRotation);
+			glm::mat4 scale = glm::scale(glm::mat4(1.0f), CMath::convert(obj.scale));
+			glm::mat4 translation = glm::translate(glm::mat4(1.0f), CMath::convert(obj.globalPosition));
+			obj.globalTransform = translation * rotation * scale;
 		}
 
 		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj)

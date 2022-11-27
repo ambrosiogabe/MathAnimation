@@ -111,19 +111,6 @@ namespace MathAnim
 
 		void endSvgGroup(SvgGroup* group)
 		{
-			Vec3 viewboxPos = Vec3{ group->viewbox.values[0], group->viewbox.values[1], 0.0f };
-			Vec3 viewboxSize = Vec3{ group->viewbox.values[2], group->viewbox.values[3], 1.0f };
-
-			// Normalize all the SVGs within the viewbox
-			//for (int svgi = 0; svgi < group->numObjects; svgi++)
-			//{
-			//	// First get the original SVG element size recorded
-			//	group->objects[svgi].calculateSvgSize();
-			//	// Then normalize it and make sure the perimeter is calculated
-			//	//group->objects[svgi].normalize();
-			//	group->objects[svgi].calculateApproximatePerimeter();
-			//	group->objects[svgi].calculateBBox();
-			//}
 			group->normalize();
 		}
 
@@ -960,69 +947,67 @@ namespace MathAnim
 	static void renderCreateAnimation2D(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& textureOffset, const SvgObject* obj);
 	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj);
 
-	void SvgObject::normalize(const Vec2& inMin, const Vec2& inMax)
+	void SvgObject::normalize()
 	{
 		// First find the min max of the entire curve
-		Vec2 min = inMin;
-		Vec2 max = inMax;
-		if (min.x == FLT_MAX && min.y == FLT_MAX && max.x == FLT_MIN && max.y == FLT_MIN)
+		Vec2 min = { FLT_MAX, FLT_MAX };
+		Vec2 max = { FLT_MIN, FLT_MIN };
+		for (int pathi = 0; pathi < this->numPaths; pathi++)
 		{
-			for (int pathi = 0; pathi < this->numPaths; pathi++)
+			for (int curvei = 0; curvei < this->paths[pathi].numCurves; curvei++)
 			{
-				for (int curvei = 0; curvei < this->paths[pathi].numCurves; curvei++)
+				const Curve& curve = paths[pathi].curves[curvei];
+				const Vec2& p0 = curve.p0;
+
+				min = CMath::min(p0, min);
+				max = CMath::max(p0, max);
+
+				switch (curve.type)
 				{
-					const Curve& curve = paths[pathi].curves[curvei];
-					const Vec2& p0 = curve.p0;
+				case CurveType::Bezier3:
+				{
+					const Vec2& p1 = curve.as.bezier3.p1;
+					const Vec2& p2 = curve.as.bezier3.p2;
+					const Vec2& p3 = curve.as.bezier3.p3;
 
-					min = CMath::min(p0, min);
-					max = CMath::max(p0, max);
+					min = CMath::min(p1, min);
+					max = CMath::max(p1, max);
 
-					switch (curve.type)
-					{
-					case CurveType::Bezier3:
-					{
-						const Vec2& p1 = curve.as.bezier3.p1;
-						const Vec2& p2 = curve.as.bezier3.p2;
-						const Vec2& p3 = curve.as.bezier3.p3;
+					min = CMath::min(p2, min);
+					max = CMath::max(p2, max);
 
-						min = CMath::min(p1, min);
-						max = CMath::max(p1, max);
+					min = CMath::min(p3, min);
+					max = CMath::max(p3, max);
+				}
+				break;
+				case CurveType::Bezier2:
+				{
+					const Vec2& p1 = curve.as.bezier2.p1;
+					const Vec2& p2 = curve.as.bezier2.p2;
 
-						min = CMath::min(p2, min);
-						max = CMath::max(p2, max);
+					min = CMath::min(p1, min);
+					max = CMath::max(p1, max);
 
-						min = CMath::min(p3, min);
-						max = CMath::max(p3, max);
-					}
-					break;
-					case CurveType::Bezier2:
-					{
-						const Vec2& p1 = curve.as.bezier2.p1;
-						const Vec2& p2 = curve.as.bezier2.p2;
+					min = CMath::min(p2, min);
+					max = CMath::max(p2, max);
+				}
+				break;
+				case CurveType::Line:
+				{
+					const Vec2& p1 = curve.as.line.p1;
 
-						min = CMath::min(p1, min);
-						max = CMath::max(p1, max);
-
-						min = CMath::min(p2, min);
-						max = CMath::max(p2, max);
-					}
-					break;
-					case CurveType::Line:
-					{
-						const Vec2& p1 = curve.as.line.p1;
-
-						min = CMath::min(p1, min);
-						max = CMath::max(p1, max);
-					}
-					break;
-					}
+					min = CMath::min(p1, min);
+					max = CMath::max(p1, max);
+				}
+				break;
 				}
 			}
 		}
 
 		// Then map everything to a [0.0-1.0] range from there
 		Vec2 hzOutputRange = Vec2{ 0.0f, 1.0f };
-		Vec2 vtOutputRange = Vec2{ 0.0f, 1.0f };
+		// Maintain aspect ratio while normalizing
+		Vec2 vtOutputRange = Vec2{ 0.0f, (max.y - min.y) / (max.x - min.x) };
 		for (int pathi = 0; pathi < this->numPaths; pathi++)
 		{
 			for (int curvei = 0; curvei < this->paths[pathi].numCurves; curvei++)
@@ -1330,22 +1315,138 @@ namespace MathAnim
 	void SvgGroup::normalize()
 	{
 		Vec2 translation = Vec2{ viewbox.values[0], viewbox.values[1] };
-
 		calculateBBox();
+
+		Vec2 svgGroupSize = bbox.max - bbox.min;
 		for (int i = 0; i < numObjects; i++)
 		{
 			SvgObject& obj = objects[i];
 			Vec2& offset = objectOffsets[i];
-			Vec2 absOffset = offset - translation;
-			obj.normalize(bbox.min, bbox.max);
-			offset.x = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, offset.x);
-			offset.y = CMath::mapRange(Vec2{ bbox.min.y, bbox.max.y }, Vec2{ 0.0f, 1.0f }, offset.y);
+
+			// Normalize the SVG object with respsect to the size of the group
+			// First find the min max of the entire curve
+			Vec2 objMin = { FLT_MAX, FLT_MAX };
+			Vec2 objMax = { FLT_MIN, FLT_MIN };
+			for (int pathi = 0; pathi < obj.numPaths; pathi++)
+			{
+				for (int curvei = 0; curvei < obj.paths[pathi].numCurves; curvei++)
+				{
+					const Curve& curve = obj.paths[pathi].curves[curvei];
+					const Vec2& p0 = curve.p0;
+
+					objMin = CMath::min(p0, objMin);
+					objMax = CMath::max(p0, objMax);
+
+					switch (curve.type)
+					{
+					case CurveType::Bezier3:
+					{
+						const Vec2& p1 = curve.as.bezier3.p1;
+						const Vec2& p2 = curve.as.bezier3.p2;
+						const Vec2& p3 = curve.as.bezier3.p3;
+
+						objMin = CMath::min(p1, objMin);
+						objMax = CMath::max(p1, objMax);
+
+						objMin = CMath::min(p2, objMin);
+						objMax = CMath::max(p2, objMax);
+
+						objMin = CMath::min(p3, objMin);
+						objMax = CMath::max(p3, objMax);
+					}
+					break;
+					case CurveType::Bezier2:
+					{
+						const Vec2& p1 = curve.as.bezier2.p1;
+						const Vec2& p2 = curve.as.bezier2.p2;
+
+						objMin = CMath::min(p1, objMin);
+						objMax = CMath::max(p1, objMax);
+
+						objMin = CMath::min(p2, objMin);
+						objMax = CMath::max(p2, objMax);
+					}
+					break;
+					case CurveType::Line:
+					{
+						const Vec2& p1 = curve.as.line.p1;
+
+						objMin = CMath::min(p1, objMin);
+						objMax = CMath::max(p1, objMax);
+					}
+					break;
+					}
+				}
+			}
+
+			// Map everything to [0.0, 1.0] range except it needs to be scaled
+			// relative to the size in the overall svg group
+			float outputWidth = (objMax.x - objMin.x) / svgGroupSize.x;
+			float outputHeight = (objMax.y - objMin.y) / svgGroupSize.y;
+			Vec2 hzOutputRange = Vec2{ 0.0f, outputWidth };
+			Vec2 vtOutputRange = Vec2{ 0.0f, outputHeight };
+			for (int pathi = 0; pathi < obj.numPaths; pathi++)
+			{
+				for (int curvei = 0; curvei < obj.paths[pathi].numCurves; curvei++)
+				{
+					Curve& curve = obj.paths[pathi].curves[curvei];
+					curve.p0.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.p0.x);
+					curve.p0.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.p0.y);
+
+					switch (curve.type)
+					{
+					case CurveType::Bezier3:
+					{
+						curve.as.bezier3.p1.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.bezier3.p1.x);
+						curve.as.bezier3.p1.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.bezier3.p1.y);
+
+						curve.as.bezier3.p2.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.bezier3.p2.x);
+						curve.as.bezier3.p2.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.bezier3.p2.y);
+
+						curve.as.bezier3.p3.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.bezier3.p3.x);
+						curve.as.bezier3.p3.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.bezier3.p3.y);
+
+					}
+					break;
+					case CurveType::Bezier2:
+					{
+						curve.as.bezier2.p1.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.bezier2.p1.x);
+						curve.as.bezier2.p1.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.bezier2.p1.y);
+
+						curve.as.bezier2.p2.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.bezier2.p2.x);
+						curve.as.bezier2.p2.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.bezier2.p2.y);
+					}
+					break;
+					case CurveType::Line:
+					{
+						curve.as.line.p1.x = CMath::mapRange(Vec2{ objMin.x, objMax.x }, hzOutputRange, curve.as.line.p1.x);
+						curve.as.line.p1.y = CMath::mapRange(Vec2{ objMin.y, objMax.y }, vtOutputRange, curve.as.line.p1.y);
+					}
+					break;
+					}
+				}
+			}
+
+			obj.calculateBBox();
 			obj.calculateApproximatePerimeter();
+
+			float outputGroupWidth = 1.0f;
+			float outputGroupHeight = svgGroupSize.y / svgGroupSize.x;
+			offset.x = CMath::mapRange(Vec2{ this->bbox.min.x, this->bbox.max.x }, Vec2{0.0f, outputGroupWidth }, objMin.x);
+			offset.y = CMath::mapRange(Vec2{ this->bbox.min.y, this->bbox.max.y }, Vec2{0.0f, outputGroupHeight }, objMin.y);
+			offset.y = outputGroupHeight - offset.y;
+			Vec2 centerOffset = Vec2{
+				(obj.bbox.max.x - obj.bbox.min.x) / 2.0f,
+				-(obj.bbox.max.y - obj.bbox.min.y) / 2.0f * outputGroupHeight
+			};
+			offset += centerOffset;
+			// Center the whole object
+			offset -= Vec2{ outputGroupWidth / 2.0f, outputGroupHeight / 2.0f };
 		}
 		viewbox.values[0] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[0]);
-		viewbox.values[1] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[1]);
+		viewbox.values[1] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, svgGroupSize.y / svgGroupSize.x }, viewbox.values[1]);
 		viewbox.values[2] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[2]);
-		viewbox.values[3] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[3]);
+		viewbox.values[3] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, svgGroupSize.y / svgGroupSize.x }, viewbox.values[3]);
 		calculateBBox();
 	}
 

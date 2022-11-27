@@ -71,6 +71,7 @@ namespace MathAnim
 		static bool saveCurrentSceneOnReload = true;
 		static int sceneToChangeTo = -1;
 		static SvgCache* svgCache = nullptr;
+		static float deltaTime = 0.0f;
 
 		static const char* winTitle = "Math Animations";
 
@@ -146,7 +147,7 @@ namespace MathAnim
 
 			while (isRunning && !window->shouldClose())
 			{
-				float deltaTime = (float)(glfwGetTime() - previousTime);
+				deltaTime = (float)(glfwGetTime() - previousTime);
 				previousTime = glfwGetTime();
 				window->pollInput();
 
@@ -477,6 +478,11 @@ namespace MathAnim
 		AnimState getEditorPlayState()
 		{
 			return animState;
+		}
+
+		float getDeltaTime()
+		{
+			return deltaTime;
 		}
 
 		float getOutputTargetAspectRatio()

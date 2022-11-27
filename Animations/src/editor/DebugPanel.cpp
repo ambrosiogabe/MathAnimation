@@ -9,6 +9,11 @@ namespace MathAnim
 {
 	namespace DebugPanel
 	{
+		// Internal variables
+		static constexpr int previousFrameTimesLength = 100;
+		static float previousFrameTimes[previousFrameTimesLength];
+		static int previousFrameTimesIndex = 0;
+
 		void init()
 		{
 
@@ -64,6 +69,20 @@ namespace MathAnim
 					}
 				}
 			}
+
+			ImGui::End();
+
+			ImGui::Begin("App Metrics");
+
+			float avgFrameTime = 0.0f;
+			for (int i = 0; i < previousFrameTimesLength; i++)
+			{
+				avgFrameTime += previousFrameTimes[i];
+			}
+			avgFrameTime /= (float)previousFrameTimesLength;
+			ImGui::Text("Average Frame Time: %2.3fms (%2.3f FPS)", avgFrameTime, 1.0f / avgFrameTime);
+			previousFrameTimes[previousFrameTimesIndex] = Application::getDeltaTime();
+			previousFrameTimesIndex = (previousFrameTimesIndex + 1) % previousFrameTimesLength;
 
 			ImGui::End();
 		}

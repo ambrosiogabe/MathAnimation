@@ -25,6 +25,7 @@ namespace MathAnim
 
 		void free();
 
+		float getDeltaTime();
 		float getOutputTargetAspectRatio();
 		glm::vec2 getOutputSize();
 		glm::vec2 getViewportSize();
