@@ -158,7 +158,7 @@ namespace MathAnim
 			// Create a group using the svg objects and the viewbox attribute
 			SvgGroup* group = (SvgGroup*)g_memory_allocate(sizeof(SvgGroup));
 			*group = Svg::createDefaultGroup();
-			Svg::beginSvgGroup(group, viewbox);
+			Svg::beginSvgGroup(group);
 
 			{
 				XMLElement* childEl = groupElement != nullptr
@@ -196,12 +196,11 @@ namespace MathAnim
 								continue;
 							}
 
-							// Subtract the viewbox translation
-							x -= viewbox.values[0];
-							y -= viewbox.values[1];
 							// Flip y-coords to be consistent with everything else positioning from 
 							// the bottom-left
-							y = y - (iter->second.bbox.max.y - iter->second.bbox.min.y);
+							// NOTE: I'm not exactly sure why I have to "flip" the coordinate like this
+							// but it works and that's good enough for me...
+							y = y + iter->second.bbox.min.y - viewbox.values[3];
 							Svg::pushSvgToGroup(group, iter->second, iter->first, Vec2{ x, y });
 						}
 					}
@@ -237,12 +236,9 @@ namespace MathAnim
 							static uint64 rCounter = 0;
 							rCounter++;
 							std::string rCounterStr = "rect-" + rCounter;
-							// Subtract the viewbox translation
-							x -= viewbox.values[0];
-							y -= viewbox.values[1];
 							// Flip y-coords to be consistent with everything else positioning from 
 							// the bottom-left
-							y = y - h;
+							y = y - viewbox.values[3];
 							Svg::pushSvgToGroup(group, rect, rCounterStr, Vec2{ x, y });
 						}
 					}

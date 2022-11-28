@@ -68,7 +68,6 @@ namespace MathAnim
 		float approximatePerimeter;
 		BBox bbox;
 		Vec2 _cursor;
-		bool isGroupElement;
 		
 		void normalize();
 		void calculateApproximatePerimeter();
@@ -90,18 +89,16 @@ namespace MathAnim
 		SvgObject* objects;
 		Vec2* objectOffsets;
 		int numObjects;
-		Vec4 viewbox;
 		BBox bbox;
 
 		void normalize();
-		void render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const;
 		void calculateBBox();
 		void free();
 	};
 
 	namespace Svg
 	{
-		SvgObject createDefault(bool isGroupElement = false);
+		SvgObject createDefault();
 		SvgGroup createDefaultGroup();
 		
 		void init(OrthoCamera& sceneCamera2d, PerspectiveCamera& sceneCamera3d);
@@ -109,7 +106,7 @@ namespace MathAnim
 		PerspectiveCamera const& getPerspCamera();
 		OrthoCamera const& getOrthoCamera();
 
-		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox);
+		void beginSvgGroup(SvgGroup* group);
 		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset);
 		void endSvgGroup(SvgGroup* group);
 

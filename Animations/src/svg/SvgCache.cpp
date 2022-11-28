@@ -69,24 +69,6 @@ namespace MathAnim
 		return get(am, obj);
 	}
 
-	SvgCacheEntry SvgCache::getOrCreateIfNotExist(AnimationManagerData* am, SvgGroup* group, AnimObjId obj)
-	{
-		const AnimObject* animObj = AnimationManager::getObject(am, obj);
-		auto entry = this->cachedSvgs.get(hash(obj, animObj->svgScale));
-		if (entry.has_value())
-		{
-			return SvgCacheEntry{
-				entry->texCoordsMin,
-				entry->texCoordsMax,
-				framebuffer.getColorAttachment(entry->colorAttachment)
-			};
-		}
-
-		// Doesn't exist, create it
-		put(animObj, group);
-		return get(am, obj);
-	}
-
 	void SvgCache::put(const AnimObject* parent, SvgObject* svg)
 	{
 		uint64 hashValue = hash(parent->id, parent->svgScale);
@@ -202,126 +184,10 @@ namespace MathAnim
 		}
 	}
 
-	// TODO: Deduplicate this stuff
-	void SvgCache::put(const AnimObject* parent, SvgGroup* group)
-	{
-		uint64 hashValue = hash(parent->id, parent->svgScale);
-
-		// Only add the SVG if it hasn't already been added
-		if (!this->cachedSvgs.exists(hashValue))
-		{
-			// Setup the texture coords and everything 
-			Vec2 svgTextureOffset = Vec2{
-				(float)cacheCurrentPos.x,
-				(float)cacheCurrentPos.y
-			};
-
-			// Check if the SVG cache needs to regenerate
-			float groupTotalWidth = ((group->bbox.max.x - group->bbox.min.x) * parent->svgScale);
-			float groupTotalHeight = ((group->bbox.max.y - group->bbox.min.y) * parent->svgScale);
-			Vec2 allottedSize = Vec2{ groupTotalWidth, groupTotalHeight };
-			{
-				int newRightX = (int)(svgTextureOffset.x + groupTotalWidth + cachePadding.x);
-				if (newRightX >= framebuffer.width)
-				{
-					// Move to the newline
-					incrementCacheCurrentY();
-				}
-
-				float newBottomY = svgTextureOffset.y + groupTotalHeight;
-				if (newBottomY >= framebuffer.height)
-				{
-					// Evict the first potential result from the LRU cache that
-					// can contain the size of this SVG
-					LRUCacheEntry<uint64, _SvgCacheEntryInternal>* oldest = this->cachedSvgs.getOldest();
-					while (oldest != nullptr)
-					{
-						if (oldest->data.allottedSize.x >= groupTotalWidth && oldest->data.allottedSize.y >= groupTotalHeight)
-						{
-							allottedSize = oldest->data.allottedSize;
-
-							// We found an entry that will fit this 
-							// in the future we could evict this entry, 
-							// repack the texture and then insert the new svg
-							// but in practice this will probably be too slow
-							// 
-							// So for now I'll just "evict" then re-insert the new entry
-							svgTextureOffset = oldest->data.textureOffset;
-							if (!this->cachedSvgs.evict(oldest->key))
-							{
-								g_logger_error("Eviction failed: 0x%8x", oldest->key);
-							}
-							// The svg will get reinserted below
-							break;
-						}
-
-						// Try to find an entry that will fit this new SVG
-						oldest = oldest->next;
-					}
-
-					if (oldest == nullptr)
-					{
-						// Didn't find room
-						static bool displayMessage = true;
-						if (displayMessage)
-						{
-							g_logger_error("Ran out of room in LRU-Cache.");
-							displayMessage = false;
-						}
-						return;
-					}
-
-					uint32 clearColor[] = { 0, 0, 0, 0 };
-					glClearTexSubImage(
-						framebuffer.colorAttachments[this->cacheCurrentColorAttachment].graphicsId,
-						0,
-						svgTextureOffset.x, svgTextureOffset.y, 0,
-						allottedSize.x, allottedSize.y, 0,
-						GL_RGBA, GL_UNSIGNED_INT,
-						clearColor
-					);
-				}
-				else
-				{
-					svgTextureOffset = cacheCurrentPos;
-				}
-			}
-
-			group->render(
-				parent,
-				framebuffer.colorAttachments[this->cacheCurrentColorAttachment],
-				svgTextureOffset
-			);
-
-			Vec2 cacheUvMin = Vec2{
-				svgTextureOffset.x / framebuffer.width,
-				1.0f - (svgTextureOffset.y / framebuffer.width) - (groupTotalHeight / framebuffer.height)
-			};
-			Vec2 cacheUvMax = cacheUvMin +
-				Vec2{
-					groupTotalWidth / framebuffer.width,
-					groupTotalHeight / framebuffer.height
-			};
-
-			incrementCacheCurrentX(groupTotalWidth + cachePadding.x);
-			checkLineHeight(groupTotalHeight);
-
-			// Finally store the results
-			_SvgCacheEntryInternal res;
-			res.colorAttachment = cacheCurrentColorAttachment;
-			res.texCoordsMin = cacheUvMin;
-			res.texCoordsMax = cacheUvMax;
-			res.svgSize = Vec2{ groupTotalWidth, groupTotalHeight };
-			res.allottedSize = allottedSize;
-			res.textureOffset = svgTextureOffset;
-			this->cachedSvgs.insert(hashValue, res);
-		}
-	}
-
 	void SvgCache::render(AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
 		const AnimObject* parent = AnimationManager::getObject(am, obj);
-		if (parent && !svg->isGroupElement)
+		if (parent)
 		{
 			SvgCacheEntry metadata = getOrCreateIfNotExist(am, svg, obj);
 			// TODO: See if I can get rid of this duplication, see the function above
@@ -350,48 +216,6 @@ namespace MathAnim
 						(float)parent->fillColor.r / 255.0f, 
 						(float)parent->fillColor.g / 255.0f, 
 						(float)parent->fillColor.b / 255.0f, 
-						(float)parent->fillColor.a / 255.0f
-					},
-					parent->id,
-					parent->globalTransform
-				);
-			}
-		}
-	}
-
-	// TODO: Deduplicate this with function above
-	void SvgCache::render(AnimationManagerData* am, SvgGroup* group, AnimObjId obj)
-	{
-		const AnimObject* parent = AnimationManager::getObject(am, obj);
-		if (parent)
-		{
-			SvgCacheEntry metadata = getOrCreateIfNotExist(am, group, obj);
-			// TODO: See if I can get rid of this duplication, see the function above
-			float svgTotalWidth = ((group->bbox.max.x - group->bbox.min.x) * parent->svgScale);
-			float svgTotalHeight = ((group->bbox.max.y - group->bbox.min.y) * parent->svgScale);
-
-			if (parent->is3D)
-			{
-				Renderer::drawTexturedQuad3D(
-					metadata.textureRef,
-					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
-					metadata.texCoordsMin,
-					metadata.texCoordsMax,
-					parent->globalTransform,
-					parent->isTransparent
-				);
-			}
-			else
-			{
-				Renderer::drawTexturedQuad(
-					metadata.textureRef,
-					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
-					metadata.texCoordsMin,
-					metadata.texCoordsMax,
-					Vec4{
-						(float)parent->fillColor.r / 255.0f,
-						(float)parent->fillColor.g / 255.0f,
-						(float)parent->fillColor.b / 255.0f,
 						(float)parent->fillColor.a / 255.0f
 					},
 					parent->id,

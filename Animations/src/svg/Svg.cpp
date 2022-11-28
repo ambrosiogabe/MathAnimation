@@ -24,7 +24,7 @@ namespace MathAnim
 		// ----------------- Internal functions -----------------
 		static void checkResize(Path& path);
 
-		SvgObject createDefault(bool isGroupElement)
+		SvgObject createDefault()
 		{
 			SvgObject res = {};
 			res.approximatePerimeter = 0.0f;
@@ -35,7 +35,6 @@ namespace MathAnim
 			res.bbox.min = Vec2{ 0, 0 };
 			res.bbox.max = Vec2{ 0, 0 };
 			res._cursor = Vec2{ 0, 0 };
-			res.isGroupElement = isGroupElement;
 			return res;
 		}
 
@@ -50,7 +49,6 @@ namespace MathAnim
 			res.uniqueObjects = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 			res.uniqueObjectNames = (char**)g_memory_allocate(sizeof(char*));
 			res.numUniqueObjects = 0;
-			res.viewbox = Vec4{ 0, 0, 1, 1 };
 			return res;
 		}
 
@@ -70,9 +68,8 @@ namespace MathAnim
 			return *orthoCamera;
 		}
 
-		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox)
+		void beginSvgGroup(SvgGroup* group)
 		{
-			group->viewbox = viewbox;
 		}
 
 		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset)
@@ -1297,27 +1294,26 @@ namespace MathAnim
 				for (int curvei = 0; curvei < paths[pathi].numCurves; curvei++)
 				{
 					const Curve& curve = paths[pathi].curves[curvei];
-					Vec2 p0 = Vec2{ curve.p0.x, curve.p0.y };
 
 					switch (curve.type)
 					{
 					case CurveType::Bezier3:
 					{
-						BBox subBbox = CMath::bezier3BBox(p0, curve.as.bezier3.p1, curve.as.bezier3.p2, curve.as.bezier3.p3);
+						BBox subBbox = CMath::bezier3BBox(curve.p0, curve.as.bezier3.p1, curve.as.bezier3.p2, curve.as.bezier3.p3);
 						bbox.min = CMath::min(bbox.min, subBbox.min);
 						bbox.max = CMath::max(bbox.max, subBbox.max);
 					}
 					break;
 					case CurveType::Bezier2:
 					{
-						BBox subBbox = CMath::bezier2BBox(p0, curve.as.bezier2.p1, curve.as.bezier2.p2);
+						BBox subBbox = CMath::bezier2BBox(curve.p0, curve.as.bezier2.p1, curve.as.bezier2.p2);
 						bbox.min = CMath::min(bbox.min, subBbox.min);
 						bbox.max = CMath::max(bbox.max, subBbox.max);
 					}
 					break;
 					case CurveType::Line:
 					{
-						BBox subBbox = CMath::bezier1BBox(p0, curve.as.line.p1);
+						BBox subBbox = CMath::bezier1BBox(curve.p0, curve.as.line.p1);
 						bbox.min = CMath::min(bbox.min, subBbox.min);
 						bbox.max = CMath::max(bbox.max, subBbox.max);
 					}
@@ -1333,32 +1329,29 @@ namespace MathAnim
 
 	void SvgObject::render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const
 	{
-		if (!this->isGroupElement)
-		{
-			Vec2 bboxSize = (bbox.max - bbox.min) * parent->svgScale;
+		Vec2 bboxSize = (bbox.max - bbox.min) * parent->svgScale;
 
-			// Setup pluto context to render SVG to
-			plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
-			plutovg_t* pluto = plutovg_create(surface);
+		// Setup pluto context to render SVG to
+		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
+		plutovg_t* pluto = plutovg_create(surface);
 
-			fillWithPluto(pluto, parent, this);
+		fillWithPluto(pluto, parent, this);
 
-			unsigned char* pixels = plutovg_surface_get_data(surface);
-			int surfaceWidth = plutovg_surface_get_width(surface);
-			int surfaceHeight = plutovg_surface_get_height(surface);
-			texture.uploadSubImage(
-				(int)textureOffset.x,
-				(int)(texture.height - textureOffset.y - surfaceHeight),
-				surfaceWidth,
-				surfaceHeight,
-				pixels,
-				surfaceWidth * surfaceHeight * sizeof(uint8) * 4,
-				true
-			);
+		unsigned char* pixels = plutovg_surface_get_data(surface);
+		int surfaceWidth = plutovg_surface_get_width(surface);
+		int surfaceHeight = plutovg_surface_get_height(surface);
+		texture.uploadSubImage(
+			(int)textureOffset.x,
+			(int)(texture.height - textureOffset.y - surfaceHeight),
+			surfaceWidth,
+			surfaceHeight,
+			pixels,
+			surfaceWidth * surfaceHeight * sizeof(uint8) * 4,
+			true
+		);
 
-			plutovg_surface_destroy(surface);
-			plutovg_destroy(pluto);
-		}
+		plutovg_surface_destroy(surface);
+		plutovg_destroy(pluto);
 	}
 
 	void SvgObject::renderOutline(float t, const AnimObject* parent) const
@@ -1508,7 +1501,6 @@ namespace MathAnim
 
 	void SvgGroup::normalize()
 	{
-		Vec2 translation = Vec2{ viewbox.values[0], viewbox.values[1] };
 		calculateBBox();
 
 		Vec2 svgGroupSize = bbox.max - bbox.min;
@@ -1599,48 +1591,7 @@ namespace MathAnim
 			// Center the whole object
 			offset -= Vec2{ outputGroupWidth / 2.0f, outputGroupHeight / 2.0f };
 		}
-		viewbox.values[0] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[0]);
-		viewbox.values[1] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, svgGroupSize.y / svgGroupSize.x }, viewbox.values[1]);
-		viewbox.values[2] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, 1.0f }, viewbox.values[2]);
-		viewbox.values[3] = CMath::mapRange(Vec2{ bbox.min.x, bbox.max.x }, Vec2{ 0.0f, svgGroupSize.y / svgGroupSize.x }, viewbox.values[3]);
 		calculateBBox();
-	}
-
-	void SvgGroup::render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const
-	{
-		Vec2 bboxSize = (bbox.max - bbox.min) * parent->svgScale;
-
-		// Setup pluto context to render SVG to
-		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
-		plutovg_t* pluto = plutovg_create(surface);
-
-		for (int i = 0; i < this->numObjects; i++)
-		{
-			const SvgObject& obj = this->objects[i];
-			const Vec2& offset = this->objectOffsets[i];
-
-			plutovg_save(pluto);
-			plutovg_translate(pluto, offset.x, offset.y);
-			plutovg_set_fill_rule(pluto, plutovg_fill_rule_even_odd);
-			fillWithPluto(pluto, parent, &obj);
-			plutovg_restore(pluto);
-		}
-
-		unsigned char* pixels = plutovg_surface_get_data(surface);
-		int surfaceWidth = plutovg_surface_get_width(surface);
-		int surfaceHeight = plutovg_surface_get_height(surface);
-		texture.uploadSubImage(
-			(int)textureOffset.x,
-			(int)(texture.height - textureOffset.y - surfaceHeight),
-			surfaceWidth,
-			surfaceHeight,
-			pixels,
-			surfaceWidth * surfaceHeight * sizeof(uint8) * 4,
-			true
-		);
-
-		plutovg_surface_destroy(surface);
-		plutovg_destroy(pluto);
 	}
 
 	void SvgGroup::calculateBBox()
@@ -1706,7 +1657,6 @@ namespace MathAnim
 		objects = nullptr;
 		uniqueObjects = nullptr;
 		uniqueObjectNames = nullptr;
-		viewbox = Vec4{ 0, 0, 0, 0 };
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
@@ -1835,13 +1785,7 @@ namespace MathAnim
 		const glm::u8vec4& fillColor = parent->fillColor;
 		// Render the SVG in white then color it when blitting the
 		// texture to a quad
-		plutovg_set_rgba(
-			pluto,
-			(double)fillColor.r / 255.0,
-			(double)fillColor.g / 255.0,
-			(double)fillColor.b / 255.0,
-			(double)fillColor.a / 255.0
-		);
+		plutovg_set_rgba(pluto, 1.0, 1.0, 1.0, 1.0);
 		plutovg_close_path(pluto);
 		plutovg_fill_preserve(pluto);
 	}
