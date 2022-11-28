@@ -24,7 +24,7 @@ namespace MathAnim
 		// ----------------- Internal functions -----------------
 		static void checkResize(Path& path);
 
-		SvgObject createDefault()
+		SvgObject createDefault(bool isGroupElement)
 		{
 			SvgObject res = {};
 			res.approximatePerimeter = 0.0f;
@@ -35,6 +35,7 @@ namespace MathAnim
 			res.bbox.min = Vec2{ 0, 0 };
 			res.bbox.max = Vec2{ 0, 0 };
 			res._cursor = Vec2{ 0, 0 };
+			res.isGroupElement = isGroupElement;
 			return res;
 		}
 
@@ -83,7 +84,8 @@ namespace MathAnim
 			g_logger_assert(group->objectOffsets != nullptr, "Ran out of RAM.");
 
 			group->objectOffsets[group->numObjects - 1] = offset;
-			group->objects[group->numObjects - 1] = obj;
+			group->objects[group->numObjects - 1] = Svg::createDefault();
+			Svg::copy(group->objects + (group->numObjects - 1), &obj);
 
 			// Horribly inefficient... do something better eventually
 			bool isUnique = true;
@@ -1116,7 +1118,7 @@ namespace MathAnim
 
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void renderCreateAnimation2D(float t, const AnimObject* parent, const Texture& texture, const Vec2& textureOffset, const SvgObject* obj);
+	static void fillWithPluto(plutovg_t* pluto, const AnimObject* parent, const SvgObject* obj);
 	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj);
 
 	void SvgObject::normalize()
@@ -1331,12 +1333,32 @@ namespace MathAnim
 
 	void SvgObject::render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const
 	{
-		renderCreateAnimation(1.0f, parent, texture, textureOffset);
-	}
+		if (!this->isGroupElement)
+		{
+			Vec2 bboxSize = (bbox.max - bbox.min) * parent->svgScale;
 
-	void SvgObject::renderCreateAnimation(float t, const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const
-	{
-		renderCreateAnimation2D(t, parent, texture, textureOffset, this);
+			// Setup pluto context to render SVG to
+			plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
+			plutovg_t* pluto = plutovg_create(surface);
+
+			fillWithPluto(pluto, parent, this);
+
+			unsigned char* pixels = plutovg_surface_get_data(surface);
+			int surfaceWidth = plutovg_surface_get_width(surface);
+			int surfaceHeight = plutovg_surface_get_height(surface);
+			texture.uploadSubImage(
+				(int)textureOffset.x,
+				(int)(texture.height - textureOffset.y - surfaceHeight),
+				surfaceWidth,
+				surfaceHeight,
+				pixels,
+				surfaceWidth * surfaceHeight * sizeof(uint8) * 4,
+				true
+			);
+
+			plutovg_surface_destroy(surface);
+			plutovg_destroy(pluto);
+		}
 	}
 
 	void SvgObject::renderOutline(float t, const AnimObject* parent) const
@@ -1553,8 +1575,21 @@ namespace MathAnim
 
 			float outputGroupWidth = 1.0f;
 			float outputGroupHeight = (svgGroupSize.y / svgGroupSize.x);
-			offset.x = CMath::mapRange(Vec2{ this->bbox.min.x, this->bbox.max.x }, Vec2{ 0.0f, outputGroupWidth }, originalBboxMin.x);
-			offset.y = CMath::mapRange(Vec2{ this->bbox.min.y, this->bbox.max.y }, Vec2{ 0.0f, outputGroupHeight }, originalBboxMin.y);
+
+			// If no offset was provided, then just use the minimum
+			// coordinates as the natural offset
+			if (offset.x == FLT_MAX)
+			{
+				offset.x = originalBboxMin.x;
+			}
+
+			if (offset.y == FLT_MAX)
+			{
+				offset.y = originalBboxMin.y;
+			}
+
+			offset.x = CMath::mapRange(Vec2{ this->bbox.min.x, this->bbox.max.x }, Vec2{ 0.0f, outputGroupWidth }, offset.x);
+			offset.y = CMath::mapRange(Vec2{ this->bbox.min.y, this->bbox.max.y }, Vec2{ 0.0f, outputGroupHeight }, offset.y);
 			offset.y = outputGroupHeight - offset.y;
 			Vec2 centerOffset = Vec2{
 				(obj.bbox.max.x - obj.bbox.min.x) / 2.0f,
@@ -1571,9 +1606,45 @@ namespace MathAnim
 		calculateBBox();
 	}
 
+	void SvgGroup::render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const
+	{
+		Vec2 bboxSize = (bbox.max - bbox.min) * parent->svgScale;
+
+		// Setup pluto context to render SVG to
+		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
+		plutovg_t* pluto = plutovg_create(surface);
+
+		for (int i = 0; i < this->numObjects; i++)
+		{
+			const SvgObject& obj = this->objects[i];
+			const Vec2& offset = this->objectOffsets[i];
+
+			plutovg_save(pluto);
+			plutovg_translate(pluto, offset.x, offset.y);
+			plutovg_set_fill_rule(pluto, plutovg_fill_rule_even_odd);
+			fillWithPluto(pluto, parent, &obj);
+			plutovg_restore(pluto);
+		}
+
+		unsigned char* pixels = plutovg_surface_get_data(surface);
+		int surfaceWidth = plutovg_surface_get_width(surface);
+		int surfaceHeight = plutovg_surface_get_height(surface);
+		texture.uploadSubImage(
+			(int)textureOffset.x,
+			(int)(texture.height - textureOffset.y - surfaceHeight),
+			surfaceWidth,
+			surfaceHeight,
+			pixels,
+			surfaceWidth * surfaceHeight * sizeof(uint8) * 4,
+			true
+		);
+
+		plutovg_surface_destroy(surface);
+		plutovg_destroy(pluto);
+	}
+
 	void SvgGroup::calculateBBox()
 	{
-		Vec2 translation = Vec2{ viewbox.values[0], viewbox.values[1] };
 		bbox.min = Vec2{ FLT_MAX, FLT_MAX };
 		bbox.max = Vec2{ FLT_MIN, FLT_MIN };
 
@@ -1582,7 +1653,7 @@ namespace MathAnim
 			SvgObject& obj = objects[i];
 			const Vec2& offset = objectOffsets[i];
 
-			Vec2 absOffset = offset - translation;
+			Vec2 absOffset = offset;
 			obj.calculateBBox();
 			bbox.min = CMath::min(obj.bbox.min + absOffset, bbox.min);
 			bbox.max = CMath::max(obj.bbox.max + absOffset, bbox.max);
@@ -1617,6 +1688,10 @@ namespace MathAnim
 
 		if (objects)
 		{
+			for (int i = 0; i < numObjects; i++)
+			{
+				objects[i].free();
+			}
 			g_memory_free(objects);
 		}
 
@@ -1635,16 +1710,13 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void renderCreateAnimation2D(float t, const AnimObject* parent, const Texture& texture, const Vec2& textureOffset, const SvgObject* obj)
+	static void fillWithPluto(plutovg_t* pluto, const AnimObject* parent, const SvgObject* obj)
 	{
 		// Can't render SVG's with 0 paths
 		if (obj->numPaths <= 0)
 		{
 			return;
 		}
-
-		constexpr float defaultStrokeWidth = 5.0f;
-		float lengthToDraw = t * (float)obj->approximatePerimeter;
 
 		// Instead of translating, we'll map every coordinate from the SVG min-max range to
 		// the preferred coordinate range
@@ -1658,10 +1730,6 @@ namespace MathAnim
 		Vec2 maxCoord = minCoord + bboxSize;
 		Vec2 outXRange = Vec2{ minCoord.x, maxCoord.x };
 		Vec2 outYRange = Vec2{ minCoord.y, maxCoord.y };
-
-		// Setup pluto context to render SVG to
-		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
-		plutovg_t* pluto = plutovg_create(surface);
 
 		plutovg_new_path(pluto);
 
@@ -1776,22 +1844,6 @@ namespace MathAnim
 		);
 		plutovg_close_path(pluto);
 		plutovg_fill_preserve(pluto);
-
-		unsigned char* pixels = plutovg_surface_get_data(surface);
-		int surfaceWidth = plutovg_surface_get_width(surface);
-		int surfaceHeight = plutovg_surface_get_height(surface);
-		texture.uploadSubImage(
-			(int)textureOffset.x,
-			(int)(texture.height - textureOffset.y - surfaceHeight),
-			surfaceWidth, 
-			surfaceHeight, 
-			pixels, 
-			surfaceWidth * surfaceHeight * sizeof(uint8) * 4, 
-			true
-		);
-
-		plutovg_surface_destroy(surface);
-		plutovg_destroy(pluto);
 	}
 
 	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj)

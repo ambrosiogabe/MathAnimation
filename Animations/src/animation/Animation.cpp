@@ -502,6 +502,24 @@ namespace MathAnim
 			}
 		}
 		break;
+		case AnimObjectTypeV1::SvgFileObject:
+		{
+			// If svgObject is null, don't do anything with it
+			static bool warned = false;
+			if (this->as.svgFile.svgGroup == nullptr)
+			{
+				if (!warned)
+				{
+					g_logger_warning("Tried to SvgFileObject or some other object that had a nullptr svgGroup. Skipping the rendering of this object.\nThis warning will supress itself now.");
+					warned = true;
+				}
+				break;
+			}
+
+			// Default SVG objects will just render the svgObject component
+			Application::getSvgCache()->render(am, this->as.svgFile.svgGroup, this->id);
+		}
+		break;
 		case AnimObjectTypeV1::Cube:
 		{
 			// if (!this->isAnimating)
@@ -518,7 +536,6 @@ namespace MathAnim
 		break;
 		case AnimObjectTypeV1::Axis:
 		case AnimObjectTypeV1::TextObject:
-		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::LaTexObject:
 			// NOP: These just have a bunch of children anim objects that get rendered
 			break;

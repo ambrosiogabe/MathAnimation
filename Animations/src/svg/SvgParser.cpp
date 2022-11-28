@@ -147,6 +147,7 @@ namespace MathAnim
 						std::string idStr = std::string(id->Value());
 						auto iter = objIds.find(idStr);
 						g_logger_assert(iter == objIds.end(), "Tried to insert duplicate ID '%s' in SVG object map", idStr.c_str());
+						obj.calculateBBox();
 						objIds[idStr] = obj;
 					}
 
@@ -195,6 +196,12 @@ namespace MathAnim
 								continue;
 							}
 
+							// Subtract the viewbox translation
+							x -= viewbox.values[0];
+							y -= viewbox.values[1];
+							// Flip y-coords to be consistent with everything else positioning from 
+							// the bottom-left
+							y = y - (iter->second.bbox.max.y - iter->second.bbox.min.y);
 							Svg::pushSvgToGroup(group, iter->second, iter->first, Vec2{ x, y });
 						}
 					}
@@ -230,6 +237,12 @@ namespace MathAnim
 							static uint64 rCounter = 0;
 							rCounter++;
 							std::string rCounterStr = "rect-" + rCounter;
+							// Subtract the viewbox translation
+							x -= viewbox.values[0];
+							y -= viewbox.values[1];
+							// Flip y-coords to be consistent with everything else positioning from 
+							// the bottom-left
+							y = y - h;
 							Svg::pushSvgToGroup(group, rect, rCounterStr, Vec2{ x, y });
 						}
 					}
@@ -240,9 +253,8 @@ namespace MathAnim
 						{
 							static uint64 uniqueName = 0;
 							uniqueName++;
-							// Embedded paths are assumed to have (0, 0) coordinates
 							std::string name = std::to_string(uniqueName);
-							Svg::pushSvgToGroup(group, obj, name, Vec2{ 0.0f, 0.0f });
+							Svg::pushSvgToGroup(group, obj, name, Vec2{ FLT_MAX, FLT_MAX });
 						}
 						else
 						{

@@ -7,6 +7,7 @@
 namespace MathAnim
 {
 	struct SvgObject;
+	struct SvgGroup;
 	struct Texture;
 	struct AnimationManagerData;
 	struct AnimObject;
@@ -43,14 +44,18 @@ namespace MathAnim
 		void init();
 		void free();
 
-		bool exists(AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
-		SvgCacheEntry get(AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
+		bool exists(AnimationManagerData* am, AnimObjId obj);
+
+		SvgCacheEntry get(AnimationManagerData* am, AnimObjId obj);
 		SvgCacheEntry getOrCreateIfNotExist(AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
+		SvgCacheEntry getOrCreateIfNotExist(AnimationManagerData* am, SvgGroup* group, AnimObjId obj);
 
 		void put(const AnimObject* parent, SvgObject* svg);
+		void put(const AnimObject* parent, SvgGroup* group);
 		void clearAll();
 
 		void render(AnimationManagerData* am, SvgObject* svg, AnimObjId obj);
+		void render(AnimationManagerData* am, SvgGroup* group, AnimObjId obj);
 
 		const Framebuffer& getFramebuffer();
 

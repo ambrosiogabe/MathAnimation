@@ -68,12 +68,12 @@ namespace MathAnim
 		float approximatePerimeter;
 		BBox bbox;
 		Vec2 _cursor;
+		bool isGroupElement;
 		
 		void normalize();
 		void calculateApproximatePerimeter();
 		void calculateBBox();
 		void render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const;
-		void renderCreateAnimation(float t, const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const;
 		void renderOutline(float t, const AnimObject* parent) const;
 		void free();
 
@@ -94,13 +94,14 @@ namespace MathAnim
 		BBox bbox;
 
 		void normalize();
+		void render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const;
 		void calculateBBox();
 		void free();
 	};
 
 	namespace Svg
 	{
-		SvgObject createDefault();
+		SvgObject createDefault(bool isGroupElement = false);
 		SvgGroup createDefaultGroup();
 		
 		void init(OrthoCamera& sceneCamera2d, PerspectiveCamera& sceneCamera3d);
