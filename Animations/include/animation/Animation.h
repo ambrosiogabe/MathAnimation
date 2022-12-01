@@ -193,6 +193,7 @@ namespace MathAnim
 		AnimObjId id;
 		AnimObjId parentId;
 		std::vector<AnimObjId> generatedChildrenIds;
+		std::vector<AnimId> referencedAnimations;
 
 		uint8* name;
 		uint32 nameLength;

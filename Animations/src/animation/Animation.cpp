@@ -261,7 +261,7 @@ namespace MathAnim
 		// lagRatio       -> f32
 		// 
 		// numObjects     -> uint32
-		// objectIds      -> int32[numObjects]
+		// objectIds      -> AnimObjId[numObjects]
 		uint32 animType = (uint32)this->type;
 		memory.write<uint32>(&animType);
 		memory.write<int32>(&frameStart);
@@ -905,6 +905,9 @@ namespace MathAnim
 		// NumGeneratedChildren -> uint32 
 		// GeneratedChildrenIds -> AnimObjId[numGeneratedChildren]
 		// 
+		// NumRefAnimations     -> uint32
+		// ReferencedAnimations -> AnimId[NumRefAnimations]
+		// 
 		// NameLength         -> uint32
 		// Name               -> uint8[NameLength + 1]
 		// AnimObject Specific Data
@@ -939,6 +942,13 @@ namespace MathAnim
 		for (uint32 i = 0; i < numGeneratedChildren; i++)
 		{
 			memory.write<AnimObjId>(&generatedChildrenIds[i]);
+		}
+
+		uint32 numRefAnimations = (uint32)referencedAnimations.size();
+		memory.write<uint32>(&numRefAnimations);
+		for (uint32 i = 0; i < numRefAnimations; i++)
+		{
+			memory.write<AnimId>(&referencedAnimations[i]);
 		}
 
 		memory.write<uint32>(&nameLength);
@@ -999,6 +1009,7 @@ namespace MathAnim
 		if (addChildAsGenerated)
 		{
 			parent->generatedChildrenIds.push_back(res.id);
+			res.isGenerated = true;
 		}
 
 		return res;
@@ -1245,6 +1256,9 @@ namespace MathAnim
 		// ParentId             -> AnimObjId
 		// NumGeneratedChildren -> uint32
 		// GeneratedChildrenIds -> AnimObjId[numGeneratedChildren]
+		//
+		// numRefAnimations     -> uint32
+		// referencedAnimations -> AnimId[numObjects]
 		// 
 		// NameLength         -> uint32
 		// Name               -> uint8[NameLength + 1]
@@ -1290,6 +1304,15 @@ namespace MathAnim
 			AnimObjId childId;
 			memory.read<AnimObjId>(&childId);
 			res.generatedChildrenIds.push_back(childId);
+		}
+
+		uint32 numReferencedAnimations;
+		memory.read<uint32>(&numReferencedAnimations);
+		for (uint32 i = 0; i < numReferencedAnimations; i++)
+		{
+			AnimId refAnim;
+			memory.read<AnimId>(&refAnim);
+			res.referencedAnimations.push_back(refAnim);
 		}
 
 		if (!memory.read<uint32>(&res.nameLength))
@@ -1365,7 +1388,7 @@ namespace MathAnim
 		// lagRatio       -> f32
 		// 
 		// numObjects     -> uint32
-		// objectIds      -> int32[numObjects]
+		// objectIds      -> AnimObjId[numObjects]
 		// Custom animation data -> dynamic
 		Animation res;
 		uint32 animType;

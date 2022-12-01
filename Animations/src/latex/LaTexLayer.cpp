@@ -59,7 +59,10 @@ namespace MathAnim
 		static char dvisvgmProgram[_MAX_PATH];
 		static const char* dvisvgmExeName = "/miktex/bin/x64/dvisvgm.exe";
 
+		static std::mutex latexQueueMutex;
 		static std::unordered_map<std::string, std::string> latexCachedMd5;
+		static std::queue<LaTexTask*> queuedLatex;
+		static LaTexTask* latexInProgress;
 
 		// ----------- Internal functions ----------- 
 		static bool generateSvgFile(const std::string& filename, const std::string& latex, bool isMathTex);
@@ -144,18 +147,14 @@ namespace MathAnim
 			std::string latex = std::string(latexRaw);
 			if (!laTexIsReady(latex))
 			{
-				// Launch this as a task on a new thread so that it doesn't block the main thread
 				LaTexTask* taskData = (LaTexTask*)g_memory_allocate(sizeof(LaTexTask));
 				taskData->laTex = (char*)g_memory_allocate(sizeof(char) * latex.length() + 1);
 				g_memory_copyMem(taskData->laTex, (void*)latex.c_str(), sizeof(char) * latex.length());
 				taskData->laTex[latex.length()] = '\0';
 				taskData->isMathTex = isMathTex;
-				Application::threadPool()->queueTask(
-					generateSvgTask,
-					"Generate LaTeX Svg File",
-					taskData,
-					sizeof(LaTexTask)
-				);
+
+				std::lock_guard<std::mutex> lock(latexQueueMutex);
+				queuedLatex.push(taskData);
 			}
 		}
 
@@ -201,11 +200,62 @@ namespace MathAnim
 
 		void update()
 		{
+			std::lock_guard<std::mutex> lock(latexQueueMutex);
 
+			// This loop ensures that only one LaTex file gets processed at a time so
+			// that our application doesn't spawn a bunch of process asynchronously and
+			// make everything super slow
+
+			// First check if the last task that was being processed
+			// has finished and free memory if it has
+			if (queuedLatex.size() > 0)
+			{
+				if (queuedLatex.front() != nullptr && queuedLatex.front()  == latexInProgress)
+				{
+					// If the current item hasn't finished
+					// processing, then wait until it's done
+					// before processing more queued items
+					if (!laTexIsReady(latexInProgress->laTex))
+					{
+						return;
+					}
+
+					// Free the task and pop it from our queue
+					g_logger_info("Finished processing LaTex: '%s'", latexInProgress->laTex);
+					g_memory_free(queuedLatex.front()->laTex);
+					g_memory_free(queuedLatex.front());
+					queuedLatex.pop();
+
+					latexInProgress = nullptr;
+				}
+
+				// If there's any elements that need to be processed
+				// process the next element
+				if (queuedLatex.size() > 0)
+				{
+					LaTexTask* taskData = queuedLatex.front();
+					// Launch this as a task on a new thread so that it doesn't block the main thread
+					Application::threadPool()->queueTask(
+						generateSvgTask,
+						"Generate LaTeX Svg File",
+						taskData,
+						sizeof(LaTexTask)
+					);
+
+					latexInProgress = taskData;
+				}
+			}
 		}
 
 		void free()
 		{
+			std::lock_guard<std::mutex> lock(latexQueueMutex);
+			while (queuedLatex.size() > 0)
+			{
+				g_memory_free(queuedLatex.front()->laTex);
+				g_memory_free(queuedLatex.front());
+				queuedLatex.pop();
+			}
 		}
 
 		// ----------- Internal functions ----------- 
@@ -215,9 +265,13 @@ namespace MathAnim
 			LaTexTask* task = (LaTexTask*)data;
 
 			std::string filename = getLaTexMd5(task->laTex);
-			generateSvgFile(filename, task->laTex, task->isMathTex);
-			g_memory_free(task->laTex);
-			g_memory_free(task);
+			if (!generateSvgFile(filename, task->laTex, task->isMathTex))
+			{
+				std::lock_guard<std::mutex> lock(latexQueueMutex);
+				g_memory_free(queuedLatex.front()->laTex);
+				g_memory_free(queuedLatex.front());
+				queuedLatex.pop();
+			}
 		}
 
 		static bool generateSvgFile(const std::string& filename, const std::string& latex, bool isMathTex)

@@ -170,6 +170,7 @@ namespace MathAnim
 				EditorCameraController::updateOrtho(editorCamera2D);
 				// Update Animation logic and collect draw calls
 				AnimationManager::render(am, deltaFrame);
+				LaTexLayer::update();
 
 				// Render all animation draw calls to main framebuffer
 				bool renderPickingOutline = false;

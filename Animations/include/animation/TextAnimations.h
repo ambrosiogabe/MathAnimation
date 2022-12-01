@@ -31,9 +31,6 @@ namespace MathAnim
 	{
 		char* text;
 		int32 textLength;
-		// TODO: Move this into the main animation object and fix everything else
-		// to use that
-		SvgGroup* svgGroup;
 		bool isEquation;
 		bool isParsingLaTex;
 
@@ -41,7 +38,10 @@ namespace MathAnim
 		// in the middle of parsing latex. If it is, then it checks
 		// if it's ready and then assigns it to the SVG group when it's done
 		// generating the svg
-		void update();
+		void update(AnimationManagerData* am, AnimObjId parentId);
+
+		void init(AnimationManagerData* am, AnimObjId parentId);
+		void reInit(AnimationManagerData* am, AnimObject* obj);
 
 		void setText(const std::string& str);
 		void setText(const char* str);

@@ -72,19 +72,7 @@ namespace MathAnim
 
 	bool SvgFileObject::setFilepath(const std::string& newFilepath)
 	{
-		if (filepath)
-		{
-			g_memory_free(filepath);
-			filepath = nullptr;
-			filepathLength = 0;
-		}
-
-		if (svgGroup)
-		{
-			svgGroup->free();
-			g_memory_free(svgGroup);
-			svgGroup = nullptr;
-		}
+		free();
 
 		filepath = (char*)g_memory_allocate(sizeof(char) * (newFilepath.length() + 1));
 		filepathLength = (uint32)newFilepath.length();
@@ -111,7 +99,10 @@ namespace MathAnim
 		// filepathLength       -> u32
 		// filepath             -> u8[textLength]
 		memory.write<uint32>(&filepathLength);
-		memory.writeDangerous((const uint8*)filepath, sizeof(uint8) * (filepathLength + 1));
+		if (filepathLength)
+		{
+			memory.writeDangerous((const uint8*)filepath, sizeof(uint8) * (filepathLength + 1));
+		}
 	}
 
 	void SvgFileObject::free()
@@ -127,6 +118,7 @@ namespace MathAnim
 		{
 			g_memory_free(filepath);
 			filepath = nullptr;
+			filepathLength = 0;
 		}
 	}
 

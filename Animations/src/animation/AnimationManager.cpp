@@ -162,13 +162,6 @@ namespace MathAnim
 			{
 				// Reset to original state and apply animations in order
 				objectIter->resetAllState();
-
-				// Update any updateable objects
-				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
-				{
-					// TODO: Is this still important?
-					objectIter->as.laTexObject.update();
-				}
 			}
 
 			// Then apply each animation up to the current frame
@@ -319,6 +312,12 @@ namespace MathAnim
 				{
 					objectIter->render(am);
 				}
+
+				// Update any updateable objects
+				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
+				{
+					objectIter->as.laTexObject.update(am, objectIter->id);
+				}
 			}
 		}
 
@@ -363,13 +362,29 @@ namespace MathAnim
 				return nullptr;
 			}
 
-			auto iter = am->objectIdMap.find(animObj);
-			if (iter != am->objectIdMap.end())
 			{
-				size_t objectIndex = iter->second;
-				if (objectIndex >= 0 && objectIndex < am->objects.size())
+				auto iter = am->objectIdMap.find(animObj);
+				if (iter != am->objectIdMap.end())
 				{
-					return &am->objects[objectIndex];
+					size_t objectIndex = iter->second;
+					if (objectIndex >= 0 && objectIndex < am->objects.size())
+					{
+						return &am->objects[objectIndex];
+					}
+				}
+			}
+
+			{
+				// Check if the object is queued for addition
+				if (am->queuedAddObjects.size() > 0)
+				{
+					for (int i = 0; i < am->queuedAddObjects.size(); i++)
+					{
+						if (am->queuedAddObjects[i].id == animObj)
+						{
+							return &am->queuedAddObjects[i];
+						}
+					}
 				}
 			}
 
@@ -761,21 +776,11 @@ namespace MathAnim
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			// First remove all children objects
-			for (int i = 0; i < am->objects.size(); i++)
+			// First remove all children objects recursively
+			std::vector<AnimObjId> children = getChildren(am, animObj);
+			for (int i = 0; i < children.size(); i++)
 			{
-				AnimObject& objIter = am->objects[i];
-				if (objIter.parentId == animObj)
-				{
-					if (removeSingleAnimObject(am, objIter.id))
-					{
-						i--;
-					}
-					else
-					{
-						g_logger_warning("Tried to delete AnimObject<ID: '%d'>, which does not exist.", objIter.id);
-					}
-				}
+				removeQueuedAnimObject(am, children[i]);
 			}
 
 			// Then remove the parent

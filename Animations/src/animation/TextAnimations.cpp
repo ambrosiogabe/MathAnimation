@@ -1,7 +1,6 @@
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
-#include "svg/SvgParser.h"
 #include "svg/Svg.h"
 #include "renderer/Renderer.h"
 #include "renderer/Framebuffer.h"
@@ -189,23 +188,59 @@ namespace MathAnim
 		return res;
 	}
 
-	void LaTexObject::update()
+	void LaTexObject::update(AnimationManagerData* am, AnimObjId parentId)
 	{
 		if (isParsingLaTex)
 		{
 			if (LaTexLayer::laTexIsReady(text, isEquation))
 			{
-				if (svgGroup)
+				AnimObject* parent = AnimationManager::getMutableObject(am, parentId);
+				if (parent)
 				{
-					svgGroup->free();
-					svgGroup = nullptr;
+					reInit(am, parent);
 				}
-
-				std::string filepath = "latex/" + LaTexLayer::getLaTexMd5(text) + ".svg";
-				svgGroup = SvgParser::parseSvgDoc(filepath.c_str());
 				isParsingLaTex = false;
 			}
 		}
+	}
+
+	void LaTexObject::init(AnimationManagerData* am, AnimObjId parentId)
+	{
+		// TODO: Memory leak somewhere in here
+
+		std::string filepath = "latex/" + LaTexLayer::getLaTexMd5(text) + ".svg";
+
+		// Add this character as a child
+		AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgFileObject, parentId, true);
+		childObj.parentId = parentId;
+		childObj._positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
+		childObj.isGenerated = true;
+
+		AnimationManager::addAnimObject(am, childObj);
+		// TODO: Ugly what do I do???
+		SceneHierarchyPanel::addNewAnimObject(childObj);
+
+		childObj.as.svgFile.setFilepath(filepath);
+		childObj.as.svgFile.init(am, childObj.id);
+	}
+		
+	void LaTexObject::reInit(AnimationManagerData* am, AnimObject* obj)
+	{
+		// First remove all generated children, which were generated as a result
+		// of this object (presumably)
+		// NOTE: This is direct descendants, no recursive children here
+		for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
+			if (child)
+			{
+				SceneHierarchyPanel::deleteAnimObject(*child);
+				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
+			}
+		}
+
+		// Next init again which should regenerate the children
+		init(am, obj->id);
 	}
 
 	void LaTexObject::setText(const std::string& str)
@@ -249,13 +284,6 @@ namespace MathAnim
 
 	void LaTexObject::free()
 	{
-		if (svgGroup)
-		{
-			svgGroup->free();
-			g_memory_free(svgGroup);
-			svgGroup = nullptr;
-		}
-
 		if (text)
 		{
 			g_memory_free(text);
@@ -286,7 +314,6 @@ namespace MathAnim
 		res.textLength = (sizeof(defaultLatex) / sizeof(char)) - 1;
 		res.text[res.textLength] = '\0';
 		res.isEquation = true;
-		res.svgGroup = nullptr;
 		res.isParsingLaTex = false;
 		res.parseLaTex();
 
@@ -332,14 +359,12 @@ namespace MathAnim
 		memory.read<int32>(&res.textLength);
 		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
 		memory.readDangerous((uint8*)res.text, res.textLength * sizeof(uint8));
-		memory.read<char>(&res.text[res.textLength]);
+		res.text[res.textLength] = '\0';
 
 		uint8 isEquationU8;
 		memory.read<uint8>(&isEquationU8);
 		res.isEquation = isEquationU8 == 1;
 		res.isParsingLaTex = false;
-		res.svgGroup = nullptr;
-		res.parseLaTex();
 
 		return res;
 	}
