@@ -208,6 +208,28 @@ namespace MathAnim
 			am->queuedRemoveAnimations.push_back(anim);
 		}
 
+		void addObjectToAnim(AnimationManagerData* am, AnimObjId animObjId, AnimId animationId)
+		{
+			Animation* anim = getMutableAnimation(am, animationId);
+			AnimObject* obj = getMutableObject(am, animObjId);
+			if (anim && obj)
+			{
+				anim->animObjectIds.insert(animObjId);
+				obj->referencedAnimations.insert(animationId);
+			}
+		}
+
+		void removeObjectFromAnim(AnimationManagerData* am, AnimObjId animObjId, AnimId animationId)
+		{
+			Animation* anim = getMutableAnimation(am, animationId);
+			AnimObject* obj = getMutableObject(am, animObjId);
+			if (anim && obj)
+			{
+				anim->animObjectIds.erase(animObjId);
+				obj->referencedAnimations.erase(animationId);
+			}
+		}
+
 		bool setAnimationTime(AnimationManagerData* am, AnimId anim, int frameStart, int duration)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
@@ -845,7 +867,7 @@ namespace MathAnim
 				auto deleteIterAnimRef = std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), animObj);
 				if (deleteIterAnimRef != animIter->animObjectIds.end())
 				{
-					animIter->animObjectIds.erase(deleteIterAnimRef);
+					removeObjectFromAnim(am, animObj, animIter->id);
 				}
 				// TODO: This is gross, find some way to automatically update references
 				else if (animIter->type == AnimTypeV1::Transform)

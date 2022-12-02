@@ -1570,12 +1570,12 @@ namespace MathAnim
 
 			// If no offset was provided, then just use the minimum
 			// coordinates as the natural offset
-			if (offset.x == FLT_MAX)
+			if (isnan(offset.x))
 			{
 				offset.x = originalBboxMin.x;
 			}
 
-			if (offset.y == FLT_MAX)
+			if (isnan(offset.y))
 			{
 				offset.y = originalBboxMin.y;
 			}
@@ -1596,8 +1596,8 @@ namespace MathAnim
 
 	void SvgGroup::calculateBBox()
 	{
-		bbox.min = Vec2{ FLT_MAX, FLT_MAX };
-		bbox.max = Vec2{ FLT_MIN, FLT_MIN };
+		bbox.min = Vec2{ NAN, NAN };
+		bbox.max = Vec2{ NAN, NAN };
 
 		for (int i = 0; i < numObjects; i++)
 		{
@@ -1605,6 +1605,15 @@ namespace MathAnim
 			const Vec2& offset = objectOffsets[i];
 
 			Vec2 absOffset = offset;
+			if (isnan(absOffset.x))
+			{
+				absOffset.x = 0.0f;
+			}
+			if (isnan(absOffset.y))
+			{
+				absOffset.y = 0.0f;
+			}
+
 			obj.calculateBBox();
 			bbox.min = CMath::min(obj.bbox.min + absOffset, bbox.min);
 			bbox.max = CMath::max(obj.bbox.max + absOffset, bbox.max);

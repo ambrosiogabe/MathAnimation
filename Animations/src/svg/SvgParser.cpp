@@ -250,7 +250,7 @@ namespace MathAnim
 							static uint64 uniqueName = 0;
 							uniqueName++;
 							std::string name = std::to_string(uniqueName);
-							Svg::pushSvgToGroup(group, obj, name, Vec2{ FLT_MAX, FLT_MAX });
+							Svg::pushSvgToGroup(group, obj, name);
 						}
 						else
 						{

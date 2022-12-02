@@ -25,6 +25,9 @@ namespace MathAnim
 		void removeAnimObject(AnimationManagerData* am, AnimObjId animObj);
 		void removeAnimation(AnimationManagerData* am, AnimId anim);
 
+		void addObjectToAnim(AnimationManagerData* am, AnimObjId animObj, AnimId animation);
+		void removeObjectFromAnim(AnimationManagerData* am, AnimObjId animObj, AnimId animation);
+
 		bool setAnimationTime(AnimationManagerData* am, AnimId anim, int frameStart, int duration);
 		void setAnimationTrack(AnimationManagerData* am, AnimId anim, int track);
 

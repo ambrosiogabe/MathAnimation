@@ -740,23 +740,22 @@ namespace MathAnim
 			{
 				if (ImGui::CollapsingHeader("Anim Objects"))
 				{
-					auto animObjectIdIter = animation->animObjectIds.begin();
-					while (animObjectIdIter != animation->animObjectIds.end())
+					std::unordered_set<AnimObjId> objectIdsCopy = animation->animObjectIds;
+					auto animObjectIdIter = objectIdsCopy.begin();
+					for (auto animObjectIdIter = objectIdsCopy.begin(); animObjectIdIter != objectIdsCopy.end(); animObjectIdIter++)
 					{
 						const AnimObject* obj = AnimationManager::getObject(am, *animObjectIdIter);
 						if (obj)
 						{
 							// Treat the uint64 as a pointer ID so ImGui hashes it into an int
 							ImGui::PushID((const void*)*animObjectIdIter);
+							ImGui::BeginDisabled();
 							ImGui::InputText("##AnimObjectId", (char*)obj->name, obj->nameLength, ImGuiInputTextFlags_ReadOnly);
+							ImGui::EndDisabled();
 							ImGui::SameLine();
 							if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
 							{
-								animObjectIdIter = animation->animObjectIds.erase(animObjectIdIter);
-							}
-							else
-							{
-								animObjectIdIter++;
+								AnimationManager::removeObjectFromAnim(am, *animObjectIdIter, animation->id);
 							}
 							ImGui::PopID();
 						}
@@ -767,7 +766,9 @@ namespace MathAnim
 					{
 						const char dummyInputText[] = "Drag Object Here";
 						size_t dummyInputTextSize = sizeof(dummyInputText);
+						ImGui::BeginDisabled();
 						ImGui::InputText("##AnimObjectDropTarget", (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
+						ImGui::EndDisabled();
 
 						if (ImGui::BeginDragDropTarget())
 						{
@@ -785,7 +786,7 @@ namespace MathAnim
 
 									if (!exists)
 									{
-										animation->animObjectIds.push_back(objPayload->animObjectId);
+										AnimationManager::addObjectToAnim(am, objPayload->animObjectId, animation->id);
 									}
 									isAddingAnimObject = false;
 								}

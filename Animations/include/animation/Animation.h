@@ -111,7 +111,7 @@ namespace MathAnim
 		EaseDirection easeDirection;
 		PlaybackType playbackType;
 		float lagRatio;
-		std::vector<AnimObjId> animObjectIds;
+		std::unordered_set<AnimObjId> animObjectIds;
 
 		union
 		{
@@ -193,7 +193,7 @@ namespace MathAnim
 		AnimObjId id;
 		AnimObjId parentId;
 		std::vector<AnimObjId> generatedChildrenIds;
-		std::vector<AnimId> referencedAnimations;
+		std::unordered_set<AnimId> referencedAnimations;
 
 		uint8* name;
 		uint32 nameLength;

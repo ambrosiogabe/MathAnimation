@@ -26,7 +26,8 @@ namespace MathAnim
 	{
 		if (this->shouldDisplayAnimObjects())
 		{
-			for (int i = 0; i < animObjectIds.size(); i++)
+			int i = 0;
+			for (auto animObjId : animObjectIds)
 			{
 				float startT = 0.0f;
 				if (this->playbackType == PlaybackType::LaggedStart)
@@ -39,8 +40,10 @@ namespace MathAnim
 					float interpolatedT = CMath::mapRange(Vec2{ 0.0f, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
 					interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
 
-					applyAnimationToObj(am, animObjectIds[i], interpolatedT);
+					applyAnimationToObj(am, animObjId, interpolatedT);
 				}
+
+				i++;
 			}
 		}
 		else
@@ -279,9 +282,9 @@ namespace MathAnim
 
 		uint32 numObjects = (uint32)animObjectIds.size();
 		memory.write<uint32>(&numObjects);
-		for (uint32 i = 0; i < numObjects; i++)
+		for (auto animObjId : animObjectIds)
 		{
-			memory.write<AnimObjId>(&animObjectIds[i]);
+			memory.write<AnimObjId>(&animObjId);
 		}
 
 		switch (this->type)
@@ -946,9 +949,9 @@ namespace MathAnim
 
 		uint32 numRefAnimations = (uint32)referencedAnimations.size();
 		memory.write<uint32>(&numRefAnimations);
-		for (uint32 i = 0; i < numRefAnimations; i++)
+		for (auto animId : referencedAnimations)
 		{
-			memory.write<AnimId>(&referencedAnimations[i]);
+			memory.write<AnimId>(&animId);
 		}
 
 		memory.write<uint32>(&nameLength);
@@ -1312,7 +1315,7 @@ namespace MathAnim
 		{
 			AnimId refAnim;
 			memory.read<AnimId>(&refAnim);
-			res.referencedAnimations.push_back(refAnim);
+			res.referencedAnimations.insert(refAnim);
 		}
 
 		if (!memory.read<uint32>(&res.nameLength))
@@ -1418,10 +1421,11 @@ namespace MathAnim
 
 		uint32 numObjects;
 		memory.read<uint32>(&numObjects);
-		res.animObjectIds.resize(numObjects, NULL_ANIM_OBJECT);
 		for (uint32 i = 0; i < numObjects; i++)
 		{
-			memory.read<AnimObjId>(&res.animObjectIds[i]);
+			AnimObjId tmp;
+			memory.read<AnimObjId>(&tmp);
+			res.animObjectIds.insert(tmp);
 		}
 
 		switch (res.type)

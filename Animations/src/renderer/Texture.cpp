@@ -141,6 +141,10 @@ namespace MathAnim
 		g_logger_assert(format != ByteFormat::None, "Cannot generate texture without color format.");
 		g_logger_assert(offsetX + width <= this->width, "Sub-image out of range. OffsetX + width = %d which is greater than the texture width: %d", offsetX + width, this->width);
 		g_logger_assert(offsetY + height <= this->height, "Sub-image out of range. OffsetY + height = %d which is greater than the texture height: %d", offsetY + height, this->height);
+		g_logger_assert(offsetX >= 0, "Sub-image out of range. OffsetX is negative: %d", offsetX);
+		g_logger_assert(offsetY >= 0, "Sub-image out of range. OffsetY is negative: %d", offsetY);
+		g_logger_assert(width >= 0, "Sub-image out of range. Width is negative: %d", width);
+		g_logger_assert(height >= 0, "Sub-image out of range. Height is negative: %d", height);
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(format);
 		uint32 dataType = TextureUtil::toGlDataType(format);
