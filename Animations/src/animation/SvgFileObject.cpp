@@ -37,6 +37,13 @@ namespace MathAnim
 			*(childObj.svgObject) = Svg::createDefault();
 			Svg::copy(childObj._svgObjectStart, &obj);
 			Svg::copy(childObj.svgObject, &obj);
+			childObj._fillColorStart = glm::u8vec4(
+				(uint8)(obj.fillColor.r * 255.0f),
+				(uint8)(obj.fillColor.g * 255.0f),
+				(uint8)(obj.fillColor.b * 255.0f),
+				(uint8)(obj.fillColor.a * 255.0f)
+			);
+			childObj.fillColor = childObj._fillColorStart;
 
 			const char childName[] = "Generated Child";
 			childObj.nameLength = sizeof(childName);

@@ -18,6 +18,12 @@ namespace MathAnim
 		Bezier3
 	};
 
+	enum class FillType : uint8
+	{
+		NonZeroFillType = 0,
+		EvenOddFillType,
+	};
+
 	struct Line
 	{
 		Vec2 p1;
@@ -68,6 +74,8 @@ namespace MathAnim
 		float approximatePerimeter;
 		BBox bbox;
 		Vec2 _cursor;
+		Vec4 fillColor;
+		FillType fillType;
 
 		void normalize();
 		void calculateApproximatePerimeter();

@@ -148,7 +148,7 @@ namespace MathAnim
 		{
 		}
 
-		std::string value()
+		std::string value() const
 		{
 			if (isIdentifier())
 			{
@@ -193,7 +193,7 @@ namespace MathAnim
 				return color;
 			}
 
-			return { NAN, NAN, NAN, NAN };
+			return "#fc03f8"_hex;
 		}
 
 		float asNumber() const
@@ -223,7 +223,8 @@ namespace MathAnim
 
 	struct Stylesheet
 	{
-		std::vector<Style> styles;
+		std::unordered_map<std::string, Style> idMap;
+		std::unordered_map<std::string, Style> classMap;
 	};
 
 	namespace SvgParser
@@ -234,7 +235,9 @@ namespace MathAnim
 
 		// ----------- Internal Functions -----------
 		static bool parseSvgStylesheet(XMLElement* element, Stylesheet* output);
-		static bool parseSvgPathTag(XMLElement* element, SvgObject* output);
+		static bool parseSvgPathTag(XMLElement* element, SvgObject* output, const Stylesheet& styles);
+		static void applyStylesTo(SvgObject* output, const Style& style);
+		static void applyStyleAttributeTo(SvgObject* output, const StyleAttribute& attribute);
 
 		// -------- Path Parser --------
 		static bool interpretCommand(const PathToken& token, ParserInfo& parserInfo, SvgObject* res);
@@ -248,7 +251,7 @@ namespace MathAnim
 
 		// -------- Svg Style Parser --------
 		static StyleToken parseNextStyleToken(ParserInfo& parserInfo);
-		static bool parseStyle(ParserInfo& parserInfo, Stylesheet* res, StyleTokenType identifierType);
+		static bool parseStyle(ParserInfo& parserInfo, Stylesheet* res, const StyleToken& identifier);
 		static StyleToken consume(StyleTokenType expected, ParserInfo& parserInfo);
 		static StyleToken consumeChar(char expectedChar, StyleTokenType resType, ParserInfo& parserInfo);
 		static void printStyleToken(StyleToken& token);
@@ -320,12 +323,13 @@ namespace MathAnim
 			// TODO: This isn't the best way to do this
 			XMLElement* styleElement = svgElement->FirstChildElement("style");
 
-			Stylesheet stylesheet;
+			Stylesheet rootStylesheet;
 			if (styleElement)
 			{
-				if (!parseSvgStylesheet(styleElement, &stylesheet))
+				if (!parseSvgStylesheet(styleElement, &rootStylesheet))
 				{
 					PANIC("Parsing SVG style failed: %s", styleElement->GetText());
+					return false;
 				}
 			}
 
@@ -337,18 +341,37 @@ namespace MathAnim
 				// Loop through all the definitions and save the svg objects
 				while (childEl != nullptr)
 				{
-					const XMLAttribute* id = childEl->FindAttribute("id");
-					if (id == nullptr) g_logger_warning("Child element '%s' had no id attribute.", childEl->Name());
-
-					const XMLAttribute* pathAttribute = childEl->FindAttribute("d");
-					SvgObject obj;
-					if (parseSvgPathTag(childEl, &obj))
+					std::string tagName = childEl->Name();
+					if (tagName == "path")
 					{
-						std::string idStr = std::string(id->Value());
-						auto iter = objIds.find(idStr);
-						g_logger_assert(iter == objIds.end(), "Tried to insert duplicate ID '%s' in SVG object map", idStr.c_str());
-						obj.calculateBBox();
-						objIds[idStr] = obj;
+						const XMLAttribute* id = childEl->FindAttribute("id");
+						if (id == nullptr) g_logger_warning("Child element '%s' had no id attribute.", childEl->Name());
+
+						const XMLAttribute* pathAttribute = childEl->FindAttribute("d");
+						SvgObject obj;
+						if (parseSvgPathTag(childEl, &obj, rootStylesheet))
+						{
+							std::string idStr = std::string(id->Value());
+							auto iter = objIds.find(idStr);
+							g_logger_assert(iter == objIds.end(), "Tried to insert duplicate ID '%s' in SVG object map", idStr.c_str());
+							obj.calculateBBox();
+							objIds[idStr] = obj;
+						}
+					}
+					else if (tagName == "style")
+					{
+						if (styleElement != nullptr)
+						{
+							PANIC("We don't support multi-stylesheet SVGs yet. This SVG has multiple embedded stylesheets.");
+						}
+						else
+						{
+							parseSvgStylesheet(childEl, &rootStylesheet);
+						}
+					}
+					else
+					{
+						PANIC("Unknown tag <%s> in <defs> block in SVG.", tagName.c_str());
 					}
 
 					childEl = childEl->NextSiblingElement();
@@ -445,7 +468,7 @@ namespace MathAnim
 					else if (std::strcmp(childEl->Name(), "path") == 0)
 					{
 						SvgObject obj;
-						if (parseSvgPathTag(childEl, &obj))
+						if (parseSvgPathTag(childEl, &obj, rootStylesheet))
 						{
 							static uint64 uniqueName = 0;
 							uniqueName++;
@@ -457,6 +480,10 @@ namespace MathAnim
 							g_logger_warning("Failed to parse path tag in SVG '%s'", filepath);
 							goto error_cleanup;
 						}
+					}
+					else if (std::strcmp(childEl->Name(), "defs") == 0)
+					{
+						// NOP; Don't care about the defs block that's handled above.
 					}
 					else
 					{
@@ -577,32 +604,14 @@ namespace MathAnim
 				// Root level objects must be #id or .id
 				if (token.type == StyleTokenType::HashtagIdentifier || token.type == StyleTokenType::DotIdentifier)
 				{
-					if (!parseStyle(parserInfo, &res, token.type))
+					if (!parseStyle(parserInfo, &res, token))
 					{
 						PANIC("Error while parsing embedded style in SVG doc. See logs for more info.");
 						return false;
 					}
-
-					if (token.type == StyleTokenType::HashtagIdentifier)
-					{
-						res.styles[res.styles.size() - 1].idName = std::string(token.as.identifier.text);
-					}
-					else
-					{
-						res.styles[res.styles.size() - 1].className = std::string(token.as.identifier.text);
-					}
 				}
 
 				token.free();
-			}
-
-			for (Style& style : res.styles)
-			{
-				g_logger_info("Style: <class:%s, id:%s>", style.className.c_str(), style.idName.c_str());
-				for (StyleAttribute& attribute : style.attributes)
-				{
-					g_logger_info("Attribute<%s>: %s", attribute.name().c_str(), attribute.value().c_str());
-				}
 			}
 
 			*output = res;
@@ -610,7 +619,7 @@ namespace MathAnim
 			return true;
 		}
 
-		static bool parseSvgPathTag(XMLElement* element, SvgObject* output)
+		static bool parseSvgPathTag(XMLElement* element, SvgObject* output, const Stylesheet& styles)
 		{
 			if (std::strcmp(element->Name(), "path") != 0)
 			{
@@ -623,10 +632,121 @@ namespace MathAnim
 			{
 				PANIC("Element '%s' had no path attribute.", element->Name());
 				return false;
+
+			}
+			size_t textLength = std::strlen(pathAttribute->Value());
+			bool success = parseSvgPath(pathAttribute->Value(), textLength, output);
+
+			if (success)
+			{
+				// Add styles to this SVG path
+				const XMLAttribute* classNameAttribute = element->FindAttribute("class");
+				if (classNameAttribute)
+				{
+					const std::string& className = classNameAttribute->Value();
+					auto iter = styles.classMap.find(className);
+					if (iter != styles.classMap.end())
+					{
+						const Style& style = iter->second;
+						// Apply each attribute to our SVG object
+						applyStylesTo(output, style);
+					}
+				}
+
+				const XMLAttribute* idNameAttribute = element->FindAttribute("id");
+				if (idNameAttribute)
+				{
+					const std::string& idName = idNameAttribute->Value();
+					auto iter = styles.idMap.find(idName);
+					if (iter != styles.idMap.end())
+					{
+						const Style& style = iter->second;
+						// Apply each attribute to our SVG object
+						applyStylesTo(output, style);
+					}
+				}
 			}
 
-			size_t textLength = std::strlen(pathAttribute->Value());
-			return parseSvgPath(pathAttribute->Value(), textLength, output);
+			const XMLAttribute* attribute = element->FirstAttribute();
+			while (attribute != nullptr)
+			{
+				const std::string& name = attribute->Name();
+				if (name != "d" && name != "class" && name != "id")
+				{
+					if (name == "fill")
+					{
+						// Should be color
+						std::string colorAsStr = attribute->Value();
+						if (colorAsStr[0] == '#')
+						{
+							colorAsStr = colorAsStr.substr(1);
+						}
+
+						if (colorAsStr.length() == 3)
+						{
+							colorAsStr += colorAsStr;
+						}
+
+						if (colorAsStr.length() == 6 || colorAsStr.length() == 8)
+						{
+							applyStyleAttributeTo(output, StyleAttribute(name, toHex(colorAsStr)));
+						}
+						else
+						{
+							PANIC("Invalid color as attribute value '%s'. This is not a color, for attribute: %s", name, colorAsStr.c_str());
+						}
+					}
+					else if (name == "fill-rule")
+					{
+						applyStyleAttributeTo(output, StyleAttribute(name, attribute->Value()));
+					}
+					else
+					{
+						PANIC("Unknown inline style attribute for SVG path '%s'", name.c_str());
+					}
+				}
+
+				attribute = attribute->Next();
+			}
+
+			return success;
+		}
+
+		static void applyStylesTo(SvgObject* output, const Style& style)
+		{
+			for (const StyleAttribute& attribute : style.attributes)
+			{
+				applyStyleAttributeTo(output, attribute);
+			}
+		}
+
+		static void applyStyleAttributeTo(SvgObject* output, const StyleAttribute& attribute)
+		{
+			const std::string& attributeName = attribute.name();
+			if (attributeName == "fill-rule")
+			{
+				std::string value = attribute.value();
+				if (value == "evenodd")
+				{
+					output->fillType = FillType::EvenOddFillType;
+				}
+				else if (value == "nonzero")
+				{
+					output->fillType = FillType::NonZeroFillType;
+				}
+				else
+				{
+					g_logger_warning("Unknown fill-rule type: %s", value.c_str());
+				}
+			}
+			else if (attributeName == "fill")
+			{
+				if (!(attribute.isColor()))
+				{
+					PANIC("Invalid fill type '%s' in SVG document. Must be color.", attribute.value().c_str());
+				}
+				output->fillColor = attribute.asColor();
+			}
 		}
 
 		static bool interpretCommand(const PathToken& token, ParserInfo& parserInfo, SvgObject* res)
@@ -1217,7 +1337,7 @@ namespace MathAnim
 			return res;
 		}
 
-		static bool parseStyle(ParserInfo& parserInfo, Stylesheet* res, StyleTokenType identifierType)
+		static bool parseStyle(ParserInfo& parserInfo, Stylesheet* res, const StyleToken& identifier)
 		{
 			Style newStyle;
 
@@ -1272,6 +1392,7 @@ namespace MathAnim
 				}
 				else if (attributeValue.type == StyleTokenType::HashtagIdentifier)
 				{
+					// TODO: Abstract this stufff
 					// This should be a color
 					std::string colorAsString = std::string(attributeValue.as.identifier.text);
 					if (colorAsString.length() == 3)
@@ -1311,7 +1432,25 @@ namespace MathAnim
 				return false;
 			}
 
-			res->styles.emplace_back(newStyle);
+			newStyle.className = "";
+			newStyle.idName = "";
+
+			if (identifier.type == StyleTokenType::HashtagIdentifier)
+			{
+				newStyle.idName = identifier.as.identifier.text;
+				res->idMap[identifier.as.identifier.text] = newStyle;
+			}
+			else if (identifier.type == StyleTokenType::DotIdentifier)
+			{
+				newStyle.className = identifier.as.identifier.text;
+				res->classMap[identifier.as.identifier.text] = newStyle;
+			}
+			else
+			{
+				PANIC("Cannot assign identifier of type %d as a style attribute. Must be a HashtagIdentifier or a DotIdentifier", identifier.type);
+				return false;
+			}
+
 			return true;
 		}
 

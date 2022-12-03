@@ -35,6 +35,8 @@ namespace MathAnim
 			res.bbox.min = Vec2{ 0, 0 };
 			res.bbox.max = Vec2{ 0, 0 };
 			res._cursor = Vec2{ 0, 0 };
+			res.fillColor = Vec4{ 1, 1, 1, 1 };
+			res.fillType = FillType::NonZeroFillType;
 			return res;
 		}
 
@@ -576,6 +578,9 @@ namespace MathAnim
 
 				g_logger_assert(dstPath.numCurves == src->paths[pathi].numCurves, "How did this happen?");
 			}
+
+			dest->fillType = src->fillType;
+			dest->fillColor = src->fillColor;
 
 			dest->calculateApproximatePerimeter();
 			dest->calculateBBox();
@@ -1474,6 +1479,12 @@ namespace MathAnim
 			}
 		}
 
+		// fillType         -> u8
+		// fillColor        -> Vec4
+		// pathLength       -> u64
+		// path             -> u8[pathLength]
+		memory.write<FillType>(&fillType);
+		CMath::serialize(memory, fillColor);
 		uint64 stringLength = (uint64)numElements;
 		memory.write<uint64>(&stringLength);
 		memory.writeDangerous(buffer, numElements);
@@ -1484,6 +1495,13 @@ namespace MathAnim
 	SvgObject* SvgObject::deserialize(RawMemory& memory, uint32 version)
 	{
 		SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+
+		// fillType         -> u8
+		// fillColor        -> Vec4
+		// pathLength       -> u64
+		// path             -> u8[pathLength]
+		memory.read<FillType>(&res->fillType);
+		res->fillColor = CMath::deserializeVec4(memory);
 		uint64 stringLength;
 		memory.read<uint64>(&stringLength);
 		uint8* string = (uint8*)g_memory_allocate(sizeof(uint8) * (stringLength + 1));
@@ -1796,7 +1814,14 @@ namespace MathAnim
 		// texture to a quad
 		plutovg_set_rgba(pluto, 1.0, 1.0, 1.0, 1.0);
 		plutovg_close_path(pluto);
-		plutovg_set_fill_rule(pluto, plutovg_fill_rule_even_odd);
+		if (obj->fillType == FillType::EvenOddFillType)
+		{
+			plutovg_set_fill_rule(pluto, plutovg_fill_rule_even_odd);
+		}
+		else if (obj->fillType == FillType::NonZeroFillType)
+		{
+			plutovg_set_fill_rule(pluto, plutovg_fill_rule_non_zero);
+		}
 		plutovg_fill_preserve(pluto);
 	}
 
