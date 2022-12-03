@@ -827,6 +827,11 @@ namespace MathAnim
 			ImGui::DragFloat(": Lag Ratio", &animation->lagRatio, slowDragSpeed, 0.0f, 1.0f);
 			ImGui::EndDisabled();
 
+			if (ImGui::Checkbox(": Apply Animation To Children", &animation->applyToChildren))
+			{
+				// Update children to apply or unapply this animation to them
+			}
+
 			switch (animation->type)
 			{
 			case AnimTypeV1::Create:

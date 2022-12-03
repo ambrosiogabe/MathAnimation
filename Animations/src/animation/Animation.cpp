@@ -262,6 +262,7 @@ namespace MathAnim
 		// timelineTrack  -> int32
 		// playbackType   -> uint8
 		// lagRatio       -> f32
+		// applyToChildren -> uint8
 		// 
 		// numObjects     -> uint32
 		// objectIds      -> AnimObjId[numObjects]
@@ -279,6 +280,8 @@ namespace MathAnim
 		uint8 playbackTypeInt = (uint8)playbackType;
 		memory.write<uint8>(&playbackTypeInt);
 		memory.write<float>(&lagRatio);
+		uint8 applyToChildrenU8 = applyToChildren ? 1 : 0;
+		memory.write<uint8>(&applyToChildrenU8);
 
 		uint32 numObjects = (uint32)animObjectIds.size();
 		memory.write<uint32>(&numObjects);
@@ -1389,6 +1392,7 @@ namespace MathAnim
 		// timelineTrack  -> int32
 		// playbackType   -> uint8
 		// lagRatio       -> f32
+		// applyToChildren -> uint8
 		// 
 		// numObjects     -> uint32
 		// objectIds      -> AnimObjId[numObjects]
@@ -1418,6 +1422,10 @@ namespace MathAnim
 		g_logger_assert(playbackType < (uint8)PlaybackType::Length, "Corrupted memory. PlaybackType was %d which is out of bounds.", playbackType);
 		res.playbackType = (PlaybackType)playbackType;
 		memory.read<float>(&res.lagRatio);
+
+		uint8 applyToChildrenU8;
+		memory.read<uint8>(&applyToChildrenU8);
+		res.applyToChildren = applyToChildrenU8 != 0;
 
 		uint32 numObjects;
 		memory.read<uint32>(&numObjects);

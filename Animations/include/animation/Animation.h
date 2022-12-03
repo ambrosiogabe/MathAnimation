@@ -111,6 +111,7 @@ namespace MathAnim
 		EaseDirection easeDirection;
 		PlaybackType playbackType;
 		float lagRatio;
+		bool applyToChildren;
 		std::unordered_set<AnimObjId> animObjectIds;
 
 		union
