@@ -42,9 +42,19 @@ constexpr float hexToFloat(char hexCode)
 
 MathAnim::Vec4 operator""_hex(const char* rawHexColor, size_t inputLength)
 {
+	return toHex(rawHexColor, inputLength);
+}
+
+MathAnim::Vec4 toHex(const std::string& str)
+{
+	return toHex(str.c_str(), str.length());
+}
+
+MathAnim::Vec4 toHex(const char* rawHexColor, size_t inputLength)
+{
 	g_logger_assert(rawHexColor != nullptr, "Invalid hex color. Cannot be null.");
 
-	const char* hexColor = rawHexColor[0] == '#' ? 
+	const char* hexColor = rawHexColor[0] == '#' ?
 		rawHexColor + 1 :
 		rawHexColor;
 	size_t length = strlen(hexColor);
@@ -52,7 +62,7 @@ MathAnim::Vec4 operator""_hex(const char* rawHexColor, size_t inputLength)
 	float color1 = (hexToFloat(hexColor[0]) * 16 + hexToFloat(hexColor[1])) / 255.0f;
 	float color2 = (hexToFloat(hexColor[2]) * 16 + hexToFloat(hexColor[3])) / 255.0f;
 	float color3 = (hexToFloat(hexColor[4]) * 16 + hexToFloat(hexColor[5])) / 255.0f;
-	
+
 	if (length == 8)
 	{
 		float color4 = (hexToFloat(hexColor[6]) * 16 + hexToFloat(hexColor[7])) / 255.0f;
@@ -65,6 +75,11 @@ MathAnim::Vec4 operator""_hex(const char* rawHexColor, size_t inputLength)
 	return MathAnim::Vec4{
 		color1, color2, color3, 1.0f
 	};
+}
+
+MathAnim::Vec4 toHex(const char* hex)
+{
+	return toHex(hex, std::strlen(hex));
 }
 
 void RawMemory::init(size_t initialSize)

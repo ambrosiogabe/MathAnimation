@@ -49,12 +49,18 @@ namespace MathAnim
 	enum class StyleTokenType : uint8
 	{
 		Panic = 0,
-		AttributeId,
-		AttributeClass,
-		Identifier,
+		Identifier, // [a-zA-Z\-_]+
+		HashtagIdentifier,
+		DotIdentifier,
 		String,
 		Color,
 		Number,
+		LeftCurlyBracket,
+		RightCurlyBracket,
+		LeftParen,
+		RightParen,
+		Colon,
+		Semicolon,
 		EndOfFile,
 		Length
 	};
@@ -63,6 +69,15 @@ namespace MathAnim
 	{
 		char* text;
 		size_t textLength;
+
+		DumbString copy() const
+		{
+			DumbString res = {};
+			res.text = (char*)g_memory_allocate(sizeof(char) * (textLength + 1));
+			res.textLength = textLength;
+			g_memory_copyMem(res.text, text, (textLength + 1) * sizeof(char));
+			return res;
+		}
 
 		void free()
 		{
@@ -84,18 +99,14 @@ namespace MathAnim
 		{
 			float number;
 			Vec4 color;
-			DumbString string;
 			DumbString identifier;
 		} as;
 
-		~StyleToken()
+		void free()
 		{
-			if (type == StyleTokenType::String)
-			{
-				as.string.free();
-			}
-
-			if (type == StyleTokenType::Identifier)
+			if (type == StyleTokenType::Identifier ||
+				type == StyleTokenType::HashtagIdentifier ||
+				type == StyleTokenType::DotIdentifier)
 			{
 				as.identifier.free();
 			}
@@ -111,10 +122,96 @@ namespace MathAnim
 		Vec2 endpoint;
 	};
 
-	struct StyleAttribute
+	enum class StyleAttributeType : uint8
 	{
-		std::string name;
-		std::string value;
+		None = 0,
+		Color,
+		Identifier,
+		Number
+	};
+
+	class StyleAttribute
+	{
+	public:
+		StyleAttribute(const std::string& attributeName, float asNumber)
+			: _name(attributeName), number(asNumber), type(StyleAttributeType::Number)
+		{
+		}
+
+		StyleAttribute(const std::string& attributeName, Vec4 asColor)
+			: _name(attributeName), color(asColor), type(StyleAttributeType::Color)
+		{
+		}
+
+		StyleAttribute(const std::string& attributeName, const std::string& asIdentifier)
+			: _name(attributeName), identifier(asIdentifier), type(StyleAttributeType::Identifier)
+		{
+		}
+
+		std::string value()
+		{
+			if (isIdentifier())
+			{
+				return identifier;
+			}
+
+			if (isColor())
+			{
+				return "Color<R:" + std::to_string((int)(color.r * 255.0f)) +
+					", G:" + std::to_string((int)(color.g * 255.0f)) +
+					", B:" + std::to_string((int)(color.b * 255.0f)) +
+					", A:" + std::to_string((int)(color.a * 255.0f)) + ">";
+			}
+
+			if (isNumber())
+			{
+				return std::to_string(number);
+			}
+
+			return "UNDEFINED";
+		}
+
+		inline const std::string& name() const { return _name; }
+		inline bool isIdentifier() const { return type == StyleAttributeType::Identifier; }
+		inline bool isColor() const { return type == StyleAttributeType::Color; }
+		inline bool isNumber() const { return type == StyleAttributeType::Number; }
+
+		const std::string& asIdentifier() const
+		{
+			if (isIdentifier())
+			{
+				return identifier;
+			}
+
+			return "";
+		}
+
+		const Vec4& asColor() const
+		{
+			if (isColor())
+			{
+				return color;
+			}
+
+			return { NAN, NAN, NAN, NAN };
+		}
+
+		float asNumber() const
+		{
+			if (isNumber())
+			{
+				return number;
+			}
+
+			return NAN;
+		}
+
+	private:
+		StyleAttributeType type;
+		std::string _name;
+		std::string identifier;
+		float number;
+		Vec4 color;
 	};
 
 	struct Style
@@ -147,14 +244,19 @@ namespace MathAnim
 		static bool parseArcParamsList(std::vector<ArcParams>& list, ParserInfo& parserInfo);
 		static bool parseViewbox(Vec4* out, const char* viewboxStr);
 		static PathToken parseNextPathToken(ParserInfo& parserInfo);
-		static PathToken consume(PathTokenType expected, ParserInfo&  parserInfo);
+		static PathToken consume(PathTokenType expected, ParserInfo& parserInfo);
 
 		// -------- Svg Style Parser --------
 		static StyleToken parseNextStyleToken(ParserInfo& parserInfo);
-		static bool parseStyle(StyleToken token, ParserInfo& parserInfo, Stylesheet* res);
+		static bool parseStyle(ParserInfo& parserInfo, Stylesheet* res, StyleTokenType identifierType);
+		static StyleToken consume(StyleTokenType expected, ParserInfo& parserInfo);
+		static StyleToken consumeChar(char expectedChar, StyleTokenType resType, ParserInfo& parserInfo);
+		static void printStyleToken(StyleToken& token);
 
 		// -------- Generic Parser Stuff --------
-		static bool parseNumber(ParserInfo& parserInfo, float* out);  
+		static bool parseNumber(ParserInfo& parserInfo, float* out);
+		static bool parseString(ParserInfo& parserInfo, DumbString* string, char stringTerminator);
+		static bool parseIdentifier(ParserInfo& parserInfo, DumbString* string, bool canStartWithNumber = false);
 		static void skipWhitespaceAndCommas(ParserInfo& parserInfo);
 		static void skipWhitespace(ParserInfo& parserInfo);
 
@@ -165,7 +267,7 @@ namespace MathAnim
 		static inline bool isNumberPart(char c) { return isDigit(c) || c == '-' || c == '.'; }
 		static inline bool isAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
 		static inline bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\0'; }
-		static inline bool isStyleIdentifier(char c) { return isAlpha(c) || c == '-'; }
+		static inline bool isStyleIdentifierPart(char c) { return isAlpha(c) || c == '-'; }
 
 		void init()
 		{
@@ -446,31 +548,10 @@ namespace MathAnim
 			// Stylesheet: 
 			//   Style | Stylesheet
 			// 
-			// Style
-			// 
-			// .[a-zA-Z]+    = ClassName
-			// #[a-zA-Z]+    = IdName
-			//    {
-			//        [a-zA-Z\-]+ : Color | String | Number
-			//    }
-			// 
-			// Color
-			//   #[a-fA-F0-9]{3|6|8}
-			//       Examples: #FF00FF
-			//                 #FF00FF00
-			//                 #FFF
-			//  rgb(Number, Number, Number)
-			//  rgba(Number, Number, Number, Number)
-			//
-			// String: 
-			//   "(.*)"
-			// 
-			// Number: NumberParser
-			//
 
 			const char* styleText = element->GetText();
 			size_t styleTextLength = std::strlen(styleText);
-			
+
 			Stylesheet res = {};
 			if (styleTextLength <= 0)
 			{
@@ -483,25 +564,44 @@ namespace MathAnim
 			parserInfo.text = styleText;
 			parserInfo.textLength = styleTextLength;
 
-			StyleToken token = parseNextStyleToken(parserInfo);
+			StyleToken token = {};
 			while (token.type != StyleTokenType::EndOfFile)
 			{
-				// panic if we fail to interpret a command
-				bool panic = !parseStyle(token, parserInfo, &res);
-				if (!panic)
-				{
-					StyleToken nextStyleToken = parseNextStyleToken(parserInfo);
-					if (nextStyleToken.type == StyleTokenType::Panic)
-					{
-						panic = true;
-					}
-					token = nextStyleToken;
-				}
-
-				if (panic)
+				token = parseNextStyleToken(parserInfo);
+				if (token.type == StyleTokenType::Panic)
 				{
 					g_logger_error("Had an error while parsing svg path and panicked");
 					return false;
+				}
+
+				// Root level objects must be #id or .id
+				if (token.type == StyleTokenType::HashtagIdentifier || token.type == StyleTokenType::DotIdentifier)
+				{
+					if (!parseStyle(parserInfo, &res, token.type))
+					{
+						PANIC("Error while parsing embedded style in SVG doc. See logs for more info.");
+						return false;
+					}
+
+					if (token.type == StyleTokenType::HashtagIdentifier)
+					{
+						res.styles[res.styles.size() - 1].idName = std::string(token.as.identifier.text);
+					}
+					else
+					{
+						res.styles[res.styles.size() - 1].className = std::string(token.as.identifier.text);
+					}
+				}
+
+				token.free();
+			}
+
+			for (Style& style : res.styles)
+			{
+				g_logger_info("Style: <class:%s, id:%s>", style.className.c_str(), style.idName.c_str());
+				for (StyleAttribute& attribute : style.attributes)
+				{
+					g_logger_info("Attribute<%s>: %s", attribute.name().c_str(), attribute.value().c_str());
 				}
 			}
 
@@ -1003,12 +1103,294 @@ namespace MathAnim
 
 		static StyleToken parseNextStyleToken(ParserInfo& parserInfo)
 		{
-			return {};
+			skipWhitespace(parserInfo);
+
+			/*
+				Color # identifier, // Handled later phase of parsing
+			*/
+			StyleToken res;
+			res.type = StyleTokenType::Panic;
+
+			switch (peek(parserInfo))
+			{
+			case '{': return consumeChar('{', StyleTokenType::LeftCurlyBracket, parserInfo);
+			case '}': return consumeChar('}', StyleTokenType::RightCurlyBracket, parserInfo);
+			case'(': return consumeChar('(', StyleTokenType::LeftParen, parserInfo);
+			case ')': return consumeChar(')', StyleTokenType::RightParen, parserInfo);
+			case '\0': return consumeChar('\0', StyleTokenType::EndOfFile, parserInfo);
+			case ':': return consumeChar(':', StyleTokenType::Colon, parserInfo);
+			case ';': return consumeChar(';', StyleTokenType::Semicolon, parserInfo);
+			case '#':
+			{
+				// We have #something don't know if it's a color or identifier until
+				// we start interpreting
+				char hashtag = advance(parserInfo);
+				g_logger_assert(hashtag == '#', "Something went horribly wrong.");
+
+				if (parseIdentifier(parserInfo, &res.as.identifier, true))
+				{
+					res.type = StyleTokenType::HashtagIdentifier;
+				}
+			}
+			break;
+			case '.':
+			{
+				// We have a number or a .identifier
+
+				if (!isNumberPart(peek(parserInfo, 1)))
+				{
+					char hashtag = advance(parserInfo);
+					g_logger_assert(hashtag == '.', "Something went horribly wrong.");
+
+					if (parseIdentifier(parserInfo, &res.as.identifier))
+					{
+						res.type = StyleTokenType::DotIdentifier;
+					}
+
+					break;
+				}
+
+				if (parseNumber(parserInfo, &res.as.number))
+				{
+					res.type = StyleTokenType::Number;
+					break;
+				}
+			}
+			break;
+			case '\'':
+			case '"':
+			{
+				// Pass through whether this is a single quote string or 
+				// double quote string
+				if (parseString(parserInfo, &res.as.identifier, peek(parserInfo)))
+				{
+					res.type = StyleTokenType::String;
+					break;
+				}
+			}
+			break;
+			case '-':
+			{
+				// We have a -1.2 negative number or an identifier -moz-blah
+
+				// This must be a number
+				if (peek(parserInfo, 1) == '.' || isDigit(peek(parserInfo, 1)))
+				{
+					if (parseNumber(parserInfo, &res.as.number))
+					{
+						res.type = StyleTokenType::Number;
+					}
+
+					break;
+				}
+
+				if (parseIdentifier(parserInfo, &res.as.identifier))
+				{
+					res.type = StyleTokenType::Identifier;
+					break;
+				}
+			}
+			break;
+			default:
+			{
+				// We have a number or identifier or unknown
+
+				if (isDigit(peek(parserInfo)))
+				{
+					if (parseNumber(parserInfo, &res.as.number))
+					{
+						res.type = StyleTokenType::Number;
+					}
+
+					break;
+				}
+
+				if (parseIdentifier(parserInfo, &res.as.identifier))
+				{
+					res.type = StyleTokenType::Identifier;
+					break;
+				}
+			}
+			break;
+			}
+
+			return res;
 		}
 
-		static bool parseStyle(StyleToken token, ParserInfo& parserInfo, Stylesheet* res)
+		static bool parseStyle(ParserInfo& parserInfo, Stylesheet* res, StyleTokenType identifierType)
 		{
-			return false;
+			Style newStyle;
+
+			StyleToken token = consume(StyleTokenType::LeftCurlyBracket, parserInfo);
+			if (token.type == StyleTokenType::Panic)
+			{
+				return false;
+			}
+
+			token = parseNextStyleToken(parserInfo);
+			while (token.type != StyleTokenType::RightCurlyBracket && token.type != StyleTokenType::EndOfFile)
+			{
+				if (token.type != StyleTokenType::Identifier)
+				{
+					PANIC("Expected identifier. Instead got token of type: %d", token.type);
+					return false;
+				}
+
+				StyleToken attributeName = token;
+
+				token = consume(StyleTokenType::Colon, parserInfo);
+				if (token.type == StyleTokenType::Panic)
+				{
+					return false;
+				}
+
+				StyleToken attributeValue = parseNextStyleToken(parserInfo);
+
+				token = consume(StyleTokenType::Semicolon, parserInfo);
+				if (token.type == StyleTokenType::Panic)
+				{
+					return false;
+				}
+
+				if (attributeValue.type == StyleTokenType::Identifier)
+				{
+					newStyle.attributes.emplace_back(
+						StyleAttribute(
+							std::string(attributeName.as.identifier.text),
+							std::string(attributeValue.as.identifier.text)
+						)
+					);
+				}
+				else if (attributeValue.type == StyleTokenType::Number)
+				{
+					newStyle.attributes.emplace_back(
+						StyleAttribute(
+							std::string(attributeName.as.identifier.text),
+							attributeValue.as.number
+						)
+					);
+				}
+				else if (attributeValue.type == StyleTokenType::HashtagIdentifier)
+				{
+					// This should be a color
+					std::string colorAsString = std::string(attributeValue.as.identifier.text);
+					if (colorAsString.length() == 3)
+					{
+						colorAsString += colorAsString;
+					}
+
+					if (colorAsString.length() == 6 || colorAsString.length() == 8)
+					{
+						newStyle.attributes.emplace_back(
+							StyleAttribute(
+								std::string(attributeName.as.identifier.text),
+								toHex(colorAsString)
+							)
+						);
+					}
+					else
+					{
+						PANIC("Invalid color as attribute value '%s'. This is not a color, for attribute: %s", attributeName.as.identifier.text, colorAsString.c_str());
+						attributeName.free();
+						attributeValue.free();
+						token.free();
+						return false;
+					}
+				}
+
+				attributeName.free();
+				attributeValue.free();
+				token.free();
+				token = parseNextStyleToken(parserInfo);
+			}
+
+			if (token.type != StyleTokenType::RightCurlyBracket)
+			{
+				token.free();
+				PANIC("Expected '}' to end a style. Instead got token of type: %d", token.type);
+				return false;
+			}
+
+			res->styles.emplace_back(newStyle);
+			return true;
+		}
+
+		static StyleToken consumeChar(char expectedChar, StyleTokenType resType, ParserInfo& parserInfo)
+		{
+			StyleToken token;
+			token.type = resType;
+
+			char c = advance(parserInfo);
+			if (c != expectedChar)
+			{
+				token.type = StyleTokenType::Panic;
+				parserInfo.cursor = parserInfo.textLength - 1;
+			}
+
+			return token;
+		}
+
+		static StyleToken consume(StyleTokenType expected, ParserInfo& parserInfo)
+		{
+			StyleToken token = parseNextStyleToken(parserInfo);
+			if (token.type != expected)
+			{
+				token.free();
+				PANIC("Expected token of type '%d' but got token of type '%d'.", expected, token.type);
+				token.type = StyleTokenType::Panic;
+				parserInfo.cursor = parserInfo.textLength;
+			}
+
+			return token;
+		}
+
+		static void printStyleToken(StyleToken& token)
+		{
+			switch (token.type)
+			{
+			case StyleTokenType::Panic:
+				g_logger_info("Token<Panic>");
+				break;
+			case StyleTokenType::EndOfFile:
+				g_logger_info("Token<EOF>: \\0");
+				break;
+			case StyleTokenType::Identifier:
+				g_logger_info("Token<Identifier>: %s", token.as.identifier.text);
+				break;
+			case StyleTokenType::DotIdentifier:
+				g_logger_info("Token<DotIdentifier>: .%s", token.as.identifier.text);
+				break;
+			case StyleTokenType::HashtagIdentifier:
+				g_logger_info("Token<HashtagIdentifier>: #%s", token.as.identifier.text);
+				break;
+			case StyleTokenType::LeftCurlyBracket:
+				g_logger_info("Token<LCurlyBracket>: {");
+				break;
+			case StyleTokenType::LeftParen:
+				g_logger_info("Token<LParen>: (");
+				break;
+			case StyleTokenType::Number:
+				g_logger_info("Token<Number>: %2.3f", token.as.number);
+				break;
+			case StyleTokenType::RightCurlyBracket:
+				g_logger_info("Token<RCurlyBracket>: }");
+				break;
+			case StyleTokenType::RightParen:
+				g_logger_info("Token<RParen>: )");
+				break;
+			case StyleTokenType::String:
+				g_logger_info("Token<String>: \"%s\"", token.as.identifier.text);
+				break;
+			case StyleTokenType::Colon:
+				g_logger_info("Token<Colon>: :");
+				break;
+			case StyleTokenType::Semicolon:
+				g_logger_info("Token<Semicolon>: ;");
+				break;
+			default:
+				g_logger_warning("Unknown token: %d", token.type);
+				break;
+			}
 		}
 
 		// -------- Generic Parser Stuff --------
@@ -1045,6 +1427,86 @@ namespace MathAnim
 			}
 
 			*out = 0.0f;
+			return false;
+		}
+
+		static bool parseString(ParserInfo& parserInfo, DumbString* string, char stringTerminator)
+		{
+			char stringStart = advance(parserInfo);
+			if (stringStart != stringTerminator)
+			{
+				goto cleanupReturnFalse;
+			}
+
+			size_t stringStartIndex = parserInfo.cursor;
+			size_t stringEndIndex = parserInfo.cursor;
+
+			while (peek(parserInfo) != stringTerminator)
+			{
+				advance(parserInfo);
+				stringEndIndex++;
+			}
+
+			char stringEnd = advance(parserInfo);
+			if (stringEnd != stringTerminator)
+			{
+				goto cleanupReturnFalse;
+			}
+
+			g_logger_assert(stringStartIndex < parserInfo.textLength, "Invalid start index.");
+			g_logger_assert(stringEndIndex < parserInfo.textLength&& stringEndIndex >= stringStartIndex, "Invalid end index.");
+
+			string->textLength = (stringEndIndex - stringStartIndex);
+			string->text = (char*)g_memory_allocate(sizeof(char) * (string->textLength + 1));
+			g_memory_copyMem(string->text, (void*)(parserInfo.text + stringStartIndex), sizeof(char) * string->textLength);
+			string->text[string->textLength] = '\0';
+
+			return true;
+
+		cleanupReturnFalse:
+			*string = {};
+			return false;
+		}
+
+		static bool parseIdentifier(ParserInfo& parserInfo, DumbString* string, bool canStartWithNumber)
+		{
+			size_t stringStartIndex = parserInfo.cursor;
+			size_t stringEndIndex = parserInfo.cursor;
+
+			char idStart = advance(parserInfo);
+			stringEndIndex++;
+			if (!isStyleIdentifierPart(idStart))
+			{
+				if (!(isDigit(idStart) && canStartWithNumber))
+				{
+					goto cleanupReturnFalse;
+				}
+			}
+
+			while (isStyleIdentifierPart(peek(parserInfo)) || isDigit(peek(parserInfo)))
+			{
+				advance(parserInfo);
+				stringEndIndex++;
+			}
+
+			g_logger_assert(stringStartIndex < parserInfo.textLength, "Invalid start index.");
+			g_logger_assert(stringEndIndex < parserInfo.textLength&& stringEndIndex > stringStartIndex, "Invalid end index.");
+
+			if (stringEndIndex - stringStartIndex == 1 && parserInfo.text[stringStartIndex] == '-')
+			{
+				PANIC("Cannot have an identifier that is just a dash like this '-'.");
+				goto cleanupReturnFalse;
+			}
+
+			string->textLength = (stringEndIndex - stringStartIndex);
+			string->text = (char*)g_memory_allocate(sizeof(char) * (string->textLength + 1));
+			g_memory_copyMem(string->text, (void*)(parserInfo.text + stringStartIndex), sizeof(char) * string->textLength);
+			string->text[string->textLength] = '\0';
+
+			return true;
+
+		cleanupReturnFalse:
+			*string = {};
 			return false;
 		}
 

@@ -53,6 +53,9 @@
 
 // User defined literals
 MathAnim::Vec4 operator""_hex(const char* hexColor, size_t length);
+MathAnim::Vec4 toHex(const std::string& str);
+MathAnim::Vec4 toHex(const char* hex, size_t length);
+MathAnim::Vec4 toHex(const char* hex);
 
 // SIMD intrinsics
 #include <xmmintrin.h>
