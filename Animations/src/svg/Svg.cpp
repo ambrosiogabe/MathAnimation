@@ -1796,6 +1796,7 @@ namespace MathAnim
 		// texture to a quad
 		plutovg_set_rgba(pluto, 1.0, 1.0, 1.0, 1.0);
 		plutovg_close_path(pluto);
+		plutovg_set_fill_rule(pluto, plutovg_fill_rule_even_odd);
 		plutovg_fill_preserve(pluto);
 	}
 

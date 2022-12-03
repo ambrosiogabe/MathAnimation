@@ -18,7 +18,7 @@ namespace MathAnim
 		size_t cursor;
 	};
 
-	enum class TokenType : uint8
+	enum class PathTokenType : uint8
 	{
 		Panic = 0,
 		MoveTo,
@@ -36,14 +36,70 @@ namespace MathAnim
 		Length
 	};
 
-	struct Token
+	struct PathToken
 	{
-		TokenType type;
+		PathTokenType type;
 		bool isAbsolute;
 		union
 		{
 			float number;
 		} as;
+	};
+
+	enum class StyleTokenType : uint8
+	{
+		Panic = 0,
+		AttributeId,
+		AttributeClass,
+		Identifier,
+		String,
+		Color,
+		Number,
+		EndOfFile,
+		Length
+	};
+
+	struct DumbString
+	{
+		char* text;
+		size_t textLength;
+
+		void free()
+		{
+			if (text)
+			{
+				g_memory_free(text);
+			}
+
+			text = nullptr;
+			textLength = 0;
+		}
+	};
+
+	struct StyleToken
+	{
+		StyleTokenType type;
+		bool isAbsolute;
+		union
+		{
+			float number;
+			Vec4 color;
+			DumbString string;
+			DumbString identifier;
+		} as;
+
+		~StyleToken()
+		{
+			if (type == StyleTokenType::String)
+			{
+				as.string.free();
+			}
+
+			if (type == StyleTokenType::Identifier)
+			{
+				as.identifier.free();
+			}
+		}
 	};
 
 	struct ArcParams
@@ -55,6 +111,24 @@ namespace MathAnim
 		Vec2 endpoint;
 	};
 
+	struct StyleAttribute
+	{
+		std::string name;
+		std::string value;
+	};
+
+	struct Style
+	{
+		std::string className;
+		std::string idName;
+		std::vector<StyleAttribute> attributes;
+	};
+
+	struct Stylesheet
+	{
+		std::vector<Style> styles;
+	};
+
 	namespace SvgParser
 	{
 		// Internal variables
@@ -62,23 +136,36 @@ namespace MathAnim
 		static char errorBuffer[errorBufferSize];
 
 		// ----------- Internal Functions -----------
+		static bool parseSvgStylesheet(XMLElement* element, Stylesheet* output);
 		static bool parseSvgPathTag(XMLElement* element, SvgObject* output);
-		static bool interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res);
+
+		// -------- Path Parser --------
+		static bool interpretCommand(const PathToken& token, ParserInfo& parserInfo, SvgObject* res);
 		static bool parseVec2List(std::vector<Vec2>& list, ParserInfo& parserInfo);
 		static bool parseHzNumberList(std::vector<float>& list, ParserInfo& parserInfo);
 		static bool parseVtNumberList(std::vector<float>& list, ParserInfo& parserInfo);
 		static bool parseArcParamsList(std::vector<ArcParams>& list, ParserInfo& parserInfo);
 		static bool parseViewbox(Vec4* out, const char* viewboxStr);
-		static Token parseNextToken(ParserInfo& parserInfo);
-		static bool parseNumber(ParserInfo& parserInfo, float* out);
-		static Token consume(TokenType expected, ParserInfo& parserInfo);
+		static PathToken parseNextPathToken(ParserInfo& parserInfo);
+		static PathToken consume(PathTokenType expected, ParserInfo&  parserInfo);
+
+		// -------- Svg Style Parser --------
+		static StyleToken parseNextStyleToken(ParserInfo& parserInfo);
+		static bool parseStyle(StyleToken token, ParserInfo& parserInfo, Stylesheet* res);
+
+		// -------- Generic Parser Stuff --------
+		static bool parseNumber(ParserInfo& parserInfo, float* out);  
 		static void skipWhitespaceAndCommas(ParserInfo& parserInfo);
+		static void skipWhitespace(ParserInfo& parserInfo);
+
+		// -------- Helpers --------
 		static inline char advance(ParserInfo& parserInfo) { char c = parserInfo.cursor < parserInfo.textLength ? parserInfo.text[parserInfo.cursor] : '\0'; parserInfo.cursor++; return c; }
 		static inline char peek(const ParserInfo& parserInfo, int advance = 0) { return parserInfo.cursor + advance > parserInfo.textLength - 1 ? '\0' : parserInfo.text[parserInfo.cursor + advance]; }
 		static inline bool isDigit(char c) { return (c >= '0' && c <= '9'); }
 		static inline bool isNumberPart(char c) { return isDigit(c) || c == '-' || c == '.'; }
 		static inline bool isAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
-		static inline bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\0'; }
+		static inline bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\0'; }
+		static inline bool isStyleIdentifier(char c) { return isAlpha(c) || c == '-'; }
 
 		void init()
 		{
@@ -128,6 +215,17 @@ namespace MathAnim
 			// The SVG paths can be embedded as children of <svg> directly
 			XMLElement* defsElement = svgElement->FirstChildElement("defs");
 			XMLElement* groupElement = svgElement->FirstChildElement("g");
+			// TODO: This isn't the best way to do this
+			XMLElement* styleElement = svgElement->FirstChildElement("style");
+
+			Stylesheet stylesheet;
+			if (styleElement)
+			{
+				if (!parseSvgStylesheet(styleElement, &stylesheet))
+				{
+					PANIC("Parsing SVG style failed: %s", styleElement->GetText());
+				}
+			}
 
 			std::unordered_map<std::string, SvgObject> objIds;
 
@@ -295,24 +393,24 @@ namespace MathAnim
 			parserInfo.text = pathText;
 			parserInfo.textLength = pathTextLength;
 
-			Token token = parseNextToken(parserInfo);
-			bool lastTokenWasClosePath = false;
-			while (token.type != TokenType::EndOfFile)
+			PathToken token = parseNextPathToken(parserInfo);
+			bool lastPathTokenWasClosePath = false;
+			while (token.type != PathTokenType::EndOfFile)
 			{
 				// panic if we fail to interpret a command
 				bool panic = !interpretCommand(token, parserInfo, &res);
 				if (!panic)
 				{
-					Token nextToken = parseNextToken(parserInfo);
-					if (nextToken.type == TokenType::EndOfFile)
+					PathToken nextPathToken = parseNextPathToken(parserInfo);
+					if (nextPathToken.type == PathTokenType::EndOfFile)
 					{
-						lastTokenWasClosePath = token.type == TokenType::ClosePath;
+						lastPathTokenWasClosePath = token.type == PathTokenType::ClosePath;
 					}
-					else if (nextToken.type == TokenType::Panic)
+					else if (nextPathToken.type == PathTokenType::Panic)
 					{
 						panic = true;
 					}
-					token = nextToken;
+					token = nextPathToken;
 				}
 
 				if (panic)
@@ -324,7 +422,7 @@ namespace MathAnim
 			}
 
 			// We should only do this if the path didn't end with a close_path command
-			if (!lastTokenWasClosePath)
+			if (!lastPathTokenWasClosePath)
 			{
 				bool isHole = res.numPaths > 1;
 				Svg::closePath(&res, false, isHole);
@@ -343,6 +441,75 @@ namespace MathAnim
 		}
 
 		// ----------- Internal Functions -----------
+		static bool parseSvgStylesheet(XMLElement* element, Stylesheet* output)
+		{
+			// Stylesheet: 
+			//   Style | Stylesheet
+			// 
+			// Style
+			// 
+			// .[a-zA-Z]+    = ClassName
+			// #[a-zA-Z]+    = IdName
+			//    {
+			//        [a-zA-Z\-]+ : Color | String | Number
+			//    }
+			// 
+			// Color
+			//   #[a-fA-F0-9]{3|6|8}
+			//       Examples: #FF00FF
+			//                 #FF00FF00
+			//                 #FFF
+			//  rgb(Number, Number, Number)
+			//  rgba(Number, Number, Number, Number)
+			//
+			// String: 
+			//   "(.*)"
+			// 
+			// Number: NumberParser
+			//
+
+			const char* styleText = element->GetText();
+			size_t styleTextLength = std::strlen(styleText);
+			
+			Stylesheet res = {};
+			if (styleTextLength <= 0)
+			{
+				PANIC("Cannot parse an SVG style that has no text.");
+				return false;
+			}
+
+			ParserInfo parserInfo;
+			parserInfo.cursor = 0;
+			parserInfo.text = styleText;
+			parserInfo.textLength = styleTextLength;
+
+			StyleToken token = parseNextStyleToken(parserInfo);
+			while (token.type != StyleTokenType::EndOfFile)
+			{
+				// panic if we fail to interpret a command
+				bool panic = !parseStyle(token, parserInfo, &res);
+				if (!panic)
+				{
+					StyleToken nextStyleToken = parseNextStyleToken(parserInfo);
+					if (nextStyleToken.type == StyleTokenType::Panic)
+					{
+						panic = true;
+					}
+					token = nextStyleToken;
+				}
+
+				if (panic)
+				{
+					g_logger_error("Had an error while parsing svg path and panicked");
+					return false;
+				}
+			}
+
+			*output = res;
+
+			return true;
+		}
+
 		static bool parseSvgPathTag(XMLElement* element, SvgObject* output)
 		{
 			if (std::strcmp(element->Name(), "path") != 0)
@@ -362,11 +529,11 @@ namespace MathAnim
 			return parseSvgPath(pathAttribute->Value(), textLength, output);
 		}
 
-		static bool interpretCommand(const Token& token, ParserInfo& parserInfo, SvgObject* res)
+		static bool interpretCommand(const PathToken& token, ParserInfo& parserInfo, SvgObject* res)
 		{
-			TokenType commandType = token.type;
+			PathTokenType commandType = token.type;
 			bool isAbsolute = token.isAbsolute;
-			if (commandType == TokenType::Panic)
+			if (commandType == PathTokenType::Panic)
 			{
 				return false;
 			}
@@ -374,7 +541,7 @@ namespace MathAnim
 			// Parse as many {x, y} pairs as possible
 			switch (commandType)
 			{
-			case TokenType::MoveTo:
+			case PathTokenType::MoveTo:
 			{
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
@@ -396,13 +563,13 @@ namespace MathAnim
 				}
 			}
 			break;
-			case TokenType::ClosePath:
+			case PathTokenType::ClosePath:
 			{
 				bool isHole = res->numPaths > 1;
 				Svg::closePath(res, true, isHole);
 			}
 			break;
-			case TokenType::LineTo:
+			case PathTokenType::LineTo:
 			{
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
@@ -422,7 +589,7 @@ namespace MathAnim
 				}
 			}
 			break;
-			case TokenType::HzLineTo:
+			case PathTokenType::HzLineTo:
 			{
 				std::vector<float> numberList;
 				if (!parseHzNumberList(numberList, parserInfo))
@@ -442,7 +609,7 @@ namespace MathAnim
 				}
 			}
 			break;
-			case TokenType::VtLineTo:
+			case PathTokenType::VtLineTo:
 			{
 				std::vector<float> numberList;
 				if (!parseVtNumberList(numberList, parserInfo))
@@ -462,7 +629,7 @@ namespace MathAnim
 				}
 			}
 			break;
-			case TokenType::CurveTo:
+			case PathTokenType::CurveTo:
 			{
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
@@ -489,7 +656,7 @@ namespace MathAnim
 				}
 			}
 			break;
-			case TokenType::SmoothCurveTo:
+			case PathTokenType::SmoothCurveTo:
 			{
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
@@ -516,7 +683,7 @@ namespace MathAnim
 				}
 			}
 			break;
-			case TokenType::QuadCurveTo:
+			case PathTokenType::QuadCurveTo:
 			{
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
@@ -543,7 +710,7 @@ namespace MathAnim
 				}
 			}
 			break;
-			case TokenType::SmoothQuadCurveTo:
+			case PathTokenType::SmoothQuadCurveTo:
 			{
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
@@ -563,7 +730,7 @@ namespace MathAnim
 				}
 			}
 			break;
-			case TokenType::ArcTo:
+			case PathTokenType::ArcTo:
 			{
 				std::vector<ArcParams> arcParamsList;
 				if (!parseArcParamsList(arcParamsList, parserInfo))
@@ -604,10 +771,10 @@ namespace MathAnim
 			do
 			{
 				// TODO: Revisit this with a match(tokenType) statement
-				Token x = consume(TokenType::Number, parserInfo);
-				Token y = consume(TokenType::Number, parserInfo);
+				PathToken x = consume(PathTokenType::Number, parserInfo);
+				PathToken y = consume(PathTokenType::Number, parserInfo);
 
-				if (x.type == TokenType::Number && y.type == TokenType::Number)
+				if (x.type == PathTokenType::Number && y.type == PathTokenType::Number)
 				{
 					float xVal = x.as.number;
 					float yVal = y.as.number;
@@ -627,9 +794,9 @@ namespace MathAnim
 			do
 			{
 				// TODO: Revisit this with a match(tokenType) statement
-				Token x = consume(TokenType::Number, parserInfo);
+				PathToken x = consume(PathTokenType::Number, parserInfo);
 
-				if (x.type == TokenType::Number)
+				if (x.type == PathTokenType::Number)
 				{
 					float xVal = x.as.number;
 					list.emplace_back(xVal);
@@ -648,9 +815,9 @@ namespace MathAnim
 			do
 			{
 				// TODO: Revisit this with a match(tokenType) statement
-				Token y = consume(TokenType::Number, parserInfo);
+				PathToken y = consume(PathTokenType::Number, parserInfo);
 
-				if (y.type == TokenType::Number)
+				if (y.type == PathTokenType::Number)
 				{
 					float yVal = y.as.number;
 					list.emplace_back(yVal);
@@ -669,18 +836,18 @@ namespace MathAnim
 			do
 			{
 				// TODO: Revisit this with a match(tokenType) statement
-				Token rx = consume(TokenType::Number, parserInfo);
-				Token ry = consume(TokenType::Number, parserInfo);
-				Token xAxisRotation = consume(TokenType::Number, parserInfo);
-				Token largeArcFlag = consume(TokenType::Number, parserInfo);
-				Token sweepFlag = consume(TokenType::Number, parserInfo);
-				Token dstX = consume(TokenType::Number, parserInfo);
-				Token dstY = consume(TokenType::Number, parserInfo);
+				PathToken rx = consume(PathTokenType::Number, parserInfo);
+				PathToken ry = consume(PathTokenType::Number, parserInfo);
+				PathToken xAxisRotation = consume(PathTokenType::Number, parserInfo);
+				PathToken largeArcFlag = consume(PathTokenType::Number, parserInfo);
+				PathToken sweepFlag = consume(PathTokenType::Number, parserInfo);
+				PathToken dstX = consume(PathTokenType::Number, parserInfo);
+				PathToken dstY = consume(PathTokenType::Number, parserInfo);
 
-				if (rx.type == TokenType::Number && ry.type == TokenType::Number &&
-					xAxisRotation.type == TokenType::Number &&
-					largeArcFlag.type == TokenType::Number && sweepFlag.type == TokenType::Number &&
-					dstX.type == TokenType::Number && dstY.type == TokenType::Number)
+				if (rx.type == PathTokenType::Number && ry.type == PathTokenType::Number &&
+					xAxisRotation.type == PathTokenType::Number &&
+					largeArcFlag.type == PathTokenType::Number && sweepFlag.type == PathTokenType::Number &&
+					dstX.type == PathTokenType::Number && dstY.type == PathTokenType::Number)
 				{
 					ArcParams res;
 					res.radius.x = rx.as.number;
@@ -709,12 +876,12 @@ namespace MathAnim
 			pi.text = viewboxStr;
 			pi.textLength = std::strlen(viewboxStr);
 
-			Token x = parseNextToken(pi);
-			Token y = parseNextToken(pi);
-			Token w = parseNextToken(pi);
-			Token h = parseNextToken(pi);
+			PathToken x = parseNextPathToken(pi);
+			PathToken y = parseNextPathToken(pi);
+			PathToken w = parseNextPathToken(pi);
+			PathToken h = parseNextPathToken(pi);
 
-			if (x.type != TokenType::Number || y.type != TokenType::Number || w.type != TokenType::Number || h.type != TokenType::Number)
+			if (x.type != PathTokenType::Number || y.type != PathTokenType::Number || w.type != PathTokenType::Number || h.type != PathTokenType::Number)
 			{
 				PANIC("Malformed viewBox '%s'", viewboxStr);
 				return false;
@@ -727,10 +894,10 @@ namespace MathAnim
 			return true;
 		}
 
-		static Token parseNextToken(ParserInfo& parserInfo)
+		static PathToken parseNextPathToken(ParserInfo& parserInfo)
 		{
-			Token result;
-			result.type = TokenType::Panic;
+			PathToken result;
+			result.type = PathTokenType::Panic;
 
 			if (isAlpha(peek(parserInfo)))
 			{
@@ -739,51 +906,51 @@ namespace MathAnim
 				{
 				case 'M':
 				case 'm':
-					result.type = TokenType::MoveTo;
+					result.type = PathTokenType::MoveTo;
 					result.isAbsolute = commandLetter == 'M';
 					break;
 				case 'Z':
 				case 'z':
-					result.type = TokenType::ClosePath;
+					result.type = PathTokenType::ClosePath;
 					break;
 				case 'L':
 				case 'l':
-					result.type = TokenType::LineTo;
+					result.type = PathTokenType::LineTo;
 					result.isAbsolute = commandLetter == 'L';
 					break;
 				case 'H':
 				case 'h':
-					result.type = TokenType::HzLineTo;
+					result.type = PathTokenType::HzLineTo;
 					result.isAbsolute = commandLetter == 'H';
 					break;
 				case 'V':
 				case 'v':
-					result.type = TokenType::VtLineTo;
+					result.type = PathTokenType::VtLineTo;
 					result.isAbsolute = commandLetter == 'V';
 					break;
 				case 'C':
 				case 'c':
-					result.type = TokenType::CurveTo;
+					result.type = PathTokenType::CurveTo;
 					result.isAbsolute = commandLetter == 'C';
 					break;
 				case 'S':
 				case 's':
-					result.type = TokenType::SmoothCurveTo;
+					result.type = PathTokenType::SmoothCurveTo;
 					result.isAbsolute = commandLetter == 'S';
 					break;
 				case 'Q':
 				case 'q':
-					result.type = TokenType::QuadCurveTo;
+					result.type = PathTokenType::QuadCurveTo;
 					result.isAbsolute = commandLetter == 'Q';
 					break;
 				case 'T':
 				case 't':
-					result.type = TokenType::SmoothQuadCurveTo;
+					result.type = PathTokenType::SmoothQuadCurveTo;
 					result.isAbsolute = commandLetter == 'T';
 					break;
 				case 'A':
 				case 'a':
-					result.type = TokenType::ArcTo;
+					result.type = PathTokenType::ArcTo;
 					result.isAbsolute = commandLetter == 'A';
 					break;
 				default:
@@ -803,13 +970,13 @@ namespace MathAnim
 				}
 				else
 				{
-					result.type = TokenType::Number;
+					result.type = PathTokenType::Number;
 					result.as.number = number;
 				}
 			}
 			else if (parserInfo.cursor >= parserInfo.textLength)
 			{
-				result.type = TokenType::EndOfFile;
+				result.type = PathTokenType::EndOfFile;
 			}
 			else
 			{
@@ -820,17 +987,31 @@ namespace MathAnim
 			return result;
 		}
 
-		static Token consume(TokenType expected, ParserInfo& parserInfo)
+		static PathToken consume(PathTokenType expected, ParserInfo& parserInfo)
 		{
-			Token token = parseNextToken(parserInfo);
+			PathToken token = parseNextPathToken(parserInfo);
 			if (token.type != expected)
 			{
-				token.type = TokenType::Panic;
+				token.type = PathTokenType::Panic;
 				parserInfo.cursor = parserInfo.textLength;
 			}
 
 			return token;
 		}
+
+		// -------- Svg Style Parser --------
+
+		static StyleToken parseNextStyleToken(ParserInfo& parserInfo)
+		{
+			return {};
+		}
+
+		static bool parseStyle(StyleToken token, ParserInfo& parserInfo, Stylesheet* res)
+		{
+			return false;
+		}
+
+		// -------- Generic Parser Stuff --------
 
 		static bool parseNumber(ParserInfo& parserInfo, float* out)
 		{
@@ -858,6 +1039,7 @@ namespace MathAnim
 				g_logger_assert(numberEnd - numberStart <= maxSmallBufferSize, "Cannot parse number greater than %d characters big.", maxSmallBufferSize);
 				g_memory_copyMem(smallBuffer, (void*)(parserInfo.text + numberStart), sizeof(char) * (numberEnd - numberStart));
 				smallBuffer[numberEnd - numberStart] = '\0';
+				// TODO: atof is not safe use a safer modern alternative
 				*out = (float)atof(smallBuffer);
 				return true;
 			}
@@ -869,6 +1051,16 @@ namespace MathAnim
 		static void skipWhitespaceAndCommas(ParserInfo& parserInfo)
 		{
 			while (isWhitespace(peek(parserInfo)) || peek(parserInfo) == ',')
+			{
+				advance(parserInfo);
+				if (peek(parserInfo) == '\0')
+					break;
+			}
+		}
+
+		static void skipWhitespace(ParserInfo& parserInfo)
+		{
+			while (isWhitespace(peek(parserInfo)))
 			{
 				advance(parserInfo);
 				if (peek(parserInfo) == '\0')
