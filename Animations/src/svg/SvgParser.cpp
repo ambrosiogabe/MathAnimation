@@ -1736,8 +1736,9 @@ namespace MathAnim
 			}
 
 			const std::unordered_map<std::string, StyleAttributeType> validAttributeType = {
-				{ "fill", StyleAttributeType::Color },
 				// TODO: Have enums for stuff like this
+				{ "clip-rule", StyleAttributeType::Identifier },
+				{ "fill", StyleAttributeType::Color },
 				{ "fill-rule", StyleAttributeType::Identifier },
 				{ "font-family", StyleAttributeType::IdentifierOrString },
 				{ "font-size", StyleAttributeType::Number },
@@ -1746,7 +1747,7 @@ namespace MathAnim
 				{ "stroke-linecap", StyleAttributeType::Identifier },
 				{ "stroke-linejoin", StyleAttributeType::Identifier },
 				{ "stroke-miterlimit", StyleAttributeType::Number },
-				{ "stroke-width", StyleAttributeType::Number }
+				{ "stroke-width", StyleAttributeType::Number },
 			};
 
 			auto iter = validAttributeType.find(attributeName.as.identifier.text);
