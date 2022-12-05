@@ -169,11 +169,21 @@ namespace MathAnim
 			else
 			{
 				// Otherwise begin a new path and close the old path
-				// TODO: Should this close the old path with a lineto?
-				bool isHole = object->numPaths > 1;
-				closePath(object, true, isHole);
+				// Apparently having to move to commands in a row is valid, something like:
+				//    M0, 0 M10, 10
+				// is perfectly valid (for whatever reason), the first MoveTo command
+				// just does nothing, so I won't begin a separate sub-path if a MoveTo
+				// is followed by another MoveTo
+				if (object->paths[object->numPaths - 1].numCurves > 0)
+				{
+					bool isHole = object->numPaths > 1;
+					closePath(object, true, isHole);
+				}
 				object->_cursor = absolute ? point : object->_cursor + point;
-				beginPath(object, object->_cursor);
+				if (object->paths[object->numPaths - 1].numCurves > 0)
+				{
+					beginPath(object, object->_cursor);
+				}
 			}
 		}
 

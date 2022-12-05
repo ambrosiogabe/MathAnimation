@@ -11,6 +11,19 @@ using namespace tinyxml2;
 
 namespace MathAnim
 {
+	enum class SvgElementType : uint8
+	{
+		None = 0,
+		Path,
+		Title,
+		Desc,
+		Use,
+		Rect,
+		Polygon,
+		Style,
+		Defs
+	};
+
 	struct ParserInfo
 	{
 		const char* text;
@@ -55,6 +68,7 @@ namespace MathAnim
 		String,
 		Color,
 		Number,
+		NumberPixels,
 		LeftCurlyBracket,
 		RightCurlyBracket,
 		LeftParen,
@@ -127,24 +141,35 @@ namespace MathAnim
 		None = 0,
 		Color,
 		Identifier,
-		Number
+		Number,
+		IdentifierOrString,
+		Style
 	};
 
 	class StyleAttribute
 	{
 	public:
+		StyleAttribute()
+			: _name("UNDEFINED"), number(NAN), type(StyleAttributeType::None),
+			color(Vec4{ NAN, NAN, NAN, NAN }), identifier("")
+		{
+		}
+
 		StyleAttribute(const std::string& attributeName, float asNumber)
-			: _name(attributeName), number(asNumber), type(StyleAttributeType::Number)
+			: _name(attributeName), number(asNumber), type(StyleAttributeType::Number),
+			color(Vec4{ NAN, NAN, NAN, NAN }), identifier("")
 		{
 		}
 
 		StyleAttribute(const std::string& attributeName, Vec4 asColor)
-			: _name(attributeName), color(asColor), type(StyleAttributeType::Color)
+			: _name(attributeName), color(asColor), type(StyleAttributeType::Color),
+			number(NAN), identifier("")
 		{
 		}
 
 		StyleAttribute(const std::string& attributeName, const std::string& asIdentifier)
-			: _name(attributeName), identifier(asIdentifier), type(StyleAttributeType::Identifier)
+			: _name(attributeName), identifier(asIdentifier), type(StyleAttributeType::Identifier),
+			color(Vec4{ NAN, NAN, NAN, NAN }), number(NAN)
 		{
 		}
 
@@ -236,8 +261,11 @@ namespace MathAnim
 		// ----------- Internal Functions -----------
 		static bool parseSvgStylesheet(XMLElement* element, Stylesheet* output);
 		static bool parseSvgPathTag(XMLElement* element, SvgObject* output, const Stylesheet& styles);
+		static bool parsePolygonTag(XMLElement* element, SvgObject* output, const Stylesheet& styles);
+		static void applyElementStylesToSvg(XMLElement* element, SvgObject* output, const Stylesheet& styles);
 		static void applyStylesTo(SvgObject* output, const Style& style);
 		static void applyStyleAttributeTo(SvgObject* output, const StyleAttribute& attribute);
+		static SvgElementType elementStringToEnum(const std::string& elementName);
 
 		// -------- Path Parser --------
 		static bool interpretCommand(const PathToken& token, ParserInfo& parserInfo, SvgObject* res);
@@ -252,9 +280,13 @@ namespace MathAnim
 		// -------- Svg Style Parser --------
 		static StyleToken parseNextStyleToken(ParserInfo& parserInfo);
 		static bool parseStyle(ParserInfo& parserInfo, Stylesheet* res, const StyleToken& identifier);
+		static bool parseInlineStyle(ParserInfo& parserInfo, Style* res, bool consumeClosingCurlyBracket);
 		static StyleToken consume(StyleTokenType expected, ParserInfo& parserInfo);
 		static StyleToken consumeChar(char expectedChar, StyleTokenType resType, ParserInfo& parserInfo);
 		static void printStyleToken(StyleToken& token);
+		static bool parseColor(const std::string& string, Vec4* output);
+		static bool sanitizeAttribute(const StyleToken& attributeName, const StyleToken& attributeValue, StyleAttribute* output);
+		static bool sanitizeAttribute(const XMLAttribute* attribute, StyleAttribute* output);
 
 		// -------- Generic Parser Stuff --------
 		static bool parseNumber(ParserInfo& parserInfo, float* out);
@@ -286,20 +318,6 @@ namespace MathAnim
 			{
 				PANIC("No <svg> element found in document '%s'.", filepath);
 				return nullptr;
-			}
-
-			const XMLAttribute* versionAttribute = svgElement->FindAttribute("version");
-			if (!versionAttribute)
-			{
-				g_logger_warning("Unknown svg version. No version attribute provided for '%s'. Will attempt to parse, but no guarantees it will succeed.", filepath);
-			}
-			else
-			{
-				const char* version = versionAttribute->Value();
-				if (std::strcmp(version, "1.1") != 0)
-				{
-					g_logger_warning("Only support for SVG version 1.1 right now. Doc '%s' had version '%s'. Will attempt to parse, but no guarantees it will succeed.", filepath, version);
-				}
 			}
 
 			const XMLAttribute* viewboxAttribute = svgElement->FindAttribute("viewBox");
@@ -341,8 +359,12 @@ namespace MathAnim
 				// Loop through all the definitions and save the svg objects
 				while (childEl != nullptr)
 				{
-					std::string tagName = childEl->Name();
-					if (tagName == "path")
+					std::string elementName = childEl->Name();
+					SvgElementType elementType = elementStringToEnum(elementName);
+
+					switch (elementType)
+					{
+					case SvgElementType::Path:
 					{
 						const XMLAttribute* id = childEl->FindAttribute("id");
 						if (id == nullptr) g_logger_warning("Child element '%s' had no id attribute.", childEl->Name());
@@ -358,7 +380,8 @@ namespace MathAnim
 							objIds[idStr] = obj;
 						}
 					}
-					else if (tagName == "style")
+					break;
+					case SvgElementType::Style:
 					{
 						if (styleElement != nullptr)
 						{
@@ -369,9 +392,12 @@ namespace MathAnim
 							parseSvgStylesheet(childEl, &rootStylesheet);
 						}
 					}
-					else
+					break;
+					default:
 					{
-						PANIC("Unknown tag <%s> in <defs> block in SVG.", tagName.c_str());
+						PANIC("Unknown SVG element <%s> in <defs> block in SVG.", elementName.c_str());
+					}
+					break;
 					}
 
 					childEl = childEl->NextSiblingElement();
@@ -389,7 +415,11 @@ namespace MathAnim
 					: svgElement->FirstChildElement();
 				while (childEl != nullptr)
 				{
-					if (std::strcmp(childEl->Name(), "use") == 0)
+					SvgElementType elementType = elementStringToEnum(childEl->Name());
+
+					switch (elementType)
+					{
+					case SvgElementType::Use:
 					{
 						const XMLAttribute* xAttr = childEl->FindAttribute("x");
 						const XMLAttribute* yAttr = childEl->FindAttribute("y");
@@ -427,7 +457,8 @@ namespace MathAnim
 							Svg::pushSvgToGroup(group, iter->second, iter->first, Vec2{ x, y });
 						}
 					}
-					else if (std::strcmp(childEl->Name(), "rect") == 0)
+					break;
+					case SvgElementType::Rect:
 					{
 						const XMLAttribute* xAttr = childEl->FindAttribute("x");
 						const XMLAttribute* yAttr = childEl->FindAttribute("y");
@@ -465,7 +496,8 @@ namespace MathAnim
 							Svg::pushSvgToGroup(group, rect, rCounterStr, Vec2{ x, y });
 						}
 					}
-					else if (std::strcmp(childEl->Name(), "path") == 0)
+					break;
+					case SvgElementType::Path:
 					{
 						SvgObject obj;
 						if (parseSvgPathTag(childEl, &obj, rootStylesheet))
@@ -481,13 +513,39 @@ namespace MathAnim
 							goto error_cleanup;
 						}
 					}
-					else if (std::strcmp(childEl->Name(), "defs") == 0)
+					break;
+					case SvgElementType::Polygon:
+					{
+						SvgObject obj;
+						if (parsePolygonTag(childEl, &obj, rootStylesheet))
+						{
+							static uint64 uniqueName = 0;
+							uniqueName++;
+							std::string name = std::to_string(uniqueName);
+							Svg::pushSvgToGroup(group, obj, name);
+						}
+						else
+						{
+							g_logger_warning("Failed to parse path tag in SVG '%s'", filepath);
+							goto error_cleanup;
+						}
+					}
+					break;
+					case SvgElementType::Defs:
 					{
 						// NOP; Don't care about the defs block that's handled above.
 					}
-					else
+					break;
+					case SvgElementType::Title:
+					{
+						// FIXME: Title is necessary for accesibility
+					}
+					break;
+					default:
 					{
 						g_logger_warning("Unknown group element '%s'.", childEl->Name());
+					}
+					break;
 					}
 
 					childEl = childEl->NextSiblingElement();
@@ -598,6 +656,7 @@ namespace MathAnim
 				if (token.type == StyleTokenType::Panic)
 				{
 					g_logger_error("Had an error while parsing svg path and panicked");
+					token.free();
 					return false;
 				}
 
@@ -607,6 +666,7 @@ namespace MathAnim
 					if (!parseStyle(parserInfo, &res, token))
 					{
 						PANIC("Error while parsing embedded style in SVG doc. See logs for more info.");
+						token.free();
 						return false;
 					}
 				}
@@ -634,71 +694,140 @@ namespace MathAnim
 				return false;
 
 			}
+
 			size_t textLength = std::strlen(pathAttribute->Value());
-			bool success = parseSvgPath(pathAttribute->Value(), textLength, output);
-
-			if (success)
+			if (parseSvgPath(pathAttribute->Value(), textLength, output))
 			{
-				// Add styles to this SVG path
-				const XMLAttribute* classNameAttribute = element->FindAttribute("class");
-				if (classNameAttribute)
-				{
-					const std::string& className = classNameAttribute->Value();
-					auto iter = styles.classMap.find(className);
-					if (iter != styles.classMap.end())
-					{
-						const Style& style = iter->second;
-						// Apply each attribute to our SVG object
-						applyStylesTo(output, style);
-					}
-				}
+				applyElementStylesToSvg(element, output, styles);
+				return true;
+			}
 
-				const XMLAttribute* idNameAttribute = element->FindAttribute("id");
-				if (idNameAttribute)
+			return false;
+		}
+
+		static bool parsePolygonTag(XMLElement* element, SvgObject* output, const Stylesheet& styles)
+		{
+			if (std::strcmp(element->Name(), "polygon") != 0)
+			{
+				PANIC("Tried to parse tag <%s> as polygon, but this tag is not a polygon.", element->Name());
+				return false;
+			}
+
+			const XMLAttribute* points = element->FindAttribute("points");
+			if (points == nullptr)
+			{
+				PANIC("Element '%s' had no points attribute.", element->Name());
+				return false;
+
+			}
+			size_t textLength = std::strlen(points->Value());
+
+			ParserInfo pointsParser;
+			pointsParser.cursor = 0;
+			pointsParser.text = points->Value();
+			pointsParser.textLength = textLength;
+			std::vector<Vec2> pointsList;
+
+			// Points are only valid if they have an even number of points as specified here: 
+			// https://www.w3.org/TR/SVG2/shapes.html#PolygonElement
+			// The parseVec2List should fail if there are an odd number of elements
+			if (!parseVec2List(pointsList, pointsParser))
+			{
+				PANIC("Element '%s' had an odd number of points.", element->Name());
+				return false;
+			}
+
+			// Create an SVG object using absolute moveTo commands and lineTo commands
+			// to each point in the list
+			if (pointsList.size() > 0)
+			{
+				*output = Svg::createDefault();
+				Svg::moveTo(output, pointsList[0]);
+
+				for (size_t i = 1; i < pointsList.size(); i++)
 				{
-					const std::string& idName = idNameAttribute->Value();
-					auto iter = styles.idMap.find(idName);
-					if (iter != styles.idMap.end())
-					{
-						const Style& style = iter->second;
-						// Apply each attribute to our SVG object
-						applyStylesTo(output, style);
-					}
+					Svg::lineTo(output, pointsList[i]);
+				}
+				Svg::closePath(output, true);
+			}
+
+			applyElementStylesToSvg(element, output, styles);
+
+			return true;
+		}
+
+		static void applyElementStylesToSvg(XMLElement* element, SvgObject* output, const Stylesheet& styles)
+		{
+			// First add any styles specified by the class and/or id this element has
+
+			// Add styles to this SVG path
+			const XMLAttribute* classNameAttribute = element->FindAttribute("class");
+			if (classNameAttribute)
+			{
+				const std::string& className = classNameAttribute->Value();
+				auto iter = styles.classMap.find(className);
+				if (iter != styles.classMap.end())
+				{
+					const Style& style = iter->second;
+					// Apply each attribute to our SVG object
+					applyStylesTo(output, style);
 				}
 			}
 
+			const XMLAttribute* idNameAttribute = element->FindAttribute("id");
+			if (idNameAttribute)
+			{
+				const std::string& idName = idNameAttribute->Value();
+				auto iter = styles.idMap.find(idName);
+				if (iter != styles.idMap.end())
+				{
+					const Style& style = iter->second;
+					// Apply each attribute to our SVG object
+					applyStylesTo(output, style);
+				}
+			}
+
+			// Next apply any styles specified in attributes like this:
+			//    <path d="..." fill-rule="nonzero"></path>
+			//                  ^- Style specified in the attribute
 			const XMLAttribute* attribute = element->FirstAttribute();
+
+			// These are a list of attributes that get skipped since they're not styles
+			const std::unordered_set<std::string> attributeBlacklist = {
+				"d",
+				"class",
+				"id",
+				"points"
+			};
+
 			while (attribute != nullptr)
 			{
 				const std::string& name = attribute->Name();
-				if (name != "d" && name != "class" && name != "id")
+				auto blacklistIter = attributeBlacklist.find(name);
+				if (blacklistIter == attributeBlacklist.end())
 				{
-					if (name == "fill")
+					StyleAttribute sanitizedAttribute;
+					if (name == "style")
 					{
-						// Should be color
-						std::string colorAsStr = attribute->Value();
-						if (colorAsStr[0] == '#')
+						// If there's an inline style embedded in this attribute, parse the style then
+						// apply it to the path
+						ParserInfo inlineStylePi;
+						inlineStylePi.text = attribute->Value();
+						inlineStylePi.textLength = std::strlen(attribute->Value());
+						inlineStylePi.cursor = 0;
+						Style inlineStyle;
+						if (parseInlineStyle(inlineStylePi, &inlineStyle, false))
 						{
-							colorAsStr = colorAsStr.substr(1);
-						}
-
-						if (colorAsStr.length() == 3)
-						{
-							colorAsStr += colorAsStr;
-						}
-
-						if (colorAsStr.length() == 6 || colorAsStr.length() == 8)
-						{
-							applyStyleAttributeTo(output, StyleAttribute(name, toHex(colorAsStr)));
+							applyStylesTo(output, inlineStyle);
 						}
 						else
 						{
-							PANIC("Invalid color as attribute value '%s'. This is not a color, for attribute: %s", name, colorAsStr.c_str());
+							PANIC("Failed to parse inline style.");
 						}
 					}
-					else if (name == "fill-rule")
+					else if (sanitizeAttribute(attribute, &sanitizedAttribute))
 					{
-						applyStyleAttributeTo(output, StyleAttribute(name, attribute->Value()));
+						applyStyleAttributeTo(output, sanitizedAttribute);
 					}
 					else
 					{
@@ -708,8 +837,6 @@ namespace MathAnim
 
 				attribute = attribute->Next();
 			}
-
-			return success;
 		}
 
 		static void applyStylesTo(SvgObject* output, const Style& style)
@@ -747,6 +874,28 @@ namespace MathAnim
 				}
 				output->fillColor = attribute.asColor();
 			}
+		}
+
+		static SvgElementType elementStringToEnum(const std::string& elementName)
+		{
+			static const std::unordered_map<std::string, SvgElementType> map = {
+				{ "path",    SvgElementType::Path },
+				{ "title",   SvgElementType::Title },
+				{ "desc",    SvgElementType::Desc },
+				{ "use",     SvgElementType::Use },
+				{ "rect",    SvgElementType::Rect },
+				{ "polygon", SvgElementType::Polygon },
+				{ "style",   SvgElementType::Style },
+				{ "defs",    SvgElementType::Defs }
+			};
+
+			auto iter = map.find(elementName);
+			if (iter != map.end())
+			{
+				return iter->second;
+			}
+
+			return SvgElementType::None;
 		}
 
 		static bool interpretCommand(const PathToken& token, ParserInfo& parserInfo, SvgObject* res)
@@ -1200,7 +1349,7 @@ namespace MathAnim
 			}
 			else
 			{
-				PANIC("Unknown symbol encountered while parsing SVG path. ParserInfo[%d/%d]:'%c'", parserInfo.cursor, parserInfo.textLength, peek(parserInfo));
+				PANIC("Unknown symbol encountered while parsing SVG path. ParserInfo[%u/%u]:'%c'", parserInfo.cursor, parserInfo.textLength, peek(parserInfo));
 			}
 
 			skipWhitespaceAndCommas(parserInfo);
@@ -1334,25 +1483,33 @@ namespace MathAnim
 			break;
 			}
 
+			if (res.type == StyleTokenType::Number)
+			{
+				// Check if this has a unit of measurement afterwards and adjust appropriately if necessary
+				char c1 = peek(parserInfo);
+				char c2 = peek(parserInfo, 1);
+				char c3 = peek(parserInfo, 2);
+				if (c1 == 'p' && c2 == 'x' && (isWhitespace(c3) || c3 == ';'))
+				{
+					// This is a number of pixels
+					// Skip past the px and reset our type then continue
+					advance(parserInfo); advance(parserInfo);
+					res.type = StyleTokenType::NumberPixels;
+				}
+			}
+
 			return res;
 		}
 
-		static bool parseStyle(ParserInfo& parserInfo, Stylesheet* res, const StyleToken& identifier)
+		static bool parseInlineStyle(ParserInfo& parserInfo, Style* res, bool consumeClosingCurlyBracket)
 		{
-			Style newStyle;
-
-			StyleToken token = consume(StyleTokenType::LeftCurlyBracket, parserInfo);
-			if (token.type == StyleTokenType::Panic)
-			{
-				return false;
-			}
-
-			token = parseNextStyleToken(parserInfo);
+			StyleToken token = parseNextStyleToken(parserInfo);
 			while (token.type != StyleTokenType::RightCurlyBracket && token.type != StyleTokenType::EndOfFile)
 			{
 				if (token.type != StyleTokenType::Identifier)
 				{
 					PANIC("Expected identifier. Instead got token of type: %d", token.type);
+					token.free();
 					return false;
 				}
 
@@ -1366,57 +1523,22 @@ namespace MathAnim
 
 				StyleToken attributeValue = parseNextStyleToken(parserInfo);
 
-				token = consume(StyleTokenType::Semicolon, parserInfo);
-				if (token.type == StyleTokenType::Panic)
+				token = parseNextStyleToken(parserInfo);
+				if (token.type != StyleTokenType::Semicolon && token.type != StyleTokenType::EndOfFile)
 				{
+					PANIC("Expected ';' or 'EOF' to end a style attribute. Instead got token of type %d", token.type);
+					token.free();
 					return false;
 				}
 
-				if (attributeValue.type == StyleTokenType::Identifier)
+				StyleAttribute sanitizedAttribute;
+				if (sanitizeAttribute(attributeName, attributeValue, &sanitizedAttribute))
 				{
-					newStyle.attributes.emplace_back(
-						StyleAttribute(
-							std::string(attributeName.as.identifier.text),
-							std::string(attributeValue.as.identifier.text)
-						)
-					);
+					res->attributes.emplace_back(sanitizedAttribute);
 				}
-				else if (attributeValue.type == StyleTokenType::Number)
+				else
 				{
-					newStyle.attributes.emplace_back(
-						StyleAttribute(
-							std::string(attributeName.as.identifier.text),
-							attributeValue.as.number
-						)
-					);
-				}
-				else if (attributeValue.type == StyleTokenType::HashtagIdentifier)
-				{
-					// TODO: Abstract this stufff
-					// This should be a color
-					std::string colorAsString = std::string(attributeValue.as.identifier.text);
-					if (colorAsString.length() == 3)
-					{
-						colorAsString += colorAsString;
-					}
-
-					if (colorAsString.length() == 6 || colorAsString.length() == 8)
-					{
-						newStyle.attributes.emplace_back(
-							StyleAttribute(
-								std::string(attributeName.as.identifier.text),
-								toHex(colorAsString)
-							)
-						);
-					}
-					else
-					{
-						PANIC("Invalid color as attribute value '%s'. This is not a color, for attribute: %s", attributeName.as.identifier.text, colorAsString.c_str());
-						attributeName.free();
-						attributeValue.free();
-						token.free();
-						return false;
-					}
+					PANIC("Failed to sanitize attribute <%s=...>", attributeName.as.identifier.text);
 				}
 
 				attributeName.free();
@@ -1425,10 +1547,35 @@ namespace MathAnim
 				token = parseNextStyleToken(parserInfo);
 			}
 
-			if (token.type != StyleTokenType::RightCurlyBracket)
+			if (consumeClosingCurlyBracket && token.type != StyleTokenType::RightCurlyBracket)
 			{
 				token.free();
 				PANIC("Expected '}' to end a style. Instead got token of type: %d", token.type);
+				return false;
+			}
+			else if (!consumeClosingCurlyBracket && token.type != StyleTokenType::EndOfFile)
+			{
+				token.free();
+				PANIC("Expected 'EOF' to end an inline-style. Instead got token of type: %d", token.type);
+				return false;
+			}
+
+			token.free();
+			return true;
+		}
+
+		static bool parseStyle(ParserInfo& parserInfo, Stylesheet* res, const StyleToken& identifier)
+		{
+			Style newStyle;
+
+			StyleToken token = consume(StyleTokenType::LeftCurlyBracket, parserInfo);
+			if (token.type == StyleTokenType::Panic)
+			{
+				return false;
+			}
+
+			if (!parseInlineStyle(parserInfo, &newStyle, true))
+			{
 				return false;
 			}
 
@@ -1532,6 +1679,183 @@ namespace MathAnim
 			}
 		}
 
+		static bool parseColor(const std::string& color, Vec4* output)
+		{
+			const std::unordered_map<std::string, Vec4> presetColors = {
+				{ "none", Vec4{ 0, 0, 0, 0 } }
+			};
+
+			auto iter = presetColors.find(color);
+			if (iter != presetColors.end())
+			{
+				*output = iter->second;
+				return true;
+			}
+
+			std::string colorAsStr = color;
+			if (colorAsStr[0] == '#')
+			{
+				colorAsStr = colorAsStr.substr(1);
+			}
+
+			for (size_t i = 0; i < colorAsStr.size(); i++)
+			{
+				// If the character's aren't all hex characters, this isn't a valid color
+				// string
+				if (!(
+					(colorAsStr[i] >= '0' && colorAsStr[i] <= '9') ||
+					(colorAsStr[i] >= 'a' && colorAsStr[i] <= 'f') ||
+					(colorAsStr[i] >= 'A' && colorAsStr[i] <= 'F')
+					))
+				{
+					PANIC("Color '#%s' has invalid hex character", colorAsStr.c_str());
+					return false;
+				}
+			}
+
+			if (colorAsStr.length() == 3)
+			{
+				colorAsStr += colorAsStr;
+			}
+
+			if (colorAsStr.length() == 6 || colorAsStr.length() == 8)
+			{
+				*output = toHex(colorAsStr);
+				return true;
+			}
+
+			return false;
+		}
+
+		static bool sanitizeAttribute(const StyleToken& attributeName, const StyleToken& attributeValue, StyleAttribute* output)
+		{
+			if (attributeName.type != StyleTokenType::Identifier)
+			{
+				PANIC("Attribute Name must be an identifier. This attribute name was of type %d", attributeName.type);
+				return false;
+			}
+
+			const std::unordered_map<std::string, StyleAttributeType> validAttributeType = {
+				{ "fill", StyleAttributeType::Color },
+				// TODO: Have enums for stuff like this
+				{ "fill-rule", StyleAttributeType::Identifier },
+				{ "font-family", StyleAttributeType::IdentifierOrString },
+				{ "font-size", StyleAttributeType::Number },
+				{ "stroke", StyleAttributeType::Color },
+				{ "stroke-dasharray", StyleAttributeType::Identifier },
+				{ "stroke-linecap", StyleAttributeType::Identifier },
+				{ "stroke-linejoin", StyleAttributeType::Identifier },
+				{ "stroke-miterlimit", StyleAttributeType::Number },
+				{ "stroke-width", StyleAttributeType::Number }
+			};
+
+			auto iter = validAttributeType.find(attributeName.as.identifier.text);
+			if (iter != validAttributeType.end())
+			{
+				switch (iter->second)
+				{
+				case StyleAttributeType::Identifier:
+				{
+					if (attributeValue.type != StyleTokenType::Identifier)
+					{
+						return false;
+					}
+
+					*output = StyleAttribute(
+						std::string(attributeName.as.identifier.text),
+						std::string(attributeValue.as.identifier.text)
+					);
+				}
+				break;
+				case StyleAttributeType::IdentifierOrString:
+				{
+					if (attributeValue.type != StyleTokenType::Identifier && attributeValue.type != StyleTokenType::String)
+					{
+						return false;
+					}
+
+					*output = StyleAttribute(
+						std::string(attributeName.as.identifier.text),
+						std::string(attributeValue.as.identifier.text)
+					);
+				}
+				break;
+				case StyleAttributeType::Number:
+				{
+					if (attributeValue.type != StyleTokenType::NumberPixels && attributeValue.type != StyleTokenType::Number)
+					{
+						return false;
+					}
+
+					// TODO: Convert this to some internal measurement before emplacing the number
+					// if the number is of type pixels or some other unit
+					*output = StyleAttribute(
+						std::string(attributeName.as.identifier.text),
+						attributeValue.as.number
+					);
+				}
+				break;
+				case StyleAttributeType::Color:
+				{
+					if (attributeValue.type != StyleTokenType::HashtagIdentifier && attributeValue.type != StyleTokenType::Identifier)
+					{
+						return false;
+					}
+
+					// This should be a color if parsing fails then log that and move on
+					Vec4 color;
+					if (parseColor(attributeValue.as.identifier.text, &color))
+					{
+						*output = StyleAttribute(
+							std::string(attributeName.as.identifier.text),
+							color
+						);
+					}
+					else
+					{
+						PANIC("Invalid color as attribute value '%s'. This is not a color, for attribute: %s", attributeName.as.identifier.text, attributeValue.as.identifier.text);
+						return false;
+					}
+				}
+				break;
+				default:
+					PANIC("Unhandled style attribute type %d in switch statement", iter->second);
+					return false;
+				}
+			}
+			else
+			{
+				return false;
+			}
+
+			// If we fall through to here then sanitization succeeded
+			return true;
+		}
+
+		static bool sanitizeAttribute(const XMLAttribute* attribute, StyleAttribute* output)
+		{
+			// TODO: I really don't like this, but it might be the best way to leverage
+			// the parser to get the appropriate types and stuff...
+			ParserInfo pi;
+			pi.cursor = 0;
+			pi.text = attribute->Name();
+			pi.textLength = std::strlen(attribute->Name());
+
+			StyleToken attributeNameToken = parseNextStyleToken(pi);
+
+			pi.cursor = 0;
+			pi.text = attribute->Value();
+			pi.textLength = std::strlen(attribute->Value());
+			StyleToken attributeValueToken = parseNextStyleToken(pi);
+
+			bool res = sanitizeAttribute(attributeNameToken, attributeValueToken, output);
+
+			attributeNameToken.free();
+			attributeValueToken.free();
+
+			return res;
+		}
+
 		// -------- Generic Parser Stuff --------
 
 		static bool parseNumber(ParserInfo& parserInfo, float* out)
@@ -1629,7 +1953,8 @@ namespace MathAnim
 			}
 
 			g_logger_assert(stringStartIndex < parserInfo.textLength, "Invalid start index.");
-			g_logger_assert(stringEndIndex < parserInfo.textLength&& stringEndIndex > stringStartIndex, "Invalid end index.");
+			g_logger_assert(stringEndIndex <= parserInfo.textLength && stringEndIndex > stringStartIndex, "Invalid end index.");
+			g_logger_assert(stringEndIndex <= parserInfo.textLength && stringEndIndex > stringStartIndex, "Invalid end index.");
 
 			if (stringEndIndex - stringStartIndex == 1 && parserInfo.text[stringStartIndex] == '-')
 			{
