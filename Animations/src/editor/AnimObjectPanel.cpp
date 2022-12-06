@@ -27,7 +27,7 @@ namespace MathAnim
 			ImVec2 availableRegion = ImGui::GetContentRegionAvail();
 			for (uint32 i = 1; i < (uint32)AnimTypeV1::Length; i++)
 			{
-				const char* name = AnimationManager::getAnimationName((AnimTypeV1)i);
+				const char* name = Animation::getAnimationName((AnimTypeV1)i);
 				ImGui::PushID(name);
 
 				ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name, ImVec2(availableRegion.x - animPreviewIconWidth, 0.0f));

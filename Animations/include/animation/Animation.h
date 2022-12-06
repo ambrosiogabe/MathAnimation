@@ -39,6 +39,19 @@ namespace MathAnim
 		Length
 	};
 
+	constexpr auto _animationObjectTypeNames = fixedSizeArray<const char*, (size_t)AnimObjectTypeV1::Length>(
+		"None",
+		"Text Object",
+		"LaTex Object",
+		"Square",
+		"Circle",
+		"Cube",
+		"Axis",
+		"SVG Object",
+		"SVG File Object",
+		"Camera"
+	);
+
 	enum class AnimTypeV1 : uint32
 	{
 		None = 0,
@@ -56,6 +69,21 @@ namespace MathAnim
 		Length
 	};
 
+	constexpr auto _animationTypeNames = fixedSizeArray<const char*, (size_t)AnimTypeV1::Length>(
+		"None",
+		"Move To",
+		"Create",
+		"Un-Create",
+		"Fade In",
+		"Fade Out",
+		"Replacement Transform",
+		"Rotate To",
+		"Animate Stroke Color",
+		"Animate Fill Color",
+		"Animate Stroke Width",
+		"Shift"
+	);
+
 	enum class PlaybackType : uint8
 	{
 		None = 0,
@@ -64,11 +92,26 @@ namespace MathAnim
 		Length
 	};
 
-	constexpr const char* playbackTypeNames[(uint8)PlaybackType::Length] = {
+	constexpr auto _playbackTypeNames = fixedSizeArray<const char*, (size_t)PlaybackType::Length>(
 		"None",
 		"Synchronous",
 		"Lagged Start"
-	};
+	);
+
+	constexpr auto _isAnimationGroupData = fixedSizeArray<bool, (size_t)AnimTypeV1::Length>(
+		false, // None = 0,
+		false, // MoveTo,
+		true,  // Create,
+		true,  // UnCreate,
+		true,  // FadeIn,
+		true,  // FadeOut,
+		false, // Transform,
+		false, // RotateTo,
+		false, // AnimateStrokeColor,
+		false, // AnimateFillColor,
+		false, // AnimateStrokeWidth,
+		true   // Shift,
+	);
 
 	// Animation Structs
 	struct ModifyVec4AnimData
@@ -154,6 +197,9 @@ namespace MathAnim
 		static Animation deserialize(RawMemory& memory, uint32 version);
 		static Animation createDefault(AnimTypeV1 type, int32 frameStart, int32 duration);
 		static bool appliesToChildren(AnimTypeV1 type);
+		static bool isAnimationGroup(AnimTypeV1 type);
+
+		static inline const char* getAnimationName(AnimTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimTypeV1::Length, "Type name out of bounds."); return _animationTypeNames[(size_t)type]; }
 	};
 
 	enum class AnimObjectStatus : uint8
@@ -280,6 +326,8 @@ namespace MathAnim
 		static AnimObject createDefault(AnimationManagerData* am, AnimObjectTypeV1 type);
 		static AnimObject createCopy(const AnimObject& from);
 		static bool isInternalObjectOnly(AnimObjectTypeV1 type);
+
+		static inline const char* getAnimObjectName(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _animationObjectTypeNames[(size_t)type]; }
 	};
 
 	// Helpers

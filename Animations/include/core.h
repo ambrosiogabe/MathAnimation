@@ -161,6 +161,14 @@ void unpack(const SizedMemory& memory, Types*... data)
 	MemoryHelper::unpackData<Types...>(memory, 0, data...);
 }
 
+// Array helpers taken from https://stackoverflow.com/a/57524328
+template <typename T, std::size_t N, class ...Args>
+constexpr std::array<T, N> fixedSizeArray(Args&&... values)
+{
+	static_assert(sizeof...(values) == N);
+	return std::array<T, N>{values...};
+}
+
 typedef uint64 AnimObjId;
 typedef uint64 AnimId;
 

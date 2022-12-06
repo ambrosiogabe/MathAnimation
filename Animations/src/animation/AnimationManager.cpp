@@ -38,37 +38,6 @@ namespace MathAnim
 
 	namespace AnimationManager
 	{
-		// ------- Private variables --------
-		static const char* animationObjectTypeNames[] = {
-			"None",
-			"Text Object",
-			"LaTex Object",
-			"Square",
-			"Circle",
-			"Cube",
-			"Axis",
-			"SVG Object",
-			"SVG File Object",
-			"Camera",
-			"Length"
-		};
-
-		static const char* animationTypeNames[] = {
-			"None",
-			"Move To",
-			"Create",
-			"Un-Create",
-			"Fade In",
-			"Fade Out",
-			"Replacement Transform",
-			"Rotate To",
-			"Animate Stroke Color",
-			"Animate Fill Color",
-			"Animate Stroke Width",
-			"Shift",
-			"Length",
-		};
-
 		// -------- Internal Functions --------
 		static void deserializeAnimationManagerExV1(AnimationManagerData* am, RawMemory& memory);
 		static bool compareAnimation(const Animation& a1, const Animation& a2);
@@ -602,18 +571,6 @@ namespace MathAnim
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			std::sort(am->animations.begin(), am->animations.end(), compareAnimation);
-		}
-
-		const char* getAnimObjectName(AnimObjectTypeV1 type)
-		{
-			g_logger_assert((int)type < (int)AnimObjectTypeV1::Length && (int)type >= 0, "Invalid type '%d'.", (int)type);
-			return animationObjectTypeNames[(int)type];
-		}
-
-		const char* getAnimationName(AnimTypeV1 type)
-		{
-			g_logger_assert((int)type < (int)AnimTypeV1::Length && (int)type >= 0, "Invalid type '%d'.", (int)type);
-			return animationTypeNames[(int)type];
 		}
 
 		void applyGlobalTransforms(AnimationManagerData* am)

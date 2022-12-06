@@ -309,7 +309,7 @@ namespace MathAnim
 						continue;
 					}
 
-					int strRes = sprintf_s(buffer, bufferSize, "Add %s\0", AnimationManager::getAnimObjectName((AnimObjectTypeV1)i));
+					int strRes = sprintf_s(buffer, bufferSize, "Add %s\0", AnimObject::getAnimObjectName((AnimObjectTypeV1)i));
 					if (strRes != -1)
 					{
 						if (ImGui::MenuItem(buffer))

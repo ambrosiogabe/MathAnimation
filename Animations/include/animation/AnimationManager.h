@@ -55,9 +55,6 @@ namespace MathAnim
 		void deserialize(AnimationManagerData* am, RawMemory& memory, int currentFrame);
 		void sortAnimations(AnimationManagerData* am);
 
-		const char* getAnimObjectName(AnimObjectTypeV1 type);
-		const char* getAnimationName(AnimTypeV1 type);
-
 		void applyGlobalTransforms(AnimationManagerData* am);
 		void applyGlobalTransformsTo(AnimationManagerData* am, AnimObjId obj);
 		void updateObjectState(AnimationManagerData* am, AnimObjId animObj);

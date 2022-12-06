@@ -821,7 +821,7 @@ namespace MathAnim
 			}
 
 			int currentPlaybackType = (int)(animation->playbackType) - 1;
-			if (ImGui::Combo(": Playback Type", &currentPlaybackType, &playbackTypeNames[1], (int)PlaybackType::Length - 1))
+			if (ImGui::Combo(": Playback Type", &currentPlaybackType, &_playbackTypeNames[1], (int)PlaybackType::Length - 1))
 			{
 				g_logger_assert(currentPlaybackType >= 0 && currentPlaybackType + 1 < (int)PlaybackType::Length, "How did this happen?");
 				animation->playbackType = (PlaybackType)(currentPlaybackType + 1);
@@ -1443,7 +1443,7 @@ namespace MathAnim
 						tracks[track].segments[segment].frameStart = animations[i].frameStart;
 						tracks[track].segments[segment].frameDuration = animations[i].duration;
 						tracks[track].segments[segment].userData.as.ptrData = (void*)animations[i].id;
-						tracks[track].segments[segment].segmentName = AnimationManager::getAnimationName(animations[i].type);
+						tracks[track].segments[segment].segmentName = Animation::getAnimationName(animations[i].type);
 
 						//for (int j = 0; j < animObjects[i].animations.size(); j++)
 						//{
@@ -1452,7 +1452,7 @@ namespace MathAnim
 						//	ImGuiTimeline_SubSegment& subSegment = tracks[track].segments[segment].subSegments[j];
 						//	subSegment.frameStart = animObjects[i].animations[j].frameStart;
 						//	subSegment.frameDuration = animObjects[i].animations[j].duration;
-						//	subSegment.segmentName = AnimationManager::getAnimationName(animObjects[i].animations[j].type);
+						//	subSegment.segmentName = Animation::getAnimationName(animObjects[i].animations[j].type);
 						//	subSegment.userData = (void*)(uintptr_t)animObjects[i].animations[j].id;
 						//}
 
@@ -1482,7 +1482,7 @@ namespace MathAnim
 
 			track.segments[track.numSegments - 1].frameDuration = animation.duration;
 			track.segments[track.numSegments - 1].frameStart = animation.frameStart;
-			track.segments[track.numSegments - 1].segmentName = AnimationManager::getAnimationName(animation.type);
+			track.segments[track.numSegments - 1].segmentName = Animation::getAnimationName(animation.type);
 			track.segments[track.numSegments - 1].userData.as.ptrData = (void*)animation.id;
 			track.segments[track.numSegments - 1].numSubSegments = 0;
 			track.segments[track.numSegments - 1].subSegments = nullptr;
