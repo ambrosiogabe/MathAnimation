@@ -30,7 +30,7 @@ namespace MathAnim
 	{
 		void init();
 		void update(AnimationManagerData* am);
-		void render(const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera);
+		void render(AnimationManagerData* am, const OrthoCamera& editorCamera);
 		void free();
 
 		bool anyGizmoActive();

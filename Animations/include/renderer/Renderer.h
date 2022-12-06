@@ -31,11 +31,12 @@ namespace MathAnim
 
 	namespace Renderer
 	{
-		void init(OrthoCamera& sceneCamera, PerspectiveCamera& camera);
+		void init();
 		void free();
 
 		// ----------- Render calls ----------- 
 		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera, bool shouldRenderPickingOutline);
+		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, AnimationManagerData* am, bool shouldRenderPickingOutline);
 		void renderFramebuffer(const Framebuffer& framebuffer);
 		void endFrame();
 

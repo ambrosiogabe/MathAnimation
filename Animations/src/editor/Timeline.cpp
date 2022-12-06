@@ -51,6 +51,7 @@ namespace MathAnim
 		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleSvgFileObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleMoveToAnimationInspector(Animation* animation);
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation);
 		static void handleShiftInspector(Animation* animation);
@@ -717,6 +718,9 @@ namespace MathAnim
 			case AnimObjectTypeV1::SvgFileObject:
 				handleSvgFileObjectInspector(am, animObject);
 				break;
+			case AnimObjectTypeV1::Camera:
+				handleCameraObjectInspector(am, animObject);
+				break;
 			case AnimObjectTypeV1::SvgObject:
 				// NOP
 				break;
@@ -1044,6 +1048,28 @@ namespace MathAnim
 			}
 		}
 
+		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object)
+		{
+			if (object->as.camera.is2D)
+			{
+				ImGui::DragFloat2(": Projection Size", (float*)&object->as.camera.camera2D.projectionSize.x, slowDragSpeed);
+				ImGui::DragFloat(": Zoom", &object->as.camera.camera2D.zoom, slowDragSpeed);
+			}
+
+			if (ImGui::Checkbox(": Is 2D", &object->as.camera.is2D))
+			{
+				// TODO: Do something to set the camera appropriately to 3D or whatever
+			}
+
+			if (ImGui::Checkbox(": Is Active Camera", &object->as.camera.isActiveCamera))
+			{
+				if (object->as.camera.isActiveCamera)
+				{
+					AnimationManager::setActiveOrthoCamera(am, object->id);
+				}
+			}
+		}
+
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation)
 		{
 			// TODO: This code is duplicated, consider making a function
@@ -1106,7 +1132,7 @@ namespace MathAnim
 
 		static void handleMoveToAnimationInspector(Animation* animation)
 		{
-			ImGui::DragFloat3(": Target Position", &animation->as.modifyVec3.target.x, slowDragSpeed);
+			ImGui::DragFloat2(": Target Position", &animation->as.moveTo.target.x, slowDragSpeed);
 		}
 
 		static void handleShiftInspector(Animation* animation)
@@ -1315,9 +1341,9 @@ namespace MathAnim
 				ImGui::NewLine();
 				ImGui::Separator();
 
-				if (ImGui::Button("OK", ImVec2(120, 0))) 
-				{ 
-					ImGui::CloseCurrentPopup(); 
+				if (ImGui::Button("OK", ImVec2(120, 0)))
+				{
+					ImGui::CloseCurrentPopup();
 				}
 				ImGui::SetItemDefaultFocus();
 				ImGui::EndPopup();

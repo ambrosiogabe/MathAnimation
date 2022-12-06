@@ -18,8 +18,6 @@ namespace MathAnim
 	{
 		// ----------------- Private Variables -----------------
 		constexpr int initialMaxCapacity = 5;
-		static OrthoCamera* orthoCamera;
-		static PerspectiveCamera* perspCamera;
 
 		// ----------------- Internal functions -----------------
 		static void checkResize(Path& path);
@@ -54,20 +52,8 @@ namespace MathAnim
 			return res;
 		}
 
-		void init(OrthoCamera& sceneCamera2d, PerspectiveCamera& sceneCamera3d)
+		void init()
 		{
-			orthoCamera = &sceneCamera2d;
-			perspCamera = &sceneCamera3d;
-		}
-
-		PerspectiveCamera const& getPerspCamera()
-		{
-			return *perspCamera;
-		}
-
-		OrthoCamera const& getOrthoCamera()
-		{
-			return *orthoCamera;
 		}
 
 		void beginSvgGroup(SvgGroup* group)

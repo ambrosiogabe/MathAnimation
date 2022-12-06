@@ -31,9 +31,8 @@ namespace MathAnim
 		// NOTE(gabe): So this is due to my whacky architecture, but at the beginning of rendering
 		// each frame we actually need to reset the camera position to its start position. I really
 		// need to figure out a better architecture for this haha
-		Vec2 sceneCamera2DStartPos;
-		Vec2 camera2DPos;
-		OrthoCamera* sceneCamera2D;
+		AnimObjId startingActiveCamera;
+		AnimObjId activeCamera;
 		int currentFrame;
 	};
 
@@ -50,6 +49,7 @@ namespace MathAnim
 			"Axis",
 			"SVG Object",
 			"SVG File Object",
+			"Camera",
 			"Length"
 		};
 
@@ -81,16 +81,34 @@ namespace MathAnim
 		static void applyDelta(AnimationManagerData* am, int deltaFrame);
 		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int frame);
 
-		AnimationManagerData* create(OrthoCamera& camera)
+		AnimationManagerData* create()
 		{
 			void* animManagerMemory = g_memory_allocate(sizeof(AnimationManagerData));
 			// Placement new to ensure the vectors and stuff are appropriately constructed
 			// but I can still use my memory tracker
 			AnimationManagerData* res = new(animManagerMemory)AnimationManagerData();
 
-			res->sceneCamera2D = &camera;
-			res->sceneCamera2DStartPos = res->sceneCamera2D->position;
+			res->startingActiveCamera = NULL_ANIM_OBJECT;
 			res->currentFrame = 0;
+
+			// TODO: Initialize some cameras and add them to the scene if this is
+			// the first time the scene is being opened
+			// 
+			//camera2D.position = Vec2{ 0.0f, 0.0f };
+			//camera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
+			//camera2D.zoom = 1.0f;
+			//editorCamera2D = camera2D;
+
+			//camera3D.forward = glm::vec3(0, 0, 1);
+			//camera3D.fov = 70.0f;
+			//camera3D.orientation = glm::vec3(-15.0f, 50.0f, 0);
+			//camera3D.position = glm::vec3(
+			//	-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)),
+			//	2.5f,
+			//	10.0f * glm::sin(glm::radians(-camera3D.orientation.y))
+			//);
+			//editorCamera3D = camera3D;
+
 			return res;
 		}
 
@@ -155,14 +173,15 @@ namespace MathAnim
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			am->camera2DPos = am->sceneCamera2DStartPos;
-
 			// Reset all object states
 			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 			{
 				// Reset to original state and apply animations in order
 				objectIter->resetAllState();
 			}
+
+			// Update all children global transforms and stuff
+			applyGlobalTransforms(am);
 
 			// Then apply each animation up to the current frame
 			if (absoluteFrame > 0)
@@ -340,6 +359,13 @@ namespace MathAnim
 				{
 					objectIter->as.laTexObject.update(am, objectIter->id);
 				}
+				else if (objectIter->objectType == AnimObjectTypeV1::Camera)
+				{
+					if (objectIter->as.camera.is2D)
+					{
+						objectIter->as.camera.camera2D.position = CMath::vector2From3(objectIter->globalPosition);
+					}
+				}
 			}
 		}
 
@@ -355,6 +381,17 @@ namespace MathAnim
 			}
 
 			return lastFrame;
+		}
+
+		const AnimObject* getActiveOrthoCamera(const AnimationManagerData* am)
+		{
+			return getObject(am, am->activeCamera);
+		}
+
+		void setActiveOrthoCamera(AnimationManagerData* am, AnimObjId id)
+		{
+			am->startingActiveCamera = id;
+			am->activeCamera = id;
 		}
 
 		const AnimObject* getPendingObject(const AnimationManagerData* am, AnimObjId animObj)
@@ -497,8 +534,10 @@ namespace MathAnim
 			memory.write<uint32>(&SERIALIZER_VERSION);
 
 			// Custom data starts here. Subject to change from version to version
+			// startingActiveCamera -> AnimObjId
 			// numAnimations -> uint32
 			// animations    -> dynamic
+			memory.write<AnimObjId>(&am->startingActiveCamera);
 			uint32 numAnimations = (uint32)am->animations.size();
 			memory.write<uint32>(&numAnimations);
 
@@ -673,6 +712,9 @@ namespace MathAnim
 				}
 			}
 
+			// Reset all global transforms
+			applyGlobalTransformsTo(am, animObjId);
+
 			// Apply any changes from animations in order
 			for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
 			{
@@ -693,6 +735,8 @@ namespace MathAnim
 				}
 			}
 
+			// Apply global transform after the object has animations applied since
+			// the animations may change the positions
 			applyGlobalTransformsTo(am, animObjId);
 		}
 
@@ -702,8 +746,11 @@ namespace MathAnim
 			// We're in function V1 so this is a version 1 for sure
 			constexpr uint32 version = 1;
 
+			// startingActiveCamera -> AnimObjId
 			// numAnimations -> uint32
 			// animations    -> dynamic
+			memory.read<AnimObjId>(&am->startingActiveCamera);
+			am->activeCamera = am->startingActiveCamera;
 			uint32 numAnimations;
 			memory.read<uint32>(&numAnimations);
 
@@ -750,7 +797,6 @@ namespace MathAnim
 
 		static void updateGlobalTransform(AnimObject& obj)
 		{
-			obj._globalPositionStart = obj._positionStart;
 			obj.globalPosition = obj.position;
 
 			glm::quat xRotation = glm::angleAxis(glm::radians(obj.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));

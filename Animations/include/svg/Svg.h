@@ -109,10 +109,7 @@ namespace MathAnim
 		SvgObject createDefault();
 		SvgGroup createDefaultGroup();
 
-		void init(OrthoCamera& sceneCamera2d, PerspectiveCamera& sceneCamera3d);
-
-		PerspectiveCamera const& getPerspCamera();
-		OrthoCamera const& getOrthoCamera();
+		void init();
 
 		void beginSvgGroup(SvgGroup* group);
 		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset = Vec2{ NAN, NAN });

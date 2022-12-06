@@ -14,6 +14,9 @@ namespace MathAnim
 
 		glm::mat4 calculateViewMatrix();
 		glm::mat4 calculateProjectionMatrix() const;
+
+		void serialize(RawMemory& memory) const;
+		static PerspectiveCamera deserialize(RawMemory& memory, uint32 version);
 	};
 }
 

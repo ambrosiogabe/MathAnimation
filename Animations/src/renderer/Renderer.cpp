@@ -317,7 +317,7 @@ namespace MathAnim
 		static float getStrokeWidth();
 		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth);
 
-		void init(OrthoCamera& inOrthoCamera, PerspectiveCamera& inPerspCamera)
+		void init()
 		{
 			strokeWidthStackPtr = 0;
 			colorStackPtr = 0;
@@ -414,6 +414,20 @@ namespace MathAnim
 			}
 
 			glPopDebugGroup();
+		}
+
+		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, AnimationManagerData* am, bool shouldRenderPickingOutline)
+		{
+			OrthoCamera orthoCamera = {};
+			const AnimObject* orthoCameraObj = AnimationManager::getActiveOrthoCamera(am);
+			if (orthoCameraObj)
+			{
+				orthoCamera = orthoCameraObj->as.camera.camera2D;
+			}
+
+			PerspectiveCamera perspCamera = {};
+			// TODO: Get active perspective camera
+			renderToFramebuffer(framebuffer, clearColor, orthoCamera, perspCamera, shouldRenderPickingOutline);
 		}
 
 		void renderFramebuffer(const Framebuffer& framebuffer)
@@ -530,6 +544,12 @@ namespace MathAnim
 		// ----------- 2D stuff ----------- 
 		void drawSquare(const Vec2& start, const Vec2& size)
 		{
+			// Don't draw squares with non-negative sizes since that's an invalid input
+			if (size.x <= 0.0f || size.y <= 0.0f)
+			{
+				return;
+			}
+
 			Path2DContext* path = beginPath(start);
 			lineTo(path, start + Vec2{ size.x, 0 });
 			lineTo(path, start + size);

@@ -18,6 +18,7 @@ namespace MathAnim
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory);
 	static Animation deserializeAnimationExV1(RawMemory& memory);
+	static CameraObject deserializeCameraObjectV1(RawMemory& memory);
 
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
 
@@ -66,6 +67,12 @@ namespace MathAnim
 			? AnimObjectStatus::Animating
 			: AnimObjectStatus::Active;
 		obj->updateStatus(am, newStatus);
+		if (obj->objectType == AnimObjectTypeV1::Camera)
+		{
+			obj->status = obj->as.camera.isActiveCamera 
+				? AnimObjectStatus::Active
+				: AnimObjectStatus::Inactive;
+		}
 
 		// Apply animation to all children as well
 		if (obj)
@@ -141,11 +148,12 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 		{
-			const Vec3& target = this->as.modifyVec3.target;
+			const Vec2& target = this->as.moveTo.target;
+			const Vec2& source = this->as.moveTo.source;
 			obj->position = Vec3{
-				((target.x - obj->position.x) * t) + obj->position.x,
-				((target.y - obj->position.y) * t) + obj->position.y,
-				((target.z - obj->position.z) * t) + obj->position.z,
+				((target.x - source.x) * t) + source.x,
+				((target.y - source.y) * t) + source.y,
+				obj->position.z
 			};
 		}
 		break;
@@ -298,7 +306,6 @@ namespace MathAnim
 		case AnimTypeV1::FadeOut:
 			// NOP
 			break;
-		case AnimTypeV1::MoveTo:
 		case AnimTypeV1::Shift:
 		case AnimTypeV1::RotateTo:
 			CMath::serialize(memory, this->as.modifyVec3.target);
@@ -312,6 +319,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::Transform:
 			this->as.replacementTransform.serialize(memory);
+			break;
+		case AnimTypeV1::MoveTo:
+			this->as.moveTo.serialize(memory);
 			break;
 		default:
 			g_logger_warning("Unknown animation type: %d", (int)this->type);
@@ -335,6 +345,24 @@ namespace MathAnim
 		memory.read<AnimObjId>(&res.srcAnimObjectId);
 		memory.read<AnimObjId>(&res.dstAnimObjectId);
 
+		return res;
+	}
+
+	void MoveToData::serialize(RawMemory& memory) const
+	{
+		// source -> Vec2
+		// target -> Vec2
+		CMath::serialize(memory, this->source);
+		CMath::serialize(memory, this->target);
+	}
+
+	MoveToData MoveToData::deserialize(RawMemory& memory)
+	{
+		// source -> Vec2
+		// target -> Vec2
+		MoveToData res;
+		res.source = CMath::deserializeVec2(memory);
+		res.target = CMath::deserializeVec2(memory);
 		return res;
 	}
 
@@ -429,6 +457,43 @@ namespace MathAnim
 		return false;
 	}
 
+	void CameraObject::serialize(RawMemory& memory) const 
+	{
+		//OrthoCamera camera2D;
+		//bool is2D;
+		//bool isActiveCamera;
+		camera2D.serialize(memory);
+		uint8 is2DU8 = is2D ? 1 : 0;
+		memory.write<uint8>(&is2DU8);
+	}
+
+	void CameraObject::free() 
+	{
+
+	}
+
+	CameraObject CameraObject::deserialize(RawMemory& memory, uint32 version) 
+	{
+		if (version == 1)
+		{
+			return deserializeCameraObjectV1(memory);
+		}
+
+		CameraObject res = {};
+		return res;
+	}
+
+	CameraObject CameraObject::createDefault() 
+	{
+		CameraObject res = {};
+		res.camera2D.projectionSize = Vec2{ 9.0f, 18.0f };
+		res.camera2D.position = res.camera2D.projectionSize / 2.0f;
+		res.camera2D.zoom = 1.0f;
+		res.is2D = true;
+		res.isActiveCamera = true;
+		return res;
+	}
+
 	void AnimObject::onGizmo(AnimationManagerData* am)
 	{
 		if (is3D)
@@ -474,8 +539,20 @@ namespace MathAnim
 			// of something
 			break;
 		default:
-			g_logger_info("Unknown animation object: %d", objectType);
-			break;
+		case AnimObjectTypeV1::Camera:
+		{
+			if (this->as.camera.is2D)
+			{
+				this->as.camera.camera2D.position = CMath::vector2From3(this->_globalPositionStart);
+			}
+			else
+			{
+				// TODO: Implement 3D camera logic stuff...
+			}
+		}
+		break;
+		g_logger_info("Unknown animation object: %d", objectType);
+		break;
 		}
 	}
 
@@ -526,6 +603,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::TextObject:
 		case AnimObjectTypeV1::LaTexObject:
 		case AnimObjectTypeV1::SvgFileObject:
+		case AnimObjectTypeV1::Camera:
 			// NOP: These just have a bunch of children anim objects that get rendered
 			break;
 		default:
@@ -747,6 +825,7 @@ namespace MathAnim
 		{
 			Svg::copy(svgObject, _svgObjectStart);
 		}
+		globalPosition = _globalPositionStart;
 		position = _positionStart;
 		rotation = _rotationStart;
 		scale = _scaleStart;
@@ -880,6 +959,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgFileObject:
 			this->as.svgFile.free();
 			break;
+		case AnimObjectTypeV1::Camera:
+			this->as.camera.free();
+			break;
 		default:
 			g_logger_error("Cannot free unknown animation object of type %d", (int)objectType);
 			break;
@@ -986,6 +1068,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::SvgFileObject:
 			this->as.svgFile.serialize(memory);
+			break;
+		case AnimObjectTypeV1::Camera:
+			this->as.camera.serialize(memory);
 			break;
 		default:
 			g_logger_warning("Unknown object type %d when serializing.", (int)objectType);
@@ -1128,6 +1213,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgFileObject:
 			res.as.svgFile = SvgFileObject::createDefault();
 			break;
+		case AnimObjectTypeV1::Camera:
+			res.as.camera = CameraObject::createDefault();
+			break;
 		default:
 			g_logger_error("Cannot create default animation object of type %d", (int)type);
 			break;
@@ -1207,6 +1295,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Cube:
 		case AnimObjectTypeV1::Axis:
 		case AnimObjectTypeV1::SvgFileObject:
+		case AnimObjectTypeV1::Camera:
 			// TODO: Implement Copy for these
 			break;
 		default:
@@ -1373,6 +1462,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgFileObject:
 			res.as.svgFile = SvgFileObject::deserialize(memory, version);
 			break;
+		case AnimObjectTypeV1::Camera:
+			res.as.camera = CameraObject::deserialize(memory, version);
+			break;
 		default:
 			g_logger_error("Unknown anim object type: %d. Corrupted memory.", res.objectType);
 			break;
@@ -1444,11 +1536,8 @@ namespace MathAnim
 		case AnimTypeV1::FadeOut:
 			// NOP
 			break;
-		case AnimTypeV1::MoveTo:
 		case AnimTypeV1::RotateTo:
 		case AnimTypeV1::Shift:
-			res.as.modifyVec3.target = CMath::deserializeVec3(memory);
-			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
 			res.as.modifyU8Vec4.target = CMath::deserializeU8Vec4(memory);
@@ -1459,6 +1548,9 @@ namespace MathAnim
 		case AnimTypeV1::Transform:
 			res.as.replacementTransform = ReplacementTransformData::deserialize(memory);
 			break;
+		case AnimTypeV1::MoveTo:
+			res.as.moveTo = MoveToData::deserialize(memory);
+			break;
 		default:
 			g_logger_warning("Unhandled animation deserialize for type %d", res.type);
 			break;
@@ -1467,10 +1559,26 @@ namespace MathAnim
 		return res;
 	}
 
+	static CameraObject deserializeCameraObjectV1(RawMemory& memory)
+	{
+		//OrthoCamera camera2D;
+		//bool is2D;
+		//bool isActiveCamera;
+		CameraObject res;
+		res.camera2D = OrthoCamera::deserialize(memory, 1);
+		uint8 is2DU8;
+		memory.read<uint8>(&is2DU8);
+		res.is2D = is2DU8 == 1;
+
+		return res;
+	}
+
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim)
 	{
 		// TODO: Render and handle 2D gizmo logic based on edit mode
 		std::string gizmoName = "Move_To_" + std::to_string(anim->id);
-		GizmoManager::translateGizmo(gizmoName.c_str(), &anim->as.modifyVec3.target, GizmoVariant::Free);
+		Vec3 tmp = CMath::vector3From2(anim->as.moveTo.target);
+		GizmoManager::translateGizmo(gizmoName.c_str(), &tmp, GizmoVariant::Free);
+		anim->as.moveTo.target = CMath::vector2From3(tmp);
 	}
 }

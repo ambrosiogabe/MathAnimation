@@ -35,6 +35,7 @@ namespace MathAnim
 		Axis,
 		SvgObject,
 		SvgFileObject,
+		Camera,
 		Length
 	};
 
@@ -99,6 +100,15 @@ namespace MathAnim
 		static ReplacementTransformData deserialize(RawMemory& memory);
 	};
 
+	struct MoveToData
+	{
+		Vec2 source;
+		Vec2 target;
+
+		void serialize(RawMemory& memory) const;
+		static MoveToData deserialize(RawMemory& memory);
+	};
+
 	// Base Structs
 	struct Animation
 	{
@@ -121,6 +131,7 @@ namespace MathAnim
 			ModifyVec2AnimData modifyVec2;
 			ModifyU8Vec4AnimData modifyU8Vec4;
 			ReplacementTransformData replacementTransform;
+			MoveToData moveTo;
 		} as;
 
 		// Apply the animation state using a interpolation t value
@@ -167,6 +178,19 @@ namespace MathAnim
 		AnimationManagerData* am;
 		std::deque<AnimObjId> childrenLeft;
 		AnimObjId currentId;
+	};
+
+	struct CameraObject
+	{
+		OrthoCamera camera2D;
+		bool is2D;
+		bool isActiveCamera;
+
+		void serialize(RawMemory& memory) const;
+		void free();
+
+		static CameraObject deserialize(RawMemory& memory, uint32 version);
+		static CameraObject createDefault();
 	};
 
 	struct AnimObject
@@ -226,6 +250,7 @@ namespace MathAnim
 			Cube cube;
 			Axis axis;
 			SvgFileObject svgFile;
+			CameraObject camera;
 		} as;
 
 		void onGizmo(AnimationManagerData* am);

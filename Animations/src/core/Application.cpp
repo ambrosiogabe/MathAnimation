@@ -52,8 +52,6 @@ namespace MathAnim
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
 		static Framebuffer editorFramebuffer;
-		static OrthoCamera camera2D;
-		static PerspectiveCamera camera3D;
 		static OrthoCamera editorCamera2D;
 		static PerspectiveCamera editorCamera3D;
 		static int absoluteCurrentFrame = -1;
@@ -89,12 +87,11 @@ namespace MathAnim
 
 			Fonts::init();
 			GladLayer::init();
-			Renderer::init(camera2D, camera3D);
+			Renderer::init();
 			ImGuiLayer::init(*window);
 			Audio::init();
 			GizmoManager::init();
-			// NOTE(voxel): Just to initialize the camera
-			Svg::init(camera2D, camera3D);
+			Svg::init();
 			SceneManagementPanel::init();
 			SvgParser::init();
 
@@ -174,12 +171,13 @@ namespace MathAnim
 
 				// Render all animation draw calls to main framebuffer
 				bool renderPickingOutline = false;
+
 				if (EditorGui::mainViewportActive() || outputVideoFile)
 				{
-					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, renderPickingOutline);
+					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], am, renderPickingOutline);
 				}
 				// Collect gizmo draw calls
-				GizmoManager::render(camera2D, camera3D, editorCamera2D);
+				GizmoManager::render(am, editorCamera2D);
 				// Render all gizmo draw calls and animation draw calls to the editor framebuffer
 				renderPickingOutline = true;
 				if (EditorGui::editorViewportActive())
@@ -234,7 +232,7 @@ namespace MathAnim
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
 			AnimationManager::render(am, deltaFrame);
-			Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], camera2D, camera3D, false);
+			Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], am, false);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path currentPath = std::filesystem::path(currentProjectRoot);
 			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
@@ -558,27 +556,17 @@ namespace MathAnim
 
 		static RawMemory serializeCameras()
 		{
-			// 2D Editor Camera
-			//    position        -> Vec2
-			//    projectionSize  -> Vec2
-			//    zoom            -> float
-			// 3D Editor Camera
-			//    position        -> Vec3
-			//    orientation     -> Vec3
-			//    forward         -> Vec3
-			//    fov             -> float
-
 			RawMemory cameraData;
 			cameraData.init(sizeof(OrthoCamera) + sizeof(PerspectiveCamera));
 
-			CMath::serialize(cameraData, editorCamera2D.position);
-			CMath::serialize(cameraData, editorCamera2D.projectionSize);
-			cameraData.write<float>(&editorCamera2D.zoom);
+			// Version    -> u32
+			// camera2D   -> OrthoCamera
+			// camera3D   -> PerspCamera
+			const uint32 version = 1;
+			cameraData.write<uint32>(&version);
 
-			CMath::serialize(cameraData, Vec3{ editorCamera3D.position.x, editorCamera3D.position.y, editorCamera3D.position.z });
-			CMath::serialize(cameraData, Vec3{ editorCamera3D.orientation.x, editorCamera3D.orientation.y, editorCamera3D.orientation.z });
-			CMath::serialize(cameraData, Vec3{ editorCamera3D.forward.x, editorCamera3D.forward.y, editorCamera3D.forward.z });
-			cameraData.write<float>(&editorCamera3D.fov);
+			editorCamera2D.serialize(cameraData);
+			editorCamera3D.serialize(cameraData);
 
 			cameraData.shrinkToFit();
 			return cameraData;
@@ -586,23 +574,13 @@ namespace MathAnim
 
 		static void deserializeCameras(RawMemory& cameraData)
 		{
-			// 2D Editor Camera
-			//    position        -> Vec2
-			//    projectionSize  -> Vec2
-			//    zoom            -> float
-			// 3D Editor Camera
-			//    position        -> Vec3
-			//    orientation     -> Vec3
-			//    forward         -> Vec3
-			//    fov             -> float
-			editorCamera2D.position = CMath::deserializeVec2(cameraData);
-			editorCamera2D.projectionSize = CMath::deserializeVec2(cameraData);
-			cameraData.read<float>(&editorCamera2D.zoom);
-
-			editorCamera3D.position = CMath::convert(CMath::deserializeVec3(cameraData));
-			editorCamera3D.orientation = CMath::convert(CMath::deserializeVec3(cameraData));
-			editorCamera3D.forward = CMath::convert(CMath::deserializeVec3(cameraData));
-			cameraData.read<float>(&editorCamera3D.fov);
+			// Version    -> u32
+			// camera2D   -> OrthoCamera
+			// camera3D   -> PerspCamera
+			uint32 version = 1;
+			cameraData.read<uint32>(&version);
+			editorCamera2D = OrthoCamera::deserialize(cameraData, version);
+			editorCamera3D = PerspectiveCamera::deserialize(cameraData, version);
 		}
 
 		static std::string sceneToFilename(const std::string& stringName)
@@ -636,22 +614,7 @@ namespace MathAnim
 
 		static void initializeSceneSystems()
 		{
-			camera2D.position = Vec2{ 0.0f, 0.0f };
-			camera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
-			camera2D.zoom = 1.0f;
-			editorCamera2D = camera2D;
-
-			camera3D.forward = glm::vec3(0, 0, 1);
-			camera3D.fov = 70.0f;
-			camera3D.orientation = glm::vec3(-15.0f, 50.0f, 0);
-			camera3D.position = glm::vec3(
-				-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)),
-				2.5f,
-				10.0f * glm::sin(glm::radians(-camera3D.orientation.y))
-			);
-			editorCamera3D = camera3D;
-
-			am = AnimationManager::create(camera2D);
+			am = AnimationManager::create();
 			EditorSettings::init();
 		}
 	}

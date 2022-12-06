@@ -14,7 +14,7 @@ namespace MathAnim
 
 	namespace AnimationManager
 	{
-		AnimationManagerData* create(OrthoCamera& camera);
+		AnimationManagerData* create();
 		void free(AnimationManagerData* animManager);
 		void endFrame(AnimationManagerData* am);
 		void resetToFrame(AnimationManagerData* am, uint32 absoluteFrame);
@@ -35,6 +35,8 @@ namespace MathAnim
 		void render(AnimationManagerData* am, int deltaFrame);
 
 		int lastAnimatedFrame(const AnimationManagerData* am);
+		const AnimObject* getActiveOrthoCamera(const AnimationManagerData* am);
+		void setActiveOrthoCamera(AnimationManagerData* am, AnimObjId id);
 
 		// NOTE: This function is slow, only use this as a backup if getObject fails
 		const AnimObject* getPendingObject(const AnimationManagerData* am, AnimObjId animObj);

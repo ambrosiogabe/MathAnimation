@@ -14,6 +14,9 @@ namespace MathAnim
 		glm::mat4 calculateViewMatrix() const;
 		glm::mat4 calculateProjectionMatrix() const;
 		Vec2 reverseProject(const Vec2& normalizedInput) const;
+
+		void serialize(RawMemory& memory) const;
+		static OrthoCamera deserialize(RawMemory& memory, uint32 version);
 	};
 }
 
