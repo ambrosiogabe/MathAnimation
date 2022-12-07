@@ -18,6 +18,7 @@ namespace MathAnim
 		void free(AnimationManagerData* animManager);
 		void endFrame(AnimationManagerData* am);
 		void resetToFrame(AnimationManagerData* am, uint32 absoluteFrame);
+		void calculateAnimationKeyFrames(AnimationManagerData* am);
 
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object);
 		void addAnimation(AnimationManagerData* am, const Animation& animation);

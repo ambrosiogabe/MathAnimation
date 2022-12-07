@@ -172,4 +172,10 @@ constexpr std::array<T, N> fixedSizeArray(Args&&... values)
 typedef uint64 AnimObjId;
 typedef uint64 AnimId;
 
+namespace MathAnim
+{
+	constexpr AnimObjId NULL_ANIM_OBJECT = UINT64_MAX;
+	constexpr AnimId NULL_ANIM = UINT64_MAX;
+}
+
 #endif

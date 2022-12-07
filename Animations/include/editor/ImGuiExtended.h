@@ -5,14 +5,22 @@
 #include <imgui_internal.h>
 #undef IMGUI_DEFINE_MATH_OPERATORS
 
+#include "core.h"
+
 namespace MathAnim
 {
+	struct AnimObjectPayload;
+	struct AnimationManagerData;
+
 	namespace ImGuiExtended
 	{
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size = ImVec2(0, 0));
 		bool OutlineButton(const char* string, const ImVec2& size = ImVec2(0, 0));
 		bool IconButton(const char* icon, const char* string, const ImVec2& size = ImVec2(0, 0));
 		bool VerticalIconButton(const char* icon, const char* buttonText, float width);
+
+		const AnimObjectPayload* AnimObjectDragDropTarget();
+		bool AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation = NULL_ANIM);
 
 		void Icon(const char* icon, bool solid = true, float lineHeight = 0.0f);
 

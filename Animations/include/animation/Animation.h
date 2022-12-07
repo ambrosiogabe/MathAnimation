@@ -18,8 +18,6 @@ namespace MathAnim
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION = 1;
 	constexpr uint32 MAGIC_NUMBER = 0xDEADBEEF;
-	constexpr AnimObjId NULL_ANIM_OBJECT = UINT64_MAX;
-	constexpr AnimId NULL_ANIM = UINT64_MAX;
 
 	inline bool isNull(AnimObjId animObj) { return animObj == NULL_ANIM_OBJECT; }
 
@@ -98,6 +96,21 @@ namespace MathAnim
 		"Lagged Start"
 	);
 
+	constexpr auto _appliesToChildrenData = fixedSizeArray<bool, (size_t)AnimTypeV1::Length>(
+		false, // None = 0,
+		false, // MoveTo,
+		true,  // Create,
+		true,  // UnCreate,
+		true,  // FadeIn,
+		true,  // FadeOut,
+		false, // Transform,
+		false, // RotateTo,
+		false, // AnimateStrokeColor,
+		false, // AnimateFillColor,
+		false, // AnimateStrokeWidth,
+		false  // Shift,
+	);
+
 	constexpr auto _isAnimationGroupData = fixedSizeArray<bool, (size_t)AnimTypeV1::Length>(
 		false, // None = 0,
 		false, // MoveTo,
@@ -147,6 +160,7 @@ namespace MathAnim
 	{
 		Vec2 source;
 		Vec2 target;
+		AnimObjId object;
 
 		void serialize(RawMemory& memory) const;
 		static MoveToData deserialize(RawMemory& memory);
@@ -164,7 +178,6 @@ namespace MathAnim
 		EaseDirection easeDirection;
 		PlaybackType playbackType;
 		float lagRatio;
-		bool applyToChildren;
 		std::unordered_set<AnimObjId> animObjectIds;
 
 		union
@@ -184,21 +197,21 @@ namespace MathAnim
 		//      animation
 		void applyAnimation(AnimationManagerData* am, float t = 1.0f) const;
 		void applyAnimationToObj(AnimationManagerData* am, AnimObjId animObj, float t = 1.0f) const;
+		void calculateKeyframes(AnimationManagerData* am);
+		void calculateKeyframesForObj(AnimationManagerData* am, AnimObjId animObj);
 
 		// Render the gizmo with relation to this object
 		void onGizmo(const AnimObject* obj);
 		// Render the gizmo for this animation with no relation to it's child objects
 		void onGizmo();
 
-		bool shouldDisplayAnimObjects() const;
-
 		void free();
 		void serialize(RawMemory& memory) const;
 		static Animation deserialize(RawMemory& memory, uint32 version);
 		static Animation createDefault(AnimTypeV1 type, int32 frameStart, int32 duration);
-		static bool appliesToChildren(AnimTypeV1 type);
-		static bool isAnimationGroup(AnimTypeV1 type);
 
+		static inline bool appliesToChildren(AnimTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimTypeV1::Length, "Type name out of bounds."); return _appliesToChildrenData[(size_t)type]; }
+		static inline bool isAnimationGroup(AnimTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimTypeV1::Length, "Type name out of bounds."); return _isAnimationGroupData[(size_t)type]; }
 		static inline const char* getAnimationName(AnimTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimTypeV1::Length, "Type name out of bounds."); return _animationTypeNames[(size_t)type]; }
 	};
 

@@ -48,7 +48,7 @@ namespace MathAnim
 		static void removeQueuedAnimation(AnimationManagerData* am, AnimId animation);
 		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj);
 		static void applyDelta(AnimationManagerData* am, int deltaFrame);
-		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int frame);
+		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int frame, bool calculateKeyframes = false);
 
 		AnimationManagerData* create()
 		{
@@ -157,6 +157,25 @@ namespace MathAnim
 			{
 				applyAnimationsFrom(am, 0, absoluteFrame);
 			}
+			applyGlobalTransforms(am);
+		}
+
+		void calculateAnimationKeyFrames(AnimationManagerData* am)
+		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			// Reset all object states
+			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
+			{
+				// Reset to original state and apply animations in order
+				objectIter->resetAllState();
+			}
+
+			// Update all children global transforms and stuff
+			applyGlobalTransforms(am);
+
+			// Then apply each animation up to the current frame
+			applyAnimationsFrom(am, 0, lastAnimatedFrame(am), true);
 			applyGlobalTransforms(am);
 		}
 
@@ -554,6 +573,9 @@ namespace MathAnim
 			{
 				deserializeAnimationManagerExV1(am, memory);
 				am->currentFrame = currentFrame;
+				// Calculate all key frame starting points and stuff
+				calculateAnimationKeyFrames(am);
+				// Apply all  animations appropriately
 				Application::resetToFrame(currentFrame);
 				resetToFrame(am, currentFrame);
 			}
@@ -673,22 +695,20 @@ namespace MathAnim
 			applyGlobalTransformsTo(am, animObjId);
 
 			// Apply any changes from animations in order
-			for (auto animIter = am->animations.begin(); animIter != am->animations.end(); animIter++)
+			for (auto animIter = obj->referencedAnimations.begin(); animIter != obj->referencedAnimations.end(); animIter++)
 			{
-				bool objExistsInAnim =
-					std::find(animIter->animObjectIds.begin(), animIter->animObjectIds.end(), obj->id) != animIter->animObjectIds.end();
-				if (!objExistsInAnim)
+				Animation* anim = AnimationManager::getMutableAnimation(am, *animIter);
+				if (anim)
 				{
-					continue;
-				}
-
-				float frameStart = (float)animIter->frameStart;
-				int animDeathTime = (int)frameStart + animIter->duration;
-				if (frameStart <= am->currentFrame)
-				{
-					// Then apply the animation
-					float interpolatedT = ((float)am->currentFrame - frameStart) / (float)animIter->duration;
-					animIter->applyAnimationToObj(am, animObjId, interpolatedT);
+					float frameStart = (float)anim->frameStart;
+					int animDeathTime = (int)frameStart + anim->duration;
+					if (frameStart <= am->currentFrame)
+					{
+						// Then apply the animation
+						float interpolatedT = glm::clamp(((float)am->currentFrame - frameStart) / (float)anim->duration, 0.0f, 1.0f);
+						anim->calculateKeyframes(am);
+						anim->applyAnimationToObj(am, animObjId, interpolatedT);
+					}
 				}
 			}
 
@@ -754,6 +774,7 @@ namespace MathAnim
 
 		static void updateGlobalTransform(AnimObject& obj)
 		{
+			obj._globalPositionStart = obj._positionStart;
 			obj.globalPosition = obj.position;
 
 			glm::quat xRotation = glm::angleAxis(glm::radians(obj.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -936,7 +957,7 @@ namespace MathAnim
 			applyGlobalTransforms(am);
 		}
 
-		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int currentFrame)
+		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int currentFrame, bool calculateKeyframes)
 		{
 			// Apply any changes from animations in order
 			for (auto animIter = am->animations.begin() + startIndex; animIter != am->animations.end(); animIter++)
@@ -947,6 +968,10 @@ namespace MathAnim
 				{
 					// Then apply the animation
 					float interpolatedT = ((float)currentFrame - frameStart) / (float)animIter->duration;
+					if (calculateKeyframes)
+					{
+						animIter->calculateKeyframes(am);
+					}
 					animIter->applyAnimation(am, interpolatedT);
 				}
 			}

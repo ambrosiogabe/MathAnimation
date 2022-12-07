@@ -1,7 +1,8 @@
-#include "core.h"
+#include "editor/Timeline.h"
 #include "editor/ImGuiExtended.h"
 #include "core/ImGuiLayer.h"
 #include "core/Colors.h"
+#include "animation/AnimationManager.h"
 
 namespace MathAnim
 {
@@ -190,6 +191,69 @@ namespace MathAnim
 			state->groupSize = Vec2{ size.x, size.y };
 
 			return buttonClicked;
+		}
+
+		const AnimObjectPayload* AnimObjectDragDropTarget()
+		{
+			const AnimObjectPayload* res = nullptr;
+
+			if (ImGui::BeginDragDropTarget())
+			{
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Timeline::getAnimObjectPayloadId()))
+				{
+					if (payload->DataSize == sizeof(AnimObjectPayload))
+					{
+						res = (const AnimObjectPayload*)payload->Data;
+					}
+				}
+
+				ImGui::EndDragDropTarget();
+			}
+
+			return res;
+		}
+
+		bool AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation)
+		{
+			const AnimObject* srcObj = AnimationManager::getObject(am, *output);
+
+			ImGui::BeginDisabled();
+			if (srcObj == nullptr)
+			{
+				const char dummyInputText[] = "Drag Object Here";
+				size_t dummyInputTextSize = sizeof(dummyInputText);
+				ImGui::InputText(label, (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
+			}
+			else
+			{
+				ImGui::InputText(label, (char*)srcObj->name, srcObj->nameLength, ImGuiInputTextFlags_ReadOnly);
+			}
+			ImGui::EndDisabled();
+
+			if (auto objPayload = ImGuiExtended::AnimObjectDragDropTarget(); objPayload != nullptr)
+			{
+				if (!isNull(animation))
+				{
+					// If the animation reference is not null, then update
+					// remove the reference from the old object and add it to
+					// the new one
+					AnimObject* objRef = AnimationManager::getMutableObject(am, *output);
+					if (objRef)
+					{
+						objRef->referencedAnimations.erase(animation);
+					}
+
+					AnimObject* newObjRef = AnimationManager::getMutableObject(am, objPayload->animObjectId);
+					if (newObjRef)
+					{
+						newObjRef->referencedAnimations.insert(animation);
+					}
+				}
+				*output = objPayload->animObjectId;
+				return true;
+			}
+
+			return false;
 		}
 
 		void Icon(const char* icon, bool solid, float lineHeight)
