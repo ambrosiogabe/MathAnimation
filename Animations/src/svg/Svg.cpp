@@ -513,6 +513,8 @@ namespace MathAnim
 			case CurveType::Bezier3:
 				object->_cursor = curve.as.bezier3.p3;
 				break;
+			case CurveType::None:
+				break;
 			}
 		}
 
@@ -940,6 +942,8 @@ namespace MathAnim
 							nextCurve.as.line.p1 = p1;
 						}
 						break;
+						case CurveType::None:
+							break;
 						}
 					}
 					else
@@ -1029,6 +1033,8 @@ namespace MathAnim
 						p3a = srcCurve.as.line.p1;
 					}
 					break;
+					case CurveType::None:
+						break;
 					}
 
 					switch (dstCurve.type)
@@ -1059,6 +1065,8 @@ namespace MathAnim
 						p3b = dstCurve.as.line.p1;
 					}
 					break;
+					case CurveType::None:
+						break;
 					}
 
 					// Then interpolate between the control points
@@ -1160,6 +1168,8 @@ namespace MathAnim
 					max = CMath::max(p1, max);
 				}
 				break;
+				case CurveType::None:
+					break;
 				}
 			}
 		}
@@ -1206,6 +1216,8 @@ namespace MathAnim
 					curve.as.line.p1.y = CMath::mapRange(Vec2{ min.y, max.y }, vtOutputRange, curve.as.line.p1.y);
 				}
 				break;
+				case CurveType::None:
+					break;
 				}
 			}
 		}
@@ -1242,6 +1254,8 @@ namespace MathAnim
 			return CMath::length(p1 - p0);
 		}
 		break;
+		case CurveType::None:
+			break;
 		}
 
 		return 0.0f;
@@ -1307,6 +1321,8 @@ namespace MathAnim
 						bbox.max = CMath::max(bbox.max, subBbox.max);
 					}
 					break;
+					case CurveType::None:
+						break;
 					}
 				}
 			}
@@ -1453,6 +1469,8 @@ namespace MathAnim
 					writeBuffer(&buffer, &capacity, &numElements, tmpBuffer);
 				}
 				break;
+				case CurveType::None:
+					break;
 				}
 			}
 		}
@@ -1552,6 +1570,8 @@ namespace MathAnim
 						curve.as.line.p1.y = CMath::mapRange(vtInputRange, vtOutputRange, curve.as.line.p1.y);
 					}
 					break;
+					case CurveType::None:
+						break;
 					}
 				}
 			}
@@ -1778,6 +1798,8 @@ namespace MathAnim
 						);
 					}
 					break;
+					case CurveType::None:
+						break;
 					}
 				}
 			}
@@ -2008,6 +2030,8 @@ namespace MathAnim
 							);
 						}
 						break;
+						case CurveType::None:
+							break;
 						}
 					}
 

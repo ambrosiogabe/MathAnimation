@@ -199,6 +199,9 @@ namespace MathAnim
 			g_logger_warning("TODO: Implement me");
 		}
 		break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
+			break;
 		}
 	}
 
@@ -286,6 +289,9 @@ namespace MathAnim
 			// TODO: Implement me
 		}
 		break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
+			break;
 		}
 	}
 
@@ -308,6 +314,12 @@ namespace MathAnim
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
 			break;
+		case AnimTypeV1::Shift:
+			// TODO: What should happen here?
+			break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
+			break;
 		}
 	}
 
@@ -329,6 +341,12 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
+			break;
+		case AnimTypeV1::Shift:
+			// TODO: What should we do here?
+			break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
 			break;
 		}
 	}
@@ -398,6 +416,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 			this->as.moveTo.serialize(memory);
+			break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
 			break;
 		}
 	}
@@ -500,6 +521,9 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me");
 			break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
+			break;
 		}
 
 		return res;
@@ -598,6 +622,9 @@ namespace MathAnim
 			}
 		}
 		break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
+			break;
 		}
 	}
 
@@ -650,6 +677,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::Camera:
 			// NOP: These just have a bunch of children anim objects that get rendered
+			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
 			break;
 		}
 	}
@@ -1009,6 +1039,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 			this->as.camera.free();
 			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
+			break;
 		}
 
 		this->parentId = NULL_ANIM_OBJECT;
@@ -1115,6 +1148,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Camera:
 			this->as.camera.serialize(memory);
+			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
 			break;
 		}
 	}
@@ -1257,6 +1293,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 			res.as.camera = CameraObject::createDefault();
 			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
+			break;
 		}
 
 		return res;
@@ -1336,20 +1375,12 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 			// TODO: Implement Copy for these
 			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
+			break;
 		}
 
 		return res;
-	}
-
-	bool AnimObject::isInternalObjectOnly(AnimObjectTypeV1 type)
-	{
-		switch (type)
-		{
-		case AnimObjectTypeV1::SvgObject:
-			return true;
-		}
-
-		return false;
 	}
 
 	// ----------------------------- Internal Functions -----------------------------
@@ -1500,6 +1531,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 			res.as.camera = CameraObject::deserialize(memory, version);
 			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
+			break;
 		}
 
 		return res;
@@ -1577,6 +1611,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 			res.as.moveTo = MoveToData::deserialize(memory);
+			break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
 			break;
 		}
 

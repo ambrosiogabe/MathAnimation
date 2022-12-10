@@ -50,6 +50,19 @@ namespace MathAnim
 		"Camera"
 	);
 
+	constexpr auto _isInternalObjectOnly = fixedSizeArray<bool, (size_t)AnimObjectTypeV1::Length>(
+		false, // "None",
+		false, // "Text Object",
+		false, // "LaTex Object",
+		false, // "Square",
+		false, // "Circle",
+		false, // "Cube",
+		false, // "Axis",
+		true,  // "SVG Object",
+		false, // "SVG File Object",
+		false  // "Camera"
+	);
+
 	enum class AnimTypeV1 : uint32
 	{
 		None = 0,
@@ -342,8 +355,8 @@ namespace MathAnim
 		static AnimObject createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj);
 		static AnimObject createDefault(AnimationManagerData* am, AnimObjectTypeV1 type);
 		static AnimObject createCopy(const AnimObject& from);
-		static bool isInternalObjectOnly(AnimObjectTypeV1 type);
 
+		static inline bool isInternalObjectOnly(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _isInternalObjectOnly[(size_t)type]; }
 		static inline const char* getAnimObjectName(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _animationObjectTypeNames[(size_t)type]; }
 	};
 

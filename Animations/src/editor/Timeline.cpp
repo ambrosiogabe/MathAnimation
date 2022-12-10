@@ -724,6 +724,9 @@ namespace MathAnim
 			case AnimObjectTypeV1::SvgObject:
 				// NOP
 				break;
+			case AnimObjectTypeV1::Length:
+			case AnimObjectTypeV1::None:
+				break;
 			}
 		}
 
@@ -845,6 +848,13 @@ namespace MathAnim
 				break;
 			case AnimTypeV1::AnimateStrokeColor:
 				handleAnimateStrokeColorAnimationInspector(animation);
+				break;
+			case AnimTypeV1::AnimateStrokeWidth:
+				//handleAnimateStrokeWidthInspector(animation);
+				g_logger_warning("TODO: Implement me.");
+				break;
+			case AnimTypeV1::Length:
+			case AnimTypeV1::None:
 				break;
 			}
 		}
