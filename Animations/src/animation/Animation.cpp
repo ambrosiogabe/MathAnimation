@@ -501,8 +501,8 @@ namespace MathAnim
 		Renderer::lineTo(path, Vec2{ size.x, 0.0f });
 		Renderer::lineTo(path, Vec2{0.0f, 0.0f});
 		Renderer::endPath(path, true);
-		Renderer::free(path);
 
+		Renderer::free(path);
 		Renderer::popColor();
 	}
 

@@ -135,6 +135,7 @@ namespace MathAnim
 		void addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId, const glm::mat4& transform);
 		void addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color, uint32 objId);
 		void addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color, uint32 objId);
+		void addMultiColoredTri(const Vec2& p0, const Vec4& c0, const Vec2& p1, const Vec4& c1, const Vec2& p2, const Vec4& c2, uint32 objId);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& shader, const OrthoCamera& orthoCamera) const;
@@ -579,6 +580,11 @@ namespace MathAnim
 			drawList2D.addColoredTri(p0, p1, p2, Vec4{ color.r, color.g, color.b, color.a }, objId);
 		}
 
+		void drawMultiColoredTri(const Vec2& p0, const Vec4& color0, const Vec2& p1, const Vec4& color1, const Vec2& p2, const Vec4& color2, uint32 objId)
+		{
+			drawList2D.addMultiColoredTri(p0, color0, p1, color1, p2, color2, objId);
+		}
+
 		void drawLine(const Vec2& start, const Vec2& end)
 		{
 			CapType lineEnding = lineEndingStackPtr > 0
@@ -797,8 +803,7 @@ namespace MathAnim
 					: closePath
 					? path->data[endPoint - 1].position
 					: path->data[0].position;
-
-				Renderer::pushColor(vertex.color);
+				const Vec4& currentColor = vertex.color;
 
 				// Generate a miter
 				bool generateVerts = true;
@@ -824,7 +829,7 @@ namespace MathAnim
 					float centerBevelWidth = vertex.thickness / CMath::dot(bisectionPerp, CMath::normalize(currentPos - previousPos));
 					centerBevelWidth = glm::min(centerBevelWidth, vertex.thickness);
 					Vec2 centerPoint = currentPos + (bisection * centerBevelWidth);
-					Renderer::drawFilledTri(firstPoint, secondPoint, centerPoint);
+					Renderer::drawMultiColoredTri(firstPoint, currentColor, secondPoint, currentColor, centerPoint, currentColor);
 
 					// Save the "front" and "back" for the connection loop
 					vertex.frontP1 = centerPoint;
@@ -863,8 +868,6 @@ namespace MathAnim
 					vertex.backP1 = vertex.position + extrusionNormal * miterThickness * 0.5f;
 					vertex.backP2 = vertex.position - extrusionNormal * miterThickness * 0.5f;
 				}
-
-				Renderer::popColor();
 			}
 
 			// NOTE: This is some weird shenanigans in order to get the path
@@ -879,13 +882,8 @@ namespace MathAnim
 				const Path_Vertex2DLine& vertex = path->data[vertIndex % path->data.size()];
 				const Path_Vertex2DLine& nextVertex = path->data[(vertIndex + 1) % path->data.size()];
 
-				pushColor(vertex.color);
-
-				// Draw the start and endpoints of the path as caps
-				drawFilledTri(vertex.frontP1, vertex.frontP2, nextVertex.backP1);
-				drawFilledTri(vertex.frontP2, nextVertex.backP2, nextVertex.backP1);
-
-				popColor();
+				drawMultiColoredTri(vertex.frontP1, vertex.color, vertex.frontP2, vertex.color, nextVertex.backP1, nextVertex.color);
+				drawMultiColoredTri(vertex.frontP2, vertex.color, nextVertex.backP2, nextVertex.color, nextVertex.backP1, nextVertex.color);
 			}
 		}
 
@@ -1567,6 +1565,48 @@ namespace MathAnim
 		vertices.push(vert);
 
 		vert.position = p2;
+		vert.textureCoords = Vec2{ 1, 1 };
+		vertices.push(vert);
+
+		cmd.numVerts += 3;
+	}
+
+	void DrawList2D::addMultiColoredTri(const Vec2& p0, const Vec4& c0, const Vec2& p1, const Vec4& c1, const Vec2& p2, const Vec4& c2, uint32 objId)
+	{
+		// Check if we need to switch to a new batch
+		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != UINT32_MAX)
+		{
+			DrawCmd newCommand;
+			newCommand.elementCounter = 0;
+			newCommand.indexOffset = indices.size();
+			newCommand.vertexOffset = vertices.size();
+			newCommand.numElements = 0;
+			newCommand.numVerts = 0;
+			newCommand.textureId = UINT32_MAX;
+			drawCommands.push(newCommand);
+		}
+
+		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
+
+		int rectStartIndex = cmd.elementCounter;
+		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
+		cmd.elementCounter += 3;
+		cmd.numElements += 3;
+
+		Vertex2D vert;
+		vert.color = c0;
+		vert.objId = objId;
+		vert.position = p0;
+		vert.textureCoords = Vec2{ 0, 0 };
+		vertices.push(vert);
+
+		vert.position = p1;
+		vert.color = c1;
+		vert.textureCoords = Vec2{ 0, 1 };
+		vertices.push(vert);
+
+		vert.position = p2;
+		vert.color = c2;
 		vert.textureCoords = Vec2{ 1, 1 };
 		vertices.push(vert);
 
