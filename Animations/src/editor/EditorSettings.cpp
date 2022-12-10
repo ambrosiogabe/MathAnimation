@@ -48,9 +48,6 @@ namespace MathAnim
 							case ViewMode::Normal:
 								glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 								break;
-							default:
-								g_logger_error("Unknown view mode: %d", data->viewMode);
-								break;
 							}
 							ImGui::CloseCurrentPopup();
 						}

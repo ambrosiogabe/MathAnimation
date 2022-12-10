@@ -513,9 +513,6 @@ namespace MathAnim
 			case CurveType::Bezier3:
 				object->_cursor = curve.as.bezier3.p3;
 				break;
-			default:
-				g_logger_error("Unknown curve type: %d", curve.type);
-				break;
 			}
 		}
 
@@ -943,9 +940,6 @@ namespace MathAnim
 							nextCurve.as.line.p1 = p1;
 						}
 						break;
-						default:
-							g_logger_warning("Unknown curve type in render %d", (int)nextCurve.type);
-							break;
 						}
 					}
 					else
@@ -1035,9 +1029,6 @@ namespace MathAnim
 						p3a = srcCurve.as.line.p1;
 					}
 					break;
-					default:
-						g_logger_warning("Unknown curve type %d", srcCurve.type);
-						break;
 					}
 
 					switch (dstCurve.type)
@@ -1068,9 +1059,6 @@ namespace MathAnim
 						p3b = dstCurve.as.line.p1;
 					}
 					break;
-					default:
-						g_logger_warning("Unknown curve type %d", dstCurve.type);
-						break;
 					}
 
 					// Then interpolate between the control points
@@ -1319,9 +1307,6 @@ namespace MathAnim
 						bbox.max = CMath::max(bbox.max, subBbox.max);
 					}
 					break;
-					default:
-						g_logger_warning("Unknown curve type in render %d", (int)curve.type);
-						break;
 					}
 				}
 			}
@@ -1468,9 +1453,6 @@ namespace MathAnim
 					writeBuffer(&buffer, &capacity, &numElements, tmpBuffer);
 				}
 				break;
-				default:
-					g_logger_error("Unknown curve type: %d", curve.type);
-					break;
 				}
 			}
 		}
@@ -1796,9 +1778,6 @@ namespace MathAnim
 						);
 					}
 					break;
-					default:
-						g_logger_warning("Unknown curve type in render %d", (int)curve.type);
-						break;
 					}
 				}
 			}
@@ -2029,9 +2008,6 @@ namespace MathAnim
 							);
 						}
 						break;
-						default:
-							g_logger_warning("Unknown curve type in render %d", (int)curve.type);
-							break;
 						}
 					}
 

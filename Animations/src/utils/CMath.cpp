@@ -485,8 +485,6 @@ namespace MathAnim
 					: direction == EaseDirection::Out
 					? easeOutBounce(t)
 					: easeInOutBounce(t);
-			default:
-				g_logger_error("Unknown easing %d and direction %d", (int)type, (int)direction);
 			}
 
 			return t;

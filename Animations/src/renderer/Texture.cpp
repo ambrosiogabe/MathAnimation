@@ -190,8 +190,6 @@ namespace MathAnim
 				return GL_REPEAT;
 			case WrapMode::None:
 				return GL_NONE;
-			default:
-				g_logger_warning("Unknown glWrapMode '%d'", wrapMode);
 			}
 
 			return GL_NONE;
@@ -207,8 +205,6 @@ namespace MathAnim
 				return GL_NEAREST;
 			case FilterMode::None:
 				return GL_NONE;
-			default:
-				g_logger_warning("Unknown glFilterMode '%d'", filterMode);
 			}
 
 			return GL_NONE;
@@ -234,8 +230,6 @@ namespace MathAnim
 				return GL_R8;
 			case ByteFormat::None:
 				return GL_NONE;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", format);
 			}
 
 			return GL_NONE;
@@ -261,8 +255,6 @@ namespace MathAnim
 				return GL_RED;
 			case ByteFormat::None:
 				return GL_NONE;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", format);
 			}
 
 			return GL_NONE;
@@ -288,8 +280,6 @@ namespace MathAnim
 				return GL_FLOAT;
 			case ByteFormat::None:
 				return GL_NONE;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", format);
 			}
 
 			return GL_NONE;
@@ -315,8 +305,6 @@ namespace MathAnim
 				return false;
 			case ByteFormat::R8_F:
 				return false;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", texture.format);
 			}
 
 			return false;
@@ -343,8 +331,6 @@ namespace MathAnim
 				return false;
 			case ByteFormat::R8_F:
 				return false;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", texture.format);
 			}
 
 			return false;
@@ -370,8 +356,6 @@ namespace MathAnim
 				return false;
 			case ByteFormat::R8_F:
 				return false;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", texture.format);
 			}
 
 			return false;
@@ -393,8 +377,6 @@ namespace MathAnim
 				return GL_ZERO;
 			case ColorChannel::Alpha:
 				return GL_ALPHA;
-			default:
-				g_logger_warning("Unknown glColorChannel swizzle format '%d'. Defaulting to 1.", colorChannel);
 			}
 
 			return GL_ONE;
@@ -420,8 +402,6 @@ namespace MathAnim
 				return sizeof(uint8);
 			case ByteFormat::None:
 				return 0;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", format);
 			}
 
 			return 0;

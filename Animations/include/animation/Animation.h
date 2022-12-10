@@ -64,6 +64,7 @@ namespace MathAnim
 		AnimateFillColor,
 		AnimateStrokeWidth,
 		Shift,
+		Circumscribe,
 		Length
 	};
 
@@ -79,7 +80,8 @@ namespace MathAnim
 		"Animate Stroke Color",
 		"Animate Fill Color",
 		"Animate Stroke Width",
-		"Shift"
+		"Shift",
+		"Circumscribe"
 	);
 
 	enum class PlaybackType : uint8
@@ -108,7 +110,8 @@ namespace MathAnim
 		false, // AnimateStrokeColor,
 		false, // AnimateFillColor,
 		false, // AnimateStrokeWidth,
-		false  // Shift,
+		false, // Shift,
+		false  // Circumscribe
 	);
 
 	constexpr auto _isAnimationGroupData = fixedSizeArray<bool, (size_t)AnimTypeV1::Length>(
@@ -123,7 +126,8 @@ namespace MathAnim
 		false, // AnimateStrokeColor,
 		false, // AnimateFillColor,
 		false, // AnimateStrokeWidth,
-		true   // Shift,
+		true,  // Shift,
+		false  // Circumscribe
 	);
 
 	// Animation Structs

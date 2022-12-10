@@ -199,11 +199,6 @@ namespace MathAnim
 			g_logger_warning("TODO: Implement me");
 		}
 		break;
-		default:
-			// TODO: Add magic_enum
-			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
-			g_logger_info("Unknown animation: %d", type);
-			break;
 		}
 	}
 
@@ -291,11 +286,6 @@ namespace MathAnim
 			// TODO: Implement me
 		}
 		break;
-		default:
-			// TODO: Add magic_enum
-			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
-			g_logger_info("Unknown animation: %d", type);
-			break;
 		}
 	}
 
@@ -318,9 +308,6 @@ namespace MathAnim
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
 			break;
-		default:
-			g_logger_info("Unknown animation: %d", type);
-			break;
 		}
 	}
 
@@ -342,9 +329,6 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
-			break;
-		default:
-			g_logger_info("Unknown animation: %d", type);
 			break;
 		}
 	}
@@ -414,9 +398,6 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 			this->as.moveTo.serialize(memory);
-			break;
-		default:
-			g_logger_warning("Unknown animation type: %d", (int)this->type);
 			break;
 		}
 	}
@@ -519,9 +500,6 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me");
 			break;
-		default:
-			g_logger_error("Cannot create default animation of type %d", (int)type);
-			break;
 		}
 
 		return res;
@@ -608,7 +586,6 @@ namespace MathAnim
 			// NOP: No Special logic, but I'll leave this just in case I think
 			// of something
 			break;
-		default:
 		case AnimObjectTypeV1::Camera:
 		{
 			if (this->as.camera.is2D)
@@ -620,8 +597,6 @@ namespace MathAnim
 				// TODO: Implement 3D camera logic stuff...
 			}
 		}
-		break;
-		g_logger_info("Unknown animation object: %d", objectType);
 		break;
 		}
 	}
@@ -675,11 +650,6 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::Camera:
 			// NOP: These just have a bunch of children anim objects that get rendered
-			break;
-		default:
-			// TODO: Add magic_enum
-			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(objectType).data());
-			g_logger_info("Unknown animation object: %d", objectType);
 			break;
 		}
 	}
@@ -1039,9 +1009,6 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 			this->as.camera.free();
 			break;
-		default:
-			g_logger_error("Cannot free unknown animation object of type %d", (int)objectType);
-			break;
 		}
 
 		this->parentId = NULL_ANIM_OBJECT;
@@ -1148,9 +1115,6 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Camera:
 			this->as.camera.serialize(memory);
-			break;
-		default:
-			g_logger_warning("Unknown object type %d when serializing.", (int)objectType);
 			break;
 		}
 	}
@@ -1293,9 +1257,6 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 			res.as.camera = CameraObject::createDefault();
 			break;
-		default:
-			g_logger_error("Cannot create default animation object of type %d", (int)type);
-			break;
 		}
 
 		return res;
@@ -1374,9 +1335,6 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::Camera:
 			// TODO: Implement Copy for these
-			break;
-		default:
-			g_logger_error("Cannot create default animation object of type %d", (int)from.objectType);
 			break;
 		}
 
@@ -1542,9 +1500,6 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 			res.as.camera = CameraObject::deserialize(memory, version);
 			break;
-		default:
-			g_logger_error("Unknown anim object type: %d. Corrupted memory.", res.objectType);
-			break;
 		}
 
 		return res;
@@ -1622,9 +1577,6 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 			res.as.moveTo = MoveToData::deserialize(memory);
-			break;
-		default:
-			g_logger_warning("Unhandled animation deserialize for type %d", res.type);
 			break;
 		}
 

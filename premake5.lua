@@ -17,9 +17,12 @@ project "Animations"
     language "C++"
     cppdialect "C++17"
     staticruntime "on"
+    warnings "High"
 
     targetdir("_bin/" .. outputdir .. "/%{prj.name}")
     objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
+
+    buildoptions "/we4062"
 
     files {
         "Animations/src/**.cpp",

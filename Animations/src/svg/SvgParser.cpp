@@ -393,11 +393,6 @@ namespace MathAnim
 						}
 					}
 					break;
-					default:
-					{
-						PANIC("Unknown SVG element <%s> in <defs> block in SVG.", elementName.c_str());
-					}
-					break;
 					}
 
 					childEl = childEl->NextSiblingElement();
@@ -539,11 +534,6 @@ namespace MathAnim
 					case SvgElementType::Title:
 					{
 						// FIXME: Title is necessary for accesibility
-					}
-					break;
-					default:
-					{
-						g_logger_warning("Unknown group element '%s'.", childEl->Name());
 					}
 					break;
 					}
@@ -1127,9 +1117,6 @@ namespace MathAnim
 				}
 			}
 			break;
-			default:
-				PANIC("Unknown SVG command type: %d", commandType);
-				return false;
 			}
 
 			return true;
@@ -1321,9 +1308,6 @@ namespace MathAnim
 				case 'a':
 					result.type = PathTokenType::ArcTo;
 					result.isAbsolute = commandLetter == 'A';
-					break;
-				default:
-					PANIC("Unknown SVG command: %c", commandLetter);
 					break;
 				}
 			}
@@ -1673,9 +1657,6 @@ namespace MathAnim
 			case StyleTokenType::Semicolon:
 				g_logger_info("Token<Semicolon>: ;");
 				break;
-			default:
-				g_logger_warning("Unknown token: %d", token.type);
-				break;
 			}
 		}
 
@@ -1819,9 +1800,6 @@ namespace MathAnim
 					}
 				}
 				break;
-				default:
-					PANIC("Unhandled style attribute type %d in switch statement", iter->second);
-					return false;
 				}
 			}
 			else

@@ -724,9 +724,6 @@ namespace MathAnim
 			case AnimObjectTypeV1::SvgObject:
 				// NOP
 				break;
-			default:
-				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
-				break;
 			}
 		}
 
@@ -848,9 +845,6 @@ namespace MathAnim
 				break;
 			case AnimTypeV1::AnimateStrokeColor:
 				handleAnimateStrokeColorAnimationInspector(animation);
-				break;
-			default:
-				g_logger_error("Unknown animation type: %d", (int)animation->type);
 				break;
 			}
 		}
