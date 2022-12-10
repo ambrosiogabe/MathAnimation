@@ -100,7 +100,7 @@ namespace MathAnim
 				ImVec2 editorViewportRelativeOffset;
 				getLargestSizeForViewport(&viewportSize, &editorViewportRelativeOffset);
 				ImGui::SetCursorPos(editorViewportRelativeOffset);
-				viewportOffset = ImGui::GetCursorScreenPos();
+				viewportOffset = ImGui::GetCursorScreenPos() - ImGui::GetMainViewport()->Pos;
 
 				const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
 				ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;

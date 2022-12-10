@@ -280,7 +280,7 @@ namespace MathAnim
 			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
 			OrthoCamera* camera = Application::getEditorCamera();
 			Vec2 worldCoords = camera->reverseProject(normalizedMousePos);
-			Vec2 bottomLeft = centerPosition - (Vec2{ size.x, -size.y } / 2.0f);
+			Vec2 bottomLeft = centerPosition - (Vec2{ size.x, size.y } / 2.0f);
 
 			return worldCoords.x >= bottomLeft.x && worldCoords.x <= bottomLeft.x + size.x &&
 				worldCoords.y >= bottomLeft.y && worldCoords.y <= bottomLeft.y + size.y;
