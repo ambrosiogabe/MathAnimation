@@ -183,6 +183,48 @@ namespace MathAnim
 		static MoveToData deserialize(RawMemory& memory);
 	};
 
+	enum class CircumscribeShape : uint8
+	{
+		Rectangle = 0,
+		Circle,
+		Length
+	};
+
+	constexpr auto _circumscribeShapeNames = fixedSizeArray<const char*, (size_t)CircumscribeShape::Length>(
+		"Rectangle",
+		"Circle"
+	);
+
+	enum class CircumscribeFade : uint8
+	{
+		FadeInOut = 0,
+		FadeIn,
+		FadeOut,
+		FadeNone,
+		Length
+	};
+
+	constexpr auto _circumscribeFadeNames = fixedSizeArray<const char*, (size_t)CircumscribeFade::Length>(
+		"Fade In-Out",
+		"Fade In",
+		"Fade Out",
+		"No Fade"
+	);
+
+	struct Circumscribe
+	{
+		Vec4 color;
+		CircumscribeShape shape;
+		CircumscribeFade fade;
+		float bufferSize;
+		AnimObjId obj;
+
+		void render(const Vec3& position, const BBox& bbox, float t) const;
+		void serialize(RawMemory& memory) const;
+		static Circumscribe deserialize(RawMemory& memory);
+		static Circumscribe createDefault();
+	};
+
 	// Base Structs
 	struct Animation
 	{
@@ -205,6 +247,7 @@ namespace MathAnim
 			ModifyU8Vec4AnimData modifyU8Vec4;
 			ReplacementTransformData replacementTransform;
 			MoveToData moveTo;
+			Circumscribe circumscribe;
 		} as;
 
 		// Apply the animation state using a interpolation t value
@@ -283,6 +326,9 @@ namespace MathAnim
 		// This is the percent created ranging from [0.0-1.0] which determines 
 		// what to pass to renderCreateAnimation(...)
 		float percentCreated;
+
+		// TODO: This is an ugly hack think of a better way for this stuff
+		AnimId circumscribeId;
 
 		// Transform stuff
 		// TODO: Consider moving this to a Transform class

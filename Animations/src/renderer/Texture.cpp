@@ -377,6 +377,8 @@ namespace MathAnim
 				return GL_ZERO;
 			case ColorChannel::Alpha:
 				return GL_ALPHA;
+			case ColorChannel::None:
+				return GL_NONE;
 			}
 
 			return GL_ONE;

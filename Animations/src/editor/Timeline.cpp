@@ -58,6 +58,7 @@ namespace MathAnim
 		static void handleRotateToAnimationInspector(Animation* animation);
 		static void handleAnimateStrokeColorAnimationInspector(Animation* animation);
 		static void handleAnimateFillColorAnimationInspector(Animation* animation);
+		static void handleCircumscribeInspector(AnimationManagerData* am, Animation* animation);
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
 		static void handleCubeInspector(AnimObject* object);
@@ -853,6 +854,9 @@ namespace MathAnim
 				//handleAnimateStrokeWidthInspector(animation);
 				g_logger_warning("TODO: Implement me.");
 				break;
+			case AnimTypeV1::Circumscribe:
+				handleCircumscribeInspector(am, animation);
+				break;
 			case AnimTypeV1::Length:
 			case AnimTypeV1::None:
 				break;
@@ -1115,6 +1119,28 @@ namespace MathAnim
 				animation->as.modifyU8Vec4.target.b = (uint8)(strokeColor[2] * 255.0f);
 				animation->as.modifyU8Vec4.target.a = (uint8)(strokeColor[3] * 255.0f);
 			}
+		}
+
+		static void handleCircumscribeInspector(AnimationManagerData* am, Animation* animation)
+		{
+			ImGuiExtended::AnimObjDragDropInputBox(": Object", am, &animation->as.circumscribe.obj, animation->id);
+
+			int currentShape = (int)animation->as.circumscribe.shape;
+			if (ImGui::Combo(": Shape", &currentShape, _circumscribeShapeNames.data(), (int)CircumscribeShape::Length))
+			{
+				g_logger_assert(currentShape >= 0 && currentShape < (int)CircumscribeShape::Length, "How did this happen?");
+				animation->as.circumscribe.shape = (CircumscribeShape)currentShape;
+			}
+
+			int currentFade = (int)animation->as.circumscribe.fade;
+			if (ImGui::Combo(": Fade Type", &currentFade, _circumscribeFadeNames.data(), (int)CircumscribeFade::Length))
+			{
+				g_logger_assert(currentFade >= 0 && currentFade < (int)CircumscribeFade::Length, "How did this happen?");
+				animation->as.circumscribe.fade = (CircumscribeFade)currentFade;
+			}
+
+			ImGui::ColorEdit4(": Color", &animation->as.circumscribe.color.x);
+			ImGui::DragFloat(": Buffer Size", &animation->as.circumscribe.bufferSize, slowDragSpeed, 0.0f, 10.0f, "%2.3f");
 		}
 
 		static void handleSquareInspector(AnimObject* object)

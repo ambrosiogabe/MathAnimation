@@ -48,6 +48,8 @@ namespace MathAnim
 							case ViewMode::Normal:
 								glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 								break;
+							case ViewMode::Length:
+								break;
 							}
 							ImGui::CloseCurrentPopup();
 						}

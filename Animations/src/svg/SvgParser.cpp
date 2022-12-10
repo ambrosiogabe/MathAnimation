@@ -393,6 +393,26 @@ namespace MathAnim
 						}
 					}
 					break;
+					case SvgElementType::Defs:
+						g_logger_warning("TODO: Implement me.");
+						break;
+					case SvgElementType::Desc:
+						g_logger_warning("TODO: Implement me.");
+						break;
+					case SvgElementType::Polygon:
+						g_logger_warning("TODO: Implement me.");
+						break;
+					case SvgElementType::Rect:
+						g_logger_warning("TODO: Implement me.");
+						break;
+					case SvgElementType::Title:
+						g_logger_warning("TODO: Implement me.");
+						break;
+					case SvgElementType::Use:
+						g_logger_warning("TODO: Implement me.");
+						break;
+					case SvgElementType::None:
+						break;
 					}
 
 					childEl = childEl->NextSiblingElement();
@@ -536,6 +556,17 @@ namespace MathAnim
 						// FIXME: Title is necessary for accesibility
 					}
 					break;
+					case SvgElementType::Desc:
+					{
+						g_logger_warning("TODO: Implement me.");
+					}
+					case SvgElementType::Style:
+					{
+						g_logger_warning("TODO: Implement me.");
+					}
+					break;
+					case SvgElementType::None:
+						break;
 					}
 
 					childEl = childEl->NextSiblingElement();
@@ -1117,6 +1148,13 @@ namespace MathAnim
 				}
 			}
 			break;
+			case PathTokenType::EndOfFile:
+				PANIC("Interpreting SVG EOF as a command. Something must have gone wrong. Check logs.");
+				break;
+			case PathTokenType::Length:
+			case PathTokenType::Number:
+			case PathTokenType::Panic:
+				break;
 			}
 
 			return true;
@@ -1657,6 +1695,10 @@ namespace MathAnim
 			case StyleTokenType::Semicolon:
 				g_logger_info("Token<Semicolon>: ;");
 				break;
+			case StyleTokenType::Color:
+			case StyleTokenType::Length:
+			case StyleTokenType::NumberPixels:
+				break;
 			}
 		}
 
@@ -1800,6 +1842,9 @@ namespace MathAnim
 					}
 				}
 				break;
+				case StyleAttributeType::None:
+				case StyleAttributeType::Style:
+					break;
 				}
 			}
 			else

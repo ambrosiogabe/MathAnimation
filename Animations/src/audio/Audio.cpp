@@ -105,6 +105,9 @@ namespace MathAnim
 					format = AL_FORMAT_STEREO16;
 				}
 				break;
+			case AudioChannelType::Length:
+			case AudioChannelType::None:
+				break;
 			}
 
 			if (format == AL_INVALID_ENUM)

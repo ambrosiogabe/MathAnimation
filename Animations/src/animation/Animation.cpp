@@ -1,6 +1,7 @@
 #include "animation/Animation.h"
 #include "core.h"
 #include "core/Application.h"
+#include "core/Colors.h"
 #include "animation/AnimationManager.h"
 #include "svg/Svg.h"
 #include "svg/SvgCache.h"
@@ -199,6 +200,21 @@ namespace MathAnim
 			g_logger_warning("TODO: Implement me");
 		}
 		break;
+		case AnimTypeV1::Circumscribe:
+		{
+			// TODO: This is an ugly hack, find a better way to do this
+			AnimObject* objToCircumscribe = AnimationManager::getMutableObject(am, this->as.circumscribe.obj);
+			if (objToCircumscribe)
+			{
+				objToCircumscribe->circumscribeId = this->id;
+			}
+
+			if (objToCircumscribe && t <= 0.0f || t >= 1.0f)
+			{
+				objToCircumscribe->circumscribeId = NULL_ANIM;
+			}
+		}
+		break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
 			break;
@@ -238,6 +254,7 @@ namespace MathAnim
 		{
 		case AnimTypeV1::Create:
 		case AnimTypeV1::UnCreate:
+		case AnimTypeV1::Circumscribe:
 			// NOP;
 			break;
 		case AnimTypeV1::Transform:
@@ -307,6 +324,7 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeColor:
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeWidth:
+		case AnimTypeV1::Circumscribe:
 			break;
 		case AnimTypeV1::MoveTo:
 			onMoveToGizmo(nullptr, this);
@@ -335,6 +353,7 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeColor:
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeWidth:
+		case AnimTypeV1::Circumscribe:
 			break;
 		case AnimTypeV1::MoveTo:
 			onMoveToGizmo(nullptr, this);
@@ -417,6 +436,9 @@ namespace MathAnim
 		case AnimTypeV1::MoveTo:
 			this->as.moveTo.serialize(memory);
 			break;
+		case AnimTypeV1::Circumscribe:
+			this->as.circumscribe.serialize(memory);
+			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
 			break;
@@ -461,6 +483,69 @@ namespace MathAnim
 		res.source = CMath::deserializeVec2(memory);
 		res.target = CMath::deserializeVec2(memory);
 		memory.read<AnimObjId>(&res.object);
+		return res;
+	}
+
+	void Circumscribe::render(const Vec3& objectPosition, const BBox& bbox, float t) const
+	{
+		Vec2 translation = CMath::vector2From3(objectPosition) - (bbox.max - bbox.min) / 2.0f;
+		glm::mat4 transformation = glm::identity<glm::mat4>();
+		transformation = glm::translate(transformation, glm::vec3(translation.x, translation.y, 0.0f));
+		Vec2 size = bbox.max - bbox.min;
+
+		Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
+
+		Path2DContext* path = Renderer::beginPath(Vec2{0.0f, 0.0f}, transformation);
+		Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+		Renderer::lineTo(path, size);
+		Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+		Renderer::lineTo(path, Vec2{0.0f, 0.0f});
+		Renderer::endPath(path, true);
+		Renderer::free(path);
+
+		Renderer::popColor();
+	}
+
+	void Circumscribe::serialize(RawMemory& memory) const
+	{
+		// color          -> Vec4
+		// shape          -> u8
+		// fade           -> u8
+		// bufferSize     -> f32
+		// obj            -> AnimObjId
+		CMath::serialize(memory, this->color);
+		memory.write<CircumscribeShape>(&this->shape);
+		memory.write<CircumscribeFade>(&this->fade);
+		memory.write<float>(&this->bufferSize);
+		memory.write<AnimObjId>(&this->obj);
+	}
+
+	Circumscribe Circumscribe::deserialize(RawMemory& memory)
+	{
+		// color          -> Vec4
+		// shape          -> u8
+		// fade           -> u8
+		// bufferSize     -> f32
+		// obj            -> AnimObjId
+		Circumscribe res;
+		res.color = CMath::deserializeVec4(memory);
+		memory.read<CircumscribeShape>(&res.shape);
+		memory.read<CircumscribeFade>(&res.fade);
+		memory.read<float>(&res.bufferSize);
+		memory.read<AnimObjId>(&res.obj);
+
+		return res;
+	}
+
+	Circumscribe Circumscribe::createDefault()
+	{
+		Circumscribe res;
+		res.color = "#F9DB1BFF"_hex;
+		res.shape = CircumscribeShape::Rectangle;
+		res.fade = CircumscribeFade::FadeInOut;
+		res.bufferSize = 0.1f;
+		res.obj = NULL_ANIM_OBJECT;
+
 		return res;
 	}
 
@@ -520,6 +605,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me");
+			break;
+		case AnimTypeV1::Circumscribe:
+			res.as.circumscribe = Circumscribe::createDefault();
 			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
@@ -630,6 +718,26 @@ namespace MathAnim
 
 	void AnimObject::render(AnimationManagerData* am) const
 	{
+		// TODO: This is gross fixme
+		const Animation* circumscribeAnim = AnimationManager::getAnimation(am, this->circumscribeId);
+		if (circumscribeAnim)
+		{
+			if (this->svgObject && circumscribeAnim->type == AnimTypeV1::Circumscribe)
+			{
+				BBox bbox = this->svgObject->bbox;
+				glm::vec3 scale, skew, translation;
+				glm::quat orientation;
+				glm::vec4 perspective;
+				glm::decompose(this->globalTransform, scale, orientation, translation, skew, perspective);
+
+				bbox.min.x *= scale.x;
+				bbox.max.x *= scale.x;
+				bbox.min.y *= scale.y;
+				bbox.max.y *= scale.y;
+				circumscribeAnim->as.circumscribe.render(Vec3{translation.x, translation.y, translation.z}, bbox, this->percentCreated);
+			}
+		}
+
 		switch (objectType)
 		{
 		case AnimObjectTypeV1::Square:
@@ -904,6 +1012,7 @@ namespace MathAnim
 		strokeWidth = _strokeWidthStart;
 		percentCreated = 0.0f;
 		status = AnimObjectStatus::Inactive;
+		circumscribeId = NULL_ANIM;
 
 		if (objectType == AnimObjectTypeV1::Camera && as.camera.isActiveCamera)
 		{
@@ -1197,6 +1306,7 @@ namespace MathAnim
 		g_logger_assert(animObjectUidCounter < INT32_MAX, "Somehow our UID counter reached '%d'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", INT32_MAX);
 		res.parentId = NULL_ANIM_OBJECT;
 		res.percentCreated = 0.0f;
+		res.circumscribeId = NULL_ANIM;
 
 		const char* newObjName = "New Object";
 		res.nameLength = (uint32)std::strlen(newObjName);
@@ -1611,6 +1721,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 			res.as.moveTo = MoveToData::deserialize(memory);
+			break;
+		case AnimTypeV1::Circumscribe:
+			res.as.circumscribe = Circumscribe::deserialize(memory);
 			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:

@@ -485,6 +485,9 @@ namespace MathAnim
 					: direction == EaseDirection::Out
 					? easeOutBounce(t)
 					: easeInOutBounce(t);
+			case EaseType::Length:
+			case EaseType::None:
+				break;
 			}
 
 			return t;
