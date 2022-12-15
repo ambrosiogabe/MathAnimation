@@ -24,7 +24,7 @@ namespace MathAnim
 		static bool mouseButtonDown[(uint8)MouseButton::Length] = {};
 		static bool mouseButtonUp[(uint8)MouseButton::Length] = {};
 
-		void mouseCallback(GLFWwindow* window, double xpos, double ypos)
+		void mouseCallback(GLFWwindow*, double xpos, double ypos)
 		{
 			mouseX = (float)xpos;
 			mouseY = (float)ypos;
@@ -41,13 +41,13 @@ namespace MathAnim
 			lastMouseY = (float)ypos;
 		}
 
-		void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+		void mouseButtonCallback(GLFWwindow*, int button, int action, int)
 		{
 			mouseButtonDown[button] = action == GLFW_PRESS;
 			mouseButtonUp[button] = action == GLFW_RELEASE;
 		}
 
-		void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+		void scrollCallback(GLFWwindow*, double xoffset, double yoffset)
 		{
 			scrollX = (float)xoffset;
 			scrollY = (float)yoffset;
@@ -64,7 +64,7 @@ namespace MathAnim
 			scrollY = 0;
 		}
 
-		void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+		void keyCallback(GLFWwindow*, int key, int, int action, int)
 		{
 			keyDownData[key] = action == GLFW_PRESS;
 			keyUpData[key] = action == GLFW_RELEASE;

@@ -242,10 +242,8 @@ namespace MathAnim
 
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset)
 		{
-			ImGuiStyle& style = ImGui::GetStyle();
 			float targetAspectRatio = Application::getOutputTargetAspectRatio();
 			ImVec2 contentRegion = ImGui::GetContentRegionAvail();
-			float scrollAmount = ImGui::GetScrollY();
 			ImVec2 res = contentRegion;
 
 			float width = res.x;

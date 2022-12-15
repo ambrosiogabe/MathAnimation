@@ -701,7 +701,6 @@ namespace MathAnim
 				if (anim)
 				{
 					float frameStart = (float)anim->frameStart;
-					int animDeathTime = (int)frameStart + anim->duration;
 					if (frameStart <= am->currentFrame)
 					{
 						// Then apply the animation
@@ -963,7 +962,6 @@ namespace MathAnim
 			for (auto animIter = am->animations.begin() + startIndex; animIter != am->animations.end(); animIter++)
 			{
 				float frameStart = (float)animIter->frameStart;
-				int animDeathTime = (int)frameStart + animIter->duration;
 				if (frameStart <= currentFrame)
 				{
 					// Then apply the animation

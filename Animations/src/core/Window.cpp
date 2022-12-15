@@ -106,7 +106,7 @@ namespace MathAnim
 		glfwSetWindowShouldClose((GLFWwindow*)windowPtr, true);
 	}
 
-	void Window::update(float dt)
+	void Window::update(float)
 	{
 
 	}

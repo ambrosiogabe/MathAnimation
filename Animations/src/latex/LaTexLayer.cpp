@@ -158,7 +158,7 @@ namespace MathAnim
 			}
 		}
 
-		bool laTexIsReady(const char* latexRaw, bool isMathTex)
+		bool laTexIsReady(const char* latexRaw, bool)
 		{
 			std::string latex = std::string(latexRaw);
 			return laTexIsReady(latex);

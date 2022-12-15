@@ -75,7 +75,7 @@ namespace MathAnim
 			EditorGui::onGizmo(am);
 		}
 
-		void render(AnimationManagerData* am, const OrthoCamera& editorCamera)
+		void render(AnimationManagerData* am)
 		{
 			// Render call stuff
 			GlobalContext* g = gGizmoManager;

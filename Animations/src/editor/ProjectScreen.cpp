@@ -113,20 +113,22 @@ namespace MathAnim
 			ImGui::Begin("Project Selector", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDocking);
 			ImVec2 cursorPos = ImGui::GetCursorScreenPos();
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-			ImGui::PushFont(largeFont);
-			std::string appTitle = "Math Anim";
-			ImVec2 textSize = ImGui::CalcTextSize(appTitle.c_str());
 			ImVec2 availableSpace = ImGui::GetContentRegionAvail();
-			drawList->AddRectFilled(cursorPos, cursorPos + ImVec2(availableSpace.x, titleBarHeight), ImColor(Colors::Neutral[8]));
 
-			ImGui::SetCursorScreenPos(cursorPos + ImVec2(
-				availableSpace.x / 2.0f - textSize.x / 2.0f,
-				titleBarHeight / 2.0f - textSize.y / 2.0f
-			));
-			ImGui::Text(appTitle.c_str());
+			{
+				ImGui::PushFont(largeFont);
+				std::string appTitle = "Math Anim";
+				ImVec2 textSize = ImGui::CalcTextSize(appTitle.c_str());
+				drawList->AddRectFilled(cursorPos, cursorPos + ImVec2(availableSpace.x, titleBarHeight), ImColor(Colors::Neutral[8]));
 
-			ImGui::PopFont();
+				ImGui::SetCursorScreenPos(cursorPos + ImVec2(
+					availableSpace.x / 2.0f - textSize.x / 2.0f,
+					titleBarHeight / 2.0f - textSize.y / 2.0f
+				));
+				ImGui::Text(appTitle.c_str());
+
+				ImGui::PopFont();
+			}
 
 			ImGui::SetCursorScreenPos(cursorPos + ImVec2(0.0f, titleBarHeight));
 			ImGui::BeginChild("##ProjectArea", ImVec2(availableSpace.x, availableSpace.y - (titleBarHeight + buttonAreaHeight)));
@@ -169,13 +171,13 @@ namespace MathAnim
 				drawList->PushClipRect(ImGui::GetCurrentWindow()->ClipRect.Min, ImGui::GetCurrentWindow()->ClipRect.Max);
 				drawList->AddImageRounded(
 					(ImTextureID)projects[i].texture.graphicsId,
-					rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1), 
+					rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1),
 					IM_COL32(255, 255, 255, 255), iconBorderRounding);
 
 				// Draw highlight border
-				const ImVec4& borderColor = 
-					i == selectedProjectIndex 
-					? Colors::AccentGreen[2] 
+				const ImVec4& borderColor =
+					i == selectedProjectIndex
+					? Colors::AccentGreen[2]
 					: ImGui::IsItemHovered()
 					? Colors::Neutral[2]
 					: Colors::Neutral[9];
@@ -289,7 +291,6 @@ namespace MathAnim
 		{
 			bool res = false;
 
-			Window* window = ProjectApp::getWindow();
 			ImGui::SetNextWindowSize(createProjectWindowSize, ImGuiCond_Always);
 
 			ImGui::PushFont(defaultFont);

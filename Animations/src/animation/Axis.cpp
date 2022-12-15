@@ -9,7 +9,7 @@ namespace MathAnim
 	// ------------------ Internal Functions ------------------
 	static Axis deserializeAxisV1(RawMemory& memory);
 
-	void Axis::init(AnimObject* parent)
+	void Axis::init(AnimObject*)
 	{
 		//g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Axis object initialized twice.");
 		//g_logger_assert(parent->children.size() == 0, "Axis object initialized twice.");

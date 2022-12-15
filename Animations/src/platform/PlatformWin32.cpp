@@ -167,7 +167,7 @@ namespace MathAnim
 							// Try to get install path
 							WCHAR installPath[bufferMaxSize];
 							DWORD installPathBufferSize = sizeof(installPath);
-							long installQueryResult = RegQueryValueEx(
+							RegQueryValueEx(
 								appKey,
 								L"InstallLocation",
 								NULL,
@@ -355,7 +355,6 @@ namespace MathAnim
 		{
 			constexpr int maxMd5Length = 1024;
 			g_logger_assert(md5Length < maxMd5Length, "Cannot generate md5 greater than %d characters.", maxMd5Length);
-			constexpr int bufferSize = 1024;
 
 			// Get handle to the crypto provider
 			HCRYPTPROV hProv = 0;
@@ -382,7 +381,7 @@ namespace MathAnim
 			// Reinterpret the char's as unsigned char's
 			// shouldn't make any difference since the data
 			// doesn't matter, just the bits
-			if (!CryptHashData(hHash, (BYTE*)str, length, 0))
+			if (!CryptHashData(hHash, (BYTE*)str, (DWORD)length, 0))
 			{
 				DWORD dwStatus = GetLastError();
 				g_logger_error("CryptHashData failed: %d", dwStatus);

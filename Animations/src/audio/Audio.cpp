@@ -38,21 +38,21 @@ namespace MathAnim
 			g_logger_info("Audio Output Device: '%s'", currentDeviceName);
 			{
 				std::string logMessage = "Available Output Devices:\n";
-				const ALCchar* device = devices;
+				const ALCchar* currentDevice = devices;
 				// This should iterate until it encounters \0\0 which is the termination of 
 				// the list of strings
 				int deviceIndex = 0;
-				while (*device != '\0')
+				while (*currentDevice != '\0')
 				{
-					std::string deviceName = std::string(device);
+					std::string deviceName = std::string(currentDevice);
 					// TODO: Provide a drop down in the audio preview so the user can select
 					// which output device to use
 					friendlyDeviceNames.push_back(deviceName);
 
 					logMessage += std::string("\tDevice[") + std::to_string(deviceIndex) + "]: " + deviceName + "\n";
-					while (*device != '\0')
+					while (*currentDevice != '\0')
 					{
-						device++;
+						currentDevice++;
 					}
 					deviceIndex++;
 				}
@@ -286,11 +286,11 @@ namespace MathAnim
 		}
 
 		// -------------- Internal Functions --------------
-		static void displayError(uint32 error)
+		static void displayError(uint32 inError)
 		{
-			if (error != ALC_NO_ERROR)
+			if (inError != ALC_NO_ERROR)
 			{
-				switch (error)
+				switch (inError)
 				{
 				case ALC_INVALID_VALUE:
 					g_logger_error("ALC_INVALID_VALUE: an invalid value was passed to an OpenAL function");
@@ -308,7 +308,7 @@ namespace MathAnim
 					g_logger_error("ALC_OUT_OF_MEMORY: an unknown enum value was passed to an OpenAL function");
 					break;
 				default:
-					g_logger_error("UNKNOWN ALC ERROR: %u", error);
+					g_logger_error("UNKNOWN ALC ERROR: %u", inError);
 				}
 			}
 		}

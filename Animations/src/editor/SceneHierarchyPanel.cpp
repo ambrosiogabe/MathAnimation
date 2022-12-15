@@ -103,7 +103,6 @@ namespace MathAnim
 		{
 			// TODO: Save when a tree node is open
 			ImGui::Begin(ICON_FA_PROJECT_DIAGRAM " Scene");
-			int index = 0;
 			inBetweenBuffer.clear();
 
 			// Now iterate through all the entities
@@ -164,7 +163,6 @@ namespace MathAnim
 					const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
 					int childIndex = objPayload->sceneHierarchyIndex;
 					g_logger_assert(childIndex >= 0 && childIndex < orderedEntities.size(), "Invalid payload.");
-					SceneTreeMetadata& childMetadata = orderedEntitiesCopy[childIndex];
 					moveTreeTo(am, childIndex, inBetweenIndex);
 				}
 				ImGui::EndDragDropTarget();
@@ -204,7 +202,6 @@ namespace MathAnim
 		{
 			int numChildren = -1;
 			int parentIndex = -1;
-			int index = 0;
 
 			bool hasEntity = false;
 			for (int index = 0; index < orderedEntities.size(); index++)
@@ -241,7 +238,7 @@ namespace MathAnim
 			}
 		}
 
-		void serialize(RawMemory& memory)
+		void serialize(RawMemory&)
 		{
 			//json orderedEntitiesJson = {};
 			//for (int i = 0; i < orderedEntities.size(); i++)
@@ -259,7 +256,7 @@ namespace MathAnim
 			//j["SceneHeirarchyOrder"] = orderedEntitiesJson;
 		}
 
-		void deserialize(RawMemory& memory)
+		void deserialize(RawMemory&)
 		{
 			// TODO: See if this is consistent with how you load the rest of the assets
 			//orderedEntities.clear(false);
@@ -603,7 +600,6 @@ namespace MathAnim
 						orderedEntitiesCopy[placeToMoveToIndex].animObjectId))
 					{
 						int parentLevel = orderedEntitiesCopy[placeToMoveToIndex].level;
-						int subtreeLevel = orderedEntitiesCopy[placeToMoveToIndex + 1].level;
 						// Tricky, now we have to move the whole subtree
 						for (int i = placeToMoveToIndex + 1; i < orderedEntitiesCopy.size(); i++)
 						{
@@ -642,7 +638,6 @@ namespace MathAnim
 		{
 			g_logger_assert(parentIndex >= 0 && parentIndex < orderedEntitiesCopy.size(), "Out of bounds index.");
 			SceneTreeMetadata& parent = orderedEntitiesCopy[parentIndex];
-			int numChildren = 0;
 			for (int i = parent.index + 1; i < orderedEntitiesCopy.size(); i++)
 			{
 				// We don't have to worry about going out of bounds with that plus one, because if it is out

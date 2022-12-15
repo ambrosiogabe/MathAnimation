@@ -53,7 +53,7 @@ namespace MathAnim
 			}
 		}
 
-		void updatePerspective(PerspectiveCamera& camera)
+		void updatePerspective(PerspectiveCamera&)
 		{
 
 		}

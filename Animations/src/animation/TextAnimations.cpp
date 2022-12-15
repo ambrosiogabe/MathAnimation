@@ -36,7 +36,7 @@ namespace MathAnim
 				continue;
 			}
 
-			uint32 codepoint = (uint32)textStr[i];
+			uint8 codepoint = (uint8)textStr[i];
 			const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
 			if (!glyphOutline.svg)
 			{

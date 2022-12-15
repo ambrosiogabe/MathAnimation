@@ -125,7 +125,6 @@ namespace MathAnim
 			// Start with a 60 fps frame rate
 			bool isRunning = true;
 			double previousTime = glfwGetTime() - 0.16f;
-			constexpr float fixedDeltaTime = 1.0f / 60.0f;
 			int deltaFrame = 0;
 
 			svgCache->clearAll();
@@ -177,7 +176,7 @@ namespace MathAnim
 					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], am, renderPickingOutline);
 				}
 				// Collect gizmo draw calls
-				GizmoManager::render(am, editorCamera2D);
+				GizmoManager::render(am);
 				// Render all gizmo draw calls and animation draw calls to the editor framebuffer
 				renderPickingOutline = true;
 				if (EditorGui::editorViewportActive())
@@ -238,28 +237,28 @@ namespace MathAnim
 			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
 			if (mainFramebuffer.width > 1280 || mainFramebuffer.height > 720)
 			{
-				constexpr int outputWidth = 1280;
-				constexpr int outputHeight = 720;
-				uint8* outputPixels = (uint8*)g_memory_allocate(sizeof(uint8) * outputWidth * outputHeight * 3);
+				constexpr int pngOutputWidth = 1280;
+				constexpr int pngOutputHeight = 720;
+				uint8* pngOutputPixels = (uint8*)g_memory_allocate(sizeof(uint8) * pngOutputWidth * pngOutputHeight * 3);
 				stbir_resize_uint8(
 					(uint8*)pixels,
 					mainFramebuffer.width,
 					mainFramebuffer.height,
 					0,
-					outputPixels,
-					outputWidth,
-					outputHeight,
+					pngOutputPixels,
+					pngOutputWidth,
+					pngOutputHeight,
 					0,
 					3);
 				stbi_flip_vertically_on_write(true);
 				stbi_write_png(
 					outputFile.string().c_str(),
-					outputWidth,
-					outputHeight,
+					pngOutputWidth,
+					pngOutputHeight,
 					3,
-					outputPixels,
-					sizeof(uint8) * outputWidth * 3);
-				g_memory_free(outputPixels);
+					pngOutputPixels,
+					sizeof(uint8) * pngOutputWidth * 3);
+				g_memory_free(pngOutputPixels);
 			}
 			else
 			{
@@ -382,7 +381,7 @@ namespace MathAnim
 			FILE* fp = fopen(filepath.c_str(), "rb");
 			if (!fp)
 			{
-				g_logger_warning("Could not load scene '%s', error opening file.", filepath);
+				g_logger_warning("Could not load scene '%s', error opening file.", filepath.c_str());
 				resetToFrame(0);
 				return;
 			}

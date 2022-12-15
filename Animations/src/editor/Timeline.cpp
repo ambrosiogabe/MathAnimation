@@ -71,7 +71,6 @@ namespace MathAnim
 		static void addAnimation(const Animation& animation);
 		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex, AnimationManagerData* am);
 		static void deleteSubSegment(ImGuiTimeline_Segment& segment, int subSegmentIndex, AnimationManagerData* am);
-		static void resetImGuiData(AnimationManagerData* am);
 
 		TimelineData initInstance()
 		{
@@ -746,7 +745,6 @@ namespace MathAnim
 				if (ImGui::CollapsingHeader("Anim Objects"))
 				{
 					std::unordered_set<AnimObjId> objectIdsCopy = animation->animObjectIds;
-					auto animObjectIdIter = objectIdsCopy.begin();
 					for (auto animObjectIdIter = objectIdsCopy.begin(); animObjectIdIter != objectIdsCopy.end(); animObjectIdIter++)
 					{
 						const AnimObject* obj = AnimationManager::getObject(am, *animObjectIdIter);
@@ -1519,31 +1517,6 @@ namespace MathAnim
 				g_memory_free(segment.subSegments);
 				segment.subSegments = nullptr;
 			}
-		}
-
-		static void resetImGuiData(AnimationManagerData* am)
-		{
-			for (int track = 0; track < numTracks; track++)
-			{
-				if (tracks[track].segments)
-				{
-					for (int i = 0; i < tracks[track].numSegments; i++)
-					{
-						if (tracks[track].segments[i].subSegments)
-						{
-							g_memory_free(tracks[track].segments[i].subSegments);
-							tracks[track].segments[i].subSegments = nullptr;
-							tracks[track].segments[i].numSubSegments = 0;
-						}
-					}
-
-					g_memory_free(tracks[track].segments);
-					tracks[track].segments = nullptr;
-					tracks[track].numSegments = 0;
-				}
-			}
-
-			setupImGuiTimelineDataFromAnimations(am, numTracks);
 		}
 	}
 }

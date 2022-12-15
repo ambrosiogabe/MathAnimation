@@ -311,9 +311,9 @@ namespace MathAnim
 		float firstTimecodePosition = glm::floor((scrollOffsetX / minDistanceBetweenRulerTimecodes)) * minDistanceBetweenRulerTimecodes - scrollOffsetX;
 		// Zoom will effect this soon
 		int numTimecodesThatFit = (int)glm::ceil((timelineRulerEnd.x - timelineRulerBegin.x) / minDistanceBetweenRulerTimecodes);
-		for (int i = 0; i <= numTimecodesThatFit; i++)
+		for (int timecodei = 0; timecodei <= numTimecodesThatFit; timecodei++)
 		{
-			ImVec2 tickStart = ImVec2(firstTimecodePosition + i * minDistanceBetweenRulerTimecodes, 0.0f);
+			ImVec2 tickStart = ImVec2(firstTimecodePosition + timecodei * minDistanceBetweenRulerTimecodes, 0.0f);
 			tickStart += timelineRulerBegin;
 			ImVec2 tickEnd = tickStart + ImVec2(tickWidth, boundaryTickHeight);
 			if (tickStart.x >= timelineRulerBegin.x)
@@ -324,7 +324,7 @@ namespace MathAnim
 			{
 				// Draw the time code string
 				int firstTickPos = (int)glm::floor((scrollOffsetX / minDistanceBetweenRulerTimecodes));
-				int numFramesToThisPos = (int)((float)((firstTickPos + i) * numTicksBetweenBoundaries) * amountOfFramesVisibleBetweenSmallTicks);
+				int numFramesToThisPos = (int)((float)((firstTickPos + timecodei) * numTicksBetweenBoundaries) * amountOfFramesVisibleBetweenSmallTicks);
 
 				// Max formatted string length is HH:MM:SS:ff
 				static char strBuffer[] = "HH:MM:SS:ff";
@@ -340,16 +340,16 @@ namespace MathAnim
 			}
 
 			ImVec2 smallTickStart = tickStart;
-			for (int i = 0; i < numTicksBetweenBoundaries; i++)
+			for (int tickBoundaryi = 0; tickBoundaryi < numTicksBetweenBoundaries; tickBoundaryi++)
 			{
 				smallTickStart.x += distanceBetweenSmallTicks;
 				ImVec2 smallTickEnd = smallTickStart + ImVec2(tickWidth, 0.0f);
-				smallTickEnd.y += (i + 1) == tickMidpoint
+				smallTickEnd.y += (tickBoundaryi + 1) == tickMidpoint
 					? largeTickHeight
-					: i % 2 == 1
+					: tickBoundaryi % 2 == 1
 					? smallTickHeight
 					: mediumTickHeight;
-				const ImU32& color = (i + 1) == tickMidpoint
+				const ImU32& color = (tickBoundaryi + 1) == tickMidpoint
 					? largeTickColor
 					: defaultTickColor;
 
@@ -596,8 +596,8 @@ namespace MathAnim
 							ImGuiTimeline_SubSegment& subSegment = segment.subSegments[subSegmenti];
 
 							int subSegmentAbsFrameStart = subSegment.frameStart + segment.frameStart;
-							float offsetX = (subSegmentAbsFrameStart - (float)*firstFrame) / amountOfTimeVisibleInTimeline * (canvasSize.x - legendSize.x);
-							float width = (subSegment.frameDuration / amountOfTimeVisibleInTimeline) * (canvasSize.x - legendSize.x);
+							float subOffsetX = calculateSegmentOffset(subSegmentAbsFrameStart, *firstFrame, amountOfTimeVisibleInTimeline);
+							float subWidth = calculateSegmentWidth(subSegment.frameDuration, amountOfTimeVisibleInTimeline);
 							// Check if segment intersects with the timeline
 							// We can check if:
 							//    segmentEnd >= timelineBegin && segmentBegin <= timelineEnd
@@ -606,31 +606,28 @@ namespace MathAnim
 								subSegmentAbsFrameStart + subSegment.frameDuration >= *firstFrame)
 							{
 								// Clamp values as necessary
-								if (offsetX < 0.0f)
+								if (subOffsetX < 0.0f)
 								{
-									width = width + offsetX;
-									offsetX = 0.0f;
+									subWidth = subWidth + subOffsetX;
+									subOffsetX = 0.0f;
 								}
 
 								// Calculate the width, and truncate if necessary
-								if (offsetX + width > canvasSize.x - legendSize.x)
+								if (subOffsetX + subWidth > canvasSize.x - legendSize.x)
 								{
-									width = canvasSize.x - legendSize.x - offsetX;
+									subWidth = canvasSize.x - legendSize.x - subOffsetX;
 								}
 
-								ImVec2 subSegmentStart = ImVec2(canvasPos.x + legendSize.x + offsetX, subTrackTopY);
-								ImVec2 subSegmentEnd = ImVec2(subSegmentStart.x + width, subTrackBottomY);
+								ImVec2 subSegmentStart = ImVec2(canvasPos.x + legendSize.x + subOffsetX, subTrackTopY);
+								ImVec2 subSegmentEnd = ImVec2(subSegmentStart.x + subWidth, subTrackBottomY);
 
-								std::string strId = std::string("Track_") + std::to_string(i) + "_SubSegment_" + std::to_string(si) + "_" + std::to_string(subSegmenti);
-								ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
+								std::string subStrId = std::string("Track_") + std::to_string(i) + "_SubSegment_" + std::to_string(si) + "_" + std::to_string(subSegmenti);
+								ImGuiID subSegmentID = ImHashStr(subStrId.c_str(), subStrId.size());
 								SegmentChangeType subChangeType;
 
 								// Same as above: Only handleSubSegment logic if the mouse is over the window
-								if (mouseHoveringOverTimelineWindow && handleSubSegment(subSegmentStart, subSegmentEnd, &subSegment, &subChangeType, segmentID, timelineSize, amountOfTimeVisibleInTimeline))
+								if (mouseHoveringOverTimelineWindow && handleSubSegment(subSegmentStart, subSegmentEnd, &subSegment, &subChangeType, subSegmentID, timelineSize, amountOfTimeVisibleInTimeline))
 								{
-									float subOffsetX = calculateSegmentOffset(subSegment.frameStart, *firstFrame, amountOfTimeVisibleInTimeline);
-									float subWidth = calculateSegmentWidth(subSegment.frameDuration, amountOfTimeVisibleInTimeline);
-
 									// ------------ Handle magnet snapping segments ------------
 									if (magnetEnabled && subSegmenti > 0)
 									{
@@ -670,14 +667,14 @@ namespace MathAnim
 									res.segmentIndex = si;
 									res.subSegmentIndex = subSegmenti;
 									res.trackIndex = i;
-									if (activeSegmentID != segmentID)
+									if (activeSegmentID != subSegmentID)
 									{
 										res.flags |= ImGuiTimelineResultFlags_ActiveObjectChanged;
 										res.activeObjectIsSubSegment = true;
-										activeSegmentID = segmentID;
+										activeSegmentID = subSegmentID;
 									}
 								}
-								else if (activeSegmentID == segmentID && mouseClickedSomewhereOnTimeline)
+								else if (activeSegmentID == subSegmentID && mouseClickedSomewhereOnTimeline)
 								{
 									res.flags |= ImGuiTimelineResultFlags_ActiveObjectDeselected;
 									activeSegmentID = UINT32_MAX;
@@ -688,7 +685,7 @@ namespace MathAnim
 									// Draw the segment
 									drawList->AddRectFilled(subSegmentStart, subSegmentEnd, subSegmentColor, 10.0f);
 									drawList->AddRect(subSegmentStart, subSegmentEnd, subSegmentDarkColor, 10.0f);
-									if (activeSegmentID == segmentID)
+									if (activeSegmentID == subSegmentID)
 									{
 										drawList->AddRect(subSegmentStart, subSegmentEnd, cursorColor, 10.0f, 0, 4.0f);
 
@@ -912,9 +909,6 @@ namespace MathAnim
 
 		// ---------------------- Handle Timeline Cursor ------------------------------
 		{
-			ImDrawList* drawList = ImGui::GetWindowDrawList();
-			ImGuiStyle& style = ImGui::GetStyle();
-
 			static DragState timelineDragging = DragState::None;
 			if (mouseHoveringOverTimelineWindow && ImGui::IsMouseHoveringRect(timelineRulerBegin, timelineRulerEnd))
 			{
@@ -1028,16 +1022,17 @@ namespace MathAnim
 			drawList->AddRect(canvasPos, canvasPos + timecodeRectSize, IM_COL32(0, 0, 0, 255), 0, 0, 1.5f);
 
 			// Max formatted string length is HH:MM:SS:ff
-			static char strBuffer[] = "HH:MM:SS:ff";
-			size_t strBufferSize = sizeof(strBuffer) / sizeof(strBuffer[0]);
-			framesToTimeStr(strBuffer, strBufferSize, *currentFrame);
+			{
+				static char strBuffer[] = "HH:MM:SS:ff";
+				size_t strBufferSize = sizeof(strBuffer) / sizeof(strBuffer[0]);
+				framesToTimeStr(strBuffer, strBufferSize, *currentFrame);
 
-			ImGui::PushFont(ImGuiLayer::getMediumFont());
-			ImVec2 textSize = ImGui::CalcTextSize(strBuffer, strBuffer + strBufferSize - 1);
-			ImVec2 textPos = canvasPos + ((timecodeRectSize - textSize) / 2.0f);
-			ImVec4& fontColor = style.Colors[ImGuiCol_Text];
-			drawList->AddText(textPos, ImColor(fontColor), strBuffer, strBuffer + strBufferSize - 1);
-			ImGui::PopFont();
+				ImGui::PushFont(ImGuiLayer::getMediumFont());
+				ImVec2 textSize = ImGui::CalcTextSize(strBuffer, strBuffer + strBufferSize - 1);
+				ImVec2 textPos = canvasPos + ((timecodeRectSize - textSize) / 2.0f);
+				drawList->AddText(textPos, ImColor(fontColor), strBuffer, strBuffer + strBufferSize - 1);
+				ImGui::PopFont();
+			}
 
 			// Draw all the track labels
 			float currentTrackTop = canvasPos.y + timelineRulerHeight - scrollOffsetY;
@@ -1329,8 +1324,6 @@ namespace MathAnim
 
 	static bool handleResizeElement(float* currentValue, DragState* state, const ImVec2& valueBounds, const ImVec2& mouseBounds, const ImVec2& hoverRectStart, const ImVec2& hoverRectEnd, ResizeFlags flags)
 	{
-		float normalizedPos = ((float)(*currentValue) - (float)valueBounds.x) / ((float)valueBounds.y - (float)valueBounds.x);
-
 		if (ImGui::IsMouseHoveringRect(hoverRectStart, hoverRectEnd))
 		{
 			if (*state == DragState::None && !ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
@@ -1725,7 +1718,6 @@ namespace MathAnim
 			changed = true;
 		}
 
-		bool currentValueChanged = false;
 		if (*state == DragState::Active && !ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
 		{
 			*state = DragState::None;
@@ -1826,10 +1818,9 @@ namespace MathAnim
 		}
 	}
 
-	static void snapToNextSegment(int* firstFrame, float* offsetX, float* width, int* segmentFrameStart, int* segmentFrameDuration, int nextSegmentFrameStart, int nextSegmentFrameDuration, SegmentChangeType changeType, float amountOfTimeVisibleInTimeline)
+	static void snapToNextSegment(int* firstFrame, float* offsetX, float* width, int* segmentFrameStart, int* segmentFrameDuration, int nextSegmentFrameStart, int, SegmentChangeType changeType, float amountOfTimeVisibleInTimeline)
 	{
 		float nextOffset = calculateSegmentOffset(nextSegmentFrameStart, *firstFrame, amountOfTimeVisibleInTimeline);
-		float nextWidth = calculateSegmentWidth(nextSegmentFrameDuration, amountOfTimeVisibleInTimeline);
 		if (nextOffset >= *offsetX + *width - magnetThreshold && nextOffset <= *offsetX + *width + magnetThreshold)
 		{
 			if (changeType == SegmentChangeType::Moved)

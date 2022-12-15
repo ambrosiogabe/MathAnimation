@@ -690,11 +690,9 @@ namespace MathAnim
 				const GlyphTexture& glyphTexture = font->getGlyphTexture(c);
 				const GlyphOutline& glyphOutline = font->getGlyphInfo(c);
 				float charWidth = glyphOutline.glyphWidth * (float)font->fontSizePixels;
-				float charHeight = glyphOutline.glyphHeight * (float)font->fontSizePixels;
 				float bearingX = glyphOutline.bearingX * (float)font->fontSizePixels;
 				float descentY = glyphOutline.descentY * (float)font->fontSizePixels;
 				float bearingY = glyphOutline.bearingY * (float)font->fontSizePixels;
-				float lineHeight = font->unsizedFont->lineHeight * font->fontSizePixels;
 
 				drawListFont2D.addGlyph(
 					cursorPos + Vec2{ bearingX, -bearingY },
@@ -894,10 +892,8 @@ namespace MathAnim
 			}
 		}
 
-		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath, AnimObjId objId)
+		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath, AnimObjId)
 		{
-			constexpr float defaultStrokeWidth = 0.02f;
-
 			// Start the fade in after 80% of the svg object is drawn
 			const float lengthToDraw = (endT - startT) * (float)path->approximateLength;
 			float currentT = 0.0f;
@@ -1035,7 +1031,7 @@ namespace MathAnim
 				}
 				else
 				{
-					Renderer::endPath(context);
+					Renderer::endPath(context, closePath);
 					Renderer::free(context);
 				}
 			}

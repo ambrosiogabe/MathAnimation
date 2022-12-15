@@ -343,7 +343,7 @@ namespace MathAnim
 		}
 	}
 
-	void Animation::onGizmo(const AnimObject* obj)
+	void Animation::onGizmo(const AnimObject*)
 	{
 		switch (type)
 		{
@@ -653,7 +653,7 @@ namespace MathAnim
 
 		g_logger_error("AnimationEx serialized with unknown version '%d'. Memory potentially corrupted.", version);
 		Animation res;
-		res.id = -1;
+		res.id = NULL_ANIM;
 		res.animObjectIds.clear();
 		res.type = AnimTypeV1::None;
 		res.duration = 0;
@@ -820,15 +820,15 @@ namespace MathAnim
 			if (this->svgObject && circumscribeAnim->type == AnimTypeV1::Circumscribe)
 			{
 				BBox bbox = this->svgObject->bbox;
-				glm::vec3 scale, skew, translation;
+				glm::vec3 scaleFactor, skew, translation;
 				glm::quat orientation;
 				glm::vec4 perspective;
-				glm::decompose(this->globalTransform, scale, orientation, translation, skew, perspective);
+				glm::decompose(this->globalTransform, scaleFactor, orientation, translation, skew, perspective);
 
-				bbox.min.x *= scale.x;
-				bbox.max.x *= scale.x;
-				bbox.min.y *= scale.y;
-				bbox.max.y *= scale.y;
+				bbox.min.x *= scaleFactor.x;
+				bbox.max.x *= scaleFactor.x;
+				bbox.min.y *= scaleFactor.y;
+				bbox.max.y *= scaleFactor.y;
 				circumscribeAnim->as.circumscribe.render(Vec3{ translation.x, translation.y, translation.z }, bbox);
 			}
 		}
@@ -1368,7 +1368,7 @@ namespace MathAnim
 
 		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
 		AnimObject res = {};
-		res.id = -1;
+		res.id = NULL_ANIM;
 		return res;
 	}
 
@@ -1589,7 +1589,7 @@ namespace MathAnim
 	}
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory)
+	static AnimObject deserializeAnimObjectV1(AnimationManagerData*, RawMemory& memory)
 	{
 		// TODO: Replace this with some sort of library where you register 
 		// an object layout and it automatically serializes/deserializes stuff
@@ -1842,7 +1842,7 @@ namespace MathAnim
 		return res;
 	}
 
-	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim)
+	static void onMoveToGizmo(AnimationManagerData*, Animation* anim)
 	{
 		// TODO: Render and handle 2D gizmo logic based on edit mode
 		std::string gizmoName = "Move_To_" + std::to_string(anim->id);
