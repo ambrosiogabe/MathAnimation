@@ -55,6 +55,7 @@ namespace MathAnim
 		} as;
 
 		float calculateApproximatePerimeter() const;
+		Curve split(float t0, float t1) const;
 	};
 
 	struct Path

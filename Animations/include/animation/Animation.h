@@ -218,8 +218,9 @@ namespace MathAnim
 		CircumscribeFade fade;
 		float bufferSize;
 		AnimObjId obj;
+		float tValue;
 
-		void render(const Vec3& position, const BBox& bbox, float t) const;
+		void render(const Vec3& position, const BBox& bbox) const;
 		void serialize(RawMemory& memory) const;
 		static Circumscribe deserialize(RawMemory& memory);
 		static Circumscribe createDefault();

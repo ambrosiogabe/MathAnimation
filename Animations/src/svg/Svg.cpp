@@ -1261,6 +1261,107 @@ namespace MathAnim
 		return 0.0f;
 	}
 
+	Curve Curve::split(float _t0, float _t1) const
+	{
+		Curve res;
+		res.type = type;
+
+		switch (type)
+		{
+		case CurveType::Bezier3:
+		{
+			const Vec2& p1 = as.bezier3.p1;
+			const Vec2& p2 = as.bezier3.p2;
+			const Vec2& p3 = as.bezier3.p3;
+
+			// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+			float t0 = _t0;
+			float t1 = _t1;
+			float u0 = (1.0f - t0);
+			float u1 = (1.0f - t1);
+
+			Vec2 q0 = ((u0 * u0 * u0) * p0) +
+				((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
+				((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
+				((t0 * t0 * t0) * p3);
+			Vec2 q1 = ((u0 * u0 * u1) * p0) +
+				((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
+				((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
+				((t0 * t0 * t1) * p3);
+			Vec2 q2 = ((u0 * u1 * u1) * p0) +
+				((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
+				((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
+				((t0 * t1 * t1) * p3);
+			Vec2 q3 = ((u1 * u1 * u1) * p0) +
+				((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
+				((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
+				((t1 * t1 * t1) * p3);
+
+			res.p0 = q0;
+			res.as.bezier3.p1 = q1;
+			res.as.bezier3.p2 = q2;
+			res.as.bezier3.p3 = q3;
+		}
+		break;
+		case CurveType::Bezier2:
+		{
+			// Elevate the bezier2 to a bezier3
+			res.type = CurveType::Bezier3;
+
+			const Vec2& p1 = as.bezier2.p1;
+			const Vec2& p2 = as.bezier2.p1;
+			const Vec2& p3 = as.bezier2.p2;
+
+			// Degree elevated quadratic bezier curve
+			Vec2 pr0 = p0;
+			Vec2 pr1 = (1.0f / 3.0f) * p0 + (2.0f / 3.0f) * p1;
+			Vec2 pr2 = (2.0f / 3.0f) * p1 + (1.0f / 3.0f) * p2;
+			Vec2 pr3 = p3;
+
+			// Interpolate the curve
+			// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+			float t0 = _t0;
+			float t1 = _t1;
+			float u0 = (1.0f - t0);
+			float u1 = (1.0f - t1);
+
+			Vec2 q0 = ((u0 * u0 * u0) * p0) +
+				((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
+				((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
+				((t0 * t0 * t0) * p3);
+			Vec2 q1 = ((u0 * u0 * u1) * p0) +
+				((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
+				((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
+				((t0 * t0 * t1) * p3);
+			Vec2 q2 = ((u0 * u1 * u1) * p0) +
+				((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
+				((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
+				((t0 * t1 * t1) * p3);
+			Vec2 q3 = ((u1 * u1 * u1) * p0) +
+				((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
+				((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
+				((t1 * t1 * t1) * p3);
+
+			res.p0 = q0;
+			res.as.bezier3.p1 = q1;
+			res.as.bezier3.p2 = q2;
+			res.as.bezier3.p1 = q3;
+		}
+		break;
+		case CurveType::Line:
+		{
+			Vec2 dir = this->as.line.p1 - this->p0;
+			res.p0 = (_t0 * dir) + this->p0;
+			res.as.line.p1 = (_t1 * dir) + this->p0;
+		}
+		break;
+		case CurveType::None:
+			break;
+		}
+
+		return res;
+	}
+
 	float Path::calculateApproximatePerimeter() const
 	{
 		float approxPerimeter = 0.0f;

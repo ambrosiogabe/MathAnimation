@@ -58,10 +58,10 @@ namespace MathAnim
 		// TODO: Switch to using this when drawing completed objects to potentially
 		// batch draw calls together and improve performance
 		void drawSquare(const Vec2& start, const Vec2& size);
-		void drawFilledQuad(const Vec2& start, const Vec2& size, uint32 objId = UINT32_MAX);
+		void drawFilledQuad(const Vec2& start, const Vec2& size, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId, const glm::mat4& transform = glm::identity<glm::mat4>());
-		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, uint32 objId = UINT32_MAX);
-		void drawMultiColoredTri(const Vec2& p0, const Vec4& color0, const Vec2& p1, const Vec4& color1, const Vec2& p2, const Vec4& color2, uint32 objId = UINT32_MAX);
+		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawMultiColoredTri(const Vec2& p0, const Vec4& color0, const Vec2& p1, const Vec4& color1, const Vec2& p2, const Vec4& color2, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawLine(const Vec2& start, const Vec2& end);
 		void drawString(const std::string& string, const Vec2& start, uint32 objId);
 		void drawFilledCircle(const Vec2& position, float radius, int numSegments);
@@ -69,7 +69,8 @@ namespace MathAnim
 		// ----------- 2D Line stuff ----------- 
 		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void free(Path2DContext* path);
-		void endPath(Path2DContext* path, bool closePath = true);
+		void endPath(Path2DContext* path, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
+		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
 
 		void lineTo(Path2DContext* path, const Vec2& point, bool applyTransform = true);
 		void quadTo(Path2DContext* path, const Vec2& p1, const Vec2& p2);

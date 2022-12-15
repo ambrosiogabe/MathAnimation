@@ -207,9 +207,11 @@ namespace MathAnim
 			if (objToCircumscribe)
 			{
 				objToCircumscribe->circumscribeId = this->id;
+				// TODO: Super super gross... Definitely fix this
+				((Animation*)this)->as.circumscribe.tValue = t;
 			}
 
-			if (objToCircumscribe && t <= 0.0f || t >= 1.0f)
+			if (objToCircumscribe && (t <= 0.0f || t >= 1.0f))
 			{
 				objToCircumscribe->circumscribeId = NULL_ANIM;
 			}
@@ -486,24 +488,83 @@ namespace MathAnim
 		return res;
 	}
 
-	void Circumscribe::render(const Vec3& objectPosition, const BBox& bbox, float t) const
+	void Circumscribe::render(const Vec3& objectPosition, const BBox& bbox) const
 	{
-		Vec2 translation = CMath::vector2From3(objectPosition) - (bbox.max - bbox.min) / 2.0f;
+		Vec2 size = (bbox.max - bbox.min) + ((bbox.max - bbox.min) * bufferSize);
+		Vec2 translation = CMath::vector2From3(objectPosition) - (size / 2.0f);
 		glm::mat4 transformation = glm::identity<glm::mat4>();
 		transformation = glm::translate(transformation, glm::vec3(translation.x, translation.y, 0.0f));
-		Vec2 size = bbox.max - bbox.min;
 
-		Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
+		if (tValue < 0.5f)
+		{
+			if (fade == CircumscribeFade::FadeIn || fade == CircumscribeFade::FadeInOut)
+			{
+				float fadeAmount = this->color.a * tValue * 2.0f;
+				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
 
-		Path2DContext* path = Renderer::beginPath(Vec2{0.0f, 0.0f}, transformation);
-		Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-		Renderer::lineTo(path, size);
-		Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-		Renderer::lineTo(path, Vec2{0.0f, 0.0f});
-		Renderer::endPath(path, true);
+				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+				Renderer::lineTo(path, size);
+				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+				Renderer::endPath(path, true);
 
-		Renderer::free(path);
-		Renderer::popColor();
+				Renderer::free(path);
+
+				Renderer::popColor();
+			}
+			else
+			{
+				// Do draw in animation
+				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
+
+				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+				Renderer::lineTo(path, size);
+				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+				Renderer::renderOutline(path, 0.0f, tValue * 2.0f, true);
+
+				Renderer::free(path);
+
+				Renderer::popColor();
+			}
+		}
+		else if (tValue >= 0.5f)
+		{
+			if (fade == CircumscribeFade::FadeOut || fade == CircumscribeFade::FadeInOut)
+			{
+				float fadeAmount = this->color.a * (2.0f + (-tValue * 2.0f));
+				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
+
+				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+				Renderer::lineTo(path, size);
+				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+				Renderer::endPath(path, true);
+
+				Renderer::free(path);
+
+				Renderer::popColor();
+			}
+			else
+			{
+				// Do draw out animation
+				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
+
+				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+				Renderer::lineTo(path, size);
+				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+				Renderer::endPath(path, true);
+
+				Renderer::free(path);
+
+				Renderer::popColor();
+			}
+		}
 	}
 
 	void Circumscribe::serialize(RawMemory& memory) const
@@ -734,7 +795,7 @@ namespace MathAnim
 				bbox.max.x *= scale.x;
 				bbox.min.y *= scale.y;
 				bbox.max.y *= scale.y;
-				circumscribeAnim->as.circumscribe.render(Vec3{translation.x, translation.y, translation.z}, bbox, this->percentCreated);
+				circumscribeAnim->as.circumscribe.render(Vec3{ translation.x, translation.y, translation.z }, bbox);
 			}
 		}
 
