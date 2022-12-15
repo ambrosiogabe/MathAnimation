@@ -1263,7 +1263,7 @@ namespace MathAnim
 
 	Curve Curve::split(float _t0, float _t1) const
 	{
-		Curve res;
+		Curve res{};
 		res.type = type;
 
 		switch (type)
@@ -1325,27 +1325,27 @@ namespace MathAnim
 			float u0 = (1.0f - t0);
 			float u1 = (1.0f - t1);
 
-			Vec2 q0 = ((u0 * u0 * u0) * p0) +
-				((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-				((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-				((t0 * t0 * t0) * p3);
-			Vec2 q1 = ((u0 * u0 * u1) * p0) +
-				((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-				((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-				((t0 * t0 * t1) * p3);
-			Vec2 q2 = ((u0 * u1 * u1) * p0) +
-				((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-				((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-				((t0 * t1 * t1) * p3);
-			Vec2 q3 = ((u1 * u1 * u1) * p0) +
-				((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-				((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-				((t1 * t1 * t1) * p3);
+			Vec2 q0 = ((u0 * u0 * u0) * pr0) +
+				((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * pr1) +
+				((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * pr2) +
+				((t0 * t0 * t0) * pr3);
+			Vec2 q1 = ((u0 * u0 * u1) * pr0) +
+				((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * pr1) +
+				((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * pr2) +
+				((t0 * t0 * t1) * pr3);
+			Vec2 q2 = ((u0 * u1 * u1) * pr0) +
+				((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * pr1) +
+				((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * pr2) +
+				((t0 * t1 * t1) * pr3);
+			Vec2 q3 = ((u1 * u1 * u1) * pr0) +
+				((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * pr1) +
+				((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * pr2) +
+				((t1 * t1 * t1) * pr3);
 
 			res.p0 = q0;
 			res.as.bezier3.p1 = q1;
 			res.as.bezier3.p2 = q2;
-			res.as.bezier3.p1 = q3;
+			res.as.bezier3.p3 = q3;
 		}
 		break;
 		case CurveType::Line:

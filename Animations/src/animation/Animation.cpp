@@ -516,13 +516,17 @@ namespace MathAnim
 			else
 			{
 				// Do draw in animation
-				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
+				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, 0.5f });
 
 				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+				Renderer::popColor();
+				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
 				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
 				Renderer::lineTo(path, size);
 				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, 0.5f });
 				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+				Renderer::popColor();
 				Renderer::renderOutline(path, 0.0f, tValue * 2.0f, true);
 
 				Renderer::free(path);

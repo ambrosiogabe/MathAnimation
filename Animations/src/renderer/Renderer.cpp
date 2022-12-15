@@ -177,7 +177,7 @@ namespace MathAnim
 
 	struct Path_Vertex2DLine
 	{
-		Vec2 position;;
+		Vec2 position;
 		Vec4 color;
 		float thickness;
 
@@ -187,6 +187,7 @@ namespace MathAnim
 
 	struct Path2DContext
 	{
+		std::vector<Vec4> colors;
 		std::vector<Curve> rawCurves;
 		std::vector<Path_Vertex2DLine> data;
 		glm::mat4 transform;
@@ -760,6 +761,7 @@ namespace MathAnim
 			};
 			vert.thickness = strokeWidth;
 			context->data.emplace_back(vert);
+			context->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
 
 			return context;
 		}
@@ -920,6 +922,7 @@ namespace MathAnim
 
 					if (context == nullptr)
 					{
+						Renderer::pushColor(path->colors[curvei]);
 						if (currentT >= startT)
 						{
 							context = Renderer::beginPath(path->rawCurves[curvei].p0);
@@ -934,49 +937,21 @@ namespace MathAnim
 
 							context = Renderer::beginPath(curve.p0);
 						}
+						Renderer::popColor();
 					}
 
 					const Vec2& p0 = curve.p0;
+					Renderer::pushColor(path->colors[curvei + 1]);
 
 					switch (curve.type)
 					{
 					case CurveType::Bezier3:
 					{
-						Vec2 p1 = curve.as.bezier3.p1;
-						Vec2 p2 = curve.as.bezier3.p2;
-						Vec2 p3 = curve.as.bezier3.p3;
-
 						if (lengthLeft < approxLength)
 						{
 							// Interpolate the curve
 							float percentOfCurveToDraw = lengthLeft / approxLength;
-
-							// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
-							float t0 = 0.0f;
-							float t1 = percentOfCurveToDraw;
-							float u0 = 1.0f;
-							float u1 = (1.0f - t1);
-
-							Vec2 q0 = ((u0 * u0 * u0) * p0) +
-								((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-								((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-								((t0 * t0 * t0) * p3);
-							Vec2 q1 = ((u0 * u0 * u1) * p0) +
-								((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-								((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-								((t0 * t0 * t1) * p3);
-							Vec2 q2 = ((u0 * u1 * u1) * p0) +
-								((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-								((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-								((t0 * t1 * t1) * p3);
-							Vec2 q3 = ((u1 * u1 * u1) * p0) +
-								((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-								((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-								((t1 * t1 * t1) * p3);
-
-							p1 = q1;
-							p2 = q2;
-							p3 = q3;
+							curve = curve.split(0.0f, percentOfCurveToDraw);
 						}
 
 						if (currentT >= startT)
@@ -984,19 +959,18 @@ namespace MathAnim
 							lengthDrawn += approxLength;
 							Renderer::cubicTo(
 								context,
-								p1,
-								p2,
-								p3
+								curve.as.bezier3.p1,
+								curve.as.bezier3.p2,
+								curve.as.bezier3.p3
 							);
 						}
-						currentT += approxLengthTVal;
 					}
 					break;
 					case CurveType::Bezier2:
 					{
-						Vec2 p1 = curve.as.bezier2.p1;
-						Vec2 p2 = curve.as.bezier2.p1;
-						Vec2 p3 = curve.as.bezier2.p2;
+						const Vec2& p1 = curve.as.bezier2.p1;
+						const Vec2& p2 = curve.as.bezier2.p1;
+						const Vec2& p3 = curve.as.bezier2.p2;
 
 						// Degree elevated quadratic bezier curve
 						Vec2 pr0 = p0;
@@ -1008,37 +982,11 @@ namespace MathAnim
 						{
 							// Interpolate the curve
 							float percentOfCurveToDraw = lengthLeft / approxLength;
+							curve = curve.split(0.0f, percentOfCurveToDraw);
 
-							p1 = (pr1 - pr0) * percentOfCurveToDraw + pr0;
-							p2 = (pr2 - pr1) * percentOfCurveToDraw + pr1;
-							p3 = (pr3 - pr2) * percentOfCurveToDraw + pr2;
-
-							// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
-							float t0 = 0.0f;
-							float t1 = percentOfCurveToDraw;
-							float u0 = 1.0f;
-							float u1 = (1.0f - t1);
-
-							Vec2 q0 = ((u0 * u0 * u0) * p0) +
-								((t0 * u0 * u0 + u0 * t0 * u0 + u0 * u0 * t0) * p1) +
-								((t0 * t0 * u0 + u0 * t0 * t0 + t0 * u0 * t0) * p2) +
-								((t0 * t0 * t0) * p3);
-							Vec2 q1 = ((u0 * u0 * u1) * p0) +
-								((t0 * u0 * u1 + u0 * t0 * u1 + u0 * u0 * t1) * p1) +
-								((t0 * t0 * u1 + u0 * t0 * t1 + t0 * u0 * t1) * p2) +
-								((t0 * t0 * t1) * p3);
-							Vec2 q2 = ((u0 * u1 * u1) * p0) +
-								((t0 * u1 * u1 + u0 * t1 * u1 + u0 * u1 * t1) * p1) +
-								((t0 * t1 * u1 + u0 * t1 * t1 + t0 * u1 * t1) * p2) +
-								((t0 * t1 * t1) * p3);
-							Vec2 q3 = ((u1 * u1 * u1) * p0) +
-								((t1 * u1 * u1 + u1 * t1 * u1 + u1 * u1 * t1) * p1) +
-								((t1 * t1 * u1 + u1 * t1 * t1 + t1 * u1 * t1) * p2) +
-								((t1 * t1 * t1) * p3);
-
-							pr1 = q1;
-							pr2 = q2;
-							pr3 = q3;
+							pr1 = curve.as.bezier3.p1;
+							pr2 = curve.as.bezier3.p2;
+							pr3 = curve.as.bezier3.p3;
 						}
 
 						if (currentT >= startT)
@@ -1051,7 +999,6 @@ namespace MathAnim
 								pr3
 							);
 						}
-						currentT += approxLengthTVal;
 					}
 					break;
 					case CurveType::Line:
@@ -1071,12 +1018,14 @@ namespace MathAnim
 								p1
 							);
 						}
-						currentT += approxLengthTVal;
 					}
 					break;
 					case CurveType::None:
 						break;
 					}
+
+					Renderer::popColor();
+					currentT += approxLengthTVal;
 				}
 
 				if (endT < 1.0f)
@@ -1140,7 +1089,7 @@ namespace MathAnim
 
 			{
 				// Add raw curve data
-				Curve rawCurve;
+				Curve rawCurve{};
 				rawCurve.type = CurveType::Bezier2;
 				rawCurve.p0 = transformedP0;
 				rawCurve.as.bezier2.p1 = transformedP1;
@@ -1148,6 +1097,11 @@ namespace MathAnim
 
 				path->approximateLength += rawCurve.calculateApproximatePerimeter();
 				path->rawCurves.emplace_back(rawCurve);
+
+				glm::vec4 color = colorStackPtr > 0
+					? colorStack[colorStackPtr - 1]
+					: defaultColor;
+				path->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
 			}
 
 			// Estimate the length of the bezier curve to get an approximate for the
@@ -1188,15 +1142,20 @@ namespace MathAnim
 
 			{
 				// Add raw curve data
-				Curve rawCurve;
+				Curve rawCurve{};
 				rawCurve.type = CurveType::Bezier3;
 				rawCurve.p0 = transformedP0;
 				rawCurve.as.bezier3.p1 = transformedP1;
 				rawCurve.as.bezier3.p2 = transformedP2;
-				rawCurve.as.bezier3.p2 = transformedP3;
+				rawCurve.as.bezier3.p3 = transformedP3;
 
 				path->approximateLength += rawCurve.calculateApproximatePerimeter();
 				path->rawCurves.emplace_back(rawCurve);
+
+				glm::vec4 color = colorStackPtr > 0
+					? colorStack[colorStackPtr - 1]
+					: defaultColor;
+				path->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
 			}
 
 			// Estimate the length of the bezier curve to get an approximate for the
@@ -1703,6 +1662,11 @@ namespace MathAnim
 
 					path->approximateLength += rawCurve.calculateApproximatePerimeter();
 					path->rawCurves.emplace_back(rawCurve);
+
+					glm::vec4 color = colorStackPtr > 0
+						? colorStack[colorStackPtr - 1]
+						: defaultColor;
+					path->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
 				}
 
 				path->data.emplace_back(vert);
