@@ -22,7 +22,7 @@ project "Animations"
     targetdir("_bin/" .. outputdir .. "/%{prj.name}")
     objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
 
-    buildoptions "/we4062"
+    buildoptions "/we4062 /wd4201"
 
     files {
         "Animations/src/**.cpp",

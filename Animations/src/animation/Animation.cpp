@@ -516,15 +516,21 @@ namespace MathAnim
 			else
 			{
 				// Do draw in animation
-				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, 0.5f });
+				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
 
+				Renderer::pushColor("#f55151"_hex);
 				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
 				Renderer::popColor();
-				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
+				Renderer::pushColor("#5a7bf2"_hex);
 				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+				Renderer::popColor();
+				Renderer::pushColor("#f0c65b"_hex);
 				Renderer::lineTo(path, size);
+				Renderer::popColor();
+				Renderer::pushColor("#69f070"_hex);
 				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, 0.5f });
+				Renderer::popColor();
+				Renderer::pushColor("#f55151"_hex);
 				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
 				Renderer::popColor();
 				Renderer::renderOutline(path, 0.0f, tValue * 2.0f, true);
@@ -539,14 +545,38 @@ namespace MathAnim
 			if (fade == CircumscribeFade::FadeOut || fade == CircumscribeFade::FadeInOut)
 			{
 				float fadeAmount = this->color.a * (2.0f + (-tValue * 2.0f));
-				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
+				//Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
 
+				//Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+				//Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+				//Renderer::lineTo(path, size);
+				//Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+				//Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+				//Renderer::endPath(path, true);
+
+				//Renderer::free(path);
+
+				//Renderer::popColor();
+
+				// Do draw in animation
+				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
+
+				Renderer::pushColor("#f55151"_hex * Vec4{ 1.0f, 1.0f, 1.0f, fadeAmount });
 				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+				Renderer::popColor();
+				Renderer::pushColor("#5a7bf2"_hex * Vec4{ 1.0f, 1.0f, 1.0f, fadeAmount });
 				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+				Renderer::popColor();
+				Renderer::pushColor("#f0c65b"_hex * Vec4{ 1.0f, 1.0f, 1.0f, fadeAmount });
 				Renderer::lineTo(path, size);
+				Renderer::popColor();
+				Renderer::pushColor("#69f070"_hex * Vec4{ 1.0f, 1.0f, 1.0f, fadeAmount });
 				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+				Renderer::popColor();
+				Renderer::pushColor("#f55151"_hex * Vec4{ 1.0f, 1.0f, 1.0f, fadeAmount });
 				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
-				Renderer::endPath(path, true);
+				Renderer::popColor();
+				Renderer::renderOutline(path, 0.0f, tValue * 2.0f, true);
 
 				Renderer::free(path);
 
