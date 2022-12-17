@@ -5,6 +5,7 @@
 #include "animation/AnimationManager.h"
 #include "svg/Svg.h"
 #include "svg/SvgCache.h"
+#include "svg/Paths.h"
 #include "renderer/Renderer.h"
 #include "renderer/Fonts.h"
 #include "utils/CMath.h"
@@ -491,7 +492,8 @@ namespace MathAnim
 	void Circumscribe::render(const Vec3& objectPosition, const BBox& bbox) const
 	{
 		Vec2 size = (bbox.max - bbox.min) + ((bbox.max - bbox.min) * bufferSize);
-		Vec2 translation = CMath::vector2From3(objectPosition) - (size / 2.0f);
+		float radius = CMath::length(size) / 2.0f;
+		Vec2 translation = CMath::vector2From3(objectPosition);
 		glm::mat4 transformation = glm::identity<glm::mat4>();
 		transformation = glm::translate(transformation, glm::vec3(translation.x, translation.y, 0.0f));
 
@@ -504,13 +506,10 @@ namespace MathAnim
 					float fadeAmount = glm::clamp(this->color.a * tValue * 4.0f, 0.0f, 1.0f);
 					Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
 
-					Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
-					Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-					Renderer::lineTo(path, size);
-					Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-					Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+					Path2DContext* path = shape == CircumscribeShape::Rectangle
+						? Paths::createRectangle(size, transformation)
+						: Paths::createCircle(radius, transformation);
 					Renderer::endPath(path, true);
-
 					Renderer::free(path);
 
 					Renderer::popColor();
@@ -520,13 +519,10 @@ namespace MathAnim
 					// Do draw in animation
 					Renderer::pushColor(this->color);
 
-					Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
-					Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-					Renderer::lineTo(path, size);
-					Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-					Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+					Path2DContext* path = shape == CircumscribeShape::Rectangle
+						? Paths::createRectangle(size, transformation)
+						: Paths::createCircle(radius, transformation);
 					Renderer::renderOutline(path, 0.0f, tValue * 2.0f, true);
-
 					Renderer::free(path);
 
 					Renderer::popColor();
@@ -539,13 +535,10 @@ namespace MathAnim
 					float fadeAmount = glm::clamp(this->color.a * (4.0f + (-tValue * 4.0f)), 0.0f, 1.0f);
 					Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
 
-					Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
-					Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-					Renderer::lineTo(path, size);
-					Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-					Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+					Path2DContext* path = shape == CircumscribeShape::Rectangle
+						? Paths::createRectangle(size, transformation)
+						: Paths::createCircle(radius, transformation);
 					Renderer::endPath(path, true);
-
 					Renderer::free(path);
 
 					Renderer::popColor();
@@ -554,19 +547,15 @@ namespace MathAnim
 				{
 					// Do draw out animation
 					Renderer::pushColor(this->color);
-
-					Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
-					Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-					Renderer::lineTo(path, size);
-					Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-					Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+					Path2DContext* path = shape == CircumscribeShape::Rectangle
+						? Paths::createRectangle(size, transformation)
+						: Paths::createCircle(radius, transformation);
 
 					// Range from t = [1.0-0.0]
 					float t = (2.0f + (-tValue * 2.0f));
 					Renderer::renderOutline(path, 0.0f, t, true);
 
 					Renderer::free(path);
-
 					Renderer::popColor();
 				}
 			}
@@ -575,12 +564,9 @@ namespace MathAnim
 		{
 			// Do the lagged animation where you get a trailing line
 			Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
-
-			Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
-			Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-			Renderer::lineTo(path, size);
-			Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-			Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+			Path2DContext* path = shape == CircumscribeShape::Rectangle
+				? Paths::createRectangle(size, transformation)
+				: Paths::createCircle(radius, transformation);
 
 			// T ranges from [0.0-1.0]
 			float t = tValue;
@@ -592,7 +578,6 @@ namespace MathAnim
 			Renderer::renderOutline(path, tStart, tEnd, false);
 
 			Renderer::free(path);
-
 			Renderer::popColor();
 		}
 	}
