@@ -218,6 +218,7 @@ namespace MathAnim
 		CircumscribeFade fade;
 		float bufferSize;
 		AnimObjId obj;
+		float timeWidth;
 		float tValue;
 
 		void render(const Vec3& position, const BBox& bbox) const;

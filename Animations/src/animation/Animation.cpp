@@ -495,109 +495,105 @@ namespace MathAnim
 		glm::mat4 transformation = glm::identity<glm::mat4>();
 		transformation = glm::translate(transformation, glm::vec3(translation.x, translation.y, 0.0f));
 
-		if (tValue < 0.5f)
+		if (fade != CircumscribeFade::FadeNone)
 		{
-			if (fade == CircumscribeFade::FadeIn || fade == CircumscribeFade::FadeInOut)
+			if (tValue < 0.5f)
 			{
-				float fadeAmount = this->color.a * tValue * 2.0f;
-				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
+				if (fade == CircumscribeFade::FadeIn || fade == CircumscribeFade::FadeInOut)
+				{
+					float fadeAmount = glm::clamp(this->color.a * tValue * 4.0f, 0.0f, 1.0f);
+					Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
 
-				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
-				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-				Renderer::lineTo(path, size);
-				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
-				Renderer::endPath(path, true);
+					Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+					Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+					Renderer::lineTo(path, size);
+					Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+					Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+					Renderer::endPath(path, true);
 
-				Renderer::free(path);
+					Renderer::free(path);
 
-				Renderer::popColor();
+					Renderer::popColor();
+				}
+				else
+				{
+					// Do draw in animation
+					Renderer::pushColor(this->color);
+
+					Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+					Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+					Renderer::lineTo(path, size);
+					Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+					Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+					Renderer::renderOutline(path, 0.0f, tValue * 2.0f, true);
+
+					Renderer::free(path);
+
+					Renderer::popColor();
+				}
 			}
 			else
 			{
-				// Do draw in animation
-				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
+				if (fade == CircumscribeFade::FadeOut || fade == CircumscribeFade::FadeInOut)
+				{
+					float fadeAmount = glm::clamp(this->color.a * (4.0f + (-tValue * 4.0f)), 0.0f, 1.0f);
+					Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
 
-				Renderer::pushColor("#f55151"_hex);
-				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
-				Renderer::popColor();
-				Renderer::pushColor("#5a7bf2"_hex);
-				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-				Renderer::popColor();
-				Renderer::pushColor("#f0c65b"_hex);
-				Renderer::lineTo(path, size);
-				Renderer::popColor();
-				Renderer::pushColor("#69f070"_hex);
-				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-				Renderer::popColor();
-				Renderer::pushColor("#f55151"_hex);
-				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
-				Renderer::popColor();
-				Renderer::renderOutline(path, 0.0f, tValue * 2.0f, true);
+					Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+					Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+					Renderer::lineTo(path, size);
+					Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+					Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+					Renderer::endPath(path, true);
 
-				Renderer::free(path);
+					Renderer::free(path);
 
-				Renderer::popColor();
+					Renderer::popColor();
+				}
+				else
+				{
+					// Do draw out animation
+					Renderer::pushColor(this->color);
+
+					Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+					Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+					Renderer::lineTo(path, size);
+					Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+					Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
+
+					// Range from t = [1.0-0.0]
+					float t = (2.0f + (-tValue * 2.0f));
+					Renderer::renderOutline(path, 0.0f, t, true);
+
+					Renderer::free(path);
+
+					Renderer::popColor();
+				}
 			}
 		}
-		else if (tValue >= 0.5f)
+		else
 		{
-			if (fade == CircumscribeFade::FadeOut || fade == CircumscribeFade::FadeInOut)
-			{
-				float fadeAmount = this->color.a * (2.0f + (-tValue * 2.0f));
-				//Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
+			// Do the lagged animation where you get a trailing line
+			Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
 
-				//Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
-				//Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-				//Renderer::lineTo(path, size);
-				//Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-				//Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
-				//Renderer::endPath(path, true);
+			Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
+			Renderer::lineTo(path, Vec2{ 0.0f, size.y });
+			Renderer::lineTo(path, size);
+			Renderer::lineTo(path, Vec2{ size.x, 0.0f });
+			Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
 
-				//Renderer::free(path);
+			// T ranges from [0.0-1.0]
+			float t = tValue;
+			// Then map t to a range from [0.0-(1.0 + timeWidth)]
+			t = CMath::mapRange(Vec2{ 0.0f, 1.0f }, Vec2{ 0.0f, 1.0f + timeWidth }, t);
+			float tStart = t - timeWidth;
+			float tEnd = t;
+			
+			Renderer::renderOutline(path, tStart, tEnd, false);
 
-				//Renderer::popColor();
+			Renderer::free(path);
 
-				// Do draw in animation
-				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
-
-				Renderer::pushColor("#f55151"_hex * Vec4{ 1.0f, 1.0f, 1.0f, fadeAmount });
-				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
-				Renderer::popColor();
-				Renderer::pushColor("#5a7bf2"_hex * Vec4{ 1.0f, 1.0f, 1.0f, fadeAmount });
-				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-				Renderer::popColor();
-				Renderer::pushColor("#f0c65b"_hex * Vec4{ 1.0f, 1.0f, 1.0f, fadeAmount });
-				Renderer::lineTo(path, size);
-				Renderer::popColor();
-				Renderer::pushColor("#69f070"_hex * Vec4{ 1.0f, 1.0f, 1.0f, fadeAmount });
-				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-				Renderer::popColor();
-				Renderer::pushColor("#f55151"_hex * Vec4{ 1.0f, 1.0f, 1.0f, fadeAmount });
-				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
-				Renderer::popColor();
-				Renderer::renderOutline(path, 0.0f, tValue * 2.0f, true);
-
-				Renderer::free(path);
-
-				Renderer::popColor();
-			}
-			else
-			{
-				// Do draw out animation
-				Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
-
-				Path2DContext* path = Renderer::beginPath(Vec2{ 0.0f, 0.0f }, transformation);
-				Renderer::lineTo(path, Vec2{ 0.0f, size.y });
-				Renderer::lineTo(path, size);
-				Renderer::lineTo(path, Vec2{ size.x, 0.0f });
-				Renderer::lineTo(path, Vec2{ 0.0f, 0.0f });
-				Renderer::endPath(path, true);
-
-				Renderer::free(path);
-
-				Renderer::popColor();
-			}
+			Renderer::popColor();
 		}
 	}
 
@@ -607,11 +603,13 @@ namespace MathAnim
 		// shape          -> u8
 		// fade           -> u8
 		// bufferSize     -> f32
+		// timeWidth      -> f32
 		// obj            -> AnimObjId
 		CMath::serialize(memory, this->color);
 		memory.write<CircumscribeShape>(&this->shape);
 		memory.write<CircumscribeFade>(&this->fade);
 		memory.write<float>(&this->bufferSize);
+		memory.write<float>(&this->timeWidth);
 		memory.write<AnimObjId>(&this->obj);
 	}
 
@@ -621,12 +619,14 @@ namespace MathAnim
 		// shape          -> u8
 		// fade           -> u8
 		// bufferSize     -> f32
+		// timeWidth      -> f32
 		// obj            -> AnimObjId
 		Circumscribe res;
 		res.color = CMath::deserializeVec4(memory);
 		memory.read<CircumscribeShape>(&res.shape);
 		memory.read<CircumscribeFade>(&res.fade);
 		memory.read<float>(&res.bufferSize);
+		memory.read<float>(&res.timeWidth);
 		memory.read<AnimObjId>(&res.obj);
 
 		return res;
@@ -637,8 +637,9 @@ namespace MathAnim
 		Circumscribe res;
 		res.color = "#F9DB1BFF"_hex;
 		res.shape = CircumscribeShape::Rectangle;
-		res.fade = CircumscribeFade::FadeInOut;
-		res.bufferSize = 0.1f;
+		res.fade = CircumscribeFade::FadeNone;
+		res.bufferSize = 0.25f;
+		res.timeWidth = 0.1f;
 		res.obj = NULL_ANIM_OBJECT;
 
 		return res;

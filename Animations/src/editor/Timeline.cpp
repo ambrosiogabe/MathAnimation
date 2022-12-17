@@ -1136,7 +1136,9 @@ namespace MathAnim
 				g_logger_assert(currentFade >= 0 && currentFade < (int)CircumscribeFade::Length, "How did this happen?");
 				animation->as.circumscribe.fade = (CircumscribeFade)currentFade;
 			}
-
+			ImGui::BeginDisabled(animation->as.circumscribe.fade != CircumscribeFade::FadeNone);
+			ImGui::DragFloat(": Time Width", &animation->as.circumscribe.timeWidth, slowDragSpeed, 0.1f, 1.0f, "%2.3f");
+			ImGui::EndDisabled();
 			ImGui::ColorEdit4(": Color", &animation->as.circumscribe.color.x);
 			ImGui::DragFloat(": Buffer Size", &animation->as.circumscribe.bufferSize, slowDragSpeed, 0.0f, 10.0f, "%2.3f");
 		}

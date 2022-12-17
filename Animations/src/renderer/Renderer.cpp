@@ -894,6 +894,9 @@ namespace MathAnim
 
 		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath, AnimObjId)
 		{
+			startT = glm::clamp(startT, 0.0f, 1.0f);
+			endT = glm::clamp(endT, startT, 1.0f);
+
 			// Start the fade in after 80% of the svg object is drawn
 			const float lengthToDraw = (endT - startT) * (float)path->approximateLength;
 			float currentT = 0.0f;
@@ -943,6 +946,11 @@ namespace MathAnim
 					{
 					case CurveType::Bezier3:
 					{
+						if (currentT < startT)
+						{
+							break;
+						}
+
 						if (lengthLeft < approxLength)
 						{
 							// Interpolate the curve
@@ -950,20 +958,22 @@ namespace MathAnim
 							curve = curve.split(0.0f, percentOfCurveToDraw);
 						}
 
-						if (currentT >= startT)
-						{
-							lengthDrawn += approxLength;
-							Renderer::cubicTo(
-								context,
-								curve.as.bezier3.p1,
-								curve.as.bezier3.p2,
-								curve.as.bezier3.p3
-							);
-						}
+						lengthDrawn += approxLength;
+						Renderer::cubicTo(
+							context,
+							curve.as.bezier3.p1,
+							curve.as.bezier3.p2,
+							curve.as.bezier3.p3
+						);
 					}
 					break;
 					case CurveType::Bezier2:
 					{
+						if (currentT < startT)
+						{
+							break;
+						}
+
 						const Vec2& p1 = curve.as.bezier2.p1;
 						const Vec2& p2 = curve.as.bezier2.p1;
 						const Vec2& p3 = curve.as.bezier2.p2;
@@ -985,20 +995,22 @@ namespace MathAnim
 							pr3 = curve.as.bezier3.p3;
 						}
 
-						if (currentT >= startT)
-						{
-							lengthDrawn += approxLength;
-							Renderer::cubicTo(
-								context,
-								pr1,
-								pr2,
-								pr3
-							);
-						}
+						lengthDrawn += approxLength;
+						Renderer::cubicTo(
+							context,
+							pr1,
+							pr2,
+							pr3
+						);
 					}
 					break;
 					case CurveType::Line:
 					{
+						if (currentT < startT)
+						{
+							break;
+						}
+
 						if (lengthLeft < approxLength)
 						{
 							float percentOfCurveToDraw = lengthLeft / approxLength;
@@ -1006,14 +1018,11 @@ namespace MathAnim
 						}
 
 						const Vec2& p1 = curve.as.line.p1;
-						if (currentT >= startT)
-						{
-							lengthDrawn += approxLength;
-							Renderer::lineTo(
-								context,
-								p1
-							);
-						}
+						lengthDrawn += approxLength;
+						Renderer::lineTo(
+							context,
+							p1
+						);
 					}
 					break;
 					case CurveType::None:
