@@ -993,7 +993,8 @@ namespace MathAnim
 			size_t filepathStrLength = object->as.svgFile.filepathLength * sizeof(char);
 			if (!filepathStr)
 			{
-				filepathStr = "Select a File";
+				// This string will never be changed so no need to worry about this... Hopefully :sweat_smile:
+				filepathStr = (char*)"Select a File";
 				filepathStrLength = sizeof("Select a File");
 			}
 			ImGui::InputText(

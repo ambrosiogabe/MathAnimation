@@ -347,7 +347,7 @@ namespace MathAnim
 				if (!parseSvgStylesheet(styleElement, &rootStylesheet))
 				{
 					PANIC("Parsing SVG style failed: %s", styleElement->GetText());
-					return false;
+					return nullptr;
 				}
 			}
 
@@ -1922,7 +1922,8 @@ namespace MathAnim
 			char stringStart = advance(parserInfo);
 			if (stringStart != stringTerminator)
 			{
-				goto cleanupReturnFalse;
+				*string = {};
+				return false;
 			}
 
 			size_t stringStartIndex = parserInfo.cursor;
@@ -1937,7 +1938,8 @@ namespace MathAnim
 			char stringEnd = advance(parserInfo);
 			if (stringEnd != stringTerminator)
 			{
-				goto cleanupReturnFalse;
+				*string = {};
+				return false;
 			}
 
 			g_logger_assert(stringStartIndex < parserInfo.textLength, "Invalid start index.");
@@ -1949,10 +1951,6 @@ namespace MathAnim
 			string->text[string->textLength] = '\0';
 
 			return true;
-
-		cleanupReturnFalse:
-			*string = {};
-			return false;
 		}
 
 		static bool parseIdentifier(ParserInfo& parserInfo, DumbString* string, bool canStartWithNumber)

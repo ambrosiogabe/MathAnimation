@@ -30,6 +30,7 @@
 #include "multithreading/GlobalThreadPool.h"
 #include "video/Encoder.h"
 #include "utils/TableOfContents.h"
+#include "scripting/LuauLayer.h"
 
 #include "imgui.h"
 
@@ -78,6 +79,16 @@ namespace MathAnim
 
 		void init(const char* projectFile)
 		{
+			// Initialize these just in case this is a new project
+			editorCamera2D.position = Vec2{ viewportWidth / 2.0f, viewportHeight / 2.0f };
+			editorCamera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
+			editorCamera2D.zoom = 1.0f;
+
+			editorCamera3D.position = glm::vec3(0.0f);
+			editorCamera3D.fov = 70.0f;
+			editorCamera3D.forward = glm::vec3(1.0f, 0.0f, 0.0f);
+
+			// Initialize other global systems
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
 			//globalThreadPool = new GlobalThreadPool(true);
 
@@ -94,6 +105,7 @@ namespace MathAnim
 			Svg::init();
 			SceneManagementPanel::init();
 			SvgParser::init();
+			LuauLayer::init();
 
 			LaTexLayer::init();
 
@@ -167,6 +179,7 @@ namespace MathAnim
 				// Update Animation logic and collect draw calls
 				AnimationManager::render(am, deltaFrame);
 				LaTexLayer::update();
+				LuauLayer::update();
 
 				// Render all animation draw calls to main framebuffer
 				bool renderPickingOutline = false;
@@ -288,6 +301,7 @@ namespace MathAnim
 
 			LaTexLayer::free();
 			EditorSettings::free();
+			LuauLayer::free();
 			SceneManagementPanel::free();
 			EditorGui::free(am);
 			AnimationManager::free(am);

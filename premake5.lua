@@ -15,7 +15,7 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 project "Animations"
     kind "ConsoleApp"
     language "C++"
-    cppdialect "C++17"
+    cppdialect "C++20"
     staticruntime "on"
     warnings "High"
 
@@ -68,6 +68,10 @@ project "Animations"
         "Animations/vendor/dearimgui",
         "Animations/vendor/openal/include",
         "Animations/vendor/nativeFileDialog/src/include",
+        -- Luau include dirs
+        "Animations/vendor/luau/Compiler/include",
+        "Animations/vendor/luau/Common/include",
+        "Animations/vendor/luau/VM/include",
     }
 
     -- Add freetype libdirs for debug and release mode
@@ -131,6 +135,11 @@ project "Animations"
             "libavutil",
             "libswresample",
             "libswscale",
+            -- Luau static libs
+            "Luau.Ast",
+            "Luau.CodeGen",
+            "Luau.Compiler",
+            "Luau.VM",
             -- Other premake projects
             "DearImGui",
             "TinyXml2",
@@ -144,16 +153,20 @@ project "Animations"
         }
 
     filter { "configurations:Debug" }
-        buildoptions "/MTd"
+        buildoptions "/MDd"
         runtime "Debug"
         symbols "on"
+
+        libdirs {
+            "./Animations/vendor/luau/build/Debug"
+        }
 
         postbuildcommands {
             "{COPY} Animations/vendor/openal/build/Debug/OpenAL32.dll %{cfg.targetdir}"
         }
 
     filter { "configurations:Release" }
-        buildoptions "/MT"
+        buildoptions "/MD"
         runtime "Release"
         optimize "on"
 
@@ -161,17 +174,25 @@ project "Animations"
             "_RELEASE"
         }
 
+        libdirs {
+            "./Animations/vendor/luau/build/Release"
+        }
+
         postbuildcommands {
             "{COPY} Animations/vendor/openal/build/Release/OpenAL32.dll %{cfg.targetdir}"
         }
 
     filter { "configurations:Dist" }
-        buildoptions "/MT"
+        buildoptions "/MD"
         runtime "Release"
         optimize "on"
 
         defines {
             "_DIST"
+        }
+
+        libdirs {
+            "./Animations/vendor/luau/build/Release"
         }
 
         postbuildcommands {
@@ -199,13 +220,13 @@ project "plutovg"
     defines { "_CRT_SECURE_NO_WARNINGS" }
 
     filter "configurations:Debug"
-        buildoptions "/MTd"
+        buildoptions "/MDd"
         defines { "DEBUG" }
         symbols "On"
         warnings "Extra"
 
     filter "configurations:Release"
-        buildoptions "/MT"
+        buildoptions "/MD"
         defines { "NDEBUG" }
         symbols "Off"
         warnings "Extra"        
@@ -231,13 +252,13 @@ project "TinyXml2"
     defines { "_CRT_SECURE_NO_WARNINGS" } 
 
     filter "configurations:Debug"
-        buildoptions "/MTd"
+        buildoptions "/MDd"
         defines { "DEBUG", "NVG_NO_STB" }
         symbols "On"
         warnings "Extra"
 
     filter "configurations:Release"
-        buildoptions "/MT"
+        buildoptions "/MD"
         defines { "NDEBUG", "NVG_NO_STB" }
         symbols "Off"
         warnings "Extra"    
@@ -267,11 +288,11 @@ project "DearImGui"
     defines { "-DIMGUI_USER_CONFIG \"core/InternalImGuiConfig.h\"" }
 
     filter { "configurations:Debug" }
-        buildoptions "/MTd"
+        buildoptions "/MDd"
         runtime "Debug"
         symbols "on"
 
     filter { "configurations:Release" }
-        buildoptions "/MT"
+        buildoptions "/MD"
         runtime "Release"
         optimize "on"

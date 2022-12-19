@@ -141,7 +141,7 @@ namespace MathAnim
 		void clear()
 		{
 			// First free all the nodes
-			for (auto& k = indexLookup.begin(); k != indexLookup.end(); k++)
+			for (auto k = indexLookup.begin(); k != indexLookup.end(); k++)
 			{
 				g_memory_free(k->second);
 			}

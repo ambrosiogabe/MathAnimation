@@ -23,7 +23,7 @@ namespace MathAnim
 			constexpr int bufferMaxSize = 1024;
 
 			// Open the "Uninstall" key.
-			WCHAR* uninstallRoot = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
+			const WCHAR* uninstallRoot = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
 			HKEY uninstallKey = NULL;
 			if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, uninstallRoot, 0, KEY_READ, &uninstallKey) != ERROR_SUCCESS)
 			{
@@ -107,7 +107,7 @@ namespace MathAnim
 			constexpr int bufferMaxSize = 1024;
 
 			// Open the "Uninstall" key.
-			WCHAR* uninstallRoot = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
+			const WCHAR* uninstallRoot = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
 			HKEY uninstallKey = NULL;
 			if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, uninstallRoot, 0, KEY_READ, &uninstallKey) != ERROR_SUCCESS)
 			{

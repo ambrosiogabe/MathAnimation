@@ -1493,7 +1493,7 @@ namespace MathAnim
 		}
 	}
 
-	static void writeBuffer(uint8** buffer, size_t* capacity, size_t* numElements, char* string, size_t stringLength = 0)
+	static void writeBuffer(uint8** buffer, size_t* capacity, size_t* numElements, const char* string, size_t stringLength = 0)
 	{
 		if (stringLength == 0)
 		{
