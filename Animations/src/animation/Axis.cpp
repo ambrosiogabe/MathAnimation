@@ -1,7 +1,7 @@
 #include "animation/Axis.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
-#include "animation/Svg.h"
+#include "svg/Svg.h"
 #include "utils/CMath.h"
 
 namespace MathAnim
@@ -9,7 +9,7 @@ namespace MathAnim
 	// ------------------ Internal Functions ------------------
 	static Axis deserializeAxisV1(RawMemory& memory);
 
-	void Axis::init(AnimObject* parent)
+	void Axis::init(AnimObject*)
 	{
 		//g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Axis object initialized twice.");
 		//g_logger_assert(parent->children.size() == 0, "Axis object initialized twice.");

@@ -136,14 +136,40 @@ namespace MathAnim
 		);
 	}
 
-	void Texture::uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer) const
+	void Texture::uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer, size_t bufferLength, bool flipVertically) const
 	{
 		g_logger_assert(format != ByteFormat::None, "Cannot generate texture without color format.");
+		g_logger_assert(offsetX + width <= this->width, "Sub-image out of range. OffsetX + width = %d which is greater than the texture width: %d", offsetX + width, this->width);
+		g_logger_assert(offsetY + height <= this->height, "Sub-image out of range. OffsetY + height = %d which is greater than the texture height: %d", offsetY + height, this->height);
+		g_logger_assert(offsetX >= 0, "Sub-image out of range. OffsetX is negative: %d", offsetX);
+		g_logger_assert(offsetY >= 0, "Sub-image out of range. OffsetY is negative: %d", offsetY);
+		g_logger_assert(width >= 0, "Sub-image out of range. Width is negative: %d", width);
+		g_logger_assert(height >= 0, "Sub-image out of range. Height is negative: %d", height);
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(format);
 		uint32 dataType = TextureUtil::toGlDataType(format);
+		size_t componentsSize = TextureUtil::formatSize(format);
 
+		g_logger_assert(componentsSize * width * height <= bufferLength, "Buffer overrun when trying to upload texture subimage to GPU.");
+
+		if (flipVertically)
+		{
+			int stride = (int)(width * componentsSize);
+			uint8* newBuffer = (uint8*)g_memory_allocate(stride * height);
+			for (int i = 0; i < height; i++)
+			{
+				g_memory_copyMem(newBuffer + (i * stride), buffer + ((height - i - 1) * stride), stride);
+			}
+			buffer = newBuffer;
+		}
+
+		this->bind();
 		glTexSubImage2D(GL_TEXTURE_2D, 0, offsetX, offsetY, width, height, externalFormat, dataType, buffer);
+
+		if (flipVertically)
+		{
+			g_memory_free(buffer);
+		}
 	}
 
 	bool Texture::isNull() const
@@ -164,8 +190,6 @@ namespace MathAnim
 				return GL_REPEAT;
 			case WrapMode::None:
 				return GL_NONE;
-			default:
-				g_logger_warning("Unknown glWrapMode '%d'", wrapMode);
 			}
 
 			return GL_NONE;
@@ -181,8 +205,6 @@ namespace MathAnim
 				return GL_NEAREST;
 			case FilterMode::None:
 				return GL_NONE;
-			default:
-				g_logger_warning("Unknown glFilterMode '%d'", filterMode);
 			}
 
 			return GL_NONE;
@@ -200,14 +222,14 @@ namespace MathAnim
 				return GL_RGB8;
 			case ByteFormat::R32_UI:
 				return GL_R32UI;
+			case ByteFormat::RG32_UI:
+				return GL_RG32UI;
 			case ByteFormat::R8_UI:
 				return GL_R8UI;
 			case ByteFormat::R8_F:
 				return GL_R8;
 			case ByteFormat::None:
 				return GL_NONE;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", format);
 			}
 
 			return GL_NONE;
@@ -225,14 +247,14 @@ namespace MathAnim
 				return GL_RGB;
 			case ByteFormat::R32_UI:
 				return GL_RED_INTEGER;
+			case ByteFormat::RG32_UI:
+				return GL_RG_INTEGER;
 			case ByteFormat::R8_UI:
 				return GL_RED_INTEGER;
 			case ByteFormat::R8_F:
 				return GL_RED;
 			case ByteFormat::None:
 				return GL_NONE;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", format);
 			}
 
 			return GL_NONE;
@@ -250,14 +272,14 @@ namespace MathAnim
 				return GL_UNSIGNED_BYTE;
 			case ByteFormat::R32_UI:
 				return GL_UNSIGNED_INT;
+			case ByteFormat::RG32_UI:
+				return GL_UNSIGNED_INT;
 			case ByteFormat::R8_UI:
 				return GL_UNSIGNED_BYTE;
 			case ByteFormat::R8_F:
 				return GL_FLOAT;
 			case ByteFormat::None:
 				return GL_NONE;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", format);
 			}
 
 			return GL_NONE;
@@ -275,14 +297,14 @@ namespace MathAnim
 				return false;
 			case ByteFormat::R32_UI:
 				return true;
+			case ByteFormat::RG32_UI:
+				return false;
 			case ByteFormat::R8_UI:
 				return true;
 			case ByteFormat::None:
 				return false;
 			case ByteFormat::R8_F:
 				return false;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", texture.format);
 			}
 
 			return false;
@@ -301,14 +323,39 @@ namespace MathAnim
 				return true;
 			case ByteFormat::R32_UI:
 				return false;
+			case ByteFormat::RG32_UI:
+				return false;
 			case ByteFormat::R8_UI:
 				return false;
 			case ByteFormat::None:
 				return false;
 			case ByteFormat::R8_F:
 				return false;
-			default:
-				g_logger_warning("Unknown glByteFormat '%d'", texture.format);
+			}
+
+			return false;
+		}
+
+		bool byteFormatIsUint64(const Texture& texture)
+		{
+			switch (texture.format)
+			{
+			case ByteFormat::RGBA8_UI:
+				return false;
+			case ByteFormat::RGBA16_F:
+				return false;
+			case ByteFormat::RGB8_UI:
+				return false;
+			case ByteFormat::R32_UI:
+				return false;
+			case ByteFormat::RG32_UI:
+				return true;
+			case ByteFormat::R8_UI:
+				return false;
+			case ByteFormat::None:
+				return false;
+			case ByteFormat::R8_F:
+				return false;
 			}
 
 			return false;
@@ -330,11 +377,36 @@ namespace MathAnim
 				return GL_ZERO;
 			case ColorChannel::Alpha:
 				return GL_ALPHA;
-			default:
-				g_logger_warning("Unknown glColorChannel swizzle format '%d'. Defaulting to 1.", colorChannel);
+			case ColorChannel::None:
+				return GL_NONE;
 			}
 
 			return GL_ONE;
+		}
+
+		size_t formatSize(ByteFormat format)
+		{
+			switch (format)
+			{
+			case ByteFormat::RGBA8_UI:
+				return sizeof(uint8) * 4;
+			case ByteFormat::RGBA16_F:
+				return sizeof(uint16) * 4;
+			case ByteFormat::RGB8_UI:
+				return sizeof(uint8) * 3;
+			case ByteFormat::R32_UI:
+				return sizeof(uint32);
+			case ByteFormat::RG32_UI:
+				return sizeof(uint32) * 2;
+			case ByteFormat::R8_UI:
+				return sizeof(uint8);
+			case ByteFormat::R8_F:
+				return sizeof(uint8);
+			case ByteFormat::None:
+				return 0;
+			}
+
+			return 0;
 		}
 
 		void generateFromFile(Texture& texture)

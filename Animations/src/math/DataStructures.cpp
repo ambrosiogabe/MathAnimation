@@ -45,6 +45,22 @@ namespace MathAnim
 		return a / scale;
 	}
 
+	Vec2 operator*(const Vec2& a, const Vec2& scale)
+	{
+		return Vec2{
+			a.x * scale.x,
+			a.y * scale.y
+		};
+	}
+
+	Vec2 operator/(const Vec2& a, const Vec2& scale)
+	{
+		return Vec2{
+			a.x / scale.x,
+			a.y / scale.y
+		};
+	}
+
 	Vec2& operator*=(Vec2& a, float scale)
 	{
 		a = a * scale;
@@ -52,6 +68,18 @@ namespace MathAnim
 	}
 
 	Vec2& operator/=(Vec2& a, float scale)
+	{
+		a = a / scale;
+		return a;
+	}
+
+	Vec2& operator*=(Vec2& a, const Vec2& scale)
+	{
+		a = a * scale;
+		return a;
+	}
+
+	Vec2& operator/=(Vec2& a, const Vec2& scale)
 	{
 		a = a / scale;
 		return a;
@@ -106,12 +134,6 @@ namespace MathAnim
 		};
 	}
 
-	Vec3& operator*=(Vec3& a, float scale)
-	{
-		a = a * scale;
-		return a;
-	}
-
 	Vec3 operator*(float scale, const Vec3& a)
 	{
 		return a * scale;
@@ -122,7 +144,43 @@ namespace MathAnim
 		return a / scale;
 	}
 
+	Vec3 operator*(const Vec3& a, const Vec3& scale)
+	{
+		return Vec3 {
+			a.x * scale.x,
+			a.y * scale.y,
+			a.z * scale.z
+		};
+	}
+
+	Vec3 operator/(const Vec3& a, const Vec3& scale) 
+	{
+		return Vec3{
+			a.x / scale.x,
+			a.y / scale.y,
+			a.z / scale.z
+		};
+	}
+
+	Vec3& operator*=(Vec3& a, float scale)
+	{
+		a = a * scale;
+		return a;
+	}
+
 	Vec3& operator/=(Vec3& a, float scale)
+	{
+		a = a / scale;
+		return a;
+	}
+
+	Vec3& operator*=(Vec3& a, const Vec3& scale)
+	{
+		a = a * scale;
+		return a;
+	}
+
+	Vec3& operator/=(Vec3& a, const Vec3& scale)
 	{
 		a = a / scale;
 		return a;
@@ -191,6 +249,26 @@ namespace MathAnim
 		return a / scale;
 	}
 
+	Vec4 operator*(const Vec4& a, const Vec4& scale)
+	{
+		return Vec4{
+			a.x * scale.x,
+			a.y * scale.y,
+			a.z * scale.z,
+			a.w * scale.w
+		};
+	}
+
+	Vec4 operator/(const Vec4& a, const Vec4& scale)
+	{
+		return Vec4{
+			a.x / scale.x,
+			a.y / scale.y,
+			a.z / scale.z,
+			a.w / scale.w
+		};
+	}
+
 	Vec4& operator*=(Vec4& a, float scale)
 	{
 		a = a * scale;
@@ -198,6 +276,18 @@ namespace MathAnim
 	}
 
 	Vec4& operator/=(Vec4& a, float scale)
+	{
+		a = a / scale;
+		return a;
+	}
+
+	Vec4& operator*=(Vec4& a, const Vec4& scale)
+	{
+		a = a * scale;
+		return a;
+	}
+
+	Vec4& operator/=(Vec4& a, const Vec4& scale)
 	{
 		a = a / scale;
 		return a;

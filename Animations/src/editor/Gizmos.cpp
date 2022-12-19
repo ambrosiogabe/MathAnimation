@@ -75,7 +75,7 @@ namespace MathAnim
 			EditorGui::onGizmo(am);
 		}
 
-		void render(const OrthoCamera& orthoCamera, const PerspectiveCamera& perspectiveCamera, const OrthoCamera& editorCamera)
+		void render(AnimationManagerData* am)
 		{
 			// Render call stuff
 			GlobalContext* g = gGizmoManager;
@@ -94,12 +94,20 @@ namespace MathAnim
 				iter->wasUpdated = false;
 			}
 
-			// Draw camera outlines
-			Renderer::pushStrokeWidth(0.05f);
-			Renderer::pushColor(Colors::Neutral[0]);
-			Renderer::drawSquare(orthoCamera.position - orthoCamera.projectionSize / 2.0f, orthoCamera.projectionSize);
-			Renderer::popColor();
-			Renderer::popStrokeWidth();
+			const AnimObject* orthoCameraObj = AnimationManager::getActiveOrthoCamera(am);
+			if (orthoCameraObj)
+			{
+				if (orthoCameraObj->as.camera.is2D)
+				{
+					const OrthoCamera& orthoCamera = orthoCameraObj->as.camera.camera2D;
+					// Draw camera outlines
+					Renderer::pushStrokeWidth(0.05f);
+					Renderer::pushColor(Colors::Neutral[0]);
+					Renderer::drawSquare(orthoCamera.position - orthoCamera.projectionSize / 2.0f, orthoCamera.projectionSize);
+					Renderer::popColor();
+					Renderer::popStrokeWidth();
+				}
+			}
 		}
 
 		void free()
@@ -196,14 +204,17 @@ namespace MathAnim
 					if (g->hotGizmoVariant == GizmoVariant::Free)
 					{
 						// Don't modify the z-coord since this is a 2D gizmo
+						newPos.y -= defaultFreeMoveSize.y;
 						*position = Vec3{ newPos.x, newPos.y, position->z };
 					}
 					else if (g->hotGizmoVariant == GizmoVariant::Vertical)
 					{
+						newPos.y -= defaultVerticalMoveSize.y;
 						*position = Vec3{ position->x, newPos.y, position->z };
 					}
 					else if (g->hotGizmoVariant == GizmoVariant::Horizontal)
 					{
+						newPos.y -= defaultHorizontalMoveSize.y;
 						*position = Vec3{ newPos.x, position->y, position->z };
 					}
 					gizmo->position = *position;
@@ -259,7 +270,7 @@ namespace MathAnim
 
 			GlobalContext* g = gGizmoManager;
 			g->gizmos.push_back(gizmoState);
-			g->gizmoById[hash] = g->gizmos.size() - 1;
+			g->gizmoById[hash] = (uint32)g->gizmos.size() - 1;
 
 			return gizmoState;
 		}
@@ -269,7 +280,7 @@ namespace MathAnim
 			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
 			OrthoCamera* camera = Application::getEditorCamera();
 			Vec2 worldCoords = camera->reverseProject(normalizedMousePos);
-			Vec2 bottomLeft = centerPosition - (size / 2.0f);
+			Vec2 bottomLeft = centerPosition - (Vec2{ size.x, size.y } / 2.0f);
 
 			return worldCoords.x >= bottomLeft.x && worldCoords.x <= bottomLeft.x + size.x &&
 				worldCoords.y >= bottomLeft.y && worldCoords.y <= bottomLeft.y + size.y;

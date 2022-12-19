@@ -17,9 +17,12 @@ project "Animations"
     language "C++"
     cppdialect "C++17"
     staticruntime "on"
+    warnings "High"
 
     targetdir("_bin/" .. outputdir .. "/%{prj.name}")
     objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
+
+    buildoptions "/we4062 /wd4201"
 
     files {
         "Animations/src/**.cpp",
@@ -61,7 +64,7 @@ project "Animations"
         "Animations/vendor/vlc/include",
         "Animations/vendor/ffmpeg/build/include",
         "Animations/vendor/freetype/include",
-        "Animations/vendor/nanovg/src",
+        "Animations/vendor/plutovg/include",
         "Animations/vendor/dearimgui",
         "Animations/vendor/openal/include",
         "Animations/vendor/nativeFileDialog/src/include",
@@ -129,9 +132,9 @@ project "Animations"
             "libswresample",
             "libswscale",
             -- Other premake projects
-            "nanovg",
             "DearImGui",
             "TinyXml2",
+            "plutovg",
             -- Windows static libs required for ffmepg
             "Ws2_32.lib",
             "Secur32.lib",
@@ -163,7 +166,7 @@ project "Animations"
             "_DIST"
         }
 
-project "nanovg"
+project "plutovg"
     language "C"
     kind "StaticLib"
     staticruntime "on"
@@ -172,26 +175,28 @@ project "nanovg"
     objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
 
     includedirs { 
-        "./Animations/vendor/nanovg/src" 
+        "./Animations/vendor/plutovg/include" 
     }
 
     files { 
-        "./Animations/vendor/nanovg/src/*.c" 
+        "./Animations/vendor/plutovg/source/*.c",
+        "./Animations/vendor/plutovg/source/*.h",
+        "./Animations/vendor/plutovg/include/*.h" 
     }
 
-    defines { "_CRT_SECURE_NO_WARNINGS" } --,"FONS_USE_FREETYPE" } Uncomment to compile with FreeType support
+    defines { "_CRT_SECURE_NO_WARNINGS" }
 
     filter "configurations:Debug"
         buildoptions "/MTd"
-        defines { "DEBUG", "NVG_NO_STB" }
+        defines { "DEBUG" }
         symbols "On"
         warnings "Extra"
 
     filter "configurations:Release"
         buildoptions "/MT"
-        defines { "NDEBUG", "NVG_NO_STB" }
+        defines { "NDEBUG" }
         symbols "Off"
-        warnings "Extra"
+        warnings "Extra"        
 
 project "TinyXml2"
     kind "StaticLib"

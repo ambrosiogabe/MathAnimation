@@ -15,11 +15,11 @@ namespace MathAnim
 	{
 		static ImFont* largeFont;
 		static ImFont* defaultFont;
-		static int titleBarHeight = 100;
-		static int buttonAreaHeight = 80;
+		static float titleBarHeight = 100.0f;
+		static float buttonAreaHeight = 80.0f;
 		static float dropShadowHeight = 20;
 
-		static int createProjectTitleBarHeight = 45;
+		static float createProjectTitleBarHeight = 45.0f;
 		static ImVec2 createProjectWindowSize = ImVec2(535.0f, 195.0f);
 
 		static ImVec2 projectAreaPadding = ImVec2(30, 0);
@@ -57,9 +57,9 @@ namespace MathAnim
 			borderSize *= dpiScale;
 			iconBorderRounding *= dpiScale;
 			iconBorderThickness *= dpiScale;
-			titleBarHeight = (int)((float)titleBarHeight * dpiScale);
-			buttonAreaHeight = (int)((float)buttonAreaHeight * dpiScale);
-			createProjectTitleBarHeight = (int)((float)createProjectTitleBarHeight * dpiScale);
+			titleBarHeight = (float)titleBarHeight * dpiScale;
+			buttonAreaHeight = (float)buttonAreaHeight * dpiScale;
+			createProjectTitleBarHeight = (float)createProjectTitleBarHeight * dpiScale;
 			createProjectWindowSize.x *= dpiScale;
 			createProjectWindowSize.y *= dpiScale;
 			createProjectInputPadding.x *= dpiScale;
@@ -113,20 +113,22 @@ namespace MathAnim
 			ImGui::Begin("Project Selector", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDocking);
 			ImVec2 cursorPos = ImGui::GetCursorScreenPos();
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-			ImGui::PushFont(largeFont);
-			std::string appTitle = "Math Anim";
-			ImVec2 textSize = ImGui::CalcTextSize(appTitle.c_str());
 			ImVec2 availableSpace = ImGui::GetContentRegionAvail();
-			drawList->AddRectFilled(cursorPos, cursorPos + ImVec2(availableSpace.x, titleBarHeight), ImColor(Colors::Neutral[8]));
 
-			ImGui::SetCursorScreenPos(cursorPos + ImVec2(
-				availableSpace.x / 2.0f - textSize.x / 2.0f,
-				titleBarHeight / 2.0f - textSize.y / 2.0f
-			));
-			ImGui::Text(appTitle.c_str());
+			{
+				ImGui::PushFont(largeFont);
+				std::string appTitle = "Math Anim";
+				ImVec2 textSize = ImGui::CalcTextSize(appTitle.c_str());
+				drawList->AddRectFilled(cursorPos, cursorPos + ImVec2(availableSpace.x, titleBarHeight), ImColor(Colors::Neutral[8]));
 
-			ImGui::PopFont();
+				ImGui::SetCursorScreenPos(cursorPos + ImVec2(
+					availableSpace.x / 2.0f - textSize.x / 2.0f,
+					titleBarHeight / 2.0f - textSize.y / 2.0f
+				));
+				ImGui::Text(appTitle.c_str());
+
+				ImGui::PopFont();
+			}
 
 			ImGui::SetCursorScreenPos(cursorPos + ImVec2(0.0f, titleBarHeight));
 			ImGui::BeginChild("##ProjectArea", ImVec2(availableSpace.x, availableSpace.y - (titleBarHeight + buttonAreaHeight)));
@@ -169,13 +171,13 @@ namespace MathAnim
 				drawList->PushClipRect(ImGui::GetCurrentWindow()->ClipRect.Min, ImGui::GetCurrentWindow()->ClipRect.Max);
 				drawList->AddImageRounded(
 					(ImTextureID)projects[i].texture.graphicsId,
-					rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1), 
+					rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1),
 					IM_COL32(255, 255, 255, 255), iconBorderRounding);
 
 				// Draw highlight border
-				const ImVec4& borderColor = 
-					i == selectedProjectIndex 
-					? Colors::AccentGreen[2] 
+				const ImVec4& borderColor =
+					i == selectedProjectIndex
+					? Colors::AccentGreen[2]
 					: ImGui::IsItemHovered()
 					? Colors::Neutral[2]
 					: Colors::Neutral[9];
@@ -289,7 +291,6 @@ namespace MathAnim
 		{
 			bool res = false;
 
-			Window* window = ProjectApp::getWindow();
 			ImGui::SetNextWindowSize(createProjectWindowSize, ImGuiCond_Always);
 
 			ImGui::PushFont(defaultFont);
@@ -389,7 +390,7 @@ namespace MathAnim
 				pi.previewImageFilepath = (ProjectApp::getAppRoot() / cleanProjectName / "projectPreview.png").string();
 				Platform::createDirIfNotExists((ProjectApp::getAppRoot() / cleanProjectName).string().c_str());
 				projects.push_back(pi);
-				selectedProjectIndex = projects.size() - 1;
+				selectedProjectIndex = (int32)projects.size() - 1;
 				res = true;
 			}
 			createButtonFocused = ImGui::IsItemHovered();
@@ -427,6 +428,7 @@ namespace MathAnim
 			fp = nullptr;
 
 			// magicNumber         -> uint64 0xDEADBEEF
+			// selectedProject     -> int32
 			// numProjects         -> uint32
 			uint64 magicNumber;
 			memory.read<uint64>(&magicNumber);
@@ -434,10 +436,11 @@ namespace MathAnim
 			{
 				goto cleanup;
 			}
+			memory.read<int32>(&selectedProjectIndex);
 
 			uint32 numProjects;
 			memory.read<uint32>(&numProjects);
-			for (int i = 0; i < numProjects; i++)
+			for (uint32 i = 0; i < numProjects; i++)
 			{
 				// prjFilepathLength   -> uint32
 				// prjFilepath         -> uint8[prjFilepathLength]
@@ -482,13 +485,15 @@ namespace MathAnim
 			memory.init(sizeof(uint64));
 
 			// magicNumber         -> uint64 0xDEADBEEF
+			// selectedProject    -> int32
 			// numProjects         -> uint32
 			uint64 magicNumber = 0xDEADBEEF;
 			memory.write<uint64>(&magicNumber);
+			memory.write<int32>(&selectedProjectIndex);
 
 			uint32 numProjects = (uint32)projects.size();
 			memory.write<uint32>(&numProjects);
-			for (int i = 0; i < numProjects; i++)
+			for (uint32 i = 0; i < numProjects; i++)
 			{
 				// prjFilepathLength   -> uint32
 				// prjFilepath         -> uint8[prjFilepathLength]

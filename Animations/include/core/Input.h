@@ -27,7 +27,6 @@ namespace MathAnim
 		extern float deltaMouseY;
 		extern float scrollX;
 		extern float scrollY;
-		extern bool keyPressed[GLFW_KEY_LAST + 1];
 
 		void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 		void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
@@ -35,7 +34,9 @@ namespace MathAnim
 		void endFrame();
 		
 		void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-		bool isKeyPressed(int key);
+		bool keyPressed(int key);
+		bool keyDown(int key);
+		bool keyUp(int key);
 
 		bool mouseClicked(MouseButton button);
 		bool mouseDown(MouseButton button);

@@ -12,17 +12,19 @@ namespace MathAnim
 		float scrollX = 0;
 		float scrollY = 0;
 
-		bool keyPressed[GLFW_KEY_LAST + 1];
 
 		// ----------- Internal Variables -----------
+		static bool keyDownLastFrame[GLFW_KEY_LAST + 1] = {};
+		static bool keyDownData[GLFW_KEY_LAST + 1] = {};
+		static bool keyUpData[GLFW_KEY_LAST + 1] = {};
 		static float lastMouseX;
 		static float lastMouseY;
 		static bool firstMouse = true;
-		static bool mouseButtonDownLastFrame[(uint8)MouseButton::Length];
-		static bool mouseButtonDown[(uint8)MouseButton::Length];
-		static bool mouseButtonUp[(uint8)MouseButton::Length];
+		static bool mouseButtonDownLastFrame[(uint8)MouseButton::Length] = {};
+		static bool mouseButtonDown[(uint8)MouseButton::Length] = {};
+		static bool mouseButtonUp[(uint8)MouseButton::Length] = {};
 
-		void mouseCallback(GLFWwindow* window, double xpos, double ypos)
+		void mouseCallback(GLFWwindow*, double xpos, double ypos)
 		{
 			mouseX = (float)xpos;
 			mouseY = (float)ypos;
@@ -39,13 +41,13 @@ namespace MathAnim
 			lastMouseY = (float)ypos;
 		}
 
-		void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+		void mouseButtonCallback(GLFWwindow*, int button, int action, int)
 		{
 			mouseButtonDown[button] = action == GLFW_PRESS;
 			mouseButtonUp[button] = action == GLFW_RELEASE;
 		}
 
-		void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+		void scrollCallback(GLFWwindow*, double xoffset, double yoffset)
 		{
 			scrollX = (float)xoffset;
 			scrollY = (float)yoffset;
@@ -55,28 +57,58 @@ namespace MathAnim
 		{
 			// Copy the mouse button down states to mouse button down last frame
 			g_memory_copyMem(mouseButtonDownLastFrame, mouseButtonDown, sizeof(bool) * (uint8)MouseButton::Length);
+			g_memory_copyMem(keyDownLastFrame, keyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
 			deltaMouseX = 0;
 			deltaMouseY = 0;
 			scrollX = 0;
 			scrollY = 0;
 		}
 
-		void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+		void keyCallback(GLFWwindow*, int key, int, int action, int)
 		{
-			keyPressed[key] = action == GLFW_REPEAT || action == GLFW_PRESS;
+			keyDownData[key] = action == GLFW_PRESS;
+			keyUpData[key] = action == GLFW_RELEASE;
 		}
 
-		bool isKeyPressed(int key)
+		bool keyPressed(int key)
 		{
-			if (key >= 0 && key < GLFW_KEY_LAST)
+			if (key >= 0 && key <= GLFW_KEY_LAST)
 			{
-				return keyPressed[key];
+				return keyDownLastFrame[key] && !keyDownData[key];
 			}
 			else
 			{
 				g_logger_error("Cannot check if key '%d' is pressed. Key is out of range of known key codes.", key);
 			}
-			
+
+			return false;
+		}
+
+		bool keyDown(int key)
+		{
+			if (key >= 0 && key <= GLFW_KEY_LAST)
+			{
+				return keyDownData[key];
+			}
+			else
+			{
+				g_logger_error("Cannot check if key '%d' is down. Key is out of range of known key codes.", key);
+			}
+
+			return false;
+		}
+
+		bool keyUp(int key)
+		{
+			if (key >= 0 && key <= GLFW_KEY_LAST)
+			{
+				return keyUpData[key];
+			}
+			else
+			{
+				g_logger_error("Cannot check if key '%d' is up. Key is out of range of known key codes.", key);
+			}
+
 			return false;
 		}
 

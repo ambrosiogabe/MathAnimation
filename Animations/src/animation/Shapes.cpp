@@ -1,6 +1,6 @@
 #include "animation/Shapes.h"
 #include "animation/Animation.h"
-#include "animation/Svg.h"
+#include "svg/Svg.h"
 #include "utils/CMath.h"
 
 namespace MathAnim
@@ -19,12 +19,13 @@ namespace MathAnim
 		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 		*parent->svgObject = Svg::createDefault();
 
-		Svg::beginContour(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
+		Svg::beginPath(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { sideLength / 2.0f, sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { sideLength / 2.0f, -sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
+		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 4.0f });
 		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
-		Svg::closeContour(parent->_svgObjectStart);
+		Svg::closePath(parent->_svgObjectStart);
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
 		parent->_svgObjectStart->calculateBBox();
@@ -64,7 +65,7 @@ namespace MathAnim
 		// https://stackoverflow.com/questions/1734745/how-to-create-circle-with-bézier-curves
 		double equidistantControls = (4.0 / 3.0) * glm::tan(glm::pi<double>() / 8.0) * (double)radius;
 		Vec2 translation = Vec2{ radius, radius };
-		Svg::beginContour(parent->_svgObjectStart, Vec2{ -radius, 0.0f } + translation);
+		Svg::beginPath(parent->_svgObjectStart, Vec2{ -radius, 0.0f } + translation);
 
 		Svg::bezier3To(parent->_svgObjectStart,
 			Vec2{ -radius, (float)equidistantControls } + translation,
@@ -83,7 +84,7 @@ namespace MathAnim
 			Vec2{ -radius, -(float)equidistantControls } + translation,
 			Vec2{ -radius, 0.0f } + translation);
 
-		Svg::closeContour(parent->_svgObjectStart);
+		Svg::closePath(parent->_svgObjectStart);
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
 		parent->_svgObjectStart->calculateBBox();

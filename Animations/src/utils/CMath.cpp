@@ -225,7 +225,7 @@ namespace MathAnim
 		Vec2 bezier3(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float t)
 		{
 			return
-				glm::pow(1.0f - t, 3) * p0 +
+				glm::pow(1.0f - t, 3.0f) * p0 +
 				3.0f * (1.0f - t) * (1.0f - t) * t * p1 +
 				(3.0f * (1.0f - t) * t * t) * p2 +
 				t * t * t * p3;
@@ -244,10 +244,62 @@ namespace MathAnim
 		Vec3 bezier3(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t)
 		{
 			return
-				glm::pow(1.0f - t, 3) * p0 +
+				glm::pow(1.0f - t, 3.0f) * p0 +
 				3.0f * (1.0f - t) * (1.0f - t) * t * p1 +
 				(3.0f * (1.0f - t) * t * t) * p2 +
 				t * t * t * p3;
+		}
+
+		Vec2 bezier1Normal(const Vec2& p0, const Vec2& p1, float t)
+		{
+			return normalize(p1 - p0);
+		}
+
+		Vec2 bezier2Normal(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t)
+		{
+			// Derivative taken from https://en.wikipedia.org/wiki/Bézier_curve#Quadratic_Bézier_curves
+			// Just return the normalized derivative at point t
+			return normalize(
+				(2.0f * (1.0f - t) * (p1 - p0)) + 
+				(2.0f * t * (p2 - p1))
+			);
+		}
+
+		Vec2 bezier3Normal(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float t)
+		{
+			// Derivative taken from https://en.wikipedia.org/wiki/Bézier_curve#Cubic_Bézier_curves
+			// Just return the normalized derivative at point t
+			return normalize(
+				(3.0f * (1.0f - t) * (1.0f - t) * (p1 - p0)) +
+				(6.0f * (1.0f - t) * t * (p2 - p1)) + 
+				(3.0f * t * t * (p3 - p2))
+			);
+		}
+
+		Vec3 bezier1Normal(const Vec3& p0, const Vec3& p1, float t)
+		{
+			return normalize(p1 -  p0);
+		}
+
+		Vec3 bezier2Normal(const Vec3& p0, const Vec3& p1, const Vec3& p2, float t)
+		{
+			// Derivative taken from https://en.wikipedia.org/wiki/Bézier_curve#Quadratic_Bézier_curves
+			// Just return the normalized derivative at point t
+			return normalize(
+				(2.0f * (1.0f - t) * (p1 - p0)) +
+				(2.0f * t * (p2 - p1))
+			);
+		}
+
+		Vec3 bezier3Normal(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t)
+		{
+			// Derivative taken from https://en.wikipedia.org/wiki/Bézier_curve#Cubic_Bézier_curves
+			// Just return the normalized derivative at point t
+			return normalize(
+				(3.0f * (1.0f - t) * (1.0f - t) * (p1 - p0)) +
+				(6.0f * (1.0f - t) * t * (p2 - p1)) +
+				(3.0f * t * t * (p3 - p2))
+			);
 		}
 
 		Vec2 tRootBezier2(const Vec2& p0, const Vec2& p1, const Vec2& p2)
@@ -433,8 +485,9 @@ namespace MathAnim
 					: direction == EaseDirection::Out
 					? easeOutBounce(t)
 					: easeInOutBounce(t);
-			default:
-				g_logger_error("Unknown easing %d and direction %d", (int)type, (int)direction);
+			case EaseType::Length:
+			case EaseType::None:
+				break;
 			}
 
 			return t;

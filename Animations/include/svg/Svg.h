@@ -2,8 +2,6 @@
 #define MATH_ANIM_SVG_OBJECT_H
 #include "core.h"
 
-struct NVGcontext;
-
 namespace MathAnim
 {
 	struct AnimObject;
@@ -18,6 +16,12 @@ namespace MathAnim
 		Line,
 		Bezier2,
 		Bezier3
+	};
+
+	enum class FillType : uint8
+	{
+		NonZeroFillType = 0,
+		EvenOddFillType,
 	};
 
 	struct Line
@@ -40,7 +44,6 @@ namespace MathAnim
 
 	struct Curve
 	{
-		bool moveToP0;
 		CurveType type;
 		// Every curve has at least one point
 		Vec2 p0;
@@ -50,30 +53,40 @@ namespace MathAnim
 			Bezier2 bezier2;
 			Bezier3 bezier3;
 		} as;
+
+		float calculateApproximatePerimeter() const;
+		Curve split(float t0, float t1) const;
 	};
 
-	struct Contour
+	struct Path
 	{
 		Curve* curves;
 		int numCurves;
 		int maxCapacity;
 		bool isHole;
+
+		float calculateApproximatePerimeter() const;
 	};
 
 	struct SvgObject
 	{
-		// TODO: Have a Path struct which contains SubPath structs which are the holes...(possibly)
-		Contour* contours;
-		int numContours;
+		Path* paths;
+		int numPaths;
 		float approximatePerimeter;
 		BBox bbox;
-		
-		void normalize(const Vec2& min = Vec2{ FLT_MAX, FLT_MAX }, const Vec2& max = Vec2{ FLT_MIN, FLT_MIN });
+		Vec2 _cursor;
+		Vec4 fillColor;
+		FillType fillType;
+
+		void normalize();
 		void calculateApproximatePerimeter();
 		void calculateBBox();
-		void render(NVGcontext* vg, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, const AnimObject* parent, const Vec2& offset = Vec2{0, 0}, bool reverse = false, bool isSvgGroup = false) const;
+		void render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const;
+		void renderOutline(float t, const AnimObject* parent) const;
 		void free();
+
+		void serialize(RawMemory& memory) const;
+		static SvgObject* deserialize(RawMemory& memory, uint32 version);
 	};
 
 	struct SvgGroup
@@ -85,13 +98,10 @@ namespace MathAnim
 		SvgObject* objects;
 		Vec2* objectOffsets;
 		int numObjects;
-		Vec4 viewbox;
 		BBox bbox;
 
 		void normalize();
 		void calculateBBox();
-		void render(NVGcontext* vg, AnimObject* parent) const;
-		void renderCreateAnimation(NVGcontext* vg, float t, AnimObject* parent, bool reverse = false) const;
 		void free();
 	};
 
@@ -99,31 +109,17 @@ namespace MathAnim
 	{
 		SvgObject createDefault();
 		SvgGroup createDefaultGroup();
-		
-		void init(OrthoCamera& sceneCamera2d, PerspectiveCamera& sceneCamera3d);
-		void free();
 
-		void endFrame();
+		void init();
 
-		const Texture& getSvgCache();
-		Framebuffer const& getSvgCacheFb();
-		const Vec2& getCacheCurrentPos();
-		const Vec2& getCachePadding();
-		void incrementCacheCurrentY();
-		void incrementCacheCurrentX(float distance);
-		void checkLineHeight(float newLineHeight);
-		void growCache();
-
-		PerspectiveCamera const& getPerspCamera();
-		OrthoCamera const& getOrthoCamera();
-
-		void beginSvgGroup(SvgGroup* group, const Vec4& viewbox);
-		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset);
+		void beginSvgGroup(SvgGroup* group);
+		void pushSvgToGroup(SvgGroup* group, const SvgObject& obj, const std::string& id, const Vec2& offset = Vec2{ NAN, NAN });
 		void endSvgGroup(SvgGroup* group);
 
-		void beginContour(SvgObject* object, const Vec2& firstPoint);
-		void closeContour(SvgObject* object, bool lineToEndpoint = false, bool isHole = false);
+		void beginPath(SvgObject* object, const Vec2& firstPoint, bool isAbsolute = true);
+		void closePath(SvgObject* object, bool lineToEndpoint = false, bool isHole = false);
 
+		// This implicitly closes the current path and begins a new path
 		void moveTo(SvgObject* object, const Vec2& point, bool absolute = true);
 		void lineTo(SvgObject* object, const Vec2& point, bool absolute = true);
 		void hzLineTo(SvgObject* object, float xPoint, bool absolute = true);
@@ -134,8 +130,11 @@ namespace MathAnim
 		void smoothBezier3To(SvgObject* object, const Vec2& control1, const Vec2& dest, bool absolute = true);
 		void arcTo(SvgObject* object, const Vec2& radius, float xAxisRot, bool largeArc, bool sweep, const Vec2& dst, bool absolute = true);
 
+		// Manually add a curve
+		void addCurveManually(SvgObject* object, const Curve& curve);
+
 		void copy(SvgObject* dest, const SvgObject* src);
-		void renderInterpolation(NVGcontext* vg, const AnimObject* animObjectSrc, const SvgObject* interpolationSrc, const AnimObject* animObjectDst, const SvgObject* interpolationDst, float t);
+		SvgObject* interpolate(const SvgObject* src, const SvgObject* dst, float t);
 	}
 }
 

@@ -3,8 +3,6 @@
 #include "core.h"
 #include "renderer/Texture.h"
 
-struct NVGcontext;
-
 namespace MathAnim
 {
 	struct SvgObject;
@@ -95,7 +93,7 @@ namespace MathAnim
 		// Loads a font if it is not already loaded.
 		// If the font is already loaded, it just increments
 		// a reference count and returns the font.
-		Font* loadFont(const char* filepath, NVGcontext* vg, CharRange defaultCharset = CharRange::Ascii);
+		Font* loadFont(const char* filepath, CharRange defaultCharset = CharRange::Ascii);
 
 		// Decreases a reference count to the font
 		// If the reference count goes below 0, the 

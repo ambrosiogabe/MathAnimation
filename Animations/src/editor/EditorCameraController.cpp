@@ -48,12 +48,12 @@ namespace MathAnim
 					// Increase camera zoom logarithmically
 					float cameraXStep = glm::log(camera.zoom);
 					cameraXStep -= Input::scrollY * mouseScrollSensitivity * data.scrollSensitvity;
-					camera.zoom = glm::clamp(glm::exp(cameraXStep), 0.1f, 100.0f);
+					camera.zoom = glm::clamp(glm::exp(cameraXStep), 0.01f, 100.0f);
 				}
 			}
 		}
 
-		void updatePerspective(PerspectiveCamera& camera)
+		void updatePerspective(PerspectiveCamera&)
 		{
 
 		}

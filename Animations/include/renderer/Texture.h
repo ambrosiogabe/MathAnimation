@@ -26,6 +26,7 @@ namespace MathAnim
 		RGB8_UI,
 
 		R32_UI,
+		RG32_UI,
 		R8_UI,
 		R8_F,
 	};
@@ -63,7 +64,7 @@ namespace MathAnim
 
 		void copyTo(Texture& texture) const;
 
-		void uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer) const;
+		void uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer, size_t bufferLength, bool flipVertically = false) const;
 
 		bool isNull() const;
 	};
@@ -98,9 +99,11 @@ namespace MathAnim
 		uint32 toGl(FilterMode filterMode);
 		uint32 toGlDataType(ByteFormat format);
 		int32 toGlSwizzle(ColorChannel colorChannel);
+		size_t formatSize(ByteFormat format);
 
 		bool byteFormatIsInt(const Texture& texture);
 		bool byteFormatIsRgb(const Texture& texture);
+		bool byteFormatIsUint64(const Texture& texture);
 
 		void generateFromFile(Texture& texture);
 		void generateEmptyTexture(Texture& texture);

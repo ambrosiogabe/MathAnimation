@@ -1,9 +1,6 @@
 [submodule "Animations/vendor/glm"]
 	path = Animations/vendor/glm
 	url = https://github.com/g-truc/glm
-[submodule "Animations/vendor/nanovg"]
-	path = Animations/vendor/nanovg
-	url = https://github.com/memononen/nanovg
 [submodule "Animations/vendor/dearimgui"]
 	path = Animations/vendor/dearimgui
 	url = https://github.com/ocornut/imgui
@@ -29,3 +26,6 @@
 [submodule "Animations/vendor/tinyxml2"]
 	path = Animations/vendor/tinyxml2
 	url = https://github.com/leethomason/tinyxml2
+[submodule "Animations/vendor/plutovg"]
+	path = Animations/vendor/plutovg
+	url = https://github.com/sammycage/plutovg

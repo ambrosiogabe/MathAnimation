@@ -73,6 +73,22 @@ namespace MathAnim
 			return (-b - glm::sqrt(b * b - 4 * a * c)) / (2.0f * a);
 		}
 
+		// Implicit conversions from Vec to glm::vec
+		inline glm::vec2 convert(const Vec2& vec)
+		{
+			return glm::vec2(vec.x, vec.y);
+		}
+
+		inline glm::vec3 convert(const Vec3& vec)
+		{
+			return glm::vec3(vec.x, vec.y, vec.z);
+		}
+
+		inline glm::vec4 convert(const Vec4& vec)
+		{
+			return glm::vec4(vec.x, vec.y, vec.z, vec.w);
+		}
+
 		// Winding order stuff
 		bool isClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 		inline bool isCounterClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2) { return !isClockwise(p0, p1, p2); }
@@ -85,6 +101,27 @@ namespace MathAnim
 		bool compare(const Vec3& vec1, const Vec3& vec2, float epsilon = std::numeric_limits<float>::min());
 		bool compare(const Vec2& vec1, const Vec2& vec2, float epsilon = std::numeric_limits<float>::min());
 		bool compare(const Vec4& vec1, const Vec4& vec2, float epsilon = std::numeric_limits<float>::min());
+
+		template<typename T>
+		inline uint64 combineHash(const T& t, uint64 hash)
+		{
+			// Taken from https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values
+			return (hash ^ (std::hash<T>(t) + 0x9e3779b9 + (hash << 6) + (hash >> 2)));
+		}
+
+		template<>
+		inline uint64 combineHash(const float& t, uint64 hash)
+		{
+			// Taken from https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values
+			return (hash ^ ((int32)t + 0x9e3779b9 + (hash << 6) + (hash >> 2)));
+		}
+
+		template<>
+		inline uint64 combineHash(const int& t, uint64 hash)
+		{
+			// Taken from https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values
+			return (hash ^ ((int32)t + 0x9e3779b9 + (hash << 6) + (hash >> 2)));
+		}
 
 		// Vector conversions
 		Vec2 vector2From3(const Vec3& vec);
@@ -105,6 +142,13 @@ namespace MathAnim
 		int max(int a, int b);
 		int min(int a, int b);
 		float saturate(float val);
+
+		inline float dot(const Vec2& a, const Vec2& b) { return a.x * b.x + a.y * b.y; }
+		inline float dot(const Vec3& a, const Vec3& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+
+		inline float abs(float a) { return a > 0 ? a : -a; }
+		inline Vec2 abs(const Vec2& a) { return Vec2{ abs(a.x), abs(a.y) }; }
+		inline Vec3 abs(const Vec3& a) { return Vec3{ abs(a.x), abs(a.y), abs(a.z)}; }
 
 		// Max, Min helpers
 		Vec2 max(const Vec2& a, const Vec2& b);
@@ -128,6 +172,14 @@ namespace MathAnim
 		Vec3 bezier1(const Vec3& p0, const Vec3& p1, float t);
 		Vec3 bezier2(const Vec3& p0, const Vec3& p1, const Vec3& p2, float t);
 		Vec3 bezier3(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t);
+
+		Vec2 bezier1Normal(const Vec2& p0, const Vec2& p1, float t);
+		Vec2 bezier2Normal(const Vec2& p0, const Vec2& p1, const Vec2& p2, float t);
+		Vec2 bezier3Normal(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float t);
+
+		Vec3 bezier1Normal(const Vec3& p0, const Vec3& p1, float t);
+		Vec3 bezier2Normal(const Vec3& p0, const Vec3& p1, const Vec3& p2, float t);
+		Vec3 bezier3Normal(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, float t);
 
 		// Bezier extremities
 		// Returns pair <xRoot, yRoot> in tValues

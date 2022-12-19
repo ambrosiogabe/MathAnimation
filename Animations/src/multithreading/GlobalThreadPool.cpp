@@ -69,7 +69,11 @@ namespace MathAnim
 		delete queueMtx;
 	}
 
+// Disable this warning since this parameter is used in certain builds
+#pragma warning( push )
+#pragma warning( disable : 4100 )
 	void GlobalThreadPool::processLoop(uint32 threadIndex)
+#pragma warning( pop )
 	{
 #ifdef _USE_OPTICK
 		std::string threadName = "GlobalThread_" + std::to_string(threadIndex);
@@ -87,7 +91,7 @@ namespace MathAnim
 				shouldContinue = doWork && !tasks->empty();
 			}
 
-			ThreadTask task;
+			ThreadTask task{};
 			{
 				std::lock_guard<std::mutex> queueLock(*queueMtx);
 				if (tasks->size() > 0)

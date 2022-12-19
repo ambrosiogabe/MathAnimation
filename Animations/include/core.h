@@ -9,6 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/gtx/euler_angles.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 // My stuff
 #include <cppUtils/cppUtils.hpp>
@@ -53,6 +54,12 @@
 
 // User defined literals
 MathAnim::Vec4 operator""_hex(const char* hexColor, size_t length);
+MathAnim::Vec4 toHex(const std::string& str);
+MathAnim::Vec4 toHex(const char* hex, size_t length);
+MathAnim::Vec4 toHex(const char* hex);
+
+// SIMD intrinsics
+#include <xmmintrin.h>
 
 struct RawMemory
 {
@@ -153,6 +160,23 @@ template<typename... Types>
 void unpack(const SizedMemory& memory, Types*... data)
 {
 	MemoryHelper::unpackData<Types...>(memory, 0, data...);
+}
+
+// Array helpers taken from https://stackoverflow.com/a/57524328
+template <typename T, std::size_t N, class ...Args>
+constexpr std::array<T, N> fixedSizeArray(Args&&... values)
+{
+	static_assert(sizeof...(values) == N);
+	return std::array<T, N>{values...};
+}
+
+typedef uint64 AnimObjId;
+typedef uint64 AnimId;
+
+namespace MathAnim
+{
+	constexpr AnimObjId NULL_ANIM_OBJECT = UINT64_MAX;
+	constexpr AnimId NULL_ANIM = UINT64_MAX;
 }
 
 #endif

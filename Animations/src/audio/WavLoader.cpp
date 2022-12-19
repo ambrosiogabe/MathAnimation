@@ -66,7 +66,7 @@ namespace MathAnim
 			res.sampleRate = header.dataHeader.sampleRate;
 
 			uint8* audioData = (uint8*)g_memory_allocate(sizeof(uint8) * header.dataHeader.dataSize);
-			uint8 amtRead = fread(audioData, sizeof(uint8) * header.dataHeader.dataSize, 1, fp);
+			size_t amtRead = fread(audioData, sizeof(uint8) * header.dataHeader.dataSize, 1, fp);
 			g_logger_assert(amtRead == 1, "Failed to read all the audio data.");
 			fclose(fp);
 			res.audioData = audioData;

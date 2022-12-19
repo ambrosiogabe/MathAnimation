@@ -229,6 +229,21 @@ namespace MathAnim
 		glUniform1ui(varLocation, value);
 	}
 
+	void Shader::uploadUVec2(const char* varName, const glm::uvec2& vec2) const
+	{
+		int varLocation = GetVariableLocation(*this, varName);
+		glUniform2ui(varLocation, vec2.x, vec2.y);
+	}
+
+	void Shader::uploadU64AsUVec2(const char* varName, uint64 value) const
+	{
+		int varLocation = GetVariableLocation(*this, varName);
+		// Split the number into two parts 
+		//   R = High
+		//   G = Low
+		glUniform2ui(varLocation, value & 0xFFFF'FFFF'0000'0000, value & 0x0000'0000'FFFF'FFFF);
+	}
+
 	void Shader::uploadMat4(const char* varName, const glm::mat4& mat4) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);

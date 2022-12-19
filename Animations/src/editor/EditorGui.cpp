@@ -39,6 +39,7 @@ namespace MathAnim
 			if (!timelineLoaded)
 			{
 				timeline = Timeline::initInstance();
+				Application::setFrameIndex(0);
 			}
 			Timeline::init(am);
 
@@ -99,8 +100,7 @@ namespace MathAnim
 				ImVec2 editorViewportRelativeOffset;
 				getLargestSizeForViewport(&viewportSize, &editorViewportRelativeOffset);
 				ImGui::SetCursorPos(editorViewportRelativeOffset);
-				viewportOffset = ImGui::GetCursorScreenPos();
-				viewportOffset = viewportOffset - ImGui::GetWindowPos();
+				viewportOffset = ImGui::GetCursorScreenPos() - ImGui::GetMainViewport()->Pos;
 
 				const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
 				ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
@@ -123,15 +123,15 @@ namespace MathAnim
 
 		void onGizmo(AnimationManagerData* am)
 		{
-			int activeAnimObjectId = Timeline::getActiveAnimObject();
+			AnimObjId activeAnimObjectId = Timeline::getActiveAnimObject();
 			AnimObject* activeAnimObject = AnimationManager::getMutableObject(am, activeAnimObjectId);
 			if (activeAnimObject)
 			{
-				activeAnimObject->onGizmo();
+				activeAnimObject->onGizmo(am);
 
 				// Render any animations that contain this object
-				std::vector<int32> animations = AnimationManager::getAssociatedAnimations(am, activeAnimObject);
-				for (int32 animId : animations)
+				std::vector<AnimId> animations = AnimationManager::getAssociatedAnimations(am, activeAnimObject->id);
+				for (AnimId animId : animations)
 				{
 					Animation* animation = AnimationManager::getMutableAnimation(am, animId);
 					if (animation)
@@ -141,7 +141,7 @@ namespace MathAnim
 				}
 			}
 
-			int activeAnimationId = Timeline::getActiveAnimation();
+			AnimId activeAnimationId = Timeline::getActiveAnimation();
 			Animation* activeAnimation = AnimationManager::getMutableAnimation(am, activeAnimationId);
 			if (activeAnimation)
 			{
@@ -171,6 +171,7 @@ namespace MathAnim
 			AnimObjectPanel::free();
 			Timeline::freeInstance(timeline);
 			Timeline::free(am);
+			timelineLoaded = false;
 		}
 
 		const TimelineData& getTimelineData()
@@ -226,14 +227,14 @@ namespace MathAnim
 						normalizedMousePos.x * (float)pickingTexture.width,
 						normalizedMousePos.y * (float)pickingTexture.height
 					};
-					uint32 objId = mainFramebuffer.readPixelUint32(3, (int)mousePixelPos.x, (int)mousePixelPos.y);
-					if (objId != UINT32_MAX)
+					AnimObjId objId = mainFramebuffer.readPixelUint64(3, (int)mousePixelPos.x, (int)mousePixelPos.y);
+					if (objId != NULL_ANIM_OBJECT)
 					{
 						Timeline::setActiveAnimObject((int)objId);
 					}
 					else
 					{
-						Timeline::setActiveAnimObject(INT32_MAX);
+						Timeline::setActiveAnimObject(NULL_ANIM_OBJECT);
 					}
 				}
 			}
@@ -241,10 +242,8 @@ namespace MathAnim
 
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset)
 		{
-			ImGuiStyle& style = ImGui::GetStyle();
 			float targetAspectRatio = Application::getOutputTargetAspectRatio();
 			ImVec2 contentRegion = ImGui::GetContentRegionAvail();
-			float scrollAmount = ImGui::GetScrollY();
 			ImVec2 res = contentRegion;
 
 			float width = res.x;

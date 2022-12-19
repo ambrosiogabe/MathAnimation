@@ -10,6 +10,12 @@ namespace MathAnim
 		Locked,
 		Normal
 	};
+
+	enum WindowFlags : uint8
+	{
+		None,
+		OpenMaximized = 0x1,
+	};
     
 	struct Window
 	{
@@ -18,7 +24,7 @@ namespace MathAnim
 		const char* title;
 		void* windowPtr;
         
-		Window(int width, int height, const char* title);
+		Window(int width, int height, const char* title, WindowFlags flags = WindowFlags::None);
         
 		void makeContextCurrent();
         

@@ -47,12 +47,12 @@ void main()
         vec2 dirA = normalize(currentPosScreen - prevPosScreen);
         vec2 dirB = normalize(nextPosScreen - currentPosScreen);
         //now compute the miter join normal and length
-        vec2 tangent = normalize(dirA + dirB);
-        vec2 perp = vec2(-dirA.y, dirA.x);
-        vec2 miter = vec2(-tangent.y, tangent.x);
-        lineNormal = tangent;
-        float miterDotPerp = dot(miter, perp);
-        thick = thickness / dot(miter, perp);
+        vec2 bisection = normalize(dirA + dirB);
+        vec2 firstLinePerp = vec2(-dirA.y, dirA.x);
+        // This is the miter
+        vec2 bisectionPerp = vec2(-bisection.y, bisection.x);
+        lineNormal = bisection;
+        thick = thickness / dot(bisectionPerp, firstLinePerp);
         // TODO: Right now we're limiting the thickness so that 
         // we don't get artifacts when one of the lines has 0
         // thickness because it's perpendicular to the camera's

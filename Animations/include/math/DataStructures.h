@@ -5,110 +5,92 @@
 
 namespace MathAnim
 {
-	struct Vec2
+	union Vec2
 	{
-		union
+		float values[2];
+		struct
 		{
-			float values[2];
-			struct
-			{
-				float x;
-				float y;
-			};
-			struct
-			{
-				float min;
-				float max;
-			};
+			float x;
+			float y;
+		};
+		struct
+		{
+			float min;
+			float max;
 		};
 	};
 
-	struct Vec3
+	union Vec3
 	{
-		union
+		float values[3];
+		struct
 		{
-			float values[3];
-			struct
-			{
-				float x;
-				float y;
-				float z;
-			};
-			struct
-			{
-				float r;
-				float g;
-				float b;
-			};
+			float x;
+			float y;
+			float z;
+		};
+		struct
+		{
+			float r;
+			float g;
+			float b;
 		};
 	};
 
-	struct Vec4
+	union Vec4
 	{
-		union
+		float values[4];
+		struct
 		{
-			float values[4];
-			struct
-			{
-				float x;
-				float y;
-				float z;
-				float w;
-			};
-			struct
-			{
-				float r;
-				float g;
-				float b;
-				float a;
-			};
+			float x;
+			float y;
+			float z;
+			float w;
+		};
+		struct
+		{
+			float r;
+			float g;
+			float b;
+			float a;
 		};
 	};
 
-	struct Vec2i
+	union Vec2i
 	{
-		union
+		int32 values[2];
+		struct
 		{
-			int32 values[2];
-			struct
-			{
-				int32 x;
-				int32 y;
-			};
-			struct
-			{
-				int32 min;
-				int32 max;
-			};
+			int32 x;
+			int32 y;
+		};
+		struct
+		{
+			int32 min;
+			int32 max;
 		};
 	};
 
-	struct Vec3i
+	union Vec3i
 	{
-		union
+		int32 values[3];
+		struct
 		{
-			int32 values[3];
-			struct
-			{
-				int32 x;
-				int32 y;
-				int32 z;
-			};
+			int32 x;
+			int32 y;
+			int32 z;
 		};
 	};
 
-	struct Vec4i
+	union Vec4i
 	{
-		union
+		int32 values[4];
+		struct
 		{
-			int32 values[4];
-			struct
-			{
-				int32 w;
-				int32 x;
-				int32 y;
-				int32 z;
-			};
+			int32 w;
+			int32 x;
+			int32 y;
+			int32 z;
 		};
 	};
 
@@ -130,8 +112,12 @@ namespace MathAnim
 	Vec2 operator/(const Vec2& a, float scale);
 	Vec2 operator*(float scale, const Vec2& a);
 	Vec2 operator/(float scale, const Vec2& a);
+	Vec2 operator*(const Vec2& a, const Vec2& scale);
+	Vec2 operator/(const Vec2& a, const Vec2& scale);
 	Vec2& operator*=(Vec2& a, float scale);
 	Vec2& operator/=(Vec2& a, float scale);
+	Vec2& operator*=(Vec2& a, const Vec2& scale);
+	Vec2& operator/=(Vec2& a, const Vec2& scale);
 	Vec2& operator+=(Vec2& a, const Vec2& b);
 	Vec2& operator-=(Vec2& a, const Vec2& b);
 
@@ -141,8 +127,12 @@ namespace MathAnim
 	Vec3 operator/(const Vec3& a, float scale);
 	Vec3 operator*(float scale, const Vec3& a);
 	Vec3 operator/(float scale, const Vec3& a);
+	Vec3 operator*(const Vec3& a, const Vec3& scale);
+	Vec3 operator/(const Vec3& a, const Vec3& scale);
 	Vec3& operator*=(Vec3& a, float scale);
 	Vec3& operator/=(Vec3& a, float scale);
+	Vec3& operator*=(Vec3& a, const Vec3& scale);
+	Vec3& operator/=(Vec3& a, const Vec3& scale);
 	Vec3& operator+=(Vec3& a, const Vec3& b);
 	Vec3& operator-=(Vec3& a, const Vec3& b);
 
@@ -152,8 +142,12 @@ namespace MathAnim
 	Vec4 operator/(const Vec4& a, float scale);
 	Vec4 operator*(float scale, const Vec4& a);
 	Vec4 operator/(float scale, const Vec4& a);
+	Vec4 operator*(const Vec4& a, const Vec4& scale);
+	Vec4 operator/(const Vec4& a, const Vec4& scale);
 	Vec4& operator*=(Vec4& a, float scale);
 	Vec4& operator/=(Vec4& a, float scale);
+	Vec4& operator*=(Vec4& a, const Vec4& scale);
+	Vec4& operator/=(Vec4& a, const Vec4& scale);
 	Vec4& operator+=(Vec4& a, const Vec4& b);
 	Vec4& operator-=(Vec4& a, const Vec4& b);
 

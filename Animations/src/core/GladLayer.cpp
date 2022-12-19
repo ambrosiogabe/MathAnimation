@@ -31,13 +31,13 @@ namespace MathAnim
 		}
 
 		static void GLAPIENTRY
-			messageCallback(GLenum source,
+			messageCallback(GLenum,
 				GLenum type,
-				GLuint id,
+				GLuint,
 				GLenum severity,
-				GLsizei length,
+				GLsizei,
 				const GLchar* message,
-				const void* userParam)
+				const void*)
 		{
 			if (type == GL_DEBUG_TYPE_ERROR)
 			{

@@ -1,12 +1,15 @@
 #include "core.h"
 #include "core/Application.h"
 #include "core/Platform.h"
+#include "core/Colors.h"
 #include "editor/Timeline.h"
 #include "editor/ImGuiTimeline.h"
 #include "editor/SceneHierarchyPanel.h"
+#include "editor/ImGuiExtended.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
-#include "animation/Svg.h"
+#include "svg/Svg.h"
+#include "svg/SvgParser.h"
 #include "renderer/Fonts.h"
 #include "audio/Audio.h"
 #include "audio/WavLoader.h"
@@ -25,13 +28,15 @@ namespace MathAnim
 		// ------- Private variables --------
 		static ImGuiTimeline_Track* tracks;
 		static int numTracks;
-		static int activeAnimObjectId = INT32_MAX;
-		static int activeAnimationId = INT32_MAX;
+		static AnimObjId activeAnimObjectId = NULL_ANIM_OBJECT;
+		static AnimId activeAnimationId = NULL_ANIM;
 		static AudioSource audioSource;
 		static WavData audioData;
 		static ImGuiTimeline_AudioData imguiAudioData;
 
 		static constexpr float slowDragSpeed = 0.02f;
+		static bool svgErrorPopupOpen = false;
+		static const char* ERROR_IMPORTING_SVG_POPUP = "Error Importing SVG##ERROR_IMPORTING_SVG";
 		static const char* ANIM_OBJECT_DROP_TARGET_ID = "ANIM_OBJECT_DROP_TARGET_ID";
 
 		// ------- Internal Functions --------
@@ -41,26 +46,31 @@ namespace MathAnim
 		static void freeTrack(ImGuiTimeline_Track& track, AnimationManagerData* am);
 		static void addNewDefaultTrack(AnimationManagerData* am, int insertIndex = INT32_MAX);
 		static void deleteTrack(AnimationManagerData* am, int index);
-		static void handleAnimObjectInspector(AnimationManagerData* am, int animObjectId);
-		static void handleAnimationInspector(AnimationManagerData* am, int animationId);
-		static void handleTextObjectInspector(AnimObject* object);
+		static void handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId);
+		static void handleAnimationInspector(AnimationManagerData* am, AnimId animationId);
+		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
-		static void handleMoveToAnimationInspector(Animation* animation);
+		static void handleSvgFileObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static void handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation);
+		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation);
 		static void handleShiftInspector(Animation* animation);
 		static void handleRotateToAnimationInspector(Animation* animation);
 		static void handleAnimateStrokeColorAnimationInspector(Animation* animation);
 		static void handleAnimateFillColorAnimationInspector(Animation* animation);
-		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation);
+		static void handleCircumscribeInspector(AnimationManagerData* am, Animation* animation);
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
 		static void handleCubeInspector(AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
 
+		static void checkSvgErrorPopup();
+		static bool applySettingToChildren(const char* id, bool* toggled);
+
 		static void setupImGuiTimelineDataFromAnimations(AnimationManagerData* am, int numTracksToCreate = INT32_MAX);
 		static void addAnimation(const Animation& animation);
 		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex, AnimationManagerData* am);
 		static void deleteSubSegment(ImGuiTimeline_Segment& segment, int subSegmentIndex, AnimationManagerData* am);
-		static void resetImGuiData(AnimationManagerData* am);
 
 		TimelineData initInstance()
 		{
@@ -91,191 +101,193 @@ namespace MathAnim
 			// NOTE: For best results, it's usually a good idea to specify 0 padding for the window
 			// so that the timeline can expand to the full width/height of the window
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-			ImGui::Begin("Timeline");
-
-			timelineData.currentFrame = Application::getFrameIndex();
-
-			ImGuiTimelineFlags flags = ImGuiTimelineFlags_None;
-			flags |= ImGuiTimelineFlags_EnableZoomControl;
-			flags |= ImGuiTimelineFlags_EnableMagnetControl;
-
-			if (Application::getEditorPlayState() == AnimState::PlayForward ||
-				Application::getEditorPlayState() == AnimState::PlayReverse)
+			if (ImGui::Begin("Timeline"))
 			{
-				flags |= ImGuiTimelineFlags_FollowTimelineCursor;
 
-				if (!Audio::isNull(audioSource) && !audioSource.isPlaying)
+				timelineData.currentFrame = Application::getFrameIndex();
+
+				ImGuiTimelineFlags flags = ImGuiTimelineFlags_None;
+				flags |= ImGuiTimelineFlags_EnableZoomControl;
+				flags |= ImGuiTimelineFlags_EnableMagnetControl;
+
+				if (Application::getEditorPlayState() == AnimState::PlayForward ||
+					Application::getEditorPlayState() == AnimState::PlayReverse)
 				{
-					float offset = 0.0f;
-					if (timelineData.currentFrame > 0)
+					flags |= ImGuiTimelineFlags_FollowTimelineCursor;
+
+					if (!Audio::isNull(audioSource) && !audioSource.isPlaying)
 					{
-						offset = timelineData.currentFrame / 60.0f;
+						float offset = 0.0f;
+						if (timelineData.currentFrame > 0)
+						{
+							offset = timelineData.currentFrame / 60.0f;
+						}
+						Audio::play(audioSource, offset);
 					}
-					Audio::play(audioSource, offset);
 				}
-			}
-			else
-			{
-				if (!Audio::isNull(audioSource) && audioSource.isPlaying)
+				else
 				{
-					Audio::stop(audioSource);
+					if (!Audio::isNull(audioSource) && audioSource.isPlaying)
+					{
+						Audio::stop(audioSource);
+					}
 				}
-			}
 
-			ImGuiTimeline_AudioData* imguiAudioDataPtr = Audio::isNull(audioSource)
-				? nullptr
-				: &imguiAudioData;
-			ImGuiTimelineResult res = ImGuiTimeline(
-				tracks,
-				numTracks,
-				&timelineData.currentFrame,
-				&timelineData.firstFrame,
-				&timelineData.zoomLevel,
-				imguiAudioDataPtr,
-				flags
-			);
+				ImGuiTimeline_AudioData* imguiAudioDataPtr = Audio::isNull(audioSource)
+					? nullptr
+					: &imguiAudioData;
+				ImGuiTimelineResult res = ImGuiTimeline(
+					tracks,
+					numTracks,
+					&timelineData.currentFrame,
+					&timelineData.firstFrame,
+					&timelineData.zoomLevel,
+					imguiAudioDataPtr,
+					flags
+				);
 
-			if (res.flags & ImGuiTimelineResultFlags_CurrentFrameChanged)
-			{
-				Application::setFrameIndex(timelineData.currentFrame);
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_AddTrackClicked)
-			{
-				addNewDefaultTrack(am, res.trackIndex);
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_DeleteTrackClicked)
-			{
-				deleteTrack(am, res.trackIndex);
-			}
-
-			// If we have a filepath for an audio source and the current audio source is null
-			// try to load it
-			if (timelineData.audioSourceFileLength > 0 && Audio::isNull(audioSource))
-			{
-				loadAudioSource((const char*)timelineData.audioSourceFile);
-
-				if (Audio::isNull(audioSource))
+				if (res.flags & ImGuiTimelineResultFlags_CurrentFrameChanged)
 				{
-					// Failed to load the file, there must be something wrong with it.
-					g_logger_error("Failed to load audio source file '%s'", timelineData.audioSourceFile);
-					g_memory_free(timelineData.audioSourceFile);
-					timelineData.audioSourceFile = nullptr;
+					Application::setFrameIndex(timelineData.currentFrame);
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_AddTrackClicked)
+				{
+					addNewDefaultTrack(am, res.trackIndex);
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_DeleteTrackClicked)
+				{
+					deleteTrack(am, res.trackIndex);
+				}
+
+				// If we have a filepath for an audio source and the current audio source is null
+				// try to load it
+				if (timelineData.audioSourceFileLength > 0 && Audio::isNull(audioSource))
+				{
+					loadAudioSource((const char*)timelineData.audioSourceFile);
+
+					if (Audio::isNull(audioSource))
+					{
+						// Failed to load the file, there must be something wrong with it.
+						g_logger_error("Failed to load audio source file '%s'", timelineData.audioSourceFile);
+						g_memory_free(timelineData.audioSourceFile);
+						timelineData.audioSourceFile = nullptr;
+						timelineData.audioSourceFileLength = 0;
+					}
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_DeleteAudioSource)
+				{
+					Audio::free(audioSource);
+					WavLoader::free(audioData);
+					timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8));
+					timelineData.audioSourceFile[0] = '\0';
 					timelineData.audioSourceFileLength = 0;
 				}
-			}
 
-			if (res.flags & ImGuiTimelineResultFlags_DeleteAudioSource)
-			{
-				Audio::free(audioSource);
-				WavLoader::free(audioData);
-				timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8));
-				timelineData.audioSourceFile[0] = '\0';
-				timelineData.audioSourceFileLength = 0;
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_AddAudioSource)
-			{
-				nfdchar_t* outPath = NULL;
-				nfdresult_t result = NFD_OpenDialog("wav", NULL, &outPath);
-
-				if (result == NFD_OKAY)
+				if (res.flags & ImGuiTimelineResultFlags_AddAudioSource)
 				{
-					loadAudioSource(outPath);
+					nfdchar_t* outPath = NULL;
+					nfdresult_t result = NFD_OpenDialog("wav", NULL, &outPath);
 
-					size_t pathLength = std::strlen(outPath);
-					timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8) * (pathLength + 1));
-					g_memory_copyMem(timelineData.audioSourceFile, outPath, sizeof(uint8) * (pathLength + 1));
-					timelineData.audioSourceFileLength = pathLength;
-
-					std::free(outPath);
-				}
-				else if (result == NFD_CANCEL)
-				{
-					g_logger_info("User cancelled adding audio source.");
-				}
-				else
-				{
-					g_logger_error("Error opening audio source:\n\t%s", NFD_GetError());
-				}
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_DeleteActiveObject)
-			{
-				if (res.activeObjectIsSubSegment)
-				{
-					ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-					deleteSubSegment(segment, res.subSegmentIndex, am);
-				}
-				else
-				{
-					ImGuiTimeline_Track& track = tracks[res.trackIndex];
-					deleteSegment(track, res.segmentIndex, am);
-				}
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_DragDropPayloadHit)
-			{
-				g_logger_assert(res.dragDropPayloadDataSize == sizeof(TimelinePayload), "Invalid payload.");
-				TimelinePayload* payloadData = (TimelinePayload*)res.dragDropPayloadData;
-				if (payloadData->isAnimObject)
-				{
-					if (!res.activeObjectIsSubSegment)
+					if (result == NFD_OKAY)
 					{
-						// AnimObject object = AnimObject::createDefault(payloadData->objectType, res.dragDropPayloadFirstFrame, 120);
-						// object.timelineTrack = res.trackIndex;
-						// AnimationManager::addAnimObject(am, object);
-						// SceneHierarchyPanel::addNewAnimObject(object);
-						// addAnimObject(object);
-						g_logger_warning("TODO: Implement me");
+						loadAudioSource(outPath);
+
+						size_t pathLength = std::strlen(outPath);
+						timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8) * (pathLength + 1));
+						g_memory_copyMem(timelineData.audioSourceFile, outPath, sizeof(uint8) * (pathLength + 1));
+						timelineData.audioSourceFileLength = pathLength;
+
+						std::free(outPath);
+					}
+					else if (result == NFD_CANCEL)
+					{
+						g_logger_info("User cancelled adding audio source.");
+					}
+					else
+					{
+						g_logger_error("Error opening audio source:\n\t%s", NFD_GetError());
 					}
 				}
-				else
+
+				if (res.flags & ImGuiTimelineResultFlags_DeleteActiveObject)
 				{
-					if (!res.activeObjectIsSubSegment)
+					if (res.activeObjectIsSubSegment)
 					{
-						Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 30);
-						animation.timelineTrack = res.trackIndex;
-						AnimationManager::addAnimation(am, animation);
-						addAnimation(animation);
+						ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
+						deleteSubSegment(segment, res.subSegmentIndex, am);
+					}
+					else
+					{
+						ImGuiTimeline_Track& track = tracks[res.trackIndex];
+						deleteSegment(track, res.segmentIndex, am);
 					}
 				}
-			}
 
-			if (res.flags & ImGuiTimelineResultFlags_SegmentTimeChanged)
-			{
-				const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-				int animationId = segment.userData.as.intData;
-				AnimationManager::setAnimationTime(am, animationId, segment.frameStart, segment.frameDuration);
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_SubSegmentTimeChanged)
-			{
-				// const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
-				// int animationId = (int)(uintptr_t)subSegment.userData;
-				// int animObjectId = tracks[res.trackIndex].segments[res.segmentIndex].userData.as.intData;
-				// AnimationManager::setAnimationTime(am, animObjectId, animationId, subSegment.frameStart, subSegment.frameDuration);
-				g_logger_warning("TODO: Implement me");
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectDeselected)
-			{
-				activeAnimationId = INT32_MAX;
-			}
-
-			if (res.flags & ImGuiTimelineResultFlags_ActiveObjectChanged)
-			{
-				if (res.activeObjectIsSubSegment)
+				if (res.flags & ImGuiTimelineResultFlags_DragDropPayloadHit)
 				{
-					// const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
-					// activeAnimationId = (int)(uintptr_t)subSegment.userData;
-					// activeAnimObjectId = INT32_MAX;
+					g_logger_assert(res.dragDropPayloadDataSize == sizeof(TimelinePayload), "Invalid payload.");
+					TimelinePayload* payloadData = (TimelinePayload*)res.dragDropPayloadData;
+					if (payloadData->isAnimObject)
+					{
+						if (!res.activeObjectIsSubSegment)
+						{
+							// AnimObject object = AnimObject::createDefault(payloadData->objectType, res.dragDropPayloadFirstFrame, 120);
+							// object.timelineTrack = res.trackIndex;
+							// AnimationManager::addAnimObject(am, object);
+							// SceneHierarchyPanel::addNewAnimObject(object);
+							// addAnimObject(object);
+							g_logger_warning("TODO: Implement me");
+						}
+					}
+					else
+					{
+						if (!res.activeObjectIsSubSegment)
+						{
+							Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 30);
+							animation.timelineTrack = res.trackIndex;
+							AnimationManager::addAnimation(am, animation);
+							addAnimation(animation);
+						}
+					}
 				}
-				else
+
+				if (res.flags & ImGuiTimelineResultFlags_SegmentTimeChanged)
 				{
 					const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-					activeAnimationId = segment.userData.as.intData;
+					int animationId = segment.userData.as.intData;
+					AnimationManager::setAnimationTime(am, animationId, segment.frameStart, segment.frameDuration);
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_SubSegmentTimeChanged)
+				{
+					// const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
+					// int animationId = (int)(uintptr_t)subSegment.userData;
+					// int animObjectId = tracks[res.trackIndex].segments[res.segmentIndex].userData.as.intData;
+					// AnimationManager::setAnimationTime(am, animObjectId, animationId, subSegment.frameStart, subSegment.frameDuration);
+					g_logger_warning("TODO: Implement me");
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_ActiveObjectDeselected)
+				{
+					activeAnimationId = NULL_ANIM;
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_ActiveObjectChanged)
+				{
+					if (res.activeObjectIsSubSegment)
+					{
+						// const ImGuiTimeline_SubSegment& subSegment = tracks[res.trackIndex].segments[res.segmentIndex].subSegments[res.subSegmentIndex];
+						// activeAnimationId = (int)(uintptr_t)subSegment.userData;
+						// activeAnimObjectId = NULL_ANIM;
+					}
+					else
+					{
+						const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
+						activeAnimationId = segment.userData.as.intData;
+					}
 				}
 			}
 
@@ -283,18 +295,22 @@ namespace MathAnim
 			ImGui::PopStyleVar();
 
 			ImGui::Begin("Anim Object Inspector");
-			if (activeAnimObjectId != INT32_MAX)
+			if (!isNull(activeAnimObjectId))
 			{
 				handleAnimObjectInspector(am, activeAnimObjectId);
+				// TODO: Does this slow stuff down or does it even matter?
+				AnimationManager::updateObjectState(am, activeAnimObjectId);
 			}
 			ImGui::End();
 
 			ImGui::Begin("Animation Inspector");
-			if (activeAnimationId != INT32_MAX)
+			if (!isNull(activeAnimationId))
 			{
 				handleAnimationInspector(am, activeAnimationId);
 			}
 			ImGui::End();
+
+			checkSvgErrorPopup();
 		}
 
 		void freeInstance(TimelineData& timelineData)
@@ -312,6 +328,10 @@ namespace MathAnim
 
 		void free(AnimationManagerData* am)
 		{
+			// TODO: Serialize this with timelineData
+			activeAnimationId = NULL_ANIM;
+			activeAnimObjectId = NULL_ANIM_OBJECT;
+
 			// TODO: Synchronize this with freeInstance
 			if (tracks)
 			{
@@ -327,17 +347,17 @@ namespace MathAnim
 			ImGuiTimeline_free();
 		}
 
-		void setActiveAnimObject(int animObjectId)
+		void setActiveAnimObject(AnimObjId animObjectId)
 		{
 			activeAnimObjectId = animObjectId;
 		}
 
-		int getActiveAnimObject()
+		AnimObjId getActiveAnimObject()
 		{
 			return activeAnimObjectId;
 		}
 
-		int getActiveAnimation()
+		AnimId getActiveAnimation()
 		{
 			return activeAnimationId;
 		}
@@ -439,7 +459,7 @@ namespace MathAnim
 			{
 				counter = 0;
 			}
-			char counterString[2];
+			char counterString[3];
 			_itoa_s(counter, counterString, 10);
 
 			if (inTrackName)
@@ -473,7 +493,7 @@ namespace MathAnim
 
 					if (animObjectId == activeAnimObjectId)
 					{
-						activeAnimObjectId = INT32_MAX;
+						activeAnimObjectId = NULL_ANIM_OBJECT;
 					}
 
 					AnimationManager::removeAnimation(am, animObjectId);
@@ -484,7 +504,7 @@ namespace MathAnim
 						{
 							if ((uintptr_t)track.segments[i].subSegments[subi].userData == activeAnimationId)
 							{
-								activeAnimationId = INT32_MAX;
+								activeAnimationId = NULL_ANIM;
 							}
 						}
 
@@ -568,17 +588,15 @@ namespace MathAnim
 			// resetImGuiData();
 		}
 
-		static void handleAnimObjectInspector(AnimationManagerData* am, int animObjectId)
+		static void handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId)
 		{
 			AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectId);
 			if (!animObject)
 			{
 				g_logger_error("No anim object with id '%d' exists", animObject);
-				activeAnimObjectId = INT32_MAX;
+				activeAnimObjectId = NULL_ANIM_OBJECT;
 				return;
 			}
-
-			bool objChanged = false;
 
 			constexpr int scratchLength = 256;
 			char scratch[scratchLength] = {};
@@ -600,27 +618,51 @@ namespace MathAnim
 				g_logger_error("Anim Object name has more 256 characters. Tell Gabe to increase scratch length for Anim Object names.");
 			}
 
-			objChanged = ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed) || objChanged;
-			objChanged = ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x) || objChanged;
-			objChanged = ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed) || objChanged;
-			objChanged = ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed) || objChanged;
+			ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed);
+			ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
+			ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
+
+			static bool scaleToggled = false;
+			if (ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed))
+			{
+				if (scaleToggled)
+				{
+					animObject->copySvgScaleToChildren(am);
+				}
+			}
+			applySettingToChildren("##SvgScaleChildrenApply", &scaleToggled);
 
 			// NanoVG only allows stroke width between [0-200] so we reflect that here
-			objChanged = ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, slowDragSpeed, 0.0f, 10.0f) || objChanged;
+			static bool strokeWidthToggled = false;
+			if (ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f))
+			{
+				if (strokeWidthToggled)
+				{
+					animObject->copyStrokeWidthToChildren(am);
+				}
+			}
+			applySettingToChildren("##StrokeWidthChildrenApply", &strokeWidthToggled);
+
 			float strokeColor[4] = {
 				(float)animObject->_strokeColorStart.r / 255.0f,
 				(float)animObject->_strokeColorStart.g / 255.0f,
 				(float)animObject->_strokeColorStart.b / 255.0f,
 				(float)animObject->_strokeColorStart.a / 255.0f,
 			};
+			static bool strokeColorToggled = false;
 			if (ImGui::ColorEdit4(": Stroke Color", strokeColor))
 			{
 				animObject->_strokeColorStart.r = (uint8)(strokeColor[0] * 255.0f);
 				animObject->_strokeColorStart.g = (uint8)(strokeColor[1] * 255.0f);
 				animObject->_strokeColorStart.b = (uint8)(strokeColor[2] * 255.0f);
 				animObject->_strokeColorStart.a = (uint8)(strokeColor[3] * 255.0f);
-				objChanged = true;
+
+				if (strokeColorToggled)
+				{
+					animObject->copyStrokeColorToChildren(am);
+				}
 			}
+			applySettingToChildren("##StrokeColorChildrenApply", &strokeColorToggled);
 
 			float fillColor[4] = {
 				(float)animObject->_fillColorStart.r / 255.0f,
@@ -628,27 +670,35 @@ namespace MathAnim
 				(float)animObject->_fillColorStart.b / 255.0f,
 				(float)animObject->_fillColorStart.a / 255.0f,
 			};
+			static bool fillColorToggled = false;
 			if (ImGui::ColorEdit4(": Fill Color", fillColor))
 			{
 				animObject->_fillColorStart.r = (uint8)(fillColor[0] * 255.0f);
 				animObject->_fillColorStart.g = (uint8)(fillColor[1] * 255.0f);
 				animObject->_fillColorStart.b = (uint8)(fillColor[2] * 255.0f);
 				animObject->_fillColorStart.a = (uint8)(fillColor[3] * 255.0f);
-				objChanged = true;
-			}
 
-			objChanged = ImGui::Checkbox(": Is Transparent", &animObject->isTransparent) || objChanged;
-			objChanged = ImGui::Checkbox(": Is 3D", &animObject->is3D) || objChanged;
-			objChanged = ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes) || objChanged;
+				if (fillColorToggled)
+				{
+					animObject->copyFillColorToChildren(am);
+				}
+			}
+			applySettingToChildren("##FillColorChildrenApply", &fillColorToggled);
+
+			ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
+			ImGui::Checkbox(": Is 3D", &animObject->is3D);
+			ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
 			if (animObject->drawDebugBoxes)
 			{
-				objChanged = ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes) || objChanged;
+				ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
 			}
+			ImGui::Checkbox(": Draw Curves", &animObject->drawCurves);
+			ImGui::Checkbox(": Draw Control Points", &animObject->drawControlPoints);
 
 			switch (animObject->objectType)
 			{
 			case AnimObjectTypeV1::TextObject:
-				handleTextObjectInspector(animObject);
+				handleTextObjectInspector(am, animObject);
 				break;
 			case AnimObjectTypeV1::LaTexObject:
 				handleLaTexObjectInspector(animObject);
@@ -665,80 +715,85 @@ namespace MathAnim
 			case AnimObjectTypeV1::Axis:
 				handleAxisInspector(animObject);
 				break;
-			default:
-				g_logger_error("Unknown anim object type: %d", (int)animObject->objectType);
+			case AnimObjectTypeV1::SvgFileObject:
+				handleSvgFileObjectInspector(am, animObject);
+				break;
+			case AnimObjectTypeV1::Camera:
+				handleCameraObjectInspector(am, animObject);
+				break;
+			case AnimObjectTypeV1::SvgObject:
+				// NOP
+				break;
+			case AnimObjectTypeV1::Length:
+			case AnimObjectTypeV1::None:
 				break;
 			}
 		}
 
-		static void handleAnimationInspector(AnimationManagerData* am, int animationId)
+		static void handleAnimationInspector(AnimationManagerData* am, AnimId animationId)
 		{
 			Animation* animation = AnimationManager::getMutableAnimation(am, animationId);
 			if (!animation)
 			{
 				g_logger_error("No animation with id '%d' exists", animationId);
-				activeAnimationId = INT32_MAX;
+				activeAnimationId = NULL_ANIM;
 				return;
 			}
 
-			if (ImGui::CollapsingHeader("Anim Objects"))
+			if (Animation::isAnimationGroup(animation->type))
 			{
-				auto animObjectIdIter = animation->animObjectIds.begin();
-				while (animObjectIdIter != animation->animObjectIds.end())
+				if (ImGui::CollapsingHeader("Anim Objects"))
 				{
-					const AnimObject* obj = AnimationManager::getObject(am, *animObjectIdIter);
-					if (obj)
+					std::unordered_set<AnimObjId> objectIdsCopy = animation->animObjectIds;
+					for (auto animObjectIdIter = objectIdsCopy.begin(); animObjectIdIter != objectIdsCopy.end(); animObjectIdIter++)
 					{
-						ImGui::PushID(*animObjectIdIter);
-						ImGui::InputText("##AnimObjectId", (char*)obj->name, obj->nameLength, ImGuiInputTextFlags_ReadOnly);
-						ImGui::SameLine();
-						if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
+						const AnimObject* obj = AnimationManager::getObject(am, *animObjectIdIter);
+						if (obj)
 						{
-							animObjectIdIter = animation->animObjectIds.erase(animObjectIdIter);
-						}
-						else
-						{
-							animObjectIdIter++;
-						}
-						ImGui::PopID();
-					}
-				}
-
-				static bool isAddingAnimObject = false;
-				if (isAddingAnimObject)
-				{
-					const char dummyInputText[] = "Drag Object Here";
-					size_t dummyInputTextSize = sizeof(dummyInputText);
-					ImGui::InputText("##AnimObjectDropTarget", (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
-
-					if (ImGui::BeginDragDropTarget())
-					{
-						if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(ANIM_OBJECT_DROP_TARGET_ID))
-						{
-							if (payload->DataSize == sizeof(AnimObjectPayload))
+							// Treat the uint64 as a pointer ID so ImGui hashes it into an int
+							ImGui::PushID((const void*)*animObjectIdIter);
+							ImGui::BeginDisabled();
+							ImGui::InputText("##AnimObjectId", (char*)obj->name, obj->nameLength, ImGuiInputTextFlags_ReadOnly);
+							ImGui::EndDisabled();
+							ImGui::SameLine();
+							if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
 							{
-								const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
-								bool exists =
-									std::find(
-										animation->animObjectIds.begin(),
-										animation->animObjectIds.end(),
-										objPayload->animObjectId
-									) != animation->animObjectIds.end();
-
-								if (!exists)
-								{
-									animation->animObjectIds.push_back(objPayload->animObjectId);
-								}
-								isAddingAnimObject = false;
+								AnimationManager::removeObjectFromAnim(am, *animObjectIdIter, animation->id);
 							}
+							ImGui::PopID();
 						}
-						ImGui::EndDragDropTarget();
 					}
-				}
 
-				if (ImGui::Button(ICON_FA_PLUS " Add Anim Object"))
-				{
-					isAddingAnimObject = true;
+					static bool isAddingAnimObject = false;
+					if (isAddingAnimObject)
+					{
+						const char dummyInputText[] = "Drag Object Here";
+						size_t dummyInputTextSize = sizeof(dummyInputText);
+						ImGui::BeginDisabled();
+						ImGui::InputText("##AnimObjectDropTarget", (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
+						ImGui::EndDisabled();
+
+						if (auto objPayload = ImGuiExtended::AnimObjectDragDropTarget(); objPayload != nullptr)
+						{
+							bool exists =
+								std::find(
+									animation->animObjectIds.begin(),
+									animation->animObjectIds.end(),
+									objPayload->animObjectId
+								) != animation->animObjectIds.end();
+
+							if (!exists)
+							{
+								AnimationManager::addObjectToAnim(am, objPayload->animObjectId, animation->id);
+							}
+							isAddingAnimObject = false;
+						}
+					}
+
+					if (ImGui::Button(ICON_FA_PLUS " Add Anim Object"))
+					{
+						isAddingAnimObject = true;
+					}
 				}
 			}
 
@@ -757,7 +812,7 @@ namespace MathAnim
 			}
 
 			int currentPlaybackType = (int)(animation->playbackType) - 1;
-			if (ImGui::Combo(": Playback Type", &currentPlaybackType, &playbackTypeNames[1], (int)PlaybackType::Length - 1))
+			if (ImGui::Combo(": Playback Type", &currentPlaybackType, &_playbackTypeNames[1], (int)PlaybackType::Length - 1))
 			{
 				g_logger_assert(currentPlaybackType >= 0 && currentPlaybackType + 1 < (int)PlaybackType::Length, "How did this happen?");
 				animation->playbackType = (PlaybackType)(currentPlaybackType + 1);
@@ -769,16 +824,17 @@ namespace MathAnim
 
 			switch (animation->type)
 			{
-			case AnimTypeV1::WriteInText:
 			case AnimTypeV1::Create:
-			case AnimTypeV1::Transform:
 			case AnimTypeV1::UnCreate:
 			case AnimTypeV1::FadeIn:
 			case AnimTypeV1::FadeOut:
 				// NOP
 				break;
+			case AnimTypeV1::Transform:
+				handleTransformAnimation(am, animation);
+				break;
 			case AnimTypeV1::MoveTo:
-				handleMoveToAnimationInspector(animation);
+				handleMoveToAnimationInspector(am, animation);
 				break;
 			case AnimTypeV1::Shift:
 				handleShiftInspector(animation);
@@ -792,17 +848,23 @@ namespace MathAnim
 			case AnimTypeV1::AnimateStrokeColor:
 				handleAnimateStrokeColorAnimationInspector(animation);
 				break;
-			case AnimTypeV1::CameraMoveTo:
-				handleAnimateCameraMoveToAnimationInspector(animation);
+			case AnimTypeV1::AnimateStrokeWidth:
+				//handleAnimateStrokeWidthInspector(animation);
+				g_logger_warning("TODO: Implement me.");
 				break;
-			default:
-				g_logger_error("Unknown animation type: %d", (int)animation->type);
+			case AnimTypeV1::Circumscribe:
+				handleCircumscribeInspector(am, animation);
+				break;
+			case AnimTypeV1::Length:
+			case AnimTypeV1::None:
 				break;
 			}
 		}
 
-		static void handleTextObjectInspector(AnimObject* object)
+		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object)
 		{
+			bool shouldRegenerate = false;
+
 			const std::vector<std::string>& fonts = Platform::getAvailableFonts();
 			int fontIndex = -1;
 			if (object->as.textObject.font != nullptr)
@@ -846,7 +908,8 @@ namespace MathAnim
 						{
 							Fonts::unloadFont(object->as.textObject.font);
 						}
-						object->as.textObject.font = Fonts::loadFont(fonts[n].c_str(), Application::getNvgContext());
+						object->as.textObject.font = Fonts::loadFont(fonts[n].c_str());
+						shouldRegenerate = true;
 					}
 
 					// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
@@ -874,6 +937,12 @@ namespace MathAnim
 				object->as.textObject.textLength = (int32_t)newLength;
 				g_memory_copyMem(object->as.textObject.text, scratch, newLength * sizeof(char));
 				object->as.textObject.text[newLength] = '\0';
+				shouldRegenerate = true;
+			}
+
+			if (shouldRegenerate)
+			{
+				object->as.textObject.reInit(am, object);
 			}
 		}
 
@@ -917,9 +986,93 @@ namespace MathAnim
 			}
 		}
 
-		static void handleMoveToAnimationInspector(Animation* animation)
+		static void handleSvgFileObjectInspector(AnimationManagerData* am, AnimObject* object)
 		{
-			ImGui::DragFloat3(": Target Position", &animation->as.modifyVec3.target.x, slowDragSpeed);
+			ImGui::BeginDisabled();
+			char* filepathStr = object->as.svgFile.filepath;
+			size_t filepathStrLength = object->as.svgFile.filepathLength * sizeof(char);
+			if (!filepathStr)
+			{
+				filepathStr = "Select a File";
+				filepathStrLength = sizeof("Select a File");
+			}
+			ImGui::InputText(
+				": Filepath",
+				filepathStr,
+				filepathStrLength,
+				ImGuiInputTextFlags_ReadOnly
+			);
+			ImGui::EndDisabled();
+			ImGui::SameLine();
+
+			bool shouldRegenerate = false;
+
+			if (ImGui::Button(ICON_FA_FILE_UPLOAD))
+			{
+				nfdchar_t* outPath = NULL;
+				nfdresult_t result = NFD_OpenDialog("svg", NULL, &outPath);
+
+				if (result == NFD_OKAY)
+				{
+					if (!object->as.svgFile.setFilepath(outPath))
+					{
+						g_logger_info("Opening error popup");
+						svgErrorPopupOpen = true;
+					}
+					else
+					{
+						shouldRegenerate = true;
+					}
+					std::free(outPath);
+				}
+				else if (result == NFD_CANCEL)
+				{
+					// NOP;
+				}
+				else
+				{
+					g_logger_error("Error opening SVGFileObject:\n\t%s", NFD_GetError());
+				}
+			}
+
+			if (shouldRegenerate)
+			{
+				object->as.svgFile.reInit(am, object);
+			}
+		}
+
+		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object)
+		{
+			if (object->as.camera.is2D)
+			{
+				ImGui::DragFloat2(": Projection Size", (float*)&object->as.camera.camera2D.projectionSize.x, slowDragSpeed);
+				ImGui::DragFloat(": Zoom", &object->as.camera.camera2D.zoom, slowDragSpeed);
+			}
+
+			if (ImGui::Checkbox(": Is 2D", &object->as.camera.is2D))
+			{
+				// TODO: Do something to set the camera appropriately to 3D or whatever
+			}
+
+			if (ImGui::Checkbox(": Is Active Camera", &object->as.camera.isActiveCamera))
+			{
+				if (object->as.camera.isActiveCamera)
+				{
+					AnimationManager::setActiveOrthoCamera(am, object->id);
+				}
+			}
+		}
+
+		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation)
+		{
+			ImGuiExtended::AnimObjDragDropInputBox(": Source##ReplacementTransformSrcTarget", am, &animation->as.replacementTransform.srcAnimObjectId, animation->id);
+			ImGuiExtended::AnimObjDragDropInputBox(": Replace To##ReplacementTransformDstTarget", am, &animation->as.replacementTransform.dstAnimObjectId, animation->id);
+		}
+
+		static void handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation)
+		{
+			ImGuiExtended::AnimObjDragDropInputBox(": Object##MoveToObjectTarget", am, &animation->as.moveTo.object, animation->id);
+			ImGui::DragFloat2(": Target Position", &animation->as.moveTo.target.x, slowDragSpeed);
 		}
 
 		static void handleShiftInspector(Animation* animation)
@@ -966,9 +1119,28 @@ namespace MathAnim
 			}
 		}
 
-		static void handleAnimateCameraMoveToAnimationInspector(Animation* animation)
+		static void handleCircumscribeInspector(AnimationManagerData* am, Animation* animation)
 		{
-			ImGui::DragFloat2(": Camera Target Position", &animation->as.modifyVec2.target.x, slowDragSpeed);
+			ImGuiExtended::AnimObjDragDropInputBox(": Object", am, &animation->as.circumscribe.obj, animation->id);
+
+			int currentShape = (int)animation->as.circumscribe.shape;
+			if (ImGui::Combo(": Shape", &currentShape, _circumscribeShapeNames.data(), (int)CircumscribeShape::Length))
+			{
+				g_logger_assert(currentShape >= 0 && currentShape < (int)CircumscribeShape::Length, "How did this happen?");
+				animation->as.circumscribe.shape = (CircumscribeShape)currentShape;
+			}
+
+			int currentFade = (int)animation->as.circumscribe.fade;
+			if (ImGui::Combo(": Fade Type", &currentFade, _circumscribeFadeNames.data(), (int)CircumscribeFade::Length))
+			{
+				g_logger_assert(currentFade >= 0 && currentFade < (int)CircumscribeFade::Length, "How did this happen?");
+				animation->as.circumscribe.fade = (CircumscribeFade)currentFade;
+			}
+			ImGui::BeginDisabled(animation->as.circumscribe.fade != CircumscribeFade::FadeNone);
+			ImGui::DragFloat(": Time Width", &animation->as.circumscribe.timeWidth, slowDragSpeed, 0.1f, 1.0f, "%2.3f");
+			ImGui::EndDisabled();
+			ImGui::ColorEdit4(": Color", &animation->as.circumscribe.color.x);
+			ImGui::DragFloat(": Buffer Size", &animation->as.circumscribe.bufferSize, slowDragSpeed, 0.0f, 10.0f, "%2.3f");
 		}
 
 		static void handleSquareInspector(AnimObject* object)
@@ -1113,6 +1285,42 @@ namespace MathAnim
 			}
 		}
 
+		static void checkSvgErrorPopup()
+		{
+			if (svgErrorPopupOpen)
+			{
+				ImGui::OpenPopup(ERROR_IMPORTING_SVG_POPUP);
+				svgErrorPopupOpen = false;
+			}
+
+			// Always center this window when appearing
+			ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+			ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+			if (ImGui::BeginPopupModal(ERROR_IMPORTING_SVG_POPUP, NULL, ImGuiWindowFlags_AlwaysAutoResize))
+			{
+				ImGui::TextColored(Colors::AccentRed[3], "Error:");
+				ImGui::SameLine();
+				ImGui::Text("%s", SvgParser::getLastError());
+				ImGui::NewLine();
+				ImGui::Separator();
+
+				if (ImGui::Button("OK", ImVec2(120, 0)))
+				{
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SetItemDefaultFocus();
+				ImGui::EndPopup();
+			}
+		}
+
+		static bool applySettingToChildren(const char* id, bool* toggled)
+		{
+			std::string fullId = std::string(ICON_FA_CLONE) + std::string(id);
+			ImGui::SameLine();
+			return ImGuiExtended::ToggleButton(fullId.c_str(), toggled);
+		}
+
 		static void setupImGuiTimelineDataFromAnimations(AnimationManagerData* am, int numTracksToCreate)
 		{
 			const std::vector<Animation>& animations = AnimationManager::getAnimations(am);
@@ -1198,8 +1406,8 @@ namespace MathAnim
 					{
 						tracks[track].segments[segment].frameStart = animations[i].frameStart;
 						tracks[track].segments[segment].frameDuration = animations[i].duration;
-						tracks[track].segments[segment].userData.as.intData = animations[i].id;
-						tracks[track].segments[segment].segmentName = AnimationManager::getAnimationName(animations[i].type);
+						tracks[track].segments[segment].userData.as.ptrData = (void*)animations[i].id;
+						tracks[track].segments[segment].segmentName = Animation::getAnimationName(animations[i].type);
 
 						//for (int j = 0; j < animObjects[i].animations.size(); j++)
 						//{
@@ -1208,7 +1416,7 @@ namespace MathAnim
 						//	ImGuiTimeline_SubSegment& subSegment = tracks[track].segments[segment].subSegments[j];
 						//	subSegment.frameStart = animObjects[i].animations[j].frameStart;
 						//	subSegment.frameDuration = animObjects[i].animations[j].duration;
-						//	subSegment.segmentName = AnimationManager::getAnimationName(animObjects[i].animations[j].type);
+						//	subSegment.segmentName = Animation::getAnimationName(animObjects[i].animations[j].type);
 						//	subSegment.userData = (void*)(uintptr_t)animObjects[i].animations[j].id;
 						//}
 
@@ -1238,8 +1446,8 @@ namespace MathAnim
 
 			track.segments[track.numSegments - 1].frameDuration = animation.duration;
 			track.segments[track.numSegments - 1].frameStart = animation.frameStart;
-			track.segments[track.numSegments - 1].segmentName = AnimationManager::getAnimationName(animation.type);
-			track.segments[track.numSegments - 1].userData.as.intData = animation.id;
+			track.segments[track.numSegments - 1].segmentName = Animation::getAnimationName(animation.type);
+			track.segments[track.numSegments - 1].userData.as.ptrData = (void*)animation.id;
 			track.segments[track.numSegments - 1].numSubSegments = 0;
 			track.segments[track.numSegments - 1].subSegments = nullptr;
 		}
@@ -1248,12 +1456,12 @@ namespace MathAnim
 		{
 			// First delete it from our animations
 			ImGuiTimeline_Segment& segment = track.segments[segmentIndex];
-			AnimationManager::removeAnimObject(am, segment.userData.as.intData);
+			AnimationManager::removeAnimation(am, segment.userData.as.intData);
 
 			// Unset active object if needed
 			if (segment.userData.as.intData == activeAnimObjectId)
 			{
-				activeAnimObjectId = INT32_MAX;
+				activeAnimObjectId = NULL_ANIM_OBJECT;
 			}
 
 			// Then free the memory
@@ -1290,7 +1498,7 @@ namespace MathAnim
 			// Unset active object if needed
 			if ((uintptr_t)subSegment.userData == activeAnimationId)
 			{
-				activeAnimationId = INT32_MAX;
+				activeAnimationId = NULL_ANIM;
 			}
 
 			// Then zero the memory
@@ -1311,31 +1519,6 @@ namespace MathAnim
 				g_memory_free(segment.subSegments);
 				segment.subSegments = nullptr;
 			}
-		}
-
-		static void resetImGuiData(AnimationManagerData* am)
-		{
-			for (int track = 0; track < numTracks; track++)
-			{
-				if (tracks[track].segments)
-				{
-					for (int i = 0; i < tracks[track].numSegments; i++)
-					{
-						if (tracks[track].segments[i].subSegments)
-						{
-							g_memory_free(tracks[track].segments[i].subSegments);
-							tracks[track].segments[i].subSegments = nullptr;
-							tracks[track].segments[i].numSubSegments = 0;
-						}
-					}
-
-					g_memory_free(tracks[track].segments);
-					tracks[track].segments = nullptr;
-					tracks[track].numSegments = 0;
-				}
-			}
-
-			setupImGuiTimelineDataFromAnimations(am, numTracks);
 		}
 	}
 }

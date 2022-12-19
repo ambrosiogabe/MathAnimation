@@ -2,7 +2,6 @@
 #define MATH_ANIM_SHAPES_H
 #include "core.h"
 
-struct NVGcontext;
 struct RawMemory;
 
 namespace MathAnim

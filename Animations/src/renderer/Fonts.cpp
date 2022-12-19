@@ -1,10 +1,8 @@
 #include "renderer/Fonts.h"
 #include "renderer/Renderer.h"
 #include "core/Application.h"
-#include "animation/Svg.h"
+#include "svg/Svg.h"
 #include "utils/CMath.h"
-
-#include <nanovg.h>
 
 #include <freetype/ftglyph.h>
 #include <freetype/freetype.h>
@@ -263,7 +261,7 @@ namespace MathAnim
 			g_logger_info("Caching sized font '%s'.", sizedFontKey.c_str());
 
 			SizedFont res;
-			res.unsizedFont = loadFont(filepath, Application::getNvgContext(), defaultCharset);
+			res.unsizedFont = loadFont(filepath, defaultCharset);
 			res.fontSizePixels = fontSizePixels;
 
 			{
@@ -326,7 +324,7 @@ namespace MathAnim
 				}
 
 				// Copy every row into our bitmap
-				for (int y = 0; y < bitmap.rows; y++)
+				for (uint32 y = 0; y < bitmap.rows; y++)
 				{
 					uint8* dst = textureMemory + cursorX + ((cursorY + y) * textureWidth);
 					uint8* src = bitmap.buffer + (y * bitmap.width);
@@ -349,7 +347,7 @@ namespace MathAnim
 			}
 
 			// Upload texture memory to the GPU
-			res.texture.uploadSubImage(0, 0, textureWidth, textureHeight, textureMemory);
+			res.texture.uploadSubImage(0, 0, textureWidth, textureHeight, textureMemory, sizeof(uint8) * textureWidth * textureHeight);
 
 			g_memory_free(textureMemory);
 
@@ -412,7 +410,7 @@ namespace MathAnim
 			unloadSizedFont(font);
 		}
 
-		Font* loadFont(const char* filepath, NVGcontext* vg, CharRange defaultCharset)
+		Font* loadFont(const char* filepath, CharRange defaultCharset)
 		{
 			g_logger_assert(initialized, "Font library must be initialized to load a font.");
 
@@ -451,13 +449,6 @@ namespace MathAnim
 
 			// TODO: Turn the preset characters into a parameter
 			generateDefaultCharset(font, defaultCharset);
-
-			int vgFontError = nvgCreateFont(vg, font.fontFilepath.c_str(), font.fontFilepath.c_str());
-			if (vgFontError == -1)
-			{
-				g_logger_error("Failed to create vgFont for font '%s'.", unsizedFontKey.c_str());
-				font.fontFilepath = "";
-			}
 
 			loadedFonts[unsizedFontKey].font = font;
 			loadedFonts[unsizedFontKey].referenceCount = 1;
@@ -647,14 +638,7 @@ namespace MathAnim
 
 					if (firstPointType == PointType::CurveTagOn)
 					{
-						if (c == 0)
-						{
-							Svg::beginContour(res.svg, firstPoint);
-						}
-						else
-						{
-							Svg::moveTo(res.svg, firstPoint);
-						}
+						Svg::moveTo(res.svg, firstPoint);
 					}
 					else if (firstPointType == PointType::CurveTagConic && previousPointType == PointType::CurveTagConic)
 					{
@@ -663,32 +647,18 @@ namespace MathAnim
 							(firstPoint.y - previousPosition.y) / 2.0f + previousPosition.y
 						};
 
-						if (c == 0)
-						{
-							Svg::beginContour(res.svg, hiddenPoint);
-						}
-						else
-						{
-							Svg::moveTo(res.svg, firstPoint);
-						}
+						Svg::moveTo(res.svg, firstPoint);
 					}
 					else if (firstPointType == PointType::CurveTagConic && previousPointType == PointType::CurveTagOn)
 					{
-						if (c == 0)
-						{
-							Svg::beginContour(res.svg, previousPosition);
-						}
-						else
-						{
-							Svg::moveTo(res.svg, firstPoint);
-						}
+						Svg::moveTo(res.svg, firstPoint);
 					}
 					else
 					{
 						g_logger_assert(false, "Unknown curve start.");
 					}
 
-					for (int p = 0; p <= numPoints; p++)
+					for (int p = 1; p <= numPoints; p++)
 					{
 						shouldCloseContour = true;
 
@@ -770,12 +740,13 @@ namespace MathAnim
 					}
 
 					// Close the contour
-					Svg::lineTo(res.svg, previousPosition);
+					//Svg::lineTo(res.svg, previousPosition);
 				}
 
 				if (shouldCloseContour)
 				{
-					Svg::closeContour(res.svg);
+					bool isHole = outline->n_contours > 1;
+					Svg::closePath(res.svg, false, isHole);
 				}
 			}
 

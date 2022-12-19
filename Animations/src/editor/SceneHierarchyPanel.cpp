@@ -3,6 +3,8 @@
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "utils/IconsFontAwesome5.h"
+#include "core/Colors.h"
+#include "core/Input.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -12,7 +14,7 @@ namespace MathAnim
 	// --------- Internal Structs ---------
 	struct SceneTreeMetadata
 	{
-		int32 animObjectId;
+		AnimObjId animObjectId;
 		int level;
 		int index;
 		bool selected;
@@ -37,12 +39,13 @@ namespace MathAnim
 		// --------- Internal functions ---------
 		static void imGuiRightClickPopup(AnimationManagerData* am);
 		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, SceneTreeMetadata& nextElement);
-		static bool isDescendantOf(AnimationManagerData* am, int32 childAnimObjId, int32 parentAnimObjId);
+		static bool isDescendantOf(AnimationManagerData* am, AnimObjId childAnimObjId, AnimObjId parentAnimObjId);
 		static bool imGuiSceneHeirarchyWindow(int* inBetweenIndex);
 		static void addElementAsChild(AnimationManagerData* am, int parentIndex, int newChildIndex);
 		static void moveTreeTo(AnimationManagerData* am, int treeToMoveIndex, int placeToMoveToIndex, bool reparent = true);
 		static void updateLevel(int parentIndex, int newLevel);
 		static int getNumChildren(int parentIndex);
+		static void addExistingAnimObject(AnimationManagerData* am, const AnimObject& obj, int level);
 
 		void init(AnimationManagerData* am)
 		{
@@ -53,7 +56,11 @@ namespace MathAnim
 			const std::vector<AnimObject>& animObjects = AnimationManager::getAnimObjects(am);
 			for (int i = 0; i < animObjects.size(); i++)
 			{
-				addNewAnimObject(animObjects[i]);
+				// Root object
+				if (isNull(animObjects[i].parentId))
+				{
+					addExistingAnimObject(am, animObjects[i], 0);
+				}
 			}
 		}
 
@@ -65,32 +72,64 @@ namespace MathAnim
 		void addNewAnimObject(const AnimObject& animObject)
 		{
 			// TODO: Consider making anim object creation a message then subscribing to this message type
-			int newIndex = orderedEntities.size();
-			orderedEntities.emplace_back(SceneTreeMetadata{ animObject.id, 0, newIndex, false });
-			orderedEntitiesCopy.emplace_back(SceneTreeMetadata{ animObject.id, 0, newIndex, false });
+			int newIndex = (int32)orderedEntities.size();
+			int level = 0;
+			if (!isNull(animObject.parentId))
+			{
+				// Find out where to insert object
+				for (int i = 0; i < orderedEntities.size(); i++)
+				{
+					const auto& element = orderedEntities[i];
+					if (element.animObjectId == animObject.parentId)
+					{
+						newIndex = i + 1;
+						level = element.level + 1;
+						break;
+					}
+				}
+			}
+			orderedEntities.insert(orderedEntities.begin() + newIndex, { animObject.id, level, newIndex, false });
+			orderedEntitiesCopy.insert(orderedEntitiesCopy.begin() + newIndex, SceneTreeMetadata{ animObject.id, level, newIndex, false });
+
+			// Update indices
+			for (int i = newIndex; i < orderedEntities.size(); i++)
+			{
+				orderedEntities[i].index = i;
+				orderedEntitiesCopy[i].index = i;
+			}
 		}
 
 		void update(AnimationManagerData* am)
 		{
 			// TODO: Save when a tree node is open
 			ImGui::Begin(ICON_FA_PROJECT_DIAGRAM " Scene");
-			int index = 0;
 			inBetweenBuffer.clear();
 
 			// Now iterate through all the entities
-			for (size_t i = 0; i < orderedEntities.size(); i++)
+			int activeElementIndex = -1;
+			for (int i = 0; i < (int)orderedEntities.size(); i++)
 			{
 				SceneTreeMetadata& element = orderedEntities[i];
-				const AnimObject& animObject = *AnimationManager::getObject(am, element.animObjectId);
+				const AnimObject* animObject = AnimationManager::getObject(am, element.animObjectId);
+				if (!animObject)
+				{
+					animObject = AnimationManager::getPendingObject(am, element.animObjectId);
+					g_logger_assert(animObject != nullptr, "Scene hierarchy tried to access anim object with id '%d' that does not exist and is not pending addition.", element.animObjectId);
+				}
+
+				if (element.selected)
+				{
+					activeElementIndex = i;
+				}
 
 				// Next element wraps around to 0, which plays nice with all of our sorting logic
 				SceneTreeMetadata& nextElement = orderedEntities[(i + 1) % orderedEntities.size()];
 				int isOpen = 1;
-				if (!doTreeNode(am, element, animObject, nextElement))
+				if (!doTreeNode(am, element, *animObject, nextElement))
 				{
 					// If the tree node is not open, skip all the children
-					int lastIndex = orderedEntities.size() - 1;
-					for (int j = i + 1; j < orderedEntities.size(); j++)
+					int lastIndex = (int)orderedEntities.size() - 1;
+					for (int j = i + 1; j < (int)orderedEntities.size(); j++)
 					{
 						if (orderedEntities[j].level <= element.level)
 						{
@@ -124,7 +163,6 @@ namespace MathAnim
 					const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
 					int childIndex = objPayload->sceneHierarchyIndex;
 					g_logger_assert(childIndex >= 0 && childIndex < orderedEntities.size(), "Invalid payload.");
-					SceneTreeMetadata& childMetadata = orderedEntitiesCopy[childIndex];
 					moveTreeTo(am, childIndex, inBetweenIndex);
 				}
 				ImGui::EndDragDropTarget();
@@ -141,6 +179,22 @@ namespace MathAnim
 
 			imGuiRightClickPopup(am);
 
+			// Handle delete animation object
+			if (ImGui::IsWindowHovered() && activeElementIndex != -1 && Input::keyPressed(GLFW_KEY_DELETE))
+			{
+				const AnimObject* animObject = AnimationManager::getObject(am, orderedEntities[activeElementIndex].animObjectId);
+				if (animObject)
+				{
+					// TODO: Have this create some sort of event that we can subscribe to like:
+					//    EVENT --- DeleteAnimObject
+					// That way I don't have to worry about who's responsibility it is to remove
+					// the anim objects from the animation manager and the timeline
+					deleteAnimObject(*animObject);
+					AnimationManager::removeAnimObject(am, animObject->id);
+					Timeline::setActiveAnimObject(NULL_ANIM_OBJECT);
+				}
+			}
+
 			ImGui::End();
 		}
 
@@ -148,7 +202,6 @@ namespace MathAnim
 		{
 			int numChildren = -1;
 			int parentIndex = -1;
-			int index = 0;
 
 			bool hasEntity = false;
 			for (int index = 0; index < orderedEntities.size(); index++)
@@ -174,7 +227,7 @@ namespace MathAnim
 				for (int i = 0; i < numChildren + 1; i++)
 				{
 					orderedEntities.erase(orderedEntities.begin() + parentIndex);
-					orderedEntitiesCopy.erase(orderedEntities.begin() + parentIndex);
+					orderedEntitiesCopy.erase(orderedEntitiesCopy.begin() + parentIndex);
 				}
 
 				for (int i = parentIndex; i < orderedEntities.size(); i++)
@@ -185,7 +238,7 @@ namespace MathAnim
 			}
 		}
 
-		void serialize(RawMemory& memory)
+		void serialize(RawMemory&)
 		{
 			//json orderedEntitiesJson = {};
 			//for (int i = 0; i < orderedEntities.size(); i++)
@@ -203,7 +256,7 @@ namespace MathAnim
 			//j["SceneHeirarchyOrder"] = orderedEntitiesJson;
 		}
 
-		void deserialize(RawMemory& memory)
+		void deserialize(RawMemory&)
 		{
 			// TODO: See if this is consistent with how you load the rest of the assets
 			//orderedEntities.clear(false);
@@ -246,14 +299,19 @@ namespace MathAnim
 
 			if (ImGui::BeginPopupContextWindow())
 			{
-				for (int i = 1; i < (int)AnimObjectTypeV1::Length - 1; i++)
+				for (int i = 1; i < (int)AnimObjectTypeV1::Length; i++)
 				{
-					int strRes = sprintf_s(buffer, bufferSize, "Add %s\0", AnimationManager::getAnimObjectName((AnimObjectTypeV1)i));
+					if (AnimObject::isInternalObjectOnly((AnimObjectTypeV1)i))
+					{
+						continue;
+					}
+
+					int strRes = sprintf_s(buffer, bufferSize, "Add %s\0", AnimObject::getAnimObjectName((AnimObjectTypeV1)i));
 					if (strRes != -1)
 					{
 						if (ImGui::MenuItem(buffer))
 						{
-							AnimObject animObject = AnimObject::createDefault((AnimObjectTypeV1)i);
+							AnimObject animObject = AnimObject::createDefault(am, (AnimObjectTypeV1)i);
 							AnimationManager::addAnimObject(am, animObject);
 							addNewAnimObject(animObject);
 						}
@@ -268,6 +326,19 @@ namespace MathAnim
 		{
 			const AnimObject* nextAnimObject = AnimationManager::getObject(am, nextElement.animObjectId);
 
+			if (animObject.status == AnimObjectStatus::Inactive)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Neutral[4]);
+			}
+			else if (animObject.status == AnimObjectStatus::Animating)
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentGreen[1]);
+			}
+			else
+			{
+				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Neutral[0]);
+			}
+
 			ImGui::PushID(element.index);
 			ImGui::SetNextItemOpen(element.isOpen);
 			bool open = ImGui::TreeNodeEx(
@@ -280,6 +351,9 @@ namespace MathAnim
 				"%s", animObject.name);
 			ImGui::PopID();
 			element.isOpen = open;
+
+			// Pop style color for tree node text
+			ImGui::PopStyleColor();
 
 			// Track the in-between size for this tree node
 			ImVec2 cursorPos = ImGui::GetCursorPos();
@@ -343,7 +417,7 @@ namespace MathAnim
 			return open;
 		}
 
-		static bool isDescendantOf(AnimationManagerData* am, int32 childAnimObjId, int32 parentAnimObjId)
+		static bool isDescendantOf(AnimationManagerData* am, AnimObjId childAnimObjId, AnimObjId parentAnimObjId)
 		{
 			const AnimObject* childObj = AnimationManager::getObject(am, childAnimObjId);
 			if (childObj)
@@ -352,7 +426,7 @@ namespace MathAnim
 				{
 					return true;
 				}
-				else if (!AnimationManager::isObjectNull(childObj->parentId))
+				else if (!isNull(childObj->parentId))
 				{
 					return isDescendantOf(am, childObj->parentId, parentAnimObjId);
 				}
@@ -481,7 +555,7 @@ namespace MathAnim
 					// 	Transform::createTransform();
 
 					// Check if parent is open or closed, if they are closed then we want to use their parent and level
-					if (!AnimationManager::isObjectNull(placeToMoveToObj->parentId))
+					if (!isNull(placeToMoveToObj->parentId))
 					{
 						// Need to start at the root and go down until you find a closed parent and thats the correct new parent
 						// TODO: Not sure if this is the actual root of the problem
@@ -526,11 +600,10 @@ namespace MathAnim
 						orderedEntitiesCopy[placeToMoveToIndex].animObjectId))
 					{
 						int parentLevel = orderedEntitiesCopy[placeToMoveToIndex].level;
-						int subtreeLevel = orderedEntitiesCopy[placeToMoveToIndex + 1].level;
 						// Tricky, now we have to move the whole subtree
 						for (int i = placeToMoveToIndex + 1; i < orderedEntitiesCopy.size(); i++)
 						{
-							if (orderedEntitiesCopy[i].level == parentLevel)
+							if (orderedEntitiesCopy[i].level <= parentLevel)
 							{
 								break;
 							}
@@ -565,7 +638,6 @@ namespace MathAnim
 		{
 			g_logger_assert(parentIndex >= 0 && parentIndex < orderedEntitiesCopy.size(), "Out of bounds index.");
 			SceneTreeMetadata& parent = orderedEntitiesCopy[parentIndex];
-			int numChildren = 0;
 			for (int i = parent.index + 1; i < orderedEntitiesCopy.size(); i++)
 			{
 				// We don't have to worry about going out of bounds with that plus one, because if it is out
@@ -599,6 +671,21 @@ namespace MathAnim
 			}
 
 			return numChildren;
+		}
+
+		static void addExistingAnimObject(AnimationManagerData* am, const AnimObject& obj, int level)
+		{
+			// Add this object first
+			addNewAnimObject(obj);
+
+			// Recursively add all children
+			std::vector<AnimObjId> children = AnimationManager::getChildren(am, obj.id);
+			while (children.size() > 0)
+			{
+				const AnimObject* child = AnimationManager::getObject(am, children.back());
+				addExistingAnimObject(am, *child, level + 1);
+				children.pop_back();
+			}
 		}
 	}
 }

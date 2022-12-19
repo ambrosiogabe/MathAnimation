@@ -4,10 +4,18 @@
 
 namespace MathAnim
 {
+	enum class ViewMode : int
+	{
+		WireMesh,
+		Normal,
+		Length
+	};
+
 	struct EditorSettingsData
 	{
 		float mouseSensitivity;
 		float scrollSensitvity;
+		ViewMode viewMode;
 	};
 
 	namespace EditorSettings

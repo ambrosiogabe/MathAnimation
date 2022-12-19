@@ -42,9 +42,19 @@ constexpr float hexToFloat(char hexCode)
 
 MathAnim::Vec4 operator""_hex(const char* rawHexColor, size_t inputLength)
 {
+	return toHex(rawHexColor, inputLength);
+}
+
+MathAnim::Vec4 toHex(const std::string& str)
+{
+	return toHex(str.c_str(), str.length());
+}
+
+MathAnim::Vec4 toHex(const char* rawHexColor, size_t)
+{
 	g_logger_assert(rawHexColor != nullptr, "Invalid hex color. Cannot be null.");
 
-	const char* hexColor = rawHexColor[0] == '#' ? 
+	const char* hexColor = rawHexColor[0] == '#' ?
 		rawHexColor + 1 :
 		rawHexColor;
 	size_t length = strlen(hexColor);
@@ -52,7 +62,7 @@ MathAnim::Vec4 operator""_hex(const char* rawHexColor, size_t inputLength)
 	float color1 = (hexToFloat(hexColor[0]) * 16 + hexToFloat(hexColor[1])) / 255.0f;
 	float color2 = (hexToFloat(hexColor[2]) * 16 + hexToFloat(hexColor[3])) / 255.0f;
 	float color3 = (hexToFloat(hexColor[4]) * 16 + hexToFloat(hexColor[5])) / 255.0f;
-	
+
 	if (length == 8)
 	{
 		float color4 = (hexToFloat(hexColor[6]) * 16 + hexToFloat(hexColor[7])) / 255.0f;
@@ -65,6 +75,11 @@ MathAnim::Vec4 operator""_hex(const char* rawHexColor, size_t inputLength)
 	return MathAnim::Vec4{
 		color1, color2, color3, 1.0f
 	};
+}
+
+MathAnim::Vec4 toHex(const char* hex)
+{
+	return toHex(hex, std::strlen(hex));
 }
 
 void RawMemory::init(size_t initialSize)
@@ -96,38 +111,38 @@ void RawMemory::resetReadWriteCursor()
 	offset = 0;
 }
 
-void RawMemory::setCursor(size_t offset)
+void RawMemory::setCursor(size_t inOffset)
 {
-	this->offset = offset;
+	this->offset = inOffset;
 }
 
-void RawMemory::writeDangerous(const uint8* data, size_t dataSize)
+void RawMemory::writeDangerous(const uint8* inData, size_t inDataSize)
 {
-	if (this->offset + dataSize >= this->size)
+	if (this->offset + inDataSize >= this->size)
 	{
 		// Reallocate
-		size_t newSize = (this->offset + dataSize) * 2;
+		size_t newSize = (this->offset + inDataSize) * 2;
 		uint8* newData = (uint8*)g_memory_realloc(this->data, newSize);
 		g_logger_assert(newData != nullptr, "Failed to reallocate more memory.");
 		this->data = newData;
 		this->size = newSize;
 	}
 
-	g_memory_copyMem(this->data + this->offset, (uint8*)(data), dataSize);
-	this->offset += dataSize;
+	g_memory_copyMem(this->data + this->offset, (uint8*)(inData), inDataSize);
+	this->offset += inDataSize;
 }
 
-bool RawMemory::readDangerous(uint8* data, size_t dataSize)
+bool RawMemory::readDangerous(uint8* inData, size_t inDataSize)
 {
-	if (this->offset + dataSize > this->size)
+	if (this->offset + inDataSize > this->size)
 	{
 		g_logger_error("Deserialized bad data. Read boundary out of bounds, cannot access '%zu' bytes in memory of size '%zu' bytes",
-			this->offset + dataSize,
+			this->offset + inDataSize,
 			this->size);
 		return false;
 	}
 
-	g_memory_copyMem((uint8*)data, this->data + this->offset, dataSize);
-	this->offset += dataSize;
+	g_memory_copyMem((uint8*)inData, this->data + this->offset, inDataSize);
+	this->offset += inDataSize;
 	return true;
 }

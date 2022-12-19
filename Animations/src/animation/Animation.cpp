@@ -1,8 +1,11 @@
 #include "animation/Animation.h"
 #include "core.h"
 #include "core/Application.h"
+#include "core/Colors.h"
 #include "animation/AnimationManager.h"
-#include "animation/Svg.h"
+#include "svg/Svg.h"
+#include "svg/SvgCache.h"
+#include "svg/Paths.h"
 #include "renderer/Renderer.h"
 #include "renderer/Fonts.h"
 #include "utils/CMath.h"
@@ -11,160 +14,304 @@
 namespace MathAnim
 {
 	// ------- Private variables --------
-	static int animObjectUidCounter = 0;
-	static int animationUidCounter = 0;
+	static AnimObjId animObjectUidCounter = 0;
+	static AnimObjId animationUidCounter = 0;
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV1(RawMemory& memory);
+	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory);
 	static Animation deserializeAnimationExV1(RawMemory& memory);
-	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation);
+	static CameraObject deserializeCameraObjectV1(RawMemory& memory);
 
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
 
 	// ----------------------------- Animation Functions -----------------------------
-	//static void renderAnimationFromObj(AnimationManagerData* am, NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation);
-	//void Animation::render(AnimationManagerData* am, NVGcontext* vg, float t) const
-	//{
-	//	for (int i = 0; i < animObjectIds.size(); i++)
-	//	{
-	//		renderAnimationFromObj(am, vg, &getParent(am)->children[i], &getMutableParent(am)->children[i], t, this);
-	//	}
-
-	//	renderAnimationFromObj(am, vg, getParent(am), getMutableParent(am), t, this);
-	//}
-
-	//static void renderAnimationFromObj(AnimationManagerData* am, NVGcontext* vg, const AnimObject* obj, AnimObject* mutObj, float t, const Animation* animation)
-	//{
-	//	t = CMath::ease(t, animation->easeType, animation->easeDirection);
-
-	//	switch (animation->type)
-	//	{
-	//	case AnimTypeV1::Create:
-	//	{
-	//		// TODO: This is getting messy and gross
-	//		if (obj->objectType == AnimObjectTypeV1::LaTexObject)
-	//		{
-	//			obj->as.laTexObject.renderCreateAnimation(vg, t, obj, false);
-	//			break;
-	//		}
-
-	//		static bool wasWarned = false;
-	//		if (obj->svgObject == nullptr)
-	//		{
-	//			if (!wasWarned)
-	//			{
-	//				g_logger_warning("Cannot render create animation for SVG object that is nullptr.\nSuppressing warning until the app exits.");
-	//				wasWarned = true;
-	//			}
-	//			break;
-	//		}
-	//		obj->svgObject->renderCreateAnimation(vg, t, obj);
-	//	}
-	//	break;
-	//	case AnimTypeV1::UnCreate:
-	//	{
-	//		// TODO: This is getting messy and gross
-	//		if (obj->objectType == AnimObjectTypeV1::LaTexObject)
-	//		{
-	//			obj->as.laTexObject.renderCreateAnimation(vg, t, obj, true);
-	//			break;
-	//		}
-
-	//		g_logger_assert(obj->svgObject != nullptr, "Cannot render un-create animation for SVG object that is nullptr.");
-	//		obj->svgObject->renderCreateAnimation(vg, t, obj, Vec2{ 0, 0 }, true);
-	//	}
-	//	break;
-	//	case AnimTypeV1::FadeIn:
-	//		mutObj->renderFadeInAnimation(vg, t);
-	//		break;
-	//	case AnimTypeV1::FadeOut:
-	//		mutObj->renderFadeOutAnimation(vg, t);
-	//		break;
-	//	case AnimTypeV1::WriteInText:
-	//		obj->as.textObject.renderWriteInAnimation(vg, t, obj);
-	//		break;
-	//	case AnimTypeV1::MoveTo:
-	//		mutObj->renderMoveToAnimation(vg, t, animation->as.modifyVec3.target);
-	//		break;
-	//	case AnimTypeV1::Transform:
-	//	{
-	//		// TODO: Rethink how this works
-	//		const SvgObject* obj1 = obj->svgObject;
-	//		const AnimObject* nextObj = AnimationManager::getNextAnimObject(am, obj->id);
-	//		if (obj1 != nullptr && nextObj != nullptr)
-	//		{
-	//			const SvgObject* obj2 = nextObj->svgObject;
-	//			if (obj2 != nullptr)
-	//			{
-	//				Svg::renderInterpolation(vg, obj, obj1, nextObj, obj2, t);
-	//			}
-	//			else
-	//			{
-	//				g_logger_warning("One or more null svg objects in transform animation.");
-	//			}
-	//		}
-	//		else
-	//		{
-	//			g_logger_warning("One or more null svg objects in transform animation.");
-	//		}
-	//	}
-	//	break;
-	//	case AnimTypeV1::RotateTo:
-	//		mutObj->rotation = CMath::interpolate(t, obj->rotation, animation->as.modifyVec3.target);
-	//		obj->render(vg);
-	//		break;
-	//	case AnimTypeV1::AnimateStrokeColor:
-	//		mutObj->strokeColor = CMath::interpolate(t, obj->strokeColor, animation->as.modifyU8Vec4.target);
-	//		obj->render(vg);
-	//		break;
-	//	case AnimTypeV1::AnimateFillColor:
-	//		mutObj->fillColor = CMath::interpolate(t, obj->fillColor, animation->as.modifyU8Vec4.target);
-	//		obj->render(vg);
-	//		break;
-	//	case AnimTypeV1::AnimateStrokeWidth:
-	//	{
-	//		static bool wasWarned = false;
-	//		if (!wasWarned)
-	//		{
-	//			g_logger_warning("TODO: Implement me. Suppressing.");
-	//			wasWarned = true;
-	//		}
-	//	}
-	//	break;
-	//	case AnimTypeV1::CameraMoveTo:
-	//		Renderer::getMutableOrthoCamera()->position =
-	//			CMath::interpolate(t, Renderer::getOrthoCamera()->position, animation->as.modifyVec2.target);
-	//		obj->render(vg);
-	//		break;
-	//	default:
-	//		// TODO: Add magic_enum
-	//		// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
-	//		g_logger_info("Unknown animation: %d", animation->type);
-	//		break;
-	//	}
-	//}
-
-	void Animation::applyAnimation(AnimationManagerData* am, NVGcontext* vg, float t) const
+	void Animation::applyAnimation(AnimationManagerData* am, float t) const
 	{
-		for (int i = 0; i < animObjectIds.size(); i++)
+		if (Animation::appliesToChildren(type))
 		{
-			float startT = 0.0f;
-			if (this->playbackType == PlaybackType::LaggedStart)
+			int i = 0;
+			for (auto animObjId : animObjectIds)
 			{
-				startT = (float)i / (float)animObjectIds.size() * lagRatio;
-			}
-
-			if (t >= startT)
-			{
-				float interpolatedT = CMath::mapRange(Vec2{ startT, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
-				interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
-
-				AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectIds[i]);
-				if (animObject != nullptr)
+				float startT = 0.0f;
+				if (this->playbackType == PlaybackType::LaggedStart)
 				{
-					applyAnimationToObj(am, vg, animObject, interpolatedT, this);
+					startT = (float)i / (float)animObjectIds.size() * lagRatio;
+				}
+
+				if (t >= startT)
+				{
+					float interpolatedT = CMath::mapRange(Vec2{ 0.0f, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
+					interpolatedT = glm::clamp(CMath::ease(interpolatedT, easeType, easeDirection), 0.0f, 1.0f);
+
+					applyAnimationToObj(am, animObjId, interpolatedT);
+				}
+
+				i++;
+			}
+		}
+		else
+		{
+			float interpolatedT = glm::clamp(CMath::ease(t, easeType, easeDirection), 0.0f, 1.0f);
+			applyAnimationToObj(am, NULL_ANIM_OBJECT, interpolatedT);
+		}
+	}
+
+	void Animation::applyAnimationToObj(AnimationManagerData* am, AnimObjId animObjId, float t) const
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, animObjId);
+
+		// Apply animation to all children as well
+		if (obj && Animation::appliesToChildren(this->type))
+		{
+			AnimObjectStatus newStatus = t < 1.0f
+				? AnimObjectStatus::Animating
+				: AnimObjectStatus::Active;
+			obj->status = newStatus;
+
+			std::vector<AnimObjId> children = AnimationManager::getChildren(am, obj->id);
+			for (int i = 0; i < children.size(); i++)
+			{
+				// TODO: This is duplicating the lagged start logic above
+				// group this together into one function that determines
+				// a new t-value depending on lag position
+				float startT = 0.0f;
+				if (this->playbackType == PlaybackType::LaggedStart)
+				{
+					startT = (float)i / (float)children.size() * lagRatio;
+				}
+
+				float interpolatedT = CMath::mapRange(Vec2{ 0.0f, 1.0f - startT }, Vec2{ 0.0f, 1.0f }, (t - startT));
+				applyAnimationToObj(am, children[i], interpolatedT);
+			}
+		}
+
+		switch (type)
+		{
+		case AnimTypeV1::Create:
+		{
+			if (obj)
+			{
+				obj->percentCreated = t;
+				// Start the fade in after 80% of the drawing is complete
+				constexpr float fadeInStart = 0.8f;
+				float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
+				float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
+				obj->fillColor.a = (uint8)(percentToFadeIn * 255.0f);
+
+				if (obj->strokeWidth <= 0.0f)
+				{
+					obj->strokeColor.a = (uint8)((1.0f - percentToFadeIn) * 255.0f);
 				}
 			}
+		}
+		break;
+		case AnimTypeV1::Transform:
+		{
+			AnimObject* srcObject = AnimationManager::getMutableObject(am, this->as.replacementTransform.srcAnimObjectId);
+			AnimObject* dstObject = AnimationManager::getMutableObject(am, this->as.replacementTransform.dstAnimObjectId);
+
+			if (dstObject && srcObject)
+			{
+				srcObject->replacementTransform(am, dstObject->id, t);
+			}
+		}
+		break;
+		case AnimTypeV1::UnCreate:
+		{
+			if (obj)
+			{
+				obj->percentCreated = 1.0f - t;
+				obj->fillColor.a = (uint8)((1.0f - t) * 255.0f);
+			}
+		}
+		break;
+		case AnimTypeV1::FadeIn:
+		{
+			if (obj)
+			{
+				static bool logWarning = true;
+				if (logWarning)
+				{
+					g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
+					logWarning = false;
+				}
+				obj->fillColor.a = (uint8)(255.0f * t);
+				obj->strokeColor.a = (uint8)(255.0f * t);
+			}
+		}
+		break;
+		case AnimTypeV1::FadeOut:
+		{
+			if (obj)
+			{
+				obj->fillColor.a = 255 - (uint8)(255.0f * t);
+				obj->strokeColor.a = 255 - (uint8)(255.0f * t);
+			}
+		}
+		break;
+		case AnimTypeV1::MoveTo:
+		{
+			AnimObject* moveToObj = AnimationManager::getMutableObject(am, this->as.moveTo.object);
+			if (moveToObj)
+			{
+				const Vec2& target = this->as.moveTo.target;
+				const Vec2& source = this->as.moveTo.source;
+				moveToObj->position = Vec3{
+					((target.x - source.x) * t) + source.x,
+					((target.y - source.y) * t) + source.y,
+					moveToObj->position.z
+				};
+			}
+		}
+		break;
+		case AnimTypeV1::Shift:
+		{
+			if (obj)
+			{
+				obj->position += (this->as.modifyVec3.target * t);
+			}
+		}
+		break;
+		case AnimTypeV1::RotateTo:
+		{
+			if (obj)
+			{
+				obj->rotation = this->as.modifyVec3.target;
+			}
+		}
+		break;
+		case AnimTypeV1::AnimateFillColor:
+		{
+			if (obj)
+			{
+				obj->fillColor = this->as.modifyU8Vec4.target;
+			}
+		}
+		break;
+		case AnimTypeV1::AnimateStrokeColor:
+		{
+			if (obj)
+			{
+				obj->strokeColor = this->as.modifyU8Vec4.target;
+			}
+		}
+		break;
+		case AnimTypeV1::AnimateStrokeWidth:
+		{
+			g_logger_warning("TODO: Implement me");
+		}
+		break;
+		case AnimTypeV1::Circumscribe:
+		{
+			// TODO: This is an ugly hack, find a better way to do this
+			AnimObject* objToCircumscribe = AnimationManager::getMutableObject(am, this->as.circumscribe.obj);
+			if (objToCircumscribe)
+			{
+				objToCircumscribe->circumscribeId = this->id;
+				// TODO: Super super gross... Definitely fix this
+				((Animation*)this)->as.circumscribe.tValue = t;
+			}
+
+			if (objToCircumscribe && (t <= 0.0f || t >= 1.0f))
+			{
+				objToCircumscribe->circumscribeId = NULL_ANIM;
+			}
+		}
+		break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
+			break;
+		}
+	}
+
+	void Animation::calculateKeyframes(AnimationManagerData* am)
+	{
+		if (Animation::appliesToChildren(type))
+		{
+			for (auto animObjId : animObjectIds)
+			{
+				calculateKeyframesForObj(am, animObjId);
+			}
+		}
+		else
+		{
+			calculateKeyframesForObj(am, NULL_ANIM_OBJECT);
+		}
+	}
+
+	void Animation::calculateKeyframesForObj(AnimationManagerData* am, AnimObjId animObjId)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, animObjId);
+
+		// Apply animation to all children as well
+		if (obj && Animation::appliesToChildren(this->type))
+		{
+			std::vector<AnimObjId> children = AnimationManager::getChildren(am, obj->id);
+			for (int i = 0; i < children.size(); i++)
+			{
+				calculateKeyframesForObj(am, children[i]);
+			}
+		}
+
+		switch (type)
+		{
+		case AnimTypeV1::Create:
+		case AnimTypeV1::UnCreate:
+		case AnimTypeV1::Circumscribe:
+			// NOP;
+			break;
+		case AnimTypeV1::Transform:
+		{
+			// TODO: Implement me
+		}
+		break;
+		case AnimTypeV1::FadeIn:
+		{
+			// TODO: Implement me
+		}
+		break;
+		case AnimTypeV1::FadeOut:
+		{
+			// TODO: Implement me
+		}
+		break;
+		case AnimTypeV1::MoveTo:
+		{
+			AnimObject* moveToObj = AnimationManager::getMutableObject(am, this->as.moveTo.object);
+			if (moveToObj)
+			{
+				this->as.moveTo.source = CMath::vector2From3(moveToObj->position);
+			}
+		}
+		break;
+		case AnimTypeV1::Shift:
+		{
+			// TODO: Implement me
+		}
+		break;
+		case AnimTypeV1::RotateTo:
+		{
+			// TODO: Implement me
+		}
+		break;
+		case AnimTypeV1::AnimateFillColor:
+		{
+			// TODO: Implement me
+		}
+		break;
+		case AnimTypeV1::AnimateStrokeColor:
+		{
+			// TODO: Implement me
+		}
+		break;
+		case AnimTypeV1::AnimateStrokeWidth:
+		{
+			// TODO: Implement me
+		}
+		break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
+			break;
 		}
 	}
 
@@ -176,11 +323,11 @@ namespace MathAnim
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
 		case AnimTypeV1::FadeOut:
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Transform:
 		case AnimTypeV1::AnimateStrokeColor:
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeWidth:
+		case AnimTypeV1::Circumscribe:
 			break;
 		case AnimTypeV1::MoveTo:
 			onMoveToGizmo(nullptr, this);
@@ -188,16 +335,16 @@ namespace MathAnim
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
 			break;
-		case AnimTypeV1::CameraMoveTo:
-			// TODO: Render and handle move to gizmo logic
+		case AnimTypeV1::Shift:
+			// TODO: What should happen here?
 			break;
-		default:
-			g_logger_info("Unknown animation: %d", type);
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
 			break;
 		}
 	}
 
-	void Animation::onGizmo(const AnimObject* obj)
+	void Animation::onGizmo(const AnimObject*)
 	{
 		switch (type)
 		{
@@ -205,11 +352,11 @@ namespace MathAnim
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
 		case AnimTypeV1::FadeOut:
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Transform:
 		case AnimTypeV1::AnimateStrokeColor:
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeWidth:
+		case AnimTypeV1::Circumscribe:
 			break;
 		case AnimTypeV1::MoveTo:
 			onMoveToGizmo(nullptr, this);
@@ -217,11 +364,11 @@ namespace MathAnim
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
 			break;
-		case AnimTypeV1::CameraMoveTo:
-			// TODO: Render and handle move to gizmo logic
+		case AnimTypeV1::Shift:
+			// TODO: What should we do here?
 			break;
-		default:
-			g_logger_info("Unknown animation: %d", type);
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
 			break;
 		}
 	}
@@ -244,12 +391,12 @@ namespace MathAnim
 		// lagRatio       -> f32
 		// 
 		// numObjects     -> uint32
-		// objectIds      -> int32[numObjects]
+		// objectIds      -> AnimObjId[numObjects]
 		uint32 animType = (uint32)this->type;
 		memory.write<uint32>(&animType);
 		memory.write<int32>(&frameStart);
 		memory.write<int32>(&duration);
-		memory.write<int32>(&id);
+		memory.write<AnimId>(&id);
 		uint8 easeTypeInt = (uint8)easeType;
 		memory.write<uint8>(&easeTypeInt);
 		uint8 easeDirectionInt = (uint8)easeDirection;
@@ -262,22 +409,19 @@ namespace MathAnim
 
 		uint32 numObjects = (uint32)animObjectIds.size();
 		memory.write<uint32>(&numObjects);
-		for (uint32 i = 0; i < numObjects; i++)
+		for (auto animObjId : animObjectIds)
 		{
-			memory.write<int32>(&animObjectIds[i]);
+			memory.write<AnimObjId>(&animObjId);
 		}
 
 		switch (this->type)
 		{
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Create:
-		case AnimTypeV1::Transform:
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
 		case AnimTypeV1::FadeOut:
 			// NOP
 			break;
-		case AnimTypeV1::MoveTo:
 		case AnimTypeV1::Shift:
 		case AnimTypeV1::RotateTo:
 			CMath::serialize(memory, this->as.modifyVec3.target);
@@ -289,13 +433,201 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
 			break;
-		case AnimTypeV1::CameraMoveTo:
-			CMath::serialize(memory, this->as.modifyVec2.target);
+		case AnimTypeV1::Transform:
+			this->as.replacementTransform.serialize(memory);
 			break;
-		default:
-			g_logger_warning("Unknown animation type: %d", (int)this->type);
+		case AnimTypeV1::MoveTo:
+			this->as.moveTo.serialize(memory);
+			break;
+		case AnimTypeV1::Circumscribe:
+			this->as.circumscribe.serialize(memory);
+			break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
 			break;
 		}
+	}
+
+	void ReplacementTransformData::serialize(RawMemory& memory) const
+	{
+		// srcObjectId -> AnimObjId
+		// dstObjectId -> AnimObjId
+		memory.write<AnimObjId>(&this->srcAnimObjectId);
+		memory.write<AnimObjId>(&this->dstAnimObjectId);
+	}
+
+	ReplacementTransformData ReplacementTransformData::deserialize(RawMemory& memory)
+	{
+		// srcObjectId -> AnimObjId
+		// dstObjectId -> AnimObjId
+		ReplacementTransformData res;
+		memory.read<AnimObjId>(&res.srcAnimObjectId);
+		memory.read<AnimObjId>(&res.dstAnimObjectId);
+
+		return res;
+	}
+
+	void MoveToData::serialize(RawMemory& memory) const
+	{
+		// source -> Vec2
+		// target -> Vec2
+		// object -> AnimObjId
+		CMath::serialize(memory, this->source);
+		CMath::serialize(memory, this->target);
+		memory.write<AnimObjId>(&this->object);
+	}
+
+	MoveToData MoveToData::deserialize(RawMemory& memory)
+	{
+		// source -> Vec2
+		// target -> Vec2
+		// object -> AnimObjId
+		MoveToData res;
+		res.source = CMath::deserializeVec2(memory);
+		res.target = CMath::deserializeVec2(memory);
+		memory.read<AnimObjId>(&res.object);
+		return res;
+	}
+
+	void Circumscribe::render(const Vec3& objectPosition, const BBox& bbox) const
+	{
+		Vec2 size = (bbox.max - bbox.min) + ((bbox.max - bbox.min) * bufferSize);
+		float radius = CMath::length(size) / 2.0f;
+		Vec2 translation = CMath::vector2From3(objectPosition);
+		glm::mat4 transformation = glm::identity<glm::mat4>();
+		transformation = glm::translate(transformation, glm::vec3(translation.x, translation.y, 0.0f));
+
+		if (fade != CircumscribeFade::FadeNone)
+		{
+			if (tValue < 0.5f)
+			{
+				if (fade == CircumscribeFade::FadeIn || fade == CircumscribeFade::FadeInOut)
+				{
+					float fadeAmount = glm::clamp(this->color.a * tValue * 4.0f, 0.0f, 1.0f);
+					Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
+
+					Path2DContext* path = shape == CircumscribeShape::Rectangle
+						? Paths::createRectangle(size, transformation)
+						: Paths::createCircle(radius, transformation);
+					Renderer::endPath(path, true);
+					Renderer::free(path);
+
+					Renderer::popColor();
+				}
+				else
+				{
+					// Do draw in animation
+					Renderer::pushColor(this->color);
+
+					Path2DContext* path = shape == CircumscribeShape::Rectangle
+						? Paths::createRectangle(size, transformation)
+						: Paths::createCircle(radius, transformation);
+					Renderer::renderOutline(path, 0.0f, tValue * 2.0f, true);
+					Renderer::free(path);
+
+					Renderer::popColor();
+				}
+			}
+			else
+			{
+				if (fade == CircumscribeFade::FadeOut || fade == CircumscribeFade::FadeInOut)
+				{
+					float fadeAmount = glm::clamp(this->color.a * (4.0f + (-tValue * 4.0f)), 0.0f, 1.0f);
+					Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a * fadeAmount });
+
+					Path2DContext* path = shape == CircumscribeShape::Rectangle
+						? Paths::createRectangle(size, transformation)
+						: Paths::createCircle(radius, transformation);
+					Renderer::endPath(path, true);
+					Renderer::free(path);
+
+					Renderer::popColor();
+				}
+				else
+				{
+					// Do draw out animation
+					Renderer::pushColor(this->color);
+					Path2DContext* path = shape == CircumscribeShape::Rectangle
+						? Paths::createRectangle(size, transformation)
+						: Paths::createCircle(radius, transformation);
+
+					// Range from t = [1.0-0.0]
+					float t = (2.0f + (-tValue * 2.0f));
+					Renderer::renderOutline(path, 0.0f, t, true);
+
+					Renderer::free(path);
+					Renderer::popColor();
+				}
+			}
+		}
+		else
+		{
+			// Do the lagged animation where you get a trailing line
+			Renderer::pushColor(Vec4{ this->color.r, this->color.g, this->color.b, this->color.a });
+			Path2DContext* path = shape == CircumscribeShape::Rectangle
+				? Paths::createRectangle(size, transformation)
+				: Paths::createCircle(radius, transformation);
+
+			// T ranges from [0.0-1.0]
+			float t = tValue;
+			// Then map t to a range from [0.0-(1.0 + timeWidth)]
+			t = CMath::mapRange(Vec2{ 0.0f, 1.0f }, Vec2{ 0.0f, 1.0f + timeWidth }, t);
+			float tStart = t - timeWidth;
+			float tEnd = t;
+			
+			Renderer::renderOutline(path, tStart, tEnd, false);
+
+			Renderer::free(path);
+			Renderer::popColor();
+		}
+	}
+
+	void Circumscribe::serialize(RawMemory& memory) const
+	{
+		// color          -> Vec4
+		// shape          -> u8
+		// fade           -> u8
+		// bufferSize     -> f32
+		// timeWidth      -> f32
+		// obj            -> AnimObjId
+		CMath::serialize(memory, this->color);
+		memory.write<CircumscribeShape>(&this->shape);
+		memory.write<CircumscribeFade>(&this->fade);
+		memory.write<float>(&this->bufferSize);
+		memory.write<float>(&this->timeWidth);
+		memory.write<AnimObjId>(&this->obj);
+	}
+
+	Circumscribe Circumscribe::deserialize(RawMemory& memory)
+	{
+		// color          -> Vec4
+		// shape          -> u8
+		// fade           -> u8
+		// bufferSize     -> f32
+		// timeWidth      -> f32
+		// obj            -> AnimObjId
+		Circumscribe res;
+		res.color = CMath::deserializeVec4(memory);
+		memory.read<CircumscribeShape>(&res.shape);
+		memory.read<CircumscribeFade>(&res.fade);
+		memory.read<float>(&res.bufferSize);
+		memory.read<float>(&res.timeWidth);
+		memory.read<AnimObjId>(&res.obj);
+
+		return res;
+	}
+
+	Circumscribe Circumscribe::createDefault()
+	{
+		Circumscribe res;
+		res.color = "#F9DB1BFF"_hex;
+		res.shape = CircumscribeShape::Rectangle;
+		res.fade = CircumscribeFade::FadeNone;
+		res.bufferSize = 0.25f;
+		res.timeWidth = 0.1f;
+		res.obj = NULL_ANIM_OBJECT;
+
+		return res;
 	}
 
 	Animation Animation::deserialize(RawMemory& memory, uint32 version)
@@ -307,7 +639,7 @@ namespace MathAnim
 
 		g_logger_error("AnimationEx serialized with unknown version '%d'. Memory potentially corrupted.", version);
 		Animation res;
-		res.id = -1;
+		res.id = NULL_ANIM;
 		res.animObjectIds.clear();
 		res.type = AnimTypeV1::None;
 		res.duration = 0;
@@ -332,7 +664,6 @@ namespace MathAnim
 		switch (type)
 		{
 		case AnimTypeV1::Create:
-		case AnimTypeV1::WriteInText:
 		case AnimTypeV1::Transform:
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
@@ -340,7 +671,8 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
-			res.as.modifyVec3.target = Vec3{ Application::getViewportSize().x / 3.0f, Application::getViewportSize().y / 3.0f, 0.0f };
+			res.as.moveTo.source = Vec2{ 0, 0 };
+			res.as.moveTo.target = Vec2{ Application::getViewportSize().x / 3.0f, Application::getViewportSize().y / 3.0f };
 			break;
 		case AnimTypeV1::RotateTo:
 			res.as.modifyVec3.target = Vec3{ 0.0f, 0.0f, 0.0f };
@@ -355,18 +687,55 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: Implement me");
 			break;
-		case AnimTypeV1::CameraMoveTo:
-			res.as.modifyVec2.target = Vec2{ 0.f, 0.f };
+		case AnimTypeV1::Circumscribe:
+			res.as.circumscribe = Circumscribe::createDefault();
 			break;
-		default:
-			g_logger_error("Cannot create default animation of type %d", (int)type);
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
 			break;
 		}
 
 		return res;
 	}
 
-	void AnimObject::onGizmo()
+	void CameraObject::serialize(RawMemory& memory) const
+	{
+		//OrthoCamera camera2D;
+		//bool is2D;
+		//bool isActiveCamera;
+		camera2D.serialize(memory);
+		uint8 is2DU8 = is2D ? 1 : 0;
+		memory.write<uint8>(&is2DU8);
+	}
+
+	void CameraObject::free()
+	{
+
+	}
+
+	CameraObject CameraObject::deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			return deserializeCameraObjectV1(memory);
+		}
+
+		CameraObject res = {};
+		return res;
+	}
+
+	CameraObject CameraObject::createDefault()
+	{
+		CameraObject res = {};
+		res.camera2D.projectionSize = Vec2{ 9.0f, 18.0f };
+		res.camera2D.position = res.camera2D.projectionSize / 2.0f;
+		res.camera2D.zoom = 1.0f;
+		res.is2D = true;
+		res.isActiveCamera = true;
+		return res;
+	}
+
+	void AnimObject::onGizmo(AnimationManagerData* am)
 	{
 		if (is3D)
 		{
@@ -376,7 +745,25 @@ namespace MathAnim
 		{
 			// TODO: Render and handle 2D gizmo logic based on edit mode
 			std::string gizmoName = std::string((char*)this->name) + std::to_string(this->id);
-			GizmoManager::translateGizmo(gizmoName.c_str(), &this->_positionStart);
+
+			// It's important to render the gizmo at the global location, and then transform
+			// the result back to local coordinates since the user is editing with gizmos in global
+			// space
+			Vec3 globalPositionStart = this->_globalPositionStart;
+			if (GizmoManager::translateGizmo(gizmoName.c_str(), &globalPositionStart))
+			{
+				this->_globalPositionStart = globalPositionStart;
+
+				// Then get local position
+				Vec3 localPosition = this->_globalPositionStart;
+				if (!isNull(this->parentId))
+				{
+					const AnimObject* parent = AnimationManager::getObject(am, this->parentId);
+					localPosition = this->_globalPositionStart - parent->_globalPositionStart;
+				}
+				this->_positionStart = localPosition;
+				AnimationManager::updateObjectState(am, this->id);
+			}
 		}
 
 		switch (objectType)
@@ -388,17 +775,50 @@ namespace MathAnim
 		case AnimObjectTypeV1::TextObject:
 		case AnimObjectTypeV1::LaTexObject:
 		case AnimObjectTypeV1::Cube:
+		case AnimObjectTypeV1::SvgFileObject:
 			// NOP: No Special logic, but I'll leave this just in case I think
 			// of something
 			break;
-		default:
-			g_logger_info("Unknown animation object: %d", objectType);
+		case AnimObjectTypeV1::Camera:
+		{
+			if (this->as.camera.is2D)
+			{
+				this->as.camera.camera2D.position = CMath::vector2From3(this->_globalPositionStart);
+			}
+			else
+			{
+				// TODO: Implement 3D camera logic stuff...
+			}
+		}
+		break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
 			break;
 		}
 	}
 
-	void AnimObject::render(NVGcontext* vg) const
+	void AnimObject::render(AnimationManagerData* am) const
 	{
+		// TODO: This is gross fixme
+		const Animation* circumscribeAnim = AnimationManager::getAnimation(am, this->circumscribeId);
+		if (circumscribeAnim)
+		{
+			if (this->svgObject && circumscribeAnim->type == AnimTypeV1::Circumscribe)
+			{
+				BBox bbox = this->svgObject->bbox;
+				glm::vec3 scaleFactor, skew, translation;
+				glm::quat orientation;
+				glm::vec4 perspective;
+				glm::decompose(this->globalTransform, scaleFactor, orientation, translation, skew, perspective);
+
+				bbox.min.x *= scaleFactor.x;
+				bbox.max.x *= scaleFactor.x;
+				bbox.min.y *= scaleFactor.y;
+				bbox.max.y *= scaleFactor.y;
+				circumscribeAnim->as.circumscribe.render(Vec3{ translation.x, translation.y, translation.z }, bbox);
+			}
+		}
+
 		switch (objectType)
 		{
 		case AnimObjectTypeV1::Square:
@@ -418,7 +838,12 @@ namespace MathAnim
 			}
 
 			// Default SVG objects will just render the svgObject component
-			this->svgObject->renderCreateAnimation(vg, this->percentCreated, this);
+			Application::getSvgCache()->render(am, this->svgObject, this->id);
+			if (this->strokeWidth > 0.0f || this->percentCreated < 1.0f)
+			{
+				// Render outline
+				this->svgObject->renderOutline(this->percentCreated, this);
+			}
 		}
 		break;
 		case AnimObjectTypeV1::Cube:
@@ -426,7 +851,7 @@ namespace MathAnim
 			// if (!this->isAnimating)
 			// {
 			// 	g_logger_assert(this->svgObject != nullptr, "Cannot render SVG object that is nullptr.");
-			// 	this->svgObject->render(vg, this);
+			// 	this->svgObject->render(this);
 			// }
 			// float sideLength = this->as.cube.sideLength - 0.01f;
 			// Renderer::pushColor(this->fillColor);
@@ -436,24 +861,59 @@ namespace MathAnim
 		// NOP: Cube just has a bunch of children anim objects that get rendered
 		break;
 		case AnimObjectTypeV1::Axis:
-			// NOP: Axis just has a bunch of children anim objects that get rendered
-			break;
 		case AnimObjectTypeV1::TextObject:
-			this->as.textObject.renderWriteInAnimation(vg, this->percentCreated, this);
-			break;
 		case AnimObjectTypeV1::LaTexObject:
-			this->as.laTexObject.renderCreateAnimation(vg, this->percentCreated, this, false);
+		case AnimObjectTypeV1::SvgFileObject:
+		case AnimObjectTypeV1::Camera:
+			// NOP: These just have a bunch of children anim objects that get rendered
 			break;
-		default:
-			// TODO: Add magic_enum
-			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(objectType).data());
-			g_logger_info("Unknown animation object: %d", objectType);
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
 			break;
 		}
 	}
 
+	// ----------------------------- Iterators -----------------------------
+	AnimObjectBreadthFirstIter::AnimObjectBreadthFirstIter(AnimationManagerData* am, AnimObjId parentId)
+	{
+		this->am = am;
+		std::vector<AnimObjId> children = AnimationManager::getChildren(am, parentId);
+		if (children.size() > 0)
+		{
+			childrenLeft = std::deque<AnimObjId>(children.begin(), children.end());
+			currentId = childrenLeft.front();
+			childrenLeft.pop_front();
+		}
+		else
+		{
+			currentId = NULL_ANIM_OBJECT;
+		}
+	}
+
+	void AnimObjectBreadthFirstIter::operator++()
+	{
+		if (childrenLeft.size() > 0)
+		{
+			// Push back all children's children
+			AnimObjId childId = childrenLeft.front();
+			childrenLeft.pop_front();
+			AnimObject* child = AnimationManager::getMutableObject(am, childId);
+			if (child)
+			{
+				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, child->id);
+				childrenLeft.insert(childrenLeft.end(), childrensChildren.begin(), childrensChildren.end());
+			}
+
+			currentId = childId;
+		}
+		else
+		{
+			currentId = NULL_ANIM_OBJECT;
+		}
+	}
+
 	// ----------------------------- AnimObject Functions -----------------------------
-	void AnimObject::renderMoveToAnimation(NVGcontext* vg, float t, const Vec3& target)
+	void AnimObject::renderMoveToAnimation(AnimationManagerData* am, float t, const Vec3& target)
 	{
 		Vec3 pos = Vec3{
 			((target.x - position.x) * t) + position.x,
@@ -461,51 +921,265 @@ namespace MathAnim
 			((target.z - position.z) * t) + position.z,
 		};
 		this->position = pos;
-		this->render(vg);
+		this->render(am);
 	}
 
-	void AnimObject::renderFadeInAnimation(NVGcontext* vg, float t)
+	void AnimObject::renderFadeInAnimation(AnimationManagerData* am, float t)
 	{
-		this->fillColor.a = this->fillColor.a * t;
-		this->strokeColor.a = this->strokeColor.a * t;
-		this->render(vg);
+		this->fillColor.a = (uint8)((float)this->fillColor.a * t);
+		this->strokeColor.a = (uint8)((float)this->strokeColor.a * t);
+		this->render(am);
 	}
 
-	void AnimObject::renderFadeOutAnimation(NVGcontext* vg, float t)
+	void AnimObject::renderFadeOutAnimation(AnimationManagerData* am, float t)
 	{
-		this->fillColor.a = this->fillColor.a * (1.0f - t);
-		this->strokeColor.a = this->strokeColor.a * (1.0f - t);
-		this->render(vg);
+		this->fillColor.a = (uint8)((float)this->fillColor.a * (1.0f - t));
+		this->strokeColor.a = (uint8)((float)this->strokeColor.a * (1.0f - t));
+		this->render(am);
 	}
 
-	void AnimObject::takeParentAttributes(const AnimObject* parent)
+	void AnimObject::takeAttributesFrom(const AnimObject& obj)
 	{
-		// Apply transformations
-		//this->position += parent->position;
-		//this->rotation += parent->rotation;
-		//this->scale.x *= parent->scale.x;
-		//this->scale.y *= parent->scale.y;
-		//this->scale.z *= parent->scale.z;
+		this->strokeColor = obj.strokeColor;
+		this->strokeWidth = obj.strokeWidth;
+		this->drawCurveDebugBoxes = obj.drawCurveDebugBoxes;
+		this->drawDebugBoxes = obj.drawDebugBoxes;
+		this->fillColor = obj.fillColor;
+		this->is3D = obj.is3D;
+		this->status = obj.status;
+		this->isTransparent = obj.isTransparent;
+		this->svgScale = obj.svgScale;
+		this->percentCreated = obj.percentCreated;
 
-		this->strokeColor = parent->strokeColor;
-		this->strokeWidth = parent->strokeWidth;
-		this->drawCurveDebugBoxes = parent->drawCurveDebugBoxes;
-		this->drawDebugBoxes = parent->drawDebugBoxes;
-		this->fillColor = parent->fillColor;
-		this->is3D = parent->is3D;
-		this->status = parent->status;
-		this->isTransparent = parent->isTransparent;
+		this->_fillColorStart = obj._fillColorStart;
+		this->_strokeColorStart = obj._strokeColorStart;
+		this->_strokeWidthStart = obj._strokeWidthStart;
+	}
 
-		// Apply transformations
-		//this->_positionStart += parent->_positionStart;
-		//this->_rotationStart += parent->_rotationStart;
-		//this->_scaleStart.x *= parent->_scaleStart.x;
-		//this->_scaleStart.y *= parent->_scaleStart.y;
-		//this->_scaleStart.z *= parent->_scaleStart.z;
+	void AnimObject::replacementTransform(AnimationManagerData* am, AnimObjId replacementId, float t)
+	{
+		AnimObject* replacement = AnimationManager::getMutableObject(am, replacementId);
+		if (!replacement)
+		{
+			return;
+		}
 
-		this->_fillColorStart = parent->_fillColorStart;
-		this->_strokeColorStart = parent->_strokeColorStart;
-		this->_strokeWidthStart = parent->_strokeWidthStart;
+		// Update statuses
+		AnimObjectStatus thisNewStatus = t < 1.0f
+			? AnimObjectStatus::Animating
+			: AnimObjectStatus::Inactive;
+		AnimObjectStatus replacementNewStatus = t >= 1.0f
+			? AnimObjectStatus::Active
+			: AnimObjectStatus::Animating;
+		this->status = thisNewStatus;
+		replacement->status = replacementNewStatus;
+
+		// Interpolate between shared children recursively
+		std::vector<AnimObjId> thisChildren = AnimationManager::getChildren(am, this->id);
+		std::vector<AnimObjId> replacementChildren = AnimationManager::getChildren(am, replacement->id);
+
+		for (int i = 0; i < thisChildren.size(); i++)
+		{
+			if (i < replacementChildren.size())
+			{
+				AnimObject* thisChild = AnimationManager::getMutableObject(am, thisChildren[i]);
+				AnimObject* otherChild = AnimationManager::getMutableObject(am, replacementChildren[i]);
+				g_logger_assert(thisChild != nullptr, "How did this happen?");
+				g_logger_assert(otherChild != nullptr, "How did this happen?");
+				thisChild->replacementTransform(am, otherChild->id, t);
+			}
+		}
+
+		// Fade in any extra *other* children
+		for (size_t i = thisChildren.size(); i < replacementChildren.size(); i++)
+		{
+			AnimObject* otherChild = AnimationManager::getMutableObject(am, replacementChildren[i]);
+			if (otherChild)
+			{
+				otherChild->fillColor = CMath::interpolate(t,
+					glm::u8vec4(otherChild->fillColor.r, otherChild->fillColor.g, otherChild->fillColor.b, 0),
+					otherChild->fillColor
+				);
+				otherChild->strokeColor = CMath::interpolate(t,
+					glm::u8vec4(otherChild->strokeColor.r, otherChild->strokeColor.g, otherChild->strokeColor.b, 0),
+					otherChild->strokeColor
+				);
+				otherChild->percentCreated = 1.0f;
+				otherChild->status = replacementNewStatus;
+
+				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, otherChild->id);
+				replacementChildren.insert(replacementChildren.end(), childrensChildren.begin(), childrensChildren.end());
+			}
+		}
+
+		// Fade out any extra *this* children
+		for (size_t i = replacementChildren.size(); i < thisChildren.size(); i++)
+		{
+			AnimObject* thisChild = AnimationManager::getMutableObject(am, thisChildren[i]);
+			if (thisChild)
+			{
+				thisChild->fillColor = CMath::interpolate(t,
+					thisChild->fillColor,
+					glm::u8vec4(thisChild->fillColor.r, thisChild->fillColor.g, thisChild->fillColor.b, 0)
+				);
+				thisChild->strokeColor = CMath::interpolate(t,
+					thisChild->strokeColor,
+					glm::u8vec4(thisChild->strokeColor.r, thisChild->strokeColor.g, thisChild->strokeColor.b, 0)
+				);
+				thisChild->status = thisNewStatus;
+
+				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, thisChild->id);
+				thisChildren.insert(thisChildren.end(), childrensChildren.begin(), childrensChildren.end());
+			}
+		}
+
+		if (t < 1.0f)
+		{
+			// Interpolate between this svg and other svg
+			if (this->svgObject && replacement->svgObject)
+			{
+				//if (this->name[0] == 'o' && replacement->name[0] == 'b')
+				//{
+				//	g_logger_info("HERE");
+				//}
+
+				SvgObject* interpolated = Svg::interpolate(this->svgObject, replacement->svgObject, t);
+				this->svgObject->free();
+				g_memory_free(this->svgObject);
+				this->svgObject = interpolated;
+			}
+
+			// Interpolate other properties
+			this->position = CMath::interpolate(t, this->position, replacement->position);
+			this->globalPosition = CMath::interpolate(t, this->globalPosition, replacement->globalPosition);
+			this->_globalPositionStart = CMath::interpolate(t, this->_globalPositionStart, replacement->_globalPositionStart);
+			this->rotation = CMath::interpolate(t, this->rotation, replacement->rotation);
+			this->scale = CMath::interpolate(t, this->scale, replacement->scale);
+			this->fillColor = CMath::interpolate(t, this->fillColor, replacement->fillColor);
+			this->strokeColor = CMath::interpolate(t, this->strokeColor, replacement->strokeColor);
+			this->strokeWidth = CMath::interpolate(t, this->strokeWidth, replacement->strokeWidth);
+			// TODO: Come up with _svgScaleStart so scales can be reset
+			// srcObject->svgScale = CMath::interpolate(t, srcObject->svgScale, dstObject->svgScale);
+			this->percentCreated = 1.0f;
+
+			// Fade out dstObject
+			replacement->fillColor = CMath::interpolate(t,
+				replacement->fillColor,
+				glm::u8vec4(replacement->fillColor.r, replacement->fillColor.g, replacement->fillColor.b, 0)
+			);
+			replacement->strokeColor = CMath::interpolate(t,
+				replacement->strokeColor,
+				glm::u8vec4(replacement->strokeColor.r, replacement->strokeColor.g, replacement->strokeColor.b, 0)
+			);
+		}
+		else
+		{
+			replacement->percentCreated = 1.0f;
+		}
+	}
+
+	void AnimObject::resetAllState()
+	{
+		if (_svgObjectStart != nullptr && svgObject != nullptr)
+		{
+			Svg::copy(svgObject, _svgObjectStart);
+		}
+		globalPosition = _globalPositionStart;
+		position = _positionStart;
+		rotation = _rotationStart;
+		scale = _scaleStart;
+		fillColor = _fillColorStart;
+		strokeColor = _strokeColorStart;
+		strokeWidth = _strokeWidthStart;
+		percentCreated = 0.0f;
+		status = AnimObjectStatus::Inactive;
+		circumscribeId = NULL_ANIM;
+
+		if (objectType == AnimObjectTypeV1::Camera && as.camera.isActiveCamera)
+		{
+			status = as.camera.isActiveCamera
+				? AnimObjectStatus::Active
+				: AnimObjectStatus::Inactive;
+		}
+	}
+
+	void AnimObject::updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus)
+	{
+		this->status = newStatus;
+
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->status = newStatus;
+			}
+		}
+	}
+
+	void AnimObject::updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated)
+	{
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->percentCreated = newPercentCreated;
+			}
+		}
+	}
+
+	void AnimObject::copySvgScaleToChildren(AnimationManagerData* am) const
+	{
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->svgScale = this->svgScale;
+			}
+		}
+	}
+
+	void AnimObject::copyStrokeWidthToChildren(AnimationManagerData* am) const
+	{
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->_strokeWidthStart = this->_strokeWidthStart;
+			}
+		}
+	}
+
+	void AnimObject::copyStrokeColorToChildren(AnimationManagerData* am) const
+	{
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->_strokeColorStart = this->_strokeColorStart;
+			}
+		}
+	}
+
+	void AnimObject::copyFillColorToChildren(AnimationManagerData* am) const
+	{
+		for (auto iter = beginBreadthFirst(am); iter != end(); ++iter)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, *iter);
+			if (child)
+			{
+				child->_fillColorStart = this->_fillColorStart;
+			}
+		}
+	}
+
+	AnimObjectBreadthFirstIter AnimObject::beginBreadthFirst(AnimationManagerData* am) const
+	{
+		return AnimObjectBreadthFirstIter(am, this->id);
 	}
 
 	void AnimObject::free()
@@ -549,82 +1223,56 @@ namespace MathAnim
 		case AnimObjectTypeV1::LaTexObject:
 			this->as.laTexObject.free();
 			break;
-		default:
-			g_logger_error("Cannot free unknown animation object of type %d", (int)objectType);
+		case AnimObjectTypeV1::SvgFileObject:
+			this->as.svgFile.free();
+			break;
+		case AnimObjectTypeV1::Camera:
+			this->as.camera.free();
+			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
 			break;
 		}
 
-		this->parentId = INT32_MAX;
-		this->id = INT32_MAX;
+		this->parentId = NULL_ANIM_OBJECT;
+		this->id = NULL_ANIM_OBJECT;
 	}
 
 	void AnimObject::serialize(RawMemory& memory) const
 	{
 		// AnimObjectType     -> uint32
-		// _PositionStart
-		//   X                -> f32
-		//   Y                -> f32
-		//   Z                -> f32
-		// RotationStart
-		//   X                -> f32
-		//   Y                -> f32
-		//   Z                -> f32
-		// ScaleStart
-		//   X                -> f32
-		//   Y                -> f32
-		//   Z                -> f32
-		// _FillColorStart
-		//   R                -> u8
-		//   G                -> u8
-		//   B                -> u8
-		//   A                -> u8
-		// _StrokeColorStart 
-		//   R                -> u8
-		//   G                -> u8
-		//   B                -> u8
-		//   A                -> u8
+		// _PositionStart     -> Vec3
+		// RotationStart      -> Vec3
+		// ScaleStart         -> Vec3
+		// _FillColorStart    -> Vec4U8
+		// _StrokeColorStart  -> Vec4U8
+		// 
 		// _StrokeWidthStart  -> f32
 		// svgScale           -> f32
+		// 
 		// isTransparent      -> u8
 		// is3D               -> u8
 		// drawDebugBoxes     -> u8
 		// drawCurveDebugBoxes -> u8
-		// Id                 -> int32
-		// NameLength         -> uint32
-		// Name               -> uint8[NameLength]
 		// 
-		// ParentId           -> int32
-		// FrameStart         -> int32
-		// Duration           -> int32
-		// TimelineTrack      -> int32
-		// AnimationTypeSpecificData (This data will change depending on AnimObjectType)
-		// NumAnimations  -> uint32
-		// Animations     -> Animation[numAnimations]
-		// NumChildren    -> uint32
-		// Children       -> AnimObject[numChildren]
+		// Id                   -> AnimObjId
+		// ParentId             -> AnimObjId
+		// NumGeneratedChildren -> uint32 
+		// GeneratedChildrenIds -> AnimObjId[numGeneratedChildren]
+		// 
+		// NumRefAnimations     -> uint32
+		// ReferencedAnimations -> AnimId[NumRefAnimations]
+		// 
+		// NameLength         -> uint32
+		// Name               -> uint8[NameLength + 1]
+		// AnimObject Specific Data
 		uint32 animObjectType = (uint32)objectType;
 		memory.write<uint32>(&animObjectType);
-		memory.write<float>(&_positionStart.x);
-		memory.write<float>(&_positionStart.y);
-		memory.write<float>(&_positionStart.z);
-
-		memory.write<float>(&_rotationStart.x);
-		memory.write<float>(&_rotationStart.y);
-		memory.write<float>(&_rotationStart.z);
-
-		memory.write<float>(&_scaleStart.x);
-		memory.write<float>(&_scaleStart.y);
-		memory.write<float>(&_scaleStart.z);
-
-		memory.write<uint8>(&_fillColorStart.r);
-		memory.write<uint8>(&_fillColorStart.g);
-		memory.write<uint8>(&_fillColorStart.b);
-		memory.write<uint8>(&_fillColorStart.a);
-
-		memory.write<uint8>(&_strokeColorStart.r);
-		memory.write<uint8>(&_strokeColorStart.g);
-		memory.write<uint8>(&_strokeColorStart.b);
-		memory.write<uint8>(&_strokeColorStart.a);
+		CMath::serialize(memory, _positionStart);
+		CMath::serialize(memory, _rotationStart);
+		CMath::serialize(memory, _scaleStart);
+		CMath::serialize(memory, _fillColorStart);
+		CMath::serialize(memory, _strokeColorStart);
 
 		memory.write<float>(&_strokeWidthStart);
 		memory.write<float>(&svgScale);
@@ -641,8 +1289,23 @@ namespace MathAnim
 		uint8 drawCurveDebugBoxesU8 = drawCurveDebugBoxes ? 1 : 0;
 		memory.write<uint8>(&drawCurveDebugBoxesU8);
 
-		memory.write<int32>(&id);
-		memory.write<int32>(&parentId);
+		memory.write<AnimObjId>(&id);
+		memory.write<AnimObjId>(&parentId);
+
+		uint32 numGeneratedChildren = (uint32)generatedChildrenIds.size();
+		memory.write<uint32>(&numGeneratedChildren);
+		for (uint32 i = 0; i < numGeneratedChildren; i++)
+		{
+			memory.write<AnimObjId>(&generatedChildrenIds[i]);
+		}
+
+		uint32 numRefAnimations = (uint32)referencedAnimations.size();
+		memory.write<uint32>(&numRefAnimations);
+		for (auto animId : referencedAnimations)
+		{
+			memory.write<AnimId>(&animId);
+		}
+
 		memory.write<uint32>(&nameLength);
 		memory.writeDangerous(name, (nameLength + 1));
 
@@ -655,7 +1318,8 @@ namespace MathAnim
 			this->as.laTexObject.serialize(memory);
 			break;
 		case AnimObjectTypeV1::SvgObject:
-			g_logger_warning("No serialization for SVG objects yet. Maybe there should be a NOP svg object for objects that don't require serialization.");
+			g_logger_assert(this->_svgObjectStart != nullptr, "Somehow SVGObject has no object allocated.");
+			this->_svgObjectStart->serialize(memory);
 			break;
 		case AnimObjectTypeV1::Square:
 			this->as.square.serialize(memory);
@@ -669,41 +1333,64 @@ namespace MathAnim
 		case AnimObjectTypeV1::Axis:
 			this->as.axis.serialize(memory);
 			break;
-		default:
-			g_logger_warning("Unknown object type %d when serializing.", (int)objectType);
+		case AnimObjectTypeV1::SvgFileObject:
+			this->as.svgFile.serialize(memory);
+			break;
+		case AnimObjectTypeV1::Camera:
+			this->as.camera.serialize(memory);
+			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
 			break;
 		}
 	}
 
-	AnimObject AnimObject::deserialize(RawMemory& memory, uint32 version)
+	AnimObject AnimObject::deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version)
 	{
 		if (version == 1)
 		{
-			return deserializeAnimObjectV1(memory);
+			return deserializeAnimObjectV1(am, memory);
 		}
 
 		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
 		AnimObject res = {};
-		res.id = -1;
+		res.id = NULL_ANIM;
 		return res;
 	}
 
-	AnimObject AnimObject::createDefaultFromParent(AnimObjectTypeV1 type, const AnimObject* parent)
+	AnimObject AnimObject::createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId, bool addChildAsGenerated)
 	{
-		AnimObject res = createDefault(type);
-		res.takeParentAttributes(parent);
+		AnimObject* parent = AnimationManager::getMutableObject(am, parentId);
+		AnimObject res = createDefault(am, type);
+		res.takeAttributesFrom(*parent);
+
+		if (addChildAsGenerated)
+		{
+			parent->generatedChildrenIds.push_back(res.id);
+			res.isGenerated = true;
+		}
+
 		return res;
 	}
 
-	AnimObject AnimObject::createDefault(AnimObjectTypeV1 type)
+	AnimObject AnimObject::createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj)
+	{
+		AnimObject res = createDefault(am, type);
+		res.takeAttributesFrom(obj);
+		return res;
+	}
+
+	AnimObject AnimObject::createDefault(AnimationManagerData* am, AnimObjectTypeV1 type)
 	{
 		AnimObject res;
 		res.id = animObjectUidCounter++;
 		g_logger_assert(animObjectUidCounter < INT32_MAX, "Somehow our UID counter reached '%d'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", INT32_MAX);
-		res.parentId = INT32_MAX;
+		res.parentId = NULL_ANIM_OBJECT;
+		res.percentCreated = 0.0f;
+		res.circumscribeId = NULL_ANIM;
 
 		const char* newObjName = "New Object";
-		res.nameLength = std::strlen(newObjName);
+		res.nameLength = (uint32)std::strlen(newObjName);
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
 		g_memory_copyMem(res.name, (void*)newObjName, sizeof(uint8) * (res.nameLength + 1));
 
@@ -723,6 +1410,7 @@ namespace MathAnim
 		res.drawDebugBoxes = false;
 		res.drawCurveDebugBoxes = false;
 		res.is3D = false;
+		res.isGenerated = false;
 		res.svgScale = 1.0f;
 
 		res.strokeWidth = 0.0f;
@@ -744,10 +1432,14 @@ namespace MathAnim
 		};
 		res.position = res._positionStart;
 
+		res.globalTransform = glm::identity<glm::mat4>();
+
 		switch (type)
 		{
 		case AnimObjectTypeV1::TextObject:
+			res.svgScale = 150.0f;
 			res.as.textObject = TextObject::createDefault();
+			res.as.textObject.init(am, res.id);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
 			res.as.laTexObject = LaTexObject::createDefault();
@@ -786,8 +1478,96 @@ namespace MathAnim
 			res.as.axis.labelPadding = 25.0f;
 			res.as.axis.init(&res);
 			break;
-		default:
-			g_logger_error("Cannot create default animation object of type %d", (int)type);
+		case AnimObjectTypeV1::SvgFileObject:
+			res.as.svgFile = SvgFileObject::createDefault();
+			break;
+		case AnimObjectTypeV1::Camera:
+			res.as.camera = CameraObject::createDefault();
+			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
+			break;
+		}
+
+		return res;
+	}
+
+	AnimObject AnimObject::createCopy(const AnimObject& from)
+	{
+		AnimObject res;
+		res.id = from.id;
+		res.parentId = from.parentId;
+		res.percentCreated = from.percentCreated;
+
+		res.nameLength = from.nameLength;
+		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
+		g_memory_copyMem(res.name, (void*)from.name, sizeof(uint8) * (res.nameLength + 1));
+
+		res.status = from.status;
+		res.objectType = from.objectType;
+
+		res.rotation = from.rotation;
+		res._rotationStart = from._rotationStart;
+
+		res.scale = from.scale;
+		res._scaleStart = from._scaleStart;
+
+		res.position = from.position;
+		res._positionStart = from._positionStart;
+		res._globalPositionStart = from._globalPositionStart;
+		res.globalPosition = from.globalPosition;
+
+		res.svgObject = nullptr;
+		res._svgObjectStart = nullptr;
+
+		if (from.svgObject)
+		{
+			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res.svgObject = Svg::createDefault();
+			Svg::copy(res.svgObject, from.svgObject);
+		}
+		if (from._svgObjectStart)
+		{
+			res._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res._svgObjectStart = Svg::createDefault();
+			Svg::copy(res._svgObjectStart, from._svgObjectStart);
+		}
+
+		res.isTransparent = from.isTransparent;
+		res.drawDebugBoxes = from.drawDebugBoxes;
+		res.drawCurveDebugBoxes = from.drawCurveDebugBoxes;
+		res.is3D = from.is3D;
+		res.isGenerated = from.isGenerated;
+		res.svgScale = from.svgScale;
+
+		res.strokeWidth = from.strokeWidth;
+		res._strokeWidthStart = from._strokeWidthStart;
+		res.strokeColor = from.strokeColor;
+		res._strokeColorStart = from._strokeColorStart;
+		res.fillColor = from.fillColor;
+		res._fillColorStart = from._fillColorStart;
+
+		res.objectType = from.objectType;
+
+		res.generatedChildrenIds = from.generatedChildrenIds;
+
+		switch (from.objectType)
+		{
+		case AnimObjectTypeV1::TextObject:
+			res.as.textObject = TextObject::createCopy(from.as.textObject);
+			break;
+		case AnimObjectTypeV1::LaTexObject:
+		case AnimObjectTypeV1::SvgObject:
+		case AnimObjectTypeV1::Square:
+		case AnimObjectTypeV1::Circle:
+		case AnimObjectTypeV1::Cube:
+		case AnimObjectTypeV1::Axis:
+		case AnimObjectTypeV1::SvgFileObject:
+		case AnimObjectTypeV1::Camera:
+			// TODO: Implement Copy for these
+			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
 			break;
 		}
 
@@ -795,75 +1575,55 @@ namespace MathAnim
 	}
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV1(RawMemory& memory)
+	static AnimObject deserializeAnimObjectV1(AnimationManagerData*, RawMemory& memory)
 	{
+		// TODO: Replace this with some sort of library where you register 
+		// an object layout and it automatically serializes/deserializes stuff
+		// for you
+
 		AnimObject res;
+		// If the object is being read in from the file then it's not
+		// generated since all generated objects don't get saved
+		res.isGenerated = false;
+		res.drawCurves = false;
+		res.drawControlPoints = false;
+		res.percentCreated = 0.0f;
 
 		// AnimObjectType     -> uint32
-		// _PositionStart
-		//   X                -> f32
-		//   Y                -> f32
-		//   Z                -> f32
-		// _RotationStart
-		//   X				  -> f32
-		//   Y				  -> f32
-		//   Z                -> f32
-		//  _ScaleStart
-		//     X                -> f32
-		//     Y                -> f32
-		//     Z                -> f32
-		// _FillColorStart
-		//   R                -> u8
-		//   G                -> u8
-		//   B                -> u8
-		//   A                -> u8
-		// _StrokeColorStart 
-		//   R                -> u8
-		//   G                -> u8
-		//   B                -> u8
-		//   A                -> u8
+		// _PositionStart     -> Vec3
+		// RotationStart      -> Vec3
+		// ScaleStart         -> Vec3
+		// _FillColorStart    -> Vec4U8
+		// _StrokeColorStart  -> Vec4U8
+		// 
 		// _StrokeWidthStart  -> f32
 		// svgScale           -> f32
+		// 
 		// isTransparent      -> u8
 		// is3D               -> u8
 		// drawDebugBoxes     -> u8
 		// drawCurveDebugBoxes -> u8
-		// Id                 -> int32
-		// NameLength         -> uint32
-		// Name               -> uint8[NameLength]
 		// 
-		// ParentId           -> int32
-		// FrameStart         -> int32
-		// Duration           -> int32
-		// TimelineTrack      -> int32
-		// TimelineTrack      -> int32
-		// AnimObjectTypeDataSize -> uint64
-		// AnimObjectTypeSpecificData (This data will change depending on AnimObjectType)
+		// Id                   -> AnimObjId
+		// ParentId             -> AnimObjId
+		// NumGeneratedChildren -> uint32
+		// GeneratedChildrenIds -> AnimObjId[numGeneratedChildren]
+		//
+		// numRefAnimations     -> uint32
+		// referencedAnimations -> AnimId[numObjects]
+		// 
+		// NameLength         -> uint32
+		// Name               -> uint8[NameLength + 1]
+		// AnimObject Specific Data
 		uint32 animObjectType;
 		memory.read<uint32>(&animObjectType);
 		g_logger_assert(animObjectType < (uint32)AnimObjectTypeV1::Length, "Invalid AnimObjectType '%d' from memory. Must be corrupted memory.", animObjectType);
 		res.objectType = (AnimObjectTypeV1)animObjectType;
-		memory.read<float>(&res._positionStart.x);
-		memory.read<float>(&res._positionStart.y);
-		memory.read<float>(&res._positionStart.z);
-
-		memory.read<float>(&res._rotationStart.x);
-		memory.read<float>(&res._rotationStart.y);
-		memory.read<float>(&res._rotationStart.z);
-
-		memory.read<float>(&res._scaleStart.x);
-		memory.read<float>(&res._scaleStart.y);
-		memory.read<float>(&res._scaleStart.z);
-
-		memory.read<uint8>(&res._fillColorStart.r);
-		memory.read<uint8>(&res._fillColorStart.g);
-		memory.read<uint8>(&res._fillColorStart.b);
-		memory.read<uint8>(&res._fillColorStart.a);
-
-		memory.read<uint8>(&res._strokeColorStart.r);
-		memory.read<uint8>(&res._strokeColorStart.g);
-		memory.read<uint8>(&res._strokeColorStart.b);
-		memory.read<uint8>(&res._strokeColorStart.a);
+		res._positionStart = CMath::deserializeVec3(memory);
+		res._rotationStart = CMath::deserializeVec3(memory);
+		res._scaleStart = CMath::deserializeVec3(memory);
+		res._fillColorStart = CMath::deserializeU8Vec4(memory);
+		res._strokeColorStart = CMath::deserializeU8Vec4(memory);
 
 		memory.read<float>(&res._strokeWidthStart);
 		memory.read<float>(&res.svgScale);
@@ -884,10 +1644,29 @@ namespace MathAnim
 		memory.read<uint8>(&drawCurveDebugBoxes);
 		res.drawCurveDebugBoxes = drawCurveDebugBoxes != 0;
 
-		memory.read<int32>(&res.id);
+		memory.read<AnimObjId>(&res.id);
 		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
+		memory.read<AnimObjId>(&res.parentId);
 
-		memory.read<int32>(&res.parentId);
+		uint32 numGeneratedChildrenIds;
+		memory.read<uint32>(&numGeneratedChildrenIds);
+		res.generatedChildrenIds.reserve(numGeneratedChildrenIds);
+		for (uint32 i = 0; i < numGeneratedChildrenIds; i++)
+		{
+			AnimObjId childId;
+			memory.read<AnimObjId>(&childId);
+			res.generatedChildrenIds.push_back(childId);
+		}
+
+		uint32 numReferencedAnimations;
+		memory.read<uint32>(&numReferencedAnimations);
+		for (uint32 i = 0; i < numReferencedAnimations; i++)
+		{
+			AnimId refAnim;
+			memory.read<AnimId>(&refAnim);
+			res.referencedAnimations.insert(refAnim);
+		}
+
 		if (!memory.read<uint32>(&res.nameLength))
 		{
 			g_logger_assert(false, "Corrupted project data. Irrecoverable.");
@@ -895,7 +1674,10 @@ namespace MathAnim
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
 		memory.readDangerous(res.name, res.nameLength + 1);
 
+		// Initialize other variables
 		res.position = res._positionStart;
+		res.rotation = res._rotationStart;
+		res.scale = res._scaleStart;
 		res.strokeColor = res._strokeColorStart;
 		res.fillColor = res._fillColorStart;
 		res.strokeWidth = res._strokeWidthStart;
@@ -917,7 +1699,10 @@ namespace MathAnim
 			res.as.square.init(&res);
 			break;
 		case AnimObjectTypeV1::SvgObject:
-			g_logger_warning("No deserialization available for svg objects yet.");
+			res._svgObjectStart = SvgObject::deserialize(memory, version);
+			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res.svgObject = Svg::createDefault();
+			Svg::copy(res.svgObject, res._svgObjectStart);
 			break;
 		case AnimObjectTypeV1::Circle:
 			res.as.circle = Circle::deserialize(memory, version);
@@ -931,8 +1716,14 @@ namespace MathAnim
 			res.as.axis = Axis::deserialize(memory, version);
 			res.as.axis.init(&res);
 			break;
-		default:
-			g_logger_error("Unknown anim object type: %d. Corrupted memory.", res.objectType);
+		case AnimObjectTypeV1::SvgFileObject:
+			res.as.svgFile = SvgFileObject::deserialize(memory, version);
+			break;
+		case AnimObjectTypeV1::Camera:
+			res.as.camera = CameraObject::deserialize(memory, version);
+			break;
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
 			break;
 		}
 
@@ -952,7 +1743,7 @@ namespace MathAnim
 		// lagRatio       -> f32
 		// 
 		// numObjects     -> uint32
-		// objectIds      -> int32[numObjects]
+		// objectIds      -> AnimObjId[numObjects]
 		// Custom animation data -> dynamic
 		Animation res;
 		uint32 animType;
@@ -962,7 +1753,7 @@ namespace MathAnim
 		memory.read<int32>(&res.frameStart);
 		memory.read<int32>(&res.duration);
 
-		memory.read<int32>(&res.id);
+		memory.read<AnimId>(&res.id);
 		animationUidCounter = glm::max(animationUidCounter, res.id + 1);
 
 		uint8 easeTypeInt, easeDirectionInt;
@@ -982,27 +1773,23 @@ namespace MathAnim
 
 		uint32 numObjects;
 		memory.read<uint32>(&numObjects);
-		res.animObjectIds.resize(numObjects, INT32_MAX);
 		for (uint32 i = 0; i < numObjects; i++)
 		{
-			memory.read<int32>(&res.animObjectIds[i]);
+			AnimObjId tmp;
+			memory.read<AnimObjId>(&tmp);
+			res.animObjectIds.insert(tmp);
 		}
 
 		switch (res.type)
 		{
-		case AnimTypeV1::WriteInText:
-		case AnimTypeV1::Transform:
 		case AnimTypeV1::Create:
 		case AnimTypeV1::UnCreate:
 		case AnimTypeV1::FadeIn:
 		case AnimTypeV1::FadeOut:
 			// NOP
 			break;
-		case AnimTypeV1::MoveTo:
 		case AnimTypeV1::RotateTo:
 		case AnimTypeV1::Shift:
-			res.as.modifyVec3.target = CMath::deserializeVec3(memory);
-			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
 			res.as.modifyU8Vec4.target = CMath::deserializeU8Vec4(memory);
@@ -1010,86 +1797,43 @@ namespace MathAnim
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
 			break;
-		case AnimTypeV1::CameraMoveTo:
-			res.as.modifyVec2.target = CMath::deserializeVec2(memory);
+		case AnimTypeV1::Transform:
+			res.as.replacementTransform = ReplacementTransformData::deserialize(memory);
 			break;
-		default:
-			g_logger_warning("Unhandled animation deserialize for type %d", res.type);
+		case AnimTypeV1::MoveTo:
+			res.as.moveTo = MoveToData::deserialize(memory);
+			break;
+		case AnimTypeV1::Circumscribe:
+			res.as.circumscribe = Circumscribe::deserialize(memory);
+			break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
 			break;
 		}
 
 		return res;
 	}
 
-	static void applyAnimationToObj(AnimationManagerData* am, NVGcontext* vg, AnimObject* obj, float t, const Animation* animation)
+	static CameraObject deserializeCameraObjectV1(RawMemory& memory)
 	{
-		switch (animation->type)
-		{
-		case AnimTypeV1::WriteInText:
-		case AnimTypeV1::Create:
-		case AnimTypeV1::Transform:
-			obj->percentCreated = t;
-			break;
-		case AnimTypeV1::UnCreate:
-			obj->percentCreated = 1.0f - t;
-			break;
-		case AnimTypeV1::FadeIn:
-		{
-			static bool logWarning = true;
-			if (logWarning)
-			{
-				g_logger_warning("TODO: Have an opacity field on objects and fade in to that opacity.");
-				logWarning = false;
-			}
-			obj->fillColor.a = (uint8)(255.0f * t);
-			obj->strokeColor.a = (uint8)(255.0f * t);
-		}
-		break;
-		case AnimTypeV1::FadeOut:
-			obj->fillColor.a = 255 - (uint8)(255.0f * t);
-			obj->strokeColor.a = 255 - (uint8)(255.0f * t);
-			break;
-		case AnimTypeV1::MoveTo:
-		{
-			const Vec3& target = animation->as.modifyVec3.target;
-			obj->position = Vec3{
-				((target.x - obj->position.x) * t) + obj->position.x,
-				((target.y - obj->position.y) * t) + obj->position.y,
-				((target.z - obj->position.z) * t) + obj->position.z,
-			};
-		}
-		break;
-		case AnimTypeV1::Shift:
-			obj->position += (animation->as.modifyVec3.target * t);
-			break;
-		case AnimTypeV1::RotateTo:
-			obj->rotation = animation->as.modifyVec3.target;
-			break;
-		case AnimTypeV1::AnimateFillColor:
-			obj->fillColor = animation->as.modifyU8Vec4.target;
-			break;
-		case AnimTypeV1::AnimateStrokeColor:
-			obj->strokeColor = animation->as.modifyU8Vec4.target;
-			break;
-		case AnimTypeV1::AnimateStrokeWidth:
-			g_logger_warning("TODO: Implement me");
-			break;
-		case AnimTypeV1::CameraMoveTo:
-			//Renderer::getMutableOrthoCamera()->position = animation->as.modifyVec2.target;
-			g_logger_warning("TODO: Implement me");
-			break;
-		default:
-			// TODO: Add magic_enum
-			// g_logger_info("Unknown animation: '%s'", magic_enum::enum_name(type).data());
-			g_logger_info("Unknown animation: %d", animation->type);
-			break;
-		}
+		//OrthoCamera camera2D;
+		//bool is2D;
+		//bool isActiveCamera;
+		CameraObject res;
+		res.camera2D = OrthoCamera::deserialize(memory, 1);
+		uint8 is2DU8;
+		memory.read<uint8>(&is2DU8);
+		res.is2D = is2DU8 == 1;
+
+		return res;
 	}
 
-	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim)
+	static void onMoveToGizmo(AnimationManagerData*, Animation* anim)
 	{
 		// TODO: Render and handle 2D gizmo logic based on edit mode
 		std::string gizmoName = "Move_To_" + std::to_string(anim->id);
-		GizmoManager::translateGizmo(gizmoName.c_str(), &anim->as.modifyVec3.target, GizmoVariant::Free);
+		Vec3 tmp = CMath::vector3From2(anim->as.moveTo.target);
+		GizmoManager::translateGizmo(gizmoName.c_str(), &tmp, GizmoVariant::Free);
+		anim->as.moveTo.target = CMath::vector2From3(tmp);
 	}
 }

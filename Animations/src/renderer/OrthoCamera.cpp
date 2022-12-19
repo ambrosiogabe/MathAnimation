@@ -1,8 +1,12 @@
 #include "renderer/OrthoCamera.h"
 #include "core/Application.h"
+#include "utils/CMath.h"
 
 namespace MathAnim
 {
+	// -------------- Internal Functions --------------
+	static OrthoCamera deserializeCameraV1(RawMemory& memory);
+
 	glm::mat4 OrthoCamera::calculateViewMatrix() const
 	{
 		glm::vec3 forward = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -32,5 +36,40 @@ namespace MathAnim
 		glm::vec4 res = glm::vec4(ndcCoords.x, ndcCoords.y, 0.0f, 1.0f);
 		res = inverseView * inverseProj * res;
 		return Vec2{ res.x, res.y };
+	}
+
+	void OrthoCamera::serialize(RawMemory& memory) const
+	{
+		// position        -> Vec2
+		// projectionSize  -> Vec2
+		// zoom            -> float
+		CMath::serialize(memory, position);
+		CMath::serialize(memory, projectionSize);
+		memory.write<float>(&zoom);
+	}
+
+	OrthoCamera OrthoCamera::deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			return deserializeCameraV1(memory);
+		}
+
+		OrthoCamera res = {};
+		return res;
+	}
+
+	// -------------- Internal Functions --------------
+	static OrthoCamera deserializeCameraV1(RawMemory& memory)
+	{
+		// position        -> Vec2
+		// projectionSize  -> Vec2
+		// zoom            -> float
+		OrthoCamera res = {};
+		res.position = CMath::deserializeVec2(memory);
+		res.projectionSize = CMath::deserializeVec2(memory);
+		memory.read<float>(&res.zoom);
+
+		return res;
 	}
 }
