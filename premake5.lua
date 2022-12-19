@@ -148,6 +148,10 @@ project "Animations"
         runtime "Debug"
         symbols "on"
 
+        postbuildcommands {
+            "{COPY} Animations/vendor/openal/build/Debug/OpenAL32.dll %{cfg.targetdir}"
+        }
+
     filter { "configurations:Release" }
         buildoptions "/MT"
         runtime "Release"
@@ -157,6 +161,10 @@ project "Animations"
             "_RELEASE"
         }
 
+        postbuildcommands {
+            "{COPY} Animations/vendor/openal/build/Release/OpenAL32.dll %{cfg.targetdir}"
+        }
+
     filter { "configurations:Dist" }
         buildoptions "/MT"
         runtime "Release"
@@ -164,6 +172,10 @@ project "Animations"
 
         defines {
             "_DIST"
+        }
+
+        postbuildcommands {
+            "{COPY} Animations/vendor/openal/build/Release/OpenAL32.dll %{cfg.targetdir}"
         }
 
 project "plutovg"
