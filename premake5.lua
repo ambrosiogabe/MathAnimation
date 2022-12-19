@@ -72,6 +72,8 @@ project "Animations"
         "Animations/vendor/luau/Compiler/include",
         "Animations/vendor/luau/Common/include",
         "Animations/vendor/luau/VM/include",
+        "Animations/vendor/luau/Analysis/include",
+        "Animations/vendor/luau/Ast/include",
     }
 
     -- Add freetype libdirs for debug and release mode
@@ -140,6 +142,7 @@ project "Animations"
             "Luau.CodeGen",
             "Luau.Compiler",
             "Luau.VM",
+            "Luau.Analysis",
             -- Other premake projects
             "DearImGui",
             "TinyXml2",

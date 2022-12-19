@@ -105,7 +105,6 @@ namespace MathAnim
 			Svg::init();
 			SceneManagementPanel::init();
 			SvgParser::init();
-			LuauLayer::init();
 
 			LaTexLayer::init();
 
@@ -122,6 +121,7 @@ namespace MathAnim
 				sceneData.currentScene = 0;
 			}
 
+			LuauLayer::init(currentProjectRoot + "/scripts");
 			EditorGui::init(am);
 
 			svgCache = new SvgCache();
