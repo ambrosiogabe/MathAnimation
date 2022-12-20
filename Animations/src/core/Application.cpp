@@ -122,7 +122,7 @@ namespace MathAnim
 			}
 
 			LuauLayer::init(currentProjectRoot + "/scripts");
-			EditorGui::init(am);
+			EditorGui::init(am, currentProjectRoot);
 
 			svgCache = new SvgCache();
 			svgCache->init();
@@ -616,7 +616,7 @@ namespace MathAnim
 
 			loadScene(sceneData.sceneNames[sceneData.currentScene]);
 
-			EditorGui::init(am);
+			EditorGui::init(am, currentProjectRoot);
 		}
 
 		static void freeSceneSystems()

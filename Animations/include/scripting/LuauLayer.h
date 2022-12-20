@@ -14,6 +14,8 @@ namespace MathAnim
 
 		bool execute(const std::string& scriptName);
 
+		bool remove(const std::string& scriptName);
+
 		void free();
 	}
 }

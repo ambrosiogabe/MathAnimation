@@ -1,5 +1,6 @@
 #include "scripting/ScriptAnalyzer.h"
 #include "platform/Platform.h"
+#include "editor/ConsoleLog.h"
 
 #include <lua.h>
 #include <luacode.h>
@@ -12,9 +13,9 @@ struct ScriptFileResolver : public Luau::FileResolver
 {
 	std::string anonymousSource;
 	std::string anonymousName;
-	std::string scriptDirectory;
+	const std::filesystem::path scriptDirectory;
 
-	ScriptFileResolver(const std::string& scriptDirectory);
+	ScriptFileResolver(const std::filesystem::path& scriptDirectory);
 
 	void setAnonymousFile(const std::string& source, const std::string& name);
 
@@ -47,7 +48,7 @@ static void report(ReportFormat format, const char* name, const Luau::Location& 
 
 namespace MathAnim
 {
-	ScriptAnalyzer::ScriptAnalyzer(const std::string& scriptDirectory)
+	ScriptAnalyzer::ScriptAnalyzer(const std::filesystem::path& scriptDirectory)
 		: m_scriptDirectory(scriptDirectory)
 	{
 		Luau::FrontendOptions frontendOptions;
@@ -158,9 +159,9 @@ namespace MathAnim
 }
 
 // ------------------------------- File Resolver -------------------------------
-ScriptFileResolver::ScriptFileResolver(const std::string& inScriptDirectory)
+ScriptFileResolver::ScriptFileResolver(const std::filesystem::path& inScriptDirectory)
+	: scriptDirectory(inScriptDirectory)
 {
-	scriptDirectory = inScriptDirectory;
 }
 
 void ScriptFileResolver::setAnonymousFile(const std::string& source, const std::string& name)
@@ -171,7 +172,7 @@ void ScriptFileResolver::setAnonymousFile(const std::string& source, const std::
 
 std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::ModuleName& name)
 {
-	std::string scriptPath = scriptDirectory + name;
+	std::string scriptPath = (scriptDirectory / name).string();
 	if (!MathAnim::Platform::fileExists(scriptPath.c_str()) && anonymousName == name)
 	{
 		Luau::SourceCode res;
@@ -185,7 +186,7 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 	Luau::SourceCode res;
 	res.type = res.Module;
 
-	FILE* fp = fopen(scriptPath.c_str(), "r");
+	FILE* fp = fopen(scriptPath.c_str(), "rb");
 	if (!fp)
 	{
 		g_logger_warning("Could not open file '%s', error opening file.", scriptPath.c_str());
@@ -197,10 +198,18 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 	fseek(fp, 0, SEEK_SET);
 
 	RawMemory memory;
-	memory.init(fileSize);
-	fread(memory.data, fileSize, 1, fp);
+	memory.init(fileSize + 1);
+	size_t amtRead = fread(memory.data, fileSize, 1, fp);
 	fclose(fp);
 
+	if (amtRead != 1)
+	{
+		g_logger_error("Error reading file '%s'.", scriptPath.c_str());
+		memory.free();
+		return std::nullopt;
+	}
+
+	memory.data[fileSize] = '\0';
 	res.source = (char*)memory.data;
 	memory.free();
 
@@ -212,8 +221,6 @@ std::optional<Luau::ModuleInfo> ScriptFileResolver::resolveModule(const Luau::Mo
 	if (Luau::AstExprConstantString* expr = node->as<Luau::AstExprConstantString>())
 	{
 		Luau::ModuleName name = std::string(expr->value.data, expr->value.size) + ".luau";
-		name = std::string(expr->value.data, expr->value.size) + ".lua";
-
 		return { {name} };
 	}
 
@@ -255,7 +262,8 @@ static void report(ReportFormat format, const char* name, const Luau::Location& 
 	switch (format)
 	{
 	case ReportFormat::Default:
-		g_logger_error("%s(%d,%d): %s: %s\n", name, loc.begin.line + 1, loc.begin.column + 1, type, message);
+		//ConsoleLogError("%s(%d,%d): %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, type, message);
+		MathAnim::ConsoleLog::error(name, loc.begin.line + 1, "%s: %s", type, message);
 		break;
 
 	case ReportFormat::Luacheck:
@@ -265,13 +273,15 @@ static void report(ReportFormat format, const char* name, const Luau::Location& 
 		int columnEnd = (loc.begin.line == loc.end.line) ? loc.end.column : 100;
 
 		// Use stdout to match luacheck behavior
-		g_logger_error("%s:%d:%d-%d: (W0) %s: %s\n", name, loc.begin.line + 1, loc.begin.column + 1, columnEnd, type, message);
+		//ConsoleLogError("%s:%d:%d-%d: (W0) %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, columnEnd, type, message);
+		MathAnim::ConsoleLog::error(name, loc.begin.line + 1, "(W0) %s: %s", type, message);
 		break;
 	}
 
 	case ReportFormat::Gnu:
 		// Note: GNU end column is inclusive but our end column is exclusive
-		g_logger_error("%s:%d.%d-%d.%d: %s: %s\n", name, loc.begin.line + 1, loc.begin.column + 1, loc.end.line + 1, loc.end.column, type, message);
+		//ConsoleLogError("%s:%d.%d-%d.%d: %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, loc.end.line + 1, loc.end.column, type, message);
+		MathAnim::ConsoleLog::error(name, loc.begin.line + 1, "%s: %s", type, message);
 		break;
 	}
 }

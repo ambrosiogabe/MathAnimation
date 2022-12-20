@@ -14,7 +14,7 @@ namespace MathAnim
 	class ScriptAnalyzer
 	{
 	public:
-		ScriptAnalyzer(const std::string& scriptDirectory);
+		ScriptAnalyzer(const std::filesystem::path& scriptDirectory);
 
 		bool analyze(const std::string& filename);
 		bool analyze(const std::string& sourceCode, const std::string& scriptName);
@@ -22,7 +22,7 @@ namespace MathAnim
 		void free();
 
 	private:
-		const std::string m_scriptDirectory;
+		const std::filesystem::path m_scriptDirectory;
 		Luau::FileResolver* fileResolver;
 		Luau::ConfigResolver* configResolver;
 		Luau::Frontend* frontend;

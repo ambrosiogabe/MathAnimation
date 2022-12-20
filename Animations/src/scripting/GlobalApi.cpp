@@ -1,5 +1,6 @@
 #include "core.h"
 #include "scripting/GlobalApi.h"
+#include "editor/ConsoleLog.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -16,16 +17,16 @@ extern "C"
 			{
 				/* Pop the next arg using lua_tostring(L, i) and do your print */
 				const char* str = lua_tostring(L, i);
-				g_logger_info("Lua Log: %s", str);
+				ConsoleLogInfo("Lua Log: %s", str);
 			}
 			else if (lua_isboolean(L, i))
 			{
 				bool val = lua_toboolean(L, i);
-				g_logger_info("Lua Log: %s", val ? "true" : "false");
+				ConsoleLogInfo("Lua Log: %s", val ? "true" : "false");
 			}
 			else
 			{
-				g_logger_warning("Lua Log tried to print non-string or boolean or number value.");
+				ConsoleLogWarning("Lua Log tried to print non-string or boolean or number value.");
 			}
 		}
 

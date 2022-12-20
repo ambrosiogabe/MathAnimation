@@ -45,7 +45,7 @@ namespace MathAnim
 		ScriptAnalyzer* analyzer = nullptr;
 		lua_State* luaState = nullptr;
 		std::unordered_map<std::string, Bytecode> cachedBytecode;
-		std::string scriptDirectory = "";
+		std::filesystem::path scriptDirectory = "";
 
 		void init(const std::string& inScriptDirectory)
 		{
@@ -80,8 +80,8 @@ namespace MathAnim
 				return false;
 			}
 
-			std::string scriptPath = scriptDirectory + filename;
-			FILE* fp = fopen(scriptPath.c_str(), "r");
+			std::string scriptPath = (scriptDirectory/filename).string();
+			FILE* fp = fopen(scriptPath.c_str(), "rb");
 			if (!fp)
 			{
 				g_logger_warning("Could not open file '%s', error opening file.", filename.c_str());
@@ -93,13 +93,16 @@ namespace MathAnim
 			fseek(fp, 0, SEEK_SET);
 
 			RawMemory memory;
-			memory.init(fileSize);
+			memory.init(fileSize + 1);
 			fread(memory.data, fileSize, 1, fp);
+			memory.data[fileSize] = '\0';
 			fclose(fp);
 
 			size_t bytecodeSize = 0;
 			char* bytecode = luau_compile((const char*)memory.data, memory.size, NULL, &bytecodeSize);
 			int result = luau_load(luaState, filename.c_str(), bytecode, bytecodeSize, 0);
+
+			memory.free();
 
 			// Pop the bytecode off the stack
 			lua_pop(luaState, 1);
@@ -108,6 +111,14 @@ namespace MathAnim
 			{
 				::free(bytecode);
 				return false;
+			}
+
+			// If the bytecode exists, free the bytes since it's about to be
+			// replaced
+			auto iter = cachedBytecode.find(filename);
+			if (iter != cachedBytecode.end())
+			{
+				::free(iter->second.bytes);
 			}
 
 			Bytecode res;
@@ -136,6 +147,14 @@ namespace MathAnim
 			{
 				::free(bytecode);
 				return false;
+			}
+
+			// If the bytecode exists, free the bytes since it's about to be
+			// replaced
+			auto iter = cachedBytecode.find(scriptName);
+			if (iter != cachedBytecode.end())
+			{
+				::free(iter->second.bytes);
 			}
 
 			Bytecode res;
@@ -172,6 +191,19 @@ namespace MathAnim
 
 			lua_pop(luaState, 1);
 			return false;
+		}
+
+		bool remove(const std::string& filename)
+		{
+			auto iter = cachedBytecode.find(filename);
+			if (iter == cachedBytecode.end())
+			{
+				g_logger_warning("Tried to delete script '%s' which was never compiled successfully.", filename.c_str());
+				return false;
+			}
+
+			cachedBytecode.erase(iter);
+			return true;
 		}
 
 		void free()

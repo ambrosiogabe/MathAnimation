@@ -6,6 +6,8 @@
 #include "editor/SceneHierarchyPanel.h"
 #include "editor/Gizmos.h"
 #include "editor/EditorSettings.h"
+#include "editor/AssetManagerPanel.h"
+#include "editor/ConsoleLog.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
 #include "core/Input.h"
@@ -31,7 +33,7 @@ namespace MathAnim
 		static bool mainViewportIsActive;
 		static bool editorViewportIsActive;
 
-		void init(AnimationManagerData* am)
+		void init(AnimationManagerData* am, const std::string& assetsRoot)
 		{
 			viewportOffset = { 0, 0 };
 			viewportSize = { 0, 0 };
@@ -46,6 +48,7 @@ namespace MathAnim
 			AnimObjectPanel::init();
 			ExportPanel::init();
 			SceneHierarchyPanel::init(am);
+			AssetManagerPanel::init(assetsRoot);
 			timelineLoaded = true;
 		}
 
@@ -118,7 +121,9 @@ namespace MathAnim
 			DebugPanel::update();
 			ExportPanel::update();
 			SceneHierarchyPanel::update(am);
+			AssetManagerPanel::update();
 			EditorSettings::imgui();
+			ConsoleLog::update();
 		}
 
 		void onGizmo(AnimationManagerData* am)
@@ -166,6 +171,7 @@ namespace MathAnim
 
 		void free(AnimationManagerData* am)
 		{
+			AssetManagerPanel::free();
 			SceneHierarchyPanel::free();
 			ExportPanel::free();
 			AnimObjectPanel::free();
