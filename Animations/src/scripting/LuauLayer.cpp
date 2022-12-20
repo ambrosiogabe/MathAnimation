@@ -8,24 +8,6 @@
 #include <lualib.h>
 #include <luacode.h>
 
-const char* testSourceChunkName = "Foo";
-const char* testSourceCode = R"raw(
-function ispositive(x)
-    return x > 0
-end
-
-print(ispositive(1))
-print(ispositive("2"))
-
-function isfoo(a)
-    return a == "foo"
-end
-
-print(isfoo("bar"))
-print(isfoo(1))
-
-)raw";
-
 namespace MathAnim
 {
 	struct Bytecode
@@ -61,26 +43,24 @@ namespace MathAnim
 
 		void update()
 		{
-			static bool runTest = true;
-			if (runTest)
-			{
-				if (compile(testSourceCode, "Foo.lua"))
-				{
-					execute("Foo.lua");
-				}
 
-				runTest = false;
-			}
 		}
 
 		bool compile(const std::string& filename)
 		{
 			if (!analyzer->analyze(filename))
 			{
+				// If the bytecode exists, free the bytes since the most recent code is broken
+				auto iter = cachedBytecode.find(filename);
+				if (iter != cachedBytecode.end())
+				{
+					::free(iter->second.bytes);
+					cachedBytecode.erase(iter);
+				}
 				return false;
 			}
 
-			std::string scriptPath = (scriptDirectory/filename).make_preferred().string();
+			std::string scriptPath = (scriptDirectory / filename).make_preferred().string();
 			FILE* fp = fopen(scriptPath.c_str(), "rb");
 			if (!fp)
 			{
@@ -116,12 +96,14 @@ namespace MathAnim
 				return false;
 			}
 
-			// If the bytecode exists, free the bytes since it's about to be
-			// replaced
-			auto iter = cachedBytecode.find(filename);
-			if (iter != cachedBytecode.end())
 			{
-				::free(iter->second.bytes);
+				// If the bytecode exists, free the bytes since it's about to be
+				// replaced
+				auto iter = cachedBytecode.find(filename);
+				if (iter != cachedBytecode.end())
+				{
+					::free(iter->second.bytes);
+				}
 			}
 
 			Bytecode res;
@@ -179,7 +161,7 @@ namespace MathAnim
 			{
 				return currentExecutingScript->scriptFilepath;
 			}
-			
+
 			static const std::string dummyScriptName = "NULL_SCRIPT";
 			return dummyScriptName;
 		}

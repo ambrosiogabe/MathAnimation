@@ -14,6 +14,8 @@ namespace MathAnim
 		// -------------- Internal Functions --------------
 		static void iterateDirectory(const std::string& directory, AddButtonCallbackFn callback = nullptr, const char* defaultNewFilename = nullptr, const char* addButtonText = nullptr);
 		static void onScriptChanged(const std::filesystem::path& scriptPath);
+		static void onScriptRenamed(const std::filesystem::path& scriptPath);
+		static void onScriptCreated(const std::filesystem::path& scriptPath);
 		static void onScriptDeleted(const std::filesystem::path& scriptPath);
 		static void newScriptAddedCallback(const char* filename);
 
@@ -32,12 +34,11 @@ namespace MathAnim
 			new(scriptWatcher)FileSystemWatcher();
 			scriptWatcher->path = scriptsRoot;
 			scriptWatcher->onChanged = onScriptChanged;
-			scriptWatcher->onRenamed = onScriptChanged;
-			scriptWatcher->onCreated = onScriptChanged;
+			scriptWatcher->onRenamed = onScriptRenamed;
+			scriptWatcher->onCreated = onScriptCreated;
 			scriptWatcher->onDeleted = onScriptDeleted;
 			scriptWatcher->includeSubdirectories = true;
-			scriptWatcher->notifyFilters |= NotifyFilters::FileName;
-			scriptWatcher->notifyFilters |= NotifyFilters::LastWrite;
+			scriptWatcher->notifyFilters = NotifyFilters::FileName;
 			scriptWatcher->notifyFilters |= NotifyFilters::Attributes;
 			scriptWatcher->start();
 		}
@@ -153,6 +154,16 @@ namespace MathAnim
 		}
 
 		static void onScriptDeleted(const std::filesystem::path& scriptPath)
+		{
+			LuauLayer::remove(scriptPath.filename().string());
+		}
+
+		static void onScriptCreated(const std::filesystem::path& scriptPath)
+		{
+			LuauLayer::remove(scriptPath.filename().string());
+		}
+
+		static void onScriptRenamed(const std::filesystem::path& scriptPath)
 		{
 			LuauLayer::remove(scriptPath.filename().string());
 		}

@@ -1,4 +1,5 @@
 #include "scripting/ScriptAnalyzer.h"
+#include "scripting/MathAnimGlobals.h"
 #include "platform/Platform.h"
 #include "editor/ConsoleLog.h"
 
@@ -61,7 +62,27 @@ namespace MathAnim
 		frontend = (Luau::Frontend*)g_memory_allocate(sizeof(Luau::Frontend));
 		new(frontend)Luau::Frontend(fileResolver, configResolver, frontendOptions);
 
+		// Register the bundled builtin globals that come with Luau
 		Luau::registerBuiltinGlobals(frontend->typeChecker);
+		// Register our own builtin globals 
+		Luau::LoadDefinitionFileResult loadResult = 
+			Luau::loadDefinitionFile(
+				frontend->typeChecker, 
+				frontend->typeChecker.globalScope, 
+				MathAnimGlobals::getBuiltinDefinitionSource(), 
+				"@math-anim"
+			);
+		if (!loadResult.success)
+		{
+			g_logger_error("The ScriptAnalyzer failed to load @math-anim builtin definitions. Errors:");
+			for (int i = 0; i < loadResult.parseResult.errors.size(); i++)
+			{
+				g_logger_error("%s at line:column %d:%d", 
+					loadResult.parseResult.errors[i].getMessage().c_str(),
+					loadResult.parseResult.errors[i].getLocation().begin.line,
+					loadResult.parseResult.errors[i].getLocation().begin.column);
+			}
+		}
 		Luau::freeze(frontend->typeChecker.globalTypes);
 	}
 

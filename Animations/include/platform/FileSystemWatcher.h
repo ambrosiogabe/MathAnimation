@@ -47,10 +47,15 @@ namespace MathAnim
 		std::thread fileWatcherThread;
 		void* stopEventHandle;
 
-		std::queue<std::filesystem::path> changedQueue;
-		std::queue<std::filesystem::path> renamedQueue;
-		std::queue<std::filesystem::path> deletedQueue;
-		std::queue<std::filesystem::path> createdQueue;
+		std::set<std::filesystem::path> changedQueue;
+		std::set<std::filesystem::path> renamedQueue;
+		std::set<std::filesystem::path> deletedQueue;
+		std::set<std::filesystem::path> createdQueue;
+
+		std::set<std::filesystem::path> prevChangedQueue;
+		std::set<std::filesystem::path> prevRenamedQueue;
+		std::set<std::filesystem::path> prevDeletedQueue;
+		std::set<std::filesystem::path> prevCreatedQueue;
 
 		std::mutex queueMtx;
 

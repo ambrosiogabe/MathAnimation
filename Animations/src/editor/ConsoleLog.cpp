@@ -4,6 +4,8 @@
 #include "utils/FontAwesome.h"
 #include "platform/Platform.h"
 
+#include <imgui_internal.h>
+
 namespace MathAnim
 {
 	enum class Severity : uint8
@@ -22,7 +24,6 @@ namespace MathAnim
 		std::string message;
 		int count;
 		ImVec2 size;
-		ImGuiID id;
 
 		bool operator==(const LogEntry& other)
 		{
@@ -48,6 +49,31 @@ namespace MathAnim
 		static char formatBuffer[formatBufferSize];
 		static constexpr ImVec2 logPadding = ImVec2(7.0f, 20.0f);
 		static constexpr float logPaddingBottomY = 12.0f;
+
+		void log(const char* inFilename, int inLine, const char* format, ...)
+		{
+			LogEntry entry = {};
+			entry.severity = Severity::Log;
+			entry.filename = inFilename;
+			entry.line = inLine;
+			entry.size = ImVec2(1.0f, 1.0f);
+
+			va_list args;
+			va_start(args, format);
+			vsnprintf(formatBuffer, formatBufferSize, format, args);
+			va_end(args);
+
+			entry.message = formatBuffer;
+
+			if (logHistory.size() > 0 && entry == logHistory[logHistory.size() - 1])
+			{
+				logHistory[logHistory.size() - 1].count++;
+			}
+			else
+			{
+				logHistory.push_back(entry);
+			}
+		}
 
 		void info(const char* inFilename, int inLine, const char* format, ...)
 		{
@@ -131,17 +157,27 @@ namespace MathAnim
 				logHistory.erase(logHistory.begin());
 			}
 
-			ImGui::Begin("Console Output");
+			ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
+			ImGui::Begin("Console Output", nullptr, ImGuiWindowFlags_MenuBar);
 
-			ImGui::Separator();
+			if (ImGui::BeginMenuBar())
+			{
+				if (ImGui::Button("Clear"))
+				{
+					logHistory.clear();
+				}
+
+				ImGui::EndMenuBar();
+			}
 
 			// Iterate backwards since logs are usually read from most recent to least 
 			// recent
+			int uid = 0;
 			for (auto entry = logHistory.rbegin(); entry != logHistory.rend(); entry++)
 			{
 				{
 					ImVec2 cursorPos = ImGui::GetCursorScreenPos();
-					ImGui::PushID(entry->id);
+					ImGui::PushID(uid++);
 					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
 					if (ImGui::Button("##Entry", ImVec2(ImGui::GetContentRegionAvail().x, entry->size.y)))
 					{
@@ -165,7 +201,7 @@ namespace MathAnim
 
 				if (entry->severity == Severity::Log)
 				{
-					ImGuiExtended::LargeIcon(ICON_FA_INFO_CIRCLE, Colors::Primary[0]);
+					ImGuiExtended::LargeIcon(ICON_FA_INFO_CIRCLE, Colors::Primary[1]);
 					ImGui::SameLine();
 					ImGui::PushStyleColor(ImGuiCol_Text, Colors::Primary[0]);
 					ImGui::BeginGroup();
@@ -173,7 +209,7 @@ namespace MathAnim
 				}
 				else if (entry->severity == Severity::Info)
 				{
-					ImGuiExtended::LargeIcon(ICON_FA_INFO_CIRCLE, Colors::AccentGreen[0]);
+					ImGuiExtended::LargeIcon(ICON_FA_INFO_CIRCLE, Colors::AccentGreen[1]);
 					ImGui::SameLine();
 					ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentGreen[0]);
 					ImGui::BeginGroup();
@@ -181,7 +217,7 @@ namespace MathAnim
 				}
 				else if (entry->severity == Severity::Warning)
 				{
-					ImGuiExtended::LargeIcon(ICON_FA_EXCLAMATION_TRIANGLE, Colors::AccentYellow[0]);
+					ImGuiExtended::LargeIcon(ICON_FA_EXCLAMATION_TRIANGLE, Colors::AccentYellow[2]);
 					ImGui::SameLine();
 					ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentYellow[0]);
 					ImGui::BeginGroup();
@@ -189,7 +225,7 @@ namespace MathAnim
 				}
 				else if (entry->severity == Severity::Error)
 				{
-					ImGuiExtended::LargeIcon(ICON_FA_EXCLAMATION_CIRCLE, Colors::AccentRed[0]);
+					ImGuiExtended::LargeIcon(ICON_FA_EXCLAMATION_TRIANGLE, Colors::AccentRed[2]);
 					ImGui::SameLine();
 					ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentRed[0]);
 					ImGui::BeginGroup();
@@ -213,12 +249,12 @@ namespace MathAnim
 				ImGui::EndGroup();
 
 				entry->size = ImGui::GetItemRectSize();
-				entry->id = ImGui::GetItemID();
 
 				ImGui::Separator();
 			}
 
 			ImGui::End();
+			ImGui::PopStyleColor();
 		}
 	}
 }

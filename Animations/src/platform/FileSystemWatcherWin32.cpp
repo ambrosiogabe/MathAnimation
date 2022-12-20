@@ -118,10 +118,9 @@ namespace MathAnim
 				break;
 			}
 
+			std::lock_guard<std::mutex> queueLock(queueMtx);
 			do
 			{
-				std::lock_guard<std::mutex> queueLock(queueMtx);
-
 				pNotify = (FILE_NOTIFY_INFORMATION*)((char*)buffer + offset);
 				strcpy(filename, "");
 				int filenamelen = WideCharToMultiByte(CP_ACP, 0, pNotify->FileName, pNotify->FileNameLength / 2, filename, sizeof(filename), NULL, NULL);
@@ -129,19 +128,19 @@ namespace MathAnim
 				switch (pNotify->Action)
 				{
 				case FILE_ACTION_ADDED:
-					createdQueue.push(filename);
+					createdQueue.insert(filename);
 					break;
 				case FILE_ACTION_REMOVED:
-					deletedQueue.push(filename);
+					deletedQueue.insert(filename);
 					break;
 				case FILE_ACTION_MODIFIED:
-					changedQueue.push(filename);
+					changedQueue.insert(filename);
 					break;
 				case FILE_ACTION_RENAMED_OLD_NAME:
 					// Log::Info("The file was renamed and this is the old name: [%s]", filename);
 					break;
 				case FILE_ACTION_RENAMED_NEW_NAME:
-					renamedQueue.push(filename);
+					renamedQueue.insert(filename);
 					break;
 				default:
 					g_logger_error("Default error. Unknown file action '%d' for FileSystemWatcher '%s'", pNotify->Action, path.string().c_str());
@@ -150,8 +149,6 @@ namespace MathAnim
 
 				offset += pNotify->NextEntryOffset;
 			} while (pNotify->NextEntryOffset);
-
-
 		}
 
 		CloseHandle(dirHandle);
@@ -169,47 +166,58 @@ namespace MathAnim
 
 	void FileSystemWatcher::poll()
 	{
+		// Filesystem watcher is kind of stupid,
+		// so I have to buffer the polling to make sure
+		// it doesn't double-notify 
+		constexpr int pollBufferReset = 10;
+		static int pollBuffer = 0;
+		if (pollBuffer < pollBufferReset)
+		{
+			pollBuffer++;
+		}
+		pollBuffer = 0;
+
 		std::lock_guard<std::mutex> queueLock(queueMtx);
 
-		while (!changedQueue.empty())
+		for (const std::filesystem::path& file : changedQueue)
 		{
-			const std::filesystem::path& file = changedQueue.front();
-			if (onChanged)
+			if (onChanged && !prevChangedQueue.contains(file))
 			{
 				onChanged(file);
 			}
-			changedQueue.pop();
 		}
+		prevChangedQueue = changedQueue;
+		changedQueue.clear();
 
-		while (!renamedQueue.empty())
+		for (const std::filesystem::path& file : renamedQueue)
 		{
-			const std::filesystem::path& file = renamedQueue.front();
-			if (onRenamed)
+			if (onRenamed && !prevRenamedQueue.contains(file))
 			{
 				onRenamed(file);
 			}
-			renamedQueue.pop();
 		}
+		prevRenamedQueue = renamedQueue;
+		renamedQueue.clear();
 
-		while (!deletedQueue.empty())
+		for (const std::filesystem::path& file : deletedQueue)
 		{
-			const std::filesystem::path& file = deletedQueue.front();
-			if (onDeleted)
+			if (onDeleted && !prevDeletedQueue.contains(file))
 			{
 				onDeleted(file);
 			}
-			deletedQueue.pop();
 		}
+		prevDeletedQueue = deletedQueue;
+		deletedQueue.clear();
 
-		while (!createdQueue.empty())
+		for (const std::filesystem::path& file : createdQueue)
 		{
-			const std::filesystem::path& file = createdQueue.front();
-			if (onCreated)
+			if (onCreated && !prevCreatedQueue.contains(file))
 			{
 				onCreated(file);
 			}
-			createdQueue.pop();
 		}
+		prevCreatedQueue = createdQueue;
+		createdQueue.clear();
 	}
 }
 
