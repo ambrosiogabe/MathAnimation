@@ -1,5 +1,8 @@
 #include "editor/ConsoleLog.h"
+#include "editor/ImGuiExtended.h"
 #include "core/Colors.h"
+#include "utils/FontAwesome.h"
+#include "platform/Platform.h"
 
 namespace MathAnim
 {
@@ -18,6 +21,8 @@ namespace MathAnim
 		Severity severity;
 		std::string message;
 		int count;
+		ImVec2 size;
+		ImGuiID id;
 
 		bool operator==(const LogEntry& other)
 		{
@@ -41,6 +46,8 @@ namespace MathAnim
 
 		static constexpr size_t formatBufferSize = 1024 * 10; // 10KB buffer for a log message seems reasonable /shrug 
 		static char formatBuffer[formatBufferSize];
+		static constexpr ImVec2 logPadding = ImVec2(7.0f, 20.0f);
+		static constexpr float logPaddingBottomY = 12.0f;
 
 		void info(const char* inFilename, int inLine, const char* format, ...)
 		{
@@ -48,6 +55,7 @@ namespace MathAnim
 			entry.severity = Severity::Info;
 			entry.filename = inFilename;
 			entry.line = inLine;
+			entry.size = ImVec2(1.0f, 1.0f);
 
 			va_list args;
 			va_start(args, format);
@@ -62,8 +70,6 @@ namespace MathAnim
 			}
 			else
 			{
-				// Log to the actual console as well
-				_g_logger_info(inFilename, inLine, "%s", entry.message.c_str());
 				logHistory.push_back(entry);
 			}
 		}
@@ -74,6 +80,7 @@ namespace MathAnim
 			entry.severity = Severity::Warning;
 			entry.filename = inFilename;
 			entry.line = inLine;
+			entry.size = ImVec2(1.0f, 1.0f);
 
 			va_list args;
 			va_start(args, format);
@@ -88,8 +95,6 @@ namespace MathAnim
 			}
 			else
 			{
-				// Log to the actual console as well
-				_g_logger_warning(inFilename, inLine, "%s", entry.message.c_str());
 				logHistory.push_back(entry);
 			}
 		}
@@ -100,6 +105,7 @@ namespace MathAnim
 			entry.severity = Severity::Error;
 			entry.filename = inFilename;
 			entry.line = inLine;
+			entry.size = ImVec2(1.0f, 1.0f);
 
 			va_list args;
 			va_start(args, format);
@@ -114,8 +120,6 @@ namespace MathAnim
 			}
 			else
 			{
-				// Log to the actual console as well
-				_g_logger_error(inFilename, inLine, "%s", entry.message.c_str());
 				logHistory.push_back(entry);
 			}
 		}
@@ -129,34 +133,66 @@ namespace MathAnim
 
 			ImGui::Begin("Console Output");
 
+			ImGui::Separator();
+
 			// Iterate backwards since logs are usually read from most recent to least 
 			// recent
 			for (auto entry = logHistory.rbegin(); entry != logHistory.rend(); entry++)
 			{
-				if (entry->count > 0)
 				{
-					ImGui::Text("(%d)", entry->count);
-					ImGui::SameLine();
+					ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+					ImGui::PushID(entry->id);
+					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
+					if (ImGui::Button("##Entry", ImVec2(ImGui::GetContentRegionAvail().x, entry->size.y)))
+					{
+						if (Platform::fileExists(entry->filename.c_str()))
+						{
+							if (!Platform::openFileWithVsCode(entry->filename.c_str(), entry->line))
+							{
+								// If the vscode command fails for whatever reason try to open the 
+								// file using the default file command
+								Platform::openFileWithDefaultProgram(entry->filename.c_str());
+							}
+						}
+					}
+					ImGui::PopStyleColor();
+					ImGui::PopID();
+					ImGui::SetCursorScreenPos(cursorPos);
 				}
+
+				ImGui::BeginGroup();
+				ImGui::SetCursorPos(ImGui::GetCursorPos() + logPadding);
 
 				if (entry->severity == Severity::Log)
 				{
+					ImGuiExtended::LargeIcon(ICON_FA_INFO_CIRCLE, Colors::Primary[0]);
+					ImGui::SameLine();
 					ImGui::PushStyleColor(ImGuiCol_Text, Colors::Primary[0]);
+					ImGui::BeginGroup();
 					ImGui::Text("Log");
 				}
 				else if (entry->severity == Severity::Info)
 				{
+					ImGuiExtended::LargeIcon(ICON_FA_INFO_CIRCLE, Colors::AccentGreen[0]);
+					ImGui::SameLine();
 					ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentGreen[0]);
+					ImGui::BeginGroup();
 					ImGui::Text("Info");
 				}
 				else if (entry->severity == Severity::Warning)
 				{
+					ImGuiExtended::LargeIcon(ICON_FA_EXCLAMATION_TRIANGLE, Colors::AccentYellow[0]);
+					ImGui::SameLine();
 					ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentYellow[0]);
+					ImGui::BeginGroup();
 					ImGui::Text("Warning");
 				}
 				else if (entry->severity == Severity::Error)
 				{
+					ImGuiExtended::LargeIcon(ICON_FA_EXCLAMATION_CIRCLE, Colors::AccentRed[0]);
+					ImGui::SameLine();
 					ImGui::PushStyleColor(ImGuiCol_Text, Colors::AccentRed[0]);
+					ImGui::BeginGroup();
 					ImGui::Text("Error");
 				}
 
@@ -164,7 +200,20 @@ namespace MathAnim
 				ImGui::Text("<%s:%d>", entry->filename.c_str(), entry->line);
 				ImGui::PopStyleColor();
 
+				if (entry->count > 0)
+				{
+					ImGui::SameLine();
+					ImGui::Text("(%d)", entry->count);
+				}
+
 				ImGui::Text("%s", entry->message.c_str());
+				ImGui::EndGroup();
+
+				ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(0.0f, logPaddingBottomY));
+				ImGui::EndGroup();
+
+				entry->size = ImGui::GetItemRectSize();
+				entry->id = ImGui::GetItemID();
 
 				ImGui::Separator();
 			}

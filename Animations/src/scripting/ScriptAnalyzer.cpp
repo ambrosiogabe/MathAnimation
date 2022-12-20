@@ -43,8 +43,8 @@ enum class ReportFormat
 };
 
 // ------------------------------- Internal Functions -------------------------------
-static void reportError(const Luau::Frontend* frontend, ReportFormat format, const Luau::TypeError& error);
-static void report(ReportFormat format, const char* name, const Luau::Location& loc, const char* type, const char* message);
+static void reportError(const Luau::Frontend* frontend, const char* filepath, ReportFormat format, const Luau::TypeError& error);
+static void report(ReportFormat format, const char* filepath, const Luau::Location& loc, const char* type, const char* message);
 
 namespace MathAnim
 {
@@ -88,9 +88,10 @@ namespace MathAnim
 			g_logger_error("Error opening %s", filename.c_str());
 		}
 
+		std::string scriptFilepath = (m_scriptDirectory / filename).make_preferred().string();
 		for (auto& error : cr.errors)
 		{
-			reportError(frontend, ReportFormat::Default, error);
+			reportError(frontend, scriptFilepath.c_str(), ReportFormat::Default, error);
 		}
 
 		frontend->clear();
@@ -125,7 +126,7 @@ namespace MathAnim
 
 		for (auto& error : cr.errors)
 		{
-			reportError(frontend, ReportFormat::Default, error);
+			reportError(frontend, scriptName.c_str(), ReportFormat::Default, error);
 		}
 
 		frontend->clear();
@@ -246,24 +247,22 @@ const Luau::Config& ScriptConfigResolver::getConfig(const Luau::ModuleName& name
 }
 
 // ------------------------------- Internal Functions -------------------------------
-static void reportError(const Luau::Frontend* frontend, ReportFormat format, const Luau::TypeError& error)
+static void reportError(const Luau::Frontend* frontend, const char* filepath, ReportFormat format, const Luau::TypeError& error)
 {
-	std::string humanReadableName = frontend->fileResolver->getHumanReadableModuleName(error.moduleName);
-
 	if (const Luau::SyntaxError* syntaxError = Luau::get_if<Luau::SyntaxError>(&error.data))
-		report(format, humanReadableName.c_str(), error.location, "SyntaxError", syntaxError->message.c_str());
+		report(format, filepath, error.location, "SyntaxError", syntaxError->message.c_str());
 	else
-		report(format, humanReadableName.c_str(), error.location, "TypeError",
+		report(format, filepath, error.location, "TypeError",
 			Luau::toString(error, Luau::TypeErrorToStringOptions{ frontend->fileResolver }).c_str());
 }
 
-static void report(ReportFormat format, const char* name, const Luau::Location& loc, const char* type, const char* message)
+static void report(ReportFormat format, const char* filepath, const Luau::Location& loc, const char* type, const char* message)
 {
 	switch (format)
 	{
 	case ReportFormat::Default:
 		//ConsoleLogError("%s(%d,%d): %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, type, message);
-		MathAnim::ConsoleLog::error(name, loc.begin.line + 1, "%s: %s", type, message);
+		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "%s: %s", type, message);
 		break;
 
 	case ReportFormat::Luacheck:
@@ -274,14 +273,14 @@ static void report(ReportFormat format, const char* name, const Luau::Location& 
 
 		// Use stdout to match luacheck behavior
 		//ConsoleLogError("%s:%d:%d-%d: (W0) %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, columnEnd, type, message);
-		MathAnim::ConsoleLog::error(name, loc.begin.line + 1, "(W0) %s: %s", type, message);
+		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "(W0) %s: %s", type, message);
 		break;
 	}
 
 	case ReportFormat::Gnu:
 		// Note: GNU end column is inclusive but our end column is exclusive
 		//ConsoleLogError("%s:%d.%d-%d.%d: %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, loc.end.line + 1, loc.end.column, type, message);
-		MathAnim::ConsoleLog::error(name, loc.begin.line + 1, "%s: %s", type, message);
+		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "%s: %s", type, message);
 		break;
 	}
 }

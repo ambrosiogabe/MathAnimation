@@ -279,6 +279,42 @@ namespace MathAnim
 			}
 		}
 
+		void MediumIcon(const char* icon, const Vec4& color, bool solid)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Text, color);
+			if (solid)
+			{
+				ImGui::PushFont(ImGuiLayer::getMediumSolidIconFont());
+			}
+			else
+			{
+				ImGui::PushFont(ImGuiLayer::getMediumRegularIconFont());
+			}
+
+			ImGui::Text(icon);
+
+			ImGui::PopStyleColor();
+			ImGui::PopFont();
+		}
+
+		void LargeIcon(const char* icon, const Vec4& color, bool solid)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Text, color);
+			if (solid)
+			{
+				ImGui::PushFont(ImGuiLayer::getLargeSolidIconFont());
+			}
+			else
+			{
+				ImGui::PushFont(ImGuiLayer::getLargeRegularIconFont());
+			}
+
+			ImGui::Text(icon);
+
+			ImGui::PopStyleColor();
+			ImGui::PopFont();
+		}
+
 		bool RenamableIconSelectable(const char* icon, char* stringBuffer, size_t stringBufferSize, bool isSelected, float width)
 		{
 			std::string iconName = std::string(stringBuffer);

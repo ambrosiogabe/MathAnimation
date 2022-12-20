@@ -1,14 +1,21 @@
 #include "core.h"
 #include "scripting/GlobalApi.h"
+#include "scripting/LuauLayer.h"
 #include "editor/ConsoleLog.h"
 
 #include <lua.h>
 #include <lualib.h>
+#include <luaconf.h>
 
 extern "C"
 {
 	int global_printWrapper(lua_State* L)
 	{
+		int stackFrame = lua_stackdepth(L) - 1;
+		lua_Debug debugInfo = {};
+		lua_getinfo(L, stackFrame, "l", &debugInfo);
+		const std::string& scriptFilepath = MathAnim::LuauLayer::getCurrentExecutingScriptFilepath();
+
 		int nargs = lua_gettop(L);
 
 		for (int i = 1; i <= nargs; i++)
@@ -17,16 +24,17 @@ extern "C"
 			{
 				/* Pop the next arg using lua_tostring(L, i) and do your print */
 				const char* str = lua_tostring(L, i);
-				ConsoleLogInfo("Lua Log: %s", str);
+				MathAnim::ConsoleLog::info(scriptFilepath.c_str(), debugInfo.currentline, "%s", str);
 			}
 			else if (lua_isboolean(L, i))
 			{
 				bool val = lua_toboolean(L, i);
-				ConsoleLogInfo("Lua Log: %s", val ? "true" : "false");
+				MathAnim::ConsoleLog::info(scriptFilepath.c_str(), debugInfo.currentline, "%s", val ? "true" : "false");
 			}
 			else
 			{
-				ConsoleLogWarning("Lua Log tried to print non-string or boolean or number value.");
+				MathAnim::ConsoleLog::warning(scriptFilepath.c_str(), debugInfo.currentline,
+					"Lua Log tried to print non-string or boolean or number value.");
 			}
 		}
 

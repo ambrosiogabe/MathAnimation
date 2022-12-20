@@ -5,10 +5,8 @@
 #include "platform/Platform.h"
 
 #include <lua.h>
-#include <luacode.h>
 #include <lualib.h>
-#include <Luau/Frontend.h>
-#include <Luau/BuiltinDefinitions.h>
+#include <luacode.h>
 
 const char* testSourceChunkName = "Foo";
 const char* testSourceCode = R"raw(
@@ -32,6 +30,7 @@ namespace MathAnim
 {
 	struct Bytecode
 	{
+		std::string scriptFilepath;
 		char* bytes;
 		size_t size;
 	};
@@ -46,6 +45,7 @@ namespace MathAnim
 		lua_State* luaState = nullptr;
 		std::unordered_map<std::string, Bytecode> cachedBytecode;
 		std::filesystem::path scriptDirectory = "";
+		const Bytecode* currentExecutingScript = nullptr;
 
 		void init(const std::string& inScriptDirectory)
 		{
@@ -80,7 +80,7 @@ namespace MathAnim
 				return false;
 			}
 
-			std::string scriptPath = (scriptDirectory/filename).string();
+			std::string scriptPath = (scriptDirectory/filename).make_preferred().string();
 			FILE* fp = fopen(scriptPath.c_str(), "rb");
 			if (!fp)
 			{
@@ -98,8 +98,11 @@ namespace MathAnim
 			memory.data[fileSize] = '\0';
 			fclose(fp);
 
+			lua_CompileOptions compileOptions = {};
+			compileOptions.optimizationLevel = 1;
+			compileOptions.debugLevel = 1;
 			size_t bytecodeSize = 0;
-			char* bytecode = luau_compile((const char*)memory.data, memory.size, NULL, &bytecodeSize);
+			char* bytecode = luau_compile((const char*)memory.data, memory.size, &compileOptions, &bytecodeSize);
 			int result = luau_load(luaState, filename.c_str(), bytecode, bytecodeSize, 0);
 
 			memory.free();
@@ -124,6 +127,7 @@ namespace MathAnim
 			Bytecode res;
 			res.bytes = bytecode;
 			res.size = bytecodeSize;
+			res.scriptFilepath = scriptPath;
 			cachedBytecode[filename] = res;
 
 			return true;
@@ -136,8 +140,11 @@ namespace MathAnim
 				return false;
 			}
 
+			lua_CompileOptions compileOptions = {};
+			compileOptions.optimizationLevel = 1;
+			compileOptions.debugLevel = 1;
 			size_t bytecodeSize = 0;
-			char* bytecode = luau_compile(sourceCode.c_str(), sourceCode.length(), NULL, &bytecodeSize);
+			char* bytecode = luau_compile(sourceCode.c_str(), sourceCode.length(), &compileOptions, &bytecodeSize);
 			int result = luau_load(luaState, scriptName.c_str(), bytecode, bytecodeSize, 0);
 
 			// Pop the bytecode off the stack
@@ -160,9 +167,21 @@ namespace MathAnim
 			Bytecode res;
 			res.bytes = bytecode;
 			res.size = bytecodeSize;
+			res.scriptFilepath = scriptName;
 			cachedBytecode[scriptName] = res;
 
 			return true;
+		}
+
+		const std::string& getCurrentExecutingScriptFilepath()
+		{
+			if (currentExecutingScript)
+			{
+				return currentExecutingScript->scriptFilepath;
+			}
+			
+			static const std::string dummyScriptName = "NULL_SCRIPT";
+			return dummyScriptName;
 		}
 
 		bool execute(const std::string& filename)
@@ -175,6 +194,7 @@ namespace MathAnim
 			}
 
 			const Bytecode& bytecode = iter->second;
+			currentExecutingScript = &bytecode;
 			int result = luau_load(luaState, filename.c_str(), bytecode.bytes, bytecode.size, 0);
 
 			if (result == 0)
@@ -186,10 +206,12 @@ namespace MathAnim
 					lua_pop(luaState, 1);
 				}
 
+				currentExecutingScript = nullptr;
 				return true;
 			}
 
 			lua_pop(luaState, 1);
+			currentExecutingScript = nullptr;
 			return false;
 		}
 

@@ -23,6 +23,8 @@ namespace MathAnim
 		bool AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation = NULL_ANIM);
 
 		void Icon(const char* icon, bool solid = true, float lineHeight = 0.0f);
+		void MediumIcon(const char* icon, const Vec4& color = Vec4{1.0f, 1.0f, 1.0f, 1.0f}, bool solid = true);
+		void LargeIcon(const char* icon, const Vec4& color = Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, bool solid = true);
 
 		bool RenamableIconSelectable(const char* icon, char* stringBuffer, size_t stringBufferSize, bool isSelected, float width);
 

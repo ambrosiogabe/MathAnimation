@@ -291,6 +291,19 @@ namespace MathAnim
 			return true;
 		}
 
+		bool openFileWithDefaultProgram(const char* filepath)
+		{
+			return (uint64)ShellExecuteA(NULL, "code", filepath, NULL, NULL, SW_SHOW) > 32;
+		}
+
+		bool openFileWithVsCode(const char* filepath, int lineNumber)
+		{
+			std::string command = lineNumber >= 0
+				? std::string("/c code --goto \"") + filepath + ":" + std::to_string(lineNumber) + "\""
+				: std::string("/c code --goto \"") + filepath + "\"";
+			return (uint64)ShellExecuteA(NULL, "open", "cmd", command.c_str(), NULL, SW_HIDE);
+		}
+
 		bool fileExists(const char* filename)
 		{
 			DWORD dwAttrib = GetFileAttributesA(filename);

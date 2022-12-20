@@ -12,6 +12,10 @@ namespace MathAnim
 
 		bool executeProgram(const char* programFilepath, const char* cmdLineArgs = nullptr, const char* workingDirectory = nullptr, const char* executionOutputFilename = nullptr);
 
+		bool openFileWithDefaultProgram(const char* filepath);
+
+		bool openFileWithVsCode(const char* filepath, int lineNumber = -1);
+
 		bool fileExists(const char* filename);
 
 		bool dirExists(const char* dirName);

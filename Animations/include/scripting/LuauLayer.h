@@ -11,6 +11,7 @@ namespace MathAnim
 
 		bool compile(const std::string& filename);
 		bool compile(const std::string& sourceCode, const std::string& scriptName);
+		const std::string& getCurrentExecutingScriptFilepath();
 
 		bool execute(const std::string& scriptName);
 

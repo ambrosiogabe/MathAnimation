@@ -15,6 +15,7 @@ namespace MathAnim
 		static void iterateDirectory(const std::string& directory, AddButtonCallbackFn callback = nullptr, const char* defaultNewFilename = nullptr, const char* addButtonText = nullptr);
 		static void onScriptChanged(const std::filesystem::path& scriptPath);
 		static void onScriptDeleted(const std::filesystem::path& scriptPath);
+		static void newScriptAddedCallback(const char* filename);
 
 		// -------------- Internal Variables --------------
 		static std::string assetsRoot;
@@ -50,7 +51,7 @@ namespace MathAnim
 
 			ImGui::Begin("Asset Manager");
 
-			iterateDirectory(scriptsRoot, nullptr, "Script.luau", "Add Script");
+			iterateDirectory(scriptsRoot, newScriptAddedCallback, "Script.luau", "Add Script");
 
 			ImGui::End();
 		}
@@ -136,8 +137,6 @@ namespace MathAnim
 				}
 
 				FILE* fp = fopen(newFilename.c_str(), "w");
-				constexpr char buffer[] = "";
-				fwrite(buffer, sizeof(buffer), 1, fp);
 				fclose(fp);
 
 				if (callback)
@@ -150,11 +149,17 @@ namespace MathAnim
 		static void onScriptChanged(const std::filesystem::path& scriptPath)
 		{
 			LuauLayer::compile(scriptPath.filename().string());
+			LuauLayer::execute(scriptPath.filename().string());
 		}
 
 		static void onScriptDeleted(const std::filesystem::path& scriptPath)
 		{
 			LuauLayer::remove(scriptPath.filename().string());
+		}
+
+		static void newScriptAddedCallback(const char* filename)
+		{
+			Platform::openFileWithVsCode(filename);
 		}
 	}
 }
