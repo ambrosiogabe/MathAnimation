@@ -106,6 +106,26 @@ namespace MathAnim
 					lastSelectedFile = fileIndex;
 				}
 
+				// We do drag drop right after the element we want it to effect, and this one will be a source
+				if (ImGui::BeginDragDropSource())
+				{
+					// Set payload to carry AnimObjectPayload
+					static constexpr size_t bufferSize = 512;
+					static char buffer[bufferSize];
+					static FilePayload payload = {};
+					std::string filepath = file.path().string();
+					if (bufferSize > filepath.length() + 1)
+					{
+						payload.filepathLength = filepath.length();
+						payload.filepath = buffer;
+						g_memory_copyMem((void*)buffer, (void*)filepath.c_str(), sizeof(char) * filepath.length());
+						buffer[payload.filepathLength] = '\0';
+						ImGui::Text("%s", buffer);
+					}
+					ImGui::SetDragDropPayload(ImGuiExtended::getFileDragDropPayloadId(), &payload, sizeof(FilePayload), ImGuiCond_Once);
+					ImGui::EndDragDropSource();
+				}
+
 				if (ImGui::BeginPopupContextItem(stringBuffer))
 				{
 					if (ImGui::MenuItem("Delete"))

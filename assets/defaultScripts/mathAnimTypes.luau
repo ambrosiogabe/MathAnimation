@@ -1,21 +1,3 @@
-#include "scripting/MathAnimGlobals.h"
-
-namespace MathAnim
-{
-	namespace MathAnimGlobals
-	{
-        static const std::string builtinDefinitionLuaSrc = R"BUILTIN_SRC(
-type Logger = {
-    write: <T...>(T...) -> (),
-    info: <T...>(T...) -> (),
-    warn: <T...>(T...) -> (),
-    error: <T...>(T...) -> ()
-}
-
-declare logger: Logger
-)BUILTIN_SRC";
-
-        static const std::string mathAnimModule = R"BUILTIN_TYPES(
 export type Vec2 = {
     x: number,
     y: number
@@ -87,21 +69,3 @@ type MathAnimModule = {
 
 local MathAnim: MathAnimModule
 return MathAnim
-)BUILTIN_TYPES";
-
-        std::string getMathAnimModule()
-        {
-            return mathAnimModule;
-        }
-
-        std::string getBuiltinDefinitionSource()
-        {
-            return builtinDefinitionLuaSrc;
-        }
-
-        std::string getMathAnimApiTypes()
-        {
-            return mathAnimModule;
-        }
-	}
-}

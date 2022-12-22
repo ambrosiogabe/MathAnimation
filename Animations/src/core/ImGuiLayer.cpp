@@ -16,6 +16,7 @@ namespace MathAnim
 	{
 		static ImFont* defaultFont;
 		static ImFont* mediumFont;
+		static ImFont* monoFont;
 
 		static ImFont* largeSolidIconFont;
 		static ImFont* mediumSolidIconFont;
@@ -53,6 +54,10 @@ namespace MathAnim
 			config.MergeMode = false;
 			config.SizePixels = fontSize * 1.5f;
 			mediumFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize * 1.5f);
+
+			config.MergeMode = false;
+			config.SizePixels = fontSize;
+			monoFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/consola.ttf", fontSize);
             
 			config.SizePixels = fontSize * 1.5f;
 			mediumSolidIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 1.5f, &config, iconRanges);
@@ -145,6 +150,11 @@ namespace MathAnim
 		ImFont* getMediumFont()
 		{
 			return mediumFont;
+		}
+
+		ImFont* getMonoFont()
+		{
+			return monoFont;
 		}
         
 		ImFont* getLargeSolidIconFont()

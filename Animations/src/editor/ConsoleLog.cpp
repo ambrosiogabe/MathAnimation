@@ -1,10 +1,14 @@
 #include "editor/ConsoleLog.h"
 #include "editor/ImGuiExtended.h"
+#include "scripting/LuauLayer.h"
 #include "core/Colors.h"
+#include "core/ImGuiLayer.h"
 #include "utils/FontAwesome.h"
 #include "platform/Platform.h"
 
 #include <imgui_internal.h>
+#include <lua.h>
+#include <lualib.h>
 
 namespace MathAnim
 {
@@ -173,12 +177,14 @@ namespace MathAnim
 			// Iterate backwards since logs are usually read from most recent to least 
 			// recent
 			int uid = 0;
+			ImGui::PushFont(ImGuiLayer::getMonoFont());
 			for (auto entry = logHistory.rbegin(); entry != logHistory.rend(); entry++)
 			{
 				{
 					ImVec2 cursorPos = ImGui::GetCursorScreenPos();
 					ImGui::PushID(uid++);
 					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
+					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
 					if (ImGui::Button("##Entry", ImVec2(ImGui::GetContentRegionAvail().x, entry->size.y)))
 					{
 						if (Platform::fileExists(entry->filename.c_str()))
@@ -191,7 +197,7 @@ namespace MathAnim
 							}
 						}
 					}
-					ImGui::PopStyleColor();
+					ImGui::PopStyleColor(2);
 					ImGui::PopID();
 					ImGui::SetCursorScreenPos(cursorPos);
 				}
@@ -253,8 +259,69 @@ namespace MathAnim
 				ImGui::Separator();
 			}
 
+			ImGui::PopFont();
 			ImGui::End();
 			ImGui::PopStyleColor();
+		}
+
+		void log(lua_State* L, const char* format, ...)
+		{
+			int stackFrame = lua_stackdepth(L) - 1;
+			lua_Debug debugInfo = {};
+			lua_getinfo(L, stackFrame, "l", &debugInfo);
+			const std::string& scriptFilepath = LuauLayer::getCurrentExecutingScriptFilepath();
+
+			va_list args;
+			va_start(args, format);
+			vsnprintf(formatBuffer, formatBufferSize, format, args);
+			va_end(args);
+
+			ConsoleLog::log(scriptFilepath.c_str(), debugInfo.currentline, "%s", formatBuffer);
+		}
+
+		void info(lua_State* L, const char* format, ...)
+		{
+			int stackFrame = lua_stackdepth(L) - 1;
+			lua_Debug debugInfo = {};
+			lua_getinfo(L, stackFrame, "l", &debugInfo);
+			const std::string& scriptFilepath = LuauLayer::getCurrentExecutingScriptFilepath();
+
+			va_list args;
+			va_start(args, format);
+			vsnprintf(formatBuffer, formatBufferSize, format, args);
+			va_end(args);
+
+			ConsoleLog::info(scriptFilepath.c_str(), debugInfo.currentline, "%s", formatBuffer);
+		}
+
+		void warning(lua_State* L, const char* format, ...)
+		{
+			int stackFrame = lua_stackdepth(L) - 1;
+			lua_Debug debugInfo = {};
+			lua_getinfo(L, stackFrame, "l", &debugInfo);
+			const std::string& scriptFilepath = LuauLayer::getCurrentExecutingScriptFilepath();
+
+			va_list args;
+			va_start(args, format);
+			vsnprintf(formatBuffer, formatBufferSize, format, args);
+			va_end(args);
+
+			ConsoleLog::warning(scriptFilepath.c_str(), debugInfo.currentline, "%s", formatBuffer);
+		}
+
+		void error(lua_State* L, const char* format, ...)
+		{
+			int stackFrame = lua_stackdepth(L) - 1;
+			lua_Debug debugInfo = {};
+			lua_getinfo(L, stackFrame, "l", &debugInfo);
+			const std::string& scriptFilepath = LuauLayer::getCurrentExecutingScriptFilepath();
+
+			va_list args;
+			va_start(args, format);
+			vsnprintf(formatBuffer, formatBufferSize, format, args);
+			va_end(args);
+
+			ConsoleLog::error(scriptFilepath.c_str(), debugInfo.currentline, "%s", formatBuffer);
 		}
 	}
 }

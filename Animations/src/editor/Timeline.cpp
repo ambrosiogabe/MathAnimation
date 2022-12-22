@@ -1,6 +1,5 @@
 #include "core.h"
 #include "core/Application.h"
-#include "core/Platform.h"
 #include "core/Colors.h"
 #include "editor/Timeline.h"
 #include "editor/ImGuiTimeline.h"
@@ -13,7 +12,9 @@
 #include "renderer/Fonts.h"
 #include "audio/Audio.h"
 #include "audio/WavLoader.h"
+#include "scripting/LuauLayer.h"
 #include "utils/IconsFontAwesome5.h"
+#include "platform/Platform.h"
 
 #include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -63,6 +64,7 @@ namespace MathAnim
 		static void handleCircleInspector(AnimObject* object);
 		static void handleCubeInspector(AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
+		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
 
 		static void checkSvgErrorPopup();
 		static bool applySettingToChildren(const char* id, bool* toggled);
@@ -606,11 +608,7 @@ namespace MathAnim
 				scratch[animObject->nameLength] = '\0';
 				if (ImGui::InputText(": Name", scratch, scratchLength * sizeof(char)))
 				{
-					size_t newLength = std::strlen(scratch);
-					animObject->name = (uint8*)g_memory_realloc(animObject->name, sizeof(char) * (newLength + 1));
-					animObject->nameLength = (int32_t)newLength;
-					g_memory_copyMem(animObject->name, scratch, newLength * sizeof(char));
-					animObject->name[newLength] = '\0';
+					animObject->setName(scratch);
 				}
 			}
 			else
@@ -723,6 +721,9 @@ namespace MathAnim
 				break;
 			case AnimObjectTypeV1::SvgObject:
 				// NOP
+				break;
+			case AnimObjectTypeV1::ScriptObject:
+				handleScriptObjectInspector(am, animObject);
 				break;
 			case AnimObjectTypeV1::Length:
 			case AnimObjectTypeV1::None:
@@ -1283,6 +1284,51 @@ namespace MathAnim
 				g_logger_warning("TODO: Fix me");
 
 				object->as.axis.init(object);
+			}
+		}
+
+		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* obj)
+		{
+			ScriptObject& script = obj->as.script;
+
+			constexpr size_t bufferSize = 512;
+			char buffer[bufferSize] = "Drag File Here";
+			if (bufferSize >= script.scriptFilepathLength + 1 && script.scriptFilepathLength > 0)
+			{
+				g_memory_copyMem((void*)buffer, script.scriptFilepath, sizeof(char) * script.scriptFilepathLength);
+				buffer[script.scriptFilepathLength] = '\0';
+			}
+			
+			if (ImGuiExtended::FileDragDropInputBox(": Script File##ScriptFileTarget", am, buffer, bufferSize))
+			{
+				size_t newFilepathLength = std::strlen(buffer);
+				script.scriptFilepath = (char*)g_memory_realloc(script.scriptFilepath, sizeof(char) * (newFilepathLength + 1));
+				script.scriptFilepathLength = newFilepathLength;
+				g_memory_copyMem((void*)script.scriptFilepath, buffer, sizeof(char) * (newFilepathLength + 1));
+			}
+
+			if (ImGui::Button("Generate"))
+			{
+				if (script.scriptFilepathLength > 0 && Platform::fileExists(script.scriptFilepath))
+				{
+					// First remove all generated children, which were generated as a result
+					// of this object (presumably)
+					for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
+					{
+						AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
+						if (child)
+						{
+							SceneHierarchyPanel::deleteAnimObject(*child);
+							AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
+						}
+					}
+
+					// Next init again which should regenerate the children
+					if (LuauLayer::compile(script.scriptFilepath))
+					{
+						LuauLayer::executeOnAnimObj(script.scriptFilepath, "generate", am, obj->id);
+					}
+				}
 			}
 		}
 

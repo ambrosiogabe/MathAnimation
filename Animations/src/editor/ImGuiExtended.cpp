@@ -23,6 +23,7 @@ namespace MathAnim
 		static std::unordered_map<std::string, RenamableState> renamableStates;
 		static std::unordered_map<std::string, ToggleState> toggleStates;
 		static constexpr bool drawDebugBoxes = false;
+		static const char* filePayloadId = "DRAG_DROP_FILE_PAYLOAD";
 
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size)
 		{
@@ -41,8 +42,8 @@ namespace MathAnim
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
 			ImGui::PushStyleColor(
-				ImGuiCol_Button, 
-				state->isToggled 
+				ImGuiCol_Button,
+				state->isToggled
 				? Colors::Neutral[6]
 				: Colors::Neutral[8]
 			);
@@ -256,6 +257,56 @@ namespace MathAnim
 			return false;
 		}
 
+		const FilePayload* FileDragDropTarget()
+		{
+			const FilePayload* res = nullptr;
+
+			if (ImGui::BeginDragDropTarget())
+			{
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(filePayloadId))
+				{
+					if (payload->DataSize == sizeof(FilePayload))
+					{
+						res = (const FilePayload*)payload->Data;
+					}
+				}
+
+				ImGui::EndDragDropTarget();
+			}
+
+			return res;
+		}
+
+		bool FileDragDropInputBox(const char* label, AnimationManagerData* am, char* outBuffer, size_t outBufferSize)
+		{
+			ImGui::BeginDisabled();
+			ImGui::InputText(label, outBuffer, outBufferSize, ImGuiInputTextFlags_ReadOnly);
+			ImGui::EndDisabled();
+
+			if (auto objPayload = ImGuiExtended::FileDragDropTarget(); objPayload != nullptr)
+			{
+				if (outBufferSize >= (objPayload->filepathLength + 1))
+				{
+					g_memory_copyMem((void*)outBuffer, (void*)objPayload->filepath, sizeof(char) * objPayload->filepathLength);
+					outBuffer[objPayload->filepathLength] = '\0';
+				}
+				else
+				{
+					g_logger_error("File drag drop target got filepath of length '%d' that was too long to fit into buffer of length '%d'.", (uint32)objPayload->filepathLength, (uint32)outBufferSize);
+					return false;
+				}
+
+				return true;
+			}
+
+			return false;
+		}
+
+		const char* getFileDragDropPayloadId()
+		{
+			return filePayloadId;
+		}
+
 		void Icon(const char* icon, bool solid, float lineHeight)
 		{
 			if (lineHeight == 0.0f)
@@ -339,8 +390,14 @@ namespace MathAnim
 				0,
 				ImVec2(state->groupSize.x, state->groupSize.y)
 			);
-			ImGui::PopID();
 			bool selectableIsClicked = ImGui::IsItemClicked();
+			ImGuiItemStatusFlags itemStatusFlags = ImGui::GetItemStatusFlags();
+			ImGuiItemFlags itemFlags = ImGui::GetItemFlags();
+			ImGuiID itemId = ImGui::GetItemID();
+			ImRect itemRect;
+			itemRect.Min = ImGui::GetItemRectMin();
+			itemRect.Max = ImGui::GetItemRectMax();
+
 			if (isAlreadySelected)
 			{
 				if (selectableIsClicked && !state->isBeingRenamed)
@@ -353,6 +410,7 @@ namespace MathAnim
 				state->isBeingRenamed = false;
 			}
 
+			ImGui::PopID();
 			ImGui::SetCursorScreenPos(cursor);
 
 			ImGui::BeginGroup();
@@ -424,6 +482,8 @@ namespace MathAnim
 			ImGui::EndGroup();
 
 			state->groupSize = Vec2{ size.x, size.y };
+
+			ImGui::SetLastItemData(itemId, itemFlags, itemStatusFlags, itemRect);
 
 			return selectionChanged;
 		}

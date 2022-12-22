@@ -16,6 +16,35 @@ namespace MathAnim
 		// --------------- Internal Functions ---------------
 		static void wideToChar(const WCHAR* wide, char* buffer, size_t bufferLength);
 		static bool stringsEqualIgnoreCase(const char* str1, const char* str2);
+		static std::vector<std::string> availableFonts = {};
+		static bool availableFontsCached = false;
+
+		const std::vector<std::string>& getAvailableFonts()
+		{
+			if (!availableFontsCached)
+			{
+				char szPath[MAX_PATH];
+
+				if (SHGetFolderPathA(NULL,
+					CSIDL_FONTS,
+					NULL,
+					0,
+					szPath) == S_OK)
+				{
+					for (auto file : std::filesystem::directory_iterator(szPath))
+					{
+						if (file.path().extension() == ".ttf" || file.path().extension() == ".TTF")
+						{
+							availableFonts.push_back(file.path().string());
+						}
+					}
+				}
+
+				availableFontsCached = true;
+			}
+
+			return availableFonts;
+		}
 
 		// Adapted from https://stackoverflow.com/questions/2467429/c-check-installed-programms
 		bool isProgramInstalled(const char* displayName)

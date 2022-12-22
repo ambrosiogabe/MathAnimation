@@ -34,6 +34,7 @@ namespace MathAnim
 		SvgObject,
 		SvgFileObject,
 		Camera,
+		ScriptObject,
 		Length
 	};
 
@@ -47,7 +48,8 @@ namespace MathAnim
 		"Axis",
 		"SVG Object",
 		"SVG File Object",
-		"Camera"
+		"Camera",
+		"Script Object"
 	);
 
 	constexpr auto _isInternalObjectOnly = fixedSizeArray<bool, (size_t)AnimObjectTypeV1::Length>(
@@ -60,6 +62,7 @@ namespace MathAnim
 		false, // "Axis",
 		true,  // "SVG Object",
 		false, // "SVG File Object",
+		false, // "Camera"
 		false  // "Camera"
 	);
 
@@ -314,6 +317,18 @@ namespace MathAnim
 		static CameraObject createDefault();
 	};
 
+	struct ScriptObject
+	{
+		char* scriptFilepath;
+		size_t scriptFilepathLength;
+
+		void serialize(RawMemory& memory) const;
+		void free();
+
+		static ScriptObject deserialize(RawMemory& memory, uint32 version);
+		static ScriptObject createDefault();
+	};
+
 	struct AnimObject
 	{
 		AnimObjectTypeV1 objectType;
@@ -375,8 +390,10 @@ namespace MathAnim
 			Axis axis;
 			SvgFileObject svgFile;
 			CameraObject camera;
+			ScriptObject script;
 		} as;
 
+		void setName(const char* newName, size_t newNameLength = 0);
 		void onGizmo(AnimationManagerData* am);
 		void render(AnimationManagerData* am) const;
 		void renderMoveToAnimation(AnimationManagerData* am, float t, const Vec3& target);

@@ -64,23 +64,49 @@ namespace MathAnim
 
 		// Register the bundled builtin globals that come with Luau
 		Luau::registerBuiltinGlobals(frontend->typeChecker);
-		// Register our own builtin globals 
-		Luau::LoadDefinitionFileResult loadResult = 
-			Luau::loadDefinitionFile(
-				frontend->typeChecker, 
-				frontend->typeChecker.globalScope, 
-				MathAnimGlobals::getBuiltinDefinitionSource(), 
-				"@math-anim"
-			);
-		if (!loadResult.success)
 		{
-			g_logger_error("The ScriptAnalyzer failed to load @math-anim builtin definitions. Errors:");
-			for (int i = 0; i < loadResult.parseResult.errors.size(); i++)
+			// Register our own builtin globals 
+			Luau::LoadDefinitionFileResult loadResult =
+				Luau::loadDefinitionFile(
+					frontend->typeChecker,
+					frontend->typeChecker.globalScope,
+					MathAnimGlobals::getBuiltinDefinitionSource(),
+					"math-anim"
+				);
+			if (!loadResult.success)
 			{
-				g_logger_error("%s at line:column %d:%d", 
-					loadResult.parseResult.errors[i].getMessage().c_str(),
-					loadResult.parseResult.errors[i].getLocation().begin.line,
-					loadResult.parseResult.errors[i].getLocation().begin.column);
+				g_logger_error("The ScriptAnalyzer failed to load math-anim builtin definitions. Errors:");
+				for (int i = 0; i < loadResult.parseResult.errors.size(); i++)
+				{
+					g_logger_error("%s at line:column %d:%d",
+						loadResult.parseResult.errors[i].getMessage().c_str(),
+						loadResult.parseResult.errors[i].getLocation().begin.line,
+						loadResult.parseResult.errors[i].getLocation().begin.column);
+				}
+			}
+
+			Luau::TypeArena& arena = frontend->typeChecker.globalTypes;
+			//arena.addType(loadResult.module.get()->astTypes[0]);
+		}
+		{
+			// Register our own builtin types 
+			Luau::LoadDefinitionFileResult loadResult =
+				Luau::loadDefinitionFile(
+					frontend->typeChecker,
+					frontend->typeChecker.globalScope,
+					MathAnimGlobals::getMathAnimApiTypes(),
+					"math-anim"
+				);
+			if (!loadResult.success)
+			{
+				g_logger_error("The ScriptAnalyzer failed to load math-anim builtin definitions. Errors:");
+				for (int i = 0; i < loadResult.parseResult.errors.size(); i++)
+				{
+					g_logger_error("%s at line:column %d:%d",
+						loadResult.parseResult.errors[i].getMessage().c_str(),
+						loadResult.parseResult.errors[i].getLocation().begin.line,
+						loadResult.parseResult.errors[i].getLocation().begin.column);
+				}
 			}
 		}
 		Luau::freeze(frontend->typeChecker.globalTypes);
@@ -194,6 +220,14 @@ void ScriptFileResolver::setAnonymousFile(const std::string& source, const std::
 
 std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::ModuleName& name)
 {
+	if (name == "math-anim" || name == "math-anim.luau")
+	{
+		Luau::SourceCode res;
+		res.type = res.Module;
+		res.source = MathAnim::MathAnimGlobals::getMathAnimModule();
+		return res;
+	}
+
 	std::string scriptPath = (scriptDirectory / name).string();
 	if (!MathAnim::Platform::fileExists(scriptPath.c_str()) && anonymousName == name)
 	{
@@ -283,7 +317,7 @@ static void report(ReportFormat format, const char* filepath, const Luau::Locati
 	{
 	case ReportFormat::Default:
 		//ConsoleLogError("%s(%d,%d): %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, type, message);
-		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "%s: %s", type, message);
+		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "Analysis Failed: %s: %s", type, message);
 		break;
 
 	case ReportFormat::Luacheck:
@@ -294,14 +328,14 @@ static void report(ReportFormat format, const char* filepath, const Luau::Locati
 
 		// Use stdout to match luacheck behavior
 		//ConsoleLogError("%s:%d:%d-%d: (W0) %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, columnEnd, type, message);
-		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "(W0) %s: %s", type, message);
+		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "Analysis Failed: (W0) %s: %s", type, message);
 		break;
 	}
 
 	case ReportFormat::Gnu:
 		// Note: GNU end column is inclusive but our end column is exclusive
 		//ConsoleLogError("%s:%d.%d-%d.%d: %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, loc.end.line + 1, loc.end.column, type, message);
-		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "%s: %s", type, message);
+		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "Analysis Failed: %s: %s", type, message);
 		break;
 	}
 }

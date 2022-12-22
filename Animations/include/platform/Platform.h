@@ -6,6 +6,8 @@ namespace MathAnim
 {
 	namespace Platform
 	{
+		const std::vector<std::string>& getAvailableFonts();
+
 		bool isProgramInstalled(const char* displayName);
 
 		bool getProgramInstallDir(const char* programDisplayName, char* buffer, size_t bufferLength);

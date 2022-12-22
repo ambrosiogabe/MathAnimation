@@ -2,6 +2,8 @@
 #define MATH_ANIM_CONSOLE_LOG_H
 #include "core.h"
 
+struct lua_State;
+
 namespace MathAnim
 {
 	namespace ConsoleLog
@@ -12,6 +14,11 @@ namespace MathAnim
 		void error(const char* filename, int line, const char* format, ...);
 
 		void update();
+
+		void log(lua_State* L, const char* format, ...);
+		void info(lua_State* L, const char* format, ...);
+		void warning(lua_State* L, const char* format, ...);
+		void error(lua_State* L, const char* format, ...);
 	}
 }
 

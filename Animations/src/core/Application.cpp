@@ -121,8 +121,8 @@ namespace MathAnim
 				sceneData.currentScene = 0;
 			}
 
-			LuauLayer::init(currentProjectRoot + "/scripts");
 			EditorGui::init(am, currentProjectRoot);
+			LuauLayer::init(currentProjectRoot + "/scripts", am);
 
 			svgCache = new SvgCache();
 			svgCache->init();

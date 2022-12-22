@@ -574,7 +574,7 @@ namespace MathAnim
 			t = CMath::mapRange(Vec2{ 0.0f, 1.0f }, Vec2{ 0.0f, 1.0f + timeWidth }, t);
 			float tStart = t - timeWidth;
 			float tEnd = t;
-			
+
 			Renderer::renderOutline(path, tStart, tEnd, false);
 
 			Renderer::free(path);
@@ -735,6 +735,69 @@ namespace MathAnim
 		return res;
 	}
 
+	void ScriptObject::serialize(RawMemory& memory) const
+	{
+		// ScriptFilepathLength    -> u32
+		// ScriptFilepath          -> u8[ScriptFilepathLenght]
+		uint32 scriptFilepathLengthU32 = (uint32)scriptFilepathLength;
+		memory.write<uint32>(&scriptFilepathLengthU32);
+		memory.writeDangerous((const uint8*)scriptFilepath, sizeof(uint8) * scriptFilepathLength);
+	}
+
+	void ScriptObject::free()
+	{
+		if (scriptFilepath)
+		{
+			g_memory_free((void*)scriptFilepath);
+		}
+
+		scriptFilepath = nullptr;
+		scriptFilepathLength = 0;
+	}
+
+	ScriptObject ScriptObject::deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			ScriptObject res;
+
+			// ScriptFilepathLength    -> u32
+			// ScriptFilepath          -> u8[ScriptFilepathLenght]
+			uint32 scriptFilepathLengthU32;
+			memory.read<uint32>(&scriptFilepathLengthU32);
+			res.scriptFilepathLength = (size_t)scriptFilepathLengthU32;
+			res.scriptFilepath = (char*)g_memory_allocate(sizeof(uint8) * (res.scriptFilepathLength + 1));
+			memory.readDangerous((uint8*)res.scriptFilepath, sizeof(uint8) * res.scriptFilepathLength);
+			res.scriptFilepath[res.scriptFilepathLength] = '\0';
+			return res;
+		}
+
+		static const ScriptObject dummy = {nullptr, 0};
+		return dummy;
+	}
+
+	ScriptObject ScriptObject::createDefault()
+	{
+		ScriptObject res;
+		res.scriptFilepath = (char*)g_memory_allocate(sizeof(char) * 1);
+		res.scriptFilepathLength = 0;
+
+		return res;
+	}
+
+	void AnimObject::setName(const char* newName, size_t newNameLength)
+	{
+		if (newNameLength == 0)
+		{
+			newNameLength = std::strlen(newName);
+		}
+
+		name = (uint8*)g_memory_realloc(name, sizeof(char) * (newNameLength + 1));
+		nameLength = (int32_t)newNameLength;
+		g_memory_copyMem(name, (void*)newName, newNameLength * sizeof(char));
+		name[newNameLength] = '\0';
+	}
+
 	void AnimObject::onGizmo(AnimationManagerData* am)
 	{
 		if (is3D)
@@ -776,6 +839,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::LaTexObject:
 		case AnimObjectTypeV1::Cube:
 		case AnimObjectTypeV1::SvgFileObject:
+		case AnimObjectTypeV1::ScriptObject:
 			// NOP: No Special logic, but I'll leave this just in case I think
 			// of something
 			break;
@@ -865,6 +929,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::LaTexObject:
 		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::Camera:
+		case AnimObjectTypeV1::ScriptObject:
 			// NOP: These just have a bunch of children anim objects that get rendered
 			break;
 		case AnimObjectTypeV1::Length:
@@ -1229,6 +1294,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 			this->as.camera.free();
 			break;
+		case AnimObjectTypeV1::ScriptObject:
+			this->as.script.free();
+			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
 			break;
@@ -1339,6 +1407,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 			this->as.camera.serialize(memory);
 			break;
+		case AnimObjectTypeV1::ScriptObject:
+			this->as.script.serialize(memory);
+			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
 			break;
@@ -1363,6 +1434,7 @@ namespace MathAnim
 		AnimObject* parent = AnimationManager::getMutableObject(am, parentId);
 		AnimObject res = createDefault(am, type);
 		res.takeAttributesFrom(*parent);
+		res.parentId = parentId;
 
 		if (addChildAsGenerated)
 		{
@@ -1484,6 +1556,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 			res.as.camera = CameraObject::createDefault();
 			break;
+		case AnimObjectTypeV1::ScriptObject:
+			res.as.script = ScriptObject::createDefault();
+			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
 			break;
@@ -1564,6 +1639,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Axis:
 		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::Camera:
+		case AnimObjectTypeV1::ScriptObject:
 			// TODO: Implement Copy for these
 			break;
 		case AnimObjectTypeV1::Length:
@@ -1721,6 +1797,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Camera:
 			res.as.camera = CameraObject::deserialize(memory, version);
+			break;
+		case AnimObjectTypeV1::ScriptObject:
+			res.as.script = ScriptObject::deserialize(memory, version);
 			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
