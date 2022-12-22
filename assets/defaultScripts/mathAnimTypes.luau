@@ -30,36 +30,38 @@ export type u64 = {
     hight: number
 }
 
-export type AnimObject = {
-    id: u64,
-    setName: (name: string) -> (),
-    setPositionVec: (position: Vec3) -> (),
-    setPosition: (x: number, y: number, z: number) -> (),
-    svgObject: SvgObject,
-}
-
 export type SvgObject = {
-    beginPath: (startPosition: Vec2) -> (),
-    closePath: (connectLastPoint: boolean) -> (),
-    setPathAsHole: () -> (),
+    ptr: any,
+
+    beginPath: (svgObject: SvgObject, startPosition: Vec2) -> (),
+    closePath: (svgObject: SvgObject, connectLastPoint: boolean) -> (),
+    setPathAsHole: (svgObject: SvgObject) -> (),
 
     -- Absolute svg commands
-    moveTo: (position: Vec2) -> (),
-    lineTo: (p0: Vec2) -> (),
-    vtLineTo: (y0: number) -> (),
-    hzLineTo: (x0: number) -> (),
-    quadTo: (p0: Vec2, p1: Vec2) -> (),
-    cubicTo: (p0: Vec2, p1: Vec2, p2: Vec2) -> (),
-    arcTo: (radius: Vec2, xAxisRot: number, largeArcFlag: boolean, sweepFlag: boolean, p0: Vec2) -> (),
+    moveTo: (svgObject: SvgObject, position: Vec2) -> (),
+    lineTo: (svgObject: SvgObject, p0: Vec2) -> (),
+    vtLineTo: (svgObject: SvgObject, y0: number) -> (),
+    hzLineTo: (svgObject: SvgObject, x0: number) -> (),
+    quadTo: (svgObject: SvgObject, p0: Vec2, p1: Vec2) -> (),
+    cubicTo: (svgObject: SvgObject, p0: Vec2, p1: Vec2, p2: Vec2) -> (),
+    arcTo: (svgObject: SvgObject, radius: Vec2, xAxisRot: number, largeArcFlag: boolean, sweepFlag: boolean, p0: Vec2) -> (),
 
     -- Relative svg commands
-    moveToRel: (position: Vec2) -> (),
-    vtLineToRel: (y0: number) -> (),
-    hzLineToRel: (x0: number) -> (),
-    lineToRel: (p0: Vec2) -> (),
-    quadToRel: (p0: Vec2, p1: Vec2) -> (),
-    cubicToRel: (p0: Vec2, p1: Vec2, p2: Vec2) -> (),
-    arcToRel: (radius: Vec2, xAxisRot: number, largeArcFlag: boolean, sweepFlag: boolean, p0: Vec2) -> ()
+    moveToRel: (svgObject: SvgObject, position: Vec2) -> (),
+    vtLineToRel: (svgObject: SvgObject, y0: number) -> (),
+    hzLineToRel: (svgObject: SvgObject, x0: number) -> (),
+    lineToRel: (svgObject: SvgObject, p0: Vec2) -> (),
+    quadToRel: (svgObject: SvgObject, p0: Vec2, p1: Vec2) -> (),
+    cubicToRel: (svgObject: SvgObject, p0: Vec2, p1: Vec2, p2: Vec2) -> (),
+    arcToRel: (svgObject: SvgObject, radius: Vec2, xAxisRot: number, largeArcFlag: boolean, sweepFlag: boolean, p0: Vec2) -> ()
+}
+
+export type AnimObject = {
+    id: u64,
+    setName: (self: AnimObject, name: string) -> (),
+    setPositionVec: (self: AnimObject, position: Vec3) -> (),
+    setPosition: (self: AnimObject, x: number, y: number, z: number) -> (),
+    svgObject: SvgObject,
 }
 
 type MathAnimModule = {

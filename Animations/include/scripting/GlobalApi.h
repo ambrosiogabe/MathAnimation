@@ -22,6 +22,7 @@ extern "C"
 	// ------- Svg Objects -------
 	int global_svgBeginPath(lua_State* L);
 	int global_svgClosePath(lua_State* L);
+	int global_svgSetPathAsHole(lua_State* L);
 
 	// Absolute Commands
 	int global_svgMoveTo(lua_State* L);
