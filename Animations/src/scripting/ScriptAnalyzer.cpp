@@ -135,7 +135,7 @@ namespace MathAnim
 			g_logger_error("Error opening %s", filename.c_str());
 		}
 
-		std::string scriptFilepath = (m_scriptDirectory / filename).make_preferred().string();
+		std::string scriptFilepath = (m_scriptDirectory / filename).make_preferred().lexically_normal().string();
 		for (auto& error : cr.errors)
 		{
 			reportError(frontend, scriptFilepath.c_str(), ReportFormat::Default, error);

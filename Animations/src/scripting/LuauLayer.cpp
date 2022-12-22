@@ -5,6 +5,7 @@
 #include "platform/Platform.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
+#include "editor/ConsoleLog.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -19,10 +20,18 @@ namespace MathAnim
 		size_t size;
 	};
 
+	struct ParsedError
+	{
+		std::string filepath;
+		int lineNumber;
+		std::string message;
+	};
+
 	namespace LuauLayer
 	{
 		// ---------- Internal Functions ----------
 		static void* luaAllocWrapper(void* ud, void* ptr, size_t osize, size_t nsize);
+		static ParsedError parseError(const char* luaRuntimeErrorMessage);
 
 		// ---------- Internal Variables ----------
 		ScriptAnalyzer* analyzer = nullptr;
@@ -62,7 +71,7 @@ namespace MathAnim
 				return false;
 			}
 
-			std::string scriptPath = (scriptDirectory / filename).make_preferred().string();
+			std::string scriptPath = (scriptDirectory / filename).make_preferred().lexically_normal().string();
 			FILE* fp = fopen(scriptPath.c_str(), "rb");
 			if (!fp)
 			{
@@ -186,7 +195,8 @@ namespace MathAnim
 				result = lua_pcall(luaState, 0, LUA_MULTRET, 0);
 				if (result)
 				{
-					g_logger_error("Failed to run script: %s", lua_tostring(luaState, -1));
+					ParsedError error = parseError(lua_tostring(luaState, -1));
+					ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
 					lua_pop(luaState, 1);
 					return false;
 				}
@@ -226,7 +236,8 @@ namespace MathAnim
 				result = lua_pcall(luaState, 0, LUA_MULTRET, 0);
 				if (result)
 				{
-					g_logger_error("Failed to load script: %s", lua_tostring(luaState, -1));
+					ParsedError error = parseError(lua_tostring(luaState, -1));
+					ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
 					lua_pop(luaState, 1);
 					return false;
 				}
@@ -238,7 +249,8 @@ namespace MathAnim
 				result = lua_pcall(luaState, 1, 0, 0);
 				if (result)
 				{
-					g_logger_error("Failed to run function(%s): %s", functionName.c_str(), lua_tostring(luaState, -1));
+					ParsedError error = parseError(lua_tostring(luaState, -1));
+					ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
 					lua_pop(luaState, 1);
 					return false;
 				}
@@ -301,6 +313,96 @@ namespace MathAnim
 			}
 			else
 				return ::realloc(ptr, nsize);
+		}
+
+		// Disgusting quick parsing to get the dumb error message in
+		// a nicer struct
+		static ParsedError parseError(const char* message)
+		{
+			ParsedError res = {};
+
+			// Lua runtime error messages look like this:
+			// [string "C:/SomeFile/Path.luau"]:10: Error Message
+			size_t messageLength = std::strlen(message);
+			constexpr const char stringKeyword[] = "string";
+
+			bool foundStringKeyword = false;
+			bool foundStartQuote = false;
+			bool foundEndQuote = false;
+			bool foundLineNumberStart = false;
+
+			size_t filepathStart = 0;
+			size_t filepathEnd = 0;
+			size_t lineNumberStart = 0;
+			size_t lineNumberEnd = 0;
+			size_t errorMessageStart = 0;
+
+			for (size_t i = 0; i < messageLength; i++)
+			{
+				if (!foundStringKeyword && message[i] == 's')
+				{
+					if (i + (sizeof(stringKeyword) - 1) < messageLength)
+					{
+						for (size_t j = 0; j < (sizeof(stringKeyword) - 1); j++)
+						{
+							if (stringKeyword[j] != message[i + j])
+							{
+								break;
+							}
+						}
+						foundStringKeyword = true;
+						i += sizeof(stringKeyword) - 1;
+					}
+				}
+
+				if (foundStartQuote && !foundEndQuote && message[i] == '"')
+				{
+					foundEndQuote = true;
+					filepathEnd = i;
+				}
+
+				if (foundStringKeyword && !foundStartQuote && message[i] == '"')
+				{
+					foundStartQuote = true;
+					filepathStart = i + 1;
+				}
+
+				if (foundEndQuote && !foundLineNumberStart && message[i] >= '0' && message[i] <= '9')
+				{
+					foundLineNumberStart = true;
+					lineNumberStart = i;
+					for (int j = i; j < messageLength; j++)
+					{
+						if (message[j] < '0' || message[j] > '9')
+						{
+							lineNumberEnd = j;
+							i = j;
+							errorMessageStart = i + 1;
+							break;
+						}
+					}
+				}
+
+				if (foundLineNumberStart)
+				{
+					break;
+				}
+			}
+
+			// Sanitize inputs
+			filepathStart = glm::clamp(filepathStart, (size_t)0, messageLength);
+			filepathEnd = glm::clamp(filepathEnd, filepathStart, messageLength);
+			lineNumberStart = glm::clamp(lineNumberStart, filepathEnd, messageLength);
+			lineNumberEnd = glm::clamp(lineNumberEnd, lineNumberStart, messageLength);
+			errorMessageStart = glm::clamp(errorMessageStart, lineNumberEnd, messageLength);
+
+			// Get the strings
+			res.filepath = std::string(message + filepathStart, message + filepathEnd);
+			res.filepath = std::filesystem::path(res.filepath).lexically_normal().string();
+			res.lineNumber = std::stoi(std::string(message + lineNumberStart, message + lineNumberEnd));
+			res.message = std::string(message + errorMessageStart, message + messageLength);
+
+			return res;
 		}
 	}
 }

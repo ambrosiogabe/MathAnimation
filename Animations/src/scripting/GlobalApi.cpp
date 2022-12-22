@@ -10,12 +10,38 @@
 #include <lualib.h>
 #include <luaconf.h>
 
+#define throwError(L, errorMessage) \
+do { \
+	lua_pushstring(L, errorMessage); \
+	lua_error(L); \
+    return -1; \
+} while(false)
+
+#define throwErrorNoReturn(L, errorMessage) \
+do { \
+	lua_pushstring(L, errorMessage); \
+	lua_error(L); \
+} while(false)
+
 #define argumentCheck(L, start, end, fnSignature, actualNumArgs) \
 do { \
 	if (!(actualNumArgs >= start && actualNumArgs <= end)) { \
 		ConsoleLog::error(L, "Invalid number of arguments passed to "#fnSignature". Expected >= "#start" && <= "#end" Instead got: %d", actualNumArgs); \
+		throwError(L, "Invalid number of arguments passed to "#fnSignature); \
 	} \
-} while (false) 
+} while (false)
+
+#define argumentCheckWithSelf(L, expectedNumArgs, fnSignature, actualNumArgs) \
+do { \
+	if (actualNumArgs != expectedNumArgs + 1) { \
+		if (actualNumArgs == expectedNumArgs) { \
+			ConsoleLog::error(L, "Invalid number of arguments passed to "#fnSignature". Did you call setName like obj."#fnSignature"? If you did, you need to change the syntax to obj:"#fnSignature" with the ':' instead of the '.'"); \
+		} else { \
+			ConsoleLog::error(L, "Invalid number of arguments passed to "#fnSignature". Expected %d number of arguments, instead got: %d", expectedNumArgs, actualNumArgs); \
+		} \
+		throwError(L, "Invalid number of arguments passed to "#fnSignature); \
+	} \
+} while(false)
 
 extern "C"
 {
@@ -293,22 +319,18 @@ extern "C"
 	{
 		// setName: (self: AnimObject, name: string) -> (),
 		int nargs = lua_gettop(L);
-		argumentCheck(L, 2, 2, "setName(AnimObject, string)", nargs);
+		argumentCheckWithSelf(L, 1, setName(nameString), nargs);
 
 		AnimationManagerData* am = getAnimationManagerData(L);
 
 		if (!lua_istable(L, 1))
 		{
-			ConsoleLog::error(L, "Error: AnimObject.setName expects first argument to be of type AnimObject.");
-			lua_pop(L, 1);
-			return 0;
+			throwError(L, "Error: AnimObject.setName expects first argument to be of type AnimObject.");
 		}
 
 		if (!lua_isstring(L, 2))
 		{
-			ConsoleLog::error(L, "Error: AnimObject.setName expects second argument to be of type string.");
-			lua_pop(L, 1);
-			return 0;
+			throwError(L, "Error: AnimObject.setName expects second argument to be of type string.");
 		}
 
 		lua_getfield(L, 1, "id");
@@ -329,7 +351,7 @@ extern "C"
 	{
 		// setPositionVec: (self: AnimObject, position : Vec3) -> (),
 		int nargs = lua_gettop(L);
-		argumentCheck(L, 2, 2, "setPosition(AnimObject, string)", nargs);
+		argumentCheckWithSelf(L, 1, setPosition({x = xPos, y = yPos, z = zPos}), nargs);
 
 		AnimationManagerData* am = getAnimationManagerData(L);
 
@@ -354,7 +376,7 @@ extern "C"
 	{
 		// setPosition: (self: AnimObject, x: number, y: number, z: number) -> (),
 		int nargs = lua_gettop(L);
-		argumentCheck(L, 4, 4, "setPosition(AnimObject, number, number, number)", nargs);
+		argumentCheckWithSelf(L, 3, setPosition(x, y, z), nargs);
 
 		AnimationManagerData* am = getAnimationManagerData(L);
 
@@ -366,22 +388,19 @@ extern "C"
 		float x = lua_tonumber(L, 2);
 		if (!lua_isnumber(L, 2))
 		{
-			ConsoleLog::error(L, "Expected number as second argument in setPosition(self, x, y, z). Got something else instead.");
-			x = NAN;
+			throwError(L, "Expected number as first argument in setPosition(x, y, z). Got something else instead.");
 		}
 
 		float y = lua_tonumber(L, 3);
 		if (!lua_isnumber(L, 3))
 		{
-			ConsoleLog::error(L, "Expected number as third argument in setPosition(self, x, y, z). Got something else instead.");
-			y = NAN;
+			throwError(L, "Expected number as second argument in setPosition(x, y, z). Got something else instead.");
 		}
 
 		float z = lua_tonumber(L, 4);
 		if (!lua_isnumber(L, 4))
 		{
-			ConsoleLog::error(L, "Expected number as fourth argument in setPosition(self, x, y, z). Got something else instead.");
-			z = NAN;
+			throwError(L, "Expected number as third argument in setPosition(x, y, z). Got something else instead.");
 		}
 
 		AnimObject* obj = AnimationManager::getMutableObject(am, id);
@@ -396,7 +415,7 @@ extern "C"
 	int global_require(lua_State* L)
 	{
 		int nargs = lua_gettop(L);
-		argumentCheck(L, 1, 1, "require", nargs);
+		argumentCheck(L, 1, 1, require(), nargs);
 
 		if (nargs != 1)
 		{
@@ -405,7 +424,7 @@ extern "C"
 
 		if (!lua_isstring(L, 1))
 		{
-			ConsoleLog::error(L, "Expected string as argument to function require. Instead got garbage.");
+			throwError(L, "Expected string as argument to require(someString). Instead got garbage.");
 			return 0;
 		}
 
@@ -466,7 +485,7 @@ extern "C"
 		lua_getfield(L, index, "x");
 		if (!lua_isnumber(L, -1))
 		{
-			ConsoleLog::error(L, "Vec3.x expected number. Instead got something else.");
+			throwErrorNoReturn(L, "Vec3.x expected number. Instead got something else.");
 			return res;
 		}
 		res.x = (float)lua_tonumber(L, -1);
@@ -474,7 +493,7 @@ extern "C"
 		lua_getfield(L, index, "y");
 		if (!lua_isnumber(L, -1))
 		{
-			ConsoleLog::error(L, "Vec3.y expected number. Instead got something else.");
+			throwErrorNoReturn(L, "Vec3.y expected number. Instead got something else.");
 			return res;
 		}
 		res.y = (float)lua_tonumber(L, -1);
@@ -482,7 +501,7 @@ extern "C"
 		lua_getfield(L, index, "z");
 		if (!lua_isnumber(L, -1))
 		{
-			ConsoleLog::error(L, "Vec3.z expected number. Instead got something else.");
+			throwErrorNoReturn(L, "Vec3.z expected number. Instead got something else.");
 			return res;
 		}
 		res.z = (float)lua_tonumber(L, -1);

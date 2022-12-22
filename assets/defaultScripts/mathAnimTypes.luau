@@ -32,14 +32,16 @@ export type u64 = {
 
 export type AnimObject = {
     id: u64,
-    setName: (self: AnimObject, name: string) -> (),
-    setPositionVec: (self: AnimObject, position: Vec3) -> (),
-    setPosition: (self: AnimObject, x: number, y: number, z: number) -> (),
+    setName: (name: string) -> (),
+    setPositionVec: (position: Vec3) -> (),
+    setPosition: (x: number, y: number, z: number) -> (),
     svgObject: SvgObject,
 }
 
 export type SvgObject = {
     beginPath: (startPosition: Vec2) -> (),
+    closePath: (connectLastPoint: boolean) -> (),
+    setPathAsHole: () -> (),
 
     -- Absolute svg commands
     moveTo: (position: Vec2) -> (),
@@ -57,10 +59,7 @@ export type SvgObject = {
     lineToRel: (p0: Vec2) -> (),
     quadToRel: (p0: Vec2, p1: Vec2) -> (),
     cubicToRel: (p0: Vec2, p1: Vec2, p2: Vec2) -> (),
-    arcToRel: (radius: Vec2, xAxisRot: number, largeArcFlag: boolean, sweepFlag: boolean, p0: Vec2) -> (),
-
-    -- Connects last point in path to start point
-    closePath: () -> ()
+    arcToRel: (radius: Vec2, xAxisRot: number, largeArcFlag: boolean, sweepFlag: boolean, p0: Vec2) -> ()
 }
 
 type MathAnimModule = {
