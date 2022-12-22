@@ -64,7 +64,6 @@ namespace MathAnim
 			};
 		}
 
-		// Doesn't exist, create it
 		put(animObj, svg);
 		return get(am, obj);
 	}
@@ -85,6 +84,7 @@ namespace MathAnim
 			// Check if the SVG cache needs to regenerate
 			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale);
 			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);
+
 			Vec2 allottedSize = Vec2{ svgTotalWidth, svgTotalHeight };
 			{
 				int newRightX = (int)(svgTextureOffset.x + svgTotalWidth + cachePadding.x);

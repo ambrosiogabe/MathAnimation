@@ -397,10 +397,19 @@ namespace MathAnim
 			errorMessageStart = glm::clamp(errorMessageStart, lineNumberEnd, messageLength);
 
 			// Get the strings
-			res.filepath = std::string(message + filepathStart, message + filepathEnd);
-			res.filepath = std::filesystem::path(res.filepath).lexically_normal().string();
-			res.lineNumber = std::stoi(std::string(message + lineNumberStart, message + lineNumberEnd));
-			res.message = std::string(message + errorMessageStart, message + messageLength);
+			if (foundStringKeyword && foundStartQuote && foundEndQuote && foundLineNumberStart)
+			{
+				res.filepath = std::string(message + filepathStart, message + filepathEnd);
+				res.filepath = std::filesystem::path(res.filepath).lexically_normal().string();
+				res.lineNumber = std::stoi(std::string(message + lineNumberStart, message + lineNumberEnd));
+				res.message = std::string(message + errorMessageStart, message + messageLength);
+			}
+			else
+			{
+				res.filepath = getCurrentExecutingScriptFilepath();
+				res.lineNumber = -1;
+				res.message = message;
+			}
 
 			return res;
 		}

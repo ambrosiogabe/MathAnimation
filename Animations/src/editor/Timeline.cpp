@@ -1298,7 +1298,7 @@ namespace MathAnim
 				g_memory_copyMem((void*)buffer, script.scriptFilepath, sizeof(char) * script.scriptFilepathLength);
 				buffer[script.scriptFilepathLength] = '\0';
 			}
-			
+
 			if (ImGuiExtended::FileDragDropInputBox(": Script File##ScriptFileTarget", am, buffer, bufferSize))
 			{
 				size_t newFilepathLength = std::strlen(buffer);
@@ -1322,11 +1322,39 @@ namespace MathAnim
 							AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
 						}
 					}
+					obj->generatedChildrenIds.clear();
 
 					// Next init again which should regenerate the children
 					if (LuauLayer::compile(script.scriptFilepath))
 					{
-						LuauLayer::executeOnAnimObj(script.scriptFilepath, "generate", am, obj->id);
+						if (!LuauLayer::executeOnAnimObj(script.scriptFilepath, "generate", am, obj->id))
+						{
+							// If execution fails, delete any objects that may have been created prematurely
+							for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
+							{
+								AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
+								if (child)
+								{
+									SceneHierarchyPanel::deleteAnimObject(*child);
+									AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
+								}
+							}
+							obj->generatedChildrenIds.clear();
+						}
+					}
+
+					// Copy the svgObjectStart to all the svgObjects to any generated children
+					// to make sure that they render properly
+					for (auto childId : obj->generatedChildrenIds)
+					{
+						AnimObject* child = AnimationManager::getMutableObject(am, childId);
+						if (child)
+						{
+							if (child->_svgObjectStart)
+							{
+								Svg::copy(child->svgObject, child->_svgObjectStart);
+							}
+						}
 					}
 				}
 			}

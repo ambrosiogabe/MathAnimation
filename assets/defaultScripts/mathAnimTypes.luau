@@ -32,6 +32,7 @@ export type u64 = {
 
 export type SvgObject = {
     ptr: any,
+    objId: u64,
 
     beginPath: (svgObject: SvgObject, startPosition: Vec2) -> (),
     closePath: (svgObject: SvgObject, connectLastPoint: boolean) -> (),
@@ -61,6 +62,7 @@ export type AnimObject = {
     setName: (self: AnimObject, name: string) -> (),
     setPositionVec: (self: AnimObject, position: Vec3) -> (),
     setPosition: (self: AnimObject, x: number, y: number, z: number) -> (),
+    setColor: (self: AnimObject, color: Vec4) -> (),
     svgObject: SvgObject,
 }
 

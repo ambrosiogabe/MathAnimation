@@ -54,6 +54,8 @@ extern "C"
 	// --------------- Internal Functions ---------------
 	static uint64 toU64(lua_State* L, int index);
 	static void pushU64(lua_State* L, uint64 value);
+	static Vec4 toVec4(lua_State* L, int index);
+	static void pushVec4(lua_State* L, const Vec4& value);
 	static Vec3 toVec3(lua_State* L, int index);
 	static void pushVec3(lua_State* L, const Vec3& value);
 	static Vec2 toVec2(lua_State* L, int index);
@@ -115,7 +117,11 @@ extern "C"
 		AnimObjId id = toU64(L, -1);
 		lua_pop(L, 1);
 
-		AnimObject newObject = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::ScriptObject, id, true);
+		AnimObject newObject = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, id, true);
+		newObject._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		newObject.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		(*newObject._svgObjectStart) = Svg::createDefault();
+		(*newObject.svgObject) = Svg::createDefault();
 		ScriptApi::pushAnimObject(L, newObject);
 
 		// Add the animation object to the scene
@@ -218,6 +224,38 @@ extern "C"
 		if (obj)
 		{
 			obj->_positionStart = Vec3{ x, y, z };
+			obj->position = obj->_positionStart;
+		}
+
+		return 0;
+	}
+
+	int global_setAnimObjColor(lua_State* L)
+	{
+		// setColor: (self: AnimObject, color: Vec4) -> ()
+		int nargs = lua_gettop(L);
+		argumentCheckWithSelf(L, 1, setColor: (self: AnimObject, color : Vec4), nargs);
+
+		AnimationManagerData* am = getAnimationManagerData(L);
+
+		// AnimObj is first parameter
+		lua_getfield(L, 1, "id");
+		uint64 id = toU64(L, -1);
+		lua_pop(L, 1);
+
+		// Position is arg 2
+		Vec4 color = toVec4(L, 2);
+
+		AnimObject* obj = AnimationManager::getMutableObject(am, id);
+		if (obj)
+		{
+			obj->_fillColorStart = glm::u8vec4(
+				(uint8)(color.r),
+				(uint8)(color.g),
+				(uint8)(color.b),
+				(uint8)(color.a)
+			);
+			obj->fillColor = obj->_fillColorStart;
 		}
 
 		return 0;
@@ -241,9 +279,23 @@ extern "C"
 		SvgObject* svgPtr = (SvgObject*)lua_tolightuserdata(L, -1);
 		if (!svgPtr)
 		{
-			// TODO: This will leak memory if it runs and the script throws a runtime error
-			svgPtr = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-			*svgPtr = Svg::createDefault();
+			// Get the animObjId and assign it's startSvgObject to this pointer now
+			lua_getfield(L, 1, "objId");
+			AnimObjId objId = toU64(L, -1);
+			AnimObject* obj = AnimationManager::getMutableObject(am, objId);
+			if (obj)
+			{
+				obj->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+				(*obj->_svgObjectStart) = Svg::createDefault();
+				obj->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+				(*obj->svgObject) = Svg::createDefault();
+			}
+			else
+			{
+				throwError(L, "SvgObject had an invalid AnimObject. Somehow this object didn't get constructured properly.");
+			}
+
+			svgPtr = obj->_svgObjectStart;
 			lua_pushlightuserdata(L, (void*)svgPtr);
 			lua_setfield(L, 1, "ptr");
 		}
@@ -783,6 +835,83 @@ extern "C"
 		lua_setfield(L, -2, "high");
 	}
 
+	static Vec4 toVec4(lua_State* L, int index)
+	{
+		Vec4 res = { NAN, NAN, NAN, NAN };
+
+		// Vec4 could be x, y, z, w or r, g, b, a so try both
+		lua_getfield(L, index, "x");
+		if (!lua_isnumber(L, -1))
+		{
+			lua_pop(L, 1);
+			lua_getfield(L, index, "r");
+		}
+		if (!lua_isnumber(L, -1))
+		{
+			throwErrorNoReturn(L, "Vec4.x expected number. Instead got something else.");
+			return res;
+		}
+		res.x = (float)lua_tonumber(L, -1);
+
+		lua_getfield(L, index, "y");
+		if (!lua_isnumber(L, -1))
+		{
+			lua_pop(L, 1);
+			lua_getfield(L, index, "g");
+		}
+		if (!lua_isnumber(L, -1))
+		{
+			throwErrorNoReturn(L, "Vec4.y expected number. Instead got something else.");
+			return res;
+		}
+		res.y = (float)lua_tonumber(L, -1);
+
+		lua_getfield(L, index, "z");
+		if (!lua_isnumber(L, -1))
+		{
+			lua_pop(L, 1);
+			lua_getfield(L, index, "b");
+		}
+		if (!lua_isnumber(L, -1))
+		{
+			throwErrorNoReturn(L, "Vec4.z expected number. Instead got something else.");
+			return res;
+		}
+		res.z = (float)lua_tonumber(L, -1);
+
+		lua_getfield(L, index, "w");
+		if (!lua_isnumber(L, -1))
+		{
+			lua_pop(L, 1);
+			lua_getfield(L, index, "a");
+		}
+		if (!lua_isnumber(L, -1))
+		{
+			throwErrorNoReturn(L, "Vec.w expected number. Instead got something else.");
+			return res;
+		}
+		res.w = (float)lua_tonumber(L, -1);
+
+		return res;
+	}
+
+	static void pushVec4(lua_State* L, const Vec4& value)
+	{
+		lua_createtable(L, 0, 4);
+
+		lua_pushnumber(L, value.x);
+		lua_setfield(L, -2, "x");
+
+		lua_pushnumber(L, value.y);
+		lua_setfield(L, -2, "y");
+
+		lua_pushnumber(L, value.z);
+		lua_setfield(L, -2, "z");
+
+		lua_pushnumber(L, value.w);
+		lua_setfield(L, -2, "w");
+	}
+
 	static Vec3 toVec3(lua_State* L, int index)
 	{
 		Vec3 res = { NAN, NAN, NAN };
@@ -1157,16 +1286,22 @@ namespace MathAnim
 			pushCFunction(L, global_setAnimObjPosFloats, "AnimObject.setPosition: (self: AnimObject, x: number, y: number, z: number) -> ()");
 			lua_setfield(L, -2, "setPosition");
 
-			pushNewSvgObject(L);
+			pushCFunction(L, global_setAnimObjColor, " setColor: (self: AnimObject, color: Vec4) -> ()");
+			lua_setfield(L, -2, "setColor");
+
+			pushNewSvgObject(L, obj);
 			lua_setfield(L, -2, "svgObject");
 		}
 
-		void pushNewSvgObject(lua_State* L)
+		void pushNewSvgObject(lua_State* L, const AnimObject& obj)
 		{
 			lua_createtable(L, 0, 18);
 
-			lua_pushlightuserdata(L, nullptr);
+			lua_pushlightuserdata(L, obj._svgObjectStart);
 			lua_setfield(L, -2, "ptr");
+
+			pushU64(L, obj.id);
+			lua_setfield(L, -2, "objId");
 
 			pushCFunction(L, global_svgBeginPath, "Svg.beginPath: (startPosition: Vec2) -> ()");
 			lua_setfield(L, -2, "beginPath");

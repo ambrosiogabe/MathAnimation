@@ -18,6 +18,7 @@ extern "C"
 	int global_setAnimObjName(lua_State* L);
 	int global_setAnimObjPosVec3(lua_State* L);
 	int global_setAnimObjPosFloats(lua_State* L);
+	int global_setAnimObjColor(lua_State* L);
 
 	// ------- Svg Objects -------
 	int global_svgBeginPath(lua_State* L);
@@ -57,7 +58,7 @@ namespace MathAnim
 		void registerGlobalFunctions(lua_State* luaState, AnimationManagerData* am);
 
 		void pushAnimObject(lua_State* L, const AnimObject& obj);
-		void pushNewSvgObject(lua_State* L);
+		void pushNewSvgObject(lua_State* L, const AnimObject& obj);
 	}
 }
 

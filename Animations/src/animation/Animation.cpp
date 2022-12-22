@@ -738,7 +738,7 @@ namespace MathAnim
 	void ScriptObject::serialize(RawMemory& memory) const
 	{
 		// ScriptFilepathLength    -> u32
-		// ScriptFilepath          -> u8[ScriptFilepathLenght]
+		// ScriptFilepath          -> u8[ScriptFilepathLength]
 		uint32 scriptFilepathLengthU32 = (uint32)scriptFilepathLength;
 		memory.write<uint32>(&scriptFilepathLengthU32);
 		memory.writeDangerous((const uint8*)scriptFilepath, sizeof(uint8) * scriptFilepathLength);
@@ -762,7 +762,7 @@ namespace MathAnim
 			ScriptObject res;
 
 			// ScriptFilepathLength    -> u32
-			// ScriptFilepath          -> u8[ScriptFilepathLenght]
+			// ScriptFilepath          -> u8[ScriptFilepathLength]
 			uint32 scriptFilepathLengthU32;
 			memory.read<uint32>(&scriptFilepathLengthU32);
 			res.scriptFilepathLength = (size_t)scriptFilepathLengthU32;
