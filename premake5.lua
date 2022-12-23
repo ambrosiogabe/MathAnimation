@@ -68,12 +68,13 @@ project "Animations"
         "Animations/vendor/dearimgui",
         "Animations/vendor/openal/include",
         "Animations/vendor/nativeFileDialog/src/include",
+        "Animations/vendor/nlohmann/single_include",
         -- Luau include dirs
         "Animations/vendor/luau/Compiler/include",
         "Animations/vendor/luau/Common/include",
         "Animations/vendor/luau/VM/include",
         "Animations/vendor/luau/Analysis/include",
-        "Animations/vendor/luau/Ast/include",
+        "Animations/vendor/luau/Ast/include"
     }
 
     -- Add freetype libdirs for debug and release mode

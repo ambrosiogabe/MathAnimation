@@ -32,3 +32,6 @@
 [submodule "Animations/vendor/luau"]
 	path = Animations/vendor/luau
 	url = https://github.com/Roblox/luau
+[submodule "Animations/vendor/nlohmann"]
+	path = Animations/vendor/nlohmann
+	url = https://github.com/nlohmann/json

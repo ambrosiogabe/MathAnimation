@@ -32,6 +32,7 @@
 #include <mutex>
 #include <set>
 #include <unordered_set>
+#include <regex>
 
 // GLFW/glad
 #include <glad/glad.h>
