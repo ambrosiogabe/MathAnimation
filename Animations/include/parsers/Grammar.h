@@ -6,49 +6,65 @@
 
 namespace MathAnim
 {
+	struct GrammarMatch;
 	struct ParserInfo;
+	struct PatternRepository;
 
 	struct ScopedName
 	{
 		std::vector<std::string> scopes;
+		std::string friendlyName;
 
 		bool contains(const ScopedName& other);
 
 		static ScopedName from(const std::string& str);
 	};
 
+	struct Capture
+	{
+		size_t index;
+		ScopedName name;
+	};
+
 	struct CaptureList
 	{
 		// Map from capture index to the scoped name for that capture
-		std::unordered_map<size_t, ScopedName> captures;
+		std::vector<Capture> captures;
 
 		static CaptureList from(const nlohmann::json& j);
 	};
 
 	struct SimpleSyntaxPattern
 	{
-		// TODO: Replace with Onigurama regex lib
-		// std::regex match;
-		std::string match;
+		std::optional<ScopedName> name;
+		regex_t* regMatch;
 		std::optional<CaptureList> captures;
+
+		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+
+		void free();
 	};
 
 	struct SyntaxPattern; // Forward declare since this is a recursive type
 	struct ComplexSyntaxPattern
 	{
-		// TODO: Replace with Onigurama regex lib
-		// std::regex begin;
-		// std::regex end;
-		std::string begin;
-		std::string end;
+		std::optional<ScopedName> name;
+		regex_t* begin;
+		regex_t* end;
 		std::optional<CaptureList> beginCaptures;
 		std::optional<CaptureList> endCaptures;
 		std::optional<std::vector<SyntaxPattern>> patterns;
+
+		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+
+		void free();
 	};
 
 	struct PatternArray
 	{
 		std::vector<SyntaxPattern> patterns;
+
+		void free();
 	};
 
 	enum class PatternType : uint8
@@ -63,17 +79,26 @@ namespace MathAnim
 	struct SyntaxPattern
 	{
 		PatternType type;
-		std::optional<ScopedName> name;
 		std::optional<SimpleSyntaxPattern> simplePattern;
 		std::optional<ComplexSyntaxPattern> complexPattern;
 		std::optional<PatternArray> patternArray;
 		std::optional<std::string> patternInclude;
+
+		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+
+		void free();
 	};
 
 	struct PatternRepository
 	{
-		std::string repositoryName;
-		std::vector<SyntaxPattern> patterns;
+		std::unordered_map<std::string, SyntaxPattern> patterns;
+	};
+
+	struct GrammarMatch
+	{
+		size_t start;
+		size_t end;
+		ScopedName name;
 	};
 
 	// This loosely follows the rules set out by TextMate grammars.
@@ -84,10 +109,13 @@ namespace MathAnim
 		ScopedName scopeName;
 		std::string fileTypes;
 		std::vector<SyntaxPattern> patterns;
-		std::unordered_map<std::string, PatternRepository> repositories;
+		PatternRepository repository;
+		OnigRegion* region;
 
-		static Grammar importGrammar(const char* filepath);
-		static Grammar importGrammarFromString(const char* string);
+		bool getNextMatch(const std::string& code, std::vector<GrammarMatch>* outMatches) const;
+
+		static Grammar* importGrammar(const char* filepath);
+		static void free(Grammar* grammar);
 	};
 }
 

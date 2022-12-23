@@ -35,3 +35,6 @@
 [submodule "Animations/vendor/nlohmann"]
 	path = Animations/vendor/nlohmann
 	url = https://github.com/nlohmann/json
+[submodule "Animations/vendor/onigurama"]
+	path = Animations/vendor/onigurama
+	url = https://github.com/kkos/oniguruma

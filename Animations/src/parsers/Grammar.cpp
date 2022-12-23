@@ -1,4 +1,5 @@
 #include "parsers/Grammar.h"
+#include "platform/Platform.h"
 
 #include <nlohmann/json.hpp>
 
@@ -7,13 +8,18 @@ namespace MathAnim
 	using namespace nlohmann;
 
 	// ----------- Internal Functions -----------
-	static Grammar importGrammarFromJson(const json& j);
+	static Grammar* importGrammarFromJson(const json& j);
 	static SyntaxPattern parsePattern(const std::string& key, const json& json);
 	static std::vector<SyntaxPattern> parsePatternsArray(const json& json);
+	static regex_t* onigFromString(const std::string& str, bool multiline);
+	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t start, size_t end, regex_t* reg, OnigRegion* region);
+	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t start, size_t end, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures);
 
 	ScopedName ScopedName::from(const std::string& str)
 	{
 		ScopedName res = {};
+
+		res.friendlyName = str;
 
 		size_t scopeStart = 0;
 		for (size_t i = 0; i < str.length(); i++)
@@ -60,7 +66,10 @@ namespace MathAnim
 			if (val.contains("name"))
 			{
 				ScopedName name = ScopedName::from(val["name"]);
-				res.captures[captureNumber] = name;
+				Capture cap = {};
+				cap.index = captureNumber;
+				cap.name = name;
+				res.captures.emplace_back(cap);
 			}
 			else
 			{
@@ -71,61 +80,328 @@ namespace MathAnim
 		return res;
 	}
 
-	static Grammar importGrammarFromString(const char* string)
+	bool SimpleSyntaxPattern::match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
 	{
-		json j = json::parse(string);
-		return importGrammarFromJson(j);
+		std::vector<GrammarMatch> matches = checkForMatches(str, start, end, this->regMatch, region, this->captures);
+		outMatches->insert(outMatches->end(), matches.begin(), matches.end());
+
+		bool wholeMatch = false;
+		if (this->name.has_value())
+		{
+			std::optional<GrammarMatch> match = getFirstMatch(str, start, end, this->regMatch, region);
+			if (match.has_value() && match->start < end && match->end <= end)
+			{
+				match->name = (*this->name);
+				outMatches->push_back(*match);
+				wholeMatch = true;
+			}
+		}
+
+		return matches.size() > 0 || wholeMatch;
 	}
 
-	Grammar Grammar::importGrammar(const char* filepath)
+	void SimpleSyntaxPattern::free()
 	{
+		if (regMatch)
+		{
+			onig_free(regMatch);
+		}
+
+		regMatch = nullptr;
+	}
+
+	bool ComplexSyntaxPattern::match(const std::string& str, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
+	{
+		// If the begin/end pair doesn't have a match, then this rule isn't a success
+		std::optional<GrammarMatch> beginBlockMatch = getFirstMatch(str, start, endOffset, this->begin, region);
+		if (!beginBlockMatch.has_value() || beginBlockMatch->start >= endOffset)
+		{
+			return false;
+		}
+
+		size_t endBlockOffset = beginBlockMatch->end - start;
+		// This match can go to the end of the string
+		std::optional<GrammarMatch> endBlockMatch = getFirstMatch(str, start + endBlockOffset, str.length(), this->end, region);
+		if (!endBlockMatch.has_value())
+		{
+			GrammarMatch eof;
+			eof.start = str.length();
+			eof.end = str.length();
+			eof.name = ScopedName::from("EOF_NO_END_MATCH");
+
+			// If there was no end group matched, then automatically use the end of the file as the end block
+			// which is specified in the rules for textmates
+			endBlockMatch = eof;
+		}
+
+		// If the begin/end pair *does* have a match, then get all grammar matches for the begin/end blocks and
+		// run the extra patterns against the text between begin/end
+		std::vector<GrammarMatch> beginMatches = checkForMatches(str, beginBlockMatch->start, beginBlockMatch->end, this->begin, region, this->beginCaptures);
+		std::vector<GrammarMatch> endMatches = checkForMatches(str, endBlockMatch->start, endBlockMatch->end, this->end, region, this->endCaptures);
+
+		outMatches->insert(outMatches->end(), beginMatches.begin(), beginMatches.end());
+
+		bool res = beginMatches.size() > 0;
+		if (this->patterns.has_value())
+		{
+			size_t inBetweenStart = beginBlockMatch->end;
+			size_t inBetweenEnd = endBlockMatch->start;
+			for (auto pattern : *patterns)
+			{
+				// Result here doesn't matter, this is already a success if we got begin/end matches
+				bool matched = pattern.match(str, inBetweenStart, inBetweenEnd, repo, region, outMatches);
+				res = res || matched;
+			}
+		}
+
+		outMatches->insert(outMatches->end(), endMatches.begin(), endMatches.end());
+
+		if (this->name.has_value())
+		{
+			GrammarMatch inBetweenMatch = {};
+			inBetweenMatch.start = beginBlockMatch->start;
+			inBetweenMatch.end = endBlockMatch->end;
+			inBetweenMatch.name = *this->name;
+			outMatches->push_back(inBetweenMatch);
+		}
+
+		return res || endMatches.size() > 0;
+	}
+
+	void ComplexSyntaxPattern::free()
+	{
+		if (begin)
+		{
+			onig_free(begin);
+		}
+
+		if (end)
+		{
+			onig_free(end);
+		}
+
+		begin = nullptr;
+		end = nullptr;
+	}
+
+	void PatternArray::free()
+	{
+		for (auto pattern : patterns)
+		{
+			pattern.free();
+		}
+	}
+
+	bool SyntaxPattern::match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
+	{
+		switch (type)
+		{
+		case PatternType::Array:
+		{
+			if (patternArray.has_value())
+			{
+				for (auto pattern : patternArray->patterns)
+				{
+					if (pattern.match(str, start, end, repo, region, outMatches))
+					{
+						return true;
+					}
+				}
+			}
+		}
+		break;
+		case PatternType::Complex:
+		{
+			if (complexPattern.has_value())
+			{
+				return complexPattern->match(str, start, end, repo, region, outMatches);
+			}
+		}
+		break;
+		case PatternType::Include:
+		{
+			if (patternInclude.has_value())
+			{
+				auto iter = repo.patterns.find(patternInclude.value());
+				if (iter != repo.patterns.end())
+				{
+					return iter->second.match(str, start, end, repo, region, outMatches);
+				}
+				g_logger_warning("Unable to resolve pattern reference '%s'.", patternInclude.value().c_str());
+			}
+		}
+		break;
+		case PatternType::Simple:
+		{
+			if (simplePattern.has_value())
+			{
+				return simplePattern->match(str, start, end, repo, region, outMatches);
+			}
+		}
+		case PatternType::Invalid:
+			break;
+		}
+
+		return false;
+	}
+
+	void SyntaxPattern::free()
+	{
+		switch (type)
+		{
+		case PatternType::Simple:
+		{
+			if (simplePattern.has_value())
+			{
+				simplePattern->free();
+			}
+		}
+		break;
+		case PatternType::Complex:
+		{
+			if (complexPattern.has_value())
+			{
+				complexPattern->free();
+			}
+		}
+		break;
+		case PatternType::Array:
+		{
+			if (patternArray.has_value())
+			{
+				patternArray->free();
+			}
+		}
+		break;
+		case PatternType::Include:
+		case PatternType::Invalid:
+			break;
+		}
+	}
+
+	bool Grammar::getNextMatch(const std::string& code, std::vector<GrammarMatch>* outMatches) const
+	{
+		size_t start = 0;
+		if (outMatches->size() > 0)
+		{
+			start = (*outMatches)[outMatches->size() - 1].end;
+		}
+
+		size_t lineEnd = start + 1;
+		while (lineEnd < code.length())
+		{
+			for (; lineEnd < code.length(); lineEnd++)
+			{
+				if (code[lineEnd] == '\n')
+				{
+					lineEnd++;
+					break;
+				}
+			}
+
+			std::vector<GrammarMatch> tmpRes = {};
+			for (auto pattern : this->patterns)
+			{
+				std::vector<GrammarMatch> currentRes = {};
+				if (pattern.match(code, start, lineEnd, this->repository, region, &currentRes))
+				{
+					// The first match wins
+					if (tmpRes.size() == 0 || (
+						currentRes[0].start < tmpRes[0].start
+						))
+					{
+						tmpRes = currentRes;
+					}
+				}
+			}
+
+			// The first match wins
+			if (tmpRes.size() > 0)
+			{
+				outMatches->insert(outMatches->end(), tmpRes.begin(), tmpRes.end());
+				return true;
+			}
+
+			start = lineEnd - 1;
+		}
+
+		return false;
+	}
+
+	Grammar* Grammar::importGrammar(const char* filepath)
+	{
+		if (!Platform::fileExists(filepath))
+		{
+			g_logger_warning("Tried to parse grammar at filepath that does not exist: '%s'", filepath);
+			return nullptr;
+		}
+
 		std::ifstream file(filepath);
 		json j = json::parse(file);
 
 		return importGrammarFromJson(j);
 	}
 
-	// ----------- Internal Functions -----------
-	static Grammar importGrammarFromJson(const json& j)
+	void Grammar::free(Grammar* grammar)
 	{
-		Grammar res = {};
+		if (grammar)
+		{
+			for (size_t i = 0; i < grammar->patterns.size(); i++)
+			{
+				grammar->patterns[i].free();
+			}
+
+			if (grammar->region)
+			{
+				onig_region_free(grammar->region, 1);
+			}
+			grammar->region = nullptr;
+
+			grammar->~Grammar();
+			g_memory_free(grammar);
+		}
+	}
+
+	// ----------- Internal Functions -----------
+	static Grammar* importGrammarFromJson(const json& j)
+	{
+		Grammar* res = (Grammar*)g_memory_allocate(sizeof(Grammar));
+		new(res)Grammar();
+
+		res->region = onig_region_new();
 
 		if (j.contains("name"))
 		{
-			res.name = j["name"];
+			res->name = j["name"];
 		}
 
 		if (j.contains("scopeName"))
 		{
 			const std::string& scope = j["scopeName"];
-			res.scopeName = ScopedName::from(scope);
+			res->scopeName = ScopedName::from(scope);
 		}
 
-		// First parse all repositories that don't include other repositories
+		res->repository = {};
 		if (j.contains("repository"))
 		{
 			for (auto& [key, val] : j["repository"].items())
 			{
-				PatternRepository repository = {};
-				repository.repositoryName = key;
 				SyntaxPattern pattern = parsePattern(key, val);
 				if (pattern.type != PatternType::Invalid)
 				{
-					repository.patterns.emplace_back(pattern);
+					res->repository.patterns[key] = pattern;
 				}
 				else
 				{
 					g_logger_warning("Invalid pattern parsed.");
 				}
-
-				res.repositories[key] = repository;
 			}
 		}
 
 		if (j.contains("patterns"))
 		{
 			const json& patternsArray = j["patterns"];
-			res.patterns = parsePatternsArray(patternsArray);
+			res->patterns = parsePatternsArray(patternsArray);
 		}
 
 		return res;
@@ -156,17 +432,18 @@ namespace MathAnim
 		{
 			SyntaxPattern res;
 			res.type = PatternType::Simple;
+
+			SimpleSyntaxPattern p = {};
+			p.regMatch = onigFromString(json["match"], false);
+
 			if (json.contains("name"))
 			{
-				res.name = ScopedName::from(json["name"]);
+				p.name = ScopedName::from(json["name"]);
 			}
 			else
 			{
-				res.name = std::nullopt;
+				p.name = std::nullopt;
 			}
-
-			SimpleSyntaxPattern p = {};
-			p.match = std::string(json["match"]);
 
 			if (json.contains("captures"))
 			{
@@ -185,14 +462,6 @@ namespace MathAnim
 		{
 			SyntaxPattern res;
 			res.type = PatternType::Complex;
-			if (json.contains("name"))
-			{
-				res.name = ScopedName::from(json["name"]);
-			}
-			else
-			{
-				res.name = std::nullopt;
-			}
 
 			if (!json.contains("end"))
 			{
@@ -201,8 +470,17 @@ namespace MathAnim
 			}
 
 			ComplexSyntaxPattern c = {};
-			c.begin = std::string(json["begin"]);
-			c.end = std::string(json["end"]);
+			c.begin = onigFromString(json["begin"], false);
+			c.end = onigFromString(json["end"], true);
+
+			if (json.contains("name"))
+			{
+				c.name = ScopedName::from(json["name"]);
+			}
+			else
+			{
+				c.name = std::nullopt;
+			}
 
 			if (json.contains("beginCaptures"))
 			{
@@ -264,6 +542,141 @@ namespace MathAnim
 			{
 				g_logger_warning("Invalid pattern parsed.");
 			}
+		}
+
+		return res;
+	}
+
+	static regex_t* onigFromString(const std::string& str, bool multiline)
+	{
+		const char* pattern = str.c_str();
+		const char* patternEnd = pattern + str.length();
+
+		int options = multiline
+			? ONIG_OPTION_MULTILINE
+			: ONIG_OPTION_SINGLELINE;
+		options |= ONIG_OPTION_CAPTURE_GROUP;
+
+		regex_t* reg;
+		OnigErrorInfo error;
+		int parseRes = onig_new(
+			&reg,
+			(uint8*)pattern,
+			(uint8*)patternEnd,
+			options,
+			ONIG_ENCODING_ASCII,
+			ONIG_SYNTAX_DEFAULT,
+			&error
+		);
+
+		if (parseRes != ONIG_NORMAL)
+		{
+			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
+			onig_error_code_to_str((UChar*)s, parseRes, &error);
+			g_logger_error("Oniguruma Error: %s", s);
+			return nullptr;
+		}
+
+		return reg;
+	}
+
+	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region)
+	{
+		std::optional<GrammarMatch> res = std::nullopt;
+
+		const char* cstr = str.c_str();
+		const char* start = cstr + startOffset;
+		const char* end = cstr + str.length();
+		const char* range = cstr + endOffset;
+		int searchRes = onig_search(
+			reg,
+			(uint8*)cstr,
+			(uint8*)end,
+			(uint8*)start,
+			(uint8*)range,
+			region,
+			ONIG_OPTION_NONE
+		);
+
+		if (searchRes >= 0)
+		{
+			if (region->num_regs > 0)
+			{
+				// Only accept valid matches
+				if (region->beg[0] >= 0 && region->end[0] > region->beg[0])
+				{
+					GrammarMatch match = {};
+					match.start = (size_t)region->beg[0];
+					match.end = (size_t)region->end[0];
+					match.name = ScopedName::from("FIRST_MATCH");
+					res = match;
+				}
+			}
+		}
+		else if (searchRes != ONIG_MISMATCH)
+		{
+			// Error
+			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
+			onig_error_code_to_str((UChar*)s, searchRes);
+			g_logger_error("Oniguruma Error: %s", s);
+			onig_region_free(region, 1 /* 1:free self, 0:free contents only */);
+		}
+
+		return res;
+	}
+
+	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures)
+	{
+		std::vector<GrammarMatch> res = {};
+
+		const char* cstr = str.c_str();
+		const char* start = cstr + startOffset;
+		const char* end = cstr + str.length();
+		const char* range = cstr + endOffset;
+		int searchRes = onig_search(
+			reg,
+			(uint8*)cstr,
+			(uint8*)end,
+			(uint8*)start,
+			(uint8*)range,
+			region,
+			ONIG_OPTION_NONE
+		);
+
+		if (searchRes >= 0)
+		{
+			//g_logger_info("match at %d", searchRes);
+			//for (int i = 0; i < region->num_regs; i++)
+			//{
+			//	g_logger_info("%d: (%d-%d): %s", i, region->beg[i], region->end[i], std::string(str).substr(region->beg[i], region->end[i] - region->beg[i]).c_str());
+			//}
+
+			if (captures.has_value())
+			{
+				for (auto capture : captures->captures)
+				{
+					if (region->num_regs > capture.index)
+					{
+						// Only accept valid matches
+						if (region->beg[capture.index] >= 0 && region->end[capture.index] > region->beg[capture.index])
+						{
+							GrammarMatch match = {};
+							match.start = (size_t)region->beg[capture.index];
+							match.end = (size_t)region->end[capture.index];
+							match.name = capture.name;
+							res.emplace_back(match);
+						}
+					}
+				}
+			}
+		}
+		else if (searchRes != ONIG_MISMATCH)
+		{
+			// Error
+			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
+			onig_error_code_to_str((UChar*)s, searchRes);
+			g_logger_error("Oniguruma Error: %s", s);
+			onig_region_free(region, 1 /* 1:free self, 0:free contents only */);
 		}
 
 		return res;

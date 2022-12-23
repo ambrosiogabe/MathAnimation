@@ -53,6 +53,9 @@
 #define IMGUI_USER_CONFIG "core/InternalImGuiConfig.h"
 #include <imgui.h>
 
+// Regex Library for textmate grammar
+#include <oniguruma.h>
+
 // User defined literals
 MathAnim::Vec4 operator""_hex(const char* hexColor, size_t length);
 MathAnim::Vec4 toHex(const std::string& str);

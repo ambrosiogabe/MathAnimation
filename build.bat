@@ -1,5 +1,12 @@
 @echo off
 
+IF NOT EXIST .\Animations\vendor\onigurama\build\config.h (
+    mkdir .\Animations\vendor\onigurama\build 
+    pushd .\Animations\vendor\onigurama\build 
+    cmake ..
+    popd
+)
+
 IF "%~1" == "" GOTO PrintHelp
 IF "%~1" == "help" GOTO PrintHelp
 IF "%~1" == "h" GOTO PrintHelp
