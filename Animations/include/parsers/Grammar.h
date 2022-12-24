@@ -99,6 +99,7 @@ namespace MathAnim
 		size_t start;
 		size_t end;
 		ScopedName name;
+		std::vector<GrammarMatch> subMatches;
 	};
 
 	// This loosely follows the rules set out by TextMate grammars.

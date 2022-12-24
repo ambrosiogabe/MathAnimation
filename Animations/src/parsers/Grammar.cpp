@@ -82,22 +82,28 @@ namespace MathAnim
 
 	bool SimpleSyntaxPattern::match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
 	{
-		std::vector<GrammarMatch> matches = checkForMatches(str, start, end, this->regMatch, region, this->captures);
-		outMatches->insert(outMatches->end(), matches.begin(), matches.end());
+		std::vector<GrammarMatch> subMatches = checkForMatches(str, start, end, this->regMatch, region, this->captures);
 
-		bool wholeMatch = false;
+		bool captureWholePattern = false;
 		if (this->name.has_value())
 		{
 			std::optional<GrammarMatch> match = getFirstMatch(str, start, end, this->regMatch, region);
 			if (match.has_value() && match->start < end && match->end <= end)
 			{
+				match->subMatches.insert(match->subMatches.end(), subMatches.begin(), subMatches.end());
 				match->name = (*this->name);
 				outMatches->push_back(*match);
-				wholeMatch = true;
+				captureWholePattern = true;
 			}
 		}
+		
+		if (!captureWholePattern)
+		{
+			// If this rule has no scoped name, then add all the submatches by themselves
+			outMatches->insert(outMatches->end(), subMatches.begin(), subMatches.end());
+		}
 
-		return matches.size() > 0 || wholeMatch;
+		return subMatches.size() > 0 || captureWholePattern;
 	}
 
 	void SimpleSyntaxPattern::free()
@@ -139,33 +145,32 @@ namespace MathAnim
 		std::vector<GrammarMatch> beginMatches = checkForMatches(str, beginBlockMatch->start, beginBlockMatch->end, this->begin, region, this->beginCaptures);
 		std::vector<GrammarMatch> endMatches = checkForMatches(str, endBlockMatch->start, endBlockMatch->end, this->end, region, this->endCaptures);
 
-		outMatches->insert(outMatches->end(), beginMatches.begin(), beginMatches.end());
+		GrammarMatch res = {};
+		res.subMatches.insert(res.subMatches.end(), beginMatches.begin(), beginMatches.end());
 
-		bool res = beginMatches.size() > 0;
 		if (this->patterns.has_value())
 		{
 			size_t inBetweenStart = beginBlockMatch->end;
 			size_t inBetweenEnd = endBlockMatch->start;
 			for (auto pattern : *patterns)
 			{
-				// Result here doesn't matter, this is already a success if we got begin/end matches
-				bool matched = pattern.match(str, inBetweenStart, inBetweenEnd, repo, region, outMatches);
-				res = res || matched;
+				pattern.match(str, inBetweenStart, inBetweenEnd, repo, region, &res.subMatches);
 			}
 		}
 
-		outMatches->insert(outMatches->end(), endMatches.begin(), endMatches.end());
+		res.subMatches.insert(res.subMatches.end(), endMatches.begin(), endMatches.end());
 
 		if (this->name.has_value())
 		{
-			GrammarMatch inBetweenMatch = {};
-			inBetweenMatch.start = beginBlockMatch->start;
-			inBetweenMatch.end = endBlockMatch->end;
-			inBetweenMatch.name = *this->name;
-			outMatches->push_back(inBetweenMatch);
+			res.start = beginBlockMatch->start;
+			res.end = endBlockMatch->end;
+			res.name = *this->name;
+			outMatches->push_back(res);
+			return true;
 		}
-
-		return res || endMatches.size() > 0;
+		
+		outMatches->insert(outMatches->end(), res.subMatches.begin(), res.subMatches.end());
+		return res.subMatches.size() > 0;
 	}
 
 	void ComplexSyntaxPattern::free()
