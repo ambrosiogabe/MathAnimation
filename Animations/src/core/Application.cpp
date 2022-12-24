@@ -25,7 +25,7 @@
 #include "editor/EditorCameraController.h"
 #include "editor/EditorSettings.h"
 #include "editor/SceneManagementPanel.h"
-#include "parsers/Sandbox.h"
+#include "parsers/SyntaxHighlighter.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
@@ -80,8 +80,6 @@ namespace MathAnim
 
 		void init(const char* projectFile)
 		{
-			Sandbox::testStuff();
-
 			// Initialize these just in case this is a new project
 			editorCamera2D.position = Vec2{ viewportWidth / 2.0f, viewportHeight / 2.0f };
 			editorCamera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
@@ -108,6 +106,7 @@ namespace MathAnim
 			Svg::init();
 			SceneManagementPanel::init();
 			SvgParser::init();
+			Highlighters::init();
 
 			LaTexLayer::init();
 
@@ -302,6 +301,7 @@ namespace MathAnim
 			mainFramebuffer.destroy();
 			editorFramebuffer.destroy();
 
+			Highlighters::free();
 			LaTexLayer::free();
 			EditorSettings::free();
 			LuauLayer::free();

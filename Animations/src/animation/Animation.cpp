@@ -840,6 +840,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Cube:
 		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::ScriptObject:
+		case AnimObjectTypeV1::CodeBlock:
 			// NOP: No Special logic, but I'll leave this just in case I think
 			// of something
 			break;
@@ -930,6 +931,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::Camera:
 		case AnimObjectTypeV1::ScriptObject:
+		case AnimObjectTypeV1::CodeBlock:
 			// NOP: These just have a bunch of children anim objects that get rendered
 			break;
 		case AnimObjectTypeV1::Length:
@@ -1297,6 +1299,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::ScriptObject:
 			this->as.script.free();
 			break;
+		case AnimObjectTypeV1::CodeBlock:
+			this->as.codeBlock.free();
+			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
 			break;
@@ -1409,6 +1414,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::ScriptObject:
 			this->as.script.serialize(memory);
+			break;
+		case AnimObjectTypeV1::CodeBlock:
+			this->as.codeBlock.serialize(memory);
 			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
@@ -1559,6 +1567,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::ScriptObject:
 			res.as.script = ScriptObject::createDefault();
 			break;
+		case AnimObjectTypeV1::CodeBlock:
+			res.as.codeBlock = CodeBlock::createDefault();
+			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
 			break;
@@ -1640,6 +1651,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::Camera:
 		case AnimObjectTypeV1::ScriptObject:
+		case AnimObjectTypeV1::CodeBlock:
 			// TODO: Implement Copy for these
 			break;
 		case AnimObjectTypeV1::Length:
@@ -1800,6 +1812,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::ScriptObject:
 			res.as.script = ScriptObject::deserialize(memory, version);
+			break;
+		case AnimObjectTypeV1::CodeBlock:
+			res.as.codeBlock = CodeBlock::deserialize(memory, version);
 			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:

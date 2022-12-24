@@ -35,6 +35,7 @@ namespace MathAnim
 		SvgFileObject,
 		Camera,
 		ScriptObject,
+		CodeBlock,
 		Length
 	};
 
@@ -49,7 +50,8 @@ namespace MathAnim
 		"SVG Object",
 		"SVG File Object",
 		"Camera",
-		"Script Object"
+		"Script Object",
+		"Code Block"
 	);
 
 	constexpr auto _isInternalObjectOnly = fixedSizeArray<bool, (size_t)AnimObjectTypeV1::Length>(
@@ -63,7 +65,8 @@ namespace MathAnim
 		true,  // "SVG Object",
 		false, // "SVG File Object",
 		false, // "Camera"
-		false  // "Camera"
+		false, // "Script Object"
+		false  // "Code Block"
 	);
 
 	enum class AnimTypeV1 : uint32
@@ -391,6 +394,7 @@ namespace MathAnim
 			SvgFileObject svgFile;
 			CameraObject camera;
 			ScriptObject script;
+			CodeBlock codeBlock;
 		} as;
 
 		void setName(const char* newName, size_t newNameLength = 0);

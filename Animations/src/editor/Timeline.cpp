@@ -50,6 +50,7 @@ namespace MathAnim
 		static void handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId);
 		static void handleAnimationInspector(AnimationManagerData* am, AnimId animationId);
 		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static void handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleSvgFileObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object);
@@ -698,6 +699,9 @@ namespace MathAnim
 			case AnimObjectTypeV1::TextObject:
 				handleTextObjectInspector(am, animObject);
 				break;
+			case AnimObjectTypeV1::CodeBlock:
+				handleCodeBlockInspector(am, animObject);
+				break;
 			case AnimObjectTypeV1::LaTexObject:
 				handleLaTexObjectInspector(animObject);
 				break;
@@ -944,6 +948,35 @@ namespace MathAnim
 			if (shouldRegenerate)
 			{
 				object->as.textObject.reInit(am, object);
+			}
+		}
+
+		static void handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object)
+		{
+			bool shouldRegenerate = false;
+
+			constexpr int scratchLength = 512;
+			char scratch[scratchLength] = {};
+			if (object->as.codeBlock.textLength >= scratchLength)
+			{
+				g_logger_error("Text object has more than 512 characters. Tell Gabe to increase scratch length for code blocks.");
+				return;
+			}
+			g_memory_copyMem(scratch, object->as.codeBlock.text, object->as.codeBlock.textLength * sizeof(char));
+			scratch[object->as.codeBlock.textLength] = '\0';
+			if (ImGui::InputTextMultiline(": Code", scratch, scratchLength * sizeof(char)))
+			{
+				size_t newLength = std::strlen(scratch);
+				object->as.codeBlock.text = (char*)g_memory_realloc(object->as.codeBlock.text, sizeof(char) * (newLength + 1));
+				object->as.codeBlock.textLength = (int32_t)newLength;
+				g_memory_copyMem(object->as.codeBlock.text, scratch, newLength * sizeof(char));
+				object->as.codeBlock.text[newLength] = '\0';
+				shouldRegenerate = true;
+			}
+
+			if (shouldRegenerate)
+			{
+				object->as.codeBlock.reInit(am, object);
 			}
 		}
 

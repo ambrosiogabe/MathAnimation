@@ -10,12 +10,14 @@
 #include "core/Application.h"
 #include "latex/LaTexLayer.h"
 #include "editor/SceneHierarchyPanel.h"
+#include "parsers/SyntaxTheme.h"
 
 namespace MathAnim
 {
 	// ------------- Internal Functions -------------
 	static TextObject deserializeTextV1(RawMemory& memory);
 	static LaTexObject deserializeLaTexV1(RawMemory& memory);
+	static CodeBlock deserializeCodeBlockV1(RawMemory& memory);
 
 	void TextObject::init(AnimationManagerData* am, AnimObjId parentId)
 	{
@@ -320,6 +322,183 @@ namespace MathAnim
 		return res;
 	}
 
+	void CodeBlock::init(AnimationManagerData* am, AnimObjId parentId)
+	{
+		Font* font = Fonts::getDefaultMonoFont();
+		if (font == nullptr)
+		{
+			return;
+		}
+
+		const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(this->language);
+		if (!highlighter)
+		{
+			return;
+		}
+
+		const SyntaxTheme* syntaxTheme = Highlighters::getTheme(this->theme);
+		if (!syntaxTheme)
+		{
+			return;
+		}
+
+		// First parse the code block and get the code in segmented form with highlight information
+		CodeHighlights highlights = highlighter->parse(text, *syntaxTheme);
+
+		// Generate children that represent each character of the text object `obj`
+		Vec2 cursorPos = Vec2{ 0, 0 };
+		size_t codeBlockCursor = 0;
+		for (size_t textIndex = 0; textIndex < (size_t)textLength; textIndex++)
+		{
+			Vec4 textColor = syntaxTheme->defaultForeground;
+			if (codeBlockCursor < highlights.segments.size())
+			{
+				if (textIndex >= highlights.segments[codeBlockCursor].endPos)
+				{
+					codeBlockCursor++;
+				}
+			}
+
+			if (codeBlockCursor < highlights.segments.size())
+			{
+				textColor = highlights.segments[codeBlockCursor].color;
+			}
+
+			if (text[textIndex] == '\n')
+			{
+				cursorPos = Vec2{ 0.0f, cursorPos.y - font->lineHeight };
+				continue;
+			}
+
+			uint8 codepoint = (uint8)text[textIndex];
+			const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
+			if (!glyphOutline.svg)
+			{
+				continue;
+			}
+
+			float halfGlyphHeight = glyphOutline.glyphHeight / 2.0f;
+			float halfGlyphWidth = glyphOutline.glyphWidth / 2.0f;
+			Vec2 offset = Vec2{
+				glyphOutline.bearingX + halfGlyphWidth,
+				halfGlyphHeight - glyphOutline.descentY
+			};
+
+			if (text[textIndex] != ' ' && text[textIndex] != '\t')
+			{
+				// Add this character as a child
+				AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, parentId, true);
+				childObj.parentId = parentId;
+				Vec2 finalOffset = offset + cursorPos;
+				childObj._positionStart = Vec3{ finalOffset.x, finalOffset.y, 0.0f };
+				childObj.isGenerated = true;
+				// Copy the glyph as the svg object here
+				childObj._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+				childObj.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+				*(childObj._svgObjectStart) = Svg::createDefault();
+				*(childObj.svgObject) = Svg::createDefault();
+				Svg::copy(childObj._svgObjectStart, glyphOutline.svg);
+
+				childObj._fillColorStart = glm::u8vec4(
+					(uint8)(textColor.r * 255.0f),
+					(uint8)(textColor.g * 255.0f),
+					(uint8)(textColor.b * 255.0f),
+					(uint8)(textColor.a * 255.0f)
+				);
+				childObj.fillColor = childObj._fillColorStart;
+				childObj._strokeColorStart = childObj._fillColorStart;
+				childObj.strokeColor = childObj._fillColorStart;
+
+				childObj.name = (uint8*)g_memory_realloc(childObj.name, sizeof(uint8) * 2);
+				childObj.nameLength = 1;
+				childObj.name[0] = codepoint;
+				childObj.name[1] = '\0';
+
+				AnimationManager::addAnimObject(am, childObj);
+				// TODO: Ugly what do I do???
+				SceneHierarchyPanel::addNewAnimObject(childObj);
+			}
+
+			// TODO: I may have to add kerning info here
+			cursorPos += Vec2{ glyphOutline.advanceX, 0.0f };
+		}
+	}
+
+	void CodeBlock::reInit(AnimationManagerData* am, AnimObject* obj)
+	{
+		// First remove all generated children, which were generated as a result
+		// of this object (presumably)
+		// NOTE: This is direct descendants, no recursive children here
+		for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
+			if (child)
+			{
+				SceneHierarchyPanel::deleteAnimObject(*child);
+				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
+			}
+		}
+
+		// Next init again which should regenerate the children
+		init(am, obj->id);
+	}
+
+	void CodeBlock::serialize(RawMemory& memory) const
+	{
+		// theme                -> uint8
+		// language             -> uint8
+		// textLength           -> int32
+		// text                 -> char[textLength]
+		memory.write<HighlighterTheme>(&theme);
+		memory.write<HighlighterLanguage>(&language);
+
+		memory.write<int32>(&textLength);
+		memory.writeDangerous((uint8*)text, sizeof(uint8) * textLength);
+	}
+
+	void CodeBlock::free()
+	{
+		if (this->text)
+		{
+			g_memory_free(this->text);
+			this->text = nullptr;
+			this->textLength = 0;
+		}
+	}
+
+	CodeBlock CodeBlock::deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			return deserializeCodeBlockV1(memory);
+		}
+
+		g_logger_error("Invalid version '%d' while deserializing code object.", version);
+		CodeBlock res;
+		g_memory_zeroMem(&res, sizeof(CodeBlock));
+		return res;
+	}
+
+	CodeBlock CodeBlock::createDefault()
+	{
+		CodeBlock res;
+		res.language = HighlighterLanguage::Cpp;
+		res.theme = HighlighterTheme::Monokai;
+		static const char defaultText[] = R"DEFAULT_LANG(#include <stdio.h>
+
+int main()
+{
+	printf("Hello World!");
+	return 0;
+}
+)DEFAULT_LANG";
+		res.text = (char*)g_memory_allocate(sizeof(defaultText) / sizeof(char));
+		g_memory_copyMem(res.text, (void*)defaultText, sizeof(defaultText) / sizeof(char));
+		res.textLength = (sizeof(defaultText) / sizeof(char)) - 1;
+		res.text[res.textLength] = '\0';
+		return res;
+	}
+
 	// ------------- Internal Functions -------------
 	static TextObject deserializeTextV1(RawMemory& memory)
 	{
@@ -365,6 +544,26 @@ namespace MathAnim
 		memory.read<uint8>(&isEquationU8);
 		res.isEquation = isEquationU8 == 1;
 		res.isParsingLaTex = false;
+
+		return res;
+	}
+
+	static CodeBlock deserializeCodeBlockV1(RawMemory& memory)
+	{
+		CodeBlock res;
+
+		// theme                -> uint8
+		// language             -> uint8
+		// textLength           -> int32
+		// text                 -> char[textLength]
+
+		memory.read<HighlighterTheme>(&res.theme);
+		memory.read<HighlighterLanguage>(&res.language);
+
+		memory.read<int32>(&res.textLength);
+		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
+		memory.readDangerous((uint8*)res.text, sizeof(uint8) * res.textLength);
+		res.text[res.textLength] = '\0';
 
 		return res;
 	}

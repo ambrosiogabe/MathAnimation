@@ -186,6 +186,7 @@ namespace MathAnim
 		static const int hzPadding = 2;
 		static const int vtPadding = 2;
 		static FT_Library library;
+		static Font* defaultMonoFont = nullptr;
 		static std::unordered_map<std::string, SharedFont> loadedFonts;
 		static std::unordered_map<std::string, SharedSizedFont> loadedSizedFonts;
 
@@ -205,6 +206,8 @@ namespace MathAnim
 
 			g_logger_info("Initialized freetype library.");
 			initialized = true;
+
+			defaultMonoFont = loadFont("C:\\Windows\\Fonts\\consola.ttf");
 		}
 
 		int createOutline(Font* font, uint32 character, GlyphOutline* outlineResult)
@@ -507,6 +510,9 @@ namespace MathAnim
 
 		void unloadAllFonts()
 		{
+			unloadFont(defaultMonoFont);
+			defaultMonoFont = nullptr;
+
 			// Delete all unsized fonts
 			for (auto iter = loadedFonts.begin(); iter != loadedFonts.end();)
 			{
@@ -532,6 +538,11 @@ namespace MathAnim
 				iter->second.referenceCount = 0;
 				iter = loadedSizedFonts.erase(iter);
 			}
+		}
+
+		Font* getDefaultMonoFont()
+		{
+			return defaultMonoFont;
 		}
 
 		static void generateDefaultCharset(Font& font, CharRange defaultCharset)

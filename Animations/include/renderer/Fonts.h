@@ -108,6 +108,8 @@ namespace MathAnim
 		// Forcefully unloads all fonts irregardless
 		// of their current reference counts
 		void unloadAllFonts();
+
+		Font* getDefaultMonoFont();
 	}
 }
 

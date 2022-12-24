@@ -15,7 +15,7 @@ namespace MathAnim
 		this->grammar = Grammar::importGrammar(grammar.string().c_str());
 	}
 
-	CodeHighlights SyntaxHighlighter::parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo)
+	CodeHighlights SyntaxHighlighter::parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo) const
 	{
 		if (!this->grammar)
 		{
@@ -82,6 +82,61 @@ namespace MathAnim
 		}
 
 		grammar = nullptr;
+	}
+
+	namespace Highlighters
+	{
+		static const char* cppGrammarFile = "C:/dev/C++/MathAnimations/assets/defaultScripts/exampleGrammar.json";
+		static const char* monokaiThemeFile = "C:/dev/C++/MathAnimations/assets/defaultScripts/exampleTheme.json";
+		static std::unordered_map<HighlighterLanguage, SyntaxHighlighter*> grammars = {};
+		static std::unordered_map<HighlighterTheme, SyntaxTheme*> themes = {};
+
+		void init()
+		{
+			SyntaxHighlighter* cppHighlighter = (SyntaxHighlighter*)g_memory_allocate(sizeof(SyntaxHighlighter));
+			new(cppHighlighter)SyntaxHighlighter(cppGrammarFile);
+			grammars[HighlighterLanguage::Cpp] = cppHighlighter;
+			themes[HighlighterTheme::Monokai] = SyntaxTheme::importTheme(monokaiThemeFile);
+		}
+
+		const SyntaxHighlighter* getHighlighter(HighlighterLanguage language)
+		{
+			auto iter = grammars.find(language);
+			if (iter != grammars.end())
+			{
+				return iter->second;
+			}
+
+			return nullptr;
+		}
+
+		const SyntaxTheme* getTheme(HighlighterTheme theme)
+		{
+			auto iter = themes.find(theme);
+			if (iter != themes.end())
+			{
+				return iter->second;
+			}
+
+			return nullptr;
+		}
+
+		void free()
+		{
+			for (auto [k, v] : grammars)
+			{
+				v->free();
+				v->~SyntaxHighlighter();
+				g_memory_free(v);
+			}
+			grammars.clear();
+
+			for (auto [k, v] : themes)
+			{
+				SyntaxTheme::free(v);
+			}
+			themes.clear();
+		}
 	}
 
 	// --------------- Internal Functions ---------------
