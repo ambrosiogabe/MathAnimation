@@ -11,6 +11,16 @@ namespace MathAnim
 		size_t cursor;
 	};
 
+	struct ScopedName
+	{
+		std::vector<std::string> scopes;
+		std::string friendlyName;
+
+		bool contains(const ScopedName& other, int* levelMatched) const;
+
+		static ScopedName from(const std::string& str);
+	};
+
 	namespace Parsers
 	{
 

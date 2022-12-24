@@ -1,6 +1,7 @@
 #ifndef MATH_ANIM_GRAMMAR_H
 #define MATH_ANIM_GRAMMAR_H
 #include "core.h"
+#include "parsers/Common.h"
 
 #include <nlohmann/json_fwd.hpp>
 
@@ -9,16 +10,6 @@ namespace MathAnim
 	struct GrammarMatch;
 	struct ParserInfo;
 	struct PatternRepository;
-
-	struct ScopedName
-	{
-		std::vector<std::string> scopes;
-		std::string friendlyName;
-
-		bool contains(const ScopedName& other);
-
-		static ScopedName from(const std::string& str);
-	};
 
 	struct Capture
 	{

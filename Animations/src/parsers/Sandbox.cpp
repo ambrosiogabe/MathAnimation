@@ -7,6 +7,7 @@
 namespace MathAnim
 {
     static const char* testGrammarFile = "C:/dev/C++/MathAnimations/assets/defaultScripts/exampleGrammar.json";
+    static const char* testThemeFile = "C:/dev/C++/MathAnimations/assets/defaultScripts/exampleTheme.json";
     static const char* exampleCode = R"EXAMPLE(
  #include <stdio.h>
 
@@ -21,10 +22,11 @@ namespace MathAnim
 	{
         void testStuff()
         {
+            SyntaxTheme* testTheme = SyntaxTheme::importTheme(testThemeFile);
 			SyntaxHighlighter h = SyntaxHighlighter(testGrammarFile);
-            h.parse(exampleCode, SyntaxTheme{});
-            g_logger_info("Test done.");
+            h.parse(exampleCode, *testTheme);
             h.free();
+            SyntaxTheme::free(testTheme);
             return;
         }
 	}

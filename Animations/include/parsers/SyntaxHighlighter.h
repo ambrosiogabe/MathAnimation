@@ -7,7 +7,9 @@ namespace MathAnim
 	struct SyntaxTheme;
 	struct Grammar;
 
-	struct Highlight
+	// Styles a text segment from
+	//   startPos <= text < endPos
+	struct HighlightSegment
 	{
 		size_t startPos;
 		size_t endPos;
@@ -16,7 +18,7 @@ namespace MathAnim
 
 	struct CodeHighlights
 	{
-		std::vector<Highlight> highlights;
+		std::vector<HighlightSegment> segments;
 		std::string codeBlock;
 	};
 
@@ -25,7 +27,7 @@ namespace MathAnim
 	public:
 		SyntaxHighlighter(const std::filesystem::path& grammar);
 
-		CodeHighlights parse(const std::string& code, const SyntaxTheme& theme);
+		CodeHighlights parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo = false);
 
 		void free();
 

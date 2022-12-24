@@ -15,32 +15,6 @@ namespace MathAnim
 	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t start, size_t end, regex_t* reg, OnigRegion* region);
 	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t start, size_t end, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures);
 
-	ScopedName ScopedName::from(const std::string& str)
-	{
-		ScopedName res = {};
-
-		res.friendlyName = str;
-
-		size_t scopeStart = 0;
-		for (size_t i = 0; i < str.length(); i++)
-		{
-			if (str[i] == '.')
-			{
-				std::string scope = str.substr(scopeStart, i - scopeStart);
-				res.scopes.emplace_back(scope);
-				scopeStart = i + 1;
-			}
-		}
-
-		// Don't forget about the final scope in the string
-		if (scopeStart < str.length())
-		{
-			res.scopes.emplace_back(str.substr(scopeStart, str.length() - scopeStart));
-		}
-
-		return res;
-	}
-
 	CaptureList CaptureList::from(const json& j)
 	{
 		CaptureList res = {};
