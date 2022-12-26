@@ -39,10 +39,10 @@ namespace MathAnim
 
 			if (val.contains("name"))
 			{
-				ScopedName name = ScopedName::from(val["name"]);
+				ScopeRule scope = ScopeRule::from(val["name"]);
 				Capture cap = {};
 				cap.index = captureNumber;
-				cap.name = name;
+				cap.scope = scope;
 				res.captures.emplace_back(cap);
 			}
 			else
@@ -59,13 +59,13 @@ namespace MathAnim
 		std::vector<GrammarMatch> subMatches = checkForMatches(str, start, end, this->regMatch, region, this->captures);
 
 		bool captureWholePattern = false;
-		if (this->name.has_value())
+		if (this->scope.has_value())
 		{
 			std::optional<GrammarMatch> match = getFirstMatch(str, start, end, this->regMatch, region);
 			if (match.has_value() && match->start < end && match->end <= end)
 			{
 				match->subMatches.insert(match->subMatches.end(), subMatches.begin(), subMatches.end());
-				match->name = (*this->name);
+				match->scope = (*this->scope);
 				outMatches->push_back(*match);
 				captureWholePattern = true;
 			}
@@ -107,7 +107,7 @@ namespace MathAnim
 			GrammarMatch eof;
 			eof.start = str.length();
 			eof.end = str.length();
-			eof.name = ScopedName::from("EOF_NO_END_MATCH");
+			eof.scope = ScopeRule::from("EOF_NO_END_MATCH");
 
 			// If there was no end group matched, then automatically use the end of the file as the end block
 			// which is specified in the rules for textmates
@@ -134,11 +134,11 @@ namespace MathAnim
 
 		res.subMatches.insert(res.subMatches.end(), endMatches.begin(), endMatches.end());
 
-		if (this->name.has_value())
+		if (this->scope.has_value())
 		{
 			res.start = beginBlockMatch->start;
 			res.end = endBlockMatch->end;
-			res.name = *this->name;
+			res.scope = *this->scope;
 			outMatches->push_back(res);
 			return true;
 		}
@@ -357,7 +357,7 @@ namespace MathAnim
 		if (j.contains("scopeName"))
 		{
 			const std::string& scope = j["scopeName"];
-			res->scopeName = ScopedName::from(scope);
+			res->scope = ScopeRule::from(scope);
 		}
 
 		res->repository = {};
@@ -417,11 +417,11 @@ namespace MathAnim
 
 			if (json.contains("name"))
 			{
-				p.name = ScopedName::from(json["name"]);
+				p.scope = ScopeRule::from(json["name"]);
 			}
 			else
 			{
-				p.name = std::nullopt;
+				p.scope = std::nullopt;
 			}
 
 			if (json.contains("captures"))
@@ -454,11 +454,11 @@ namespace MathAnim
 
 			if (json.contains("name"))
 			{
-				c.name = ScopedName::from(json["name"]);
+				c.scope = ScopeRule::from(json["name"]);
 			}
 			else
 			{
-				c.name = std::nullopt;
+				c.scope = std::nullopt;
 			}
 
 			if (json.contains("beginCaptures"))
@@ -586,7 +586,7 @@ namespace MathAnim
 					GrammarMatch match = {};
 					match.start = (size_t)region->beg[0];
 					match.end = (size_t)region->end[0];
-					match.name = ScopedName::from("FIRST_MATCH");
+					match.scope = ScopeRule::from("FIRST_MATCH");
 					res = match;
 				}
 			}
@@ -635,7 +635,7 @@ namespace MathAnim
 							GrammarMatch match = {};
 							match.start = (size_t)region->beg[capture.index];
 							match.end = (size_t)region->end[capture.index];
-							match.name = capture.name;
+							match.scope = capture.scope;
 							res.emplace_back(match);
 						}
 					}

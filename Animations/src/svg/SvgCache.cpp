@@ -84,6 +84,10 @@ namespace MathAnim
 			// Check if the SVG cache needs to regenerate
 			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale);
 			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);
+			if (svgTotalWidth <= 0.0f || svgTotalHeight <= 0.0f)
+			{
+				return;
+			}
 
 			Vec2 allottedSize = Vec2{ svgTotalWidth, svgTotalHeight };
 			{
@@ -154,8 +158,8 @@ namespace MathAnim
 			}
 
 			svg->render(
-				parent, 
-				framebuffer.colorAttachments[this->cacheCurrentColorAttachment], 
+				parent,
+				framebuffer.colorAttachments[this->cacheCurrentColorAttachment],
 				svgTextureOffset
 			);
 
@@ -213,9 +217,9 @@ namespace MathAnim
 					metadata.texCoordsMin,
 					metadata.texCoordsMax,
 					Vec4{
-						(float)parent->fillColor.r / 255.0f, 
-						(float)parent->fillColor.g / 255.0f, 
-						(float)parent->fillColor.b / 255.0f, 
+						(float)parent->fillColor.r / 255.0f,
+						(float)parent->fillColor.g / 255.0f,
+						(float)parent->fillColor.b / 255.0f,
 						(float)parent->fillColor.a / 255.0f
 					},
 					parent->id,

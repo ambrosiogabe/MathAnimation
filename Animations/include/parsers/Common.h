@@ -14,11 +14,18 @@ namespace MathAnim
 	struct ScopedName
 	{
 		std::vector<std::string> dotSeparatedScopes;
-		std::string friendlyName;
 
 		bool contains(const ScopedName& other, int* levelMatched) const;
+	};
 
-		static ScopedName from(const std::string& str);
+	struct ScopeRule
+	{
+		std::vector<ScopedName> scopes;
+		std::string friendlyName;
+
+		bool contains(const ScopeRule& other, int* levelMatched) const;
+
+		static ScopeRule from(const std::string& str);
 	};
 
 	namespace Parsers

@@ -19,7 +19,7 @@ namespace MathAnim
 	struct TokenRule
 	{
 		std::string name;
-		std::vector<ScopedName> scopes;
+		std::vector<ScopeRule> scopes;
 		std::vector<ThemeSetting> settings;
 	};
 
@@ -30,7 +30,7 @@ namespace MathAnim
 		Vec4 defaultBackground;
 		std::vector<TokenRule> tokenColors;
 
-		const TokenRule* match(const ScopedName& scope) const;
+		const TokenRule* match(const ScopeRule& scope) const;
 
 		static SyntaxTheme* importTheme(const char* filepath);
 		static void free(SyntaxTheme* theme);

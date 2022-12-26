@@ -14,9 +14,8 @@ namespace MathAnim
 	static SyntaxTheme* importThemeFromJson(const json& json, const char* filepath);
 	static SyntaxTheme* importThemeFromXml(const XMLDocument& document, const char* filepath);
 	static const XMLElement* getValue(const XMLElement* element, const std::string& keyName);
-	static Vec4 getColor(const std::string& colorStr);
 
-	const TokenRule* SyntaxTheme::match(const ScopedName& scope) const
+	const TokenRule* SyntaxTheme::match(const ScopeRule& scope) const
 	{
 		const TokenRule* result = nullptr;
 		int maxLevelMatched = 0;
@@ -37,7 +36,7 @@ namespace MathAnim
 			for (const auto& ruleScope : rule.scopes)
 			{
 				int levelMatched;
-				if (ruleScope.contains(scope, &levelMatched))
+				if (scope.contains(ruleScope, &levelMatched))
 				{
 					if (levelMatched > maxLevelMatched)
 					{
@@ -194,12 +193,12 @@ namespace MathAnim
 			{
 				for (auto scope : color["scope"])
 				{
-					rule.scopes.emplace_back(ScopedName::from(scope));
+					rule.scopes.emplace_back(ScopeRule::from(scope));
 				}
 			}
 			else if (color["scope"].is_string())
 			{
-				rule.scopes.emplace_back(ScopedName::from(color["scope"]));
+				rule.scopes.emplace_back(ScopeRule::from(color["scope"]));
 			}
 
 			if (settingsJson.contains("foreground"))
@@ -345,7 +344,7 @@ namespace MathAnim
 
 				TokenRule rule = {};
 				rule.name = name;
-				rule.scopes.emplace_back(ScopedName::from(scopeValue->Value()));
+				rule.scopes.emplace_back(ScopeRule::from(scopeValue->Value()));
 
 				if (foregroundSetting)
 				{

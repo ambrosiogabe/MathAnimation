@@ -14,7 +14,7 @@ namespace MathAnim
 	struct Capture
 	{
 		size_t index;
-		ScopedName name;
+		ScopeRule scope;
 	};
 
 	struct CaptureList
@@ -27,7 +27,7 @@ namespace MathAnim
 
 	struct SimpleSyntaxPattern
 	{
-		std::optional<ScopedName> name;
+		std::optional<ScopeRule> scope;
 		regex_t* regMatch;
 		std::optional<CaptureList> captures;
 
@@ -39,7 +39,7 @@ namespace MathAnim
 	struct SyntaxPattern; // Forward declare since this is a recursive type
 	struct ComplexSyntaxPattern
 	{
-		std::optional<ScopedName> name;
+		std::optional<ScopeRule> scope;
 		regex_t* begin;
 		regex_t* end;
 		std::optional<CaptureList> beginCaptures;
@@ -89,7 +89,7 @@ namespace MathAnim
 	{
 		size_t start;
 		size_t end;
-		ScopedName name;
+		ScopeRule scope;
 		std::vector<GrammarMatch> subMatches;
 	};
 
@@ -98,7 +98,7 @@ namespace MathAnim
 	struct Grammar
 	{
 		std::string name;
-		ScopedName scopeName;
+		ScopeRule scope;
 		std::string fileTypes;
 		std::vector<SyntaxPattern> patterns;
 		PatternRepository repository;

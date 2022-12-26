@@ -16,10 +16,10 @@ namespace MathAnim
 			{
 				*levelMatched = (*levelMatched) + 1;
 			}
-			else if (*levelMatched > 0)
+			else
 			{
-				// If the we matched a previous selector and stopped matching then
-				// this is the deepest it goes
+				// If we don't match all selectors then this is not a match
+				*levelMatched = 0;
 				break;
 			}
 		}
@@ -27,31 +27,52 @@ namespace MathAnim
 		return (*levelMatched) > 0;
 	}
 
-	ScopedName ScopedName::from(const std::string& str)
+	bool ScopeRule::contains(const ScopeRule& other, int* levelMatched) const
 	{
-		ScopedName res = {};
+		if (scopes.size() > 0 && other.scopes.size() > 0)
+		{
+			return scopes[0].contains(other.scopes[0], levelMatched);
+		}
+
+		return false;
+	}
+
+	ScopeRule ScopeRule::from(const std::string& str)
+	{
+		ScopeRule res = {};
 
 		res.friendlyName = str;
 
 		size_t scopeStart = 0;
+		ScopedName currentScope = {};
 		for (size_t i = 0; i < str.length(); i++)
 		{
-			if (str[i] == '.')
+			if (str[i] == '.' || str[i] == ' ')
 			{
 				std::string scope = str.substr(scopeStart, i - scopeStart);
-				res.dotSeparatedScopes.emplace_back(scope);
+				currentScope.dotSeparatedScopes.emplace_back(scope);
 				scopeStart = i + 1;
 			}
-			else if (str[i] == ' ')
+			
+			// NOTE: Important that this is a separate if-stmt. This means the last dotted scope
+			// will get added before starting the descendant scope after the space
+			if (str[i] == ' ')
 			{
 				// Space separated scope
+				res.scopes.emplace_back(currentScope);
+				currentScope = {};
 			}
 		}
 
 		// Don't forget about the final scope in the string
 		if (scopeStart < str.length())
 		{
-			res.dotSeparatedScopes.emplace_back(str.substr(scopeStart, str.length() - scopeStart));
+			currentScope.dotSeparatedScopes.emplace_back(str.substr(scopeStart, str.length() - scopeStart));
+		}
+
+		if (currentScope.dotSeparatedScopes.size() > 0)
+		{
+			res.scopes.emplace_back(currentScope);
 		}
 
 		return res;

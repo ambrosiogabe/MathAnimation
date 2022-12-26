@@ -156,7 +156,7 @@ namespace MathAnim
 
 		// First get this match's best color and default to parent's theme if this one doesn't
 		// have a best match
-		const TokenRule* myBestMatch = theme.match(match.name);
+		const TokenRule* myBestMatch = theme.match(match.scope);
 		if (!myBestMatch)
 		{
 			myBestMatch = parentRule;
@@ -221,11 +221,11 @@ namespace MathAnim
 		int numBytesWritten;
 		if (level > 1)
 		{
-			numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "%*c'%s': '%s'\n", level * 2, ' ', match.name.friendlyName.c_str(), val.c_str());
+			numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "%*c'%s': '%s'\n", level * 2, ' ', match.scope.friendlyName.c_str(), val.c_str());
 		}
 		else
 		{
-			numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s': '%s'\n", match.name.friendlyName.c_str(), val.c_str());
+			numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s': '%s'\n", match.scope.friendlyName.c_str(), val.c_str());
 		}
 
 		if (numBytesWritten > 0 && numBytesWritten < bufferSizeLeft)

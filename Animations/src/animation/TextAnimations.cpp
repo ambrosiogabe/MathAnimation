@@ -392,11 +392,6 @@ namespace MathAnim
 				glyphOutline.bearingX + halfGlyphWidth,
 				halfGlyphHeight - glyphOutline.descentY
 			};
-			
-			if (isTab)
-			{
-				offset.x *= tabDepth;
-			}
 
 			if (text[textIndex] != ' ' && text[textIndex] != '\t')
 			{
@@ -434,7 +429,12 @@ namespace MathAnim
 			}
 
 			// TODO: I may have to add kerning info here
-			cursorPos += Vec2{ glyphOutline.advanceX, 0.0f };
+			float advance = glyphOutline.advanceX;
+			if (isTab)
+			{
+				advance *= tabDepth;
+			}
+			cursorPos += Vec2{ advance, 0.0f };
 		}
 	}
 
