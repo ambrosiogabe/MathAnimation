@@ -6,25 +6,25 @@ namespace MathAnim
 	{
 		*levelMatched = 0;
 
-		for (auto iter = other.scopes.crbegin(); iter != other.scopes.crend(); iter++)
+		for (size_t index = 0; index < other.dotSeparatedScopes.size(); index++)
 		{
-			*levelMatched = 0;
-
-			for (auto myIter = scopes.cbegin(); myIter != scopes.cend(); myIter++)
+			if (index >= dotSeparatedScopes.size())
 			{
-				if (*myIter == *iter)
-				{
-					*levelMatched = (*levelMatched) + 1;
-				}
+				break;
 			}
-
-			if ((*levelMatched) > 0)
+			else if (dotSeparatedScopes[index] == other.dotSeparatedScopes[index])
 			{
-				return true;
+				*levelMatched = (*levelMatched) + 1;
+			}
+			else if (*levelMatched > 0)
+			{
+				// If the we matched a previous selector and stopped matching then
+				// this is the deepest it goes
+				break;
 			}
 		}
 
-		return false;
+		return (*levelMatched) > 0;
 	}
 
 	ScopedName ScopedName::from(const std::string& str)
@@ -39,15 +39,19 @@ namespace MathAnim
 			if (str[i] == '.')
 			{
 				std::string scope = str.substr(scopeStart, i - scopeStart);
-				res.scopes.emplace_back(scope);
+				res.dotSeparatedScopes.emplace_back(scope);
 				scopeStart = i + 1;
+			}
+			else if (str[i] == ' ')
+			{
+				// Space separated scope
 			}
 		}
 
 		// Don't forget about the final scope in the string
 		if (scopeStart < str.length())
 		{
-			res.scopes.emplace_back(str.substr(scopeStart, str.length() - scopeStart));
+			res.dotSeparatedScopes.emplace_back(str.substr(scopeStart, str.length() - scopeStart));
 		}
 
 		return res;

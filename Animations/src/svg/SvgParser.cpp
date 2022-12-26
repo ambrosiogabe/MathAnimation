@@ -312,7 +312,13 @@ namespace MathAnim
 		SvgGroup* parseSvgDoc(const char* filepath)
 		{
 			XMLDocument doc;
-			doc.LoadFile(filepath);
+			int res = doc.LoadFile(filepath);
+			if (res != XML_SUCCESS)
+			{
+				PANIC("Failed to parse XML in SVG file '%s'.", filepath);
+				return nullptr;
+			}
+
 			XMLElement* svgElement = doc.FirstChildElement("svg");
 			if (!svgElement)
 			{

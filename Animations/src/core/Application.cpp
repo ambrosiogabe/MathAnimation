@@ -33,7 +33,8 @@
 #include "utils/TableOfContents.h"
 #include "scripting/LuauLayer.h"
 
-#include "imgui.h"
+#include <imgui.h>
+#include <oniguruma.h>
 
 namespace MathAnim
 {
@@ -96,6 +97,11 @@ namespace MathAnim
 			// Initiaize GLFW/Glad
 			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
 			window->setVSync(true);
+
+			// Initialize Onigiruma
+			OnigEncoding use_encs[1];
+			use_encs[0] = ONIG_ENCODING_ASCII;
+			onig_initialize(use_encs, sizeof(use_encs) / sizeof(use_encs[0]));
 
 			Fonts::init();
 			GladLayer::init();
@@ -301,6 +307,7 @@ namespace MathAnim
 			mainFramebuffer.destroy();
 			editorFramebuffer.destroy();
 
+			onig_end();
 			Highlighters::free();
 			LaTexLayer::free();
 			EditorSettings::free();

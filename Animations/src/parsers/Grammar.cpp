@@ -266,7 +266,7 @@ namespace MathAnim
 			start = (*outMatches)[outMatches->size() - 1].end;
 		}
 
-		size_t lineEnd = start + 1;
+		size_t lineEnd = start;
 		while (lineEnd < code.length())
 		{
 			for (; lineEnd < code.length(); lineEnd++)
@@ -301,7 +301,7 @@ namespace MathAnim
 				return true;
 			}
 
-			start = lineEnd - 1;
+			start = lineEnd;
 		}
 
 		return false;
@@ -531,10 +531,9 @@ namespace MathAnim
 		const char* pattern = str.c_str();
 		const char* patternEnd = pattern + str.length();
 
-		int options = multiline
-			? ONIG_OPTION_MULTILINE
-			: ONIG_OPTION_SINGLELINE;
+		int options = ONIG_OPTION_NONE;
 		options |= ONIG_OPTION_CAPTURE_GROUP;
+		options |= ONIG_OPTION_MULTILINE;
 
 		regex_t* reg;
 		OnigErrorInfo error;
@@ -624,12 +623,6 @@ namespace MathAnim
 
 		if (searchRes >= 0)
 		{
-			//g_logger_info("match at %d", searchRes);
-			//for (int i = 0; i < region->num_regs; i++)
-			//{
-			//	g_logger_info("%d: (%d-%d): %s", i, region->beg[i], region->end[i], std::string(str).substr(region->beg[i], region->end[i] - region->beg[i]).c_str());
-			//}
-
 			if (captures.has_value())
 			{
 				for (auto capture : captures->captures)

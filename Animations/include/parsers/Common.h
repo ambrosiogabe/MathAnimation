@@ -13,7 +13,7 @@ namespace MathAnim
 
 	struct ScopedName
 	{
-		std::vector<std::string> scopes;
+		std::vector<std::string> dotSeparatedScopes;
 		std::string friendlyName;
 
 		bool contains(const ScopedName& other, int* levelMatched) const;

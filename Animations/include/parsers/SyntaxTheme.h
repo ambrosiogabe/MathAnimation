@@ -6,6 +6,7 @@ namespace MathAnim
 {
 	enum class ThemeSettingType : uint8
 	{
+		None = 0,
 		ForegroundColor
 	};
 

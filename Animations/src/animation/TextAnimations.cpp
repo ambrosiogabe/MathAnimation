@@ -19,6 +19,9 @@ namespace MathAnim
 	static LaTexObject deserializeLaTexV1(RawMemory& memory);
 	static CodeBlock deserializeCodeBlockV1(RawMemory& memory);
 
+	// Number of spaces for tabs. Make this configurable
+	constexpr int tabDepth = 2;
+
 	void TextObject::init(AnimationManagerData* am, AnimObjId parentId)
 	{
 		if (font == nullptr)
@@ -371,6 +374,12 @@ namespace MathAnim
 			}
 
 			uint8 codepoint = (uint8)text[textIndex];
+			bool isTab = codepoint == '\t';
+			if (codepoint == '\t')
+			{
+				codepoint = ' ';
+			}
+
 			const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
 			if (!glyphOutline.svg)
 			{
@@ -383,6 +392,11 @@ namespace MathAnim
 				glyphOutline.bearingX + halfGlyphWidth,
 				halfGlyphHeight - glyphOutline.descentY
 			};
+			
+			if (isTab)
+			{
+				offset.x *= tabDepth;
+			}
 
 			if (text[textIndex] != ' ' && text[textIndex] != '\t')
 			{

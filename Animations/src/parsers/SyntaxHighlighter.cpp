@@ -25,10 +25,6 @@ namespace MathAnim
 		std::vector<GrammarMatch> matches = {};
 		while (grammar->getNextMatch(code, &matches))
 		{
-			if (matches.size() > 30)
-			{
-				break;
-			}
 		}
 
 		if (printDebugInfo)
