@@ -99,6 +99,7 @@ namespace MathAnim
 				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
 			}
 		}
+		obj->generatedChildrenIds.clear();
 
 		// Next init again which should regenerate the children
 		init(am, obj->id);
@@ -243,6 +244,7 @@ namespace MathAnim
 				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
 			}
 		}
+		obj->generatedChildrenIds.clear();
 
 		// Next init again which should regenerate the children
 		init(am, obj->id);
@@ -452,6 +454,7 @@ namespace MathAnim
 				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
 			}
 		}
+		obj->generatedChildrenIds.clear();
 
 		// Next init again which should regenerate the children
 		init(am, obj->id);

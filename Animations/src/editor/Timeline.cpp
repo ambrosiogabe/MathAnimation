@@ -962,6 +962,23 @@ namespace MathAnim
 				g_logger_error("Text object has more than 512 characters. Tell Gabe to increase scratch length for code blocks.");
 				return;
 			}
+
+			int currentLang = (int)object->as.codeBlock.language - 1;
+			if (ImGui::Combo(": Language", &currentLang, _highlighterLanguageNames.data() + 1, (int)HighlighterLanguage::Length - 1))
+			{
+				g_logger_assert(currentLang >= 0 && currentLang < (int)HighlighterLanguage::Length - 1, "How did this happen?");
+				object->as.codeBlock.language = (HighlighterLanguage)(currentLang + 1);
+				shouldRegenerate = true;
+			}
+
+			int currentTheme = (int)object->as.codeBlock.theme - 1;
+			if (ImGui::Combo(": Theme", &currentTheme, _highlighterThemeNames.data() + 1, (int)HighlighterTheme::Length - 1))
+			{
+				g_logger_assert(currentTheme >= 0 && currentTheme < (int)HighlighterTheme::Length - 1, "How did this happen?");
+				object->as.codeBlock.theme = (HighlighterTheme)(currentTheme + 1);
+				shouldRegenerate = true;
+			}
+
 			g_memory_copyMem(scratch, object->as.codeBlock.text, object->as.codeBlock.textLength * sizeof(char));
 			scratch[object->as.codeBlock.textLength] = '\0';
 			if (ImGui::InputTextMultiline(": Code", scratch, scratchLength * sizeof(char)))

@@ -152,7 +152,12 @@ namespace MathAnim
 	// --------------- Internal Functions ---------------
 	size_t applyTheme(const GrammarMatch& match, size_t highlightCursor, const SyntaxTheme& theme, CodeHighlights& out, const TokenRule* parentRule)
 	{
-		g_logger_assert(highlightCursor <= match.start, "Somehow two matches overlap...");
+		if (highlightCursor > match.start)
+		{
+			g_logger_warning("Somehow two matches overlap...");
+			// Skip this if the matches intersect
+			return highlightCursor;
+		}
 
 		const TokenRule& defaultThemeRule = theme.defaultRule;
 		if (!parentRule)
