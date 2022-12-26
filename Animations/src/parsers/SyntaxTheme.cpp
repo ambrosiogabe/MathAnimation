@@ -65,7 +65,7 @@ namespace MathAnim
 			try
 			{
 				std::ifstream file(filepath);
-				json j = json::parse(file);
+				json j = json::parse(file, nullptr, true, true);
 				return importThemeFromJson(j, filepathStr);
 			}
 			catch (json::parse_error& ex)
@@ -151,17 +151,44 @@ namespace MathAnim
 
 		for (auto color : tokenColors)
 		{
+			bool nameIsFirstScope = false;
 			if (!color.contains("name"))
 			{
-				g_logger_warning("TokenColor has no 'name' property in syntax theme '%s'.", filepath);
-				continue;
+				nameIsFirstScope = true;
 			}
 
-			const std::string& name = color["name"];
+			std::string name = nameIsFirstScope
+				? "Undefined"
+				: color["name"];
 
 			if (!color.contains("scope"))
 			{
-				g_logger_warning("TokenColor '%s' has no 'scope' property in syntax theme '%s'.", name.c_str(), filepath);
+				if (color.contains("settings"))
+				{
+					TokenRule defaultThemeRule = {};
+
+					// This is presumably the defualt foreground/background settings and not a token rule
+					if (color["settings"].contains("foreground"))
+					{
+						theme->defaultForeground = toHex(color["settings"]["foreground"]);
+					}
+
+					if (color["settings"].contains("background"))
+					{
+						theme->defaultBackground = toHex(color["settings"]["background"]);
+					}
+
+					ThemeSetting defaultThemeSetting = {};
+					defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
+					defaultThemeSetting.foregroundColor = theme->defaultForeground;
+					defaultThemeRule.settings.push_back(defaultThemeSetting);
+					theme->defaultRule = defaultThemeRule;
+				}
+				else
+				{
+					g_logger_warning("TokenColor '%s' has no 'scope' property in syntax theme '%s'.", name.c_str(), filepath);
+				}
+
 				continue;
 			}
 
@@ -210,7 +237,19 @@ namespace MathAnim
 				rule.settings.emplace_back(setting);
 			}
 
-			theme->tokenColors.emplace_back(rule);
+			if (rule.scopes.size() > 0)
+			{
+				if (nameIsFirstScope)
+				{
+					rule.name = rule.scopes[0].friendlyName;
+				}
+
+				theme->tokenColors.emplace_back(rule);
+			}
+			else
+			{
+				g_logger_warning("TokenColor '%s' is malformed. No scopes were successfully parsed.", name.c_str());
+			}
 		}
 
 		return theme;

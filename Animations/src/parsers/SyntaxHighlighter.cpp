@@ -2,6 +2,7 @@
 #include "parsers/Grammar.h"
 #include "parsers/Common.h"
 #include "parsers/SyntaxTheme.h"
+#include "platform/Platform.h"
 
 namespace MathAnim
 {
@@ -82,17 +83,30 @@ namespace MathAnim
 
 	namespace Highlighters
 	{
-		static const char* cppGrammarFile = "C:/dev/C++/MathAnimations/assets/defaultScripts/exampleGrammar.json";
-		static const char* monokaiThemeFile = "C:/dev/C++/MathAnimations/assets/defaultScripts/exampleTheme.json";
 		static std::unordered_map<HighlighterLanguage, SyntaxHighlighter*> grammars = {};
 		static std::unordered_map<HighlighterTheme, SyntaxTheme*> themes = {};
 
 		void init()
 		{
-			SyntaxHighlighter* cppHighlighter = (SyntaxHighlighter*)g_memory_allocate(sizeof(SyntaxHighlighter));
-			new(cppHighlighter)SyntaxHighlighter(cppGrammarFile);
-			grammars[HighlighterLanguage::Cpp] = cppHighlighter;
-			themes[HighlighterTheme::Monokai] = SyntaxTheme::importTheme(monokaiThemeFile);
+			for (int i = 0; i < (int)HighlighterLanguage::Length; i++)
+			{
+				if (Platform::fileExists(_highlighterLanguageFilenames[i]))
+				{
+					SyntaxHighlighter* highlighter = (SyntaxHighlighter*)g_memory_allocate(sizeof(SyntaxHighlighter));
+					new(highlighter)SyntaxHighlighter(_highlighterLanguageFilenames[i]);
+					grammars[(HighlighterLanguage)i] = highlighter;
+				}
+			}
+
+			for (int i = 0; i < (int)HighlighterTheme::Length; i++)
+			{
+				if (Platform::fileExists(_highlighterThemeFilenames[i]))
+				{
+					themes[(HighlighterTheme)i] = SyntaxTheme::importTheme(_highlighterThemeFilenames[i]);
+				}
+			}
+
+			g_logger_info("Successfully imported default languages and themes for syntax highlighters.");
 		}
 
 		const SyntaxHighlighter* getHighlighter(HighlighterLanguage language)

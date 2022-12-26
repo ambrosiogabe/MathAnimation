@@ -70,7 +70,7 @@ namespace MathAnim
 				captureWholePattern = true;
 			}
 		}
-		
+
 		if (!captureWholePattern)
 		{
 			// If this rule has no scoped name, then add all the submatches by themselves
@@ -142,7 +142,7 @@ namespace MathAnim
 			outMatches->push_back(res);
 			return true;
 		}
-		
+
 		outMatches->insert(outMatches->end(), res.subMatches.begin(), res.subMatches.end());
 		return res.subMatches.size() > 0;
 	}
@@ -316,9 +316,18 @@ namespace MathAnim
 		}
 
 		std::ifstream file(filepath);
-		json j = json::parse(file);
 
-		return importGrammarFromJson(j);
+		try
+		{
+			json j = json::parse(file, nullptr, true, true);
+			return importGrammarFromJson(j);
+		}
+		catch (json::exception& ex)
+		{
+			g_logger_error("Error importing language grammar: '%s'\n\t%s", filepath, ex.what());
+		}
+
+		return nullptr;
 	}
 
 	void Grammar::free(Grammar* grammar)

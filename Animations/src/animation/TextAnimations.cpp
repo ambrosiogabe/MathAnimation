@@ -497,7 +497,7 @@ namespace MathAnim
 	{
 		CodeBlock res;
 		res.language = HighlighterLanguage::Cpp;
-		res.theme = HighlighterTheme::Monokai;
+		res.theme = HighlighterTheme::MonokaiNight;
 		static const char defaultText[] = R"DEFAULT_LANG(#include <stdio.h>
 
 int main()

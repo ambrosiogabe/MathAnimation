@@ -11,6 +11,9 @@ workspace "MathAnimations"
 
 -- This is a helper variable, to concatenate the sys-arch
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
+grammarsDir = "./Animations/vendor/grammars/"
+themesDir = "./Animations/vendor/themes/"
+assetsDir = "./assets/"
 
 project "Animations"
     kind "ConsoleApp"
@@ -76,6 +79,21 @@ project "Animations"
         "Animations/vendor/luau/VM/include",
         "Animations/vendor/luau/Analysis/include",
         "Animations/vendor/luau/Ast/include"
+    }
+
+    postbuildcommands {
+        -- Copy grammars to assets dir
+        "{COPYFILE} "..grammarsDir.."minimalCpp/syntaxes/cpp.tmLanguage.json "..assetsDir.."grammars/cpp.tmLanguage.json",
+        "{COPYFILE} "..grammarsDir.."glsl/syntaxes/glsl.tmLanguage.json "..assetsDir.."grammars/glsl.tmLanguage.json",
+        "{COPYFILE} "..grammarsDir.."javascript/syntaxes/javascript.json "..assetsDir.."grammars/javascript.tmLanguage.json",
+
+        ---- Copy themes to assets dir
+        "{COPYFILE} "..themesDir.."atomOneDark/themes/oneDark.json "..assetsDir.."themes/oneDark.theme.json",
+        "{COPYFILE} "..themesDir.."gruvbox/themes/gruvbox-dark-soft.json "..assetsDir.."themes/gruvbox.theme.json",
+        "{COPYFILE} "..themesDir.."monokaiNight/themes/default.json "..assetsDir.."themes/monokaiNight.theme.json",
+        "{COPYFILE} "..themesDir.."oneMonokai/themes/OneMonokai-color-theme.json "..assetsDir.."themes/oneMonokai.theme.json",
+        "{COPYFILE} "..themesDir.."palenight/themes/palenight.json "..assetsDir.."themes/palenight.theme.json",
+        "{COPYFILE} "..themesDir.."panda/dist/Panda.json "..assetsDir.."themes/panda.theme.json"
     }
 
     -- Add freetype libdirs for debug and release mode
