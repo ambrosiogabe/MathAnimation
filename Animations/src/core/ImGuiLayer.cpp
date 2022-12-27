@@ -232,8 +232,8 @@ namespace MathAnim
 			colors[ImGuiCol_Tab] = Colors::Primary[8];
 			colors[ImGuiCol_TabHovered] = Colors::Primary[5];
 			colors[ImGuiCol_TabActive] = Colors::Primary[6];
-			colors[ImGuiCol_TabUnfocused] = Colors::Neutral[8];
-			colors[ImGuiCol_TabUnfocusedActive] = Colors::Neutral[6];
+			colors[ImGuiCol_TabUnfocused] = Colors::Neutral[6];
+			colors[ImGuiCol_TabUnfocusedActive] = Colors::Neutral[8];
 			colors[ImGuiCol_DockingPreview] = ImVec4(
 				colors[ImGuiCol_Header].x,
 				colors[ImGuiCol_Header].x,
