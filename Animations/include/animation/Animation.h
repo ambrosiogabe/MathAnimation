@@ -36,6 +36,7 @@ namespace MathAnim
 		Camera,
 		ScriptObject,
 		CodeBlock,
+		Arrow,
 		Length
 	};
 
@@ -51,7 +52,8 @@ namespace MathAnim
 		"SVG File Object",
 		"Camera",
 		"Script Object",
-		"Code Block"
+		"Code Block",
+		"Arrow"
 	);
 
 	constexpr auto _isInternalObjectOnly = fixedSizeArray<bool, (size_t)AnimObjectTypeV1::Length>(
@@ -66,7 +68,8 @@ namespace MathAnim
 		false, // "SVG File Object",
 		false, // "Camera"
 		false, // "Script Object"
-		false  // "Code Block"
+		false, // "Code Block"
+		false  // "Arrow"
 	);
 
 	enum class AnimTypeV1 : uint32
@@ -84,6 +87,7 @@ namespace MathAnim
 		AnimateStrokeWidth,
 		Shift,
 		Circumscribe,
+		AnimateScale,
 		Length
 	};
 
@@ -100,7 +104,8 @@ namespace MathAnim
 		"Animate Fill Color",
 		"Animate Stroke Width",
 		"Shift",
-		"Circumscribe"
+		"Circumscribe",
+		"Animate Scale"
 	);
 
 	enum class PlaybackType : uint8
@@ -130,7 +135,8 @@ namespace MathAnim
 		false, // AnimateFillColor,
 		false, // AnimateStrokeWidth,
 		false, // Shift,
-		false  // Circumscribe
+		false, // Circumscribe
+		false  // AnimateScale
 	);
 
 	constexpr auto _isAnimationGroupData = fixedSizeArray<bool, (size_t)AnimTypeV1::Length>(
@@ -146,7 +152,8 @@ namespace MathAnim
 		false, // AnimateFillColor,
 		false, // AnimateStrokeWidth,
 		true,  // Shift,
-		false  // Circumscribe
+		false, // Circumscribe
+		false  // AnimateScale
 	);
 
 	// Animation Structs
@@ -187,6 +194,16 @@ namespace MathAnim
 
 		void serialize(RawMemory& memory) const;
 		static MoveToData deserialize(RawMemory& memory);
+	};
+
+	struct AnimateScaleData
+	{
+		Vec2 source;
+		Vec2 target;
+		AnimObjId object;
+
+		void serialize(RawMemory& memory) const;
+		static AnimateScaleData deserialize(RawMemory& memory);
 	};
 
 	enum class CircumscribeShape : uint8
@@ -256,6 +273,7 @@ namespace MathAnim
 			ReplacementTransformData replacementTransform;
 			MoveToData moveTo;
 			Circumscribe circumscribe;
+			AnimateScaleData animateScale;
 		} as;
 
 		// Apply the animation state using a interpolation t value
@@ -346,6 +364,7 @@ namespace MathAnim
 		// This is the percent created ranging from [0.0-1.0] which determines 
 		// what to pass to renderCreateAnimation(...)
 		float percentCreated;
+		float percentReplacementTransformed;
 
 		// TODO: This is an ugly hack think of a better way for this stuff
 		AnimId circumscribeId;
@@ -395,6 +414,7 @@ namespace MathAnim
 			CameraObject camera;
 			ScriptObject script;
 			CodeBlock codeBlock;
+			Arrow arrow;
 		} as;
 
 		void setName(const char* newName, size_t newNameLength = 0);

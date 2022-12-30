@@ -55,6 +55,7 @@ namespace MathAnim
 		static void handleSvgFileObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation);
+		static void handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation);
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation);
 		static void handleShiftInspector(Animation* animation);
 		static void handleRotateToAnimationInspector(Animation* animation);
@@ -63,6 +64,7 @@ namespace MathAnim
 		static void handleCircumscribeInspector(AnimationManagerData* am, Animation* animation);
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
+		static void handleArrowInspector(AnimObject* object);
 		static void handleCubeInspector(AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
 		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
@@ -78,7 +80,8 @@ namespace MathAnim
 		TimelineData initInstance()
 		{
 			TimelineData res;
-			res.audioSourceFile = nullptr;
+			// Workaround for my dumb memory tracker
+			res.audioSourceFile = (uint8*)g_memory_allocate(sizeof(char));
 			res.audioSourceFileLength = 0;
 			res.currentFrame = 0;
 			res.firstFrame = 0;
@@ -729,6 +732,9 @@ namespace MathAnim
 			case AnimObjectTypeV1::ScriptObject:
 				handleScriptObjectInspector(am, animObject);
 				break;
+			case AnimObjectTypeV1::Arrow:
+				handleArrowInspector(animObject);
+				break;
 			case AnimObjectTypeV1::Length:
 			case AnimObjectTypeV1::None:
 				break;
@@ -840,6 +846,9 @@ namespace MathAnim
 				break;
 			case AnimTypeV1::MoveTo:
 				handleMoveToAnimationInspector(am, animation);
+				break;
+			case AnimTypeV1::AnimateScale:
+				handleAnimateScaleInspector(am, animation);
 				break;
 			case AnimTypeV1::Shift:
 				handleShiftInspector(animation);
@@ -1127,6 +1136,12 @@ namespace MathAnim
 			ImGui::DragFloat2(": Target Position", &animation->as.moveTo.target.x, slowDragSpeed);
 		}
 
+		static void handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation)
+		{
+			ImGuiExtended::AnimObjDragDropInputBox(": Object##AnimateScaleObjectTarget", am, &animation->as.animateScale.object, animation->id);
+			ImGui::DragFloat2(": Target Scale", &animation->as.animateScale.target.x, slowDragSpeed);
+		}
+
 		static void handleShiftInspector(Animation* animation)
 		{
 			ImGui::DragFloat3(": Shift Amount", &animation->as.modifyVec3.target.x, slowDragSpeed);
@@ -1225,6 +1240,43 @@ namespace MathAnim
 				object->_svgObjectStart = nullptr;
 
 				object->as.circle.init(object);
+			}
+		}
+
+		static void handleArrowInspector(AnimObject* object)
+		{
+			bool shouldRegenerate = false;
+			if (ImGui::DragFloat(": Stem Length##ArrowShape", &object->as.arrow.stemLength, slowDragSpeed))
+			{
+				shouldRegenerate = true;
+			}
+
+			if (ImGui::DragFloat(": Stem Width##ArrowShape", &object->as.arrow.stemWidth, slowDragSpeed))
+			{
+				shouldRegenerate = true;
+			}
+
+			if (ImGui::DragFloat(": Tip Length##ArrowShape", &object->as.arrow.tipLength, slowDragSpeed))
+			{
+				shouldRegenerate = true;
+			}
+
+			if (ImGui::DragFloat(": Tip Width##ArrowShape", &object->as.arrow.tipWidth, slowDragSpeed))
+			{
+				shouldRegenerate = true;
+			}
+
+			if (shouldRegenerate)
+			{
+				object->svgObject->free();
+				g_memory_free(object->svgObject);
+				object->svgObject = nullptr;
+
+				object->_svgObjectStart->free();
+				g_memory_free(object->_svgObjectStart);
+				object->_svgObjectStart = nullptr;
+
+				object->as.arrow.init(object);
 			}
 		}
 

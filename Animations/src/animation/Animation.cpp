@@ -96,7 +96,7 @@ namespace MathAnim
 				constexpr float fadeInStart = 0.8f;
 				float amountToFadeIn = ((t - fadeInStart) / (1.0f - fadeInStart));
 				float percentToFadeIn = glm::max(glm::min(amountToFadeIn, 1.0f), 0.0f);
-				obj->fillColor.a = (uint8)(percentToFadeIn * 255.0f);
+				obj->fillColor.a = (uint8)(percentToFadeIn * (float)obj->fillColor.a);
 
 				if (obj->strokeWidth <= 0.0f)
 				{
@@ -144,8 +144,8 @@ namespace MathAnim
 		{
 			if (obj)
 			{
-				obj->fillColor.a = 255 - (uint8)(255.0f * t);
-				obj->strokeColor.a = 255 - (uint8)(255.0f * t);
+				obj->fillColor.a = obj->fillColor.a - (uint8)((float)obj->fillColor.a * t);
+				obj->strokeColor.a = obj->strokeColor.a - (uint8)((float)obj->strokeColor.a * t);
 			}
 		}
 		break;
@@ -160,6 +160,21 @@ namespace MathAnim
 					((target.x - source.x) * t) + source.x,
 					((target.y - source.y) * t) + source.y,
 					moveToObj->position.z
+				};
+			}
+		}
+		break;
+		case AnimTypeV1::AnimateScale:
+		{
+			AnimObject* animateScaleObj = AnimationManager::getMutableObject(am, this->as.animateScale.object);
+			if (animateScaleObj)
+			{
+				const Vec2& target = this->as.animateScale.target;
+				const Vec2& source = this->as.animateScale.source;
+				animateScaleObj->scale = Vec3{
+					((target.x - source.x) * t) + source.x,
+					((target.y - source.y) * t) + source.y,
+					animateScaleObj->scale.z
 				};
 			}
 		}
@@ -284,6 +299,15 @@ namespace MathAnim
 			}
 		}
 		break;
+		case AnimTypeV1::AnimateScale:
+		{
+			AnimObject* animateScaleObj = AnimationManager::getMutableObject(am, this->as.animateScale.object);
+			if (animateScaleObj)
+			{
+				this->as.animateScale.source = CMath::vector2From3(animateScaleObj->scale);
+			}
+		}
+		break;
 		case AnimTypeV1::Shift:
 		{
 			// TODO: Implement me
@@ -332,6 +356,9 @@ namespace MathAnim
 		case AnimTypeV1::MoveTo:
 			onMoveToGizmo(nullptr, this);
 			break;
+		case AnimTypeV1::AnimateScale:
+			// TODO: Add scale gizmo here
+			break;
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
 			break;
@@ -360,6 +387,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 			onMoveToGizmo(nullptr, this);
+			break;
+		case AnimTypeV1::AnimateScale:
+			// TODO: Animate scale gizmo here
 			break;
 		case AnimTypeV1::RotateTo:
 			// TODO: Render and handle rotate gizmo logic
@@ -439,6 +469,9 @@ namespace MathAnim
 		case AnimTypeV1::MoveTo:
 			this->as.moveTo.serialize(memory);
 			break;
+		case AnimTypeV1::AnimateScale:
+			this->as.animateScale.serialize(memory);
+			break;
 		case AnimTypeV1::Circumscribe:
 			this->as.circumscribe.serialize(memory);
 			break;
@@ -483,6 +516,28 @@ namespace MathAnim
 		// target -> Vec2
 		// object -> AnimObjId
 		MoveToData res;
+		res.source = CMath::deserializeVec2(memory);
+		res.target = CMath::deserializeVec2(memory);
+		memory.read<AnimObjId>(&res.object);
+		return res;
+	}
+
+	void AnimateScaleData::serialize(RawMemory& memory) const
+	{
+		// source -> Vec2
+		// target -> Vec2
+		// object -> AnimObjId
+		CMath::serialize(memory, this->source);
+		CMath::serialize(memory, this->target);
+		memory.write<AnimObjId>(&this->object);
+	}
+
+	AnimateScaleData AnimateScaleData::deserialize(RawMemory& memory)
+	{
+		// source -> Vec2
+		// target -> Vec2
+		// object -> AnimObjId
+		AnimateScaleData res;
 		res.source = CMath::deserializeVec2(memory);
 		res.target = CMath::deserializeVec2(memory);
 		memory.read<AnimObjId>(&res.object);
@@ -674,6 +729,10 @@ namespace MathAnim
 			res.as.moveTo.source = Vec2{ 0, 0 };
 			res.as.moveTo.target = Vec2{ Application::getViewportSize().x / 3.0f, Application::getViewportSize().y / 3.0f };
 			break;
+		case AnimTypeV1::AnimateScale:
+			res.as.animateScale.source = Vec2{ 1.0f, 1.0f };
+			res.as.animateScale.target = Vec2{ 0.5f, 0.5f };
+			break;
 		case AnimTypeV1::RotateTo:
 			res.as.modifyVec3.target = Vec3{ 0.0f, 0.0f, 0.0f };
 			break;
@@ -772,7 +831,7 @@ namespace MathAnim
 			return res;
 		}
 
-		static const ScriptObject dummy = {nullptr, 0};
+		static const ScriptObject dummy = { nullptr, 0 };
 		return dummy;
 	}
 
@@ -841,6 +900,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::ScriptObject:
 		case AnimObjectTypeV1::CodeBlock:
+		case AnimObjectTypeV1::Arrow:
 			// NOP: No Special logic, but I'll leave this just in case I think
 			// of something
 			break;
@@ -889,6 +949,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Square:
 		case AnimObjectTypeV1::Circle:
 		case AnimObjectTypeV1::SvgObject:
+		case AnimObjectTypeV1::Arrow:
 		{
 			// If svgObject is null, don't do anything with it
 			static bool warned = false;
@@ -1037,7 +1098,9 @@ namespace MathAnim
 			: AnimObjectStatus::Inactive;
 		AnimObjectStatus replacementNewStatus = t >= 1.0f
 			? AnimObjectStatus::Active
-			: AnimObjectStatus::Animating;
+			: replacement->percentCreated > 0.0f 
+			? AnimObjectStatus::Animating
+			: AnimObjectStatus::Inactive;
 		this->status = thisNewStatus;
 		replacement->status = replacementNewStatus;
 
@@ -1105,11 +1168,7 @@ namespace MathAnim
 			// Interpolate between this svg and other svg
 			if (this->svgObject && replacement->svgObject)
 			{
-				//if (this->name[0] == 'o' && replacement->name[0] == 'b')
-				//{
-				//	g_logger_info("HERE");
-				//}
-
+				this->percentReplacementTransformed = t;
 				SvgObject* interpolated = Svg::interpolate(this->svgObject, replacement->svgObject, t);
 				this->svgObject->free();
 				g_memory_free(this->svgObject);
@@ -1130,6 +1189,8 @@ namespace MathAnim
 			this->percentCreated = 1.0f;
 
 			// Fade out dstObject
+			if (replacement->percentCreated > 0.0f)
+			{
 			replacement->fillColor = CMath::interpolate(t,
 				replacement->fillColor,
 				glm::u8vec4(replacement->fillColor.r, replacement->fillColor.g, replacement->fillColor.b, 0)
@@ -1138,6 +1199,7 @@ namespace MathAnim
 				replacement->strokeColor,
 				glm::u8vec4(replacement->strokeColor.r, replacement->strokeColor.g, replacement->strokeColor.b, 0)
 			);
+		}
 		}
 		else
 		{
@@ -1278,6 +1340,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Circle:
 		case AnimObjectTypeV1::Cube:
 		case AnimObjectTypeV1::SvgObject:
+		case AnimObjectTypeV1::Arrow:
 			// NOP
 			break;
 		case AnimObjectTypeV1::Axis:
@@ -1417,6 +1480,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::CodeBlock:
 			this->as.codeBlock.serialize(memory);
+			break;
+		case AnimObjectTypeV1::Arrow:
+			this->as.arrow.serialize(memory);
 			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
@@ -1570,6 +1636,14 @@ namespace MathAnim
 		case AnimObjectTypeV1::CodeBlock:
 			res.as.codeBlock = CodeBlock::createDefault();
 			break;
+		case AnimObjectTypeV1::Arrow:
+			res.as.arrow.tipLength = 0.4f;
+			res.as.arrow.tipWidth = 0.4f;
+			res.as.arrow.stemLength = 1.8f;
+			res.as.arrow.stemWidth = 0.12f;
+			res.svgScale = 50.0f;
+			res.as.arrow.init(&res);
+			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
 			break;
@@ -1652,6 +1726,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 		case AnimObjectTypeV1::ScriptObject:
 		case AnimObjectTypeV1::CodeBlock:
+		case AnimObjectTypeV1::Arrow:
 			// TODO: Implement Copy for these
 			break;
 		case AnimObjectTypeV1::Length:
@@ -1816,6 +1891,10 @@ namespace MathAnim
 		case AnimObjectTypeV1::CodeBlock:
 			res.as.codeBlock = CodeBlock::deserialize(memory, version);
 			break;
+		case AnimObjectTypeV1::Arrow:
+			res.as.arrow = Arrow::deserialize(memory, version);
+			res.as.arrow.init(&res);
+			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
 			break;
@@ -1896,6 +1975,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::MoveTo:
 			res.as.moveTo = MoveToData::deserialize(memory);
+			break;
+		case AnimTypeV1::AnimateScale:
+			res.as.animateScale = AnimateScaleData::deserialize(memory);
 			break;
 		case AnimTypeV1::Circumscribe:
 			res.as.circumscribe = Circumscribe::deserialize(memory);
