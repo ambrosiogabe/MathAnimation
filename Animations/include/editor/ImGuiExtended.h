@@ -11,6 +11,12 @@ namespace MathAnim
 {
 	struct AnimObjectPayload;
 	struct AnimationManagerData;
+	
+	struct FilePayload
+	{
+		const char* filepath;
+		size_t filepathLength;
+	};
 
 	namespace ImGuiExtended
 	{
@@ -22,7 +28,13 @@ namespace MathAnim
 		const AnimObjectPayload* AnimObjectDragDropTarget();
 		bool AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation = NULL_ANIM);
 
+		const FilePayload* FileDragDropTarget();
+		bool FileDragDropInputBox(const char* label, AnimationManagerData* am, char* outBuffer, size_t outBufferSize);
+		const char* getFileDragDropPayloadId();
+
 		void Icon(const char* icon, bool solid = true, float lineHeight = 0.0f);
+		void MediumIcon(const char* icon, const Vec4& color = Vec4{1.0f, 1.0f, 1.0f, 1.0f}, bool solid = true);
+		void LargeIcon(const char* icon, const Vec4& color = Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }, bool solid = true);
 
 		bool RenamableIconSelectable(const char* icon, char* stringBuffer, size_t stringBufferSize, bool isSelected, float width);
 

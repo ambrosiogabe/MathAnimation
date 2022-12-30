@@ -2,6 +2,7 @@
 #define MATH_ANIM_TEXT_ANIMATIONS_H
 #include "core.h"
 #include "renderer/OrthoCamera.h"
+#include "parsers/SyntaxHighlighter.h"
 
 namespace MathAnim
 {
@@ -51,6 +52,22 @@ namespace MathAnim
 
 		static LaTexObject deserialize(RawMemory& memory, uint32 version);
 		static LaTexObject createDefault();
+	};
+
+	struct CodeBlock
+	{
+		char* text;
+		int32 textLength;
+		HighlighterLanguage language;
+		HighlighterTheme theme;
+
+		void init(AnimationManagerData* am, AnimObjId parentId);
+		void reInit(AnimationManagerData* am, AnimObject* obj);
+		void serialize(RawMemory& memory) const;
+		void free();
+
+		static CodeBlock deserialize(RawMemory& memory, uint32 version);
+		static CodeBlock createDefault();
 	};
 }
 

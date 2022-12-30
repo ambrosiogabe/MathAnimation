@@ -16,6 +16,35 @@ namespace MathAnim
 		// --------------- Internal Functions ---------------
 		static void wideToChar(const WCHAR* wide, char* buffer, size_t bufferLength);
 		static bool stringsEqualIgnoreCase(const char* str1, const char* str2);
+		static std::vector<std::string> availableFonts = {};
+		static bool availableFontsCached = false;
+
+		const std::vector<std::string>& getAvailableFonts()
+		{
+			if (!availableFontsCached)
+			{
+				char szPath[MAX_PATH];
+
+				if (SHGetFolderPathA(NULL,
+					CSIDL_FONTS,
+					NULL,
+					0,
+					szPath) == S_OK)
+				{
+					for (auto file : std::filesystem::directory_iterator(szPath))
+					{
+						if (file.path().extension() == ".ttf" || file.path().extension() == ".TTF")
+						{
+							availableFonts.push_back(file.path().string());
+						}
+					}
+				}
+
+				availableFontsCached = true;
+			}
+
+			return availableFonts;
+		}
 
 		// Adapted from https://stackoverflow.com/questions/2467429/c-check-installed-programms
 		bool isProgramInstalled(const char* displayName)
@@ -23,7 +52,7 @@ namespace MathAnim
 			constexpr int bufferMaxSize = 1024;
 
 			// Open the "Uninstall" key.
-			WCHAR* uninstallRoot = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
+			const WCHAR* uninstallRoot = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
 			HKEY uninstallKey = NULL;
 			if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, uninstallRoot, 0, KEY_READ, &uninstallKey) != ERROR_SUCCESS)
 			{
@@ -107,7 +136,7 @@ namespace MathAnim
 			constexpr int bufferMaxSize = 1024;
 
 			// Open the "Uninstall" key.
-			WCHAR* uninstallRoot = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
+			const WCHAR* uninstallRoot = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
 			HKEY uninstallKey = NULL;
 			if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, uninstallRoot, 0, KEY_READ, &uninstallKey) != ERROR_SUCCESS)
 			{
@@ -289,6 +318,19 @@ namespace MathAnim
 			CloseHandle(pi.hProcess);
 			CloseHandle(pi.hThread);
 			return true;
+		}
+
+		bool openFileWithDefaultProgram(const char* filepath)
+		{
+			return (uint64)ShellExecuteA(NULL, "code", filepath, NULL, NULL, SW_SHOW) > 32;
+		}
+
+		bool openFileWithVsCode(const char* filepath, int lineNumber)
+		{
+			std::string command = lineNumber >= 0
+				? std::string("/c code --goto \"") + filepath + ":" + std::to_string(lineNumber) + "\""
+				: std::string("/c code --goto \"") + filepath + "\"";
+			return (uint64)ShellExecuteA(NULL, "open", "cmd", command.c_str(), NULL, SW_HIDE);
 		}
 
 		bool fileExists(const char* filename)

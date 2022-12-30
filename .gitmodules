@@ -29,3 +29,39 @@
 [submodule "Animations/vendor/plutovg"]
 	path = Animations/vendor/plutovg
 	url = https://github.com/sammycage/plutovg
+[submodule "Animations/vendor/luau"]
+	path = Animations/vendor/luau
+	url = https://github.com/Roblox/luau
+[submodule "Animations/vendor/nlohmann"]
+	path = Animations/vendor/nlohmann
+	url = https://github.com/nlohmann/json
+[submodule "Animations/vendor/onigurama"]
+	path = Animations/vendor/onigurama
+	url = https://github.com/kkos/oniguruma
+[submodule "Animations/vendor/themes/oneMonokai"]
+	path = Animations/vendor/themes/oneMonokai
+	url = https://github.com/azemoh/vscode-one-monokai
+[submodule "Animations/vendor/themes/palenight"]
+	path = Animations/vendor/themes/palenight
+	url = https://github.com/whizkydee/vscode-palenight-theme
+[submodule "Animations/vendor/themes/panda"]
+	path = Animations/vendor/themes/panda
+	url = https://github.com/tinkertrain/panda-syntax-vscode
+[submodule "Animations/vendor/themes/gruvbox"]
+	path = Animations/vendor/themes/gruvbox
+	url = https://github.com/jdinhify/vscode-theme-gruvbox
+[submodule "Animations/vendor/themes/monokaiNight"]
+	path = Animations/vendor/themes/monokaiNight
+	url = https://github.com/fabiospampinato/vscode-monokai-night
+[submodule "Animations/vendor/themes/atomOneDark"]
+	path = Animations/vendor/themes/atomOneDark
+	url = https://github.com/akamud/vscode-theme-onedark
+[submodule "Animations/vendor/grammars/minimalCpp"]
+	path = Animations/vendor/grammars/minimalCpp
+	url = https://github.com/daiyousei-qz/minimal-cpp-syntax
+[submodule "Animations/vendor/grammars/glsl"]
+	path = Animations/vendor/grammars/glsl
+	url = https://github.com/GeForceLegend/vscode-glsl
+[submodule "Animations/vendor/grammars/javascript"]
+	path = Animations/vendor/grammars/javascript
+	url = https://github.com/Microsoft/vscode-js-atom-grammar

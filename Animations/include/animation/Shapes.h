@@ -28,6 +28,19 @@ namespace MathAnim
 		static Circle deserialize(RawMemory& memory, uint32 version);
 	};
 
+	struct Arrow
+	{
+		float stemWidth;
+		float stemLength;
+		float tipWidth;
+		float tipLength;
+
+		void init(AnimObject* parent);
+		void serialize(RawMemory& memory) const;
+
+		static Arrow deserialize(RawMemory& memory, uint32 version);
+	};
+
 	struct Cube
 	{
 		float sideLength;

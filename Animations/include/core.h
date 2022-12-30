@@ -32,6 +32,7 @@
 #include <mutex>
 #include <set>
 #include <unordered_set>
+#include <regex>
 
 // GLFW/glad
 #include <glad/glad.h>
@@ -52,11 +53,16 @@
 #define IMGUI_USER_CONFIG "core/InternalImGuiConfig.h"
 #include <imgui.h>
 
+// Regex Library for textmate grammar
+#include <oniguruma.h>
+
 // User defined literals
 MathAnim::Vec4 operator""_hex(const char* hexColor, size_t length);
 MathAnim::Vec4 toHex(const std::string& str);
 MathAnim::Vec4 toHex(const char* hex, size_t length);
 MathAnim::Vec4 toHex(const char* hex);
+MathAnim::Vec4 fromCssColor(const char* cssColorStr);
+MathAnim::Vec4 fromCssColor(const std::string& cssColorStr);
 
 // SIMD intrinsics
 #include <xmmintrin.h>

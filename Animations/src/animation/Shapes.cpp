@@ -19,12 +19,11 @@ namespace MathAnim
 		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 		*parent->svgObject = Svg::createDefault();
 
-		Svg::beginPath(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
+		Svg::beginPath(parent->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
+		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { sideLength / 2.0f, sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { sideLength / 2.0f, -sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
-		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 4.0f });
-		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
 		Svg::closePath(parent->_svgObjectStart);
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
@@ -109,6 +108,68 @@ namespace MathAnim
 		}
 
 		return {};
+	}
+
+	void Arrow::init(AnimObject* parent)
+	{
+		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Arrow object initialized twice.");
+
+		parent->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		*parent->_svgObjectStart = Svg::createDefault();
+		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		*parent->svgObject = Svg::createDefault();
+
+		const float halfLength = stemLength / 2.0f;
+		const float halfWidth = stemWidth / 2.0f;
+		const float tipOffset = tipWidth - stemWidth;
+		const float halfTipOffset = tipOffset / 2.0f;
+		const float halfTipWidth = tipWidth / 2.0f;
+
+		Svg::beginPath(parent->_svgObjectStart, Vec2{ -halfLength, -halfWidth });
+		Svg::lineTo(parent->_svgObjectStart, Vec2{ 0.0f, stemWidth }, false);
+		Svg::lineTo(parent->_svgObjectStart, Vec2{ stemLength, 0.0f }, false);
+		Svg::lineTo(parent->_svgObjectStart, Vec2{ 0.0f, halfTipOffset }, false);
+		Svg::lineTo(parent->_svgObjectStart, Vec2{ tipLength, -halfTipWidth }, false);
+		Svg::lineTo(parent->_svgObjectStart, Vec2{ -tipLength, -halfTipWidth }, false);
+		Svg::lineTo(parent->_svgObjectStart, Vec2{ 0.0f, halfTipOffset }, false);
+		Svg::lineTo(parent->_svgObjectStart, Vec2{ -stemLength, 0.0f }, false);
+		Svg::closePath(parent->_svgObjectStart);
+
+		parent->_svgObjectStart->calculateApproximatePerimeter();
+		parent->_svgObjectStart->calculateBBox();
+	}
+
+	void Arrow::serialize(RawMemory& memory) const
+	{
+		// stemWidth    -> f32
+		// stemLength   -> f32
+		// tipWidth	    -> f32
+		// tipLength    -> f32
+		memory.write<float>(&stemWidth);
+		memory.write<float>(&stemLength);
+		memory.write<float>(&tipWidth);
+		memory.write<float>(&tipLength);
+	}
+
+	Arrow Arrow::deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			// stemWidth    -> f32
+			// stemLength   -> f32
+			// tipWidth	    -> f32
+			// tipLength    -> f32
+			Arrow res = {};
+			memory.read<float>(&res.stemWidth);
+			memory.read<float>(&res.stemLength);
+			memory.read<float>(&res.tipWidth);
+			memory.read<float>(&res.tipLength);
+
+			return res;
+		}
+
+		// Return dummy
+		return Arrow{};
 	}
 
 	void Cube::init(AnimObject* parent)

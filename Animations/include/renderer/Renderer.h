@@ -48,6 +48,7 @@ namespace MathAnim
 		void pushColor(const Vec4& color);
 		void pushLineEnding(CapType lineEnding);
 		void pushFont(const SizedFont* sizedFont);
+		Vec4 getColor();
 
 		void popStrokeWidth(int numToPop = 1);
 		void popColor(int numToPop = 1);

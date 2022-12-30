@@ -1,0 +1,737 @@
+{
+	"name": "OpenGL Shading Language",
+	"fileTypes": [
+		"vs",
+		"fs",
+		"gs",
+		"vsh",
+		"fsh",
+		"gsh",
+		"csh",
+		"vshader",
+		"fshader",
+		"gshader",
+		"vert",
+		"frag",
+		"geom",
+		"tesc",
+		"tese",
+		"comp",
+		"glsl",
+		"mesh",
+  		"task",
+  		"rgen",
+  		"rint",
+  		"rahit",
+  		"rchit",
+  		"rmiss",
+  		"rcall"
+	],
+	"patterns": [
+		{
+			"include": "#preprocessors"
+		},
+		{
+			"include": "#comments"
+		},
+		{
+			"include": "#blocks"
+		},
+		{
+			"include": "#parens"
+		},
+		{
+			"include": "#function_define"
+		},
+		{
+			"include": "#expressions"
+		},
+		{
+			"include": "#functions"
+		},
+		{
+			"match": "}",
+			"name": "invalid.illegal.stray-bracket-end.glsl"
+		},
+		{
+			"match": "\\]",
+			"name": "invalid.illegal.stray-bracket-end.glsl"
+		},
+		{
+			"match": "\\)",
+			"name": "invalid.illegal.stray-bracket-end.glsl"
+		}
+	],
+	"repository": {
+		"preprocessor_setting": {
+			"match": "^\\s*(#\\s*(if|elif|undef|else|endif|pragma|line))\\b",
+			"name": "keyword.control.preprocessor.glsl"
+		},
+		"preprocessor_version": {
+			"match": "^\\s*(#\\s*version)\\s+([0-9]+\\s+)?(compatibility|core|es)?",
+			"captures": {
+				"1": {
+					"name": "keyword.control.preprocessor.glsl"
+				},
+				"2": {
+					"name": "constant.numeric.glsl"
+				},
+				"3": {
+					"name": "variable.parameter.glsl"
+				}
+			}
+		},
+		"preprocessor_pragma": {
+			"match": "^\\s*(#\\s*pragma)((\\s+[a-zA-Z_][\\w]*)*)(\\s*\\(([a-zA-Z_][\\w]*)\\))?",
+			"captures": {
+				"1": {
+					"name": "keyword.control.preprocessor.glsl"
+				},
+				"2": {
+					"name": "string.unquoted.pragma.glsl"
+				},
+				"5": {
+					"name": "variable.parameter.glsl"
+				}
+			}
+		},
+		"preprocessor_line": {
+			"match": "^\\s*(#\\s*line)(\\s+[+-]?[0-9]*)?(\\s+[+-]?[0-9]*)?",
+			"captures": {
+				"1": {
+					"name": "keyword.control.preprocessor.glsl"
+				},
+				"2": {
+					"name": "string.unquoted.line.glsl"
+				},
+				"3": {
+					"name": "string.unquoted.line.glsl"
+				}
+			}
+		},
+		"preprocessor_import": {
+			"match": "^\\s*(#\\s*(include|include_next|import|moj_import))\\s+(\"[^\\:*?\"<>|]*\"|<[^\\:*?\"<>|]*>)?",
+			"captures": {
+				"1": {
+					"name": "keyword.control.import.glsl"
+				},
+				"3": {
+					"name": "string.quoted.include.glsl"
+				}
+			}
+		},
+		"preprocessor_extension": {
+			"match": "^\\s*(#\\s*extension)(\\s+[a-zA-Z_][\\w]*)?(\\s*:\\s*(require|enable|warn|disable))?",
+			"captures": {
+				"1": {
+					"name": "keyword.control.preprocessor.glsl"
+				},
+				"2": {
+					"name": "string.unquoted.extension.glsl",
+					"patterns": [
+						{
+							"match": "\\ball\\b",
+							"name": "constant.language.glsl"
+						}
+					]
+				},
+				"4": {
+					"name": "variable.parameter.glsl"
+				}
+			}
+		},
+		"preprocessor_error": {
+			"match": "^\\s*(#\\s*error)(\\s+[^\\n]+)?(?=\\n)",
+			"captures": {
+				"1": {
+					"name": "keyword.control.preprocessor.glsl"
+				},
+				"2": {
+					"name": "string.unquoted.error.glsl"
+				}
+			}
+		},
+		"preprocessor_define_function": {
+			"begin": "^\\s*(#\\s*define)\\s+([a-zA-Z_][\\w]*)\\(",
+			"end": "\\)",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.preprocessor.glsl"
+				},
+				"2": {
+					"name": "entity.name.function.glsl"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#comments"
+				},
+				{
+					"match": "\\b([a-zA-Z_][\\w]*)\\b",
+					"name": "variable.parameter.glsl"
+				}
+			]
+		},
+		"preprocessor_define_variable": {
+			"match": "^\\s*(#\\s*define)(\\s+[a-zA-Z_][\\w]*)?",
+			"captures": {
+				"1": {
+					"name": "keyword.control.preprocessor.glsl"
+				},
+				"2": {
+					"name": "entity.name.function.glsl"
+				}
+			}
+		},
+		"preprocessor_define_setting": {
+			"patterns": [
+				{
+					"begin": "^\\s*(#\\s*if|#\\s*elif)\\b",
+					"end": "\\n",
+					"beginCaptures": {
+						"1": {
+							"name": "keyword.control.preprocessor.glsl"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#comments"
+						},
+						{
+							"match": "\\b(\\!)?defined\\b",
+							"name": "keyword.control.preprocessor.glsl"
+						},
+						{
+							"match": "\\b[a-zA-Z_][\\w]*",
+							"name": "entity.name.function.glsl"
+						},
+						{
+							"include": "#expressions"
+						}
+					]
+				},
+				{
+					"match": "^\\s*(#\\s*(ifdef|ifndef|if|elif)\\b)(\\s+[a-zA-Z_][\\w]*)?",
+					"captures": {
+						"1": {
+							"name": "keyword.control.preprocessor.glsl"
+						},
+						"3": {
+							"name": "entity.name.function.glsl"
+						}
+					}
+				}
+			]
+		},
+		"preprocessor_minecraft_setting": {
+			"match": "^/\\*[ ](SHADOWRES|SHADOWFOV|SHADOWHPL|WETNESSHL|DRYNESSHL|GAUX[0-9]FORMAT|DRAWBUFFERS):([0-9a-zA-Z.]+)[ ]\\*/\\n",
+			"captures": {
+				"1": {
+					"name": "variable.language.glsl"
+				},
+				"2": {
+					"name": "constant.character.glsl"
+				}
+			}
+		},
+		"preprocessor_minecraft_layout_new": {
+			"match": "^/\\*[ ](RENDERTARGETS):[ ]([0-9,]+)[ ]\\*/\\n",
+			"captures": {
+				"1": {
+					"name": "variable.language.glsl"
+				},
+				"2": {
+					"patterns": [
+						{
+							"match": "[0-9]+",
+							"name": "constant.numeric.glsl"
+						}
+					]
+				}
+			}
+		},
+		"preprocessors": {
+			"patterns": [
+				{
+					"include": "#preprocessor_define_function"
+				},
+				{
+					"include": "#preprocessor_define_variable"
+				},
+				{
+					"include": "#preprocessor_define_setting"
+				},
+				{
+					"include": "#preprocessor_version"
+				},
+				{
+					"include": "#preprocessor_pragma"
+				},
+				{
+					"include": "#preprocessor_line"
+				},
+				{
+					"include": "#preprocessor_import"
+				},
+				{
+					"include": "#preprocessor_extension"
+				},
+				{
+					"include": "#preprocessor_error"
+				},
+				{
+					"include": "#preprocessor_setting"
+				},
+				{
+					"include": "#preprocessor_minecraft_setting"
+				},
+				{
+					"include": "#preprocessor_minecraft_layout_new"
+				}
+			]
+		},
+		"comments": {
+			"patterns": [
+				{
+					"match": "^/\\* =(\\s*.*?)\\s*= \\*/$\\n",
+					"name": "comment.block.glsl",
+					"captures": {
+						"1": {
+							"name": "meta.toc-list.banner.block.glsl"
+						}
+					}
+				},
+				{
+					"begin": "/\\*",
+					"end": "\\*/",
+					"beginCaptures": {
+						"1": {
+							"name": "punctuation.definition.comment.block.begin.glsl"
+						}
+					},
+					"endCaptures": {
+						"1": {
+							"name": "punctuation.definition.comment.block.end.glsl"
+						}
+					},
+					"name": "comment.block.glsl"
+				},
+				{
+					"match": "\\*/(?!\\*)",
+					"name": "invalid.illegal.stray-comment-end.glsl"
+				},
+				{
+					"match": "^// =(\\s*.*?)\\s*=\\s*$\\n?",
+					"name": "comment.line.banner.glsl",
+					"captures": {
+						"1": {
+							"name": "meta.toc-list.banner.line.glsl"
+						}
+					}
+				},
+				{
+					"begin": "//",
+					"end": "(?<!\\\\)$(?=\\n)",
+					"beginCaptures": {
+						"1": {
+							"name": "punctuation.definition.comment.glsl"
+						}
+					},
+					"name": "comment.line.double-slash.glsl"
+				}
+			]
+		},
+		"non_func_keywords": {
+			"match": "\\b(if|for|switch|while)\\b",
+			"name": "keyword.control.glsl"
+		},
+		"before_tag": {
+			"match": "\\bstruct\\b",
+			"name": "storage.type.glsl"
+		},
+		"control_keywords": {
+			"match": "\\b(break|case|continue|default|discard|do|else|for|if|return|swich|while)\\b",
+			"name": "keyword.control.glsl"
+		},
+		"reserved_keyword_for_future_use": {
+			"match": "\\b(?:common|partition|active|asm|class|union|enum|typedef|template|this|resource|goto|inline|noinline|public|static|extern|external|interface|long|short|half|fixed|unsigned|superp|input|output|hvec2|hvec3|hvec4|fvec2|fvec3|fvec4|sampler3DRect|filter|sizeof|cast|namespace|using)\\b",
+			"name": "invalid.illegal.reserved-keyword.glsl"
+		},
+		"macros": {
+			"match": "\\b(__LINE__|__FILE__|__VERSION__|GL_core_profile|GL_es_profile|GL_compatibility_profile)\\b",
+			"name": "constant.macro.predefined.glsl"
+		},
+		"modifiers": {
+			"match": "\\b(atomic_uint|attribute|buffer|centroid|coherent|const|flat|highp|in|inout|invariant|layout|lowp|mediump|noperspective|out|patch|precise|precision|readonly|restrict|sample|shared|smooth|subroutine|uniform|varying|volatile|writeonly)\\b",
+			"name": "storage.modifier.glsl"
+		},
+		"variables": {
+			"match": "\\bgl_(BackColor|BackLightModelProduct|BackLightProduct|BackMaterial|BackSecondaryColor|BaseInstance|BaseVertex|ClipDistance|ClipPlane|ClipVertex|CullDistance|Color|DepthRange|DepthRangeParameters|DrawID|EyePlaneQ|EyePlaneR|EyePlaneS|EyePlaneT|Fog|FogCoord|FogFragCoord|FogParameters|FragColor|FragCoord|FragData|FragDepth|FrontColor|FrontFacing|FrontLightModelProduct|FrontLightProduct|FrontMaterial|FrontSecondaryColor|GlobalInvocationID|HelperInvocation|in|InstanceID|InstanceIndex|InvocationID|Layer|LightModel|LightModelParameters|LightModelProducts|LightProducts|LightSource|LightSourceParameters|LocalInvocationID|LocalInvocationIndex|MaterialParameters|((ModelView)?(Projection)?|Texture)Matrix(Inverse)?(Transpose)?|MultiTexCoord[0-7]|NumWorkGroups|Normal|NormalMatrix|NormalScale|out|ObjectPlane[QRST]|PatchVerticesIn|PerFragment|PerVertex|Point|PointCoord|PointParameters|PointSize|Position|PrimitiveID|PrimitiveIDIn|SampleID|SamplePosition|SampleMask|SampleMaskIn|SecondaryColor|TessCoord|TessLevelInner|TessLevelOuter|TexCoord|TextureEnvColor|Vertex|VertexID|VertexIndex|ViewportIndex|WorkGroupID|WorkGroupSize)\\b",
+			"name": "variable.language.glsl"
+		},
+		"constants": {
+			"match": "\\bgl_(Max(Combined|Compute|Fragment|Geometry|TessControl|TessEvaluation|Vertex)AtomicCounterBuffers|Max(Combined|Compute|Fragment|Geometry|TessControl|TessEvaluation|Vertex)AtomicCounters|Max(Combined|Compute|Fragment|Geometry|TessControl|TessEvaluation|Vertex)ImageUniforms|Max(Fragment|Geometry|TessControl|TessEvaluation)InputComponents|Max(Geometry|TessControl|TessEvaluation|Vertex)OutputComponents|Max(Combined|Compute|Geometry|TessControl|TessEvaluation|Vertex)?TextureImageUnits|Max(Geometry|TessControl)TotalOutputComponents|Max(Compute|Fragment|Geometry|TessControl|TessEvaluation|Vertex)UniformComponents|Max(Fragment|Vertex)UniformVectors|MaxAtomicCounterBindings|MaxAtomicCounterBufferSize|MaxClipDistances|MaxClipPlanes|Max(CombinedClipAnd)?CullDistances|MaxCombinedImageUnitsAndFragmentOutputs|MaxCombinedShaderOutputResources|MaxComputeWorkGroup(Count|Size)|MaxDrawBuffers|MaxGeometryOutputVertices|Max(Geometry)?VaryingComponents|MaxImageSamples|MaxImageUnits|MaxInputAttachments|MaxLights|MaxPatchVertices|MaxProgramTexelOffset|MaxSamples|MaxTessGenLevel|MaxTessPatchComponents|MaxTextureCoords|MaxTextureUnits|MaxTransformFeedbackBuffers|MaxTransformFeedbackInterleavedComponents|MaxVaryingFloats|MaxVaryingVectors|MaxVertexAttribs|MaxViewports|MinProgramTexelOffset)\\b",
+			"name": "support.constant.glsl"
+		},
+		"reserved_vadiable_for_future_use": {
+			"match" :"\\bgl_[\\w]*\\b",
+			"name": "invalid.illegal.reserved-vadiable.glsl"
+		},
+		"types": {
+			"match": "\\b(void|bool|int|uint|float|double|vec[2-4]|dvec[2-4]|bvec[2-4]|ivec[2-4]|uvec[2-4]|mat[2-4]|mat2x2|mat2x3|mat2x4|mat3x2|mat3x3|mat3x4|mat4x2|mat4x3|mat4x4|dmat2|dmat3|dmat4|dmat2x2|dmat2x3|dmat2x4|dmat3x2|dmat3x3|dmat3x4|dmat4x2|dmat4x3|dmat4x4|sampler[1-3]D|image[1-3]D|samplerCube|imageCube|sampler2DRect|image2DRect|sampler[12]DArray|image[12]DArray|samplerBuffer|imageBuffer|sampler2DMS|image2DMS|sampler2DMSArray|image2DMSArray|samplerCubeArray|imageCubeArray|sampler[12]DShadow|sampler2DRectShadow|sampler[12]DArrayShadow|samplerCubeShadow|samplerCubeArrayShadow|isampler[1-3]D|iimage[1-3]D|isamplerCube|iimageCube|isampler2DRect|iimage2DRect|isampler[12]DArray|iimage[12]DArray|isamplerBuffer|iimageBuffer|isampler2DMS|iimage2DMS|isampler2DMSArray|iimage2DMSArray|isamplerCubeArray|iimageCubeArray|usampler[1-3]D|uimage[1-3]D|usamplerCube|uimageCube|usampler2DRect|uimage2DRect|usampler[12]DArray|uimage[12]DArray|usamplerBuffer|uimageBuffer|usampler2DMS|uimage2DMS|usampler2DMSArray|uimage2DMSArray|usamplerCubeArray|uimageCubeArray|sampler|samplerShadow|(i|u)?texture[12]D(Array)?|(i|u)?texture2D(Rect|MS(Array)?)|(i|u)?texture(3D|Cube(Array)?)|(i|u)?textureBuffer|(i|u)?subpassInput(MS)?)\\b",
+			"name": "storage.type.glsl"
+		},
+		"numbers": {
+			"match": "\\b((0(x|X)[0-9a-fA-F]*(\\.[0-9a-fA-F]+p-?\\d+)?)|(([0-9]+\\.?[0-9]*)|(\\.[0-9]+))((e|E)(\\+|-)?[0-9]+)?)([fF]|(l{1,2}|L{1,2})[uU]?|[uU](l{0,2}|L{0,2})|[lL][fF])?\\b",
+			"name": "constant.numeric.glsl"
+		},
+		"booleans": {
+			"match": "\\b(false|FALSE|NULL|true|TRUE)\\b",
+			"name": "constant.language.glsl"
+		},
+		"operators": {
+			"patterns": [
+				{
+					"match": "\\+\\=|-\\=|\\*\\=|/\\=|%\\=|&\\=|\\|\\=|\\^\\=|>>\\=|<<\\=",
+					"name": "keyword.operator.assignment.augmented.glsl"
+				},
+				{
+					"match": "\\+|\\-|\\*|/|%|<<|>>|&&|&|\\|\\||\\||\\^|~|!",
+					"name": "keyword.operator.arithmetic.glsl"
+				},
+				{
+					"match": "<\\=|>\\=|\\=\\=|<|>|\\!\\=",
+					"name": "keyword.operator.comparison.glsl"
+				},
+				{
+					"match": "\\=",
+					"name": "keyword.operator.assignment.glsl"
+				}
+			]
+		},
+		"indexes": {
+			"match": "(?<=\\.)([rgba]{1,4}|[xyzw]{1,4}|[stpq]{1,4})\\b",
+			"name": "string.interpolated.indexes.glsl"
+		},
+		"index": {
+			"begin": "\\[",
+			"end": "\\]",
+			"patterns": [
+				{
+					"include": "#preprocessors"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"include": "#parens"
+				},
+				{
+					"include": "#expressions"
+				},
+				{
+					"include": "#functions"
+				},
+				{
+					"include": "#illegal_brackets"
+				},
+				{
+					"match": "\\)",
+					"name": "invalid.illegal.stray-bracket-end.glsl"
+				}
+			]
+		},
+		"expressions": {
+			"patterns": [
+				{
+					"include": "#non_func_keywords"
+				},
+				{
+					"include": "#before_tag"
+				},
+				{
+					"include": "#control_keywords"
+				},
+				{
+					"include": "#reserved_keyword_for_future_use"
+				},
+				{
+					"include": "#macros"
+				},
+				{
+					"include": "#modifiers"
+				},
+				{
+					"include": "#variables"
+				},
+				{
+					"include": "#constants"
+				},
+				{
+					"include": "#reserved_vadiable_for_future_use"
+				},
+				{
+					"include": "#types"
+				},
+				{
+					"include": "#numbers"
+				},
+				{
+					"include": "#booleans"
+				},
+				{
+					"include": "#operators"
+				},
+				{
+					"include": "#indexes"
+				},
+				{
+					"include": "#index"
+				}
+			]
+		},
+		"function_builtin": {
+			"match": "\\b(abs|acos|acosh|all|allInvocations|allInvocationsEqual|any|anyInvocation|asin|asinh|atan|atanh|atomic(Add|And|Max|Min|Or|Xor)|atomicCompSwap|atomicCounter|atomicCounter(And|Max|Min|Or|Xor)|atomicCounterCompSwap|atomicCounterDecrement|atomicCounterExchange|atomicCounterIncrement|atomicCounterSubtract|atomicExchange|barrier|bitCount|bitfieldExtract|bitfieldInsert|bitfieldReverse|ceil|clamp|cos|cosh|cross|degrees|determinant|dFdx|dFdxCoarse|dFdxFine|dFdy|dFdyCoarse|dFdyFine|distance|dot|EmitStreamVertex|EmitVertex|EndPrimitive|EndStreamPrimitive|equal|exp|exp2|faceforward|findLSB|findMSB|floatBitsToInt|floatBitsToUint|floor|fma|fract|frexp|ftransform|fwidth|fwidthCoarse|fwidthFine|greaterThan|greaterThanEqual|groupMemoryBarrier|imageAtomic(Add|And|Max|Min|Or|Xor)|imageAtomicCompSwap|imageAtomicExchange|imageLoad|imageSamples|imageSize|imageStore|imulExtended|intBitsToFloat|interpolateAtCentroid|interpolateAtOffset|interpolateAtSample|inverse|inversesqrt|isinf|isnan|ldexp|length|lessThan|lessThanEqual|log|log2|matrixCompMult|max|min|mix|memoryBarrier|memoryBarrierAtomicCounter|memoryBarrierBuffer|memoryBarrierImage|memoryBarrierShared|mod|modf|noise[1-4]|normalize|not|notEqual|outerProduct|packDouble2x32|packHalf2x16|packSnorm2x16|packSnorm4x8|packUnorm2x16|packUnorm4x8|pow|radians|reflect|refract|round|roundEven|shadow[1-2]D|shadow[1-2]DLod|shadow[1-2]DProj|shadow[1-2]DProjLod|sign|sin|sinh|smoothstep|sqrt|step|subpassLoad|tan|tanh|texelFetch|texelFetchOffset|texture|texture[1-3]D|texture[1-3]DLod|texture[1-3]DProj|texture[1-3]DProjLod|textureCube|textureCubeLod|textureGather|textureGatherOffset|textureGatherOffsets|textureGrad|textureGradOffset|textureLod|textureLodOffset|textureOffset|textureProj|textureProjGrad|textureProjGradOffset|textureProjLod|textureProjLodOffset|textureProjOffset|textureQueryLevels|textureQueryLod|textureSamples|textureSize|transpose|trunc|uaddCarry|uintBitsToFloat|unpackDouble2x32|unpackHalf2x16|umulExtended|unpackSnorm2x16|unpackSnorm4x8|unpackUnorm2x16|unpackUnorm4x8|usubBorrow)\\b",
+			"name": "support.function.glsl"
+		},
+		"function_define": {
+			"begin": "\\b([a-zA-Z_][0-9a-zA-Z]*)(\\[(([0-9]*)|([a-zA-Z_][\\w]*))?\\])?\\s+([a-zA-Z_][\\w]*)\\s*\\(",
+			"end": "\\)",
+			"beginCaptures": {
+				"1": {
+					"patterns": [
+						{
+							"match": "\\b(void|bool|int|uint|float|double|vec[2-4]|dvec[2-4]|bvec[2-4]|ivec[2-4]|uvec[2-4]|mat[2-4]|mat2x2|mat2x3|mat2x4|mat3x2|mat3x3|mat3x4|mat4x2|mat4x3|mat4x4|dmat2|dmat3|dmat4|dmat2x2|dmat2x3|dmat2x4|dmat3x2|dmat3x3|dmat3x4|dmat4x2|dmat4x3|dmat4x4|sampler[1-3]D|image[1-3]D|samplerCube|imageCube|sampler2DRect|image2DRect|sampler[12]DArray|image[12]DArray|samplerBuffer|imageBuffer|sampler2DMS|image2DMS|sampler2DMSArray|image2DMSArray|samplerCubeArray|imageCubeArray|sampler[12]DShadow|sampler2DRectShadow|sampler[12]DArrayShadow|samplerCubeShadow|samplerCubeArrayShadow|isampler[1-3]D|iimage[1-3]D|isamplerCube|iimageCube|isampler2DRect|iimage2DRect|isampler[12]DArray|iimage[12]DArray|isamplerBuffer|iimageBuffer|isampler2DMS|iimage2DMS|isampler2DMSArray|iimage2DMSArray|isamplerCubeArray|iimageCubeArray|usampler[1-3]D|uimage[1-3]D|usamplerCube|uimageCube|usampler2DRect|uimage2DRect|usampler[12]DArray|uimage[12]DArray|usamplerBuffer|uimageBuffer|usampler2DMS|uimage2DMS|usampler2DMSArray|uimage2DMSArray|usamplerCubeArray|uimageCubeArray)\\b",
+							"name": "storage.type.glsl"
+						},
+						{
+							"match": "\\b(else|if)\\b",
+							"name": "keyword.control.glsl"
+						}
+					]
+				},
+				"4": {
+					"name": "constant.numeric.glsl"
+				},
+				"6": {
+					"name": "entity.name.function.glsl",
+					"patterns": [
+						{
+							"match": "\\bif\\b",
+							"name": "keyword.control.glsl"
+						}
+					]
+				}
+			},
+			"patterns": [
+				{
+					"include": "#preprocessors"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"match": "\\b((const)\\s+)?((inout|out|in)\\s+)?((highp|mediump|lowp)\\s+)?([a-zA-Z_][\\w]*)(\\[(([0-9]+)|([a-zA-Z_][\\w]*))?\\])?(\\s+([a-zA-Z_][\\w]*\\b)(\\[([\\w]*)\\])?)?(?=\\s*(\\)|,))",
+					"captures": {
+						"2": {
+							"name": "storage.modifier.glsl"
+						},
+						"4": {
+							"name": "storage.modifier.glsl"
+						},
+						"6": {
+							"name": "storage.modifier.glsl"
+						},
+						"7": {
+							"patterns": [
+								{
+									"match": "\\b(void|bool|int|uint|float|double|vec[2-4]|dvec[2-4]|bvec[2-4]|ivec[2-4]|uvec[2-4]|mat[2-4]|mat2x2|mat2x3|mat2x4|mat3x2|mat3x3|mat3x4|mat4x2|mat4x3|mat4x4|dmat2|dmat3|dmat4|dmat2x2|dmat2x3|dmat2x4|dmat3x2|dmat3x3|dmat3x4|dmat4x2|dmat4x3|dmat4x4|sampler[1-3]D|image[1-3]D|samplerCube|imageCube|sampler2DRect|image2DRect|sampler[12]DArray|image[12]DArray|samplerBuffer|imageBuffer|sampler2DMS|image2DMS|sampler2DMSArray|image2DMSArray|samplerCubeArray|imageCubeArray|sampler[12]DShadow|sampler2DRectShadow|sampler[12]DArrayShadow|samplerCubeShadow|samplerCubeArrayShadow|isampler[1-3]D|iimage[1-3]D|isamplerCube|iimageCube|isampler2DRect|iimage2DRect|isampler[12]DArray|iimage[12]DArray|isamplerBuffer|iimageBuffer|isampler2DMS|iimage2DMS|isampler2DMSArray|iimage2DMSArray|isamplerCubeArray|iimageCubeArray|usampler[1-3]D|uimage[1-3]D|usamplerCube|uimageCube|usampler2DRect|uimage2DRect|usampler[12]DArray|uimage[12]DArray|usamplerBuffer|uimageBuffer|usampler2DMS|uimage2DMS|usampler2DMSArray|uimage2DMSArray|usamplerCubeArray|uimageCubeArray)\\b",
+									"name": "storage.type.glsl"
+								},
+								{
+									"match": "\\b(const|in|out|inout|highp|mediump|lowp)\\b",
+									"name": "storage.modifier.glsl"
+								}
+							]
+						},
+						"10": {
+							"name": "constant.numeric.glsl"
+						},
+						"13": {
+							"name": "variable.parameter.glsl"
+						},
+						"15": {
+							"patterns": [
+								{
+									"match": "\\b[0-9]+\\b",
+									"name": "constant.numeric.glsl"
+								}
+							]
+						}
+					}
+				},
+				{
+					"match": "\\b(in|out|inout|const|highp|mediump|lowp)\\b",
+					"name": "storage.modifier.glsl"
+				},
+				{
+					"include": "#types"
+				},
+				{
+					"include": "#index"
+				},
+				{
+					"match": "\\b([a-zA-Z_][\\w]*)\\s+([a-zA-Z_][\\w]*)\\b",
+					"captures": {
+						"2": {
+							"name": "variable.parameter.glsl"
+						}
+					}
+				},
+				{
+					"match": "\\b[a-zA-Z_][\\w]*\\b",
+					"name": "variable.parameter.glsl"
+				},
+				{
+					"include": "#illegal_brackets"
+				},
+				{
+					"match": "\\]",
+					"name": "invalid.illegal.stray-bracket-end.glsl"
+				},
+				{
+					"begin": "\\(",
+					"end": "\\)",
+					"name": "invalid.illegal.bracket.glsl"
+				}
+			]
+		},
+		"function_call": {
+			"begin": "\\b([a-zA-Z_][\\w]*)\\s*\\(",
+			"end": "\\)",
+			"beginCaptures": {
+				"1": {
+					"name": "support.function.glsl",
+					"patterns": [
+						{
+							"match": "\\b(break|case|continue|default|discard|do|else|for|if|return|swich|while)\\b",
+							"name": "keyword.control.glsl"
+						},
+						{
+							"match": "\\b(void|bool|int|uint|float|double|vec[2-4]|dvec[2-4]|bvec[2-4]|ivec[2-4]|uvec[2-4]|mat[2-4]|mat2x2|mat2x3|mat2x4|mat3x2|mat3x3|mat3x4|mat4x2|mat4x3|mat4x4|dmat2|dmat3|dmat4|dmat2x2|dmat2x3|dmat2x4|dmat3x2|dmat3x3|dmat3x4|dmat4x2|dmat4x3|dmat4x4|sampler[1-3]D|image[1-3]D|samplerCube|imageCube|sampler2DRect|image2DRect|sampler[12]DArray|image[12]DArray|samplerBuffer|imageBuffer|sampler2DMS|image2DMS|sampler2DMSArray|image2DMSArray|samplerCubeArray|imageCubeArray|sampler[12]DShadow|sampler2DRectShadow|sampler[12]DArrayShadow|samplerCubeShadow|samplerCubeArrayShadow|isampler[1-3]D|iimage[1-3]D|isamplerCube|iimageCube|isampler2DRect|iimage2DRect|isampler[12]DArray|iimage[12]DArray|isamplerBuffer|iimageBuffer|isampler2DMS|iimage2DMS|isampler2DMSArray|iimage2DMSArray|isamplerCubeArray|iimageCubeArray|usampler[1-3]D|uimage[1-3]D|usamplerCube|uimageCube|usampler2DRect|uimage2DRect|usampler[12]DArray|uimage[12]DArray|usamplerBuffer|uimageBuffer|usampler2DMS|uimage2DMS|usampler2DMSArray|uimage2DMSArray|usamplerCubeArray|uimageCubeArray)\\b",
+							"name": "storage.type.glsl"
+						}
+					]
+				}
+			},
+			"patterns": [
+				{
+					"include": "#preprocessors"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"include": "#parens"
+				},
+				{
+					"include": "#expressions"
+				},
+				{
+					"include": "#functions"
+				},
+				{
+					"include": "#illegal_brackets"
+				},
+				{
+					"match": "\\]",
+					"name": "invalid.illegal.stray-bracket-end.glsl"
+				}
+			]
+		},
+		"functions": {
+			"patterns": [
+				{
+					"include": "#function_builtin"
+				},
+				{
+					"include": "#function_call"
+				}
+			]
+		},
+		"illegal_brackets": {
+			"patterns": [
+				{
+					"begin": "{",
+					"end": "}",
+					"name": "invalid.illegal.bracket.glsl"
+				},
+				{
+					"match": "}",
+					"name": "invalid.illegal.bracket.glsl"
+				}
+			]
+		},
+		"blocks": {
+			"begin": "{",
+			"end": "}",
+			"patterns": [
+				{
+					"include": "#preprocessors"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"include": "#blocks"
+				},
+				{
+					"include": "#parens"
+				},
+				{
+					"include": "#expressions"
+				},
+				{
+					"include": "#functions"
+				},
+				{
+					"match": "\\)",
+					"name": "invalid.illegal.stray-comment-end.glsl"
+				},
+				{
+					"match": "\\]",
+					"name": "invalid.illegal.stray-bracket-end.glsl"
+				}
+			]
+		},
+		"parens": {
+			"begin": "\\(",
+			"end": "\\)",
+			"patterns": [
+				{
+					"include": "#preprocessors"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"include": "#parens"
+				},
+				{
+					"include": "#expressions"
+				},
+				{
+					"include": "#functions"
+				},
+				{
+					"include": "#illegal_brackets"
+				},
+				{
+					"match": "\\]",
+					"name": "invalid.illegal.stray-bracket-end.glsl"
+				}
+			]
+		}
+	},
+	"scopeName": "source.glsl"
+}

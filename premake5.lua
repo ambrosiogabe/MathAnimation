@@ -11,18 +11,21 @@ workspace "MathAnimations"
 
 -- This is a helper variable, to concatenate the sys-arch
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
+grammarsDir = "./Animations/vendor/grammars/"
+themesDir = "./Animations/vendor/themes/"
+assetsDir = "./assets/"
 
 project "Animations"
     kind "ConsoleApp"
     language "C++"
-    cppdialect "C++17"
+    cppdialect "C++20"
     staticruntime "on"
     warnings "High"
 
     targetdir("_bin/" .. outputdir .. "/%{prj.name}")
     objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
 
-    buildoptions "/we4062 /wd4201"
+    buildoptions "/we4062 /wd4201 /DONIG_EXTERN=extern"
 
     files {
         "Animations/src/**.cpp",
@@ -68,6 +71,29 @@ project "Animations"
         "Animations/vendor/dearimgui",
         "Animations/vendor/openal/include",
         "Animations/vendor/nativeFileDialog/src/include",
+        "Animations/vendor/nlohmann/single_include",
+        "Animations/vendor/onigurama/src",
+        -- Luau include dirs
+        "Animations/vendor/luau/Compiler/include",
+        "Animations/vendor/luau/Common/include",
+        "Animations/vendor/luau/VM/include",
+        "Animations/vendor/luau/Analysis/include",
+        "Animations/vendor/luau/Ast/include"
+    }
+
+    postbuildcommands {
+        -- Copy grammars to assets dir
+        "{COPYFILE} "..grammarsDir.."minimalCpp/syntaxes/cpp.tmLanguage.json "..assetsDir.."grammars/cpp.tmLanguage.json",
+        "{COPYFILE} "..grammarsDir.."glsl/syntaxes/glsl.tmLanguage.json "..assetsDir.."grammars/glsl.tmLanguage.json",
+        "{COPYFILE} "..grammarsDir.."javascript/syntaxes/javascript.json "..assetsDir.."grammars/javascript.tmLanguage.json",
+
+        ---- Copy themes to assets dir
+        "{COPYFILE} "..themesDir.."atomOneDark/themes/oneDark.json "..assetsDir.."themes/oneDark.theme.json",
+        "{COPYFILE} "..themesDir.."gruvbox/themes/gruvbox-dark-soft.json "..assetsDir.."themes/gruvbox.theme.json",
+        "{COPYFILE} "..themesDir.."monokaiNight/themes/default.json "..assetsDir.."themes/monokaiNight.theme.json",
+        "{COPYFILE} "..themesDir.."oneMonokai/themes/OneMonokai-color-theme.json "..assetsDir.."themes/oneMonokai.theme.json",
+        "{COPYFILE} "..themesDir.."palenight/themes/palenight.json "..assetsDir.."themes/palenight.theme.json",
+        "{COPYFILE} "..themesDir.."panda/dist/Panda.json "..assetsDir.."themes/panda.theme.json"
     }
 
     -- Add freetype libdirs for debug and release mode
@@ -131,10 +157,17 @@ project "Animations"
             "libavutil",
             "libswresample",
             "libswscale",
+            -- Luau static libs
+            "Luau.Ast",
+            "Luau.CodeGen",
+            "Luau.Compiler",
+            "Luau.VM",
+            "Luau.Analysis",
             -- Other premake projects
             "DearImGui",
             "TinyXml2",
             "plutovg",
+            "Oniguruma",
             -- Windows static libs required for ffmepg
             "Ws2_32.lib",
             "Secur32.lib",
@@ -144,16 +177,20 @@ project "Animations"
         }
 
     filter { "configurations:Debug" }
-        buildoptions "/MTd"
+        buildoptions "/MDd"
         runtime "Debug"
         symbols "on"
+
+        libdirs {
+            "./Animations/vendor/luau/build/Debug"
+        }
 
         postbuildcommands {
             "{COPY} Animations/vendor/openal/build/Debug/OpenAL32.dll %{cfg.targetdir}"
         }
 
     filter { "configurations:Release" }
-        buildoptions "/MT"
+        buildoptions "/MD"
         runtime "Release"
         optimize "on"
 
@@ -161,17 +198,25 @@ project "Animations"
             "_RELEASE"
         }
 
+        libdirs {
+            "./Animations/vendor/luau/build/Release"
+        }
+
         postbuildcommands {
             "{COPY} Animations/vendor/openal/build/Release/OpenAL32.dll %{cfg.targetdir}"
         }
 
     filter { "configurations:Dist" }
-        buildoptions "/MT"
+        buildoptions "/MD"
         runtime "Release"
         optimize "on"
 
         defines {
             "_DIST"
+        }
+
+        libdirs {
+            "./Animations/vendor/luau/build/Release"
         }
 
         postbuildcommands {
@@ -199,13 +244,13 @@ project "plutovg"
     defines { "_CRT_SECURE_NO_WARNINGS" }
 
     filter "configurations:Debug"
-        buildoptions "/MTd"
+        buildoptions "/MDd"
         defines { "DEBUG" }
         symbols "On"
         warnings "Extra"
 
     filter "configurations:Release"
-        buildoptions "/MT"
+        buildoptions "/MD"
         defines { "NDEBUG" }
         symbols "Off"
         warnings "Extra"        
@@ -231,13 +276,13 @@ project "TinyXml2"
     defines { "_CRT_SECURE_NO_WARNINGS" } 
 
     filter "configurations:Debug"
-        buildoptions "/MTd"
+        buildoptions "/MDd"
         defines { "DEBUG", "NVG_NO_STB" }
         symbols "On"
         warnings "Extra"
 
     filter "configurations:Release"
-        buildoptions "/MT"
+        buildoptions "/MD"
         defines { "NDEBUG", "NVG_NO_STB" }
         symbols "Off"
         warnings "Extra"    
@@ -267,11 +312,100 @@ project "DearImGui"
     defines { "-DIMGUI_USER_CONFIG \"core/InternalImGuiConfig.h\"" }
 
     filter { "configurations:Debug" }
-        buildoptions "/MTd"
+        buildoptions "/MDd"
         runtime "Debug"
         symbols "on"
 
     filter { "configurations:Release" }
-        buildoptions "/MT"
+        buildoptions "/MD"
+        runtime "Release"
+        optimize "on"
+
+
+project "Oniguruma"
+    kind "StaticLib"
+    language "C"
+    cdialect "C11"
+    staticruntime "on"
+
+    targetdir("_bin/" .. outputdir .. "/%{prj.name}")
+    objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
+
+    buildoptions {
+        "-DONIG_EXTERN=extern"
+    }
+
+    files {
+        "./Animations/vendor/onigurama/src/oniguruma.h",
+        "./Animations/vendor/onigurama/src/onig-config.in",
+        "./Animations/vendor/onigurama/src/regenc.h",
+        "./Animations/vendor/onigurama/src/regint.h",
+        "./Animations/vendor/onigurama/src/regparse.h",
+        "./Animations/vendor/onigurama/src/regcomp.c",
+        "./Animations/vendor/onigurama/src/regenc.c",
+        "./Animations/vendor/onigurama/src/regerror.c",
+        "./Animations/vendor/onigurama/src/regext.c",
+        "./Animations/vendor/onigurama/src/regexec.c",
+        "./Animations/vendor/onigurama/src/regparse.c",
+        "./Animations/vendor/onigurama/src/regsyntax.c",
+        "./Animations/vendor/onigurama/src/regtrav.c",
+        "./Animations/vendor/onigurama/src/regversion.c",
+        "./Animations/vendor/onigurama/src/st.h",
+        "./Animations/vendor/onigurama/src/st.c",
+        "./Animations/vendor/onigurama/src/oniggnu.h",
+        "./Animations/vendor/onigurama/src/reggnu.c",
+        "./Animations/vendor/onigurama/src/onigposix.h",
+        "./Animations/vendor/onigurama/src/regposerr.c",
+        "./Animations/vendor/onigurama/src/regposix.c",
+        "./Animations/vendor/onigurama/src/mktable.c",
+        "./Animations/vendor/onigurama/src/ascii.c",
+        "./Animations/vendor/onigurama/src/euc_jp.c",
+        "./Animations/vendor/onigurama/src/euc_tw.c",
+        "./Animations/vendor/onigurama/src/euc_kr.c",
+        "./Animations/vendor/onigurama/src/sjis.c",
+        "./Animations/vendor/onigurama/src/big5.c",
+        "./Animations/vendor/onigurama/src/gb18030.c",
+        "./Animations/vendor/onigurama/src/koi8.c",
+        "./Animations/vendor/onigurama/src/koi8_r.c",
+        "./Animations/vendor/onigurama/src/cp1251.c",
+        "./Animations/vendor/onigurama/src/iso8859_1.c",
+        "./Animations/vendor/onigurama/src/iso8859_2.c",
+        "./Animations/vendor/onigurama/src/iso8859_3.c",
+        "./Animations/vendor/onigurama/src/iso8859_4.c",
+        "./Animations/vendor/onigurama/src/iso8859_5.c",
+        "./Animations/vendor/onigurama/src/iso8859_6.c",
+        "./Animations/vendor/onigurama/src/iso8859_7.c",
+        "./Animations/vendor/onigurama/src/iso8859_8.c",
+        "./Animations/vendor/onigurama/src/iso8859_9.c",
+        "./Animations/vendor/onigurama/src/iso8859_10.c",
+        "./Animations/vendor/onigurama/src/iso8859_11.c",
+        "./Animations/vendor/onigurama/src/iso8859_13.c",
+        "./Animations/vendor/onigurama/src/iso8859_14.c",
+        "./Animations/vendor/onigurama/src/iso8859_15.c",
+        "./Animations/vendor/onigurama/src/iso8859_16.c",
+        "./Animations/vendor/onigurama/src/utf8.c",
+        "./Animations/vendor/onigurama/src/utf16_be.c",
+        "./Animations/vendor/onigurama/src/utf16_le.c",
+        "./Animations/vendor/onigurama/src/utf32_be.c",
+        "./Animations/vendor/onigurama/src/utf32_le.c",
+        "./Animations/vendor/onigurama/src/unicode.c",
+        "./Animations/vendor/onigurama/src/unicode_unfold_key.c",
+        "./Animations/vendor/onigurama/src/unicode_fold1_key.c",
+        "./Animations/vendor/onigurama/src/unicode_fold2_key.c",
+        "./Animations/vendor/onigurama/src/unicode_fold3_key.c"
+    }
+
+    includedirs {
+        "./Animations/vendor/onigurama/src",
+        "./Animations/vendor/onigurama/build"
+    }
+
+    filter { "configurations:Debug" }
+        buildoptions "/MDd"
+        runtime "Debug"
+        symbols "on"
+
+    filter { "configurations:Release" }
+        buildoptions "/MD"
         runtime "Release"
         optimize "on"

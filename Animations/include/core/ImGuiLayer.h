@@ -21,6 +21,7 @@ namespace MathAnim
 
 		ImFont* getDefaultFont();
 		ImFont* getMediumFont();
+		ImFont* getMonoFont();
 
 		ImFont* getLargeSolidIconFont();
 		ImFont* getMediumSolidIconFont();

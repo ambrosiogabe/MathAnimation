@@ -25,13 +25,16 @@
 #include "editor/EditorCameraController.h"
 #include "editor/EditorSettings.h"
 #include "editor/SceneManagementPanel.h"
+#include "parsers/SyntaxHighlighter.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
 #include "multithreading/GlobalThreadPool.h"
 #include "video/Encoder.h"
 #include "utils/TableOfContents.h"
+#include "scripting/LuauLayer.h"
 
-#include "imgui.h"
+#include <imgui.h>
+#include <oniguruma.h>
 
 namespace MathAnim
 {
@@ -78,12 +81,27 @@ namespace MathAnim
 
 		void init(const char* projectFile)
 		{
+			// Initialize these just in case this is a new project
+			editorCamera2D.position = Vec2{ viewportWidth / 2.0f, viewportHeight / 2.0f };
+			editorCamera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
+			editorCamera2D.zoom = 1.0f;
+
+			editorCamera3D.position = glm::vec3(0.0f);
+			editorCamera3D.fov = 70.0f;
+			editorCamera3D.forward = glm::vec3(1.0f, 0.0f, 0.0f);
+
+			// Initialize other global systems
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
 			//globalThreadPool = new GlobalThreadPool(true);
 
 			// Initiaize GLFW/Glad
 			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
 			window->setVSync(true);
+
+			// Initialize Onigiruma
+			OnigEncoding use_encs[1];
+			use_encs[0] = ONIG_ENCODING_ASCII;
+			onig_initialize(use_encs, sizeof(use_encs) / sizeof(use_encs[0]));
 
 			Fonts::init();
 			GladLayer::init();
@@ -94,6 +112,7 @@ namespace MathAnim
 			Svg::init();
 			SceneManagementPanel::init();
 			SvgParser::init();
+			Highlighters::init();
 
 			LaTexLayer::init();
 
@@ -110,7 +129,8 @@ namespace MathAnim
 				sceneData.currentScene = 0;
 			}
 
-			EditorGui::init(am);
+			EditorGui::init(am, currentProjectRoot);
+			LuauLayer::init(currentProjectRoot + "/scripts", am);
 
 			svgCache = new SvgCache();
 			svgCache->init();
@@ -167,6 +187,7 @@ namespace MathAnim
 				// Update Animation logic and collect draw calls
 				AnimationManager::render(am, deltaFrame);
 				LaTexLayer::update();
+				LuauLayer::update();
 
 				// Render all animation draw calls to main framebuffer
 				bool renderPickingOutline = false;
@@ -286,8 +307,11 @@ namespace MathAnim
 			mainFramebuffer.destroy();
 			editorFramebuffer.destroy();
 
+			onig_end();
+			Highlighters::free();
 			LaTexLayer::free();
 			EditorSettings::free();
+			LuauLayer::free();
 			SceneManagementPanel::free();
 			EditorGui::free(am);
 			AnimationManager::free(am);
@@ -602,7 +626,7 @@ namespace MathAnim
 
 			loadScene(sceneData.sceneNames[sceneData.currentScene]);
 
-			EditorGui::init(am);
+			EditorGui::init(am, currentProjectRoot);
 		}
 
 		static void freeSceneSystems()

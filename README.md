@@ -20,13 +20,24 @@ These instructions only need to be followed the first time you ever compile this
 Click to See First Time Setup Instructions
 </summary>
 
- First we need to setup ffmpeg.
+### Libraries to Compile
+
+In order to compile this manually, you need to build the libraries that this application depends on so the binaries can be copied. This should all be fixed in an upcoming release when I switch to CMake and these steps will no longer be required, but for now, you need to compile:
+
+1. ffMpeg
+2. Freetype
+3. OpenAL
+4. Luau
+
+The following sections describe each in detail.
+
+#### Setting up Environment for ffmpeg
+
+First we need to setup ffmpeg.
 
 I'm only writing instructions for Windows and MSVC. For information on compiling ffmpeg in a different environment, please see [ffmpeg documentation](https://ffmpeg.org/platform.html#Windows) for further details and make the appropriate changes.
 
 Unfortunately, ffmpeg is a particularly wild beast, so compiling is non-trivial.
-
-#### Setting up Environment for ffmpeg
 
 (_The following instructions are modified from [ffmpeg documentation](https://ffmpeg.org/platform.html#Windows)_)
 
@@ -103,7 +114,7 @@ popd
 
 #### Setting up Environment for OpenAL
 
-To compile OpenAL on windows, I'll be using cmake and MSVC. You can change use a different build system if you like, just ensure that at the end you have two directories for a release and debug version of freetype at the locations:
+To compile OpenAL on windows, I'll be using cmake and MSVC. You can change use a different build system if you like, just ensure that at the end you have two directories for a release and debug version of OpenAL at the locations:
 
 ```bash
 ./Animations/vendor/openal/build/Debug/OpenAL32.dll
@@ -114,13 +125,44 @@ To build with CMake and MSVC:
 
 1. Open up a developer command prompt for MSVC.
 2. Change into your local directory for this animations library.
-3. Run the following commands to compile freetype:
+3. Run the following commands to compile OpenAL:
 
 ```batch
 pushd .\Animations\vendor\openal\build
 cmake ..
 msbuild OpenAL.sln /property:Configuration=Debug
 msbuild OpenAL.sln /property:Configuration=Release
+popd
+```
+
+#### Setting up Environment for Luau
+
+To compile OpenAL on windows, I'll be using cmake and MSVC. You can change use a different build system if you like, just ensure that at the end you have two directories for a release and debug version of OpenAL at the locations:
+
+```bash
+./Animations/vendor/luau/build/Debug/Luau.Compiler.lib
+./Animations/vendor/luau/build/Debug/Luau.Compiler.pdb
+./Animations/vendor/luau/build/Debug/Luau.VM.lib
+./Animations/vendor/luau/build/Debug/Luau.VM.pdb
+# And the same files as above except in this directory
+# without the pdb files
+./Animations/vendor/luau/build/Release/**
+```
+
+To build with CMake and MSVC:
+
+1. Open up a developer command prompt for MSVC.
+2. Change into your local directory for this animations library.
+3. Run the following commands to compile Luau:
+
+```batch
+mkdir .\Animations\vendor\luau\build
+pushd .\Animations\vendor\luau\build
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build . --target Luau.Repl.CLI --config Debug
+cmake --build . --target Luau.Analyze.CLI --config Debug
+cmake --build . --target Luau.Repl.CLI --config Release
+cmake --build . --target Luau.Analyze.CLI --config Release
 popd
 ```
 

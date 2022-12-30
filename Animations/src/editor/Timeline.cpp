@@ -1,6 +1,5 @@
 #include "core.h"
 #include "core/Application.h"
-#include "core/Platform.h"
 #include "core/Colors.h"
 #include "editor/Timeline.h"
 #include "editor/ImGuiTimeline.h"
@@ -13,7 +12,9 @@
 #include "renderer/Fonts.h"
 #include "audio/Audio.h"
 #include "audio/WavLoader.h"
+#include "scripting/LuauLayer.h"
 #include "utils/IconsFontAwesome5.h"
+#include "platform/Platform.h"
 
 #include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -49,10 +50,12 @@ namespace MathAnim
 		static void handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId);
 		static void handleAnimationInspector(AnimationManagerData* am, AnimId animationId);
 		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static void handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
 		static void handleSvgFileObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation);
+		static void handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation);
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation);
 		static void handleShiftInspector(Animation* animation);
 		static void handleRotateToAnimationInspector(Animation* animation);
@@ -61,8 +64,10 @@ namespace MathAnim
 		static void handleCircumscribeInspector(AnimationManagerData* am, Animation* animation);
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
+		static void handleArrowInspector(AnimObject* object);
 		static void handleCubeInspector(AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
+		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
 
 		static void checkSvgErrorPopup();
 		static bool applySettingToChildren(const char* id, bool* toggled);
@@ -75,7 +80,8 @@ namespace MathAnim
 		TimelineData initInstance()
 		{
 			TimelineData res;
-			res.audioSourceFile = nullptr;
+			// Workaround for my dumb memory tracker
+			res.audioSourceFile = (uint8*)g_memory_allocate(sizeof(char));
 			res.audioSourceFileLength = 0;
 			res.currentFrame = 0;
 			res.firstFrame = 0;
@@ -606,11 +612,7 @@ namespace MathAnim
 				scratch[animObject->nameLength] = '\0';
 				if (ImGui::InputText(": Name", scratch, scratchLength * sizeof(char)))
 				{
-					size_t newLength = std::strlen(scratch);
-					animObject->name = (uint8*)g_memory_realloc(animObject->name, sizeof(char) * (newLength + 1));
-					animObject->nameLength = (int32_t)newLength;
-					g_memory_copyMem(animObject->name, scratch, newLength * sizeof(char));
-					animObject->name[newLength] = '\0';
+					animObject->setName(scratch);
 				}
 			}
 			else
@@ -700,6 +702,9 @@ namespace MathAnim
 			case AnimObjectTypeV1::TextObject:
 				handleTextObjectInspector(am, animObject);
 				break;
+			case AnimObjectTypeV1::CodeBlock:
+				handleCodeBlockInspector(am, animObject);
+				break;
 			case AnimObjectTypeV1::LaTexObject:
 				handleLaTexObjectInspector(animObject);
 				break;
@@ -723,6 +728,12 @@ namespace MathAnim
 				break;
 			case AnimObjectTypeV1::SvgObject:
 				// NOP
+				break;
+			case AnimObjectTypeV1::ScriptObject:
+				handleScriptObjectInspector(am, animObject);
+				break;
+			case AnimObjectTypeV1::Arrow:
+				handleArrowInspector(animObject);
 				break;
 			case AnimObjectTypeV1::Length:
 			case AnimObjectTypeV1::None:
@@ -836,6 +847,9 @@ namespace MathAnim
 			case AnimTypeV1::MoveTo:
 				handleMoveToAnimationInspector(am, animation);
 				break;
+			case AnimTypeV1::AnimateScale:
+				handleAnimateScaleInspector(am, animation);
+				break;
 			case AnimTypeV1::Shift:
 				handleShiftInspector(animation);
 				break;
@@ -946,6 +960,52 @@ namespace MathAnim
 			}
 		}
 
+		static void handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object)
+		{
+			bool shouldRegenerate = false;
+
+			constexpr int scratchLength = 512;
+			char scratch[scratchLength] = {};
+			if (object->as.codeBlock.textLength >= scratchLength)
+			{
+				g_logger_error("Text object has more than 512 characters. Tell Gabe to increase scratch length for code blocks.");
+				return;
+			}
+
+			int currentLang = (int)object->as.codeBlock.language - 1;
+			if (ImGui::Combo(": Language", &currentLang, _highlighterLanguageNames.data() + 1, (int)HighlighterLanguage::Length - 1))
+			{
+				g_logger_assert(currentLang >= 0 && currentLang < (int)HighlighterLanguage::Length - 1, "How did this happen?");
+				object->as.codeBlock.language = (HighlighterLanguage)(currentLang + 1);
+				shouldRegenerate = true;
+			}
+
+			int currentTheme = (int)object->as.codeBlock.theme - 1;
+			if (ImGui::Combo(": Theme", &currentTheme, _highlighterThemeNames.data() + 1, (int)HighlighterTheme::Length - 1))
+			{
+				g_logger_assert(currentTheme >= 0 && currentTheme < (int)HighlighterTheme::Length - 1, "How did this happen?");
+				object->as.codeBlock.theme = (HighlighterTheme)(currentTheme + 1);
+				shouldRegenerate = true;
+			}
+
+			g_memory_copyMem(scratch, object->as.codeBlock.text, object->as.codeBlock.textLength * sizeof(char));
+			scratch[object->as.codeBlock.textLength] = '\0';
+			if (ImGui::InputTextMultiline(": Code", scratch, scratchLength * sizeof(char)))
+			{
+				size_t newLength = std::strlen(scratch);
+				object->as.codeBlock.text = (char*)g_memory_realloc(object->as.codeBlock.text, sizeof(char) * (newLength + 1));
+				object->as.codeBlock.textLength = (int32_t)newLength;
+				g_memory_copyMem(object->as.codeBlock.text, scratch, newLength * sizeof(char));
+				object->as.codeBlock.text[newLength] = '\0';
+				shouldRegenerate = true;
+			}
+
+			if (shouldRegenerate)
+			{
+				object->as.codeBlock.reInit(am, object);
+			}
+		}
+
 		static void handleLaTexObjectInspector(AnimObject* object)
 		{
 			constexpr int scratchLength = 2048;
@@ -993,7 +1053,8 @@ namespace MathAnim
 			size_t filepathStrLength = object->as.svgFile.filepathLength * sizeof(char);
 			if (!filepathStr)
 			{
-				filepathStr = "Select a File";
+				// This string will never be changed so no need to worry about this... Hopefully :sweat_smile:
+				filepathStr = (char*)"Select a File";
 				filepathStrLength = sizeof("Select a File");
 			}
 			ImGui::InputText(
@@ -1073,6 +1134,12 @@ namespace MathAnim
 		{
 			ImGuiExtended::AnimObjDragDropInputBox(": Object##MoveToObjectTarget", am, &animation->as.moveTo.object, animation->id);
 			ImGui::DragFloat2(": Target Position", &animation->as.moveTo.target.x, slowDragSpeed);
+		}
+
+		static void handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation)
+		{
+			ImGuiExtended::AnimObjDragDropInputBox(": Object##AnimateScaleObjectTarget", am, &animation->as.animateScale.object, animation->id);
+			ImGui::DragFloat2(": Target Scale", &animation->as.animateScale.target.x, slowDragSpeed);
 		}
 
 		static void handleShiftInspector(Animation* animation)
@@ -1173,6 +1240,43 @@ namespace MathAnim
 				object->_svgObjectStart = nullptr;
 
 				object->as.circle.init(object);
+			}
+		}
+
+		static void handleArrowInspector(AnimObject* object)
+		{
+			bool shouldRegenerate = false;
+			if (ImGui::DragFloat(": Stem Length##ArrowShape", &object->as.arrow.stemLength, slowDragSpeed))
+			{
+				shouldRegenerate = true;
+			}
+
+			if (ImGui::DragFloat(": Stem Width##ArrowShape", &object->as.arrow.stemWidth, slowDragSpeed))
+			{
+				shouldRegenerate = true;
+			}
+
+			if (ImGui::DragFloat(": Tip Length##ArrowShape", &object->as.arrow.tipLength, slowDragSpeed))
+			{
+				shouldRegenerate = true;
+			}
+
+			if (ImGui::DragFloat(": Tip Width##ArrowShape", &object->as.arrow.tipWidth, slowDragSpeed))
+			{
+				shouldRegenerate = true;
+			}
+
+			if (shouldRegenerate)
+			{
+				object->svgObject->free();
+				g_memory_free(object->svgObject);
+				object->svgObject = nullptr;
+
+				object->_svgObjectStart->free();
+				g_memory_free(object->_svgObjectStart);
+				object->_svgObjectStart = nullptr;
+
+				object->as.arrow.init(object);
 			}
 		}
 
@@ -1282,6 +1386,79 @@ namespace MathAnim
 				g_logger_warning("TODO: Fix me");
 
 				object->as.axis.init(object);
+			}
+		}
+
+		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* obj)
+		{
+			ScriptObject& script = obj->as.script;
+
+			constexpr size_t bufferSize = 512;
+			char buffer[bufferSize] = "Drag File Here";
+			if (bufferSize >= script.scriptFilepathLength + 1 && script.scriptFilepathLength > 0)
+			{
+				g_memory_copyMem((void*)buffer, script.scriptFilepath, sizeof(char) * script.scriptFilepathLength);
+				buffer[script.scriptFilepathLength] = '\0';
+			}
+
+			if (ImGuiExtended::FileDragDropInputBox(": Script File##ScriptFileTarget", am, buffer, bufferSize))
+			{
+				size_t newFilepathLength = std::strlen(buffer);
+				script.scriptFilepath = (char*)g_memory_realloc(script.scriptFilepath, sizeof(char) * (newFilepathLength + 1));
+				script.scriptFilepathLength = newFilepathLength;
+				g_memory_copyMem((void*)script.scriptFilepath, buffer, sizeof(char) * (newFilepathLength + 1));
+			}
+
+			if (ImGui::Button("Generate"))
+			{
+				if (script.scriptFilepathLength > 0 && Platform::fileExists(script.scriptFilepath))
+				{
+					// First remove all generated children, which were generated as a result
+					// of this object (presumably)
+					for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
+					{
+						AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
+						if (child)
+						{
+							SceneHierarchyPanel::deleteAnimObject(*child);
+							AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
+						}
+					}
+					obj->generatedChildrenIds.clear();
+
+					// Next init again which should regenerate the children
+					if (LuauLayer::compile(script.scriptFilepath))
+					{
+						if (!LuauLayer::executeOnAnimObj(script.scriptFilepath, "generate", am, obj->id))
+						{
+							// If execution fails, delete any objects that may have been created prematurely
+							for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
+							{
+								AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
+								if (child)
+								{
+									SceneHierarchyPanel::deleteAnimObject(*child);
+									AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
+								}
+							}
+							obj->generatedChildrenIds.clear();
+						}
+					}
+
+					// Copy the svgObjectStart to all the svgObjects to any generated children
+					// to make sure that they render properly
+					for (auto childId : obj->generatedChildrenIds)
+					{
+						AnimObject* child = AnimationManager::getMutableObject(am, childId);
+						if (child)
+						{
+							if (child->_svgObjectStart)
+							{
+								Svg::copy(child->svgObject, child->_svgObjectStart);
+							}
+						}
+					}
+				}
 			}
 		}
 

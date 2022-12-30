@@ -21,6 +21,9 @@ namespace MathAnim
 
 			ImGui::Begin("Scene Manager");
 
+			float windowWidth = ImGui::GetWindowWidth();
+			float cursorX = 0.0f;
+
 			ImVec2 buttonSize = ImVec2(256, 0);
 			for (int i = 0; i < sd.sceneNames.size(); i++)
 			{
@@ -81,10 +84,15 @@ namespace MathAnim
 					ImGui::EndPopup();
 				}
 
-				if (ImGui::GetContentRegionAvail().x > buttonSize.x)
+				if (cursorX + (buttonSize.x * 2.0f) < windowWidth)
 				{
 					ImGui::SameLine();
 				}
+				else
+				{
+					cursorX = 0.0f;
+				}
+				cursorX += buttonSize.x;
 			}
 
 			if (ImGuiExtended::VerticalIconButton(ICON_FA_PLUS, "Add Scene", 132.0f))

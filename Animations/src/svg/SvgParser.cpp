@@ -312,7 +312,13 @@ namespace MathAnim
 		SvgGroup* parseSvgDoc(const char* filepath)
 		{
 			XMLDocument doc;
-			doc.LoadFile(filepath);
+			int res = doc.LoadFile(filepath);
+			if (res != XML_SUCCESS)
+			{
+				PANIC("Failed to parse XML in SVG file '%s'.", filepath);
+				return nullptr;
+			}
+
 			XMLElement* svgElement = doc.FirstChildElement("svg");
 			if (!svgElement)
 			{
@@ -347,7 +353,7 @@ namespace MathAnim
 				if (!parseSvgStylesheet(styleElement, &rootStylesheet))
 				{
 					PANIC("Parsing SVG style failed: %s", styleElement->GetText());
-					return false;
+					return nullptr;
 				}
 			}
 
@@ -1922,7 +1928,8 @@ namespace MathAnim
 			char stringStart = advance(parserInfo);
 			if (stringStart != stringTerminator)
 			{
-				goto cleanupReturnFalse;
+				*string = {};
+				return false;
 			}
 
 			size_t stringStartIndex = parserInfo.cursor;
@@ -1937,7 +1944,8 @@ namespace MathAnim
 			char stringEnd = advance(parserInfo);
 			if (stringEnd != stringTerminator)
 			{
-				goto cleanupReturnFalse;
+				*string = {};
+				return false;
 			}
 
 			g_logger_assert(stringStartIndex < parserInfo.textLength, "Invalid start index.");
@@ -1949,10 +1957,6 @@ namespace MathAnim
 			string->text[string->textLength] = '\0';
 
 			return true;
-
-		cleanupReturnFalse:
-			*string = {};
-			return false;
 		}
 
 		static bool parseIdentifier(ParserInfo& parserInfo, DumbString* string, bool canStartWithNumber)

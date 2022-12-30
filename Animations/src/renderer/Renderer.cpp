@@ -318,7 +318,6 @@ namespace MathAnim
 		static void setupScreenVao();
 		static void renderPickingOutline(const Framebuffer& mainFramebuffer);
 		static uint32 getColorCompressed();
-		static const glm::vec4& getColor();
 		static float getStrokeWidth();
 		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth);
 		static void lineToInternal(Path2DContext* path, const Vec2& point, bool addToRawCurve);
@@ -524,6 +523,14 @@ namespace MathAnim
 			fontStackPtr++;
 		}
 
+		Vec4 getColor()
+		{
+			const glm::vec4& color = colorStackPtr > 0
+				? colorStack[colorStackPtr - 1]
+				: defaultColor;
+			return Vec4{ color.r, color.g, color.b, color.a };
+		}
+
 		void popStrokeWidth(int numToPop)
 		{
 			strokeWidthStackPtr -= numToPop;
@@ -571,8 +578,7 @@ namespace MathAnim
 			Vec2 min = start + (size * -0.5f);
 			Vec2 max = start + (size * 0.5f);
 
-			const glm::vec4& color = getColor();
-			drawList2D.addColoredQuad(min, max, Vec4{ color.r, color.g, color.b, color.a }, objId);
+			drawList2D.addColoredQuad(min, max, getColor(), objId);
 		}
 
 		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId, const glm::mat4& transform)
@@ -582,8 +588,7 @@ namespace MathAnim
 
 		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, AnimObjId objId)
 		{
-			const glm::vec4& color = getColor();
-			drawList2D.addColoredTri(p0, p1, p2, Vec4{ color.r, color.g, color.b, color.a }, objId);
+			drawList2D.addColoredTri(p0, p1, p2, getColor(), objId);
 		}
 
 		void drawMultiColoredTri(const Vec2& p0, const Vec4& color0, const Vec2& p1, const Vec4& color1, const Vec2& p2, const Vec4& color2, AnimObjId objId)
@@ -680,8 +685,7 @@ namespace MathAnim
 			g_logger_assert(fontStackPtr > 0, "Cannot draw string without a font provided. Did you forget a pushFont() call?");
 
 			const SizedFont* font = fontStack[fontStackPtr - 1];
-			const glm::vec4& colorGlm = getColor();
-			Vec4 color = Vec4{ colorGlm.r, colorGlm.g, colorGlm.b, colorGlm.a };
+			const Vec4& color = getColor();
 			Vec2 cursorPos = start;
 
 			for (int i = 0; i < string.length(); i++)
@@ -820,7 +824,13 @@ namespace MathAnim
 				// This is the miter
 				Vec2 bisection = Vec2{ -bisectionPerp.y, bisectionPerp.x };
 				Vec2 extrusionNormal = bisection;
-				float miterThickness = vertex.thickness / CMath::dot(bisection, secondLinePerp);
+				float bisectionDotProduct = CMath::dot(bisection, secondLinePerp);
+				float miterThickness = vertex.thickness / bisectionDotProduct;
+				if (CMath::compare(bisectionDotProduct, 0.0f, 0.01f))
+				{
+					// Clamp the miter if the joining curves are almost parallell
+					miterThickness = vertex.thickness;
+				}
 
 				constexpr float strokeMiterLimit = 2.0f;
 				bool shouldConvertToBevel = miterThickness / vertex.thickness > strokeMiterLimit;
@@ -1431,8 +1441,7 @@ namespace MathAnim
 		// ----------- 3D stuff ----------- 
 		void drawFilledCube(const Vec3& center, const Vec3& size)
 		{
-			const glm::vec4& color = getColor();
-			drawList3D.addCubeFilled(center, size, Vec4{ color.r, color.g, color.b, color.a });
+			drawList3D.addCubeFilled(center, size, getColor());
 		}
 
 		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform, bool isTransparent)
@@ -1580,14 +1589,6 @@ namespace MathAnim
 				((uint32)(color.b * 255.0f) << 8) |
 				((uint32)(color.a * 255.0f));
 			return packedColor;
-		}
-
-		static const glm::vec4& getColor()
-		{
-			const glm::vec4& color = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-			return color;
 		}
 
 		static float getStrokeWidth()

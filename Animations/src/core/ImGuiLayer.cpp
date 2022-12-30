@@ -2,11 +2,12 @@
 #include "core/Window.h"
 #include "core/Colors.h"
 #include "utils/FontAwesome.h"
+#include "editor/MenuBar.h"
 
-#include "imgui.h"
-#include "imgui_internal.h"
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_opengl3.h"
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #include <GLFW/glfw3.h>
 
@@ -16,6 +17,7 @@ namespace MathAnim
 	{
 		static ImFont* defaultFont;
 		static ImFont* mediumFont;
+		static ImFont* monoFont;
 
 		static ImFont* largeSolidIconFont;
 		static ImFont* mediumSolidIconFont;
@@ -53,6 +55,10 @@ namespace MathAnim
 			config.MergeMode = false;
 			config.SizePixels = fontSize * 1.5f;
 			mediumFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize * 1.5f);
+
+			config.MergeMode = false;
+			config.SizePixels = fontSize;
+			monoFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/consola.ttf", fontSize);
             
 			config.SizePixels = fontSize * 1.5f;
 			mediumSolidIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 1.5f, &config, iconRanges);
@@ -88,12 +94,19 @@ namespace MathAnim
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
+			ImGui::CaptureKeyboardFromApp(true);
             
             ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+			MenuBar::update();
 		}
         
 		void endFrame()
 		{
+			if (ImGui::IsAnyItemFocused())
+			{
+				ImGui::CaptureKeyboardFromApp(false);
+			}
+
 			ImGui::Render();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
             
@@ -145,6 +158,11 @@ namespace MathAnim
 		ImFont* getMediumFont()
 		{
 			return mediumFont;
+		}
+
+		ImFont* getMonoFont()
+		{
+			return monoFont;
 		}
         
 		ImFont* getLargeSolidIconFont()
@@ -222,8 +240,8 @@ namespace MathAnim
 			colors[ImGuiCol_Tab] = Colors::Primary[8];
 			colors[ImGuiCol_TabHovered] = Colors::Primary[5];
 			colors[ImGuiCol_TabActive] = Colors::Primary[6];
-			colors[ImGuiCol_TabUnfocused] = Colors::Neutral[8];
-			colors[ImGuiCol_TabUnfocusedActive] = Colors::Neutral[6];
+			colors[ImGuiCol_TabUnfocused] = Colors::Neutral[6];
+			colors[ImGuiCol_TabUnfocusedActive] = Colors::Neutral[8];
 			colors[ImGuiCol_DockingPreview] = ImVec4(
 				colors[ImGuiCol_Header].x,
 				colors[ImGuiCol_Header].x,

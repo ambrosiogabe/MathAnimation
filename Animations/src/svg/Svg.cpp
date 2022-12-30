@@ -1493,7 +1493,7 @@ namespace MathAnim
 		}
 	}
 
-	static void writeBuffer(uint8** buffer, size_t* capacity, size_t* numElements, char* string, size_t stringLength = 0)
+	static void writeBuffer(uint8** buffer, size_t* capacity, size_t* numElements, const char* string, size_t stringLength = 0)
 	{
 		if (stringLength == 0)
 		{
@@ -1512,6 +1512,8 @@ namespace MathAnim
 		uint8* buffer = (uint8*)g_memory_allocate(sizeof(uint8) * capacity);
 		constexpr size_t tmpBufferSize = 256;
 		char tmpBuffer[tmpBufferSize];
+		tmpBuffer[0] = '\0';
+
 		for (int pathi = 0; pathi < numPaths; pathi++)
 		{
 			// Move to the first path point
@@ -1605,9 +1607,16 @@ namespace MathAnim
 		memory.readDangerous(string, stringLength);
 		string[stringLength] = '\0';
 
-		if (!SvgParser::parseSvgPath((const char*)string, stringLength, res))
+		if (stringLength > 0)
 		{
-			g_logger_error("Error deserializing SVG. Bad path data: '%s'", string);
+			if (!SvgParser::parseSvgPath((const char*)string, stringLength, res))
+			{
+				g_logger_error("Error deserializing SVG. Bad path data: '%s'", string);
+			}
+		}
+		else
+		{
+			*res = Svg::createDefault();
 		}
 		g_memory_free(string);
 
