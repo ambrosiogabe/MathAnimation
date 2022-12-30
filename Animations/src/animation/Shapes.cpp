@@ -19,12 +19,11 @@ namespace MathAnim
 		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 		*parent->svgObject = Svg::createDefault();
 
-		Svg::beginPath(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
+		Svg::beginPath(parent->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
+		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { sideLength / 2.0f, sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { sideLength / 2.0f, -sideLength / 2.0f });
 		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
-		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 4.0f });
-		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
 		Svg::closePath(parent->_svgObjectStart);
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
