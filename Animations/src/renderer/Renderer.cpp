@@ -824,7 +824,13 @@ namespace MathAnim
 				// This is the miter
 				Vec2 bisection = Vec2{ -bisectionPerp.y, bisectionPerp.x };
 				Vec2 extrusionNormal = bisection;
-				float miterThickness = vertex.thickness / CMath::dot(bisection, secondLinePerp);
+				float bisectionDotProduct = CMath::dot(bisection, secondLinePerp);
+				float miterThickness = vertex.thickness / bisectionDotProduct;
+				if (CMath::compare(bisectionDotProduct, 0.0f, 0.01f))
+				{
+					// Clamp the miter if the joining curves are almost parallell
+					miterThickness = vertex.thickness;
+				}
 
 				constexpr float strokeMiterLimit = 2.0f;
 				bool shouldConvertToBevel = miterThickness / vertex.thickness > strokeMiterLimit;
