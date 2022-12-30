@@ -219,6 +219,18 @@ namespace MathAnim
 					g_logger_info("Saving project.");
 				}
 			}
+
+			if (!io.WantTextInput)
+			{
+				if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
+				{
+					AnimState currentPlayState = Application::getEditorPlayState();
+					AnimState newState = currentPlayState == AnimState::PlayForward
+						? AnimState::Pause
+						: AnimState::PlayForward;
+					Application::setEditorPlayState(newState);
+				}
+			}
 		}
 		static void checkForMousePicking(const Framebuffer& mainFramebuffer)
 		{
