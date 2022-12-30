@@ -2,11 +2,12 @@
 #include "core/Window.h"
 #include "core/Colors.h"
 #include "utils/FontAwesome.h"
+#include "editor/MenuBar.h"
 
-#include "imgui.h"
-#include "imgui_internal.h"
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_opengl3.h"
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #include <GLFW/glfw3.h>
 
@@ -93,12 +94,19 @@ namespace MathAnim
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
+			ImGui::CaptureKeyboardFromApp(true);
             
             ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+			MenuBar::update();
 		}
         
 		void endFrame()
 		{
+			if (ImGui::IsAnyItemFocused())
+			{
+				ImGui::CaptureKeyboardFromApp(false);
+			}
+
 			ImGui::Render();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
             
