@@ -368,7 +368,8 @@ namespace MathAnim
 				lastFrame = glm::max(lastFrame, animDeathTime);
 			}
 
-			return lastFrame;
+			// Add 1 extra second of footage for good measure
+			return lastFrame + 60;
 		}
 
 		const AnimObject* getActiveOrthoCamera(const AnimationManagerData* am)
@@ -915,45 +916,90 @@ namespace MathAnim
 			am->currentFrame += deltaFrame;
 			int newFrame = am->currentFrame;
 
-			if (am->animations.size() == 0)
-			{
-				return;
-			}
+			resetToFrame(am, newFrame);
 
-			// Assume newFrame < previousFrame
-			int animIndexToStartFrom = (int)am->animations.size() - 1;
-			for (size_t i = 0; i < am->animations.size(); i++)
-			{
-				const Animation& anim = am->animations[i];
-				if (anim.frameStart > previousFrame)
-				{
-					g_logger_assert(i > 0, "Somehow the timeline cursor is at -1.");
-					animIndexToStartFrom = (int)i - 1;
-					break;
-				}
-			}
+			// TODO: FIXME
+			//if (am->animations.size() == 0)
+			//{
+			//	return;
+			//}
 
-			int reapplyAnimationsFrom = 0;
-			for (int i = animIndexToStartFrom; i >= 0; i--)
-			{
-				const Animation& anim = am->animations[i];
-				int animStart = anim.frameStart;
-				int animEnd = anim.frameStart + anim.duration;
-				bool intersecting = newFrame <= animStart && animEnd <= previousFrame;
-				if (intersecting)
-				{
-					anim.applyAnimation(am, 0.0f);
-				}
-				else
-				{
-					g_logger_assert(i < am->animations.size(), "Somehow we didn't reapply anything.");
-					reapplyAnimationsFrom = i + 1;
-					break;
-				}
-			}
+			//if (deltaFrame < 0)
+			//{
+			//	// Assume newFrame < previousFrame
+			//	int animIndexToStartFrom = (int)am->animations.size() - 1;
+			//	for (size_t i = 0; i < am->animations.size(); i++)
+			//	{
+			//		const Animation& anim = am->animations[i];
+			//		if (anim.frameStart > previousFrame)
+			//		{
+			//			g_logger_assert(i > 0, "Somehow the timeline cursor is at -1.");
+			//			animIndexToStartFrom = (int)i - 1;
+			//			break;
+			//		}
+			//	}
 
-			applyAnimationsFrom(am, animIndexToStartFrom, newFrame);
-			applyGlobalTransforms(am);
+			//	int reapplyAnimationsFrom = 0;
+			//	for (int i = animIndexToStartFrom; i >= 0; i--)
+			//	{
+			//		const Animation& anim = am->animations[i];
+			//		int animStart = anim.frameStart;
+			//		int animEnd = anim.frameStart + anim.duration;
+			//		bool intersecting = newFrame <= animStart && animEnd <= previousFrame;
+			//		if (intersecting)
+			//		{
+			//			anim.applyAnimation(am, 0.0f);
+			//		}
+			//		else
+			//		{
+			//			g_logger_assert(i < am->animations.size(), "Somehow we didn't reapply anything.");
+			//			reapplyAnimationsFrom = i + 1;
+			//			break;
+			//		}
+			//	}
+			//	applyAnimationsFrom(am, animIndexToStartFrom, newFrame);
+			//}
+			//else
+			//{
+			//	// Assume newFrame >= previousFrame
+			//	int animIndexToStartFrom = 0;
+			//	// Start from the earliest animation that encompasses all the changes
+			//	for (size_t i = am->animations.size(); i > 0; i--)
+			//	{
+			//		const Animation& anim = am->animations[i - 1];
+			//		if (anim.frameStart >= previousFrame)
+			//		{
+			//			g_logger_assert(i > 0, "Somehow the timeline cursor is at -1.");
+			//			animIndexToStartFrom = (int)i - 1;
+			//		}
+			//		else if (anim.frameStart + anim.duration >= previousFrame)
+			//		{
+			//			g_logger_assert(i > 0, "Somehow the timeline cursor is at -1.");
+			//			animIndexToStartFrom = (int)i - 1;
+			//		}
+			//	}
+
+			//	int reapplyAnimationsFrom = 0;
+			//	for (int i = animIndexToStartFrom; i >= 0; i--)
+			//	{
+			//		const Animation& anim = am->animations[i];
+			//		int animStart = anim.frameStart;
+			//		int animEnd = anim.frameStart + anim.duration;
+			//		bool intersecting = newFrame <= animStart && animEnd <= previousFrame;
+			//		if (intersecting)
+			//		{
+			//			anim.applyAnimation(am, 0.0f);
+			//		}
+			//		else
+			//		{
+			//			g_logger_assert(i < am->animations.size(), "Somehow we didn't reapply anything.");
+			//			reapplyAnimationsFrom = i + 1;
+			//			break;
+			//		}
+			//	}
+			//	applyAnimationsFrom(am, animIndexToStartFrom, newFrame);
+			//}
+			//applyGlobalTransforms(am);
 		}
 
 		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int currentFrame, bool calculateKeyframes)
