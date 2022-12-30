@@ -845,11 +845,11 @@ extern "C"
 		{
 			lua_pop(L, 1);
 			lua_getfield(L, index, "r");
-		}
-		if (!lua_isnumber(L, -1))
-		{
-			throwErrorNoReturn(L, "Vec4.x expected number. Instead got something else.");
-			return res;
+			if (!lua_isnumber(L, -1))
+			{
+				throwErrorNoReturn(L, "Vec4.x expected number. Instead got something else.");
+				return res;
+			}
 		}
 		res.x = (float)lua_tonumber(L, -1);
 
@@ -858,11 +858,11 @@ extern "C"
 		{
 			lua_pop(L, 1);
 			lua_getfield(L, index, "g");
-		}
-		if (!lua_isnumber(L, -1))
-		{
-			throwErrorNoReturn(L, "Vec4.y expected number. Instead got something else.");
-			return res;
+			if (!lua_isnumber(L, -1))
+			{
+				throwErrorNoReturn(L, "Vec4.y expected number. Instead got something else.");
+				return res;
+			}
 		}
 		res.y = (float)lua_tonumber(L, -1);
 
@@ -871,11 +871,11 @@ extern "C"
 		{
 			lua_pop(L, 1);
 			lua_getfield(L, index, "b");
-		}
-		if (!lua_isnumber(L, -1))
-		{
-			throwErrorNoReturn(L, "Vec4.z expected number. Instead got something else.");
-			return res;
+			if (!lua_isnumber(L, -1))
+			{
+				throwErrorNoReturn(L, "Vec4.z expected number. Instead got something else.");
+				return res;
+			}
 		}
 		res.z = (float)lua_tonumber(L, -1);
 
@@ -884,11 +884,11 @@ extern "C"
 		{
 			lua_pop(L, 1);
 			lua_getfield(L, index, "a");
-		}
-		if (!lua_isnumber(L, -1))
-		{
-			throwErrorNoReturn(L, "Vec.w expected number. Instead got something else.");
-			return res;
+			if (!lua_isnumber(L, -1))
+			{
+				throwErrorNoReturn(L, "Vec.w expected number. Instead got something else.");
+				return res;
+			}
 		}
 		res.w = (float)lua_tonumber(L, -1);
 
