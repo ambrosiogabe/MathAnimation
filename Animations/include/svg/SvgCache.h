@@ -66,17 +66,15 @@ namespace MathAnim
 		void checkLineHeight(float newLineHeight);
 		void growCache();
 
-		void generateDefaultFramebuffer(uint32 width, uint32 height);
-		void addColorAttachment();
+		std::optional<_SvgCacheEntryInternal> getInternal(uint64 hash);
+		bool existsInternal(uint64 hash);
 
-		uint64 hash(AnimObjId obj, float svgScale);
+		void generateDefaultFramebuffer(uint32 width, uint32 height);
+
+		uint64 hash(AnimObjId obj, float svgScale, float replacementTransform);
 
 	private:
-		// TODO: Add LRU-cache for long term storage
-		// and temporary cache for objects that are currently
-		// being animated
-		//std::unordered_map<uint64, _SvgCacheEntryInternal> cachedSvgs;
-		LRUCache<uint64, _SvgCacheEntryInternal> cachedSvgs;
+		std::vector<LRUCache<uint64, _SvgCacheEntryInternal>> cachedSvgs;
 		Framebuffer framebuffer;
 	public:
 		Vec2 cacheCurrentPos;
