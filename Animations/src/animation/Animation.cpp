@@ -1191,15 +1191,15 @@ namespace MathAnim
 			// Fade out dstObject
 			if (replacement->percentCreated > 0.0f)
 			{
-			replacement->fillColor = CMath::interpolate(t,
-				replacement->fillColor,
-				glm::u8vec4(replacement->fillColor.r, replacement->fillColor.g, replacement->fillColor.b, 0)
-			);
-			replacement->strokeColor = CMath::interpolate(t,
-				replacement->strokeColor,
-				glm::u8vec4(replacement->strokeColor.r, replacement->strokeColor.g, replacement->strokeColor.b, 0)
-			);
-		}
+				replacement->fillColor = CMath::interpolate(t,
+					replacement->fillColor,
+					glm::u8vec4(replacement->fillColor.r, replacement->fillColor.g, replacement->fillColor.b, 0)
+				);
+				replacement->strokeColor = CMath::interpolate(t,
+					replacement->strokeColor,
+					glm::u8vec4(replacement->strokeColor.r, replacement->strokeColor.g, replacement->strokeColor.b, 0)
+				);
+			}
 		}
 		else
 		{
