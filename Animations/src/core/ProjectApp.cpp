@@ -43,7 +43,9 @@ namespace MathAnim
 
 		std::string run()
 		{
-			// Automatically start the last project that was running
+#ifdef _DEBUG
+			// Automatically start the last project that was running in debug, useful for re-running the 
+			// same project without having to go through the project selector
 			{
 				const ProjectInfo& lastSelected = ProjectScreen::getSelectedProject();
 				if (!lastSelected.projectFilepath.empty() && std::filesystem::exists(lastSelected.projectFilepath))
@@ -51,6 +53,7 @@ namespace MathAnim
 					return lastSelected.projectFilepath;
 				}
 			}
+#endif
 
 			// Run game loop
 			// Start with a 60 fps frame rate
