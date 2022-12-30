@@ -10,14 +10,24 @@ namespace MathAnim
 	namespace AssetManagerPanel
 	{
 		typedef void (*AddButtonCallbackFn)(const char* filename);
+		typedef void (*FileRenamedCallbackFn)(const char* oldFilename, const char* newFilename);
+		typedef void (*FileSelectedFn)(const char* filename);
 
 		// -------------- Internal Functions --------------
-		static void iterateDirectory(const std::string& directory, AddButtonCallbackFn callback = nullptr, const char* defaultNewFilename = nullptr, const char* addButtonText = nullptr);
+		static void iterateDirectory(
+			const std::string& directory,
+			AddButtonCallbackFn callback = nullptr,
+			FileRenamedCallbackFn renameCallback = nullptr,
+			FileSelectedFn fileSelectedCallback = nullptr,
+			const char* defaultNewFilename = nullptr,
+			const char* addButtonText = nullptr
+		);
 		static void onScriptChanged(const std::filesystem::path& scriptPath);
 		static void onScriptRenamed(const std::filesystem::path& scriptPath);
 		static void onScriptCreated(const std::filesystem::path& scriptPath);
 		static void onScriptDeleted(const std::filesystem::path& scriptPath);
 		static void newScriptAddedCallback(const char* filename);
+		static void scriptSelectedCallback(const char* filename);
 
 		// -------------- Internal Variables --------------
 		static std::string assetsRoot;
@@ -52,7 +62,14 @@ namespace MathAnim
 
 			ImGui::Begin("Asset Manager");
 
-			iterateDirectory(scriptsRoot, newScriptAddedCallback, "Script.luau", "Add Script");
+			iterateDirectory(
+				scriptsRoot, 
+				newScriptAddedCallback,
+				nullptr, 
+				scriptSelectedCallback, 
+				"Script.luau", 
+				"Add Script"
+			);
 
 			ImGui::End();
 		}
@@ -69,7 +86,14 @@ namespace MathAnim
 		}
 
 		// -------------- Internal Functions --------------
-		static void iterateDirectory(const std::string& directory, AddButtonCallbackFn callback, const char* defaultNewFilename, const char* addButtonText)
+		static void iterateDirectory(
+			const std::string& directory,
+			AddButtonCallbackFn callback,
+			FileRenamedCallbackFn fileRenamedCallback,
+			FileSelectedFn fileSelectedCallback,
+			const char* defaultNewFilename,
+			const char* addButtonText
+		)
 		{
 			constexpr size_t stringBufferSize = _MAX_PATH;
 			char stringBuffer[stringBufferSize];
@@ -101,6 +125,17 @@ namespace MathAnim
 						{
 							g_logger_error("There was an error renaming file '%s' to '%s'.", filename.c_str(), stringBuffer);
 						}
+						else if (fileRenamedCallback)
+						{
+							// If file renaming succeeded and callback was provided then call the callback
+							fileRenamedCallback(oldFilepath.string().c_str(), newFilepath.string().c_str());
+						}
+					}
+					else if (fileSelectedCallback)
+					{
+						// If file wasn't renamed but was selected then open it
+						std::filesystem::path filepath = directory / std::filesystem::path(filename);
+						fileSelectedCallback(filepath.string().c_str());
 					}
 
 					lastSelectedFile = fileIndex;
@@ -189,6 +224,11 @@ namespace MathAnim
 		}
 
 		static void newScriptAddedCallback(const char* filename)
+		{
+			Platform::openFileWithVsCode(filename);
+		}
+
+		static void scriptSelectedCallback(const char* filename)
 		{
 			Platform::openFileWithVsCode(filename);
 		}
