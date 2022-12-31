@@ -18,14 +18,21 @@ assetsDir = "./assets/"
 project "Animations"
     kind "ConsoleApp"
     language "C++"
-    cppdialect "C++20"
+    -- C++20 complains about something with incomplete types in Animations/Texture ?
+    cppdialect "C++17"
     staticruntime "on"
     warnings "High"
 
     targetdir("_bin/" .. outputdir .. "/%{prj.name}")
     objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
 
-    buildoptions "/we4062 /wd4201 /DONIG_EXTERN=extern"
+    -- not sure if 4201 has a gcc equivalent?
+    filter "system:windows"
+        buildoptions "/we4062 /wd4201 /DONIG_EXTERN=extern"
+    filter "system:linux"
+        buildoptions "-Werror=switch -DONIG_EXTERN=extern -pedantic"
+
+    filter {}
 
     files {
         "Animations/src/**.cpp",
@@ -78,7 +85,16 @@ project "Animations"
         "Animations/vendor/luau/Common/include",
         "Animations/vendor/luau/VM/include",
         "Animations/vendor/luau/Analysis/include",
-        "Animations/vendor/luau/Ast/include"
+        "Animations/vendor/luau/Ast/include",
+
+        "/usr/lib/glib-2.0/include",
+        "/usr/include/glib-2.0",
+        "/usr/include/pango-1.0",
+        "/usr/include/gtk-3.0",
+        "/usr/include/gdk-pixbuf-2.0",
+        "/usr/include/atk-1.0",
+        "/usr/include/harfbuzz",
+        "/usr/include/cairo",
     }
 
     postbuildcommands {
@@ -88,7 +104,7 @@ project "Animations"
         "{COPYFILE} "..grammarsDir.."javascript/syntaxes/javascript.json "..assetsDir.."grammars/javascript.tmLanguage.json",
 
         ---- Copy themes to assets dir
-        "{COPYFILE} "..themesDir.."atomOneDark/themes/oneDark.json "..assetsDir.."themes/oneDark.theme.json",
+        "{COPYFILE} "..themesDir.."atomOneDark/themes/OneDark.json "..assetsDir.."themes/oneDark.theme.json",
         "{COPYFILE} "..themesDir.."gruvbox/themes/gruvbox-dark-soft.json "..assetsDir.."themes/gruvbox.theme.json",
         "{COPYFILE} "..themesDir.."monokaiNight/themes/default.json "..assetsDir.."themes/monokaiNight.theme.json",
         "{COPYFILE} "..themesDir.."oneMonokai/themes/OneMonokai-color-theme.json "..assetsDir.."themes/oneMonokai.theme.json",
@@ -118,79 +134,112 @@ project "Animations"
         links {
             -- Freetype
             "freetype",
-            "OpenAL32"
+            "OpenAL32",
         }
 
-    filter "system:windows"
-        buildoptions { "-lgdi32" }
-        systemversion "latest"
-
+    filter "system:linux"
         files {
-            "Animations/vendor/GLFW/src/win32_init.c",
-            "Animations/vendor/GLFW/src/win32_joystick.c",
-            "Animations/vendor/GLFW/src/win32_monitor.c",
-            "Animations/vendor/GLFW/src/win32_time.c",
-            "Animations/vendor/GLFW/src/win32_thread.c",
-            "Animations/vendor/GLFW/src/win32_window.c",
-            "Animations/vendor/GLFW/src/wgl_context.c",
+            -- "Animations/vendor/GLFW/src/wl_init.c",
+            -- "Animations/vendor/GLFW/src/wl_monitor.c",
+            -- "Animations/vendor/GLFW/src/wl_window.c",
+            "Animations/vendor/GLFW/src/x11_init.c",
+            "Animations/vendor/GLFW/src/x11_monitor.c",
+            "Animations/vendor/GLFW/src/x11_window.c",
+            "Animations/vendor/GLFW/src/posix_thread.c",
             "Animations/vendor/GLFW/src/egl_context.c",
             "Animations/vendor/GLFW/src/osmesa_context.c",
             -- NFD
-            "./Animations/vendor/nativeFileDialog/src/nfd_win.cpp"
+            "./Animations/vendor/nativeFileDialog/src/nfd_gtk.c"
         }
 
         defines  {
-            "_GLFW_WIN32",
+            -- "_GLFW_WAYLAND",
+            "_GLFW_X11",
+            "_MAX_PATH=261",
             "_CRT_SECURE_NO_WARNINGS"
         }
 
+        includedirs {
+            "./Animations/vendor/GLFW/build/src"
+        }
+
         libdirs {
-            "./Animations/vendor/ffmpeg/build/lib"
+            "./Animations/vendor/ffmpeg/build/lib",
+            "./Animations/vendor/GLFW/build/src",
+            "./Animations/vendor/onigurama/build/lib"
         }
 
         links {
             -- ffmpeg static libs
-            "libavcodec",
-            "libavdevice",
-            "libavfilter",
-            "libavformat",
-            "libavutil",
-            "libswresample",
-            "libswscale",
+            "avformat",
+            "avcodec",
+            "avdevice",
+            "avfilter",
+            "avutil",
+            "swresample",
+            "swscale",
+
+            "bz2",
+            "lzma",
+
+            "openal",
+            
+            "X11",
+            "wayland-client",
+            "vdpau",
+            "va",
+            "va-drm",
+            "gtk-3",
+            "gdk-3",
+            "z",
+            "pangocairo-1.0",
+            "pango-1.0",
+            "harfbuzz",
+            "atk-1.0",
+            "cairo-gobject",
+            "cairo",
+            "gdk_pixbuf-2.0",
+            "gio-2.0",
+            "gobject-2.0",
+            "glib-2.0",
+
+            "freetype",
+
+            "ssl",
+            "crypto",
+
+            "glfw3",
+
+            "onig",
+
             -- Luau static libs
+            "Luau.Analysis",
             "Luau.Ast",
             "Luau.CodeGen",
             "Luau.Compiler",
             "Luau.VM",
-            "Luau.Analysis",
             -- Other premake projects
             "DearImGui",
             "TinyXml2",
             "plutovg",
             "Oniguruma",
-            -- Windows static libs required for ffmepg
-            "Ws2_32.lib",
-            "Secur32.lib",
-            "Bcrypt.lib",
-            "Mfuuid.lib",
-            "Strmiids.lib"
         }
 
     filter { "configurations:Debug" }
-        buildoptions "/MDd"
         runtime "Debug"
         symbols "on"
 
         libdirs {
-            "./Animations/vendor/luau/build/Debug"
+            "./Animations/vendor/luau/build/Debug",
+            "./Animations/vendor/openal/build/Debug",
+            "./Animations/vendor/freetype/build/Debug",
         }
 
         postbuildcommands {
-            "{COPY} Animations/vendor/openal/build/Debug/OpenAL32.dll %{cfg.targetdir}"
+            -- "{COPY} Animations/vendor/openal/build/Debug/OpenAL32.dll %{cfg.targetdir}"
         }
 
     filter { "configurations:Release" }
-        buildoptions "/MD"
         runtime "Release"
         optimize "on"
 
@@ -199,7 +248,9 @@ project "Animations"
         }
 
         libdirs {
-            "./Animations/vendor/luau/build/Release"
+            "./Animations/vendor/luau/build/Release",
+            "./Animations/vendor/openal/build/Release",
+            "./Animations/vendor/freetype/build/Release"
         }
 
         postbuildcommands {
@@ -207,7 +258,6 @@ project "Animations"
         }
 
     filter { "configurations:Dist" }
-        buildoptions "/MD"
         runtime "Release"
         optimize "on"
 
@@ -244,13 +294,15 @@ project "plutovg"
     defines { "_CRT_SECURE_NO_WARNINGS" }
 
     filter "configurations:Debug"
-        buildoptions "/MDd"
+        filter "system:windows"
+            buildoptions "/MDd"
         defines { "DEBUG" }
         symbols "On"
         warnings "Extra"
 
     filter "configurations:Release"
-        buildoptions "/MD"
+        filter "system:windows"
+            buildoptions "/MD"
         defines { "NDEBUG" }
         symbols "Off"
         warnings "Extra"        
@@ -265,7 +317,28 @@ project "TinyXml2"
     objdir("_bin-int/" .. outputdir .. "/%{prj.name}")
 
     includedirs { 
-        "./Animations/vendor/tinyxml2/" 
+        "Animations/vendor/tinyxml2/",
+        "Animations/include",
+        "Animations/vendor/GLFW/include",
+        "Animations/vendor/glad/include",
+        "Animations/vendor/cppUtils/single_include/",
+        "Animations/vendor/glm/",
+        "Animations/vendor/stb/",
+        "Animations/vendor/vlc/include",
+        "Animations/vendor/ffmpeg/build/include",
+        "Animations/vendor/freetype/include",
+        "Animations/vendor/plutovg/include",
+        "Animations/vendor/dearimgui",
+        "Animations/vendor/openal/include",
+        "Animations/vendor/nativeFileDialog/src/include",
+        "Animations/vendor/nlohmann/single_include",
+        "Animations/vendor/onigurama/src",
+        -- Luau include dirs
+        "Animations/vendor/luau/Compiler/include",
+        "Animations/vendor/luau/Common/include",
+        "Animations/vendor/luau/VM/include",
+        "Animations/vendor/luau/Analysis/include",
+        "Animations/vendor/luau/Ast/include"
     }
 
     files { 
@@ -276,13 +349,15 @@ project "TinyXml2"
     defines { "_CRT_SECURE_NO_WARNINGS" } 
 
     filter "configurations:Debug"
-        buildoptions "/MDd"
+        filter "system:windows"
+            buildoptions "/MDd"
         defines { "DEBUG", "NVG_NO_STB" }
         symbols "On"
         warnings "Extra"
 
     filter "configurations:Release"
-        buildoptions "/MD"
+        filter "system:windows"
+            buildoptions "/MD"
         defines { "NDEBUG", "NVG_NO_STB" }
         symbols "Off"
         warnings "Extra"    
@@ -305,19 +380,34 @@ project "DearImGui"
     }
 
     includedirs {
-        "./Animations/vendor/dearimgui",
-        "./Animations/include"
+        "Animations/include",
+        "Animations/vendor/GLFW/include",
+        "Animations/vendor/glad/include",
+        "Animations/vendor/cppUtils/single_include/",
+        "Animations/vendor/glm/",
+        "Animations/vendor/stb/",
+        "Animations/vendor/vlc/include",
+        "Animations/vendor/ffmpeg/build/include",
+        "Animations/vendor/freetype/include",
+        "Animations/vendor/plutovg/include",
+        "Animations/vendor/dearimgui",
+        "Animations/vendor/openal/include",
+        "Animations/vendor/nativeFileDialog/src/include",
+        "Animations/vendor/nlohmann/single_include",
+        "Animations/vendor/onigurama/src",
     }
 
-    defines { "-DIMGUI_USER_CONFIG \"core/InternalImGuiConfig.h\"" }
+    defines { "IMGUI_USER_CONFIG \"core/InternalImGuiConfig.h\"" }
 
     filter { "configurations:Debug" }
-        buildoptions "/MDd"
+        filter "system:windows"
+            buildoptions "/MDd"
         runtime "Debug"
         symbols "on"
 
     filter { "configurations:Release" }
-        buildoptions "/MD"
+        filter "system:windows"
+            buildoptions "/MD"
         runtime "Release"
         optimize "on"
 
@@ -396,16 +486,36 @@ project "Oniguruma"
     }
 
     includedirs {
-        "./Animations/vendor/onigurama/src",
-        "./Animations/vendor/onigurama/build"
+        "Animations/vendor/onigurama/src",
+        "Animations/vendor/onigurama/src",
+        "Animations/vendor/onigurama/build",
+        "Animations/vendor/tinyxml2/",
+        "Animations/include",
+        "Animations/vendor/GLFW/include",
+        "Animations/vendor/glad/include",
+        "Animations/vendor/cppUtils/single_include/",
+        "Animations/vendor/glm/",
+        "Animations/vendor/stb/",
+        "Animations/vendor/vlc/include",
+        "Animations/vendor/ffmpeg/build/include",
+        "Animations/vendor/freetype/include",
+        "Animations/vendor/plutovg/include",
+        "Animations/vendor/dearimgui",
+        "Animations/vendor/openal/include",
+        "Animations/vendor/nativeFileDialog/src/include",
+        "Animations/vendor/nlohmann/single_include",
+        -- Luau include dirs
+        "Animations/vendor/luau/Compiler/include",
+        "Animations/vendor/luau/Common/include",
+        "Animations/vendor/luau/VM/include",
+        "Animations/vendor/luau/Analysis/include",
+        "Animations/vendor/luau/Ast/include"
     }
 
     filter { "configurations:Debug" }
-        buildoptions "/MDd"
         runtime "Debug"
         symbols "on"
 
     filter { "configurations:Release" }
-        buildoptions "/MD"
         runtime "Release"
         optimize "on"

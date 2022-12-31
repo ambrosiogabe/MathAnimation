@@ -95,7 +95,7 @@ namespace MathAnim
 			//globalThreadPool = new GlobalThreadPool(true);
 
 			// Initiaize GLFW/Glad
-			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
+			window = new Window(1920, 1080, winTitle, WindowFlags::None);
 			window->setVSync(true);
 
 			// Initialize Onigiruma
