@@ -5,7 +5,7 @@
 using namespace MathAnim;
 int main()
 {
-	g_memory_init(true);
+	g_memory_init(true, 5);
 
 	ProjectApp::init();
 	std::string projectFile = ProjectApp::run();
@@ -21,4 +21,3 @@ int main()
 	g_memory_dumpMemoryLeaks();
 	return 0;
 }
-

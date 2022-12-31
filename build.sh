@@ -1,12 +1,12 @@
 set -e
 set -x
 
-git submodule update --init --recursive
+# git submodule update --init --recursive
 
 pushd ./Animations/vendor/GLFW/
   rm -rf build
   mkdir -p build
-  cmake -B build -D GLFW_USE_WAYLAND=0 -G "Unix Makefiles"
+  cmake -B build -D GLFW_USE_WAYLAND=1 -G "Unix Makefiles"
   cmake --build build -j4
 popd
 

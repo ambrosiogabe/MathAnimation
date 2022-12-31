@@ -147,6 +147,7 @@ project "Animations"
             "Animations/vendor/GLFW/src/x11_window.c",
             "Animations/vendor/GLFW/src/posix_thread.c",
             "Animations/vendor/GLFW/src/egl_context.c",
+            "Animations/vendor/GLFW/src/glx_context.c",
             "Animations/vendor/GLFW/src/osmesa_context.c",
             -- NFD
             "./Animations/vendor/nativeFileDialog/src/nfd_gtk.c"
@@ -185,7 +186,7 @@ project "Animations"
             "openal",
             
             "X11",
-            "wayland-client",
+            -- "wayland-client",
             "vdpau",
             "va",
             "va-x11",
@@ -255,7 +256,7 @@ project "Animations"
         }
 
         postbuildcommands {
-            "{COPY} Animations/vendor/openal/build/Release/OpenAL32.dll %{cfg.targetdir}"
+            -- "{COPY} Animations/vendor/openal/build/Release/OpenAL32.dll %{cfg.targetdir}"
         }
 
     filter { "configurations:Dist" }
@@ -271,7 +272,7 @@ project "Animations"
         }
 
         postbuildcommands {
-            "{COPY} Animations/vendor/openal/build/Release/OpenAL32.dll %{cfg.targetdir}"
+            -- "{COPY} Animations/vendor/openal/build/Release/OpenAL32.dll %{cfg.targetdir}"
         }
 
 project "plutovg"
