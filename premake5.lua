@@ -30,7 +30,7 @@ project "Animations"
     filter "system:windows"
         buildoptions "/we4062 /wd4201 /DONIG_EXTERN=extern"
     filter "system:linux"
-        buildoptions "-Werror=switch -DONIG_EXTERN=extern -pedantic"
+        buildoptions "-Werror=switch -DONIG_EXTERN=extern"
 
     filter {}
 
@@ -188,6 +188,7 @@ project "Animations"
             "wayland-client",
             "vdpau",
             "va",
+            "va-x11",
             "va-drm",
             "gtk-3",
             "gdk-3",
