@@ -6,6 +6,10 @@ This is a small GIF showcasing some of the capabilities of this tool:
 
 ![GIF](.github/images/app-showcase.gif)
 
+## Supported Platforms
+
+* Windows
+
 ## Compiling on Windows
 
 First clone the repository and the submodules by running:
