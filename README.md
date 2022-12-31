@@ -52,7 +52,7 @@ Unfortunately, ffmpeg is a particularly wild beast, so compiling is non-trivial.
 First, make sure to have these tools installed:
 
 * [MSYS2](https://www.msys2.org)
-* [NASM](https://www.msys2.org)
+* [NASM](https://www.nasm.us)
 
 Next, follow these steps:
 
