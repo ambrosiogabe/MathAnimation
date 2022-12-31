@@ -12,7 +12,7 @@
 #include <glm/gtx/matrix_decompose.hpp>
 
 // My stuff
-#include <cppUtils/cppUtils.hpp>
+#include <cppUtils/cppUtils.h>
 
 // Standard
 #include <filesystem>

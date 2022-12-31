@@ -73,7 +73,7 @@ extern "C"
 
 	int global_printStackVar(lua_State* L, int index)
 	{
-		luaPrintItem(L, g_logger_level::Info, "Null", {}, index);
+		luaPrintItem(L, g_logger_level_Info, "Null", {}, index);
 
 		return 0;
 	}
@@ -81,27 +81,27 @@ extern "C"
 	// ------- Logging Utilities -------
 	int global_printWrapper(lua_State* L)
 	{
-		return luaPrint(L, g_logger_level::Log);
+		return luaPrint(L, g_logger_level_Log);
 	}
 
 	int global_logWrite(lua_State* L)
 	{
-		return luaPrint(L, g_logger_level::Log);
+		return luaPrint(L, g_logger_level_Log);
 	}
 
 	int global_logInfo(lua_State* L)
 	{
-		return luaPrint(L, g_logger_level::Info);
+		return luaPrint(L, g_logger_level_Info);
 	}
 
 	int global_logWarning(lua_State* L)
 	{
-		return luaPrint(L, g_logger_level::Warning);
+		return luaPrint(L, g_logger_level_Warning);
 	}
 
 	int global_logError(lua_State* L)
 	{
-		return luaPrint(L, g_logger_level::Error);
+		return luaPrint(L, g_logger_level_Error);
 	}
 
 	// ------- Anim Objects -------
@@ -1185,19 +1185,19 @@ extern "C"
 	static int luaPrintItem(lua_State* L, g_logger_level logLevel, const std::string& scriptFilepath, const lua_Debug& debugInfo, int index)
 	{
 		std::string str = getAsString(L);
-		if (logLevel == g_logger_level::Log)
+		if (logLevel == g_logger_level_Log)
 		{
 			ConsoleLog::log(scriptFilepath.c_str(), debugInfo.currentline, "%s", str.c_str());
 		}
-		else if (logLevel == g_logger_level::Info)
+		else if (logLevel == g_logger_level_Info)
 		{
 			ConsoleLog::info(scriptFilepath.c_str(), debugInfo.currentline, "%s", str.c_str());
 		}
-		else if (logLevel == g_logger_level::Warning)
+		else if (logLevel == g_logger_level_Warning)
 		{
 			ConsoleLog::warning(scriptFilepath.c_str(), debugInfo.currentline, "%s", str.c_str());
 		}
-		else if (logLevel == g_logger_level::Error)
+		else if (logLevel == g_logger_level_Error)
 		{
 			ConsoleLog::error(scriptFilepath.c_str(), debugInfo.currentline, "%s", str.c_str());
 		}

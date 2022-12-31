@@ -1,7 +1,7 @@
 #ifndef MATH_ANIM_DATA_STRUCTURES_H
 #define MATH_ANIM_DATA_STRUCTURES_H
 
-#include <cppUtils/cppUtils.hpp>
+#include <cppUtils/cppUtils.h>
 
 namespace MathAnim
 {
