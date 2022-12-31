@@ -13,8 +13,8 @@ namespace MathAnim
 {
 	namespace ProjectScreen
 	{
-		static ImFont* largeFont;
-		static ImFont* defaultFont;
+		static ImFont *largeFont;
+		static ImFont *defaultFont;
 		static float titleBarHeight = 100.0f;
 		static float buttonAreaHeight = 80.0f;
 		static float dropShadowHeight = 20;
@@ -69,9 +69,14 @@ namespace MathAnim
 			iconPadding.x *= dpiScale;
 			iconPadding.y *= dpiScale;
 
-			ImGuiIO& io = ImGui::GetIO();
+			ImGuiIO &io = ImGui::GetIO();
+#if defined(_WIN32)
 			largeFont = io.Fonts->AddFontFromFileTTF("C:/Windows/FONTS/SegoeUI.ttf", 36.0f * dpiScale);
 			defaultFont = io.Fonts->AddFontFromFileTTF("C:/Windows/FONTS/SegoeUI.ttf", 20.0f * dpiScale);
+#elif defined(__linux__)
+			largeFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/TTF/DejaVuSans.ttf", 36.0f * dpiScale);
+			defaultFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/TTF/DejaVuSans.ttf", 20.0f * dpiScale);
+#endif
 
 			selectedProjectIndex = -1;
 
@@ -82,8 +87,8 @@ namespace MathAnim
 				if (Platform::fileExists(projects[i].previewImageFilepath.c_str()))
 				{
 					projects[i].texture = TextureBuilder()
-						.setFilepath(projects[i].previewImageFilepath.c_str())
-						.generate(true);
+																		.setFilepath(projects[i].previewImageFilepath.c_str())
+																		.generate(true);
 				}
 				else
 				{
@@ -97,10 +102,10 @@ namespace MathAnim
 		{
 			bool res = false;
 
-			Window* window = ProjectApp::getWindow();
-			ImVec2 size = { (float)window->width, (float)window->height };
+			Window *window = ProjectApp::getWindow();
+			ImVec2 size = {(float)window->width, (float)window->height};
 			ImGui::SetNextWindowSize(size, ImGuiCond_Always);
-			ImGuiViewport* viewport = ImGui::GetMainViewport();
+			ImGuiViewport *viewport = ImGui::GetMainViewport();
 			ImGui::SetNextWindowPos(viewport->GetWorkCenter() - viewport->WorkSize / 2.0f, ImGuiCond_Always);
 
 			ImGui::PushFont(defaultFont);
@@ -112,7 +117,7 @@ namespace MathAnim
 			ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, Colors::Neutral[2]);
 			ImGui::Begin("Project Selector", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDocking);
 			ImVec2 cursorPos = ImGui::GetCursorScreenPos();
-			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			ImDrawList *drawList = ImGui::GetWindowDrawList();
 			ImVec2 availableSpace = ImGui::GetContentRegionAvail();
 
 			{
@@ -122,9 +127,8 @@ namespace MathAnim
 				drawList->AddRectFilled(cursorPos, cursorPos + ImVec2(availableSpace.x, titleBarHeight), ImColor(Colors::Neutral[8]));
 
 				ImGui::SetCursorScreenPos(cursorPos + ImVec2(
-					availableSpace.x / 2.0f - textSize.x / 2.0f,
-					titleBarHeight / 2.0f - textSize.y / 2.0f
-				));
+																									availableSpace.x / 2.0f - textSize.x / 2.0f,
+																									titleBarHeight / 2.0f - textSize.y / 2.0f));
 				ImGui::Text(appTitle.c_str());
 
 				ImGui::PopFont();
@@ -149,7 +153,7 @@ namespace MathAnim
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, iconBorderRounding);
 			for (int i = 0; i < projects.size(); i++)
 			{
-				ProjectInfo& pi = projects[i];
+				ProjectInfo &pi = projects[i];
 				ImVec2 iconStart = ImGui::GetCursorPos();
 				ImVec2 absIconStart = ImGui::GetCursorScreenPos();
 				ImGui::SetCursorScreenPos(ImGui::GetCursorScreenPos() + iconPadding);
@@ -170,17 +174,17 @@ namespace MathAnim
 				ImVec2 rectMax = ImGui::GetItemRectMax();
 				drawList->PushClipRect(ImGui::GetCurrentWindow()->ClipRect.Min, ImGui::GetCurrentWindow()->ClipRect.Max);
 				drawList->AddImageRounded(
-					(ImTextureID)projects[i].texture.graphicsId,
-					rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1),
-					IM_COL32(255, 255, 255, 255), iconBorderRounding);
+						(ImTextureID)projects[i].texture.graphicsId,
+						rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1),
+						IM_COL32(255, 255, 255, 255), iconBorderRounding);
 
 				// Draw highlight border
-				const ImVec4& borderColor =
-					i == selectedProjectIndex
-					? Colors::AccentGreen[2]
-					: ImGui::IsItemHovered()
-					? Colors::Neutral[2]
-					: Colors::Neutral[9];
+				const ImVec4 &borderColor =
+						i == selectedProjectIndex
+								? Colors::AccentGreen[2]
+						: ImGui::IsItemHovered()
+								? Colors::Neutral[2]
+								: Colors::Neutral[9];
 				drawList->AddRect(rectMin, rectMax, ImColor(borderColor), iconBorderRounding, 0, iconBorderThickness);
 				drawList->PopClipRect();
 
@@ -205,11 +209,10 @@ namespace MathAnim
 			ImGui::PopStyleColor(3);
 
 			drawList->AddRectFilledMultiColor(
-				buttonAreaBegin + ImVec2(0.0f, -dropShadowHeight),
-				buttonAreaBegin + ImVec2(availableSpace.x, 0.0f),
-				IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0),
-				ImColor(Colors::Neutral[8]), ImColor(Colors::Neutral[8])
-			);
+					buttonAreaBegin + ImVec2(0.0f, -dropShadowHeight),
+					buttonAreaBegin + ImVec2(availableSpace.x, 0.0f),
+					IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0),
+					ImColor(Colors::Neutral[8]), ImColor(Colors::Neutral[8]));
 			ImGui::EndChild();
 
 			float buttonOffsetX = (availableSpace.x - buttonWidth * 2.0f - buttonPadding * 2.0f);
@@ -272,7 +275,7 @@ namespace MathAnim
 			io.Fonts->ClearFonts();
 		}
 
-		const ProjectInfo& getSelectedProject()
+		const ProjectInfo &getSelectedProject()
 		{
 			if (selectedProjectIndex >= 0 && selectedProjectIndex < projects.size())
 			{
@@ -303,7 +306,7 @@ namespace MathAnim
 			ImGui::PushStyleColor(ImGuiCol_Border, Colors::Neutral[9]);
 			ImGui::Begin("Create New Project", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDocking);
 			ImVec2 cursorPos = ImGui::GetCursorScreenPos();
-			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			ImDrawList *drawList = ImGui::GetWindowDrawList();
 
 			ImGui::PushFont(defaultFont);
 			std::string createProjectTitle = "Create New Project";
@@ -312,9 +315,8 @@ namespace MathAnim
 			drawList->AddRectFilled(cursorPos, cursorPos + ImVec2(availableSpace.x, createProjectTitleBarHeight), ImColor(Colors::Neutral[8]));
 
 			ImGui::SetCursorScreenPos(cursorPos + ImVec2(
-				projectAreaPadding.x,
-				createProjectTitleBarHeight / 2.0f - textSize.y / 2.0f
-			));
+																								projectAreaPadding.x,
+																								createProjectTitleBarHeight / 2.0f - textSize.y / 2.0f));
 			ImGui::Text(createProjectTitle.c_str());
 
 			ImGui::PopFont();
@@ -369,8 +371,8 @@ namespace MathAnim
 				for (int i = 0; i < cleanProjectName.length(); i++)
 				{
 					if (!(cleanProjectName[i] >= 'a' && cleanProjectName[i] <= 'z' ||
-						cleanProjectName[i] >= 'A' && cleanProjectName[i] <= 'Z' ||
-						cleanProjectName[i] >= '0' && cleanProjectName[i] <= '9'))
+								cleanProjectName[i] >= 'A' && cleanProjectName[i] <= 'Z' ||
+								cleanProjectName[i] >= '0' && cleanProjectName[i] <= '9'))
 					{
 						cleanProjectName[i] = '_';
 					}
@@ -411,7 +413,7 @@ namespace MathAnim
 		static void deserializeMetadata()
 		{
 			std::string metadataFilepath = (ProjectApp::getAppRoot() / "projects.bin").string();
-			FILE* fp = fopen(metadataFilepath.c_str(), "rb");
+			FILE *fp = fopen(metadataFilepath.c_str(), "rb");
 			if (!fp)
 			{
 				return;
@@ -451,25 +453,25 @@ namespace MathAnim
 				// prjName             -> uint8[prjNameLength]
 				uint32 prjFilepathLength;
 				memory.read<uint32>(&prjFilepathLength);
-				uint8* scratchMemory = (uint8*)g_memory_allocate(sizeof(uint8) * prjFilepathLength);
+				uint8 *scratchMemory = (uint8 *)g_memory_allocate(sizeof(uint8) * prjFilepathLength);
 				memory.readDangerous(scratchMemory, prjFilepathLength);
 
 				ProjectInfo projectInfo;
-				projectInfo.projectFilepath = std::string((char*)scratchMemory);
+				projectInfo.projectFilepath = std::string((char *)scratchMemory);
 
 				uint32 imageFilepathLength;
 				memory.read<uint32>(&imageFilepathLength);
-				scratchMemory = (uint8*)g_memory_realloc(scratchMemory, sizeof(uint8) * imageFilepathLength);
+				scratchMemory = (uint8 *)g_memory_realloc(scratchMemory, sizeof(uint8) * imageFilepathLength);
 				memory.readDangerous(scratchMemory, imageFilepathLength);
 
-				projectInfo.previewImageFilepath = std::string((char*)scratchMemory);
+				projectInfo.previewImageFilepath = std::string((char *)scratchMemory);
 
 				uint32 prjNameLength;
 				memory.read<uint32>(&prjNameLength);
-				scratchMemory = (uint8*)g_memory_realloc(scratchMemory, sizeof(uint8) * prjNameLength);
+				scratchMemory = (uint8 *)g_memory_realloc(scratchMemory, sizeof(uint8) * prjNameLength);
 				memory.readDangerous(scratchMemory, prjNameLength);
 
-				projectInfo.projectName = std::string((char*)scratchMemory);
+				projectInfo.projectName = std::string((char *)scratchMemory);
 				g_memory_free(scratchMemory);
 
 				projects.push_back(projectInfo);
@@ -504,19 +506,19 @@ namespace MathAnim
 				// prjName             -> uint8[prjNameLength]
 				uint32 prjFilepathLength = (uint32)projects[i].projectFilepath.length() + 1;
 				memory.write<uint32>(&prjFilepathLength);
-				memory.writeDangerous((const uint8*)projects[i].projectFilepath.c_str(), prjFilepathLength);
+				memory.writeDangerous((const uint8 *)projects[i].projectFilepath.c_str(), prjFilepathLength);
 
 				uint32 imageFilepathLength = (uint32)projects[i].previewImageFilepath.length() + 1;
 				memory.write<uint32>(&imageFilepathLength);
-				memory.writeDangerous((const uint8*)projects[i].previewImageFilepath.c_str(), imageFilepathLength);
+				memory.writeDangerous((const uint8 *)projects[i].previewImageFilepath.c_str(), imageFilepathLength);
 
 				uint32 prjNameLength = (uint32)projects[i].projectName.length() + 1;
 				memory.write<uint32>(&prjNameLength);
-				memory.writeDangerous((const uint8*)projects[i].projectName.c_str(), prjNameLength);
+				memory.writeDangerous((const uint8 *)projects[i].projectName.c_str(), prjNameLength);
 			}
 
 			std::string metadataFilepath = (ProjectApp::getAppRoot() / "projects.bin").string();
-			FILE* fp = fopen(metadataFilepath.c_str(), "wb");
+			FILE *fp = fopen(metadataFilepath.c_str(), "wb");
 			if (!fp)
 			{
 				g_logger_error("Failed to open file for writing.");

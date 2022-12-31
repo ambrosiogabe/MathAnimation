@@ -24,3 +24,6 @@ myScene.bin
 imgui.ini
 
 latex/**
+
+*.make
+Makefile

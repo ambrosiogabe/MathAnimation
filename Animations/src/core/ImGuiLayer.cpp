@@ -40,7 +40,11 @@ namespace MathAnim
             // NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
 			glm::ivec2 monitor_size = Window::getMonitorWorkingSize();
             float fontSize = monitor_size.x / (128.f + 16.0f);
+#if defined(_WIN32)
 			defaultFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize);
+#elif defined(__linux__)
+			defaultFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/liberation/LiberationSans-Regular.ttf", fontSize);
+#endif
             
 			static const ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
 			ImFontConfig config = {};
@@ -53,11 +57,19 @@ namespace MathAnim
 			// Add the rest of the fonts separately
 			config.MergeMode = false;
 			config.SizePixels = fontSize * 1.5f;
+#if defined(_WIN32)
 			mediumFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize * 1.5f);
+#elif defined(__linux__)
+			mediumFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/liberation/LiberationSerif-Regular.ttf", fontSize * 1.5f);
+#endif
 
 			config.MergeMode = false;
 			config.SizePixels = fontSize;
+#if defined(_WIN32)
 			monoFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/consola.ttf", fontSize);
+#elif defined(__linux__)
+			defaultFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/liberation/LiberationMono-Regular.ttf", fontSize);
+#endif
             
 			config.SizePixels = fontSize * 1.5f;
 			mediumSolidIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 1.5f, &config, iconRanges);

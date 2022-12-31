@@ -322,7 +322,11 @@ namespace MathAnim
 						continue;
 					}
 
+#ifdef sprintf_s
 					int strRes = sprintf_s(buffer, bufferSize, "Add %s\0", AnimObject::getAnimObjectName((AnimObjectTypeV1)i));
+#else
+					int strRes = snprintf(buffer, bufferSize, "Add %s\0", AnimObject::getAnimObjectName((AnimObjectTypeV1)i));
+#endif
 					if (strRes != -1)
 					{
 						if (ImGui::MenuItem(buffer))
