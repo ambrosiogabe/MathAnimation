@@ -68,7 +68,7 @@ namespace MathAnim
 #if defined(_WIN32)
 			monoFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/consola.ttf", fontSize);
 #elif defined(__linux__)
-			defaultFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/liberation/LiberationMono-Regular.ttf", fontSize);
+			monoFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/liberation/LiberationMono-Regular.ttf", fontSize);
 #endif
             
 			config.SizePixels = fontSize * 1.5f;

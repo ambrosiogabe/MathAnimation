@@ -352,6 +352,8 @@ namespace MathAnim
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
 			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
+#else
+#error Neither _DEBUG nor _RELEASE are defined
 #endif
 
 			drawList2D.init();

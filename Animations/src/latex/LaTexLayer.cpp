@@ -55,9 +55,17 @@ namespace MathAnim
 		static bool latexIsInstalled;
 		static char latexInstallLocation[_MAX_PATH];
 		static char latexProgram[_MAX_PATH];
+#ifdef _WIN32
 		static const char* latexExeName = "/miktex/bin/x64/latex.exe";
+#else
+		static const char* latexExeName = "miktex";
+#endif
 		static char dvisvgmProgram[_MAX_PATH];
+#ifdef _WIN32
 		static const char* dvisvgmExeName = "/miktex/bin/x64/dvisvgm.exe";
+#else
+		static const char* dvisvgmExeName = "miktex-dvisvgm";
+#endif
 
 		static std::mutex latexQueueMutex;
 		static std::unordered_map<std::string, std::string> latexCachedMd5;
