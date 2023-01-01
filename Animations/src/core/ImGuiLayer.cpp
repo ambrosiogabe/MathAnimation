@@ -2,7 +2,6 @@
 #include "core/Window.h"
 #include "core/Colors.h"
 #include "utils/FontAwesome.h"
-#include "editor/MenuBar.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -109,7 +108,6 @@ namespace MathAnim
 			ImGui::CaptureKeyboardFromApp(true);
             
             ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
-			MenuBar::update();
 		}
         
 		void endFrame()

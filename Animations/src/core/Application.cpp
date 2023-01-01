@@ -25,6 +25,7 @@
 #include "editor/EditorCameraController.h"
 #include "editor/EditorSettings.h"
 #include "editor/SceneManagementPanel.h"
+#include "editor/MenuBar.h"
 #include "parsers/SyntaxHighlighter.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
@@ -215,6 +216,7 @@ namespace MathAnim
 				int debugMsgId = 0;
 				glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "ImGui_Pass");
 				ImGuiLayer::beginFrame();
+				MenuBar::update();
 				ImGui::ShowDemoWindow();
 				SceneManagementPanel::update(sceneData);
 				EditorGui::update(mainFramebuffer, editorFramebuffer, am);

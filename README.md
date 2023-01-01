@@ -6,6 +6,10 @@ This is a small GIF showcasing some of the capabilities of this tool:
 
 ![GIF](.github/images/app-showcase.gif)
 
+## Supported Platforms
+
+* Windows
+
 ## Compiling on Windows
 
 First clone the repository and the submodules by running:
@@ -48,7 +52,7 @@ Unfortunately, ffmpeg is a particularly wild beast, so compiling is non-trivial.
 First, make sure to have these tools installed:
 
 * [MSYS2](https://www.msys2.org)
-* [NASM](https://www.msys2.org)
+* [NASM](https://www.nasm.us)
 
 Next, follow these steps:
 
@@ -62,10 +66,15 @@ Next, follow these steps:
 3. Make sure `cl` works. Running `cl` should print something starting with: `Microsoft (R) C/C++...`
 4. Make sure `NASM` is available. Running `nasm -v` should print the version.
 5. Change into the directory where you have this repo installed.
+    * You may need to install some dependencies in order to compile this:
+        * `pacman -S diffutils`
+        * `pacman -S make`
 6. Finally, to compile ffmpeg, run:
 
 ```batch
 REM NOTE This will take quite some time to compile
+REM To compile it faster you can use `make -j{core count}` instead of `make` where
+REM core count is 2 cores less than the number of cores available on your machine
 pushd ./Animations/vendor/ffmpeg
 ./configure \
     --toolchain=msvc \
