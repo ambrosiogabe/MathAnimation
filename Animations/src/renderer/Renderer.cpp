@@ -351,6 +351,8 @@ namespace MathAnim
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
 			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
+#else
+#error Neither _DEBUG nor _RELEASE are defined
 #endif
 
 			drawList2D.init();
@@ -1529,7 +1531,7 @@ namespace MathAnim
 		static void setupScreenVao()
 		{
 			// Create the screen vao
-			glCreateVertexArrays(1, &screenVao);
+			glGenVertexArrays(1, &screenVao);
 			glBindVertexArray(screenVao);
 
 			uint32 screenVbo;
@@ -1874,7 +1876,7 @@ namespace MathAnim
 	void DrawList2D::setupGraphicsBuffers()
 	{
 		// Create the batched vao
-		glCreateVertexArrays(1, &vao);
+		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
 
 		glGenBuffers(1, &vbo);
@@ -2068,7 +2070,7 @@ namespace MathAnim
 	void DrawListFont2D::setupGraphicsBuffers()
 	{
 		// Create the batched vao
-		glCreateVertexArrays(1, &vao);
+		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
 
 		glGenBuffers(1, &vbo);
@@ -2254,7 +2256,7 @@ namespace MathAnim
 	void DrawList3DLine::setupGraphicsBuffers()
 	{
 		// Create the batched vao
-		glCreateVertexArrays(1, &vao);
+		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
 
 		glGenBuffers(1, &vbo);
@@ -2491,7 +2493,7 @@ namespace MathAnim
 		// Vec4 color;
 		// Vec2 textureCoords;
 		// Create the batched vao
-		glCreateVertexArrays(1, &vao);
+		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
 
 		// Allocate space for the batched vbo

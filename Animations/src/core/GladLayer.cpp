@@ -17,11 +17,6 @@ namespace MathAnim
 			g_logger_info("GLAD initialized.");
 			g_logger_info("Hello OpenGL %d.%d", GLVersion.major, GLVersion.minor);
 
-#ifdef _DEBUG
-			glEnable(GL_DEBUG_OUTPUT);
-			glDebugMessageCallback(messageCallback, 0);
-#endif
-
 			// Enable blending
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

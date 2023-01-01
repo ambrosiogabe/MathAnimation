@@ -231,6 +231,10 @@ project "Animations"
         runtime "Debug"
         symbols "on"
 
+        defines {
+            "_DEBUG"
+        }
+
         libdirs {
             "./Animations/vendor/luau/build/Debug",
             "./Animations/vendor/openal/build/Debug",

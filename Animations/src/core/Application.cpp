@@ -37,6 +37,8 @@
 #include <imgui.h>
 #include <oniguruma.h>
 
+#include <errno.h>
+
 namespace MathAnim
 {
 	namespace Application
@@ -373,7 +375,7 @@ namespace MathAnim
 			FILE* fp = fopen(projectFilepath.c_str(), "rb");
 			if (!fp)
 			{
-				g_logger_warning("Could not load project '%s', error opening file.", projectFilepath.c_str());
+				g_logger_warning("Could not load project '%s', error opening file: %s.", projectFilepath.c_str(), strerror(errno));
 				return;
 			}
 
