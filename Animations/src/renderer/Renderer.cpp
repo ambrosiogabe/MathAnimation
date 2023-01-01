@@ -385,7 +385,6 @@ namespace MathAnim
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
 
 			debugMsgId = 0;
-			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Main_Framebuffer_Pass");
 
 			// Clear the framebuffer attachments and set it up
 			framebuffer.bind();
@@ -420,8 +419,6 @@ namespace MathAnim
 			{
 				renderPickingOutline(framebuffer);
 			}
-
-			glPopDebugGroup();
 		}
 
 		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, AnimationManagerData* am, bool shouldRenderPickingOutline)
@@ -1552,7 +1549,6 @@ namespace MathAnim
 
 		static void renderPickingOutline(const Framebuffer& mainFramebuffer)
 		{
-			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Active_Object_Outline_Pass");
 
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
 			glDrawBuffers(4, compositeDrawBuffers);
@@ -1577,7 +1573,6 @@ namespace MathAnim
 			glBindVertexArray(screenVao);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 
-			glPopDebugGroup();
 		}
 
 		static uint32 getColorCompressed()
@@ -1910,7 +1905,6 @@ namespace MathAnim
 			return;
 		}
 
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_General_Pass");
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -1964,7 +1958,6 @@ namespace MathAnim
 			);
 		}
 
-		glPopDebugGroup();
 	}
 
 	void DrawList2D::reset()
@@ -2104,7 +2097,6 @@ namespace MathAnim
 			return;
 		}
 
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_Font_Pass");
 
 		shader.bind();
 		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
@@ -2149,7 +2141,6 @@ namespace MathAnim
 			);
 		}
 
-		glPopDebugGroup();
 	}
 
 	void DrawListFont2D::reset()
@@ -2289,7 +2280,6 @@ namespace MathAnim
 			return;
 		}
 
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_Line_Pass");
 
 		glEnable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
@@ -2307,7 +2297,6 @@ namespace MathAnim
 
 		glDisable(GL_DEPTH_TEST);
 
-		glPopDebugGroup();
 	}
 
 	void DrawList3DLine::reset()
@@ -2528,7 +2517,6 @@ namespace MathAnim
 			return;
 		}
 
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_OIT_Pass");
 
 		Vec4 sunColor = "#ffffffff"_hex;
 
@@ -2687,7 +2675,6 @@ namespace MathAnim
 		// Enable writing to the depth buffer again
 		glDepthMask(GL_TRUE);
 
-		glPopDebugGroup();
 	}
 
 	void DrawList3D::reset()

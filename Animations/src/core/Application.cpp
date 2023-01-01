@@ -216,14 +216,12 @@ namespace MathAnim
 
 				// Do ImGui stuff
 				int debugMsgId = 0;
-				glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "ImGui_Pass");
 				ImGuiLayer::beginFrame();
 				MenuBar::update();
 				ImGui::ShowDemoWindow();
 				SceneManagementPanel::update(sceneData);
 				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
 				ImGuiLayer::endFrame();
-				glPopDebugGroup();
 
 				AnimationManager::endFrame(am);
 
