@@ -1,0 +1,287 @@
+cmake_minimum_required(VERSION 3.8)
+
+project(
+    MathAnimationsPrj
+    VERSION 1.0
+    LANGUAGES C CXX
+)
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+set(GRAMMARS_DIR ${CMAKE_SOURCE_DIR}/Animations/vendor/grammars)
+set(THEMES_DIR ${CMAKE_SOURCE_DIR}/Animations/vendor/themes)
+
+# Debug stuff
+set (CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug)
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug)
+set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug/lib)
+# Release stuff
+set (CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release)
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release)
+set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release/lib)
+
+# Prebuild things like copying some assets etc
+file(MAKE_DIRECTORY assets/grammars)
+file(MAKE_DIRECTORY assets/themes)
+
+# Math Animations
+file(GLOB_RECURSE MathAnimations_SRC
+    "Animations/src/*.cpp"
+    "Animations/include/*.h"
+    "Animations/include/*.hpp"
+)
+
+file(GLOB_RECURSE glm_SRC 
+    "Animations/vendor/glm/glm/*.hpp"
+    "Animations/vendor/glm/glm/*.inl"
+)
+
+file(GLOB_RECURSE stb_SRC
+    "Animations/vendor/stb/stb/*.h"
+)
+
+add_executable(
+    MathAnimations 
+    ${MathAnimations_SRC} 
+    ${glm_SRC}
+    ${stb_SRC}
+)
+
+add_custom_command(TARGET MathAnimations POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:MathAnimations>/assets
+)
+
+add_custom_command(TARGET MathAnimations POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+    ${CMAKE_SOURCE_DIR}/imgui.ini $<TARGET_FILE_DIR:MathAnimations>
+)
+
+add_custom_command(TARGET MathAnimations POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+    # Copy Grammars
+    ${GRAMMARS_DIR}/minimalCpp/syntaxes/cpp.tmLanguage.json
+    ${GRAMMARS_DIR}/glsl/syntaxes/glsl.tmLanguage.json
+    ${GRAMMARS_DIR}/javascript/syntaxes/javascript.json
+    $<TARGET_FILE_DIR:MathAnimations>/assets/grammars
+)
+
+add_custom_command(TARGET MathAnimations POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+    # Copy Themes
+    ${THEMES_DIR}/atomOneDark/themes/oneDark.json
+    ${THEMES_DIR}/gruvbox/themes/gruvbox-dark-soft.json
+    ${THEMES_DIR}/monokaiNight/themes/default.json
+    ${THEMES_DIR}/oneMonokai/themes/OneMonokai-color-theme.json
+    ${THEMES_DIR}/palenight/themes/palenight.json
+    ${THEMES_DIR}/panda/dist/Panda.json
+    $<TARGET_FILE_DIR:MathAnimations>/assets/themes
+)
+
+set_property(TARGET MathAnimations PROPERTY 
+    VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:MathAnimations>
+)
+
+# CMake hates Visual Studio, so automatically generate the filters
+# so my folder structure is preserved in the IDE
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${glm_SRC})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${stb_SRC})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${MathAnimations_SRC})
+
+target_compile_definitions(
+    MathAnimations PUBLIC
+)
+
+target_include_directories(
+    MathAnimations PUBLIC 
+    "Animations/include"
+    "Animations/vendor/GLFW/include"
+    "Animations/vendor/glad/include"
+    "Animations/vendor/cppUtils/single_include/"
+    "Animations/vendor/glm/"
+    "Animations/vendor/stb/"
+    "Animations/vendor/vlc/include"
+    "Animations/vendor/ffmpeg/build/include"
+    "Animations/vendor/plutovg/include"
+    "Animations/vendor/dearimgui"
+    "Animations/vendor/openal/include"
+    "Animations/vendor/nativeFileDialog/src/include"
+    "Animations/vendor/nlohmann/single_include"
+    "Animations/vendor/onigurama/src"
+    "Animations/vendor/luau/Compiler/include"
+    "Animations/vendor/luau/Common/include"
+    "Animations/vendor/luau/VM/include"
+    "Animations/vendor/luau/Analysis/include"
+    "Animations/vendor/luau/Ast/include"
+)
+
+# Dear ImGui backend
+set(DearImGuiBackend_SRC
+    "Animations/vendor/dearimgui/backends/imgui_impl_opengl3.cpp"
+    "Animations/vendor/dearimgui/backends/imgui_impl_opengl3.h"
+    "Animations/vendor/dearimgui/backends/imgui_impl_glfw.cpp"
+    "Animations/vendor/dearimgui/backends/imgui_impl_glfw.h"
+)
+
+add_library(DearImGuiBackend ${DearImGuiBackend_SRC})
+
+target_include_directories(
+    DearImGuiBackend PUBLIC 
+    "Animations/vendor/dearimgui"
+    "Animations/vendor/GLFW/include"
+)
+
+# Dear ImGui
+file(GLOB DearImGui_SRC
+    "Animations/vendor/dearimgui/*.hpp"
+    "Animations/vendor/dearimgui/*.cpp"
+)
+
+add_library(DearImGui ${DearImGui_SRC})
+
+target_compile_definitions(DearImGui PUBLIC
+    IMGUI_USER_CONFIG="core/InternalImGuiConfig.h"
+)
+
+target_include_directories(
+    DearImGui PUBLIC 
+    "Animations/vendor/dearimgui"
+    # This is so that my ImVec2 -> Vec2 transformations work
+    "Animations/include"
+    "Animations/vendor/cppUtils/single_include/"
+)
+
+# Glad
+set(Glad_SRC
+    "Animations/vendor/glad/include/glad/glad.h"
+    "Animations/vendor/glad/include/KHR/khrplatform.h"
+    "Animations/vendor/glad/src/glad.c"
+)
+
+add_library(Glad ${Glad_SRC})
+
+target_include_directories(
+    Glad PUBLIC 
+    "Animations/vendor/glad/include"
+)
+
+# Native File Dialogue
+file(GLOB_RECURSE nativeFileDialog_SRC
+    "Animations/vendor/nativeFileDialog/src/*.h"
+    "Animations/vendor/nativeFileDialog/src/include/*.h"
+    "Animations/vendor/nativeFileDialog/src/nfd_common.c"
+    "./Animations/vendor/nativeFileDialog/src/nfd_win.cpp"
+)
+
+add_library(NativeFileDialog ${nativeFileDialog_SRC})
+
+target_include_directories(
+    NativeFileDialog PUBLIC 
+    "./Animations/vendor/nativeFileDialog/src/include"
+)
+
+# GLFW
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(Animations/vendor/GLFW)
+
+# FFMpeg 
+add_library(libavcodec STATIC IMPORTED)
+set_target_properties(libavcodec PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavcodec.lib
+  #INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/include/libbar
+)
+
+add_library(libavdevice STATIC IMPORTED)
+set_target_properties(libavdevice PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavdevice.lib
+  #INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/include/libbar
+)
+
+add_library(libavfilter STATIC IMPORTED)
+set_target_properties(libavfilter PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavfilter.lib
+)
+
+add_library(libavformat STATIC IMPORTED)
+set_target_properties(libavformat PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavformat.lib
+)
+
+add_library(libavutil STATIC IMPORTED)
+set_target_properties(libavutil PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavutil.lib
+)
+
+add_library(libswscale STATIC IMPORTED)
+set_target_properties(libswscale PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libswscale.lib
+)
+
+add_library(libswresample STATIC IMPORTED)
+set_target_properties(libswresample PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libswresample.lib
+)
+
+# Other CMake projects
+add_subdirectory(Animations/vendor/freetype)
+add_subdirectory(Animations/vendor/openal)
+add_subdirectory(Animations/vendor/luau)
+add_subdirectory(Animations/vendor/onigurama)
+add_subdirectory(Animations/vendor/tinyxml2)
+add_subdirectory(Animations/vendor/plutovg)
+
+# Global properties
+set_target_properties(
+    MathAnimations
+    NativeFileDialog
+    Glad
+    DearImGui
+    DearImGuiBackend
+    PROPERTIES
+    CMAKE_CXX_STANDARD 17
+    CMAKE_CXX_STANDARD_REQUIRED True
+    LINKER_LANGUAGE CXX 
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+)
+
+# Link Options
+target_link_libraries(
+    MathAnimations 
+    glfw
+    freetype
+    DearImGuiBackend
+    Glad
+    NativeFileDialog
+    OpenAL
+    Luau.Ast 
+    Luau.CodeGen 
+    Luau.Compiler 
+    Luau.VM 
+    Luau.Analysis 
+    onig 
+    plutovg 
+    tinyxml2 
+    DearImGui
+    # FFmpeg stuff
+    libavcodec
+    libavdevice
+    libavfilter
+    libavformat
+    libavutil
+    libswresample
+    libswscale
+    # Windows static libs required for ffmepg
+    Ws2_32
+    Secur32
+    Bcrypt
+    Mfuuid
+    Strmiids
+)
+
+set_property(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} 
+    PROPERTY VS_STARTUP_PROJECT MathAnimations
+)

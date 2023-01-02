@@ -29,6 +29,11 @@ namespace MathAnim
 		WavData loadWavFile(const char* filename)
 		{
 			FILE* fp = fopen(filename, "rb");
+			if (!fp)
+			{
+				return {};
+			}
+
 			WavFileHeader header;
 			fread((void*)&header, sizeof(WavFileHeader), 1, fp);
 			g_logger_assert(
