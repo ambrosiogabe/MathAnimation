@@ -28,20 +28,11 @@ These instructions only need to be followed the first time you ever compile this
 Click to See First Time Setup Instructions
 </summary>
 
-### Libraries to Compile
+### Compiling FFmpeg
 
-In order to compile this manually, you need to build the libraries that this application depends on so the binaries can be copied. This should all be fixed in an upcoming release when I switch to CMake and these steps will no longer be required, but for now, you need to compile:
-
-1. ffMpeg
-2. Freetype
-3. OpenAL
-4. Luau
-
-The following sections describe each in detail.
+In order to compile this manually, you need to build static binaries for FFmpeg so they can be copied to the final build and statically linked into the application.
 
 #### Setting up Environment for ffmpeg
-
-First we need to setup ffmpeg.
 
 I'm only writing instructions for Windows and MSVC. For information on compiling ffmpeg in a different environment, please see the [ffmpeg documentation](https://ffmpeg.org/platform.html#Windows) for further details and make the appropriate changes.
 
@@ -58,7 +49,8 @@ Next, follow these steps:
 
 1. Place `nasm.exe` in your `PATH`.
 2. To set up a proper environment in MSYS2, you need to run `msys_shell.bat` from the Visual Studio or Intel Compiler command prompt. To do this:
-    * First type in `Developer Command Prompt for VS` in your windows search bar.
+    * First type in `x86_x64 Cross Tools Command Prompt for VS 2022` in your windows search bar.
+      * NOTE: If you're compiling for 32-bit architecture, you'll have to open the x86 version and modify the instructions below to use 32 bit architecture information
     * Run the command prompt.
     * Change directories to where you installed msys2.
         * The default directory for me is `cd C:\tools\msys64`
@@ -105,15 +97,20 @@ popd
 
 > _NOTE:_ Make sure that you have completed the first time setup instructions if this is your first time compiling this project. Click the dropdown above to get the full instructions.
 
-Build the VisualStudio project using premake:
+<br/>
+
+> _NOTE:_ CMake is required to build this. Make sure you have CMake 3.15 or newer installed.
+
+Run the following commands:
 
 ```batch
-build.bat vs2022
+mkdir build 
+pushd build 
+cmake ..
+popd 
 ```
 
-Then open the project or compile it from the command line using the MSVC developer's prompt.
-
-> _NOTE_: For a more comprehensive list of the build options supported, just type `build.bat`.
+Then open the project `build/MathAnimationsPrj.sln` or compile it from the command line using the MSVC developer's prompt.
 
 ## Current Features
 
