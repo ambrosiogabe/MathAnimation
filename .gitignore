@@ -27,3 +27,6 @@ latex/**
 
 *.make
 Makefile
+
+.idea/
+cmake-build-*/
