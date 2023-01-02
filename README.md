@@ -61,12 +61,12 @@ Next, follow these steps:
     * You may need to install some dependencies in order to compile this:
         * `pacman -S diffutils`
         * `pacman -S make`
-6. Finally, to compile ffmpeg, run:
+6. Finally, to compile ffmpeg, run this command in the terminal that you launched from step 2:
 
-```batch
-REM NOTE This will take quite some time to compile
-REM To compile it faster you can use `make -j{core count}` instead of `make` where
-REM core count is 2 cores less than the number of cores available on your machine
+```bash
+# NOTE This will take quite some time to compile
+# To compile it faster you can use `make -j{core count}` instead of `make` where
+# core count is 2 cores less than the number of cores available on your machine
 pushd ./Animations/vendor/ffmpeg
 ./configure \
     --toolchain=msvc \
@@ -77,7 +77,7 @@ pushd ./Animations/vendor/ffmpeg
 make 
 make install
 
-REM Rename the files to .lib extension to make premake happy
+# Rename the files to .lib extension to make premake happy
 mv ./build/lib/libavcodec.a ./build/lib/libavcodec.lib
 mv ./build/lib/libavdevice.a ./build/lib/libavdevice.lib
 mv ./build/lib/libavfilter.a ./build/lib/libavfilter.lib
