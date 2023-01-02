@@ -54,7 +54,7 @@ namespace MathAnim
 			// Open the "Uninstall" key.
 			const WCHAR* uninstallRoot = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
 			HKEY uninstallKey = NULL;
-			if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, uninstallRoot, 0, KEY_READ, &uninstallKey) != ERROR_SUCCESS)
+			if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, uninstallRoot, 0, KEY_READ, &uninstallKey) != ERROR_SUCCESS)
 			{
 				return false;
 			}
@@ -66,7 +66,7 @@ namespace MathAnim
 				//Enumerate all sub keys...
 				WCHAR appKeyName[bufferMaxSize];
 				DWORD appKeyNameBufferSize = sizeof(appKeyName);
-				result = RegEnumKeyEx(
+				result = RegEnumKeyExW(
 					uninstallKey,
 					keyIndex,
 					appKeyName,
@@ -82,8 +82,8 @@ namespace MathAnim
 					// Open the sub key.
 					WCHAR subKey[bufferMaxSize];
 					HKEY appKey = NULL;
-					wsprintf(subKey, L"%s\\%s", uninstallRoot, appKeyName);
-					if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, subKey, 0, KEY_READ, &appKey) != ERROR_SUCCESS)
+					wsprintfW(subKey, L"%s\\%s", uninstallRoot, appKeyName);
+					if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, subKey, 0, KEY_READ, &appKey) != ERROR_SUCCESS)
 					{
 						// No more keys
 						RegCloseKey(appKey);
@@ -95,7 +95,7 @@ namespace MathAnim
 					DWORD keyType = KEY_ALL_ACCESS;
 					WCHAR currentDisplayNameWide[bufferMaxSize];
 					DWORD currentDisplayNameBufferSize = sizeof(currentDisplayNameWide);
-					long queryResult = RegQueryValueEx(
+					long queryResult = RegQueryValueExW(
 						appKey,
 						L"DisplayName",
 						NULL,
@@ -138,7 +138,7 @@ namespace MathAnim
 			// Open the "Uninstall" key.
 			const WCHAR* uninstallRoot = L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
 			HKEY uninstallKey = NULL;
-			if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, uninstallRoot, 0, KEY_READ, &uninstallKey) != ERROR_SUCCESS)
+			if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, uninstallRoot, 0, KEY_READ, &uninstallKey) != ERROR_SUCCESS)
 			{
 				return false;
 			}
@@ -150,7 +150,7 @@ namespace MathAnim
 				//Enumerate all sub keys...
 				WCHAR appKeyName[bufferMaxSize];
 				DWORD appKeyNameBufferSize = sizeof(appKeyName);
-				result = RegEnumKeyEx(
+				result = RegEnumKeyExW(
 					uninstallKey,
 					keyIndex,
 					appKeyName,
@@ -166,8 +166,8 @@ namespace MathAnim
 					// Open the sub key.
 					WCHAR subKey[bufferMaxSize];
 					HKEY appKey = NULL;
-					wsprintf(subKey, L"%s\\%s", uninstallRoot, appKeyName);
-					if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, subKey, 0, KEY_READ, &appKey) != ERROR_SUCCESS)
+					wsprintfW(subKey, L"%s\\%s", uninstallRoot, appKeyName);
+					if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, subKey, 0, KEY_READ, &appKey) != ERROR_SUCCESS)
 					{
 						// No more keys
 						RegCloseKey(appKey);
@@ -179,7 +179,7 @@ namespace MathAnim
 					DWORD keyType = KEY_ALL_ACCESS;
 					WCHAR currentDisplayNameWide[bufferMaxSize];
 					DWORD currentDisplayNameBufferSize = sizeof(currentDisplayNameWide);
-					long queryResult = RegQueryValueEx(
+					long queryResult = RegQueryValueExW(
 						appKey,
 						L"DisplayName",
 						NULL,
@@ -196,7 +196,7 @@ namespace MathAnim
 							// Try to get install path
 							WCHAR installPath[bufferMaxSize];
 							DWORD installPathBufferSize = sizeof(installPath);
-							RegQueryValueEx(
+							RegQueryValueExW(
 								appKey,
 								L"InstallLocation",
 								NULL,

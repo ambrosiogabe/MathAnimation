@@ -19,6 +19,7 @@
 #include <cstring>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <array>
 #include <cstdio>
 #include <vector>
