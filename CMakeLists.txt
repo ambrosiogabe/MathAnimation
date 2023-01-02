@@ -54,10 +54,12 @@ add_custom_command(TARGET MathAnimations POST_BUILD
     ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:MathAnimations>/assets
 )
 
-add_custom_command(TARGET MathAnimations POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    ${CMAKE_SOURCE_DIR}/imgui.ini $<TARGET_FILE_DIR:MathAnimations>
-)
+if (EXISTS "${CMAKE_SOURCE_DIR}/imgui.ini")
+    add_custom_command(TARGET MathAnimations POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/imgui.ini $<TARGET_FILE_DIR:MathAnimations>
+    )
+endif()
 
 add_custom_command(TARGET MathAnimations POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
