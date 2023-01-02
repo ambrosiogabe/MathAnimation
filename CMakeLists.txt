@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.13)
 
 project(
     MathAnimationsPrj
@@ -187,44 +187,6 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(Animations/vendor/GLFW)
 
-# FFMpeg 
-add_library(libavcodec STATIC IMPORTED)
-set_target_properties(libavcodec PROPERTIES
-  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavcodec.lib
-  #INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/include/libbar
-)
-
-add_library(libavdevice STATIC IMPORTED)
-set_target_properties(libavdevice PROPERTIES
-  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavdevice.lib
-  #INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/include/libbar
-)
-
-add_library(libavfilter STATIC IMPORTED)
-set_target_properties(libavfilter PROPERTIES
-  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavfilter.lib
-)
-
-add_library(libavformat STATIC IMPORTED)
-set_target_properties(libavformat PROPERTIES
-  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavformat.lib
-)
-
-add_library(libavutil STATIC IMPORTED)
-set_target_properties(libavutil PROPERTIES
-  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavutil.lib
-)
-
-add_library(libswscale STATIC IMPORTED)
-set_target_properties(libswscale PROPERTIES
-  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libswscale.lib
-)
-
-add_library(libswresample STATIC IMPORTED)
-set_target_properties(libswresample PROPERTIES
-  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libswresample.lib
-)
-
 # Other CMake projects
 add_subdirectory(Animations/vendor/freetype)
 add_subdirectory(Animations/vendor/openal)
@@ -240,6 +202,7 @@ set_target_properties(
     Glad
     DearImGui
     DearImGuiBackend
+
     PROPERTIES
     CMAKE_CXX_STANDARD 17
     CMAKE_CXX_STANDARD_REQUIRED True
@@ -248,6 +211,15 @@ set_target_properties(
 )
 
 # Link Options
+# Find FFMpeg stuff
+find_library(LIB_AVCODEC libavcodec HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+find_library(LIB_AVDEVICE libavdevice HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+find_library(LIB_AVFILTER libavfilter HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+find_library(LIB_AVFORMAT libavformat HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+find_library(LIB_AVUTIL libavutil HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+find_library(LIB_SWRESAMPLE libswresample HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+find_library(LIB_SWSCALE libswscale HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+
 target_link_libraries(
     MathAnimations 
     glfw
@@ -266,13 +238,13 @@ target_link_libraries(
     tinyxml2 
     DearImGui
     # FFmpeg stuff
-    libavcodec
-    libavdevice
-    libavfilter
-    libavformat
-    libavutil
-    libswresample
-    libswscale
+    ${LIB_AVCODEC}
+    ${LIB_AVDEVICE}
+    ${LIB_AVFILTER}
+    ${LIB_AVFORMAT}
+    ${LIB_AVUTIL}
+    ${LIB_SWRESAMPLE}
+    ${LIB_SWSCALE}
     # Windows static libs required for ffmepg
     Ws2_32
     Secur32
