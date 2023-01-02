@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.15)
 
 project(
     MathAnimationsPrj
@@ -6,7 +6,9 @@ project(
     LANGUAGES C CXX
 )
 
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+if (MSVC)
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+endif()
 
 set(GRAMMARS_DIR ${CMAKE_SOURCE_DIR}/Animations/vendor/grammars)
 set(THEMES_DIR ${CMAKE_SOURCE_DIR}/Animations/vendor/themes)
@@ -78,15 +80,17 @@ add_custom_command(TARGET MathAnimations POST_BUILD
     $<TARGET_FILE_DIR:MathAnimations>/assets/themes
 )
 
-set_property(TARGET MathAnimations PROPERTY 
-    VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:MathAnimations>
-)
+if (MSVC)
+    set_property(TARGET MathAnimations PROPERTY 
+        VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:MathAnimations>
+    )
 
-# CMake hates Visual Studio, so automatically generate the filters
-# so my folder structure is preserved in the IDE
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${glm_SRC})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${stb_SRC})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${MathAnimations_SRC})
+    # CMake hates Visual Studio, so automatically generate the filters
+    # so my folder structure is preserved in the IDE
+    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${glm_SRC})
+    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${stb_SRC})
+    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${MathAnimations_SRC})
+endif()
 
 target_compile_definitions(
     MathAnimations PUBLIC
@@ -180,20 +184,84 @@ target_include_directories(
     "./Animations/vendor/nativeFileDialog/src/include"
 )
 
+# Plutovg
+add_library(plutovg STATIC)
+
+add_subdirectory(Animations/vendor/plutovg/include)
+add_subdirectory(Animations/vendor/plutovg/source)
+
+# Tinyxml2
+
+set(tinyxml2_SRC
+    "Animations/vendor/tinyxml2/tinyxml2.cpp"
+    "Animations/vendor/tinyxml2/tinyxml2.h"
+)
+
+add_library(tinyxml2 ${tinyxml2_SRC})
+
+target_include_directories(
+    tinyxml2 PUBLIC 
+    "Animations/vendor/tinyxml2"
+)
+
 # GLFW
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+if (MSVC)
+    set(USE_MSVC_RUNTIME_LIBRARY_DLL OFF CACHE BOOL "" FORCE)
+endif()
 
 add_subdirectory(Animations/vendor/GLFW)
 
-# Other CMake projects
-add_subdirectory(Animations/vendor/freetype)
-add_subdirectory(Animations/vendor/openal)
+# Luau
+set(LUAU_BUILD_CLI OFF CACHE BOOL "" FORCE)
+set(LUAU_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+if (MSVC)
+    set(LUAU_STATIC_CRT ON CACHE BOOL "" FORCE)
+endif()
+
 add_subdirectory(Animations/vendor/luau)
+
+# OpenAL
+
+set(ALSOFT_DLOPEN OFF CACHE BOOL "" FORCE)
+set(ALSOFT_UTILS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_UTILS OFF CACHE BOOL "" FORCE)
+set(ALSOFT_UPDATE_BUILD_VERSION OFF CACHE BOOL "" FORCE)
+set(LIBTYPE "STATIC")
+if (MSVC)
+set(FORCE_STATIC_VCRT ON CACHE BOOL "" FORCE)
+endif()
+
+set(ALSOFT_INSTALL OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_CONFIG OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_HRTF_DATA OFF CACHE BOOL "" FORCE)
+set(ALSOFT_INSTALL_AMBDEC_PRESETS OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(Animations/vendor/openal)
+
+# Freetype
+
+set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
+
+add_subdirectory(Animations/vendor/freetype)
+
+# Oniguruma
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(INSTALL_DOCUMENTATION OFF CACHE BOOL "" FORCE)
+set(BUILD_TEST OFF CACHE BOOL "" FORCE)
+if(MSVC)
+  set(MSVC_STATIC_RUNTIME ON CACHE BOOL "" FORCE)
+endif()
+
 add_subdirectory(Animations/vendor/onigurama)
-add_subdirectory(Animations/vendor/tinyxml2)
-add_subdirectory(Animations/vendor/plutovg)
 
 # Global properties
 set_target_properties(
@@ -202,13 +270,33 @@ set_target_properties(
     Glad
     DearImGui
     DearImGuiBackend
+    tinyxml2
+    plutovg
 
     PROPERTIES
     CMAKE_CXX_STANDARD 17
     CMAKE_CXX_STANDARD_REQUIRED True
     LINKER_LANGUAGE CXX 
-    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
 )
+
+if (MSVC) 
+    set_target_properties(
+        MathAnimations
+        NativeFileDialog
+        Glad
+        DearImGui
+        DearImGuiBackend
+        tinyxml2
+        plutovg
+        OpenAL
+        freetype
+        common 
+        ex-common
+
+        PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    )
+endif()
 
 # Link Options
 # Find FFMpeg stuff
