@@ -30,7 +30,9 @@ namespace MathAnim
 			glfwSetWindowShouldClose((GLFWwindow*)windowPtr, true);
 
 			// Load OpenGL functions using Glad
-			if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+            int version = gladLoadGL(static_cast<GLADloadfunc>(glfwGetProcAddress));
+
+			if (version == 0)
 			{
 				g_logger_error("Failed to initialize glad.");
 				return;

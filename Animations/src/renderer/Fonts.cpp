@@ -28,10 +28,10 @@ inline PointType FT_getPointType(char flag)
 	// These interpretations can be found here:
 	// https://freetype.org/freetype2/docs/reference/ft2-outline_processing.html#ft_outline
 	/*
-	* If bit 0 is unset, the point is ‘off’ the curve, i.e., a Bezier control point,
-	* while it is ‘on’ if set.
+	* If bit 0 is unset, the point is ï¿½offï¿½ the curve, i.e., a Bezier control point,
+	* while it is ï¿½onï¿½ if set.
 	*
-	* Bit 1 is meaningful for ‘off’ points only.
+	* Bit 1 is meaningful for ï¿½offï¿½ points only.
 	* If set, it indicates a third-order Bezier arc control point;
 	* and a second-order control point if unset.
 	*/
@@ -58,7 +58,7 @@ inline DropoutMode FT_getDropoutMode(char flag)
 	// https://freetype.org/freetype2/docs/reference/ft2-outline_processing.html#ft_outline
 	/*
 	* If bit 2 is set, bits 5-7 contain the drop-out mode
-	* (as defined in the OpenType specification; the value is the same as the argument to the ‘SCANMODE’ instruction).
+	* (as defined in the OpenType specification; the value is the same as the argument to the ï¿½SCANMODEï¿½ instruction).
 	*
 	* Bits 3 and 4 are reserved for internal purposes.
 	*/
@@ -780,12 +780,12 @@ namespace MathAnim
 		static std::string getUnsizedFontKey(const char* filepath)
 		{
 			// Convert all path separators to '/'
-			uint8 staticBuffer[_MAX_PATH + 1];
+			uint8 staticBuffer[MATH_ANIMATIONS_MAX_PATH + 1];
 			int filepathSize = (int)std::strlen(filepath);
 
 			uint8* buffer = staticBuffer;
 			bool freeBuffer = false;
-			if (filepathSize >= _MAX_PATH)
+			if (filepathSize >= MATH_ANIMATIONS_MAX_PATH)
 			{
 				buffer = (uint8*)g_memory_allocate(sizeof(char) * filepathSize + 1);
 				freeBuffer = true;

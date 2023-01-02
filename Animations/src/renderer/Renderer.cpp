@@ -333,17 +333,7 @@ namespace MathAnim
 			numVertsIn3DPath = 0;
 
 			// Initialize default shader
-#ifdef _DEBUG
-			shader2D.compile("assets/shaders/default.glsl");
-			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
-			screenShader.compile("assets/shaders/screen.glsl");
-			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
-			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
-			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
-			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
-			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
-#elif defined(_RELEASE)
-			// TODO: Replace these with hardcoded strings
+#ifndef NDEBUG
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
@@ -353,7 +343,15 @@ namespace MathAnim
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
 			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
 #else
-#error Neither _DEBUG nor _RELEASE are defined
+			// TODO: Replace these with hardcoded strings
+			shader2D.compile("assets/shaders/default.glsl");
+			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
+			screenShader.compile("assets/shaders/screen.glsl");
+			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
+			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
+			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
+			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
+			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
 #endif
 
 			drawList2D.init();

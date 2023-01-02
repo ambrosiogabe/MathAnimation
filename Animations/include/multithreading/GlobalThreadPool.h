@@ -35,7 +35,7 @@ namespace MathAnim
 	{
 	public:
 		GlobalThreadPool(uint32 numThreads);
-#ifdef _DEBUG
+#ifndef NDEBUG
 		GlobalThreadPool(bool forceSynchronous);
 #endif
 
@@ -60,7 +60,7 @@ namespace MathAnim
 		std::mutex* queueMtx;
 		bool doWork;
 		uint32 numThreads;
-#ifdef _DEBUG
+#ifndef NDEBUG
 		bool forceSynchronous;
 #endif
 	};

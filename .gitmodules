@@ -65,3 +65,6 @@
 [submodule "Animations/vendor/grammars/javascript"]
 	path = Animations/vendor/grammars/javascript
 	url = https://github.com/Microsoft/vscode-js-atom-grammar
+[submodule "Animations/vendor/glad"]
+	path = Animations/vendor/glad
+	url = https://github.com/Dav1dde/glad.git
