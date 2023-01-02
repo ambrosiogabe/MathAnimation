@@ -49,7 +49,7 @@ add_executable(
     ${stb_SRC}
 )
 
-target_compile_definitions(MathAnimations 
+target_compile_definitions(MathAnimations
     PUBLIC 
     $<$<CONFIG:Debug>:_DEBUG>
     $<$<CONFIG:RelWithDebInfo>:_RELEASE>
@@ -68,6 +68,11 @@ if (EXISTS "${CMAKE_SOURCE_DIR}/imgui.ini")
         ${CMAKE_SOURCE_DIR}/imgui.ini $<TARGET_FILE_DIR:MathAnimations>
     )
 endif()
+
+add_custom_command(TARGET MathAnimations POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+    ${CMAKE_SOURCE_DIR}/imgui.ini $<TARGET_FILE_DIR:MathAnimations>
+)
 
 add_custom_command(TARGET MathAnimations POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
@@ -218,6 +223,7 @@ target_include_directories(
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
 if (MSVC)
     set(USE_MSVC_RUNTIME_LIBRARY_DLL OFF CACHE BOOL "" FORCE)
 endif()
@@ -273,6 +279,54 @@ endif()
 
 add_subdirectory(Animations/vendor/onigurama)
 
+add_subdirectory(Animations/vendor/GLFW)
+
+# FFMpeg 
+add_library(libavcodec STATIC IMPORTED)
+set_target_properties(libavcodec PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavcodec.lib
+  #INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/include/libbar
+)
+
+add_library(libavdevice STATIC IMPORTED)
+set_target_properties(libavdevice PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavdevice.lib
+  #INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_SOURCE_DIR}/include/libbar
+)
+
+add_library(libavfilter STATIC IMPORTED)
+set_target_properties(libavfilter PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavfilter.lib
+)
+
+add_library(libavformat STATIC IMPORTED)
+set_target_properties(libavformat PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavformat.lib
+)
+
+add_library(libavutil STATIC IMPORTED)
+set_target_properties(libavutil PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libavutil.lib
+)
+
+add_library(libswscale STATIC IMPORTED)
+set_target_properties(libswscale PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libswscale.lib
+)
+
+add_library(libswresample STATIC IMPORTED)
+set_target_properties(libswresample PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib/libswresample.lib
+)
+
+# Other CMake projects
+add_subdirectory(Animations/vendor/freetype)
+add_subdirectory(Animations/vendor/openal)
+add_subdirectory(Animations/vendor/luau)
+add_subdirectory(Animations/vendor/onigurama)
+add_subdirectory(Animations/vendor/tinyxml2)
+add_subdirectory(Animations/vendor/plutovg)
+
 # Global properties
 set_target_properties(
     MathAnimations
@@ -280,13 +334,16 @@ set_target_properties(
     Glad
     DearImGui
     DearImGuiBackend
+
     tinyxml2
     plutovg
+
 
     PROPERTIES
     CMAKE_CXX_STANDARD 17
     CMAKE_CXX_STANDARD_REQUIRED True
-    LINKER_LANGUAGE CXX 
+    LINKER_LANGUAGE CXX
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
 )
 
 if (MSVC) 
@@ -318,6 +375,7 @@ find_library(LIB_AVUTIL libavutil HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ff
 find_library(LIB_SWRESAMPLE libswresample HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
 find_library(LIB_SWSCALE libswscale HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
 
+# Link Options
 target_link_libraries(
     MathAnimations 
     glfw
@@ -336,6 +394,7 @@ target_link_libraries(
     tinyxml2 
     DearImGui
     # FFmpeg stuff
+
     ${LIB_AVCODEC}
     ${LIB_AVDEVICE}
     ${LIB_AVFILTER}
@@ -343,6 +402,7 @@ target_link_libraries(
     ${LIB_AVUTIL}
     ${LIB_SWRESAMPLE}
     ${LIB_SWSCALE}
+
     # Windows static libs required for ffmepg
     Ws2_32
     Secur32
