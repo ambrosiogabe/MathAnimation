@@ -304,7 +304,7 @@ namespace MathAnim
 			if (!isNull(activeAnimObjectId))
 			{
 				handleAnimObjectInspector(am, activeAnimObjectId);
-				// TODO: Does this slow stuff down or does it even matter?
+				// TODO: This slows stuff down a lot. Optimize the heck out of it
 				AnimationManager::updateObjectState(am, activeAnimObjectId);
 			}
 			ImGui::End();

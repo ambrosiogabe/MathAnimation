@@ -678,6 +678,7 @@ namespace MathAnim
 				while ((parent = getMutableObject(am, obj->parentId)) != nullptr)
 				{
 					obj = parent;
+					animObjId = parent->id;
 				}
 			}
 
@@ -704,9 +705,11 @@ namespace MathAnim
 					float frameStart = (float)anim->frameStart;
 					if (frameStart <= am->currentFrame)
 					{
+						// Calculate key frames
+						anim->calculateKeyframes(am);
+
 						// Then apply the animation
 						float interpolatedT = glm::clamp(((float)am->currentFrame - frameStart) / (float)anim->duration, 0.0f, 1.0f);
-						anim->calculateKeyframes(am);
 						anim->applyAnimationToObj(am, animObjId, interpolatedT);
 					}
 				}
