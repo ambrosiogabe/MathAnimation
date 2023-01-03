@@ -37,7 +37,7 @@ namespace MathAnim
 		void init(const std::string& inAssetsRoot)
 		{
 			assetsRoot = inAssetsRoot;
-			scriptsRoot = assetsRoot + "/scripts";
+			scriptsRoot = assetsRoot + "scripts";
 
 			// Initialize the script watcher
 			scriptWatcher = (FileSystemWatcher*)g_memory_allocate(sizeof(FileSystemWatcher));
