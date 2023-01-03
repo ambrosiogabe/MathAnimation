@@ -2,6 +2,12 @@
 #include "platform/FileSystemWatcher.h"
 #include "platform/Platform.h"
 
+#include <unistd.h>
+#include <sys/inotify.h>
+
+static int inotify_descriptor;
+static int watch_descriptor;
+
 namespace MathAnim
 {
   FileSystemWatcher::FileSystemWatcher()
@@ -15,205 +21,94 @@ namespace MathAnim
 
   void FileSystemWatcher::startThread()
   {
-    if (path.empty() || !Platform::dirExists(path.string().c_str()))
+    if (path.empty())
     {
-      g_logger_error("Path empty or directory does not exist. Could not create FileSystemWatcher for '%s'", path.string().c_str());
+      g_logger_error("Path empty. Could not create FileSystemWatcher for '%s'", path.string().c_str());
       return;
     }
 
-    // HANDLE dirHandle = CreateFileA(path.string().c_str(), GENERIC_READ | FILE_LIST_DIRECTORY,
-    //                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-    //                                NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
-    //                                NULL);
-    // if (dirHandle == INVALID_HANDLE_VALUE)
-    // {
-    //   g_logger_error("Invalid file access. Could not create FileSystemWatcher for '%s'", path.string().c_str());
-    //   return;
-    // }
+    Platform::createDirIfNotExists(path.string().c_str());
 
-    // // Set up notification flags
-    // int flags = 0;
-    // if (notifyFilters && NotifyFilters::FileName)
-    // {
-    //   flags |= FILE_NOTIFY_CHANGE_FILE_NAME;
-    // }
+    inotify_descriptor = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+    if (inotify_descriptor == -1)
+    {
+      g_logger_error("Failed to create FileSystemWatcher for '%s': %s", path.string().c_str(), strerror(errno));
+      return;
+    }
 
-    // if (notifyFilters && NotifyFilters::DirectoryName)
-    // {
-    //   flags |= FILE_NOTIFY_CHANGE_DIR_NAME;
-    // }
-
-    // if (notifyFilters && NotifyFilters::Attributes)
-    // {
-    //   flags |= FILE_NOTIFY_CHANGE_ATTRIBUTES;
-    // }
-
-    // if (notifyFilters && NotifyFilters::Size)
-    // {
-    //   flags |= FILE_NOTIFY_CHANGE_SIZE;
-    // }
-
-    // if (notifyFilters && NotifyFilters::LastWrite)
-    // {
-    //   flags |= FILE_NOTIFY_CHANGE_LAST_WRITE;
-    // }
-
-    // if (notifyFilters && NotifyFilters::LastAccess)
-    // {
-    //   flags |= FILE_NOTIFY_CHANGE_LAST_ACCESS;
-    // }
-
-    // if (notifyFilters && NotifyFilters::CreationTime)
-    // {
-    //   flags |= FILE_NOTIFY_CHANGE_CREATION;
-    // }
-
-    // if (notifyFilters && NotifyFilters::Security)
-    // {
-    //   flags |= FILE_NOTIFY_CHANGE_SECURITY;
-    // }
-
-    // char filename[MAX_PATH];
-    // char buffer[2048];
-    // DWORD bytesReturned;
-    // FILE_NOTIFY_INFORMATION *pNotify;
-    // int offset = 0;
-    // OVERLAPPED pollingOverlap;
-    // pollingOverlap.OffsetHigh = 0;
-    // pollingOverlap.hEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
-    // if (pollingOverlap.hEvent == NULL)
-    // {
-    //   g_logger_error("Could not create event watcher for FileSystemWatcher '%s'", path.string().c_str());
-    //   return;
-    // }
-
-    // bool result = true;
-    // HANDLE hEvents[2];
-    // hEvents[0] = pollingOverlap.hEvent;
-    // hEvents[1] = CreateEventA(NULL, TRUE, FALSE, NULL);
-    // stopEventHandle = hEvents[1];
-
-    // while (result && enableRaisingEvents)
-    // {
-    //   result = ReadDirectoryChangesW(
-    //       dirHandle,             // handle to the directory to be watched
-    //       &buffer,               // pointer to the buffer to receive the read results
-    //       sizeof(buffer),        // length of lpBuffer
-    //       includeSubdirectories, // flag for monitoring directory or directory tree
-    //       flags,
-    //       &bytesReturned,  // number of bytes returned
-    //       &pollingOverlap, // pointer to structure needed for overlapped I/O
-    //       NULL);
-
-    //   DWORD event = WaitForMultipleObjects(2, hEvents, FALSE, INFINITE);
-    //   offset = 0;
-    //   int rename = 0;
-
-    //   if (event == WAIT_OBJECT_0 + 1)
-    //   {
-    //     break;
-    //   }
-
-    //   std::lock_guard<std::mutex> queueLock(queueMtx);
-    //   do
-    //   {
-    //     pNotify = (FILE_NOTIFY_INFORMATION *)((char *)buffer + offset);
-    //     strcpy(filename, "");
-    //     int filenamelen = WideCharToMultiByte(CP_ACP, 0, pNotify->FileName, pNotify->FileNameLength / 2, filename, sizeof(filename), NULL, NULL);
-    //     filename[pNotify->FileNameLength / 2] = '\0';
-    //     switch (pNotify->Action)
-    //     {
-    //     case FILE_ACTION_ADDED:
-    //       createdQueue.insert(filename);
-    //       break;
-    //     case FILE_ACTION_REMOVED:
-    //       deletedQueue.insert(filename);
-    //       break;
-    //     case FILE_ACTION_MODIFIED:
-    //       changedQueue.insert(filename);
-    //       break;
-    //     case FILE_ACTION_RENAMED_OLD_NAME:
-    //       // Log::Info("The file was renamed and this is the old name: [%s]", filename);
-    //       break;
-    //     case FILE_ACTION_RENAMED_NEW_NAME:
-    //       renamedQueue.insert(filename);
-    //       break;
-    //     default:
-    //       g_logger_error("Default error. Unknown file action '%d' for FileSystemWatcher '%s'", pNotify->Action, path.string().c_str());
-    //       break;
-    //     }
-
-    //     offset += pNotify->NextEntryOffset;
-    //   } while (pNotify->NextEntryOffset);
-    // }
-
-    // CloseHandle(dirHandle);
+    watch_descriptor = inotify_add_watch(inotify_descriptor, path.string().c_str(), IN_MODIFY | IN_DELETE | IN_ATTRIB | IN_MOVED_TO | IN_ACCESS | IN_CREATE);
+    if (watch_descriptor == -1)
+    {
+      close(inotify_descriptor);
+      inotify_descriptor = -1;
+      g_logger_error("Failed to create FileSystemWatcher for '%s': %s", path.string().c_str(), strerror(errno));
+      return;
+    }
   }
 
   void FileSystemWatcher::stop()
   {
-    // if (enableRaisingEvents)
-    // {
-    //   enableRaisingEvents = false;
-    //   SetEvent(stopEventHandle);
-    //   fileWatcherThread.join();
-    // }
+    if (enableRaisingEvents)
+    {
+      enableRaisingEvents = false;
+      inotify_rm_watch(inotify_descriptor, watch_descriptor);
+      close(watch_descriptor);
+      close(inotify_descriptor);
+      fileWatcherThread.join();
+    }
   }
 
   void FileSystemWatcher::poll()
   {
-    // // Filesystem watcher is kind of stupid,
-    // // so I have to buffer the polling to make sure
-    // // it doesn't double-notify
-    // constexpr int pollBufferReset = 10;
-    // static int pollBuffer = 0;
-    // if (pollBuffer < pollBufferReset)
-    // {
-    //   pollBuffer++;
-    // }
-    // pollBuffer = 0;
+    char buf[4096] __attribute__((aligned(__alignof__(struct inotify_event))));
+    struct inotify_event const *event;
+    ssize_t len;
 
-    // std::lock_guard<std::mutex> queueLock(queueMtx);
+    while (inotify_descriptor != -1 && watch_descriptor != -1)
+    {
+      len = read(inotify_descriptor, buf, sizeof(buf));
+      if (len == -1 && errno != EAGAIN)
+      {
+        g_logger_error("Failed to poll from FileSystemWatcher for '%s': %s", path.string().c_str(), strerror(errno));
+        return;
+      }
 
-    // for (const std::filesystem::path &file : changedQueue)
-    // {
-    //   if (onChanged && !prevChangedQueue.contains(file))
-    //   {
-    //     onChanged(file);
-    //   }
-    // }
-    // prevChangedQueue = changedQueue;
-    // changedQueue.clear();
+      if (len <= 0)
+      {
+        // No more events
+        return;
+      }
 
-    // for (const std::filesystem::path &file : renamedQueue)
-    // {
-    //   if (onRenamed && !prevRenamedQueue.contains(file))
-    //   {
-    //     onRenamed(file);
-    //   }
-    // }
-    // prevRenamedQueue = renamedQueue;
-    // renamedQueue.clear();
+      for (char *ptr = buf; ptr < buf + len; ptr += sizeof(struct inotify_event) + event->len)
+      {
+        event = (struct inotify_event const *)ptr;
 
-    // for (const std::filesystem::path &file : deletedQueue)
-    // {
-    //   if (onDeleted && !prevDeletedQueue.contains(file))
-    //   {
-    //     onDeleted(file);
-    //   }
-    // }
-    // prevDeletedQueue = deletedQueue;
-    // deletedQueue.clear();
+        if (event->mask & (IN_ISDIR | IN_IGNORED))
+        {
+          continue;
+        }
 
-    // for (const std::filesystem::path &file : createdQueue)
-    // {
-    //   if (onCreated && !prevCreatedQueue.contains(file))
-    //   {
-    //     onCreated(file);
-    //   }
-    // }
-    // prevCreatedQueue = createdQueue;
-    // createdQueue.clear();
+        if (onChanged && event->mask & (IN_MODIFY | IN_ACCESS | IN_ATTRIB))
+        {
+          onChanged(std::filesystem::path(event->name));
+        }
+
+        if (onRenamed && event->mask & IN_MOVED_TO)
+        {
+          onRenamed(std::filesystem::path(event->name));
+        }
+
+        if (onDeleted && event->mask & IN_DELETE)
+        {
+          onDeleted(std::filesystem::path(event->name));
+        }
+
+        if (onCreated && event->mask & IN_CREATE)
+        {
+          onCreated(std::filesystem::path(event->name));
+        }
+      }
+    }
   }
 }
 
