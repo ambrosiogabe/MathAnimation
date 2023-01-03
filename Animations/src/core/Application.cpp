@@ -218,7 +218,6 @@ namespace MathAnim
 				int debugMsgId = 0;
 				ImGuiLayer::beginFrame();
 				MenuBar::update();
-				ImGui::ShowDemoWindow();
 				SceneManagementPanel::update(sceneData);
 				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
 				ImGuiLayer::endFrame();

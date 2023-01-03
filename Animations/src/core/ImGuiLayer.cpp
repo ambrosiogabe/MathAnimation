@@ -34,7 +34,7 @@ namespace MathAnim
 			ImGuiIO& io = ImGui::GetIO();
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-			io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+			// io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;      // Enable Multi-Viewport / Platform Windows
 			io.ConfigWindowsMoveFromTitleBarOnly = true;
             
             // NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
