@@ -6,11 +6,8 @@
 using namespace tinyxml2;
 
 #define PANIC(formatStr, ...) \
-	snprintf(errorBuffer, errorBufferSize, formatStr, __VA_ARGS__); \
-	g_logger_error(formatStr, __VA_ARGS__);
-#define PANIC_NOFMT(str) \
-	snprintf(errorBuffer, errorBufferSize, str); \
-	g_logger_error(str);
+	snprintf(errorBuffer, errorBufferSize, formatStr, ##__VA_ARGS__); \
+	g_logger_error(formatStr, ##__VA_ARGS__);
 
 namespace MathAnim
 {
@@ -394,7 +391,7 @@ namespace MathAnim
 					{
 						if (styleElement != nullptr)
 						{
-							PANIC_NOFMT("We don't support multi-stylesheet SVGs yet. This SVG has multiple embedded stylesheets.");
+							PANIC("We don't support multi-stylesheet SVGs yet. This SVG has multiple embedded stylesheets.");
 						}
 						else
 						{
@@ -601,7 +598,7 @@ namespace MathAnim
 			SvgObject res = Svg::createDefault();
 			if (pathTextLength <= 0)
 			{
-				PANIC_NOFMT("Cannot parse an SVG path that has no text.");
+				PANIC("Cannot parse an SVG path that has no text.");
 				return false;
 			}
 
@@ -670,7 +667,7 @@ namespace MathAnim
 			Stylesheet res = {};
 			if (styleTextLength <= 0)
 			{
-				PANIC_NOFMT("Cannot parse an SVG style that has no text.");
+				PANIC("Cannot parse an SVG style that has no text.");
 				return false;
 			}
 
@@ -695,7 +692,7 @@ namespace MathAnim
 				{
 					if (!parseStyle(parserInfo, &res, token))
 					{
-						PANIC_NOFMT("Error while parsing embedded style in SVG doc. See logs for more info.");
+						PANIC("Error while parsing embedded style in SVG doc. See logs for more info.");
 						token.free();
 						return false;
 					}
@@ -852,7 +849,7 @@ namespace MathAnim
 						}
 						else
 						{
-							PANIC_NOFMT("Failed to parse inline style.");
+							PANIC("Failed to parse inline style.");
 						}
 					}
 					else if (sanitizeAttribute(attribute, &sanitizedAttribute))
@@ -945,12 +942,12 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC_NOFMT("Error interpreting move to command. No coordinates provided.");
+					PANIC("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
@@ -973,12 +970,12 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC_NOFMT("Error interpreting line to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting line to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC_NOFMT("Error interpreting line to command. No coordinates provided.");
+					PANIC("Error interpreting line to command. No coordinates provided.");
 					return false;
 				}
 
@@ -993,12 +990,12 @@ namespace MathAnim
 				std::vector<float> numberList;
 				if (!parseHzNumberList(numberList, parserInfo))
 				{
-					PANIC_NOFMT("Error interpreting line to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting line to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (numberList.size() <= 0)
 				{
-					PANIC_NOFMT("Error interpreting line to command. No coordinates provided.");
+					PANIC("Error interpreting line to command. No coordinates provided.");
 					return false;
 				}
 
@@ -1013,12 +1010,12 @@ namespace MathAnim
 				std::vector<float> numberList;
 				if (!parseVtNumberList(numberList, parserInfo))
 				{
-					PANIC_NOFMT("Error interpreting line to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting line to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (numberList.size() <= 0)
 				{
-					PANIC_NOFMT("Error interpreting line to command. No coordinates provided.");
+					PANIC("Error interpreting line to command. No coordinates provided.");
 					return false;
 				}
 
@@ -1033,18 +1030,18 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC_NOFMT("Error interpreting move to command. No coordinates provided.");
+					PANIC("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
 				if (vec2List.size() % 3 != 0)
 				{
-					PANIC_NOFMT("Cubic polybezier curve must have a multiple of 3 coordinates, otherwise it's not a valid polybezier curve.");
+					PANIC("Cubic polybezier curve must have a multiple of 3 coordinates, otherwise it's not a valid polybezier curve.");
 					return false;
 				}
 
@@ -1060,18 +1057,18 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC_NOFMT("Error interpreting move to command. No coordinates provided.");
+					PANIC("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
 				if (vec2List.size() % 2 != 0)
 				{
-					PANIC_NOFMT("Smooth cubic polybezier curve must have a multiple of 2 coordinates, otherwise it's not a valid polybezier curve.");
+					PANIC("Smooth cubic polybezier curve must have a multiple of 2 coordinates, otherwise it's not a valid polybezier curve.");
 					return false;
 				}
 
@@ -1087,18 +1084,18 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC_NOFMT("Error interpreting move to command. No coordinates provided.");
+					PANIC("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
 				if (vec2List.size() % 2 != 0)
 				{
-					PANIC_NOFMT("Quadratic polybezier curve must have a multiple of 2 coordinates, otherwise it's not a valid polybezier curve.");
+					PANIC("Quadratic polybezier curve must have a multiple of 2 coordinates, otherwise it's not a valid polybezier curve.");
 					return false;
 				}
 
@@ -1114,12 +1111,12 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC_NOFMT("Error interpreting move to command. No coordinates provided.");
+					PANIC("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
@@ -1134,12 +1131,12 @@ namespace MathAnim
 				std::vector<ArcParams> arcParamsList;
 				if (!parseArcParamsList(arcParamsList, parserInfo))
 				{
-					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (arcParamsList.size() <= 0)
 				{
-					PANIC_NOFMT("Error interpreting arc to command. No coordinates provided.");
+					PANIC("Error interpreting arc to command. No coordinates provided.");
 					return false;
 				}
 
@@ -1158,7 +1155,7 @@ namespace MathAnim
 			}
 			break;
 			case PathTokenType::EndOfFile:
-				PANIC_NOFMT("Interpreting SVG EOF as a command. Something must have gone wrong. Check logs.");
+				PANIC("Interpreting SVG EOF as a command. Something must have gone wrong. Check logs.");
 				break;
 			case PathTokenType::Length:
 			case PathTokenType::Number:
@@ -1989,7 +1986,7 @@ namespace MathAnim
 
 			if (stringEndIndex - stringStartIndex == 1 && parserInfo.text[stringStartIndex] == '-')
 			{
-				PANIC_NOFMT("Cannot have an identifier that is just a dash like this '-'.");
+				PANIC("Cannot have an identifier that is just a dash like this '-'.");
 				goto cleanupReturnFalse;
 			}
 
@@ -2027,4 +2024,4 @@ namespace MathAnim
 	}
 }
 
-#undef PANIC;
+#undef PANIC

@@ -181,7 +181,8 @@ namespace MathAnim
 
 		for (const std::filesystem::path& file : changedQueue)
 		{
-			if (onChanged && !prevChangedQueue.contains(file))
+			bool containsFile = prevChangedQueue.find(file) != prevChangedQueue.end();
+			if (onChanged && !containsFile)
 			{
 				onChanged(file);
 			}
@@ -191,7 +192,8 @@ namespace MathAnim
 
 		for (const std::filesystem::path& file : renamedQueue)
 		{
-			if (onRenamed && !prevRenamedQueue.contains(file))
+			bool containsFile = prevRenamedQueue.find(file) != prevRenamedQueue.end();
+			if (onRenamed && !containsFile)
 			{
 				onRenamed(file);
 			}
@@ -201,7 +203,8 @@ namespace MathAnim
 
 		for (const std::filesystem::path& file : deletedQueue)
 		{
-			if (onDeleted && !prevDeletedQueue.contains(file))
+			bool containsFile = prevDeletedQueue.find(file) != prevDeletedQueue.end();
+			if (onDeleted && !containsFile)
 			{
 				onDeleted(file);
 			}
@@ -211,7 +214,8 @@ namespace MathAnim
 
 		for (const std::filesystem::path& file : createdQueue)
 		{
-			if (onCreated && !prevCreatedQueue.contains(file))
+			bool containsFile = prevCreatedQueue.find(file) != prevCreatedQueue.end();
+			if (onCreated && !containsFile)
 			{
 				onCreated(file);
 			}

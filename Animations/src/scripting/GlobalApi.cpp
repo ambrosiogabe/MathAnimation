@@ -330,6 +330,7 @@ extern "C"
 		bool connectToFirstPoint = lua_toboolean(L, 2);
 
 		Svg::closePath(svgPtr, connectToFirstPoint);
+		return 0;
 	}
 
 	int global_svgSetPathAsHole(lua_State* L)

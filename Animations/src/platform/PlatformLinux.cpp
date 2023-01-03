@@ -231,7 +231,7 @@ namespace MathAnim
       std::string arg = lineNumber >= 0
                             ? std::string("--goto \"") + filepath + ":" + std::to_string(lineNumber) + "\""
                             : std::string("--goto \"") + filepath + "\"";
-      executeProgram("code", arg.c_str());
+      return executeProgram("code", arg.c_str());
     }
 
     bool fileExists(const char *filename)

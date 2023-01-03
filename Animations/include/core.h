@@ -1,6 +1,11 @@
 #ifndef MATH_ANIM_CORE_H
 #define MATH_ANIM_CORE_H
 
+// _MAX_PATH is not a good constant, it lies, gets ignored sometimes, and is also not necessarily defined.
+#ifndef _MAX_PATH
+#define _MAX_PATH 4096
+#endif
+
 // Glm
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -19,6 +24,7 @@
 #include <cstring>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <array>
 #include <cstdio>
 #include <vector>

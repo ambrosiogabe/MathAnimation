@@ -2,7 +2,7 @@
 
 namespace MathAnim
 {
-	extern Vec4 colors[(uint8)Color::Length]{
+	Vec4 colors[(uint8)Color::Length]{
 		"#FFFFFFFF"_hex, // White
 		"#272822FF"_hex, // GreenBrown
 		"#F8F8F2FF"_hex, // OffWhite

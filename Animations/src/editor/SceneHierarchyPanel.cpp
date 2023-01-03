@@ -445,6 +445,9 @@ namespace MathAnim
 			if (!g.DragDropActive)
 				return false;
 
+			if (std::strcmp(g.DragDropPayload.DataType, Timeline::getAnimObjectPayloadId()) != 0)
+				return false;
+
 			ImGuiWindow* window = g.CurrentWindow;
 			if (window == NULL)
 				return false;
