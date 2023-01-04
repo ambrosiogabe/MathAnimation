@@ -27,6 +27,12 @@ namespace MathAnim
 		int index;
 	};
 
+	struct SceneTreeMoveData
+	{
+		int newChild;
+		int newParent;
+	};
+
 	namespace SceneHierarchyPanel
 	{
 		// --------- Internal variables ---------
@@ -34,11 +40,11 @@ namespace MathAnim
 		// scene heirarchy tree
 		static std::vector<BetweenMetadata> inBetweenBuffer;
 		static std::vector<SceneTreeMetadata> orderedEntities;
-		static std::vector<SceneTreeMetadata> orderedEntitiesCopy;
+		static SceneTreeMoveData dragDropMove;
 
 		// --------- Internal functions ---------
 		static void imGuiRightClickPopup(AnimationManagerData* am);
-		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, SceneTreeMetadata& nextElement);
+		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, AnimObjId nextAnimObjParentId, bool* dropTargetEffected);
 		static bool isDescendantOf(AnimationManagerData* am, AnimObjId childAnimObjId, AnimObjId parentAnimObjId);
 		static bool imGuiSceneHeirarchyWindow(int* inBetweenIndex);
 		static void addElementAsChild(AnimationManagerData* am, int parentIndex, int newChildIndex);
@@ -51,7 +57,6 @@ namespace MathAnim
 		{
 			inBetweenBuffer = std::vector<BetweenMetadata>();
 			orderedEntities = std::vector<SceneTreeMetadata>();
-			orderedEntitiesCopy = std::vector<SceneTreeMetadata>();
 
 			const std::vector<AnimObject>& animObjects = AnimationManager::getAnimObjects(am);
 			for (int i = 0; i < animObjects.size(); i++)
@@ -76,26 +81,31 @@ namespace MathAnim
 			int level = 0;
 			if (!isNull(animObject.parentId))
 			{
+				int parentIndex = -1;
+
 				// Find out where to insert object
 				for (int i = 0; i < orderedEntities.size(); i++)
 				{
 					const auto& element = orderedEntities[i];
+					const auto& nextElement = orderedEntities[(i + 1) % orderedEntities.size()];
 					if (element.animObjectId == animObject.parentId)
 					{
-						newIndex = i + 1;
+						parentIndex = i;
 						level = element.level + 1;
-						break;
+					}
+
+					if (parentIndex != -1 && nextElement.level < level)
+					{
+						newIndex = i + 1;
 					}
 				}
 			}
 			orderedEntities.insert(orderedEntities.begin() + newIndex, { animObject.id, level, newIndex, false });
-			orderedEntitiesCopy.insert(orderedEntitiesCopy.begin() + newIndex, SceneTreeMetadata{ animObject.id, level, newIndex, false });
 
 			// Update indices
-			for (int i = newIndex; i < orderedEntities.size(); i++)
+			for (int i = newIndex; i < (int)orderedEntities.size(); i++)
 			{
 				orderedEntities[i].index = i;
-				orderedEntitiesCopy[i].index = i;
 			}
 		}
 
@@ -104,6 +114,8 @@ namespace MathAnim
 			// TODO: Save when a tree node is open
 			ImGui::Begin(ICON_FA_PROJECT_DIAGRAM " Scene");
 			inBetweenBuffer.clear();
+
+			bool movedAnimObjectInSceneHierarchy = false;
 
 			// Now iterate through all the entities
 			int activeElementIndex = -1;
@@ -123,9 +135,20 @@ namespace MathAnim
 				}
 
 				// Next element wraps around to 0, which plays nice with all of our sorting logic
-				SceneTreeMetadata& nextElement = orderedEntities[(i + 1) % orderedEntities.size()];
+				SceneTreeMetadata* nextElement = orderedEntities.data() + (i + 1) % orderedEntities.size();
+
+				AnimObjId nextElementParentId = NULL_ANIM_OBJECT;
+				{
+					const AnimObject* nextElementObj = AnimationManager::getObject(am, nextElement->animObjectId);
+					if (nextElementObj)
+					{
+						nextElementParentId = nextElementObj->parentId;
+					}
+				}
+
 				int isOpen = 1;
-				if (!doTreeNode(am, element, *animObject, nextElement))
+				int oldLevel = element.level;
+				if (!doTreeNode(am, element, *animObject, nextElementParentId, &movedAnimObjectInSceneHierarchy))
 				{
 					// If the tree node is not open, skip all the children
 					int lastIndex = (int)orderedEntities.size() - 1;
@@ -138,18 +161,23 @@ namespace MathAnim
 						}
 					}
 					i = lastIndex;
-					nextElement = orderedEntities[(i + 1) % orderedEntities.size()];
+					nextElement = orderedEntities.data() + (i + 1) % orderedEntities.size();
 					isOpen = 0;
 				}
 
-				if (nextElement.level <= element.level)
+				if (nextElement->level <= oldLevel)
 				{
-					int numPops = element.level - nextElement.level + isOpen;
+					int numPops = oldLevel - nextElement->level + isOpen;
 					for (int treePops = 0; treePops < numPops; treePops++)
 					{
 						ImGui::TreePop();
 					}
 				}
+			}
+
+			if (movedAnimObjectInSceneHierarchy)
+			{
+				addElementAsChild(am, dragDropMove.newChild, dragDropMove.newParent);
 			}
 
 			// We do this after drawing all the elements so that we can loop through all
@@ -166,15 +194,6 @@ namespace MathAnim
 					moveTreeTo(am, childIndex, inBetweenIndex);
 				}
 				ImGui::EndDragDropTarget();
-			}
-
-			// Synchronize the copies
-			for (int i = 0; i < orderedEntitiesCopy.size(); i++)
-			{
-				// TODO: Maybe better way to do this?
-				orderedEntitiesCopy[i].isOpen = orderedEntities[i].isOpen;
-				orderedEntitiesCopy[i].selected = orderedEntities[i].selected;
-				orderedEntities[i] = orderedEntitiesCopy[i];
 			}
 
 			imGuiRightClickPopup(am);
@@ -227,13 +246,11 @@ namespace MathAnim
 				for (int i = 0; i < numChildren + 1; i++)
 				{
 					orderedEntities.erase(orderedEntities.begin() + parentIndex);
-					orderedEntitiesCopy.erase(orderedEntitiesCopy.begin() + parentIndex);
 				}
 
 				for (int i = parentIndex; i < orderedEntities.size(); i++)
 				{
 					orderedEntities[i].index = i;
-					orderedEntitiesCopy[i].index = i;
 				}
 			}
 		}
@@ -260,7 +277,6 @@ namespace MathAnim
 		{
 			// TODO: See if this is consistent with how you load the rest of the assets
 			//orderedEntities.clear(false);
-			//orderedEntitiesCopy.clear(false);
 
 			//if (j.contains("SceneHeirarchyOrder"))
 			//{
@@ -285,7 +301,6 @@ namespace MathAnim
 			//		Logger::Assert(Scene::isValid(scene, entityId), "Somehow an invalid entity id got serialized in the scene heirarchy panel.");
 			//		Entity entity = Entity{ entt::entity(entityId) };
 			//		orderedEntities.push({ entity, level, index, selected, isOpen });
-			//		orderedEntitiesCopy.push({ entity, level, index, selected, isOpen });
 			//	}
 			//}
 		}
@@ -322,9 +337,9 @@ namespace MathAnim
 			}
 		}
 
-		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, SceneTreeMetadata& nextElement)
+		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, AnimObjId nextAnimObjParentId, bool* dropTargetEffected)
 		{
-			const AnimObject* nextAnimObject = AnimationManager::getObject(am, nextElement.animObjectId);
+			*dropTargetEffected = false;
 
 			if (animObject.status == AnimObjectStatus::Inactive)
 			{
@@ -345,7 +360,7 @@ namespace MathAnim
 				animObject.name,
 				ImGuiTreeNodeFlags_FramePadding |
 				(element.selected ? ImGuiTreeNodeFlags_Selected : 0) |
-				(nextAnimObject && nextAnimObject->parentId == element.animObjectId ? 0 : ImGuiTreeNodeFlags_Leaf) |
+				(nextAnimObjParentId == element.animObjectId ? 0 : ImGuiTreeNodeFlags_Leaf) |
 				ImGuiTreeNodeFlags_OpenOnArrow |
 				ImGuiTreeNodeFlags_SpanFullWidth,
 				"%s", animObject.name);
@@ -356,11 +371,13 @@ namespace MathAnim
 			ImGui::PopStyleColor();
 
 			// Track the in-between size for this tree node
-			ImVec2 cursorPos = ImGui::GetCursorPos();
 			ImVec2 elementSize = ImGui::GetItemRectSize();
-			elementSize.x -= ImGui::GetStyle().FramePadding.x;
 			elementSize.y = ImGui::GetStyle().FramePadding.y;
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+			cursorPos.x = ImGui::GetStyle().FramePadding.x;
+			cursorPos.x -= ImGui::GetScrollX();
 			cursorPos.y -= ImGui::GetStyle().FramePadding.y;
+			cursorPos.y -= ImGui::GetScrollY();
 			ImVec2 windowPos = ImGui::GetCurrentWindow()->Pos;
 			inBetweenBuffer.emplace_back(
 				BetweenMetadata
@@ -385,8 +402,7 @@ namespace MathAnim
 				payload.animObjectId = element.animObjectId;
 				payload.sceneHierarchyIndex = element.index;
 				ImGui::SetDragDropPayload(Timeline::getAnimObjectPayloadId(), &payload, sizeof(AnimObjectPayload));
-				// TODO: Add anim object names
-				ImGui::Text("%s", "Temporary Name");
+				ImGui::Text("%s", animObject.name);
 				ImGui::EndDragDropSource();
 			}
 
@@ -398,10 +414,12 @@ namespace MathAnim
 					const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
 					int childIndex = objPayload->sceneHierarchyIndex;
 					g_logger_assert(childIndex >= 0 && childIndex < orderedEntities.size(), "Invalid payload.");
-					SceneTreeMetadata& childMetadata = orderedEntitiesCopy[childIndex];
+					SceneTreeMetadata& childMetadata = orderedEntities[childIndex];
 					if (!isDescendantOf(am, element.animObjectId, childMetadata.animObjectId))
 					{
-						addElementAsChild(am, element.index, childIndex);
+						*dropTargetEffected = true;
+						dragDropMove.newChild = element.index;
+						dragDropMove.newParent = childIndex;
 					}
 				}
 				ImGui::EndDragDropTarget();
@@ -409,7 +427,6 @@ namespace MathAnim
 
 			if (clicked)
 			{
-				//InspectorWindow::clearAllEntities();
 				Timeline::setActiveAnimObject(element.animObjectId);
 			}
 
@@ -456,7 +473,7 @@ namespace MathAnim
 
 			// We need to find the in-between spaces of two tree nodes in the scene heirarchy tree.
 			// So, if we just loop through all the objects in this window we should be able to 
-			// maybe find out which in-between we are in
+			// find out which in-between we are in
 			bool hoveringBetween = false;
 			for (int i = 0; i < inBetweenBuffer.size(); i++)
 			{
@@ -480,8 +497,9 @@ namespace MathAnim
 			{
 				// If we are below all elements default to showing a place at the bottom
 				// of the elements as where it will be added
-				SceneTreeMetadata& lastElement = orderedEntitiesCopy[orderedEntitiesCopy.size() - 1];
-				windowRect = inBetweenBuffer[inBetweenBuffer.size() - 1].rect;
+				const BetweenMetadata& betweenBuffer = inBetweenBuffer[inBetweenBuffer.size() - 1];
+				SceneTreeMetadata& lastElement = orderedEntities[betweenBuffer.index];
+				windowRect = betweenBuffer.rect;
 				windowRect.Min.y += 4;
 				windowRect.Max.y = windowRect.Min.y - 4;
 				hoveringBetween = true;
@@ -504,8 +522,8 @@ namespace MathAnim
 		{
 			g_logger_assert(parentIndex != newChildIndex, "Tried to child a parent to itself, not possible.");
 
-			SceneTreeMetadata& parent = orderedEntitiesCopy[parentIndex];
-			SceneTreeMetadata& newChild = orderedEntitiesCopy[newChildIndex];
+			SceneTreeMetadata& parent = orderedEntities[parentIndex];
+			SceneTreeMetadata& newChild = orderedEntities[newChildIndex];
 			AnimObject* childAnimObj = AnimationManager::getMutableObject(am, newChild.animObjectId);
 			AnimObject* parentAnimObj = AnimationManager::getMutableObject(am, parent.animObjectId);
 
@@ -535,8 +553,8 @@ namespace MathAnim
 				return;
 			}
 
-			SceneTreeMetadata& placeToMoveTo = orderedEntitiesCopy[placeToMoveToIndex];
-			SceneTreeMetadata& treeToMove = orderedEntitiesCopy[treeToMoveIndex];
+			SceneTreeMetadata& placeToMoveTo = orderedEntities[placeToMoveToIndex];
+			SceneTreeMetadata& treeToMove = orderedEntities[treeToMoveIndex];
 			if (isDescendantOf(am, placeToMoveTo.animObjectId, treeToMove.animObjectId))
 			{
 				return;
@@ -557,13 +575,6 @@ namespace MathAnim
 					// 	NEntity::getComponent<TransformData>(placeToMoveToTransform.parent) :
 					// 	Transform::createTransform();
 
-					// Check if parent is open or closed, if they are closed then we want to use their parent and level
-					if (!isNull(placeToMoveToObj->parentId))
-					{
-						// Need to start at the root and go down until you find a closed parent and thats the correct new parent
-						// TODO: Not sure if this is the actual root of the problem
-					}
-
 					updateLevel(treeToMove.index, placeToMoveTo.level);
 					treeToMoveObj->parentId = placeToMoveToObj->parentId;
 					// TODO: Should be fine, see TODO above
@@ -573,20 +584,20 @@ namespace MathAnim
 
 			// Temporarily copy the tree we are about to move
 			SceneTreeMetadata* copyOfTreeToMove = (SceneTreeMetadata*)g_memory_allocate(sizeof(SceneTreeMetadata) * numItemsToCopy);
-			memcpy(copyOfTreeToMove, &orderedEntitiesCopy[treeToMoveIndex], sizeof(SceneTreeMetadata) * numItemsToCopy);
+			memcpy(copyOfTreeToMove, &orderedEntities[treeToMoveIndex], sizeof(SceneTreeMetadata) * numItemsToCopy);
 
 			if (placeToMoveTo.index < treeToMove.index)
 			{
 				// Step 1
 				SceneTreeMetadata* dataAboveTreeToMove = (SceneTreeMetadata*)g_memory_allocate(sizeof(SceneTreeMetadata) * (treeToMoveIndex - placeToMoveToIndex));
-				memcpy(dataAboveTreeToMove, &orderedEntitiesCopy[placeToMoveToIndex], sizeof(SceneTreeMetadata) * (treeToMoveIndex - placeToMoveToIndex));
+				memcpy(dataAboveTreeToMove, &orderedEntities[placeToMoveToIndex], sizeof(SceneTreeMetadata) * (treeToMoveIndex - placeToMoveToIndex));
 
 				// Step 2
-				memcpy(&orderedEntitiesCopy[placeToMoveToIndex + numItemsToCopy], dataAboveTreeToMove, sizeof(SceneTreeMetadata) * (treeToMoveIndex - placeToMoveToIndex));
+				memcpy(&orderedEntities[placeToMoveToIndex + numItemsToCopy], dataAboveTreeToMove, sizeof(SceneTreeMetadata) * (treeToMoveIndex - placeToMoveToIndex));
 				g_memory_free(dataAboveTreeToMove);
 
 				// Step 3
-				memcpy(&orderedEntitiesCopy[placeToMoveToIndex], copyOfTreeToMove, sizeof(SceneTreeMetadata) * numItemsToCopy);
+				memcpy(&orderedEntities[placeToMoveToIndex], copyOfTreeToMove, sizeof(SceneTreeMetadata) * numItemsToCopy);
 			}
 			else
 			{
@@ -595,18 +606,18 @@ namespace MathAnim
 
 				// Copying trees down is a bit trickier, because if we try to place this guy in the split of a tree going down,
 				// then we have to move that whole tree up to compensate...
-				if (placeToMoveToIndex + 1 < orderedEntitiesCopy.size())
+				if (placeToMoveToIndex + 1 < orderedEntities.size())
 				{
 					if (isDescendantOf(
 						am,
-						orderedEntitiesCopy[placeToMoveToIndex + 1].animObjectId,
-						orderedEntitiesCopy[placeToMoveToIndex].animObjectId))
+						orderedEntities[placeToMoveToIndex + 1].animObjectId,
+						orderedEntities[placeToMoveToIndex].animObjectId))
 					{
-						int parentLevel = orderedEntitiesCopy[placeToMoveToIndex].level;
+						int parentLevel = orderedEntities[placeToMoveToIndex].level;
 						// Tricky, now we have to move the whole subtree
-						for (int i = placeToMoveToIndex + 1; i < orderedEntitiesCopy.size(); i++)
+						for (int i = placeToMoveToIndex + 1; i < orderedEntities.size(); i++)
 						{
-							if (orderedEntitiesCopy[i].level <= parentLevel)
+							if (orderedEntities[i].level <= parentLevel)
 							{
 								break;
 							}
@@ -614,38 +625,38 @@ namespace MathAnim
 							placeToMoveToIndex++;
 						}
 
-						g_logger_assert(placeToMoveToIndex < orderedEntitiesCopy.size(), "Invalid place to move to calculation.");
+						g_logger_assert(placeToMoveToIndex < orderedEntities.size(), "Invalid place to move to calculation.");
 					}
 				}
 
 				SceneTreeMetadata* dataBelowTreeToMove = (SceneTreeMetadata*)g_memory_allocate(sizeof(SceneTreeMetadata) * sizeOfData);
-				memcpy(dataBelowTreeToMove, &orderedEntitiesCopy[placeToMoveToIndex - sizeOfData + 1], sizeof(SceneTreeMetadata) * sizeOfData);
+				memcpy(dataBelowTreeToMove, &orderedEntities[placeToMoveToIndex - sizeOfData + 1], sizeof(SceneTreeMetadata) * sizeOfData);
 
 				// Step 2
-				memcpy(&orderedEntitiesCopy[treeToMoveIndex], dataBelowTreeToMove, sizeof(SceneTreeMetadata) * sizeOfData);
+				memcpy(&orderedEntities[treeToMoveIndex], dataBelowTreeToMove, sizeof(SceneTreeMetadata) * sizeOfData);
 				g_memory_free(dataBelowTreeToMove);
 
 				// Step 3
-				memcpy(&orderedEntitiesCopy[placeToMoveToIndex - numChildren], copyOfTreeToMove, sizeof(SceneTreeMetadata) * numItemsToCopy);
+				memcpy(&orderedEntities[placeToMoveToIndex - numChildren], copyOfTreeToMove, sizeof(SceneTreeMetadata) * numItemsToCopy);
 			}
 
 			// Update indices
-			for (int i = 0; i < orderedEntitiesCopy.size(); i++)
+			for (int i = 0; i < orderedEntities.size(); i++)
 			{
-				orderedEntitiesCopy[i].index = i;
+				orderedEntities[i].index = i;
 			}
 			g_memory_free(copyOfTreeToMove);
 		}
 
 		static void updateLevel(int parentIndex, int newParentLevel)
 		{
-			g_logger_assert(parentIndex >= 0 && parentIndex < orderedEntitiesCopy.size(), "Out of bounds index.");
-			SceneTreeMetadata& parent = orderedEntitiesCopy[parentIndex];
-			for (int i = parent.index + 1; i < orderedEntitiesCopy.size(); i++)
+			g_logger_assert(parentIndex >= 0 && parentIndex < orderedEntities.size(), "Out of bounds index.");
+			SceneTreeMetadata& parent = orderedEntities[parentIndex];
+			for (int i = parent.index + 1; i < orderedEntities.size(); i++)
 			{
 				// We don't have to worry about going out of bounds with that plus one, because if it is out
 				// of bounds then the for loop won't execute anyways
-				SceneTreeMetadata& element = orderedEntitiesCopy[i];
+				SceneTreeMetadata& element = orderedEntities[i];
 				if (element.level <= parent.level)
 				{
 					break;
@@ -658,14 +669,14 @@ namespace MathAnim
 
 		static int getNumChildren(int parentIndex)
 		{
-			g_logger_assert(parentIndex >= 0 && parentIndex < orderedEntitiesCopy.size(), "Out of bounds index.");
-			SceneTreeMetadata& parent = orderedEntitiesCopy[parentIndex];
+			g_logger_assert(parentIndex >= 0 && parentIndex < orderedEntities.size(), "Out of bounds index.");
+			SceneTreeMetadata& parent = orderedEntities[parentIndex];
 			int numChildren = 0;
-			for (int i = parent.index + 1; i < orderedEntitiesCopy.size(); i++)
+			for (int i = parent.index + 1; i < orderedEntities.size(); i++)
 			{
 				// We don't have to worry about going out of bounds with that plus one, because if it is out
 				// of bounds then the for loop won't execute anyways
-				SceneTreeMetadata& element = orderedEntitiesCopy[i];
+				SceneTreeMetadata& element = orderedEntities[i];
 				if (element.level <= parent.level)
 				{
 					break;
