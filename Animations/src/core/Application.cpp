@@ -98,7 +98,7 @@ namespace MathAnim
 			//globalThreadPool = new GlobalThreadPool(true);
 
 			// Initiaize GLFW/Glad
-			window = new Window(1920, 1080, winTitle, WindowFlags::None);
+			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
 			window->setVSync(true);
 
 			// Initialize Onigiruma
@@ -216,11 +216,17 @@ namespace MathAnim
 
 				// Do ImGui stuff
 				int debugMsgId = 0;
+#ifdef NON_ANCIENT_GPU
+				glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "ImGui_Pass");
+#endif
 				ImGuiLayer::beginFrame();
 				MenuBar::update();
 				SceneManagementPanel::update(sceneData);
 				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
 				ImGuiLayer::endFrame();
+#ifdef NON_ANCIENT_GPU
+				glPopDebugGroup();
+#endif
 
 				AnimationManager::endFrame(am);
 

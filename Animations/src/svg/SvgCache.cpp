@@ -244,6 +244,10 @@ namespace MathAnim
 			cachedSvgs[i].clear();
 		}
 
+#ifdef NON_ANCIENT_GPU
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "SVG_Cache_Reset");
+#endif
+
 		framebuffer.bind();
 		glViewport(0, 0, framebuffer.width, framebuffer.height);
 		for (int i = 0; i < framebuffer.colorAttachments.size(); i++)
@@ -251,6 +255,10 @@ namespace MathAnim
 			framebuffer.clearColorAttachmentRgba(i, "#00000000"_hex);
 		}
 		framebuffer.clearDepthStencil();
+
+#ifdef NON_ANCIENT_GPU
+		glPopDebugGroup();
+#endif
 	}
 
 	// --------------------- Private ---------------------

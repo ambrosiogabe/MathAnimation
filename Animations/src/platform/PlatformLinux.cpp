@@ -89,8 +89,6 @@ namespace MathAnim
   namespace Platform
   {
     // --------------- Internal Functions ---------------
-    // static void wideToChar(const WCHAR *wide, char *buffer, size_t bufferLength);
-    // static bool stringsEqualIgnoreCase(const char *str1, const char *str2);
     static std::vector<std::string> availableFonts = {
         "JetBrains Mono"};
     static bool availableFontsCached = false;

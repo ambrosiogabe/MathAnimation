@@ -385,6 +385,9 @@ namespace MathAnim
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
 
 			debugMsgId = 0;
+#ifdef NON_ANCIENT_GPU
+			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Main_Framebuffer_Pass");
+#endif
 
 			// Clear the framebuffer attachments and set it up
 			framebuffer.bind();
@@ -419,6 +422,10 @@ namespace MathAnim
 			{
 				renderPickingOutline(framebuffer);
 			}
+
+#ifdef NON_ANCIENT_GPU
+			glPopDebugGroup();
+#endif
 		}
 
 		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, AnimationManagerData* am, bool shouldRenderPickingOutline)
@@ -1528,7 +1535,11 @@ namespace MathAnim
 		static void setupScreenVao()
 		{
 			// Create the screen vao
+#ifdef NON_ANCIENT_GPU
+			glCreateVertexArrays(1, &screenVao);
+#else
 			glGenVertexArrays(1, &screenVao);
+#endif
 			glBindVertexArray(screenVao);
 
 			uint32 screenVbo;
@@ -1549,6 +1560,9 @@ namespace MathAnim
 
 		static void renderPickingOutline(const Framebuffer& mainFramebuffer)
 		{
+#ifdef NON_ANCIENT_GPU
+			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Active_Object_Outline_Pass");
+#endif
 
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
 			glDrawBuffers(4, compositeDrawBuffers);
@@ -1573,6 +1587,9 @@ namespace MathAnim
 			glBindVertexArray(screenVao);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 
+#ifdef NON_ANCIENT_GPU
+			glPopDebugGroup();
+#endif
 		}
 
 		static uint32 getColorCompressed()
@@ -1871,7 +1888,11 @@ namespace MathAnim
 	void DrawList2D::setupGraphicsBuffers()
 	{
 		// Create the batched vao
+#ifdef NON_ANCIENT_GPU
+		glCreateVertexArrays(1, &vao);
+#else
 		glGenVertexArrays(1, &vao);
+#endif
 		glBindVertexArray(vao);
 
 		glGenBuffers(1, &vbo);
@@ -1905,6 +1926,9 @@ namespace MathAnim
 			return;
 		}
 
+#ifdef NON_ANCIENT_GPU
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_General_Pass");
+#endif
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -1958,6 +1982,9 @@ namespace MathAnim
 			);
 		}
 
+#ifdef NON_ANCIENT_GPU
+		glPopDebugGroup();
+#endif
 	}
 
 	void DrawList2D::reset()
@@ -2063,7 +2090,11 @@ namespace MathAnim
 	void DrawListFont2D::setupGraphicsBuffers()
 	{
 		// Create the batched vao
+#ifdef NON_ANCIENT_GPU
+		glCreateVertexArrays(1, &vao);
+#else
 		glGenVertexArrays(1, &vao);
+#endif
 		glBindVertexArray(vao);
 
 		glGenBuffers(1, &vbo);
@@ -2097,6 +2128,9 @@ namespace MathAnim
 			return;
 		}
 
+#ifdef NON_ANCIENT_GPU
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_Font_Pass");
+#endif
 
 		shader.bind();
 		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
@@ -2141,6 +2175,9 @@ namespace MathAnim
 			);
 		}
 
+#ifdef NON_ANCIENT_GPU
+		glPopDebugGroup();
+#endif
 	}
 
 	void DrawListFont2D::reset()
@@ -2247,7 +2284,11 @@ namespace MathAnim
 	void DrawList3DLine::setupGraphicsBuffers()
 	{
 		// Create the batched vao
+#ifdef NON_ANCIENT_GPU
+		glCreateVertexArrays(1, &vao);
+#else
 		glGenVertexArrays(1, &vao);
+#endif
 		glBindVertexArray(vao);
 
 		glGenBuffers(1, &vbo);
@@ -2280,6 +2321,9 @@ namespace MathAnim
 			return;
 		}
 
+#ifdef NON_ANCIENT_GPU
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_Line_Pass");
+#endif
 
 		glEnable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
@@ -2297,6 +2341,9 @@ namespace MathAnim
 
 		glDisable(GL_DEPTH_TEST);
 
+#ifdef NON_ANCIENT_GPU
+		glPopDebugGroup();
+#endif
 	}
 
 	void DrawList3DLine::reset()
@@ -2482,7 +2529,11 @@ namespace MathAnim
 		// Vec4 color;
 		// Vec2 textureCoords;
 		// Create the batched vao
+#ifdef NON_ANCIENT_GPU
+		glCreateVertexArrays(1, &vao);
+#else
 		glGenVertexArrays(1, &vao);
+#endif
 		glBindVertexArray(vao);
 
 		// Allocate space for the batched vbo
@@ -2517,6 +2568,9 @@ namespace MathAnim
 			return;
 		}
 
+#ifdef NON_ANCIENT_GPU
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_OIT_Pass");
+#endif
 
 		Vec4 sunColor = "#ffffffff"_hex;
 
@@ -2675,6 +2729,9 @@ namespace MathAnim
 		// Enable writing to the depth buffer again
 		glDepthMask(GL_TRUE);
 
+#ifdef NON_ANCIENT_GPU
+		glPopDebugGroup();
+#endif
 	}
 
 	void DrawList3D::reset()

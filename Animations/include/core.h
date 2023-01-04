@@ -3,7 +3,7 @@
 
 // _MAX_PATH is not a good constant, it lies, gets ignored sometimes, and is also not necessarily defined.
 #ifndef _MAX_PATH
-#define _MAX_PATH 4096
+#define _MAX_PATH 520
 #endif
 
 // Glm
