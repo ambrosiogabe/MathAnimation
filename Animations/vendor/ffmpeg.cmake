@@ -45,6 +45,8 @@ if(CMAKE_GENERATOR STREQUAL "Unix Makefiles")
     # If we are generating for Unix Makefiles already, we have a Unix Makefile compatible
     # build system. If so, we can just pass this through, as FFMPEG uses Unix Makefile's.
     message(STATUS "Building with Unix Makefiles, using \"${CMAKE_MAKE_PROGRAM}\" for FFMPEG")
+
+    set(FFMPEG_MAKE "${CMAKE_MAKE_PROGRAM}")
     set(FFMPEG_BUILD_COMMAND "${CMAKE_MAKE_PROGRAM}")
 else()
     # We are generating for something which isn't Unix Make. This could be Ninja, MSBuild or really
