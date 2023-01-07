@@ -31,7 +31,7 @@ namespace MathAnim
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
-		GL::clearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
+		GL::clearTexImage(texture, 0, &clearColor, sizeof(uint32));
 	}
 
 	void Framebuffer::clearColorAttachmentUint64(int colorAttachment, uint64 clearColor) const
@@ -42,7 +42,7 @@ namespace MathAnim
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
-		GL::clearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
+		GL::clearTexImage(texture, 0, &clearColor, sizeof(uint64));
 	}
 
 	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, const glm::vec3& clearColor) const

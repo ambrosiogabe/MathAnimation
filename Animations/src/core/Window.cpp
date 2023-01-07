@@ -16,22 +16,15 @@ namespace MathAnim
 	Window::Window(int width, int height, const char* title, WindowFlags flags)
 		: width(width), height(height), title(title)
 	{
-		if (GLVersion.major >= 4 && GLVersion.minor >= 6)
+		if (GLVersion.major < 3 || (GLVersion.major >= 3 && GLVersion.minor < 1)) 
 		{
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-		}
-		else if (GLVersion.major >= 3 && GLVersion.minor >= 1) 
-		{
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-		}
-		else
-		{
-			g_logger_error("You are running OpenGL version less than 3.1. This app does not support GL versions less than 3.1, you can try to update your graphics drivers to see if that helps.");
+			g_logger_error("You are running OpenGL version less than 3.2. This app does not support GL versions less than 3.2, you can try to update your graphics drivers to see if that helps.");
 			g_logger_assert(false, "GL Version %d.%d not supported.", GLVersion.major, GLVersion.minor);
 		}
 
+		// Minimum required version
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 		glfwWindowHint(GLFW_SAMPLES, 4);

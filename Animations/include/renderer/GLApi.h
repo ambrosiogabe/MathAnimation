@@ -4,6 +4,8 @@
 
 namespace MathAnim
 {
+	struct Texture;
+
 	namespace GL
 	{
 		void init(int versionMajor, int versionMinor);
@@ -31,7 +33,7 @@ namespace MathAnim
 
 		// Vaos
 		void bindVertexArray(GLuint array);
-		void createVertexArrays(GLsizei n, GLuint* arrays);
+		void createVertexArray(GLuint* name);
 		void vertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void* pointer);
 		void vertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void* pointer);
 		void enableVertexAttribArray(GLuint index);
@@ -48,7 +50,7 @@ namespace MathAnim
 		void drawElements(GLenum mode, GLsizei count, GLenum type, const void* indices);
 
 		// Textures
-		void clearTexImage(GLuint texture, GLint level, GLenum format, GLenum type, const void* data);
+		void clearTexImage(const Texture& texture, GLint level, const void* data, size_t dataLength);
 		void readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels);
 		void genTextures(GLsizei n, GLuint* textures);
 		void activeTexture(GLenum texture);
@@ -56,7 +58,6 @@ namespace MathAnim
 		void deleteTextures(GLsizei n, const GLuint* textures);
 		void texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels);
 		void texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels);
-		void copyImageSubData(GLuint srcName, GLenum srcTarget, GLint srcLevel, GLint srcX, GLint srcY, GLint srcZ, GLuint dstName, GLenum dstTarget, GLint dstLevel, GLint dstX, GLint dstY, GLint dstZ, GLsizei srcWidth, GLsizei srcHeight, GLsizei srcDepth);
 		void texParameteri(GLenum target, GLenum pname, GLint param);
 		void texParameteriv(GLenum target, GLenum pname, const GLint* params);
 
