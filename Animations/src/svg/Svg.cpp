@@ -1388,8 +1388,8 @@ namespace MathAnim
 	{
 		bbox.min.x = FLT_MAX;
 		bbox.min.y = FLT_MAX;
-		bbox.max.x = FLT_MIN;
-		bbox.max.y = FLT_MIN;
+		bbox.max.x = -FLT_MAX;
+		bbox.max.y = -FLT_MAX;
 
 		for (int pathi = 0; pathi < numPaths; pathi++)
 		{

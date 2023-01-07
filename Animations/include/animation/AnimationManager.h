@@ -58,6 +58,8 @@ namespace MathAnim
 
 		void applyGlobalTransforms(AnimationManagerData* am);
 		void applyGlobalTransformsTo(AnimationManagerData* am, AnimObjId obj);
+		void calculateBBoxes(AnimationManagerData* am);
+		void calculateBBoxFor(AnimationManagerData* am, AnimObjId obj);
 		void updateObjectState(AnimationManagerData* am, AnimObjId animObj);
 	}
 }
