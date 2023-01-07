@@ -1,4 +1,5 @@
 #include "editor/EditorSettings.h"
+#include "renderer/GLApi.h"
 
 namespace MathAnim
 {
@@ -42,11 +43,11 @@ namespace MathAnim
 							switch (data->viewMode)
 							{
 							case ViewMode::WireMesh:
-								glLineWidth(3.0f);
-								glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+								GL::lineWidth(3.0f);
+								GL::polygonMode(GL_FRONT_AND_BACK, GL_LINE);
 								break;
 							case ViewMode::Normal:
-								glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+								GL::polygonMode(GL_FRONT_AND_BACK, GL_FILL);
 								break;
 							case ViewMode::Length:
 								break;

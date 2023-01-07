@@ -8,6 +8,7 @@
 #include "renderer/Fonts.h"
 #include "renderer/Colors.h"
 #include "renderer/Fonts.h"
+#include "renderer/GLApi.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
@@ -383,18 +384,18 @@ namespace MathAnim
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
 
 			debugMsgId = 0;
-			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Main_Framebuffer_Pass");
+			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Main_Framebuffer_Pass");
 
 			// Clear the framebuffer attachments and set it up
 			framebuffer.bind();
-			glViewport(0, 0, framebuffer.width, framebuffer.height);
+			GL::viewport(0, 0, framebuffer.width, framebuffer.height);
 			framebuffer.clearColorAttachmentRgba(0, clearColor);
 			framebuffer.clearColorAttachmentUint64(3, NULL_ANIM_OBJECT);
 			framebuffer.clearDepthStencil();
 
 			// Reset the draw buffers to draw to FB_attachment_0
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
-			glDrawBuffers(4, compositeDrawBuffers);
+			GL::drawBuffers(4, compositeDrawBuffers);
 
 			// Do all the draw calls
 			// Draw lines and strings
@@ -406,7 +407,7 @@ namespace MathAnim
 			drawList3D.render(shader3DOpaque, shader3DTransparent, shader3DComposite, framebuffer, perspectiveCamera);
 
 			// Reset the draw buffers to draw to FB_attachment_0
-			glDrawBuffers(4, compositeDrawBuffers);
+			GL::drawBuffers(4, compositeDrawBuffers);
 
 			// Draw 2D stuff over 3D stuff so that 3D stuff is always "behind" the
 			// 2D stuff like a HUD
@@ -419,7 +420,7 @@ namespace MathAnim
 				renderPickingOutline(framebuffer);
 			}
 
-			glPopDebugGroup();
+			GL::popDebugGroup();
 		}
 
 		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, AnimationManagerData* am, bool shouldRenderPickingOutline)
@@ -441,12 +442,12 @@ namespace MathAnim
 			screenShader.bind();
 
 			const Texture& texture = framebuffer.getColorAttachment(0);
-			glActiveTexture(GL_TEXTURE0);
+			GL::activeTexture(GL_TEXTURE0);
 			texture.bind();
 			screenShader.uploadInt("uTexture", 0);
 
-			glBindVertexArray(screenVao);
-			glDrawArrays(GL_TRIANGLES, 0, 6);
+			GL::bindVertexArray(screenVao);
+			GL::drawArrays(GL_TRIANGLES, 0, 6);
 		}
 
 		void endFrame()
@@ -1463,8 +1464,8 @@ namespace MathAnim
 		// ----------- Miscellaneous ----------- 
 		void clearColor(const Vec4& color)
 		{
-			glClearColor(color.r, color.g, color.b, color.a);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+			GL::clearColor(color.r, color.g, color.b, color.a);
+			GL::clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		}
 
 		// ----------- Metrics ----------- 
@@ -1529,40 +1530,40 @@ namespace MathAnim
 		static void setupScreenVao()
 		{
 			// Create the screen vao
-			glCreateVertexArrays(1, &screenVao);
-			glBindVertexArray(screenVao);
+			GL::createVertexArrays(1, &screenVao);
+			GL::bindVertexArray(screenVao);
 
 			uint32 screenVbo;
-			glGenBuffers(1, &screenVbo);
+			GL::genBuffers(1, &screenVbo);
 
 			// Allocate space for the screen vao
-			glBindBuffer(GL_ARRAY_BUFFER, screenVbo);
-			glBufferData(GL_ARRAY_BUFFER, sizeof(defaultScreenQuad), defaultScreenQuad, GL_STATIC_DRAW);
+			GL::bindBuffer(GL_ARRAY_BUFFER, screenVbo);
+			GL::bufferData(GL_ARRAY_BUFFER, sizeof(defaultScreenQuad), defaultScreenQuad, GL_STATIC_DRAW);
 
 			// Set up the screen vao attributes
 			// The position doubles as the texture coordinates so we can use the same floats for that
-			glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)0);
-			glEnableVertexAttribArray(0);
+			GL::vertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)0);
+			GL::enableVertexAttribArray(0);
 
-			glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(sizeof(float) * 2));
-			glEnableVertexAttribArray(1);
+			GL::vertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(sizeof(float) * 2));
+			GL::enableVertexAttribArray(1);
 		}
 
 		static void renderPickingOutline(const Framebuffer& mainFramebuffer)
 		{
-			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Active_Object_Outline_Pass");
+			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Active_Object_Outline_Pass");
 
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
-			glDrawBuffers(4, compositeDrawBuffers);
+			GL::drawBuffers(4, compositeDrawBuffers);
 			pickingOutlineShader.bind();
 
 			const Texture& objIdTexture = mainFramebuffer.getColorAttachment(3);
-			glActiveTexture(GL_TEXTURE0);
+			GL::activeTexture(GL_TEXTURE0);
 			objIdTexture.bind();
 			pickingOutlineShader.uploadInt("uObjectIdTexture", 0);
 
 			const Texture& colorTexture = mainFramebuffer.getColorAttachment(0);
-			glActiveTexture(GL_TEXTURE1);
+			GL::activeTexture(GL_TEXTURE1);
 			colorTexture.bind();
 			pickingOutlineShader.uploadInt("uColorTexture", 1);
 
@@ -1572,10 +1573,10 @@ namespace MathAnim
 
 			//pickingOutlineShader.uploadFloat("uThreshold", EditorGui::getThreshold());
 
-			glBindVertexArray(screenVao);
-			glDrawArrays(GL_TRIANGLES, 0, 6);
+			GL::bindVertexArray(screenVao);
+			GL::drawArrays(GL_TRIANGLES, 0, 6);
 
-			glPopDebugGroup();
+			GL::popDebugGroup();
 		}
 
 		static uint32 getColorCompressed()
@@ -1874,31 +1875,31 @@ namespace MathAnim
 	void DrawList2D::setupGraphicsBuffers()
 	{
 		// Create the batched vao
-		glCreateVertexArrays(1, &vao);
-		glBindVertexArray(vao);
+		GL::createVertexArrays(1, &vao);
+		GL::bindVertexArray(vao);
 
-		glGenBuffers(1, &vbo);
+		GL::genBuffers(1, &vbo);
 
 		// Allocate space for the batched vao
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
+		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
-		glGenBuffers(1, &ebo);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+		GL::genBuffers(1, &ebo);
+		GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
 		// Set up the batched vao attributes
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, position)));
-		glEnableVertexAttribArray(0);
+		GL::vertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, position)));
+		GL::enableVertexAttribArray(0);
 
-		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, color)));
-		glEnableVertexAttribArray(1);
+		GL::vertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, color)));
+		GL::enableVertexAttribArray(1);
 
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, textureCoords)));
-		glEnableVertexAttribArray(2);
+		GL::vertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, textureCoords)));
+		GL::enableVertexAttribArray(2);
 
-		glVertexAttribIPointer(3, 2, GL_UNSIGNED_INT, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, objId)));
-		glEnableVertexAttribArray(3);
+		GL::vertexAttribIPointer(3, 2, GL_UNSIGNED_INT, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, objId)));
+		GL::enableVertexAttribArray(3);
 	}
 
 	void DrawList2D::render(const Shader& shader, const OrthoCamera& camera) const
@@ -1908,9 +1909,9 @@ namespace MathAnim
 			return;
 		}
 
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_General_Pass");
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_General_Pass");
+		GL::enable(GL_BLEND);
+		GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		shader.bind();
 		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
@@ -1922,20 +1923,20 @@ namespace MathAnim
 			if (drawCommands.data[i].textureId != UINT32_MAX)
 			{
 				// Bind the texture
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
+				GL::activeTexture(GL_TEXTURE0);
+				GL::bindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
 				shader.uploadInt("uTexture", 0);
 			}
 			else
 			{
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, Renderer::defaultWhiteTexture.graphicsId);
+				GL::activeTexture(GL_TEXTURE0);
+				GL::bindTexture(GL_TEXTURE_2D, Renderer::defaultWhiteTexture.graphicsId);
 				shader.uploadInt("uTexture", 0);
 			}
 
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 			int numVerts = drawCommands.data[i].numVerts;
-			glBufferData(
+			GL::bufferData(
 				GL_ARRAY_BUFFER,
 				sizeof(Vertex2D) * numVerts,
 				vertices.data + drawCommands.data[i].vertexOffset,
@@ -1943,8 +1944,8 @@ namespace MathAnim
 			);
 
 			// Buffer the elements
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-			glBufferData(
+			GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+			GL::bufferData(
 				GL_ELEMENT_ARRAY_BUFFER,
 				sizeof(uint16) * drawCommands.data[i].numElements,
 				indices.data + drawCommands.data[i].indexOffset,
@@ -1953,8 +1954,8 @@ namespace MathAnim
 
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
-			glBindVertexArray(vao);
-			glDrawElements(
+			GL::bindVertexArray(vao);
+			GL::drawElements(
 				GL_TRIANGLES,
 				drawCommands.data[i].numElements,
 				GL_UNSIGNED_SHORT,
@@ -1962,7 +1963,7 @@ namespace MathAnim
 			);
 		}
 
-		glPopDebugGroup();
+		GL::popDebugGroup();
 	}
 
 	void DrawList2D::reset()
@@ -1977,17 +1978,17 @@ namespace MathAnim
 	{
 		if (vbo != UINT32_MAX)
 		{
-			glDeleteBuffers(1, &vbo);
+			GL::deleteBuffers(1, &vbo);
 		}
 
 		if (ebo != UINT32_MAX)
 		{
-			glDeleteBuffers(1, &ebo);
+			GL::deleteBuffers(1, &ebo);
 		}
 
 		if (vao != UINT32_MAX)
 		{
-			glDeleteVertexArrays(1, &vao);
+			GL::deleteVertexArrays(1, &vao);
 		}
 
 		vbo = UINT32_MAX;
@@ -2068,31 +2069,31 @@ namespace MathAnim
 	void DrawListFont2D::setupGraphicsBuffers()
 	{
 		// Create the batched vao
-		glCreateVertexArrays(1, &vao);
-		glBindVertexArray(vao);
+		GL::createVertexArrays(1, &vao);
+		GL::bindVertexArray(vao);
 
-		glGenBuffers(1, &vbo);
+		GL::genBuffers(1, &vbo);
 
 		// Allocate space for the batched vao
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
+		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
-		glGenBuffers(1, &ebo);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+		GL::genBuffers(1, &ebo);
+		GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
 		// Set up the batched vao attributes
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, position)));
-		glEnableVertexAttribArray(0);
+		GL::vertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, position)));
+		GL::enableVertexAttribArray(0);
 
-		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, color)));
-		glEnableVertexAttribArray(1);
+		GL::vertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, color)));
+		GL::enableVertexAttribArray(1);
 
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, textureCoords)));
-		glEnableVertexAttribArray(2);
+		GL::vertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, textureCoords)));
+		GL::enableVertexAttribArray(2);
 
-		glVertexAttribIPointer(3, 1, GL_UNSIGNED_INT, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, objId)));
-		glEnableVertexAttribArray(3);
+		GL::vertexAttribIPointer(3, 1, GL_UNSIGNED_INT, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, objId)));
+		GL::enableVertexAttribArray(3);
 	}
 
 	void DrawListFont2D::render(const Shader& shader, const OrthoCamera& camera)
@@ -2102,7 +2103,7 @@ namespace MathAnim
 			return;
 		}
 
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_Font_Pass");
+		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_Font_Pass");
 
 		shader.bind();
 		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
@@ -2111,16 +2112,16 @@ namespace MathAnim
 		for (int i = 0; i < drawCommands.size(); i++)
 		{
 			// Bind the texture
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
+			GL::activeTexture(GL_TEXTURE0);
+			GL::bindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
 			shader.uploadInt("uTexture", 0);
 
 			// Upload the verts
 			// TODO: Figure out how to correctly do this stuff
 			// I think this is crashing the GPU right now
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 			int numVerts = drawCommands.data[i].numVerts;
-			glBufferData(
+			GL::bufferData(
 				GL_ARRAY_BUFFER,
 				sizeof(Vertex2D) * numVerts,
 				vertices.data + drawCommands.data[i].vertexOffset,
@@ -2128,8 +2129,8 @@ namespace MathAnim
 			);
 
 			// Buffer the elements
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-			glBufferData(
+			GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+			GL::bufferData(
 				GL_ELEMENT_ARRAY_BUFFER,
 				sizeof(uint16) * drawCommands.data[i].numElements,
 				indices.data + drawCommands.data[i].indexOffset,
@@ -2138,8 +2139,8 @@ namespace MathAnim
 
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
-			glBindVertexArray(vao);
-			glDrawElements(
+			GL::bindVertexArray(vao);
+			GL::drawElements(
 				GL_TRIANGLES,
 				drawCommands.data[i].numElements,
 				GL_UNSIGNED_SHORT,
@@ -2147,7 +2148,7 @@ namespace MathAnim
 			);
 		}
 
-		glPopDebugGroup();
+		GL::popDebugGroup();
 	}
 
 	void DrawListFont2D::reset()
@@ -2162,17 +2163,17 @@ namespace MathAnim
 	{
 		if (vbo != UINT32_MAX)
 		{
-			glDeleteBuffers(1, &vbo);
+			GL::deleteBuffers(1, &vbo);
 		}
 
 		if (ebo != UINT32_MAX)
 		{
-			glDeleteBuffers(1, &ebo);
+			GL::deleteBuffers(1, &ebo);
 		}
 
 		if (vao != UINT32_MAX)
 		{
-			glDeleteVertexArrays(1, &vao);
+			GL::deleteVertexArrays(1, &vao);
 		}
 
 		vbo = UINT32_MAX;
@@ -2254,30 +2255,30 @@ namespace MathAnim
 	void DrawList3DLine::setupGraphicsBuffers()
 	{
 		// Create the batched vao
-		glCreateVertexArrays(1, &vao);
-		glBindVertexArray(vao);
+		GL::createVertexArrays(1, &vao);
+		GL::bindVertexArray(vao);
 
-		glGenBuffers(1, &vbo);
+		GL::genBuffers(1, &vbo);
 
 		// Allocate space for the batched vao
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
+		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
 		// Set up the batched vao attributes
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, currentPos)));
-		glEnableVertexAttribArray(0);
+		GL::vertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, currentPos)));
+		GL::enableVertexAttribArray(0);
 
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, previousPos)));
-		glEnableVertexAttribArray(1);
+		GL::vertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, previousPos)));
+		GL::enableVertexAttribArray(1);
 
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, nextPos)));
-		glEnableVertexAttribArray(2);
+		GL::vertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, nextPos)));
+		GL::enableVertexAttribArray(2);
 
-		glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, thickness)));
-		glEnableVertexAttribArray(3);
+		GL::vertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, thickness)));
+		GL::enableVertexAttribArray(3);
 
-		glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, color)));
-		glEnableVertexAttribArray(4);
+		GL::vertexAttribIPointer(4, 1, GL_UNSIGNED_INT, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, color)));
+		GL::enableVertexAttribArray(4);
 	}
 
 	void DrawList3DLine::render(const Shader& shader, PerspectiveCamera& camera) const
@@ -2287,25 +2288,25 @@ namespace MathAnim
 			return;
 		}
 
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_Line_Pass");
+		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_Line_Pass");
 
-		glEnable(GL_DEPTH_TEST);
-		glDisable(GL_CULL_FACE);
+		GL::enable(GL_DEPTH_TEST);
+		GL::disable(GL_CULL_FACE);
 
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.size(), vertices.data, GL_DYNAMIC_DRAW);
+		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
+		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.size(), vertices.data, GL_DYNAMIC_DRAW);
 
 		shader.bind();
 		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
 		shader.uploadMat4("uView", camera.calculateViewMatrix());
 		shader.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
 
-		glBindVertexArray(vao);
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+		GL::bindVertexArray(vao);
+		GL::drawArrays(GL_TRIANGLES, 0, vertices.size());
 
-		glDisable(GL_DEPTH_TEST);
+		GL::disable(GL_DEPTH_TEST);
 
-		glPopDebugGroup();
+		GL::popDebugGroup();
 	}
 
 	void DrawList3DLine::reset()
@@ -2317,12 +2318,12 @@ namespace MathAnim
 	{
 		if (vbo != UINT32_MAX)
 		{
-			glDeleteBuffers(1, &vbo);
+			GL::deleteBuffers(1, &vbo);
 		}
 
 		if (vao != UINT32_MAX)
 		{
-			glDeleteVertexArrays(1, &vao);
+			GL::deleteVertexArrays(1, &vao);
 		}
 
 		vbo = UINT32_MAX;
@@ -2491,31 +2492,31 @@ namespace MathAnim
 		// Vec4 color;
 		// Vec2 textureCoords;
 		// Create the batched vao
-		glCreateVertexArrays(1, &vao);
-		glBindVertexArray(vao);
+		GL::createVertexArrays(1, &vao);
+		GL::bindVertexArray(vao);
 
 		// Allocate space for the batched vbo
-		glGenBuffers(1, &vbo);
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex3D) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+		GL::genBuffers(1, &vbo);
+		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
+		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex3D) * vertices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
-		glGenBuffers(1, &ebo);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+		GL::genBuffers(1, &ebo);
+		GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
 		// Set up the batched vao attributes
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, position)));
-		glEnableVertexAttribArray(0);
+		GL::vertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, position)));
+		GL::enableVertexAttribArray(0);
 
 		// TODO: Change me to a packed color in 1 uint32
-		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, color)));
-		glEnableVertexAttribArray(1);
+		GL::vertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, color)));
+		GL::enableVertexAttribArray(1);
 
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, textureCoords)));
-		glEnableVertexAttribArray(2);
+		GL::vertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, textureCoords)));
+		GL::enableVertexAttribArray(2);
 
-		glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, normal)));
-		glEnableVertexAttribArray(3);
+		GL::vertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, normal)));
+		GL::enableVertexAttribArray(3);
 	}
 
 	void DrawList3D::render(const Shader& opaqueShader, const Shader& transparentShader,
@@ -2526,13 +2527,13 @@ namespace MathAnim
 			return;
 		}
 
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_OIT_Pass");
+		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_OIT_Pass");
 
 		Vec4 sunColor = "#ffffffff"_hex;
 
 		// Enable depth testing and depth buffer writes
-		glDepthMask(GL_TRUE);
-		glEnable(GL_DEPTH_TEST);
+		GL::depthMask(GL_TRUE);
+		GL::enable(GL_DEPTH_TEST);
 
 		// First render opaque objects
 		opaqueShader.bind();
@@ -2548,34 +2549,34 @@ namespace MathAnim
 				continue;
 			}
 
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 			int numVerts = drawCommands.data[i].elementCount / 6 * 4;
-			glBufferData(
+			GL::bufferData(
 				GL_ARRAY_BUFFER,
 				sizeof(Vertex3D) * numVerts,
 				vertices.data + drawCommands.data[i].vertexOffset,
 				GL_DYNAMIC_DRAW
 			);
 
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-			glBufferData(
+			GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+			GL::bufferData(
 				GL_ELEMENT_ARRAY_BUFFER,
 				sizeof(uint16) * drawCommands.data[i].elementCount,
 				indices.data + drawCommands.data[i].indexOffset,
 				GL_DYNAMIC_DRAW
 			);
 
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
+			GL::activeTexture(GL_TEXTURE0);
+			GL::bindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
 			transparentShader.uploadInt("uTexture", 0);
 
-			glBindVertexArray(vao);
-			glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, NULL);
+			GL::bindVertexArray(vao);
+			GL::drawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, NULL);
 
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
-			glBindVertexArray(vao);
-			glDrawElements(
+			GL::bindVertexArray(vao);
+			GL::drawElements(
 				GL_TRIANGLES,
 				drawCommands.data[i].elementCount,
 				GL_UNSIGNED_SHORT,
@@ -2587,26 +2588,26 @@ namespace MathAnim
 
 		// Set up the transparent draw buffers
 		GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
-		glDrawBuffers(4, drawBuffers);
+		GL::drawBuffers(4, drawBuffers);
 
 		// Set up GL state for transparent pass
 		// Disable writing to the depth buffer
-		glDepthMask(GL_FALSE);
-		glEnable(GL_DEPTH_TEST);
-		glDisable(GL_CULL_FACE);
-		glEnable(GL_BLEND);
+		GL::depthMask(GL_FALSE);
+		GL::enable(GL_DEPTH_TEST);
+		GL::disable(GL_CULL_FACE);
+		GL::enable(GL_BLEND);
 
 		// These values are obtained from http://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html
 		// Under the 3D transparency pass table
-		glBlendEquation(GL_FUNC_ADD);
-		glBlendFunci(1, GL_ONE, GL_ONE);
-		glBlendFunci(2, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
+		GL::blendEquation(GL_FUNC_ADD);
+		GL::blendFunci(1, GL_ONE, GL_ONE);
+		GL::blendFunci(2, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
 
 		// Clear the buffers
 		float accumulationClear[4] = { 0, 0, 0, 0 };
 		float revealageClear[4] = { 1, 0, 0, 0 };
-		glClearBufferfv(GL_COLOR, 1, accumulationClear);
-		glClearBufferfv(GL_COLOR, 2, revealageClear);
+		GL::clearBufferfv(GL_COLOR, 1, accumulationClear);
+		GL::clearBufferfv(GL_COLOR, 2, revealageClear);
 
 		// Then render the transparent surfaces
 		transparentShader.bind();
@@ -2622,34 +2623,34 @@ namespace MathAnim
 				continue;
 			}
 
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 			int numVerts = drawCommands.data[i].elementCount / 6 * 4;
-			glBufferData(
+			GL::bufferData(
 				GL_ARRAY_BUFFER,
 				sizeof(Vertex3D) * numVerts,
 				vertices.data + drawCommands.data[i].vertexOffset,
 				GL_DYNAMIC_DRAW
 			);
 
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-			glBufferData(
+			GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+			GL::bufferData(
 				GL_ELEMENT_ARRAY_BUFFER,
 				sizeof(uint16) * drawCommands.data[i].elementCount,
 				indices.data + drawCommands.data[i].indexOffset,
 				GL_DYNAMIC_DRAW
 			);
 
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
+			GL::activeTexture(GL_TEXTURE0);
+			GL::bindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
 			transparentShader.uploadInt("uTexture", 0);
 
-			glBindVertexArray(vao);
-			glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, NULL);
+			GL::bindVertexArray(vao);
+			GL::drawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, NULL);
 
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
-			glBindVertexArray(vao);
-			glDrawElements(
+			GL::bindVertexArray(vao);
+			GL::drawElements(
 				GL_TRIANGLES,
 				drawCommands.data[i].elementCount,
 				GL_UNSIGNED_SHORT,
@@ -2659,33 +2660,33 @@ namespace MathAnim
 
 		// Composite the accumulation and revealage textures together
 		// Render to the composite framebuffer attachment
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		compositeShader.bind();
 
 		const Texture& accumulationTexture = framebuffer.getColorAttachment(1);
 		const Texture& revealageTexture = framebuffer.getColorAttachment(2);
 
-		glActiveTexture(GL_TEXTURE0);
+		GL::activeTexture(GL_TEXTURE0);
 		accumulationTexture.bind();
 		compositeShader.uploadInt("uAccumTexture", 0);
 
-		glActiveTexture(GL_TEXTURE1);
+		GL::activeTexture(GL_TEXTURE1);
 		revealageTexture.bind();
 		compositeShader.uploadInt("uRevealageTexture", 1);
 
 		// Set up the composite draw buffers
 		GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
-		glDrawBuffers(4, compositeDrawBuffers);
+		GL::drawBuffers(4, compositeDrawBuffers);
 
-		glBindVertexArray(Renderer::screenVao);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
+		GL::bindVertexArray(Renderer::screenVao);
+		GL::drawArrays(GL_TRIANGLES, 0, 6);
 
 		// Reset GL state
 		// Enable writing to the depth buffer again
-		glDepthMask(GL_TRUE);
+		GL::depthMask(GL_TRUE);
 
-		glPopDebugGroup();
+		GL::popDebugGroup();
 	}
 
 	void DrawList3D::reset()
@@ -2700,17 +2701,17 @@ namespace MathAnim
 	{
 		if (vbo != UINT32_MAX)
 		{
-			glDeleteBuffers(1, &vbo);
+			GL::deleteBuffers(1, &vbo);
 		}
 
 		if (ebo != UINT32_MAX)
 		{
-			glDeleteBuffers(1, &ebo);
+			GL::deleteBuffers(1, &ebo);
 		}
 
 		if (vao != UINT32_MAX)
 		{
-			glDeleteVertexArrays(1, &vao);
+			GL::deleteVertexArrays(1, &vao);
 		}
 
 		vbo = UINT32_MAX;

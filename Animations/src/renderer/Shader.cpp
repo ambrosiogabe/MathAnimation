@@ -1,4 +1,5 @@
 #include "renderer/Shader.h"
+#include "renderer/GLApi.h"
 #include "utils/CMath.h"
 
 #include <unordered_map>
@@ -72,7 +73,7 @@ namespace MathAnim
 			shaderSources[ShaderTypeFromString(type)] = fileSource.substr(nextLinePos, pos - (nextLinePos == std::string::npos ? fileSource.size() - 1 : nextLinePos));
 		}
 
-		GLuint program = glCreateProgram();
+		GLuint program = GL::createProgram();
 		g_logger_assert(shaderSources.size() <= 2, "Shader source must be less than 2.");
 		std::array<GLenum, 2> glShaderIDs;
 		int glShaderIDIndex = 0;
@@ -83,29 +84,29 @@ namespace MathAnim
 			const std::string& source = kv.second;
 
 			// Create an empty vertex shader handle
-			GLuint shader = glCreateShader(shaderType);
+			GLuint shader = GL::createShader(shaderType);
 
 			// Send the vertex shader source code to GL
 			// Note that std::string's .c_str is NULL character terminated.
 			const GLchar* sourceCStr = source.c_str();
-			glShaderSource(shader, 1, &sourceCStr, 0);
+			GL::shaderSource(shader, 1, &sourceCStr, 0);
 
 			// Compile the vertex shader
-			glCompileShader(shader);
+			GL::compileShader(shader);
 
 			GLint isCompiled = 0;
-			glGetShaderiv(shader, GL_COMPILE_STATUS, &isCompiled);
+			GL::getShaderiv(shader, GL_COMPILE_STATUS, &isCompiled);
 			if (isCompiled == GL_FALSE)
 			{
 				GLint maxLength = 0;
-				glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
+				GL::getShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
 
 				// The maxLength includes the NULL character
 				std::vector<GLchar> infoLog(maxLength);
-				glGetShaderInfoLog(shader, maxLength, &maxLength, &infoLog[0]);
+				GL::getShaderInfoLog(shader, maxLength, &maxLength, &infoLog[0]);
 
 				// We don't need the shader anymore.
-				glDeleteShader(shader);
+				GL::deleteShader(shader);
 
 				g_logger_error("%s", infoLog.data());
 
@@ -113,30 +114,30 @@ namespace MathAnim
 				return;
 			}
 
-			glAttachShader(program, shader);
+			GL::attachShader(program, shader);
 			glShaderIDs[glShaderIDIndex++] = shader;
 		}
 
 		// Link our program
-		glLinkProgram(program);
+		GL::linkProgram(program);
 
 		// Note the different functions here: glGetProgram* instead of glGetShader*.
 		GLint isLinked = 0;
-		glGetProgramiv(program, GL_LINK_STATUS, (int*)&isLinked);
+		GL::getProgramiv(program, GL_LINK_STATUS, (int*)&isLinked);
 		if (isLinked == GL_FALSE)
 		{
 			GLint maxLength = 0;
-			glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
+			GL::getProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
 
 			// The maxLength includes the NULL character
 			std::vector<GLchar> infoLog(maxLength);
-			glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
+			GL::getProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
 
 			// We don't need the program anymore.
-			glDeleteProgram(program);
+			GL::deleteProgram(program);
 			// Don't leak shaders either.
 			for (auto id : glShaderIDs)
-				glDeleteShader(id);
+				GL::deleteShader(id);
 
 			g_logger_error("%s", infoLog.data());
 			programId = UINT32_MAX;
@@ -147,10 +148,10 @@ namespace MathAnim
 
 		// Get all the active vertex attributes and store them in our map of uniform variable locations
 		int numUniforms;
-		glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &numUniforms);
+		GL::getProgramiv(program, GL_ACTIVE_UNIFORMS, &numUniforms);
 
 		int maxCharLength;
-		glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxCharLength);
+		GL::getProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxCharLength);
 		if (numUniforms > 0 && maxCharLength > 0)
 		{
 			char* charBuffer = (char*)g_memory_allocate(sizeof(char) * maxCharLength);
@@ -159,8 +160,8 @@ namespace MathAnim
 			{
 				int length, size;
 				GLenum type;
-				glGetActiveUniform(program, i, maxCharLength, &length, &size, &type, charBuffer);
-				GLint varLocation = glGetUniformLocation(program, charBuffer);
+				GL::getActiveUniform(program, i, maxCharLength, &length, &size, &type, charBuffer);
+				GLint varLocation = GL::getUniformLocation(program, charBuffer);
 				mAllShaderVariableLocations[{
 					std::string(charBuffer),
 						varLocation,
@@ -173,66 +174,66 @@ namespace MathAnim
 
 		// Always detach shaders after a successful link.
 		for (auto id : glShaderIDs)
-			glDetachShader(program, id);
+			GL::detachShader(program, id);
 
 		programId = program;
 	}
 
 	void Shader::destroy()
 	{
-		glDeleteProgram(programId);
+		GL::deleteProgram(programId);
 	}
 
 	void Shader::bind() const
 	{
-		glUseProgram(programId);
+		GL::useProgram(programId);
 	}
 
 	void Shader::unbind() const
 	{
-		glUseProgram(0);
+		GL::useProgram(0);
 	}
 
 	void Shader::uploadVec4(const char* varName, const glm::vec4& vec4) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		glUniform4f(varLocation, vec4.x, vec4.y, vec4.z, vec4.w);
+		GL::uniform4f(varLocation, vec4.x, vec4.y, vec4.z, vec4.w);
 	}
 
 	void Shader::uploadVec3(const char* varName, const glm::vec3& vec3) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		glUniform3f(varLocation, vec3.x, vec3.y, vec3.z);
+		GL::uniform3f(varLocation, vec3.x, vec3.y, vec3.z);
 	}
 
 	void Shader::uploadVec2(const char* varName, const glm::vec2& vec2) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		glUniform2f(varLocation, vec2.x, vec2.y);
+		GL::uniform2f(varLocation, vec2.x, vec2.y);
 	}
 
 	void Shader::uploadFloat(const char* varName, float value) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		glUniform1f(varLocation, value);
+		GL::uniform1f(varLocation, value);
 	}
 
 	void Shader::uploadInt(const char* varName, int value) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		glUniform1i(varLocation, value);
+		GL::uniform1i(varLocation, value);
 	}
 
 	void Shader::uploadUInt(const char* varName, uint32 value) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		glUniform1ui(varLocation, value);
+		GL::uniform1ui(varLocation, value);
 	}
 
 	void Shader::uploadUVec2(const char* varName, const glm::uvec2& vec2) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		glUniform2ui(varLocation, vec2.x, vec2.y);
+		GL::uniform2ui(varLocation, vec2.x, vec2.y);
 	}
 
 	void Shader::uploadU64AsUVec2(const char* varName, uint64 value) const
@@ -241,25 +242,25 @@ namespace MathAnim
 		// Split the number into two parts 
 		//   R = High
 		//   G = Low
-		glUniform2ui(varLocation, value & 0xFFFF'FFFF'0000'0000, value & 0x0000'0000'FFFF'FFFF);
+		GL::uniform2ui(varLocation, value & 0xFFFF'FFFF'0000'0000, value & 0x0000'0000'FFFF'FFFF);
 	}
 
 	void Shader::uploadMat4(const char* varName, const glm::mat4& mat4) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		glUniformMatrix4fv(varLocation, 1, GL_FALSE, glm::value_ptr(mat4));
+		GL::uniformMatrix4fv(varLocation, 1, GL_FALSE, glm::value_ptr(mat4));
 	}
 
 	void Shader::uploadMat3(const char* varName, const glm::mat3& mat3) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		glUniformMatrix3fv(varLocation, 1, GL_FALSE, glm::value_ptr(mat3));
+		GL::uniformMatrix3fv(varLocation, 1, GL_FALSE, glm::value_ptr(mat3));
 	}
 
 	void Shader::uploadIntArray(const char* varName, int length, const int* array) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		glUniform1iv(varLocation, length, array);
+		GL::uniform1iv(varLocation, length, array);
 	}
 
 	bool Shader::isNull() const

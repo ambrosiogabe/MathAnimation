@@ -5,6 +5,7 @@
 #include "editor/ProjectScreen.h"
 #include "multithreading/GlobalThreadPool.h"
 #include "platform/Platform.h"
+#include "renderer/GLApi.h"
 
 #include <imgui.h>
 
@@ -21,16 +22,16 @@ namespace MathAnim
 		void init()
 		{
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
+			GladLayer::init();
 
 			// Initiaize GLFW/Glad
 			window = new Window(1920, 1080, winTitle);
 			window->setVSync(true);
 
-			GladLayer::init();
 			ImGuiLayer::init(*window);
 
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			GL::enable(GL_BLEND);
+			GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			std::string specialAppDirectory = Platform::getSpecialAppDir();
 			g_logger_info("Special app directory: '%s'", specialAppDirectory.c_str());
@@ -63,8 +64,8 @@ namespace MathAnim
 			{
 				window->pollInput();
 
-				glViewport(0, 0, window->width, window->height);
-				glClearColor(0, 0, 0, 0);
+				GL::viewport(0, 0, window->width, window->height);
+				GL::clearColor(0, 0, 0, 0);
 
 				// Do ImGui stuff
 				ImGuiLayer::beginFrame();
@@ -92,6 +93,7 @@ namespace MathAnim
 			ImGuiLayer::free();
 			Window::cleanup();
 			globalThreadPool->free();
+			GladLayer::deinit();
 		}
 
 		Window* getWindow()
