@@ -119,7 +119,15 @@ endif()
 
 add_executable(MathAnimations ${MATH_ANIMATIONS_SOURCE} ${MATH_ANIMATIONS_PLATFORM_SOURCE})
 target_include_directories(MathAnimations PUBLIC ${MATH_ANIMATIONS_INCLUDE_DIR})
-target_compile_definitions(MathAnimations PUBLIC MATH_ANIMATIONS_MAX_PATH=${MATH_ANIMATIONS_MAX_PATH})
+target_compile_definitions(MathAnimations PUBLIC
+        MATH_ANIMATIONS_MAX_PATH=${MATH_ANIMATIONS_MAX_PATH}
+)
+target_compile_definitions(MathAnimations PRIVATE
+        $<$<CONFIG:Debug>:_DEBUG=1>
+        $<$<CONFIG:RelWithDebInfo>:_RELEASE=1>
+        $<$<CONFIG:MinSizeRel>:_RELEASE=1>
+        $<$<CONFIG:Release>:_RELEASE=1>
+)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${MATH_ANIMATIONS_SOURCE} ${MATH_ANIMATIONS_PLATFORM_SOURCE})
 
 target_link_libraries(MathAnimations PUBLIC
