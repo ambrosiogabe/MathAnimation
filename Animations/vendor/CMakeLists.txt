@@ -44,9 +44,13 @@ add_subdirectory(openal)
 ########
 # Luau #
 ########
+set(CMAKE_CXX_STANDARD 17) # Luau doesn't build with C++20
+
 set(LUAU_BUILD_CLI OFF)
 set(LUAU_BUILD_TESTS OFF)
 add_subdirectory(luau)
+
+set(CMAKE_CXX_STANDARD 20) # See above
 
 #############
 # Onigurama #
