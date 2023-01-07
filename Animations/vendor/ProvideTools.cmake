@@ -18,7 +18,7 @@ function(provide_tool _OUT_VAR _TOOL)
     endif()
 
     # First try to find the tool on the path.
-    find_path(_FOUND_TOOL NAMES ${_TOOL} ${_TOOL}.exe)
+    find_program(_FOUND_TOOL NAMES ${_TOOL} ${_TOOL}.exe NO_CACHE)
 
     if (_FOUND_TOOL)
         # We found the tool provided by the system.
@@ -34,7 +34,7 @@ function(provide_tool _OUT_VAR _TOOL)
         # Check if we already have some Busybox available
         if(NOT DEFINED PROVIDED_BUSYBOX_EXECUTABLE)
             # Not busybox yet, maybe its on the path
-            find_path(_FOUND_BUSYBOX NAMES busybox busybox.exe)
+            find_program(_FOUND_BUSYBOX NAMES busybox busybox.exe)
 
             if(_FOUND_BUSYBOX)
                 # Found busybox on the path, we'll use that

@@ -13,7 +13,7 @@ function(provide_nasm _OUT_VAR)
     endif()
 
     # First try to find NASM on the path.
-    find_path(_NASM NAMES nasm nasm.exe)
+    find_program(_NASM NAMES nasm nasm.exe)
 
     if (_NASM)
         # We found a NASM system installation.

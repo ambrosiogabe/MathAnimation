@@ -16,7 +16,7 @@ function(provide_gnu_make _OUT_VAR)
     #
     # We prefer gmake, as this is usually is the GNU compatible one
     # on systems where the normal make is not GNU compatible.
-    find_path(_GNU_MAKE NAMES gmake make gmake.exe make.exe)
+    find_program(_GNU_MAKE NAMES gmake make gmake.exe make.exe)
 
     if (_GNU_MAKE)
         # We found a GNU make system installation.
