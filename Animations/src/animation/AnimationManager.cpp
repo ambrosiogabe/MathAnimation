@@ -722,9 +722,6 @@ namespace MathAnim
 					finalBoundingBox.max = Vec2{ -FLT_MAX, -FLT_MAX };
 				}
 
-				//Vec2 size = (finalBoundingBox.max - finalBoundingBox.min) / 2.0f;
-				//translation += glm::vec3(size.x, -size.y, 0.0f);
-
 				// Then append all direct children to the queue so they are
 				// recursively updated
 				for (auto childIter = am->objects.begin(); childIter != am->objects.end(); childIter++)

@@ -544,7 +544,7 @@ namespace MathAnim
 		return res;
 	}
 
-	void Circumscribe::render(const Vec3& _objectPosition, const BBox& bbox) const
+	void Circumscribe::render(const BBox& bbox) const
 	{
 		Vec2 size = (bbox.max - bbox.min) + ((bbox.max - bbox.min) * bufferSize);
 		float radius = CMath::length(size) / 2.0f;
@@ -932,7 +932,7 @@ namespace MathAnim
 			{
 				if (bbox.max.x >= bbox.min.x && bbox.max.y >= bbox.min.y)
 				{
-					circumscribeAnim->as.circumscribe.render(this->globalPosition, bbox);
+					circumscribeAnim->as.circumscribe.render(bbox);
 				}
 			}
 		}

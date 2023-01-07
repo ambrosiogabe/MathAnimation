@@ -244,7 +244,7 @@ namespace MathAnim
 		float timeWidth;
 		float tValue;
 
-		void render(const Vec3& position, const BBox& bbox) const;
+		void render(const BBox& bbox) const;
 		void serialize(RawMemory& memory) const;
 		static Circumscribe deserialize(RawMemory& memory);
 		static Circumscribe createDefault();
@@ -427,7 +427,6 @@ namespace MathAnim
 		void takeAttributesFrom(const AnimObject& obj);
 		void replacementTransform(AnimationManagerData* am, AnimObjId replacement, float t);
 
-		void calculateBoundingBox();
 		void resetAllState();
 		void updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus);
 		void updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated);
