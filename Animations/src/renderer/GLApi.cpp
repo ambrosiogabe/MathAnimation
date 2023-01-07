@@ -1,14 +1,42 @@
-#ifndef MATH_ANIM_GL_API_H
-#define MATH_ANIM_GL_API_H
 #include "core.h"
+#include "renderer/GLApi.h"
+#include "renderer/Texture.h"
 
 namespace MathAnim
 {
 	namespace GL
 	{
+		static bool compatMode = true;
+		static bool gl40Support = true;
+		static bool gl43Support = true;
+		static bool gl44Support = true;
+
 		void init(int versionMajor, int versionMinor)
 		{
+			if (versionMajor >= 4 && versionMinor >= 6)
+			{
+				compatMode = false;
+			}
+			else
+			{
+				if (versionMajor >= 4 && versionMinor < 4)
+				{
+					gl44Support = false;
+				}
 
+				if (versionMajor >= 4 && versionMinor < 3)
+				{
+					gl43Support = false;
+				}
+
+				if (versionMajor < 4)
+				{
+					gl40Support = false;
+					gl43Support = false;
+					gl44Support = false;
+				}
+				g_logger_warning("You are using an OpenGL version <= 4.6. This means it will run in compatibility mode. This means the app may render inappropriately in certain cases, and performance may be degraded. Please update your drivers if possible to the latest GL version.");
+			}
 		}
 
 		// Blending
@@ -19,7 +47,16 @@ namespace MathAnim
 
 		void blendFunci(GLuint buf, GLenum src, GLenum dst)
 		{
-			glBlendFunci(buf, src, dst);
+			if (gl40Support)
+			{
+				glBlendFunci(buf, src, dst);
+			}
+			else
+			{
+				// NOTE: This will really screw stuff up in OIT rendering
+				// Come up with fallback for OIT
+				glBlendFunc(src, dst);
+			}
 		}
 
 		void blendEquation(GLenum mode)
@@ -104,9 +141,9 @@ namespace MathAnim
 			glBindVertexArray(array);
 		}
 
-		void createVertexArrays(GLsizei n, GLuint* arrays)
+		void createVertexArray(GLuint* name)
 		{
-			glCreateVertexArrays(n, arrays);
+			glGenVertexArrays(1, name);
 		}
 
 		void vertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void* pointer)
@@ -162,9 +199,55 @@ namespace MathAnim
 		}
 
 		// Textures
-		void clearTexImage(GLuint texture, GLint level, GLenum format, GLenum type, const void* data)
+		void clearTexImage(const Texture& texture, GLint level, const void* data, size_t dataLength)
 		{
-			glClearTexImage(texture, level, format, type, data);
+			GLenum format = TextureUtil::toGlExternalFormat(texture.format);
+			GLenum type = TextureUtil::toGlDataType(texture.format);
+
+			if (gl44Support)
+			{
+				glClearTexImage(
+					texture.graphicsId,
+					level,
+					format,
+					type,
+					data
+				);
+			}
+			else
+			{
+				// glCompatMode
+				// Allocate the memory real quick and then upload it to mimic the behavior (gross I know)...
+				size_t formatSize = TextureUtil::formatSize(texture.format);
+				size_t textureSize = sizeof(uint8) * texture.width * texture.height * formatSize;
+				uint8* pixels = (uint8*)g_memory_allocate(textureSize);
+				g_memory_zeroMem(pixels, textureSize);
+				if (data && (dataLength == formatSize))
+				{
+					// This should hopefully speed up the fill operation, but I need typed data here
+					// so we need to cast the pointer to the appropriate sized type
+					if (formatSize == sizeof(uint64))
+						std::fill(pixels, pixels + textureSize, (*(uint64*)data));
+					else if (formatSize == sizeof(uint32))
+						std::fill(pixels, pixels + textureSize, (*(uint32*)data));
+					else if (formatSize == sizeof(uint16))
+						std::fill(pixels, pixels + textureSize, (*(uint16*)data));
+					else if (formatSize == sizeof(uint8))
+						std::fill(pixels, pixels + textureSize, (*(uint8*)data));
+					else
+						g_logger_error("Cannot fill data of size: %d", formatSize);
+				}
+
+				// TODO: This tanks performance, see if you can use a pbo or something that you cache and reuse
+				glTexSubImage2D(
+					texture.graphicsId,
+					level,
+					0, 0, texture.width, texture.height,
+					format, type,
+					pixels
+				);
+				g_memory_free(pixels);
+			}
 		}
 
 		void readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels)
@@ -200,11 +283,6 @@ namespace MathAnim
 		void texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels)
 		{
 			glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
-		}
-
-		void copyImageSubData(GLuint srcName, GLenum srcTarget, GLint srcLevel, GLint srcX, GLint srcY, GLint srcZ, GLuint dstName, GLenum dstTarget, GLint dstLevel, GLint dstX, GLint dstY, GLint dstZ, GLsizei srcWidth, GLsizei srcHeight, GLsizei srcDepth)
-		{
-			glCopyImageSubData(srcName, srcTarget, srcLevel, srcX, srcY, srcZ, dstName, dstTarget, dstLevel, dstX, dstY, dstZ, srcWidth, srcHeight, srcDepth);
 		}
 
 		void texParameteri(GLenum target, GLenum pname, GLint param)
@@ -392,17 +470,30 @@ namespace MathAnim
 		// Debug callback stuffs
 		void debugMessageCallback(GLDEBUGPROC callback, const void* userParam)
 		{
-			glDebugMessageCallback(callback, userParam);
+			if (gl43Support)
+			{
+				glDebugMessageCallback(callback, userParam);
+			}
+			else
+			{
+				g_logger_warning("User system does not support GL 4.3 or greater. No debug message callback will be installed.");
+			}
 		}
 
 		void pushDebugGroup(GLenum source, GLuint id, GLsizei length, const GLchar* message)
 		{
-			glPushDebugGroup(source, id, length, message);
+			if (gl43Support)
+			{
+				glPushDebugGroup(source, id, length, message);
+			}
 		}
 
 		void popDebugGroup(void)
 		{
-			glPopDebugGroup();
+			if (gl43Support)
+			{
+				glPopDebugGroup();
+			}
 		}
 
 		GLenum getError(void)
@@ -411,5 +502,3 @@ namespace MathAnim
 		}
 	}
 }
-
-#endif 

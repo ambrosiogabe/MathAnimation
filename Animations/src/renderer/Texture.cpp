@@ -126,17 +126,6 @@ namespace MathAnim
 		graphicsId = NULL_TEXTURE_ID;
 	}
 
-	void Texture::copyTo(Texture& texture) const
-	{
-		g_logger_assert(this->width == texture.width && this->height == texture.height, "Cannot copy texture to a different sized texture.");
-
-		GL::copyImageSubData(
-			this->graphicsId, GL_TEXTURE_2D, 0, 0, 0, 0,
-			texture.graphicsId, GL_TEXTURE_2D, 0, 0, 0, 0,
-			this->width, this->height, 0
-		);
-	}
-
 	void Texture::uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer, size_t bufferLength, bool flipVertically) const
 	{
 		g_logger_assert(format != ByteFormat::None, "Cannot generate texture without color format.");

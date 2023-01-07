@@ -1530,7 +1530,7 @@ namespace MathAnim
 		static void setupScreenVao()
 		{
 			// Create the screen vao
-			GL::createVertexArrays(1, &screenVao);
+			GL::createVertexArray(&screenVao);
 			GL::bindVertexArray(screenVao);
 
 			uint32 screenVbo;
@@ -1875,7 +1875,7 @@ namespace MathAnim
 	void DrawList2D::setupGraphicsBuffers()
 	{
 		// Create the batched vao
-		GL::createVertexArrays(1, &vao);
+		GL::createVertexArray(&vao);
 		GL::bindVertexArray(vao);
 
 		GL::genBuffers(1, &vbo);
@@ -2069,7 +2069,7 @@ namespace MathAnim
 	void DrawListFont2D::setupGraphicsBuffers()
 	{
 		// Create the batched vao
-		GL::createVertexArrays(1, &vao);
+		GL::createVertexArray(&vao);
 		GL::bindVertexArray(vao);
 
 		GL::genBuffers(1, &vbo);
@@ -2255,7 +2255,7 @@ namespace MathAnim
 	void DrawList3DLine::setupGraphicsBuffers()
 	{
 		// Create the batched vao
-		GL::createVertexArrays(1, &vao);
+		GL::createVertexArray(&vao);
 		GL::bindVertexArray(vao);
 
 		GL::genBuffers(1, &vbo);
@@ -2492,7 +2492,7 @@ namespace MathAnim
 		// Vec4 color;
 		// Vec2 textureCoords;
 		// Create the batched vao
-		GL::createVertexArrays(1, &vao);
+		GL::createVertexArray(&vao);
 		GL::bindVertexArray(vao);
 
 		// Allocate space for the batched vbo
