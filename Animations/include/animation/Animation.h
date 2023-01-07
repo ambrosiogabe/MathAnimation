@@ -375,6 +375,7 @@ namespace MathAnim
 		Vec3 _globalPositionStart;
 		Vec3 globalPosition;
 		glm::mat4 globalTransform;
+		BBox bbox;
 
 		AnimObjId id;
 		AnimObjId parentId;
@@ -426,6 +427,7 @@ namespace MathAnim
 		void takeAttributesFrom(const AnimObject& obj);
 		void replacementTransform(AnimationManagerData* am, AnimObjId replacement, float t);
 
+		void calculateBoundingBox();
 		void resetAllState();
 		void updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus);
 		void updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated);
