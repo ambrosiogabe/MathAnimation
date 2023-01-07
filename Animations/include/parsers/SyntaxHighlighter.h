@@ -54,12 +54,12 @@ namespace MathAnim
 
 	constexpr auto _highlighterThemeFilenames = fixedSizeArray<const char*, (size_t)HighlighterTheme::Length>(
 		"None",
-		"assets/themes/gruvbox.theme.json",
-		"assets/themes/monokaiNight.theme.json",
-		"assets/themes/oneDark.theme.json",
-		"assets/themes/oneMonokai.theme.json",
-		"assets/themes/palenight.theme.json",
-		"assets/themes/panda.theme.json"
+		"assets/themes/gruvbox-dark-soft.json",
+		"assets/themes/default.json",
+		"assets/themes/oneDark.json",
+		"assets/themes/OneMonokai-color-theme.json",
+		"assets/themes/palenight.json",
+		"assets/themes/Panda.json"
 		);
 
 	// Styles a text segment from
