@@ -188,7 +188,7 @@ if(MATH_ANIMATION_OS_LINUX)
 elseif(MATH_ANIMATION_OS_WINDOWS)
     target_link_libraries(ffmpeg::avutil INTERFACE Bcrypt)
     target_link_libraries(ffmpeg::avformat INTERFACE Ws2_32 Secur32)
-    target_link_libraries(ffmpeg::avcodec INTERFACE Strmiids Mfuuid)
+    target_link_libraries(ffmpeg::avcodec INTERFACE Strmiids Mfuuid Mfplat)
 endif()
 
 # There probably should be more here...
