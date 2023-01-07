@@ -1,0 +1,44 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 13,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "basic",
+      "displayName": "Basic build configuration",
+      "binaryDir": "${sourceDir}/build/basic"
+    },
+    {
+      "name": "ninja-multi",
+      "inherits": ["basic"],
+      "displayName": "Ninja Multi-Config",
+      "description": "Ninja Multi-Config based build",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ninja-multi"
+    },
+    {
+      "name": "unix-make",
+      "inherits": ["basic"],
+      "displayName": "Unix Make",
+      "description": "Make based build using Unix style Makefile's",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/unix-make"
+    },
+    {
+      "name": "Visual Studio",
+      "inherits": ["basic"],
+      "displayName": "Visual Studio",
+      "description": "Visual Studio based build (Windows only)",
+      "generator": "Visual Studio 16 2019",
+      "binaryDir": "${sourceDir}/build/vs",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    }
+  ]
+}
