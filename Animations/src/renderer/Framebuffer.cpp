@@ -41,7 +41,9 @@ namespace MathAnim
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
+#ifdef NON_ANCIENT_GPU
 		glClearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
+#endif
 	}
 
 	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, const glm::vec3& clearColor) const
