@@ -49,6 +49,14 @@ add_executable(
     ${stb_SRC}
 )
 
+target_compile_definitions(MathAnimations 
+    PUBLIC 
+    $<$<CONFIG:Debug>:_DEBUG>
+    $<$<CONFIG:RelWithDebInfo>:_RELEASE>
+    $<$<CONFIG:MinSizeRel>:_RELEASE>
+    $<$<CONFIG:Release>:_RELEASE>
+)
+
 add_custom_command(TARGET MathAnimations POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/assets/ $<TARGET_FILE_DIR:MathAnimations>/assets
