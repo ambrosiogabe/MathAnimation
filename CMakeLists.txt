@@ -8,29 +8,29 @@ project(
 
 if (MSVC)
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-else()
-    if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
-        add_compile_definitions(_DEBUG)
-    else()
-        add_compile_definitions(_RELEASE)
-    endif()
 endif()
 
 set(GRAMMARS_DIR ${CMAKE_SOURCE_DIR}/Animations/vendor/grammars)
 set(THEMES_DIR ${CMAKE_SOURCE_DIR}/Animations/vendor/themes)
 
 # Debug stuff
+if (NOT MSVC)
+    # MSVC defines _DEBUG and _RELEASE, depending on build type
+    set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -D_DEBUG")
+    set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
+endif()
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug)
 set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug/lib)
 # Release stuff
-if (MSVC)
-    # TODO: Test this on Windows
-    set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /LTCG /GL")
-    set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_XXFLAGS_RELEASE} /LTCG /GL")
-else ()
-    set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto -s")
-    set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto -s")
+if (NOT MSVC)
+    # MSVC defines _DEBUG and _RELEASE, depending on build type
+    set (CMAKE_C_FLAGS_RELEASE          "${CMAKE_C_FLAGS_RELEASE} -s -D_RELEASE")
+    set (CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -s -D_RELEASE")
+    set (CMAKE_C_FLAGS_RELWITHDEBINFO   "${CMAKE_C_FLAGS_RELWITHDEBINFO} -D_RELEASE")
+    set (CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -D_RELEASE")
+    set (CMAKE_C_FLAGS_MINSIZEREL       "${CMAKE_C_FLAGS_MINSIZEREL} -s -D_RELEASE")
+    set (CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} -s -D_RELEASE")
 endif ()
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release)
@@ -95,6 +95,21 @@ add_custom_command(TARGET MathAnimations POST_BUILD
     ${THEMES_DIR}/panda/dist/Panda.json
     $<TARGET_FILE_DIR:MathAnimations>/assets/themes
 )
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+if (ipo_supported)
+    message(STATUS "IPO / LTO enabled for Release-builds")
+    set_property(TARGET MathAnimations PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+    set_property(TARGET MathAnimations PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+    set_property(TARGET MathAnimations PROPERTY INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL TRUE)
+    if (DEBUG_IPO)
+        message(STATUS "IPO / LTO enabled for Debug-builds")
+        set_property(TARGET MathAnimations PROPERTY INTERPROCEDURAL_OPTIMIZATION_DEBUG TRUE)
+    endif()
+else()
+    message(STATUS "IPO / LTO not supported: <${ipo_error}>")
+endif()
 
 if (MSVC)
     set_property(TARGET MathAnimations PROPERTY
@@ -313,7 +328,6 @@ set_target_properties(
     CMAKE_CXX_STANDARD 17
     CMAKE_CXX_STANDARD_REQUIRED True
     LINKER_LANGUAGE CXX
-    LINK_FLAGS_RELEASE "-flto=auto -s"
 )
 
 if (MSVC)
