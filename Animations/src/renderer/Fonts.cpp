@@ -28,10 +28,10 @@ inline PointType FT_getPointType(char flag)
 	// These interpretations can be found here:
 	// https://freetype.org/freetype2/docs/reference/ft2-outline_processing.html#ft_outline
 	/*
-	* If bit 0 is unset, the point is �off� the curve, i.e., a Bezier control point,
-	* while it is �on� if set.
+	* If bit 0 is unset, the point is ‘off’ the curve, i.e., a Bezier control point,
+	* while it is ‘on’ if set.
 	*
-	* Bit 1 is meaningful for �off� points only.
+	* Bit 1 is meaningful for ‘off’ points only.
 	* If set, it indicates a third-order Bezier arc control point;
 	* and a second-order control point if unset.
 	*/
@@ -58,7 +58,7 @@ inline DropoutMode FT_getDropoutMode(char flag)
 	// https://freetype.org/freetype2/docs/reference/ft2-outline_processing.html#ft_outline
 	/*
 	* If bit 2 is set, bits 5-7 contain the drop-out mode
-	* (as defined in the OpenType specification; the value is the same as the argument to the �SCANMODE� instruction).
+	* (as defined in the OpenType specification; the value is the same as the argument to the ‘SCANMODE’ instruction).
 	*
 	* Bits 3 and 4 are reserved for internal purposes.
 	*/
