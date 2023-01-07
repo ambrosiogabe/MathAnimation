@@ -37,7 +37,7 @@ namespace MathAnim
 					std::string tabName = "CacheEntry_" + std::to_string(i);
 					if (ImGui::BeginTabItem(tabName.c_str()))
 					{
-						ImTextureID texId = (ImTextureID)framebuffer.colorAttachments[i].graphicsId;
+						ImTextureID texId = (ImTextureID)(uint64)framebuffer.colorAttachments[i].graphicsId;
 						ImVec2 pos = ImGui::GetCursorScreenPos();
 						ImVec4 tintCol = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);   // No tint
 						ImVec4 borderCol = ImVec4(1.0f, 1.0f, 1.0f, 0.5f); // 50% opaque white

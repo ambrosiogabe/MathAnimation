@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <pwd.h>
 
-#include <openssl/md5.h>
+#include <openssl/evp.h>
 
 #ifdef min
 #undef min
@@ -223,7 +223,7 @@ namespace MathAnim
 
     bool openFileWithDefaultProgram(const char *filepath)
     {
-      executeProgram("code", filepath);
+      return executeProgram("code", filepath);
     }
 
     bool openFileWithVsCode(const char *filepath, int lineNumber)
@@ -290,11 +290,23 @@ namespace MathAnim
       return md5FromString(str.c_str(), str.length(), md5Length);
     }
 
-    std::string md5FromString(char const *const str, size_t length, int md5Length)
-    {
-      unsigned char hashRes[MD5_DIGEST_LENGTH];
-      MD5((unsigned char const *)str, length, hashRes);
-      return (char *)hashRes;
+    std::string md5FromString(char const *const str, size_t length, int md5Length) {
+      unsigned int md5_digest_len = EVP_MD_size(EVP_md5());
+			g_logger_assert(length == md5_digest_len, "Cannot generate md5 of size %d. Must be %d", md5Length, md5_digest_len);
+      
+      // MD5_Init
+      EVP_MD_CTX * mdctx = EVP_MD_CTX_new();
+      EVP_DigestInit_ex(mdctx, EVP_md5(), NULL); 
+
+      // MD5_Update
+      EVP_DigestUpdate(mdctx, str, length);
+
+      // MD5_Final
+      unsigned char* md5_digest = (unsigned char *)OPENSSL_malloc(md5_digest_len);
+      EVP_DigestFinal_ex(mdctx, md5_digest, &md5_digest_len);
+      EVP_MD_CTX_free(mdctx);
+      // TODO: Is this how strings work? I dunno
+      return std::string((char*)md5_digest);
     }
   }
 }

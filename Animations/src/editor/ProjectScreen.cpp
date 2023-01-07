@@ -126,10 +126,13 @@ namespace MathAnim
 				ImVec2 textSize = ImGui::CalcTextSize(appTitle.c_str());
 				drawList->AddRectFilled(cursorPos, cursorPos + ImVec2(availableSpace.x, titleBarHeight), ImColor(Colors::Neutral[8]));
 
-				ImGui::SetCursorScreenPos(cursorPos + ImVec2(
-																									availableSpace.x / 2.0f - textSize.x / 2.0f,
-																									titleBarHeight / 2.0f - textSize.y / 2.0f));
-				ImGui::Text(appTitle.c_str());
+                ImGui::SetCursorScreenPos(cursorPos + ImVec2(
+                        availableSpace.x / 2.0f - textSize.x / 2.0f,
+                        titleBarHeight / 2.0f - textSize.y / 2.0f
+                ));
+                ImGui::Text("%s", appTitle.c_str());
+
+                ImGui::PopFont();
 
 				ImGui::PopFont();
 			}
@@ -174,9 +177,9 @@ namespace MathAnim
 				ImVec2 rectMax = ImGui::GetItemRectMax();
 				drawList->PushClipRect(ImGui::GetCurrentWindow()->ClipRect.Min, ImGui::GetCurrentWindow()->ClipRect.Max);
 				drawList->AddImageRounded(
-						(ImTextureID)projects[i].texture.graphicsId,
-						rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1),
-						IM_COL32(255, 255, 255, 255), iconBorderRounding);
+                        (ImTextureID)(uint64)projects[i].texture.graphicsId,
+                        rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1),
+                        IM_COL32(255, 255, 255, 255), iconBorderRounding);
 
 				// Draw highlight border
 				const ImVec4 &borderColor =
@@ -193,7 +196,7 @@ namespace MathAnim
 				float offsetX = (iconWidth / 2.0f - textSize.x / 2.0f) + iconPadding.x;
 				ImGui::PushStyleColor(ImGuiCol_Text, i == selectedProjectIndex ? Colors::Neutral[0] : Colors::Neutral[2]);
 				ImGui::SetCursorPosX(iconStart.x + offsetX);
-				ImGui::Text(pi.projectName.c_str());
+				ImGui::Text("%s", pi.projectName.c_str());
 				ImGui::PopStyleColor();
 
 				// Increment to next icon position
@@ -314,10 +317,11 @@ namespace MathAnim
 			ImVec2 availableSpace = ImGui::GetContentRegionAvail();
 			drawList->AddRectFilled(cursorPos, cursorPos + ImVec2(availableSpace.x, createProjectTitleBarHeight), ImColor(Colors::Neutral[8]));
 
-			ImGui::SetCursorScreenPos(cursorPos + ImVec2(
-																								projectAreaPadding.x,
-																								createProjectTitleBarHeight / 2.0f - textSize.y / 2.0f));
-			ImGui::Text(createProjectTitle.c_str());
+            ImGui::SetCursorScreenPos(cursorPos + ImVec2(
+                    projectAreaPadding.x,
+                    createProjectTitleBarHeight / 2.0f - textSize.y / 2.0f
+            ));
+            ImGui::Text("%s", createProjectTitle.c_str());
 
 			ImGui::PopFont();
 
