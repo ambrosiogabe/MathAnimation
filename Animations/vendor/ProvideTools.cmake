@@ -120,7 +120,7 @@ endfunction()
 # The given variable is overwritten.
 function(provide_tools_path_environment _OUT_VAR)
     # We start out with the raw $PATH
-    cmake_path(SET _COLLECTED_PATH "$ENV{PATH}")
+    set(_COLLECTED_PATH "$ENV{PATH}")
 
     # Take into account CMake's path extensions
     foreach(_PATH IN LISTS CMAKE_PROGRAM_PATH CMAKE_SYSTEM_PROGRAM_PATH CMAKE_PREFIX)
