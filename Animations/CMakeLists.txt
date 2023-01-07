@@ -61,7 +61,6 @@ set(MATH_ANIMATIONS_SOURCE
         src/editor/Gizmos.cpp
 
         src/svg/Paths.cpp
-        src/svg/TexturePacker.cpp
         src/svg/SvgCache.cpp
         src/svg/Svg.cpp
         src/svg/SvgParser.cpp
@@ -73,12 +72,18 @@ set(MATH_ANIMATIONS_SOURCE
         src/renderer/Colors.cpp
         src/renderer/Fonts.cpp
         src/renderer/OrthoCamera.cpp
+        src/renderer/GLApi.cpp
         src/renderer/Framebuffer.cpp
 
         src/utils/CMath.cpp
         src/utils/TableOfContents.cpp
 
         src/math/DataStructures.cpp
+
+        src/platform/FileSystemWatcherWin32.cpp
+        src/platform/PlatformLinux.cpp
+        src/platform/FileSystemWatcherLinux.cpp
+        src/platform/PlatformWin32.cpp
 
         src/core/ImGuiLayer.cpp
         src/core/Input.cpp
