@@ -76,8 +76,7 @@ include(ffmpeg.cmake)
 ########
 # Glad #
 ########
-add_subdirectory(glad/cmake)
-glad_add_library(glad STATIC API gl:core=4.2)
+add_subdirectory(glad)
 
 #######
 # GLM #

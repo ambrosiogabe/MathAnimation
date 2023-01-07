@@ -101,7 +101,7 @@ if(MATH_ANIMATION_OS_LINUX)
     # TODO: The source code used to use _MAX_PATH, but this can cause issues on Linux
     # see: https://stackoverflow.com/questions/833291/is-there-an-equivalent-to-winapis-max-path-under-linux-unix
     set(MATH_ANIMATIONS_MAX_PATH 4096)
-elseif(MATH_ANIMATIONS_OS_WINDOWS)
+elseif(MATH_ANIMATION_OS_WINDOWS)
     set(MATH_ANIMATIONS_PLATFORM_SOURCE
             src/platform/FileSystemWatcherWin32.cpp
             src/platform/PlatformWin32.cpp)
@@ -131,6 +131,7 @@ target_link_libraries(MathAnimations PUBLIC
         CppUtils
         glm
         stb
+        nlohmann_json
 
         # Parsing
         onig
