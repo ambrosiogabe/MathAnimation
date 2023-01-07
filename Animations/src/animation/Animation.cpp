@@ -544,11 +544,11 @@ namespace MathAnim
 		return res;
 	}
 
-	void Circumscribe::render(const Vec3& objectPosition, const BBox& bbox) const
+	void Circumscribe::render(const BBox& bbox) const
 	{
 		Vec2 size = (bbox.max - bbox.min) + ((bbox.max - bbox.min) * bufferSize);
 		float radius = CMath::length(size) / 2.0f;
-		Vec2 translation = CMath::vector2From3(objectPosition);
+		Vec2 translation = ((bbox.max - bbox.min) / 2.0f) + bbox.min;
 		glm::mat4 transformation = glm::identity<glm::mat4>();
 		transformation = glm::translate(transformation, glm::vec3(translation.x, translation.y, 0.0f));
 
@@ -928,19 +928,12 @@ namespace MathAnim
 		const Animation* circumscribeAnim = AnimationManager::getAnimation(am, this->circumscribeId);
 		if (circumscribeAnim)
 		{
-			if (this->svgObject && circumscribeAnim->type == AnimTypeV1::Circumscribe)
+			if (circumscribeAnim->type == AnimTypeV1::Circumscribe)
 			{
-				BBox bbox = this->svgObject->bbox;
-				glm::vec3 scaleFactor, skew, translation;
-				glm::quat orientation;
-				glm::vec4 perspective;
-				glm::decompose(this->globalTransform, scaleFactor, orientation, translation, skew, perspective);
-
-				bbox.min.x *= scaleFactor.x;
-				bbox.max.x *= scaleFactor.x;
-				bbox.min.y *= scaleFactor.y;
-				bbox.max.y *= scaleFactor.y;
-				circumscribeAnim->as.circumscribe.render(Vec3{ translation.x, translation.y, translation.z }, bbox);
+				if (bbox.max.x >= bbox.min.x && bbox.max.y >= bbox.min.y)
+				{
+					circumscribeAnim->as.circumscribe.render(bbox);
+				}
 			}
 		}
 
@@ -1098,7 +1091,7 @@ namespace MathAnim
 			: AnimObjectStatus::Inactive;
 		AnimObjectStatus replacementNewStatus = t >= 1.0f
 			? AnimObjectStatus::Active
-			: replacement->percentCreated > 0.0f 
+			: replacement->percentCreated > 0.0f
 			? AnimObjectStatus::Animating
 			: AnimObjectStatus::Inactive;
 		this->status = thisNewStatus;

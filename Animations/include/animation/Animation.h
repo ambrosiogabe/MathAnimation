@@ -244,7 +244,7 @@ namespace MathAnim
 		float timeWidth;
 		float tValue;
 
-		void render(const Vec3& position, const BBox& bbox) const;
+		void render(const BBox& bbox) const;
 		void serialize(RawMemory& memory) const;
 		static Circumscribe deserialize(RawMemory& memory);
 		static Circumscribe createDefault();
@@ -375,6 +375,7 @@ namespace MathAnim
 		Vec3 _globalPositionStart;
 		Vec3 globalPosition;
 		glm::mat4 globalTransform;
+		BBox bbox;
 
 		AnimObjId id;
 		AnimObjId parentId;

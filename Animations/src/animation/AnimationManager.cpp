@@ -158,6 +158,7 @@ namespace MathAnim
 				applyAnimationsFrom(am, 0, absoluteFrame);
 			}
 			applyGlobalTransforms(am);
+			calculateBBoxes(am);
 		}
 
 		void calculateAnimationKeyFrames(AnimationManagerData* am)
@@ -177,6 +178,7 @@ namespace MathAnim
 			// Then apply each animation up to the current frame
 			applyAnimationsFrom(am, 0, lastAnimatedFrame(am), true);
 			applyGlobalTransforms(am);
+			calculateBBoxes(am);
 		}
 
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object)
@@ -659,6 +661,83 @@ namespace MathAnim
 			}
 		}
 
+		void calculateBBoxes(AnimationManagerData* am)
+		{
+			// ----- Calculate child bbox first then parent -----
+			// Find all root objects and update recursively
+			for (auto objIter = am->objects.begin(); objIter != am->objects.end(); objIter++)
+			{
+				// If the object has no parent, it's a root object.
+				// Update the transform then update children recursively
+				// and in order from parent->child
+				if (isNull(objIter->parentId))
+				{
+					calculateBBoxFor(am, objIter->id);
+				}
+			}
+		}
+
+		void calculateBBoxFor(AnimationManagerData* am, AnimObjId obj)
+		{
+			// Parent
+			//   -> Child1
+			//   -> Child2
+			//      -> Grandchild1
+			//         -> GGChild1
+			//         -> GGChild2
+			//   -> Child3
+			//      -> Grandchild1
+			//      -> Grandchild2
+
+			// Update all children
+			// Loop through each object and recursively update the bboxes by appending children to the queue
+			// Update child transform
+			AnimObject* nextObj = getMutableObject(am, obj);
+			if (obj)
+			{
+				glm::vec3 scaleFactor, skew, translation;
+				glm::quat orientation;
+				glm::vec4 perspective;
+				glm::decompose(nextObj->globalTransform, scaleFactor, orientation, translation, skew, perspective);
+
+				BBox finalBoundingBox = BBox{};
+				if (nextObj->svgObject)
+				{
+					nextObj->svgObject->calculateBBox();
+					finalBoundingBox = nextObj->svgObject->bbox;
+
+					finalBoundingBox.min.x *= scaleFactor.x;
+					finalBoundingBox.max.x *= scaleFactor.x;
+					finalBoundingBox.min.y *= scaleFactor.y;
+					finalBoundingBox.max.y *= scaleFactor.y;
+					finalBoundingBox.min += CMath::vector2From3(nextObj->globalPosition);
+					finalBoundingBox.max += CMath::vector2From3(nextObj->globalPosition);
+					Vec2 halfSize = (finalBoundingBox.max - finalBoundingBox.min) / 2.0f;
+					finalBoundingBox.min -= halfSize;
+					finalBoundingBox.max -= halfSize;
+				}
+				else
+				{
+					finalBoundingBox.min = Vec2{ FLT_MAX, FLT_MAX };
+					finalBoundingBox.max = Vec2{ -FLT_MAX, -FLT_MAX };
+				}
+
+				// Then append all direct children to the queue so they are
+				// recursively updated
+				for (auto childIter = am->objects.begin(); childIter != am->objects.end(); childIter++)
+				{
+					if (childIter->parentId == nextObj->id)
+					{
+						calculateBBoxFor(am, childIter->id);
+						finalBoundingBox.min = CMath::min(finalBoundingBox.min, childIter->bbox.min);
+						finalBoundingBox.max = CMath::max(finalBoundingBox.max, childIter->bbox.max);
+					}
+				}
+
+				nextObj->bbox = finalBoundingBox;
+			}
+		}
+
 		void updateObjectState(AnimationManagerData* am, AnimObjId animObjId)
 		{
 			AnimObject* obj = getMutableObject(am, animObjId);
@@ -718,6 +797,7 @@ namespace MathAnim
 			// Apply global transform after the object has animations applied since
 			// the animations may change the positions
 			applyGlobalTransformsTo(am, animObjId);
+			calculateBBoxFor(am, animObjId);
 		}
 
 		// -------- Internal Functions --------
