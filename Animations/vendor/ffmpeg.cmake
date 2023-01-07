@@ -88,13 +88,13 @@ append_directory_environment(FFMPEG_BUILD_ENV_PATH
         "${CMAKE_C_LINKER_LAUNCHER}"
         "${CMAKE_AR}")
 
-if(MSVC)
-    # FFMPEG requires NASM when building with MSVC
-    include(ProvideNasm.cmake)
-    provide_nasm(FFMPEG_NASM)
+# FFMPEG requires NASM
+include(ProvideNasm.cmake)
+provide_nasm(FFMPEG_NASM)
 
+if(MSVC)
     # We also need some additional configure options for building with MSVC
-    set(FFMPEG_CONFIGURE_OPTIONS "--toolchain=msvc --x86asmexe=\"${FFMPEG_NASM}\" --target-os=win64 --arch=x86_64")
+    set(FFMPEG_CONFIGURE_OPTIONS "--toolchain=msvc --target-os=win64 --arch=x86_64")
 endif()
 
 # Generate a shell script which can be run by a posix shell and prepares the environment
@@ -106,6 +106,7 @@ file(WRITE "${FFMPEG_CONFIGURE_PROXY}"
                 --disable-programs \\
                 --disable-doc \\
                 --enable-pic \\
+                --x86asmexe=\"${FFMPEG_NASM}\" \\
                 " "${FFMPEG_CONFIGURE_OPTIONS}"
 )
 
