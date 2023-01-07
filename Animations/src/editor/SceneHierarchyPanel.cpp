@@ -322,9 +322,9 @@ namespace MathAnim
 					}
 
 #ifdef sprintf_s
-					int strRes = sprintf_s(buffer, bufferSize, "Add %s\0", AnimObject::getAnimObjectName((AnimObjectTypeV1)i));
+					int strRes = sprintf_s(buffer, bufferSize, "Add %s", AnimObject::getAnimObjectName((AnimObjectTypeV1)i));
 #else
-					int strRes = snprintf(buffer, bufferSize, "Add %s\0", AnimObject::getAnimObjectName((AnimObjectTypeV1)i));
+					int strRes = snprintf(buffer, bufferSize, "Add %s", AnimObject::getAnimObjectName((AnimObjectTypeV1)i));
 #endif
 					if (strRes != -1)
 					{

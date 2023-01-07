@@ -925,15 +925,18 @@ namespace MathAnim
 			}
 			else if (t < 2.0f / d1)
 			{
-				return n1 * (t -= (1.5f / d1)) * t + .75f;
+				t -= (1.5f / d1);
+				return n1 * t * t + .75f;
 			}
 			else if (t < 2.5f / d1)
 			{
-				return n1 * (t -= (2.25f / d1)) * t + .9375f;
+				t -= (2.25f / d1);
+				return n1 * t * t + .9375f;
 			}
 			else
 			{
-				return n1 * (t -= (2.625f / d1)) * t + .984375f;
+				t -= (2.625f / d1);
+				return n1 * t * t + .984375f;
 			}
 		}
 
