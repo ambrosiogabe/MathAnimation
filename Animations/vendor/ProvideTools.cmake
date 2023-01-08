@@ -5,6 +5,8 @@
 # referenced tool. That also means that only tools included in Busybox
 # can be automatically provided.
 #
+# If PROVIDED_TOOLS_SKIP_PATH is TRUE, then the path is not searched.
+#
 # Usage: provide_tool(MY_AWK_PROGRAM awk)
 # => MY_AWK_PROGRAM now contains the path to an awk executable
 function(provide_tool _OUT_VAR _TOOL)
@@ -17,17 +19,19 @@ function(provide_tool _OUT_VAR _TOOL)
         return()
     endif()
 
-    # First try to find the tool on the path.
-    find_program(_FOUND_TOOL NAMES ${_TOOL} ${_TOOL}.exe NO_CACHE)
+    if (NOT PROVIDED_TOOLS_SKIP_PATH)
+        # First try to find the tool on the path.
+        find_program(_FOUND_TOOL NAMES ${_TOOL} ${_TOOL}.exe NO_CACHE)
 
-    if (_FOUND_TOOL)
-        # We found the tool provided by the system.
-        message(STATUS "Found ${_TOOL} at ${_FOUND_TOOL}")
+        if (_FOUND_TOOL)
+            # We found the tool provided by the system.
+            message(STATUS "Found ${_TOOL} at ${_FOUND_TOOL}")
 
-        # Cache and return, we are done
-        set(${_OUT_VAR} ${_FOUND_TOOL} PARENT_SCOPE)
-        set(${_CACHED_TOOL_VAR} ${_FOUND_TOOL} CACHE STRING "Cached path provided ${_TOOL}" FORCE)
-        return()
+            # Cache and return, we are done
+            set(${_OUT_VAR} ${_FOUND_TOOL} PARENT_SCOPE)
+            set(${_CACHED_TOOL_VAR} ${_FOUND_TOOL} CACHE STRING "Cached path provided ${_TOOL}" FORCE)
+            return()
+        endif()
     endif()
 
     if(WIN32)

@@ -17,6 +17,11 @@ endif()
 
 if(WIN32)
     set(MATH_ANIMATION_OS_WINDOWS TRUE)
+
+    # Unix tools on Windows installations tend to behave
+    # differently than what you expect. We ignore them and
+    # instead rely on our own tools.
+    set(PROVIDED_TOOLS_SKIP_PATH TRUE)
 endif()
 
 if(APPLE)

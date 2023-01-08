@@ -81,7 +81,14 @@ provide_tool(FFMPEG_POSIX_SHELL sh)
 # We collect all the required tools into a path environment and then
 # also append the selected compilers. This gives us a $PATH environment variable
 # which includes everything we need to for building FFMPEG.
-provide_tools_path_environment(FFMPEG_BUILD_ENV_PATH sh awk printf rm mkdir touch)
+provide_tools_path_environment(FFMPEG_BUILD_ENV_PATH
+        sh
+        awk
+        printf
+        rm
+        mkdir
+        touch
+)
 append_directory_environment(FFMPEG_BUILD_ENV_PATH
         "${CMAKE_CXX_COMPILER}"
         "${CMAKE_C_COMPILER}"
