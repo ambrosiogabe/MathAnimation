@@ -56,6 +56,43 @@ file(GLOB_RECURSE stb_SRC
     "Animations/vendor/stb/stb/*.h"
 )
 
+# Select best available linker on *NIX
+if (UNIX AND NOT APPLE)
+    include(ProcessorCount)
+    ProcessorCount(HOST_PROC_COUNT)
+
+    find_program(MOLD_PROGRAM mold)
+    if(MOLD_PROGRAM)
+        message(STATUS "Set linker to mold: ${MOLD_PROGRAM}")
+        add_link_options("-fuse-ld=mold")
+    elseif(${CMAKE_CXX_COMPILER_ID} MATCHES Clang)
+        # By default LLD uses all system threads.
+        # This could be tweaked for versions 11+ (--threads=1), but cannot be disabled for older versions
+        # add_link_options("-fuse-ld=lld-${CLANG_VERSION_MAJOR};LINKER:--threads=${HOST_PROC_COUNT}") #LLD>=11
+        # add_link_options("-fuse-ld=lld;LINKER:--threads")#LLD <= 10 this is the default state
+
+        string(REPLACE "." ";" VERSION_LIST ${CMAKE_CXX_COMPILER_VERSION})
+        list(GET VERSION_LIST 0 CLANG_VERSION_MAJOR) #extract major compiler version
+
+        find_program(LLD_PROGRAM_MATCH_VER lld-${CLANG_VERSION_MAJOR}) #search for lld-13 when clang 13.x.x is used
+        find_program(LLD_PROGRAM lld) #else find default lld
+
+        if (LLD_PROGRAM_MATCH_VER) #lld matching compiler version
+            message(STATUS "Set linker to LLD (multi-threaded): ${LLD_PROGRAM_MATCH_VER}")
+            add_link_options("-fuse-ld=lld-${CLANG_VERSION_MAJOR}")
+        elseif(LLD_PROGRAM) #default lld
+            message(STATUS "Set linker to LLD (multi-threaded): ${LLD_PROGRAM}")
+            add_link_options("-fuse-ld=lld")
+        endif(LLD_PROGRAM_MATCH_VER)
+    elseif(${CMAKE_CXX_COMPILER_ID} MATCHES GNU)
+        find_program(GNU_GOLD_PROGRAM gold)
+        if (GNU_GOLD_PROGRAM)
+            message(STATUS "Set linker to GNU gold: ${GNU_GOLD_PROGRAM}, using threads: ${HOST_PROC_COUNT}")
+            add_link_options("-fuse-ld=gold;LINKER:--threads,--thread-count=${HOST_PROC_COUNT}")
+        endif(GNU_GOLD_PROGRAM)
+    endif(MOLD_PROGRAM)
+endif(UNIX AND NOT APPLE)
+
 add_executable(
     MathAnimations
     ${MathAnimations_SRC}
