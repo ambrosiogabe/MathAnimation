@@ -245,7 +245,7 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 	FILE* fp = fopen(scriptPath.c_str(), "rb");
 	if (!fp)
 	{
-		g_logger_warning("Could not open file '%s', error opening file.", scriptPath.c_str());
+		g_logger_warning("Could not open file '%s', error opening file: %s", scriptPath.c_str(), strerror(errno));
 		return std::nullopt;
 	}
 
@@ -260,7 +260,8 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 
 	if (amtRead != 1)
 	{
-		g_logger_error("Error reading file '%s'.", scriptPath.c_str());
+		// Not dangerous, since this is seemingly repeated -often-, and fails a couple times when file was just saved
+		g_logger_warning("Error reading file '%s'.", scriptPath.c_str());
 		memory.free();
 		return std::nullopt;
 	}
