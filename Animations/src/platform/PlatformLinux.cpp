@@ -119,17 +119,17 @@ namespace MathAnim
       std::string const path = std::getenv("PATH");
       char const delim = ':';
 
-      auto start = 0U;
-      auto end = path.find(delim);
+      size_t start = 0U;
+      size_t end = path.find(delim);
       while (true)
       {
-        auto const folder = path.substr(start, end - start);
+        std::string const folder = path.substr(start, end - start);
 
         int i = 1;
 
-        for (auto const &directory_entry : std::filesystem::directory_iterator(folder))
+        for (std::filesystem::directory_entry const &directory_entry : std::filesystem::directory_iterator(folder))
         {
-          auto const file = directory_entry.path();
+          std::filesystem::path const file = directory_entry.path();
           if (strcmp(file.filename().c_str(), programDisplayName) == 0 && access(file.c_str(), X_OK) == 0)
           {
             strncpy(buffer, file.parent_path().c_str(), bufferLength - 1);
@@ -192,7 +192,7 @@ namespace MathAnim
       // returns -1 on error
       // otherwise return status of the program
 
-      auto pid = fork();
+      pid_t pid = fork();
       if (pid == -1)
       {
         // TODO: Cry
