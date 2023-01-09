@@ -6,6 +6,8 @@ namespace MathAnim
 	namespace GladLayer
 	{
 		void init();
+
+		void deinit();
 	}
 }
 

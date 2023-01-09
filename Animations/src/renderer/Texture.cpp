@@ -1,4 +1,5 @@
 #include "renderer/Texture.h"
+#include "renderer/GLApi.h"
 
 #include <stb/stb_image.h>
 
@@ -111,29 +112,18 @@ namespace MathAnim
 	// ========================================================
 	void Texture::bind() const
 	{
-		glBindTexture(GL_TEXTURE_2D, graphicsId);
+		GL::bindTexture(GL_TEXTURE_2D, graphicsId);
 	}
 
 	void Texture::unbind() const
 	{
-		glBindTexture(GL_TEXTURE_2D, 0);
+		GL::bindTexture(GL_TEXTURE_2D, 0);
 	}
 
 	void Texture::destroy()
 	{
-		glDeleteTextures(1, &graphicsId);
+		GL::deleteTextures(1, &graphicsId);
 		graphicsId = NULL_TEXTURE_ID;
-	}
-
-	void Texture::copyTo(Texture& texture) const
-	{
-		g_logger_assert(this->width == texture.width && this->height == texture.height, "Cannot copy texture to a different sized texture.");
-
-		glCopyImageSubData(
-			this->graphicsId, GL_TEXTURE_2D, 0, 0, 0, 0,
-			texture.graphicsId, GL_TEXTURE_2D, 0, 0, 0, 0,
-			this->width, this->height, 0
-		);
 	}
 
 	void Texture::uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer, size_t bufferLength, bool flipVertically) const
@@ -164,7 +154,7 @@ namespace MathAnim
 		}
 
 		this->bind();
-		glTexSubImage2D(GL_TEXTURE_2D, 0, offsetX, offsetY, width, height, externalFormat, dataType, buffer);
+		GL::texSubImage2D(GL_TEXTURE_2D, 0, offsetX, offsetY, width, height, externalFormat, dataType, buffer);
 
 		if (flipVertically)
 		{
@@ -432,15 +422,15 @@ namespace MathAnim
 				return;
 			}
 
-			glGenTextures(1, &texture.graphicsId);
-			glBindTexture(GL_TEXTURE_2D, texture.graphicsId);
+			GL::genTextures(1, &texture.graphicsId);
+			GL::bindTexture(GL_TEXTURE_2D, texture.graphicsId);
 
 			bindTextureParameters(texture);
 
 			uint32 internalFormat = TextureUtil::toGlSizedInternalFormat(texture.format);
 			uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 			g_logger_assert(internalFormat != GL_NONE && externalFormat != GL_NONE, "Tried to load image from file, but failed to identify internal format for image '%s'", texture.path.string().c_str());
-			glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, texture.width, texture.height, 0, externalFormat, GL_UNSIGNED_BYTE, pixels);
+			GL::texImage2D(GL_TEXTURE_2D, 0, internalFormat, texture.width, texture.height, 0, externalFormat, GL_UNSIGNED_BYTE, pixels);
 
 			stbi_image_free(pixels);
 		}
@@ -448,8 +438,8 @@ namespace MathAnim
 		void generateEmptyTexture(Texture& texture)
 		{
 			g_logger_assert(texture.format != ByteFormat::None, "Cannot generate texture without color format.");
-			glGenTextures(1, &texture.graphicsId);
-			glBindTexture(GL_TEXTURE_2D, texture.graphicsId);
+			GL::genTextures(1, &texture.graphicsId);
+			GL::bindTexture(GL_TEXTURE_2D, texture.graphicsId);
 
 			bindTextureParameters(texture);
 
@@ -458,7 +448,7 @@ namespace MathAnim
 			uint32 dataType = TextureUtil::toGlDataType(texture.format);
 
 			// Here the GL_UNSIGNED_BYTE does nothing since we are just allocating space
-			glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, texture.width, texture.height, 0, externalFormat, dataType, nullptr);
+			GL::texImage2D(GL_TEXTURE_2D, 0, internalFormat, texture.width, texture.height, 0, externalFormat, dataType, nullptr);
 		}
 	}
 
@@ -469,19 +459,19 @@ namespace MathAnim
 	{
 		if (texture.wrapS != WrapMode::None)
 		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, TextureUtil::toGl(texture.wrapS));
+			GL::texParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, TextureUtil::toGl(texture.wrapS));
 		}
 		if (texture.wrapT != WrapMode::None)
 		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, TextureUtil::toGl(texture.wrapT));
+			GL::texParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, TextureUtil::toGl(texture.wrapT));
 		}
 		if (texture.minFilter != FilterMode::None)
 		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, TextureUtil::toGl(texture.minFilter));
+			GL::texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, TextureUtil::toGl(texture.minFilter));
 		}
 		if (texture.magFilter != FilterMode::None)
 		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, TextureUtil::toGl(texture.magFilter));
+			GL::texParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, TextureUtil::toGl(texture.magFilter));
 		}
 
 		GLint swizzleMask[4] = { 
@@ -490,6 +480,6 @@ namespace MathAnim
 			TextureUtil::toGlSwizzle(texture.swizzleFormat[2]), 
 			TextureUtil::toGlSwizzle(texture.swizzleFormat[3]) 
 		};
-		glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+		GL::texParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
 	}
 }

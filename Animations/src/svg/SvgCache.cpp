@@ -4,6 +4,7 @@
 #include "animation/Animation.h"
 #include "renderer/Texture.h"
 #include "renderer/Renderer.h"
+#include "renderer/GLApi.h"
 #include "utils/CMath.h"
 
 namespace MathAnim
@@ -145,7 +146,7 @@ namespace MathAnim
 					//}
 
 					//uint32 clearColor[] = { 0, 0, 0, 0 };
-					//glClearTexSubImage(
+					//GL::clearTexSubImage(
 					//	framebuffer.colorAttachments[this->cacheCurrentColorAttachment].graphicsId,
 					//	0,
 					//	svgTextureOffset.x, svgTextureOffset.y, 0,
@@ -244,21 +245,17 @@ namespace MathAnim
 			cachedSvgs[i].clear();
 		}
 
-#ifdef NON_ANCIENT_GPU
-		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "SVG_Cache_Reset");
-#endif
+		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "SVG_Cache_Reset");
 
 		framebuffer.bind();
-		glViewport(0, 0, framebuffer.width, framebuffer.height);
+		GL::viewport(0, 0, framebuffer.width, framebuffer.height);
 		for (int i = 0; i < framebuffer.colorAttachments.size(); i++)
 		{
 			framebuffer.clearColorAttachmentRgba(i, "#00000000"_hex);
 		}
 		framebuffer.clearDepthStencil();
 
-#ifdef NON_ANCIENT_GPU
-		glPopDebugGroup();
-#endif
+		GL::popDebugGroup();
 	}
 
 	// --------------------- Private ---------------------

@@ -2,6 +2,7 @@
 
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
+#include "renderer/GLApi.h"
 #include "video/Encoder.h"
 
 namespace MathAnim
@@ -14,12 +15,12 @@ namespace MathAnim
 	void Framebuffer::bind() const
 	{
 		g_logger_assert(fbo != UINT32_MAX, "Tried to bind invalid framebuffer.");
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		GL::bindFramebuffer(GL_FRAMEBUFFER, fbo);
 	}
 
 	void Framebuffer::unbind() const
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	void Framebuffer::clearColorAttachmentUint32(int colorAttachment, uint32 clearColor) const
@@ -30,7 +31,7 @@ namespace MathAnim
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
-		glClearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
+		GL::clearTexImage(texture, 0, &clearColor, sizeof(uint32));
 	}
 
 	void Framebuffer::clearColorAttachmentUint64(int colorAttachment, uint64 clearColor) const
@@ -41,9 +42,7 @@ namespace MathAnim
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
-#ifdef NON_ANCIENT_GPU
-		glClearTexImage(texture.graphicsId, 0, externalFormat, formatType, &clearColor);
-#endif
+		GL::clearTexImage(texture, 0, &clearColor, sizeof(uint64));
 	}
 
 	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, const glm::vec3& clearColor) const
@@ -52,7 +51,7 @@ namespace MathAnim
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
 
-		glClearBufferfv(GL_COLOR, colorAttachment, glm::value_ptr(clearColor));
+		GL::clearBufferfv(GL_COLOR, colorAttachment, glm::value_ptr(clearColor));
 	}
 
 	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, const Vec3& clearColor) const
@@ -61,7 +60,7 @@ namespace MathAnim
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
 
-		glClearBufferfv(GL_COLOR, colorAttachment, &clearColor.r);
+		GL::clearBufferfv(GL_COLOR, colorAttachment, &clearColor.r);
 	}
 
 	void Framebuffer::clearColorAttachmentRgba(int colorAttachment, const Vec4& clearColor) const
@@ -70,14 +69,14 @@ namespace MathAnim
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
 
-		glClearBufferfv(GL_COLOR, colorAttachment, &clearColor.r);
+		GL::clearBufferfv(GL_COLOR, colorAttachment, &clearColor.r);
 	}
 
 	void Framebuffer::clearDepthStencil() const
 	{
 		float depthValue = 1.0f;
 		int stencilValue = 0;
-		glClearBufferfi(GL_DEPTH_STENCIL, 0, depthValue, stencilValue);
+		GL::clearBufferfi(GL_DEPTH_STENCIL, 0, depthValue, stencilValue);
 	}
 
 	uint32 Framebuffer::readPixelUint32(int colorAttachment, int x, int y) const
@@ -93,17 +92,17 @@ namespace MathAnim
 			return UINT32_MAX;
 		}
 
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-		glReadBuffer(GL_COLOR_ATTACHMENT0 + colorAttachment);
+		GL::bindFramebuffer(GL_FRAMEBUFFER, fbo);
+		GL::readBuffer(GL_COLOR_ATTACHMENT0 + colorAttachment);
 
 		// 128 bits should be big enough for 1 pixel of any format
 		// TODO: Come up with generic way to get any type of pixel data
 		uint32 pixel;
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
-		glReadPixels(x, y, 1, 1, externalFormat, formatType, &pixel);
+		GL::readPixels(x, y, 1, 1, externalFormat, formatType, &pixel);
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		return pixel;
 	}
@@ -121,17 +120,17 @@ namespace MathAnim
 			return UINT64_MAX;
 		}
 
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-		glReadBuffer(GL_COLOR_ATTACHMENT0 + colorAttachment);
+		GL::bindFramebuffer(GL_FRAMEBUFFER, fbo);
+		GL::readBuffer(GL_COLOR_ATTACHMENT0 + colorAttachment);
 
 		// 128 bits should be big enough for 1 pixel of any format
 		// TODO: Come up with generic way to get any type of pixel data
 		uint64 pixel;
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 		uint32 formatType = TextureUtil::toGlDataType(texture.format);
-		glReadPixels(x, y, 1, 1, externalFormat, formatType, &pixel);
+		GL::readPixels(x, y, 1, 1, externalFormat, formatType, &pixel);
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		return pixel;
 	}
@@ -142,15 +141,15 @@ namespace MathAnim
 		const Texture& texture = colorAttachments[colorAttachment];
 		//g_logger_assert(TextureUtil::byteFormatIsRgb(texture.internalFormat) && TextureUtil::byteFormatIsRgb(texture.externalFormat), "Cannot read non-rgb texture as if it were a rgb texture.");
 
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-		glReadBuffer(GL_COLOR_ATTACHMENT0 + colorAttachment);
+		GL::bindFramebuffer(GL_FRAMEBUFFER, fbo);
+		GL::readBuffer(GL_COLOR_ATTACHMENT0 + colorAttachment);
 
 		// 128 bits should be big enough for 1 pixel of any format
 		// TODO: Come up with generic way to get any type of pixel data
 		uint8* pixelBuffer = (uint8*)g_memory_allocate(sizeof(uint8) * texture.width * texture.height * 4);
-		glReadPixels(0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, pixelBuffer);
+		GL::readPixels(0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, pixelBuffer);
 
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		Pixel* output = (Pixel*)g_memory_allocate(sizeof(Pixel) * texture.width * texture.height);
 		for (int y = 0; y < texture.height; y++)
@@ -203,7 +202,7 @@ namespace MathAnim
 	{
 		if (fbo != UINT32_MAX)
 		{
-			glDeleteFramebuffers(1, &fbo);
+			GL::deleteFramebuffers(1, &fbo);
 			fbo = UINT32_MAX;
 
 			for (int i = 0; i < colorAttachments.size(); i++)
@@ -220,7 +219,7 @@ namespace MathAnim
 			if (includeDepthStencil)
 			{
 				g_logger_assert(rbo != UINT32_MAX, "Tried to delete invalid renderbuffer.");
-				glDeleteRenderbuffers(1, &rbo);
+				GL::deleteRenderbuffers(1, &rbo);
 				rbo = UINT32_MAX;
 			}
 		}
@@ -270,14 +269,14 @@ namespace MathAnim
 		g_logger_assert(framebuffer.rbo == UINT32_MAX, "Cannot generate framebuffer with Rbo already id == UINT32_MAX.");
 		g_logger_assert(framebuffer.colorAttachments.size() > 0, "Framebuffer must have at least 1 color attachment.");
 
-		glGenFramebuffers(1, &framebuffer.fbo);
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
+		GL::genFramebuffers(1, &framebuffer.fbo);
+		GL::bindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 
 		if (framebuffer.colorAttachments.size() > 1)
 		{
 			g_logger_assert(framebuffer.colorAttachments.size() < 8, "Too many framebuffer attachments. Only 8 attachments supported.");
 			static GLenum colorBufferAttachments[8] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5, GL_COLOR_ATTACHMENT6, GL_COLOR_ATTACHMENT7 };
-			glDrawBuffers((GLsizei)framebuffer.colorAttachments.size(), colorBufferAttachments);
+			GL::drawBuffers((GLsizei)framebuffer.colorAttachments.size(), colorBufferAttachments);
 		}
 
 		// Create texture to render data to, and attach it to framebuffer
@@ -287,24 +286,24 @@ namespace MathAnim
 			texture.width = framebuffer.width;
 			texture.height = framebuffer.height;
 			TextureUtil::generateEmptyTexture(texture);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, texture.graphicsId, 0);
+			GL::framebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, texture.graphicsId, 0);
 		}
 
 		if (framebuffer.includeDepthStencil)
 		{
 			// Create renderbuffer to store depth_stencil info
-			glGenRenderbuffers(1, &framebuffer.rbo);
-			glBindRenderbuffer(GL_RENDERBUFFER, framebuffer.rbo);
-			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, framebuffer.width, framebuffer.height);
-			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, framebuffer.rbo);
+			GL::genRenderbuffers(1, &framebuffer.rbo);
+			GL::bindRenderbuffer(GL_RENDERBUFFER, framebuffer.rbo);
+			GL::renderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, framebuffer.width, framebuffer.height);
+			GL::framebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, framebuffer.rbo);
 		}
 
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		if (GL::checkFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		{
 			g_logger_assert(false, "Framebuffer is not complete.");
 		}
 
 		// Unbind framebuffer now
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 }

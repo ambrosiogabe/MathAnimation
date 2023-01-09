@@ -13,6 +13,7 @@
 #include "renderer/Texture.h"
 #include "renderer/Fonts.h"
 #include "renderer/Colors.h"
+#include "renderer/GLApi.h"
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
@@ -98,6 +99,7 @@ namespace MathAnim
 			//globalThreadPool = new GlobalThreadPool(true);
 
 			// Initiaize GLFW/Glad
+			GladLayer::init();
 			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
 			window->setVSync(true);
 
@@ -107,7 +109,6 @@ namespace MathAnim
 			onig_initialize(use_encs, sizeof(use_encs) / sizeof(use_encs[0]));
 
 			Fonts::init();
-			GladLayer::init();
 			Renderer::init();
 			ImGuiLayer::init(*window);
 			Audio::init();
@@ -138,8 +139,8 @@ namespace MathAnim
 			svgCache = new SvgCache();
 			svgCache->init();
 
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			GL::enable(GL_BLEND);
+			GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
 
 		void run()
@@ -210,23 +211,19 @@ namespace MathAnim
 				Renderer::endFrame();
 
 				// Bind the window framebuffer and render ImGui results
-				glBindFramebuffer(GL_FRAMEBUFFER, 0);
-				glViewport(0, 0, window->width, window->height);
+				GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
+				GL::viewport(0, 0, window->width, window->height);
 				Renderer::clearColor(Vec4{ 0, 0, 0, 0 });
 
 				// Do ImGui stuff
 				int debugMsgId = 0;
-#ifdef NON_ANCIENT_GPU
-				glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "ImGui_Pass");
-#endif
+				GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "ImGui_Pass");
 				ImGuiLayer::beginFrame();
 				MenuBar::update();
 				SceneManagementPanel::update(sceneData);
 				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
 				ImGuiLayer::endFrame();
-#ifdef NON_ANCIENT_GPU
-				glPopDebugGroup();
-#endif
+				GL::popDebugGroup();
 
 				AnimationManager::endFrame(am);
 
@@ -331,6 +328,8 @@ namespace MathAnim
 			Window::cleanup();
 			globalThreadPool->free();
 			delete globalThreadPool;
+
+			GladLayer::deinit();
 		}
 
 		void saveProject()
