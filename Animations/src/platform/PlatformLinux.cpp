@@ -150,47 +150,9 @@ namespace MathAnim
       return false;
     }
 
-    bool executeProgram(const char *programFilepath, const char *cmdLineArgs, const char *workingDirectory, const char *executionOutputFilename)
+    bool executeProgram(const char *programFilePath, const char *cmdLineArgs, const char *workingDirectory, const char *executionOutputFilename)
     {
-      exit(1029);
-      std::string finalArgs = std::string("\"") + programFilepath + std::string("\" ") + cmdLineArgs;
-      // if (executionOutputFilename)
-      // {
-      //   SECURITY_ATTRIBUTES sa = {0};
-      //   sa.nLength = sizeof(sa);
-      //   sa.lpSecurityDescriptor = NULL;
-      //   sa.bInheritHandle = TRUE;
-
-      //   std::string filepath = executionOutputFilename;
-      //   if (workingDirectory)
-      //   {
-      //     filepath = std::string(workingDirectory) + std::string("/") + executionOutputFilename;
-      //   }
-
-      //   fileHandle = CreateFileA(
-      //       filepath.c_str(),
-      //       FILE_APPEND_DATA,
-      //       FILE_SHARE_READ | FILE_SHARE_WRITE,
-      //       &sa,
-      //       CREATE_ALWAYS,
-      //       FILE_ATTRIBUTE_NORMAL,
-      //       NULL);
-      //   if (fileHandle != INVALID_HANDLE_VALUE)
-      //   {
-      //     si.dwFlags |= STARTF_USESTDHANDLES;
-      //     si.hStdInput = NULL;
-      //     si.hStdError = fileHandle;
-      //     si.hStdOutput = fileHandle;
-      //   }
-      //   else
-      //   {
-      //     fileHandle = NULL;
-      //   }
-      // }
-
-      // TODO: set $CWD to `workingDirectory`?
-      // returns -1 on error
-      // otherwise return status of the program
+      g_logger_assert(executionOutputFilename == nullptr, "Executing program with executionOutputFilename (%s) not supported on *nix yet", executionOutputFilename);
 
       pid_t pid = fork();
       if (pid == -1)
@@ -200,23 +162,30 @@ namespace MathAnim
       }
       else if (pid == 0)
       {
-        // TODO: Run finalArgs, ig
-        char *arg;
-        strcpy(arg, finalArgs.c_str());
-        char *args[] = {
-            arg,
-            NULL,
-        };
-        execvp(programFilepath, args);
+        // TODO: Handle executionOutputFilename
+        chdir(workingDirectory);
+        std::stringstream args_string(cmdLineArgs);
+        std::string buf;
+
+        std::vector<char *> args;
+        while(std::getline(args_string, buf, ' '))
+        {
+          // +1 for null byte
+          char *const arg = (char *const) calloc(buf.length() + 1, sizeof(char));
+          strncpy(arg, buf.c_str(), buf.length() + 1);
+          args.push_back(arg);
+        }
+        args.push_back(NULL);
+        char *const *const argv = args.data();
+
+        g_logger_assert(execvp(programFilePath, argv) != -1, "Failed to start program (%s %s) - %s", programFilePath, cmdLineArgs, strerror(errno));
+        g_logger_assert(false, "Unreachable state. Process should've been replaced");
+        return false;
       }
       else
       {
-        // TODO: Handle errors ig
-
-        waitpid(pid, NULL, 0);
+        return true;
       }
-
-      return true;
     }
 
     bool openFileWithDefaultProgram(const char *filepath)
@@ -227,8 +196,8 @@ namespace MathAnim
     bool openFileWithVsCode(const char *filepath, int lineNumber)
     {
       std::string arg = lineNumber >= 0
-                            ? std::string("--goto \"") + filepath + ":" + std::to_string(lineNumber) + "\""
-                            : std::string("--goto \"") + filepath + "\"";
+                            ? std::string("--goto ") + filepath + ":" + std::to_string(lineNumber)
+                            : std::string("--goto ") + filepath;
       return executeProgram("code", arg.c_str());
     }
 
