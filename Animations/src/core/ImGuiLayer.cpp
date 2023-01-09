@@ -34,6 +34,7 @@ namespace MathAnim
 			ImGuiIO& io = ImGui::GetIO();
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+			// TODO: Re-enable this! (It's currently seemingly broken in Sway?)
 			// io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;      // Enable Multi-Viewport / Platform Windows
 			io.ConfigWindowsMoveFromTitleBarOnly = true;
             
