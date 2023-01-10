@@ -97,6 +97,7 @@ namespace MathAnim
 					if (parentIndex != -1 && nextElement.level < level)
 					{
 						newIndex = i + 1;
+						break;
 					}
 				}
 			}
@@ -343,8 +344,6 @@ namespace MathAnim
 
 		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, AnimObjId nextAnimObjParentId, bool* dropTargetEffected)
 		{
-			*dropTargetEffected = false;
-
 			if (animObject.status == AnimObjectStatus::Inactive)
 			{
 				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Neutral[4]);
