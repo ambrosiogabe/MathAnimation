@@ -63,7 +63,7 @@ namespace MathAnim
 		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
 		static std::string currentProjectRoot;
-		static VideoEncoder encoder = {};
+		static VideoEncoder* encoder = nullptr;
 		static SceneData sceneData = {};
 		static bool reloadCurrentScene = false;
 		static bool saveCurrentSceneOnReload = true;
@@ -234,7 +234,6 @@ namespace MathAnim
 
 					// TODO: Add a hardware accelerated version that usee CUDA and NVENC
 					VideoWriter::pushFrame(pixels, outputWidth * outputHeight, encoder);
-					mainFramebuffer.freePixels(pixels);
 
 					if (absoluteCurrentFrame >= AnimationManager::lastAnimatedFrame(am))
 					{
@@ -303,7 +302,7 @@ namespace MathAnim
 			delete svgCache;
 
 			// Free it just in case, if the encoder isn't active this does nothing
-			VideoWriter::freeEncoder(encoder);
+			VideoWriter::finalizeEncodingFile(encoder);
 
 			saveProject();
 
@@ -541,7 +540,8 @@ namespace MathAnim
 		void exportVideoTo(const std::string& filename)
 		{
 			outputVideoFilename = filename;
-			if (VideoWriter::startEncodingFile(&encoder, outputVideoFilename.c_str(), outputWidth, outputHeight, framerate, 60, true))
+			encoder = VideoWriter::startEncodingFile(outputVideoFilename.c_str(), outputWidth, outputHeight, framerate, 60, true);
+			if (encoder)
 			{
 				absoluteCurrentFrame = -1;
 				outputVideoFile = true;
@@ -555,15 +555,18 @@ namespace MathAnim
 
 		void endExport()
 		{
-			if (VideoWriter::finalizeEncodingFile(encoder))
+			if (encoder)
 			{
-				g_logger_info("Finished exporting video file.");
+				if (VideoWriter::finalizeEncodingFile(encoder))
+				{
+					g_logger_info("Finished exporting video file.");
+				}
+				else
+				{
+					g_logger_error("Failed to finalize encoding video file.");
+				}
 			}
-			else
-			{
-				g_logger_error("Failed to finalize encoding video file: %s", encoder.filename);
-			}
-			VideoWriter::freeEncoder(encoder);
+			encoder = nullptr;
 			outputVideoFile = false;
 		}
 

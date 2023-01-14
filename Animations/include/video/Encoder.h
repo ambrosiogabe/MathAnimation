@@ -17,6 +17,12 @@ namespace MathAnim
 		uint8 b;
 	};
 
+	struct VideoFrame
+	{
+		Pixel* pixels;
+		size_t pixelsLength;
+	};
+
 	struct VideoEncoder
 	{
 		uint8* filename;
@@ -33,17 +39,21 @@ namespace MathAnim
 		AVCodecContext* codecContext;
 		SwsContext* swsContext;
 		AVFormatContext* formatContext;
+
+		std::thread thread;
+		std::queue<VideoFrame> queuedFrames;
+		std::mutex encodeMtx;
+		std::atomic_bool isEncoding;
 	};
 
 	typedef int32 Mbps;
 
 	namespace VideoWriter
 	{
-		bool startEncodingFile(VideoEncoder* output, const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, Mbps bitrate = 60, bool logProgress = false);
-		bool pushFrame(Pixel* pixels, int pixelsLength, VideoEncoder& encoder);
+		VideoEncoder* startEncodingFile(const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, Mbps bitrate = 60, bool logProgress = false);
+		bool pushFrame(Pixel* pixels, size_t pixelsLength, VideoEncoder* encoder);
 
-		bool finalizeEncodingFile(VideoEncoder& encoder);
-		void freeEncoder(VideoEncoder& encoder);
+		bool finalizeEncodingFile(VideoEncoder* encoder);
 
 	}
 }
