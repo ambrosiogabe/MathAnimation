@@ -333,7 +333,7 @@ namespace MathAnim
 			numVertsIn3DPath = 0;
 
 			// Initialize default shader
-#ifndef NDEBUG
+#ifdef _DEBUG
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");

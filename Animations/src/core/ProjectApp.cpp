@@ -44,7 +44,7 @@ namespace MathAnim
 
 		std::string run()
 		{
-#ifndef NDEBUG
+#ifdef _DEBUG
 			// Automatically start the last project that was running in debug, useful for re-running the 
 			// same project without having to go through the project selector
 			{
