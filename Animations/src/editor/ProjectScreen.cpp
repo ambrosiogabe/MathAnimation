@@ -180,7 +180,7 @@ namespace MathAnim
 						IM_COL32(255, 255, 255, 255), iconBorderRounding);
 
 				// Draw highlight border
-				const ImVec4 &borderColor =
+				const ImVec4& borderColor =
 						i == selectedProjectIndex
 						? Colors::AccentGreen[2]
 						: ImGui::IsItemHovered()
