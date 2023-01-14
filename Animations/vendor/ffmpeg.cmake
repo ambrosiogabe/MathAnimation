@@ -188,10 +188,12 @@ if(MATH_ANIMATION_OS_LINUX)
     find_package(X11 REQUIRED)
     find_package(LibLZMA REQUIRED)
     find_package(PkgConfig REQUIRED)
+    find_package(BZip2 REQUIRED)
 
     pkg_check_modules(VA_API libva libva-drm libva-x11 vdpau REQUIRED)
 
     target_link_libraries(ffmpeg::avutil INTERFACE ${X11_LIBRARIES})
+    target_link_libraries(ffmpeg::avformat INTERFACE BZip2::BZip2)
     target_link_libraries(ffmpeg::avcodec INTERFACE LibLZMA::LibLZMA ${VA_API_LIBRARIES})
 elseif(MATH_ANIMATION_OS_WINDOWS)
     target_link_libraries(ffmpeg::avutil INTERFACE Bcrypt)
