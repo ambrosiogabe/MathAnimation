@@ -255,6 +255,15 @@ namespace MathAnim
 					return false;
 				}
 
+				for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
+				{
+					AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
+					if (childObj)
+					{
+						childObj->retargetSvgScale();
+					}
+				}
+
 				currentExecutingScript = nullptr;
 				return true;
 			}

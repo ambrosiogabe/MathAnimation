@@ -428,6 +428,7 @@ namespace MathAnim
 		void replacementTransform(AnimationManagerData* am, AnimObjId replacement, float t);
 
 		void resetAllState();
+		void retargetSvgScale();
 		void updateStatus(AnimationManagerData* am, AnimObjectStatus newStatus);
 		void updateChildrenPercentCreated(AnimationManagerData* am, float newPercentCreated);
 		void copySvgScaleToChildren(AnimationManagerData* am) const;

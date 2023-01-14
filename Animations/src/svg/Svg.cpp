@@ -1433,7 +1433,13 @@ namespace MathAnim
 
 	float SvgObject::calculateSvgScale(float targetWidth) const
 	{
-		return targetWidth / (bbox.max.x - bbox.min.x);
+		float maxSize = glm::max(CMath::abs(bbox.max.x - bbox.min.x), CMath::abs(bbox.max.y - bbox.min.y));
+		if (maxSize != 0.0f)
+		{
+			return targetWidth / maxSize;
+		}
+
+		return 0.0f;
 	}
 
 	void SvgObject::render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const

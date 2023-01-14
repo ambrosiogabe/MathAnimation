@@ -4,6 +4,7 @@
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/OrthoCamera.h"
+#include "editor/EditorSettings.h"
 #include "svg/Svg.h"
 #include "core/Application.h"
 
@@ -596,6 +597,15 @@ namespace MathAnim
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			std::sort(am->animations.begin(), am->animations.end(), compareAnimation);
+		}
+
+		void retargetSvgScales(AnimationManagerData* am)
+		{
+			float targetWidth = EditorSettings::getSettings().svgTargetScale;
+			for (int i = 0; i < am->objects.size(); i++)
+			{
+				am->objects[i].retargetSvgScale();
+			}
 		}
 
 		void applyGlobalTransforms(AnimationManagerData* am)

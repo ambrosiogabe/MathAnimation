@@ -28,6 +28,7 @@ namespace MathAnim
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
 		parent->_svgObjectStart->calculateBBox();
+		parent->retargetSvgScale();
 	}
 
 	void Square::serialize(RawMemory& memory) const
@@ -87,6 +88,7 @@ namespace MathAnim
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
 		parent->_svgObjectStart->calculateBBox();
+		parent->retargetSvgScale();
 	}
 
 	void Circle::serialize(RawMemory& memory) const
@@ -137,6 +139,7 @@ namespace MathAnim
 
 		parent->_svgObjectStart->calculateApproximatePerimeter();
 		parent->_svgObjectStart->calculateBBox();
+		parent->retargetSvgScale();
 	}
 
 	void Arrow::serialize(RawMemory& memory) const

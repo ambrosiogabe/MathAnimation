@@ -122,7 +122,7 @@ namespace MathAnim
 			ExportPanel::update();
 			SceneHierarchyPanel::update(am);
 			AssetManagerPanel::update();
-			EditorSettings::imgui();
+			EditorSettings::imgui(am);
 			ConsoleLog::update();
 		}
 

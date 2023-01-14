@@ -44,6 +44,7 @@ namespace MathAnim
 	{
 		static AnimState animState = AnimState::Pause;
 		static bool outputVideoFile = false;
+		static PreviewSvgFidelity fidelityBeforeExport = PreviewSvgFidelity::Low;
 		static std::string outputVideoFilename = "";
 
 		static int framerate = 60;
@@ -545,6 +546,9 @@ namespace MathAnim
 			{
 				absoluteCurrentFrame = -1;
 				outputVideoFile = true;
+				fidelityBeforeExport = EditorSettings::getSettings().previewFidelity;
+				EditorSettings::setFidelity(PreviewSvgFidelity::Ultra);
+				AnimationManager::retargetSvgScales(am);
 			}
 		}
 
@@ -568,6 +572,7 @@ namespace MathAnim
 			}
 			encoder = nullptr;
 			outputVideoFile = false;
+			EditorSettings::setFidelity(fidelityBeforeExport);
 		}
 
 		OrthoCamera* getEditorCamera()

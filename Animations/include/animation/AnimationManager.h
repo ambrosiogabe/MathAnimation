@@ -56,6 +56,8 @@ namespace MathAnim
 		void deserialize(AnimationManagerData* am, RawMemory& memory, int currentFrame);
 		void sortAnimations(AnimationManagerData* am);
 
+		void retargetSvgScales(AnimationManagerData* am);
+
 		void applyGlobalTransforms(AnimationManagerData* am);
 		void applyGlobalTransformsTo(AnimationManagerData* am, AnimObjId obj);
 		void calculateBBoxes(AnimationManagerData* am);
