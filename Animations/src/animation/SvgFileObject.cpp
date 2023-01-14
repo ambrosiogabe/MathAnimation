@@ -43,6 +43,7 @@ namespace MathAnim
 				(uint8)(obj.fillColor.b * 255.0f),
 				(uint8)(obj.fillColor.a * 255.0f)
 			);
+			childObj.svgScale = childObj._svgObjectStart->calculateSvgScale(200.0f);
 			childObj.fillColor = childObj._fillColorStart;
 
 			const char childName[] = "Generated Child";

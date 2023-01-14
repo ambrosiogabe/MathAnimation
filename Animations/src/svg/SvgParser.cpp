@@ -515,6 +515,8 @@ namespace MathAnim
 							// the bottom-left
 							y = y - viewbox.values[3];
 							Svg::pushSvgToGroup(group, rect, rCounterStr, Vec2{ x, y });
+
+							rect.free();
 						}
 					}
 					break;
@@ -527,6 +529,7 @@ namespace MathAnim
 							uniqueName++;
 							std::string name = std::to_string(uniqueName);
 							Svg::pushSvgToGroup(group, obj, name);
+							obj.free();
 						}
 						else
 						{
@@ -544,6 +547,7 @@ namespace MathAnim
 							uniqueName++;
 							std::string name = std::to_string(uniqueName);
 							Svg::pushSvgToGroup(group, obj, name);
+							obj.free();
 						}
 						else
 						{
@@ -577,6 +581,12 @@ namespace MathAnim
 
 					childEl = childEl->NextSiblingElement();
 				}
+			}
+
+			// Free all the temporary copies of unique obejcts
+			for (auto& [key, val] : objIds)
+			{
+				val.free();
 			}
 
 			if (group->numObjects <= 0)
