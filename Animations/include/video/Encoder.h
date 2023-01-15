@@ -10,17 +10,10 @@ struct AVFormatContext;
 
 namespace MathAnim
 {
-	struct Pixel
-	{
-		uint8 r;
-		uint8 g;
-		uint8 b;
-	};
-
 	struct VideoFrame
 	{
-		Pixel* pixels;
-		size_t pixelsLength;
+		uint8* pixels;
+		size_t pixelsSize;
 	};
 
 	struct VideoEncoder
@@ -51,7 +44,7 @@ namespace MathAnim
 	namespace VideoWriter
 	{
 		VideoEncoder* startEncodingFile(const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, Mbps bitrate = 60, bool logProgress = false);
-		bool pushFrame(Pixel* pixels, size_t pixelsLength, VideoEncoder* encoder);
+		bool pushYuvFrame(uint8* pixels, size_t pixelsSize, VideoEncoder* encoder);
 
 		bool finalizeEncodingFile(VideoEncoder* encoder);
 

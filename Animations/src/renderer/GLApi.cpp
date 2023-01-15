@@ -187,6 +187,16 @@ namespace MathAnim
 			glDeleteBuffers(n, buffers);
 		}
 
+		void* mapBuffer(GLenum target, GLenum access)
+		{
+			return glMapBuffer(target, access);
+		}
+
+		GLboolean unmapBuffer(GLenum target)
+		{
+			return glUnmapBuffer(target);
+		}
+
 		// Render functions
 		void drawArrays(GLenum mode, GLint first, GLsizei count)
 		{

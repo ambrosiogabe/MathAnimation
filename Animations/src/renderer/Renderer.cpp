@@ -272,6 +272,7 @@ namespace MathAnim
 		static Shader shaderFont2D;
 		static Shader shader3DLine;
 		static Shader screenShader;
+		static Shader rgbToYuvShader;
 		static Shader shader3DOpaque;
 		static Shader shader3DTransparent;
 		static Shader shader3DComposite;
@@ -337,6 +338,7 @@ namespace MathAnim
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
+			rgbToYuvShader.compile("assets/shaders/rgbToYuv.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
@@ -347,6 +349,7 @@ namespace MathAnim
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
+			rgbToYuvShader.compile("assets/shaders/rgbToYuv.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
@@ -442,6 +445,36 @@ namespace MathAnim
 			screenShader.bind();
 
 			const Texture& texture = framebuffer.getColorAttachment(0);
+			GL::activeTexture(GL_TEXTURE0);
+			texture.bind();
+			screenShader.uploadInt("uTexture", 0);
+
+			GL::bindVertexArray(screenVao);
+			GL::drawArrays(GL_TRIANGLES, 0, 6);
+		}
+
+		void renderTextureToFramebuffer(const Texture& texture, const Framebuffer& framebuffer, ShaderType shaderType)
+		{
+			// We're rendering to this framebuffer
+			framebuffer.bind();
+
+			switch (shaderType)
+			{
+			case ShaderType::ScreenShader:
+				screenShader.bind();
+				break;
+			case ShaderType::RgbToYuvShader:
+			{
+				rgbToYuvShader.bind();
+				GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_NONE };
+				GL::drawBuffers(4, drawBuffers);
+				framebuffer.clearColorAttachmentUint32(0, 33);
+				framebuffer.clearColorAttachmentUint32(1, 66);
+				framebuffer.clearColorAttachmentUint32(2, 99);
+			}
+			break;
+			}
+
 			GL::activeTexture(GL_TEXTURE0);
 			texture.bind();
 			screenShader.uploadInt("uTexture", 0);

@@ -14,6 +14,7 @@
 #include "renderer/Fonts.h"
 #include "renderer/Colors.h"
 #include "renderer/GLApi.h"
+#include "renderer/PixelBufferDownloader.h"
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
@@ -58,6 +59,7 @@ namespace MathAnim
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
 		static Framebuffer editorFramebuffer;
+		static Framebuffer yuvFramebuffer;
 		static OrthoCamera editorCamera2D;
 		static PerspectiveCamera editorCamera3D;
 		static int absoluteCurrentFrame = -1;
@@ -71,6 +73,7 @@ namespace MathAnim
 		static int sceneToChangeTo = -1;
 		static SvgCache* svgCache = nullptr;
 		static float deltaTime = 0.0f;
+		static PixelBufferDownload pboDownloader = PixelBufferDownload();
 
 		static const char* winTitle = "Math Animations";
 
@@ -122,6 +125,19 @@ namespace MathAnim
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 			editorFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
+			Texture textureSpec = TextureBuilder()
+				.setWidth(outputWidth)
+				.setHeight(outputHeight)
+				.setFormat(ByteFormat::R8_UI)
+				.setMagFilter(FilterMode::Linear)
+				.setMinFilter(FilterMode::Linear)
+				.build();
+			yuvFramebuffer = FramebufferBuilder(outputWidth, outputHeight)
+				.addColorAttachment(textureSpec)
+				.addColorAttachment(textureSpec)
+				.addColorAttachment(textureSpec)
+				.generate();
+
 			currentProjectRoot = std::filesystem::path(projectFile).parent_path().string() + "/";
 
 			initializeSceneSystems();
@@ -140,6 +156,8 @@ namespace MathAnim
 
 			GL::enable(GL_BLEND);
 			GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			pboDownloader.create(mainFramebuffer.width, mainFramebuffer.height);
 		}
 
 		void run()
@@ -231,14 +249,26 @@ namespace MathAnim
 				// TODO: Abstract this stuff out of here
 				if (outputVideoFile && absoluteCurrentFrame > -1)
 				{
-					Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0, true);
+					if (absoluteCurrentFrame < AnimationManager::lastAnimatedFrame(am))
+					{
+						// Render to yuvFramebuffer
+						Renderer::renderTextureToFramebuffer(mainFramebuffer.getColorAttachment(0), yuvFramebuffer, ShaderType::RgbToYuvShader);
 
-					// TODO: Add a hardware accelerated version that usee CUDA and NVENC
-					VideoWriter::pushFrame(pixels, outputWidth * outputHeight, encoder);
+						// Transfer pixels from this framebuffer to our PBOs for async downloads
+						pboDownloader.queueDownloadFrom(yuvFramebuffer.getColorAttachment(0), yuvFramebuffer.getColorAttachment(1), yuvFramebuffer.getColorAttachment(2));
+					}
 
-					if (absoluteCurrentFrame >= AnimationManager::lastAnimatedFrame(am))
+					if (pboDownloader.pixelsAreReady)
+					{
+						const Pixels& yuvPixels = pboDownloader.getPixels();
+						// TODO: Add a hardware accelerated version that usee CUDA and NVENC
+						VideoWriter::pushYuvFrame(yuvPixels.yColorBuffer, yuvPixels.dataSize, encoder);
+					}
+
+					if (absoluteCurrentFrame >= AnimationManager::lastAnimatedFrame(am) && pboDownloader.numItemsInQueue <= 0)
 					{
 						endExport();
+						pboDownloader.reset();
 					}
 				}
 
@@ -299,6 +329,7 @@ namespace MathAnim
 
 		void free()
 		{
+			pboDownloader.free();
 			svgCache->free();
 			delete svgCache;
 

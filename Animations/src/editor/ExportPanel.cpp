@@ -27,7 +27,7 @@ namespace MathAnim
 			if (ImGui::Button("Export"))
 			{
 				nfdchar_t* outPath = NULL;
-				nfdresult_t result = NFD_SaveDialog("mp4", NULL, &outPath);
+				nfdresult_t result = NFD_SaveDialog("mov", NULL, &outPath);
 
 				if (result == NFD_OKAY)
 				{
@@ -56,7 +56,7 @@ namespace MathAnim
 					std::filesystem::path filepath = filename;
 					if (!filepath.has_extension())
 					{
-						filepath.replace_extension(".mp4");
+						filepath.replace_extension(".mov");
 					}
 					g_logger_info("Exporting video to %s", filepath.string().c_str());
 					Application::exportVideoTo(filepath.string());

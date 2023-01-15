@@ -6,7 +6,12 @@ namespace MathAnim
 {
 	struct Texture;
 	enum class ByteFormat;
-	struct Pixel;
+	struct Pixel
+	{
+		uint8 r;
+		uint8 g;
+		uint8 b;
+	};
 
 	struct Framebuffer
 	{

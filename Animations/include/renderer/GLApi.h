@@ -44,6 +44,8 @@ namespace MathAnim
 		void bufferData(GLenum target, GLsizeiptr size, const void* data, GLenum usage);
 		void genBuffers(GLsizei n, GLuint* buffers);
 		void deleteBuffers(GLsizei n, const GLuint* buffers);
+		void* mapBuffer(GLenum target, GLenum access);
+		GLboolean unmapBuffer(GLenum target);
 
 		// Render functions
 		void drawArrays(GLenum mode, GLint first, GLsizei count);

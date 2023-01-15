@@ -1,4 +1,3 @@
-#include "core.h"
 #include "video/Encoder.h"
 #include "multithreading/GlobalThreadPool.h"
 #include "core/Application.h"
@@ -57,7 +56,7 @@ namespace MathAnim
 			output->outputFormat = av_guess_format(nullptr, outputFilename, nullptr);
 			if (!output->outputFormat)
 			{
-				output->outputFormat = av_guess_format("mpeg", NULL, NULL);
+				output->outputFormat = av_guess_format("mov", NULL, NULL);
 				g_logger_warning("Could not deduce format from file extension '%s'. Defaulting to mpeg.", outputFilename);
 			}
 			if (!output->outputFormat)
@@ -106,6 +105,7 @@ namespace MathAnim
 			stream->codecpar->height = output->height;
 			stream->codecpar->format = AV_PIX_FMT_YUV420P;
 			stream->codecpar->bit_rate = bitrate * (int64)10e4; // Bitrate * 10E4 should convert to Mbps
+			stream->codecpar->sample_aspect_ratio = AVRational{ 1, 1 };
 			avcodec_parameters_to_context(output->codecContext, stream->codecpar);
 			output->codecContext->max_b_frames = 2;
 			output->codecContext->gop_size = 12;
@@ -150,27 +150,34 @@ namespace MathAnim
 
 			output->isEncoding = true;
 			output->thread = std::thread(encodeThreadLoop, output);
-			
+
 			return output;
 		}
 
-		bool pushFrame(Pixel* pixels, size_t pixelsLength, VideoEncoder* encoder)
+		bool pushYuvFrame(uint8* pixels, size_t pixelsSize, VideoEncoder* encoder)
 		{
 			if (!encoder)
 			{
 				return true;
 			}
 
-			g_logger_assert(pixelsLength == encoder->width * encoder->height, "Invalid pixel buffer for video encoding. Width and height do not match pixelsLength.");
-			
+			size_t singleChannelSize = encoder->width * encoder->height;
+			size_t framePixelsSize = singleChannelSize * 3;
+			g_logger_assert(pixelsSize == framePixelsSize, "Invalid pixel buffer for video encoding. Width and height do not match pixelsLength.");
+
+			VideoFrame frame;
+			frame.pixels = (uint8*)g_memory_allocate(framePixelsSize);
+			g_memory_copyMem(frame.pixels, pixels, pixelsSize);
+			frame.pixelsSize = pixelsSize;
+
 			// TODO: This takes up a lot of RAM, add a RAM limit option and if it exceeds that
 			// then start writing the data to ~~disk~~ SSD and then deleting the files once
 			// they're used
-			std::lock_guard<std::mutex> lock(encoder->encodeMtx);
-			VideoFrame frame;
-			frame.pixels = pixels;
-			frame.pixelsLength = pixelsLength;
-			encoder->queuedFrames.push(frame);
+			{
+				std::lock_guard<std::mutex> lock(encoder->encodeMtx);
+				encoder->queuedFrames.push(frame);
+			}
+
 			return true;
 		}
 
@@ -279,10 +286,11 @@ namespace MathAnim
 					if (!encoder->videoFrame)
 					{
 						g_logger_error("Failed to allocate video frame.");
+						g_memory_free(nextFrame.pixels);
 						continue;
 					}
 
-					encoder->videoFrame->format = AV_PIX_FMT_YUV420P;
+					encoder->videoFrame->format = AV_PIX_FMT_YUV444P;
 					encoder->videoFrame->width = encoder->codecContext->width;
 					encoder->videoFrame->height = encoder->codecContext->height;
 
@@ -290,42 +298,18 @@ namespace MathAnim
 					{
 						g_logger_error("Failed to allocate video frame.");
 						printError(err);
+						g_memory_free(nextFrame.pixels);
 						continue;
 					}
 				}
 
-				if (!encoder->swsContext)
-				{
-					encoder->swsContext = sws_getContext(
-						encoder->codecContext->width,
-						encoder->codecContext->height,
-						AV_PIX_FMT_RGB24,
-						encoder->codecContext->width,
-						encoder->codecContext->height,
-						AV_PIX_FMT_YUV420P,
-						SWS_BICUBIC,
-						0,
-						0,
-						0
-					);
-				}
+				av_frame_make_writable(encoder->videoFrame);
 
-				int inLinesize[1] = { 3 * encoder->codecContext->width };
-
-				// Convert from RGB to YUV
-				// I believe this helps since we're encoding as H264
-				sws_scale(
-					encoder->swsContext,
-					(const uint8* const*)&nextFrame.pixels,
-					inLinesize,
-					0,
-					encoder->codecContext->height,
-					encoder->videoFrame->data,
-					encoder->videoFrame->linesize
-				);
-
+				size_t singleChannelSize = encoder->videoFrame->linesize[0] * encoder->videoFrame->height * sizeof(uint8);
+				g_memory_copyMem(encoder->videoFrame->data[0], nextFrame.pixels, singleChannelSize);
+				g_memory_copyMem(encoder->videoFrame->data[1], nextFrame.pixels + singleChannelSize, singleChannelSize);
+				g_memory_copyMem(encoder->videoFrame->data[2], nextFrame.pixels + singleChannelSize * 2, singleChannelSize);
 				encoder->videoFrame->pts = (int64)((1.0 / (double)encoder->framerate) * 90000.0 * (double)(encoder->frameCounter++));
-
 				if (encoder->logProgress && ((encoder->frameCounter % encoder->framerate) == 0))
 				{
 					g_logger_info("%d second(s) encoded.", (encoder->frameCounter / 60));
