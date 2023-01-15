@@ -468,12 +468,11 @@ namespace MathAnim
 				rgbToYuvShader.bind();
 				GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_NONE };
 				GL::drawBuffers(4, drawBuffers);
-				framebuffer.clearColorAttachmentUint32(0, 33);
-				framebuffer.clearColorAttachmentUint32(1, 66);
-				framebuffer.clearColorAttachmentUint32(2, 99);
 			}
 			break;
 			}
+
+			GL::viewport(0, 0, framebuffer.width, framebuffer.height);
 
 			GL::activeTexture(GL_TEXTURE0);
 			texture.bind();

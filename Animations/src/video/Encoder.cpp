@@ -294,7 +294,7 @@ namespace MathAnim
 					encoder->videoFrame->width = encoder->codecContext->width;
 					encoder->videoFrame->height = encoder->codecContext->height;
 
-					if ((err = av_frame_get_buffer(encoder->videoFrame, 32)) < 0)
+					if ((err = av_frame_get_buffer(encoder->videoFrame, 24)) < 0)
 					{
 						g_logger_error("Failed to allocate video frame.");
 						printError(err);
