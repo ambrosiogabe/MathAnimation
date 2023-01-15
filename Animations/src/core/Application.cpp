@@ -100,7 +100,7 @@ namespace MathAnim
 
 			// Initiaize GLFW/Glad
 			GladLayer::init();
-			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
+			window = new Window(1920, 1080, winTitle, "mathanimations_project_view", WindowFlags::OpenMaximized);
 			window->setVSync(true);
 
 			// Initialize Onigiruma

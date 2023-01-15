@@ -35,12 +35,12 @@ namespace MathAnim
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
 			// TODO: Re-enable this! (It's currently seemingly broken in Sway?)
-			// io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;      // Enable Multi-Viewport / Platform Windows
+			io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 			io.ConfigWindowsMoveFromTitleBarOnly = true;
             
-            // NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
+			// NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
 			glm::ivec2 monitor_size = Window::getMonitorWorkingSize();
-            float fontSize = monitor_size.x / (128.f + 16.0f);
+			float fontSize = monitor_size.x / (128.f + 16.0f);
 #if defined(_WIN32)
 			defaultFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize);
 #elif defined(__linux__)

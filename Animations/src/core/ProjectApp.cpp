@@ -25,7 +25,7 @@ namespace MathAnim
 			GladLayer::init();
 
 			// Initialize GLFW/Glad
-			window = new Window(1920, 1080, winTitle);
+			window = new Window(1920, 1080, winTitle, "mathanimations_main_view");
 			window->setVSync(true);
 
 			ImGuiLayer::init(*window);
