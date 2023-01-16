@@ -542,5 +542,57 @@ namespace MathAnim
 
 			// End CenteredWrapText
 		}
+
+		bool ProgressBar(const char* label, float value, float maxWidth)
+		{
+			ImGuiWindow* window = ImGui::GetCurrentWindow();
+			if (window->SkipItems)
+				return false;
+
+			ImGuiContext& g = *GImGui;
+			const ImGuiStyle& style = g.Style;
+			const ImGuiID id = window->GetID(label);
+
+			ImVec2 pos = window->DC.CursorPos;
+
+			// Make room for the label
+			ImVec2 labelSize = ImGui::CalcTextSize(label);
+
+			ImVec2 size = ImVec2(ImGui::GetContentRegionAvail().x, labelSize.y);
+			size.x -= style.FramePadding.x * 2.0f;
+			size.x -= (labelSize.x + style.FramePadding.x);
+			size.y += style.FramePadding.y * 2.0f;
+			if (maxWidth > 0.0f && size.x > maxWidth)
+			{
+				size.x = maxWidth;
+			}
+
+			const ImRect bb(pos, pos + size);
+			ImGui::ItemSize(bb);
+			if (!ImGui::ItemAdd(bb, id))
+				return false;
+
+			// Render
+			ImU32 bg_col = ImGui::ColorConvertFloat4ToU32(Colors::Primary[6]);
+			ImU32 fg_col = ImGui::ColorConvertFloat4ToU32(Colors::Primary[3]);
+			window->DrawList->AddRectFilled(bb.Min, ImVec2(pos.x + size.x, bb.Max.y), bg_col);
+			window->DrawList->AddRectFilled(bb.Min, ImVec2(pos.x + size.x * value, bb.Max.y), fg_col);
+
+			constexpr size_t percentCompleteTextBufferSize = 24;
+			static char percentCompleteText[percentCompleteTextBufferSize];
+			sprintf_s(percentCompleteText, percentCompleteTextBufferSize, "%2.2f%%", value * 100.0f);
+			ImVec2 strSize = ImGui::CalcTextSize(percentCompleteText);
+			if (strSize.x < size.x)
+			{
+				ImVec2 strPos = ImVec2(size.x / 2.0f - strSize.x / 2.0f, size.y / 2.0f - strSize.y / 2.0f);
+				ImU32 textCol = ImGui::ColorConvertFloat4ToU32(Colors::Primary[0]);
+				window->DrawList->AddText(pos + strPos, textCol, percentCompleteText);
+			}
+
+			// Just let ImGui handle the label
+			ImGui::SameLine();
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (size.y / 2.0f - labelSize.y / 2.0f));
+			ImGui::Text(label);
+		}
 	}
 }

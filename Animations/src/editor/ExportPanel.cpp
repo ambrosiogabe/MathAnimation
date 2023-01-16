@@ -8,6 +8,7 @@
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
 #include "renderer/PixelBufferDownloader.h"
+#include "editor/ImGuiExtended.h"
 
 #include <nfd.h>
 
@@ -91,6 +92,11 @@ namespace MathAnim
 		{
 			ImGui::Begin("Export Video");
 
+			float percentExported = isExportingVideo()
+				? encoder->getPercentComplete()
+				: 0.0f;
+			ImGuiExtended::ProgressBar(": Export Progress", percentExported);
+
 			constexpr int filenameBufferSize = _MAX_PATH;
 			static char filenameBuffer[filenameBufferSize];
 			ImGui::BeginDisabled();
@@ -145,11 +151,6 @@ namespace MathAnim
 				endExport();
 			}
 			ImGui::EndDisabled();
-
-			if (isExportingVideo())
-			{
-				
-			}
 
 			ImGui::End();
 		}
