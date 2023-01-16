@@ -164,10 +164,18 @@ namespace MathAnim
 	{
 		if (encoder)
 		{
-			// This is kind of gross, we launch another thread using the thread pool to wait for it to finish
-			// so the main window can finish closing then we finish encoding the video in the background
-			// and clean up memory after everything finishes.
-			Application::threadPool()->queueTask(waitForVideoEncodingToFinish, "WaitForVideoEncoderToFinish", (void*)encoder, sizeof(VideoEncoder));
+			if (encoder->isEncodingVideo())
+			{
+				// This is kind of gross, we launch another thread using the thread pool to wait for it to finish
+				// so the main window can finish closing then we finish encoding the video in the background
+				// and clean up memory after everything finishes.
+				Application::threadPool()->queueTask(waitForVideoEncodingToFinish, "WaitForVideoEncoderToFinish", (void*)encoder, sizeof(VideoEncoder));
+			}
+			else
+			{
+				encoder->destroy();
+				g_memory_free(encoder);
+			}
 		}
 	}
 
