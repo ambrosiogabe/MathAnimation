@@ -33,7 +33,7 @@ namespace MathAnim
 		static bool mainViewportIsActive;
 		static bool editorViewportIsActive;
 
-		void init(AnimationManagerData* am, const std::string& assetsRoot)
+		void init(AnimationManagerData* am, const std::string& assetsRoot, uint32 outputWidth, uint32 outputHeight)
 		{
 			viewportOffset = { 0, 0 };
 			viewportSize = { 0, 0 };
@@ -46,7 +46,7 @@ namespace MathAnim
 			Timeline::init(am);
 
 			AnimObjectPanel::init();
-			ExportPanel::init();
+			ExportPanel::init(outputWidth, outputHeight);
 			SceneHierarchyPanel::init(am);
 			AssetManagerPanel::init(assetsRoot);
 			timelineLoaded = true;
@@ -119,7 +119,7 @@ namespace MathAnim
 			Timeline::update(timeline, am);
 			AnimObjectPanel::update();
 			DebugPanel::update();
-			ExportPanel::update();
+			ExportPanel::update(am);
 			SceneHierarchyPanel::update(am);
 			AssetManagerPanel::update();
 			EditorSettings::imgui(am);

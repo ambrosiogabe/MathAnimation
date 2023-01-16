@@ -14,7 +14,6 @@
 #include "renderer/Fonts.h"
 #include "renderer/Colors.h"
 #include "renderer/GLApi.h"
-#include "renderer/PixelBufferDownloader.h"
 #include "animation/TextAnimations.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
@@ -28,6 +27,7 @@
 #include "editor/EditorSettings.h"
 #include "editor/SceneManagementPanel.h"
 #include "editor/MenuBar.h"
+#include "editor/ExportPanel.h"
 #include "parsers/SyntaxHighlighter.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
@@ -44,11 +44,7 @@ namespace MathAnim
 	namespace Application
 	{
 		static AnimState animState = AnimState::Pause;
-		static bool outputVideoFile = false;
-		static PreviewSvgFidelity fidelityBeforeExport = PreviewSvgFidelity::Low;
-		static std::string outputVideoFilename = "";
 
-		static int framerate = 60;
 		static int outputWidth = 3840;
 		static int outputHeight = 2160;
 		static float viewportWidth = 18.0f;
@@ -59,21 +55,18 @@ namespace MathAnim
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
 		static Framebuffer editorFramebuffer;
-		static Framebuffer yuvFramebuffer;
 		static OrthoCamera editorCamera2D;
 		static PerspectiveCamera editorCamera3D;
 		static int absoluteCurrentFrame = -1;
 		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
 		static std::string currentProjectRoot;
-		static VideoEncoder* encoder = nullptr;
 		static SceneData sceneData = {};
 		static bool reloadCurrentScene = false;
 		static bool saveCurrentSceneOnReload = true;
 		static int sceneToChangeTo = -1;
 		static SvgCache* svgCache = nullptr;
 		static float deltaTime = 0.0f;
-		static PixelBufferDownload pboDownloader = PixelBufferDownload();
 
 		static const char* winTitle = "Math Animations";
 
@@ -125,19 +118,6 @@ namespace MathAnim
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 			editorFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
-			Texture textureSpec = TextureBuilder()
-				.setWidth(outputWidth)
-				.setHeight(outputHeight)
-				.setFormat(ByteFormat::R8_UI)
-				.setMagFilter(FilterMode::Linear)
-				.setMinFilter(FilterMode::Linear)
-				.build();
-			yuvFramebuffer = FramebufferBuilder(outputWidth, outputHeight)
-				.addColorAttachment(textureSpec)
-				.addColorAttachment(textureSpec)
-				.addColorAttachment(textureSpec)
-				.generate();
-
 			currentProjectRoot = std::filesystem::path(projectFile).parent_path().string() + "/";
 
 			initializeSceneSystems();
@@ -148,7 +128,7 @@ namespace MathAnim
 				sceneData.currentScene = 0;
 			}
 
-			EditorGui::init(am, currentProjectRoot);
+			EditorGui::init(am, currentProjectRoot, outputWidth, outputHeight);
 			LuauLayer::init(currentProjectRoot + "/scripts", am);
 
 			svgCache = new SvgCache();
@@ -156,8 +136,6 @@ namespace MathAnim
 
 			GL::enable(GL_BLEND);
 			GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-			pboDownloader.create(mainFramebuffer.width, mainFramebuffer.height);
 		}
 
 		void run()
@@ -176,27 +154,35 @@ namespace MathAnim
 				previousTime = glfwGetTime();
 				window->pollInput();
 
-				if (outputVideoFile)
-				{
-					accumulatedTime += (1.0f / 60.0f);
-					absoluteCurrentFrame++;
-				}
-
 				// Update components
-				if (animState == AnimState::PlayForward)
+				switch (animState)
+				{
+				case AnimState::PlayForward:
 				{
 					accumulatedTime += deltaTime;
 					absoluteCurrentFrame = (int)(accumulatedTime * 60.0f);
 				}
-				else if (animState == AnimState::PlayReverse)
+				break;
+				case AnimState::PlayForwardFixedFrameTime:
 				{
-					absoluteCurrentFrame = glm::max(absoluteCurrentFrame - 1, 0);
+					absoluteCurrentFrame++;
+					accumulatedTime += (1.0f / 60.0f);
+				}
+				break;
+				case AnimState::PlayReverse:
+				{
+					accumulatedTime -= deltaTime;
+					absoluteCurrentFrame = (int)(accumulatedTime * 60.0f);
+				}
+				break;
+				case AnimState::Pause:
+					break;
 				}
 
 				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
 				if (deltaFrame != 0)
 				{
-					// TODO: Do something here...
+					// TODO: Once caching works again, update the cache and timeline
 					//svgCache->clearAll();
 				}
 
@@ -213,7 +199,7 @@ namespace MathAnim
 				// Render all animation draw calls to main framebuffer
 				bool renderPickingOutline = false;
 
-				if (EditorGui::mainViewportActive() || outputVideoFile)
+				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
 				{
 					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], am, renderPickingOutline);
 				}
@@ -246,32 +232,6 @@ namespace MathAnim
 				AnimationManager::endFrame(am);
 
 				// Miscellaneous
-				// TODO: Abstract this stuff out of here
-				if (outputVideoFile && absoluteCurrentFrame > -1)
-				{
-					if (absoluteCurrentFrame < AnimationManager::lastAnimatedFrame(am))
-					{
-						// Render to yuvFramebuffer
-						Renderer::renderTextureToFramebuffer(mainFramebuffer.getColorAttachment(0), yuvFramebuffer, ShaderType::RgbToYuvShader);
-
-						// Transfer pixels from this framebuffer to our PBOs for async downloads
-						pboDownloader.queueDownloadFrom(yuvFramebuffer.getColorAttachment(0), yuvFramebuffer.getColorAttachment(1), yuvFramebuffer.getColorAttachment(2));
-					}
-
-					if (pboDownloader.pixelsAreReady)
-					{
-						const Pixels& yuvPixels = pboDownloader.getPixels();
-						// TODO: Add a hardware accelerated version that usee CUDA and NVENC
-						VideoWriter::pushYuvFrame(yuvPixels.yColorBuffer, yuvPixels.dataSize, encoder);
-					}
-
-					if (absoluteCurrentFrame >= AnimationManager::lastAnimatedFrame(am) && pboDownloader.numItemsInQueue <= 0)
-					{
-						endExport();
-						pboDownloader.reset();
-					}
-				}
-
 				window->swapBuffers();
 
 				if (reloadCurrentScene)
@@ -329,12 +289,8 @@ namespace MathAnim
 
 		void free()
 		{
-			pboDownloader.free();
 			svgCache->free();
 			delete svgCache;
-
-			// Free it just in case, if the encoder isn't active this does nothing
-			VideoWriter::finalizeEncodingFile(encoder);
 
 			saveProject();
 
@@ -558,52 +514,16 @@ namespace MathAnim
 			return absoluteCurrentFrame;
 		}
 
-		int getFrameratePerSecond()
-		{
-			return framerate;
-		}
-
 		void resetToFrame(int frame)
 		{
 			absoluteCurrentFrame = frame;
 			absolutePrevFrame = frame;
+			accumulatedTime = frame * ExportPanel::getExportSecondsPerFrame();
 		}
 
-		void exportVideoTo(const std::string& filename)
+		const Framebuffer& getMainFramebuffer()
 		{
-			outputVideoFilename = filename;
-			encoder = VideoWriter::startEncodingFile(outputVideoFilename.c_str(), outputWidth, outputHeight, framerate, 60, true);
-			if (encoder)
-			{
-				absoluteCurrentFrame = -1;
-				outputVideoFile = true;
-				fidelityBeforeExport = EditorSettings::getSettings().previewFidelity;
-				EditorSettings::setFidelity(PreviewSvgFidelity::Ultra);
-				AnimationManager::retargetSvgScales(am);
-			}
-		}
-
-		bool isExportingVideo()
-		{
-			return outputVideoFile;
-		}
-
-		void endExport()
-		{
-			if (encoder)
-			{
-				if (VideoWriter::finalizeEncodingFile(encoder))
-				{
-					g_logger_info("Finished exporting video file.");
-				}
-				else
-				{
-					g_logger_error("Failed to finalize encoding video file.");
-				}
-			}
-			encoder = nullptr;
-			outputVideoFile = false;
-			EditorSettings::setFidelity(fidelityBeforeExport);
+			return mainFramebuffer;
 		}
 
 		OrthoCamera* getEditorCamera()
@@ -670,7 +590,7 @@ namespace MathAnim
 
 			loadScene(sceneData.sceneNames[sceneData.currentScene]);
 
-			EditorGui::init(am, currentProjectRoot);
+			EditorGui::init(am, currentProjectRoot, outputWidth, outputHeight);
 		}
 
 		static void freeSceneSystems()

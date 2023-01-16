@@ -2,6 +2,7 @@
 #include "core/Window.h"
 #include "core/Colors.h"
 #include "utils/FontAwesome.h"
+#include "renderer/GLApi.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -104,6 +105,8 @@ namespace MathAnim
 			{
 				ImGui::CaptureKeyboardFromApp(false);
 			}
+
+			GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
 
 			ImGui::Render();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

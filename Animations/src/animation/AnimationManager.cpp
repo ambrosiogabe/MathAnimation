@@ -160,6 +160,8 @@ namespace MathAnim
 			}
 			applyGlobalTransforms(am);
 			calculateBBoxes(am);
+
+			am->currentFrame = absoluteFrame;
 		}
 
 		void calculateAnimationKeyFrames(AnimationManagerData* am)
@@ -373,6 +375,11 @@ namespace MathAnim
 
 			// Add 1 extra second of footage for good measure
 			return lastFrame + 60;
+		}
+
+		bool isPastLastFrame(const AnimationManagerData* am)
+		{
+			return am->currentFrame >= AnimationManager::lastAnimatedFrame(am);
 		}
 
 		const AnimObject* getActiveOrthoCamera(const AnimationManagerData* am)

@@ -7,11 +7,13 @@ namespace MathAnim
 	class GlobalThreadPool;
 	struct OrthoCamera;
 	class SvgCache;
+	struct Framebuffer;
 
 	enum class AnimState : uint8
 	{
 		PlayForward,
 		PlayReverse,
+		PlayForwardFixedFrameTime,
 		Pause,
 	};
 
@@ -42,12 +44,9 @@ namespace MathAnim
 		// TODO: Consolidate and remove some of these?
 		void setFrameIndex(int frame);
 		int getFrameIndex();
-		int getFrameratePerSecond();
 		void resetToFrame(int frame);
 
-		void exportVideoTo(const std::string& filename);
-		bool isExportingVideo();
-		void endExport();
+		const Framebuffer& getMainFramebuffer();
 
 		// TODO: Ugly hack
 		OrthoCamera* getEditorCamera();

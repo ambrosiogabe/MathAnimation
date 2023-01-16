@@ -36,6 +36,7 @@ namespace MathAnim
 		void render(AnimationManagerData* am, int deltaFrame);
 
 		int lastAnimatedFrame(const AnimationManagerData* am);
+		bool isPastLastFrame(const AnimationManagerData* am);
 		const AnimObject* getActiveOrthoCamera(const AnimationManagerData* am);
 		void setActiveOrthoCamera(AnimationManagerData* am, AnimObjId id);
 
