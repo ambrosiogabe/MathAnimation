@@ -64,6 +64,15 @@ namespace MathAnim
 			{
 				processEncoderData(am);
 			}
+			else
+			{
+				// If the encoder is done exporting free the memory
+				if (encoder && !isExportingVideo())
+				{
+					VideoEncoder::freeEncoder(encoder);
+					encoder = nullptr;
+				}
+			}
 
 			imgui(am);
 		}
