@@ -15,6 +15,9 @@ extern "C"
 
 namespace MathAnim
 {
+	// ------------------------ Internal Functions ------------------------
+	static void waitForVideoEncodingToFinish(void* data, size_t dataSize);
+
 	// Adapted from https://stackoverflow.com/questions/46444474/c-ffmpeg-create-mp4-file
 	VideoEncoder* VideoEncoder::startEncodingFile(
 		const char* outputFilename,
@@ -161,8 +164,10 @@ namespace MathAnim
 	{
 		if (encoder)
 		{
-			encoder->destroy();
-			g_memory_free(encoder);
+			// This is kind of gross, we launch another thread using the thread pool to wait for it to finish
+			// so the main window can finish closing then we finish encoding the video in the background
+			// and clean up memory after everything finishes.
+			Application::threadPool()->queueTask(waitForVideoEncodingToFinish, "WaitForVideoEncoderToFinish", (void*)encoder, sizeof(VideoEncoder));
 		}
 	}
 
@@ -242,6 +247,19 @@ namespace MathAnim
 	}
 
 	// ---------------- Internal functions ----------------
+	static void waitForVideoEncodingToFinish(void* data, size_t dataSize)
+	{
+		// Bad Data
+		if (!data || dataSize != sizeof(VideoEncoder))
+		{
+			return;
+		}
+
+		VideoEncoder* encoder = (VideoEncoder*)data;
+		encoder->destroy();
+		g_memory_free(encoder);
+	}
+
 	void VideoEncoder::threadSafeFinalize()
 	{
 		// Stop the encoding loop

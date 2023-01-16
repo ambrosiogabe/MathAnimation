@@ -39,11 +39,11 @@ namespace MathAnim
 
 		float getPercentComplete() const { return percentComplete.load(); }
 		bool isEncodingVideo() const { return isEncoding.load(); }
+		void destroy();
 
 	private:
 		void encodeThreadLoop();
 		void threadSafeFinalize();
-		void destroy();
 
 		bool encodePacket();
 		void printError(int errorNum) const;

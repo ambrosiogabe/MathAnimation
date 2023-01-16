@@ -146,6 +146,11 @@ namespace MathAnim
 			}
 			ImGui::EndDisabled();
 
+			if (isExportingVideo())
+			{
+				
+			}
+
 			ImGui::End();
 		}
 
