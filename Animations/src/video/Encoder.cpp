@@ -1,6 +1,7 @@
 #include "video/Encoder.h"
 #include "multithreading/GlobalThreadPool.h"
 #include "core/Application.h"
+#include "platform/Platform.h"
 
 extern "C"
 {
@@ -25,7 +26,8 @@ namespace MathAnim
 		int outputHeight,
 		int outputFramerate,
 		Mbps bitrate,
-		VideoEncoderFlags flags)
+		VideoEncoderFlags flags,
+		size_t ramLimitGb)
 	{
 		VideoEncoder* output = (VideoEncoder*)g_memory_allocate(sizeof(VideoEncoder));
 		new(output)VideoEncoder();
@@ -35,11 +37,13 @@ namespace MathAnim
 		output->framerate = outputFramerate;
 		output->frameCounter = 0;
 		output->logProgress = ((uint8)flags & (uint8)VideoEncoderFlags::LogProgress);
+		output->ramLimitGb = ramLimitGb;
 
 		output->codecContext = nullptr;
 		output->formatContext = nullptr;
 		output->swsContext = nullptr;
 		output->videoFrame = nullptr;
+		output->approxRamUsed = 0.0f;
 
 		size_t filenameLength = std::strlen(outputFilename);
 		output->filename = (uint8*)g_memory_allocate(sizeof(uint8) * (filenameLength + 1));
@@ -243,10 +247,38 @@ namespace MathAnim
 		frame.pixels = (uint8*)g_memory_allocate(framePixelsSize);
 		g_memory_copyMem(frame.pixels, pixels, pixelsSize);
 		frame.pixelsSize = pixelsSize;
+		frame.cachedOnDisk = false;
+		frame.filepath = "";
 
-		// TODO: This takes up a lot of RAM, add a RAM limit option and if it exceeds that
-		// then start writing the data to ~~disk~~ SSD and then deleting the files once
-		// they're used
+		// Check if we have enough room in RAM for more pixels, otherwise cache to the disk
+		size_t ramUsedExpected = approxRamUsed.load();
+		if (ramUsedExpected + frame.pixelsSize < ramLimitGb)
+		{
+			while (!approxRamUsed.compare_exchange_strong(ramUsedExpected, ramUsedExpected + frame.pixelsSize))
+			{
+				ramUsedExpected = approxRamUsed.load();
+			}
+		}
+		else
+		{
+			// Cache to disk
+			std::filesystem::path tmpDir = std::filesystem::path(Application::getCurrentProjectRoot()) / "tmp";
+			Platform::createDirIfNotExists(tmpDir.string().c_str());
+			std::string tmpFile = Platform::tmpFilename(tmpDir.string()) + ".bin";
+			
+			FILE* fp = fopen(tmpFile.c_str(), "wb");
+			fwrite(pixels, pixelsSize, 1, fp);
+			fclose(fp);
+
+			frame.cachedOnDisk = true;
+			frame.filepath = tmpFile;
+
+			g_memory_free(frame.pixels);
+			frame.pixels = nullptr;
+			frame.pixelsSize = 0;
+		}
+
+		// Push frame onto queue
 		{
 			std::lock_guard<std::mutex> lock(encodeMtx);
 			queuedFrames.push(frame);
@@ -300,6 +332,10 @@ namespace MathAnim
 		//	// NOP; Once encodePacket() returns false, the frames have been fully flushed
 		//}
 
+		// Delete any lingering temporary files
+		std::filesystem::path tmpDir = std::filesystem::path(Application::getCurrentProjectRoot()) / "tmp";
+		std::filesystem::remove_all(tmpDir);
+
 		int err = av_write_trailer(formatContext);
 		if (err < 0)
 		{
@@ -335,6 +371,34 @@ namespace MathAnim
 
 				nextFrame = queuedFrames.front();
 				queuedFrames.pop();
+			}
+
+			if (nextFrame.cachedOnDisk)
+			{
+				FILE* fp = fopen(nextFrame.filepath.c_str(), "rb");
+				if (fp)
+				{
+					fseek(fp, 0, SEEK_END);
+					size_t fileSize = ftell(fp);
+					fseek(fp, 0, SEEK_SET);
+
+					if (fileSize > 0)
+					{
+						nextFrame.pixelsSize = fileSize;
+						nextFrame.pixels = (uint8*)g_memory_allocate(fileSize);
+						fread(nextFrame.pixels, nextFrame.pixelsSize, 1, fp);
+
+						size_t expectedRamUsed = approxRamUsed.load();
+						while (!approxRamUsed.compare_exchange_strong(expectedRamUsed, expectedRamUsed + fileSize))
+						{
+							expectedRamUsed = approxRamUsed.load();
+						}
+					}
+
+					fclose(fp);
+				}
+
+				Platform::deleteFile(nextFrame.filepath.c_str());
 			}
 
 			if (!nextFrame.pixels)
@@ -383,6 +447,12 @@ namespace MathAnim
 
 			encodePacket();
 			g_memory_free(nextFrame.pixels);
+
+			size_t usedRamExpected = approxRamUsed.load();
+			while (!approxRamUsed.compare_exchange_strong(usedRamExpected, usedRamExpected - nextFrame.pixelsSize))
+			{
+				usedRamExpected = approxRamUsed.load();
+			}
 		}
 
 		g_logger_info("Video Encoding loop finished.");

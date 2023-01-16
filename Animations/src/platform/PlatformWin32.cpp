@@ -356,15 +356,22 @@ namespace MathAnim
 			return true;
 		}
 
-		std::string tmpFilename()
+		std::string tmpFilename(const std::string& directory)
 		{
-			char buffer[] = "fnXXXXXX\0";
-			if (_mktemp_s(buffer, sizeof(buffer) - 1) == 0)
+			char outPath[_MAX_PATH];
+			uint32 res = GetTempFileNameA(
+				directory.c_str(),
+				"TMP",
+				0,
+				outPath
+			);
+
+			if (res == 0)
 			{
-				return std::string(buffer);
+				return std::string("");
 			}
 
-			return std::string("");
+			return std::string(outPath);
 		}
 
 		std::string getSpecialAppDir()

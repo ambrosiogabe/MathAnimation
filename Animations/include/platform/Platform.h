@@ -24,7 +24,7 @@ namespace MathAnim
 
 		bool deleteFile(const char* filename);
 
-		std::string tmpFilename();
+		std::string tmpFilename(const std::string& directory);
 
 		std::string getSpecialAppDir();
 
@@ -36,4 +36,4 @@ namespace MathAnim
 	}
 }
 
-#endif 
+#endif

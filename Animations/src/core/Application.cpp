@@ -526,6 +526,11 @@ namespace MathAnim
 			return mainFramebuffer;
 		}
 
+		const std::string& getCurrentProjectRoot()
+		{
+			return currentProjectRoot;
+		}
+
 		OrthoCamera* getEditorCamera()
 		{
 			return &editorCamera2D;

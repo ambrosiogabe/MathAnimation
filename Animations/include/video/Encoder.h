@@ -14,6 +14,8 @@ namespace MathAnim
 	{
 		uint8* pixels;
 		size_t pixelsSize;
+		std::string filepath;
+		bool cachedOnDisk;
 	};
 
 	enum class VideoEncoderFlags : uint8
@@ -28,7 +30,7 @@ namespace MathAnim
 	class VideoEncoder
 	{
 	public:
-		static VideoEncoder* startEncodingFile(const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, Mbps bitrate = 60, VideoEncoderFlags flags = VideoEncoderFlags::None);
+		static VideoEncoder* startEncodingFile(const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, Mbps bitrate = 60, VideoEncoderFlags flags = VideoEncoderFlags::None, size_t ramLimitBytes = GB(48));
 		static void finalizeEncodingFile(VideoEncoder* encoder);
 		static void freeEncoder(VideoEncoder* encoder);
 
@@ -39,6 +41,8 @@ namespace MathAnim
 
 		float getPercentComplete() const { return percentComplete.load(); }
 		bool isEncodingVideo() const { return isEncoding.load(); }
+		size_t getAmountOfRamUsed() const { return approxRamUsed.load(); }
+
 		void destroy();
 
 	private:
@@ -56,6 +60,7 @@ namespace MathAnim
 		int framerate;
 		int frameCounter;
 		int totalFrames;
+		size_t ramLimitGb;
 		bool logProgress;
 
 		// ffmpeg data
@@ -72,6 +77,7 @@ namespace MathAnim
 		std::queue<VideoFrame> queuedFrames;
 		std::atomic_bool isEncoding;
 		std::atomic<float> percentComplete;
+		std::atomic<size_t> approxRamUsed;
 	};
 }
 

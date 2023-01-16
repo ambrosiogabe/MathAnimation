@@ -47,6 +47,7 @@ namespace MathAnim
 		void resetToFrame(int frame);
 
 		const Framebuffer& getMainFramebuffer();
+		const std::string& getCurrentProjectRoot();
 
 		// TODO: Ugly hack
 		OrthoCamera* getEditorCamera();
