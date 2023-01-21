@@ -127,6 +127,7 @@ target_include_directories(
     "Animations/vendor/luau/VM/include"
     "Animations/vendor/luau/Analysis/include"
     "Animations/vendor/luau/Ast/include"
+    "Animations/vendor/av1/Source/API"
 )
 
 # Dear ImGui backend
@@ -243,7 +244,7 @@ set(ALSOFT_INSTALL_UTILS OFF CACHE BOOL "" FORCE)
 set(ALSOFT_UPDATE_BUILD_VERSION OFF CACHE BOOL "" FORCE)
 set(LIBTYPE "STATIC")
 if (MSVC)
-set(FORCE_STATIC_VCRT ON CACHE BOOL "" FORCE)
+    set(FORCE_STATIC_VCRT ON CACHE BOOL "" FORCE)
 endif()
 
 set(ALSOFT_INSTALL OFF CACHE BOOL "" FORCE)
@@ -272,6 +273,21 @@ if(MSVC)
 endif()
 
 add_subdirectory(Animations/vendor/onigurama)
+
+# AV1
+# Is this important?
+#-DCMAKE_INSTALL_PREFIX=%SYSTEMDRIVE%\svt-encoders 
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(ENABLE_AVX512 ON CACHE BOOL "" FORCE)
+set(BUILD_APPS OFF CACHE BOOL "" FORCE)
+set(BUILD_DEC OFF CACHE BOOL "" FORCE)
+set(CMAKE_ASM_NASM_COMPILER "yasm" CACHE BOOL "" FORCE)
+if (MSVC)
+    set(MSVC_STATIC_RUNTIME ON CACHE BOOL "" FORCE)
+endif()
+
+add_subdirectory(Animations/vendor/av1)
 
 # Global properties
 set_target_properties(
@@ -302,6 +318,26 @@ if (MSVC)
         freetype
         common 
         ex-common
+        # AV1 Stuff
+        SvtAv1Enc
+        COMMON_ASM_AVX2
+        COMMON_ASM_AVX512
+        COMMON_ASM_SSE2
+        COMMON_ASM_SSE4_1
+        COMMON_ASM_SSSE3
+        COMMON_C_DEFAULT
+        COMMON_CODEC
+        cpuinfo
+        FASTFEAT
+        ENCODER_ASM_AVX2
+        ENCODER_ASM_AVX512
+        ENCODER_ASM_SSE2
+        ENCODER_ASM_SSE4_1
+        ENCODER_ASM_SSSE3
+        ENCODER_C_DEFAULT
+        ENCODER_CODEC
+        ENCODER_GLOBALS
+        clog
 
         PROPERTIES
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
@@ -309,15 +345,6 @@ if (MSVC)
 endif()
 
 # Link Options
-# Find FFMpeg stuff
-find_library(LIB_AVCODEC libavcodec HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_AVDEVICE libavdevice HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_AVFILTER libavfilter HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_AVFORMAT libavformat HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_AVUTIL libavutil HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_SWRESAMPLE libswresample HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_SWSCALE libswscale HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-
 target_link_libraries(
     MathAnimations 
     glfw
@@ -335,20 +362,7 @@ target_link_libraries(
     plutovg 
     tinyxml2 
     DearImGui
-    # FFmpeg stuff
-    ${LIB_AVCODEC}
-    ${LIB_AVDEVICE}
-    ${LIB_AVFILTER}
-    ${LIB_AVFORMAT}
-    ${LIB_AVUTIL}
-    ${LIB_SWRESAMPLE}
-    ${LIB_SWSCALE}
-    # Windows static libs required for ffmepg
-    Ws2_32
-    Secur32
-    Bcrypt
-    Mfuuid
-    Strmiids
+    SvtAv1Enc
 )
 
 if (MSVC)

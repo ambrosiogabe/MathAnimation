@@ -8,6 +8,7 @@
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
 #include "renderer/PixelBufferDownloader.h"
+#include "renderer/GLApi.h"
 #include "editor/ImGuiExtended.h"
 
 #include <nfd.h>
@@ -17,7 +18,7 @@ namespace MathAnim
 	namespace ExportPanel
 	{
 		static constexpr int framerate = 60;
-		static constexpr Mbps bitrate = 60;
+		static constexpr Mbps bitrate = 20;
 
 		static VideoEncoder* encoder;
 		static bool outputVideoFile;
@@ -177,8 +178,10 @@ namespace MathAnim
 			const Framebuffer& mainFramebuffer = Application::getMainFramebuffer();
 			if (!AnimationManager::isPastLastFrame(am))
 			{
+				GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "RGB_To_YUV_Pass");
 				// Render to yuvFramebuffer
 				Renderer::renderTextureToFramebuffer(mainFramebuffer.getColorAttachment(0), yuvFramebuffer, ShaderType::RgbToYuvShader);
+				GL::popDebugGroup();
 
 				// Transfer pixels from this framebuffer to our PBOs for async downloads
 				pboDownloader.queueDownloadFrom(yuvFramebuffer.getColorAttachment(0), yuvFramebuffer.getColorAttachment(1), yuvFramebuffer.getColorAttachment(2));
@@ -212,6 +215,7 @@ namespace MathAnim
 				outputWidth,
 				outputHeight,
 				framerate,
+				AnimationManager::lastAnimatedFrame(am),
 				bitrate,
 				VideoEncoderFlags::None,
 				(size_t)GB(ramLimitGb)

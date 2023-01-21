@@ -2,11 +2,9 @@
 #define MATH_ANIM_VIDEO_WRITER_H
 #include "core.h"
 
-struct AVOutputFormat;
-struct AVFrame;
-struct AVCodecContext;
-struct SwsContext;
-struct AVFormatContext;
+extern "C" {
+	struct AV1Context;
+}
 
 namespace MathAnim
 {
@@ -30,16 +28,18 @@ namespace MathAnim
 	class VideoEncoder
 	{
 	public:
-		static VideoEncoder* startEncodingFile(const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, Mbps bitrate = 60, VideoEncoderFlags flags = VideoEncoderFlags::None, size_t ramLimitBytes = GB(48));
+		static VideoEncoder* startEncodingFile(const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, size_t totalNumFramesInVideo, Mbps bitrate = 20, VideoEncoderFlags flags = VideoEncoderFlags::None, size_t ramLimitBytes = GB(48));
 		static void finalizeEncodingFile(VideoEncoder* encoder);
 		static void freeEncoder(VideoEncoder* encoder);
 
 	public:
 		VideoEncoder() = default;
-		
+
 		void pushYuvFrame(uint8* pixels, size_t pixelsSize);
 
+		void setPercentComplete(float newVal);
 		float getPercentComplete() const { return percentComplete.load(); }
+
 		bool isEncodingVideo() const { return isEncoding.load(); }
 		size_t getAmountOfRamUsed() const { return approxRamUsed.load(); }
 
@@ -53,6 +53,7 @@ namespace MathAnim
 		void printError(int errorNum) const;
 
 	private:
+		// General data
 		uint8* filename;
 		size_t filenameLength;
 		int width;
@@ -62,16 +63,15 @@ namespace MathAnim
 		int totalFrames;
 		size_t ramLimitGb;
 		bool logProgress;
-
-		// ffmpeg data
-		const AVOutputFormat* outputFormat;
-		AVFrame* videoFrame;
-		AVCodecContext* codecContext;
-		SwsContext* swsContext;
-		AVFormatContext* formatContext;
 		VideoEncoderFlags flags;
+		FILE* outputFile;
 
+		// AV1 Data
+		AV1Context* av1Context;
+
+		// Threading data
 		std::mutex encodeMtx;
+		std::thread ivfFileWriteThread;
 		std::thread thread;
 		std::thread finalizeThread;
 		std::queue<VideoFrame> queuedFrames;

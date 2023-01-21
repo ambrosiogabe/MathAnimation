@@ -57,7 +57,7 @@ namespace MathAnim
 
 		// Adapted from https://www.roxlu.com/2014/048/fast-pixel-transfers-with-pixel-buffer-objects
 		GL::bindBuffer(GL_PIXEL_PACK_BUFFER, this->data->pboIds[this->writeQueueIndex]);
-		glReadBuffer(GL_COLOR_ATTACHMENT0);
+		GL::readBuffer(GL_COLOR_ATTACHMENT0);
 		GL::readPixels(
 			0, 0, 
 			yTexture.width, yTexture.height,
@@ -65,7 +65,7 @@ namespace MathAnim
 			GL_UNSIGNED_BYTE,
 			0
 		);
-		glReadBuffer(GL_COLOR_ATTACHMENT1);
+		GL::readBuffer(GL_COLOR_ATTACHMENT1);
 		GL::readPixels(
 			0, 0,
 			uTexture.width, uTexture.height,
@@ -73,7 +73,7 @@ namespace MathAnim
 			GL_UNSIGNED_BYTE,
 			(void*)(yTextureSpaceAvailable)
 		);
-		glReadBuffer(GL_COLOR_ATTACHMENT2);
+		GL::readBuffer(GL_COLOR_ATTACHMENT2);
 		GL::readPixels(
 			0, 0,
 			vTexture.width, vTexture.height,
