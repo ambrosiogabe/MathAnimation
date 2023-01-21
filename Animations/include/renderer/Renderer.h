@@ -44,7 +44,8 @@ namespace MathAnim
 		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera, bool shouldRenderPickingOutline);
 		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, AnimationManagerData* am, bool shouldRenderPickingOutline);
 		void renderFramebuffer(const Framebuffer& framebuffer);
-		void renderTextureToFramebuffer(const Texture& texture, const Framebuffer& framebuffer, ShaderType shaderType = ShaderType::ScreenShader);
+		void renderTextureToFramebuffer(const Texture& texture, const Framebuffer& framebuffer);
+		void renderTextureToYuvFramebuffer(const Texture& texture, const Framebuffer& yFramebuffer, const Framebuffer& uvFramebuffer);
 		void endFrame();
 
 		// ----------- Styles ----------- 

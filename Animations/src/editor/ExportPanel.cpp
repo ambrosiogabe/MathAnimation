@@ -22,7 +22,8 @@ namespace MathAnim
 
 		static VideoEncoder* encoder;
 		static bool outputVideoFile;
-		static Framebuffer yuvFramebuffer;
+		static Framebuffer yFramebuffer;
+		static Framebuffer uvFramebuffer;
 		static PixelBufferDownload pboDownloader;
 		static std::string outputVideoFilename;
 		static uint32 outputWidth;
@@ -46,17 +47,22 @@ namespace MathAnim
 			pboDownloader = PixelBufferDownload();
 			pboDownloader.create(outputWidth, outputHeight);
 
-			Texture textureSpec = TextureBuilder()
+			Texture yTextureSpec = TextureBuilder()
 				.setWidth(outputWidth)
 				.setHeight(outputHeight)
 				.setFormat(ByteFormat::R8_UI)
 				.setMagFilter(FilterMode::Linear)
 				.setMinFilter(FilterMode::Linear)
 				.build();
-			yuvFramebuffer = FramebufferBuilder(outputWidth, outputHeight)
-				.addColorAttachment(textureSpec)
-				.addColorAttachment(textureSpec)
-				.addColorAttachment(textureSpec)
+			yFramebuffer = FramebufferBuilder(outputWidth, outputHeight)
+				.addColorAttachment(yTextureSpec)
+				.generate();
+			Texture uvTextureSpec = yTextureSpec;
+			uvTextureSpec.width /= 2;
+			uvTextureSpec.height /= 2;
+			uvFramebuffer = FramebufferBuilder(outputWidth / 2, outputHeight / 2)
+				.addColorAttachment(uvTextureSpec)
+				.addColorAttachment(uvTextureSpec)
 				.generate();
 		}
 
@@ -180,11 +186,11 @@ namespace MathAnim
 			{
 				GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "RGB_To_YUV_Pass");
 				// Render to yuvFramebuffer
-				Renderer::renderTextureToFramebuffer(mainFramebuffer.getColorAttachment(0), yuvFramebuffer, ShaderType::RgbToYuvShader);
+				Renderer::renderTextureToYuvFramebuffer(mainFramebuffer.getColorAttachment(0), yFramebuffer, uvFramebuffer);
 				GL::popDebugGroup();
 
 				// Transfer pixels from this framebuffer to our PBOs for async downloads
-				pboDownloader.queueDownloadFrom(yuvFramebuffer.getColorAttachment(0), yuvFramebuffer.getColorAttachment(1), yuvFramebuffer.getColorAttachment(2));
+				pboDownloader.queueDownloadFrom(yFramebuffer, uvFramebuffer);
 			}
 
 			if (pboDownloader.pixelsAreReady)

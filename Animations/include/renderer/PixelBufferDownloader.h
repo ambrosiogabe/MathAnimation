@@ -6,6 +6,7 @@ namespace MathAnim
 {
 	struct PixelBufferDownloadData;
 	struct Texture;
+	struct Framebuffer;
 
 	struct Pixels
 	{
@@ -26,7 +27,7 @@ namespace MathAnim
 
 		void create(uint32 width, uint32 height, uint8 numOfBuffers = 3);
 
-		void queueDownloadFrom(const Texture& yTexture, const Texture& uTexture, const Texture& vTexture);
+		void PixelBufferDownload::queueDownloadFrom(const Framebuffer& yFramebuffer, const Framebuffer& uvFramebuffer);
 		const Pixels& getPixels();
 
 		void reset()

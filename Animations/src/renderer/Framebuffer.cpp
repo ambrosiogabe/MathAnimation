@@ -283,8 +283,6 @@ namespace MathAnim
 		for (int i = 0; i < framebuffer.colorAttachments.size(); i++)
 		{
 			Texture& texture = framebuffer.colorAttachments[i];
-			texture.width = framebuffer.width;
-			texture.height = framebuffer.height;
 			TextureUtil::generateEmptyTexture(texture);
 			GL::framebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, texture.graphicsId, 0);
 		}

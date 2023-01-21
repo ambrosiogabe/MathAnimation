@@ -367,8 +367,10 @@ namespace MathAnim
 
 	void VideoEncoder::pushYuvFrame(uint8* pixels, size_t pixelsSize)
 	{
-		size_t singleChannelSize = width * height;
-		size_t framePixelsSize = singleChannelSize * 3;
+		size_t yChannelSize = width * height * sizeof(uint8);
+		size_t uChannelSize = width / 2 * height / 2 * sizeof(uint8);
+		size_t vChannelSize = uChannelSize;
+		size_t framePixelsSize = yChannelSize + uChannelSize + vChannelSize;
 		g_logger_assert(pixelsSize == framePixelsSize, "Invalid pixel buffer for video encoding. Width and height do not match pixelsLength.");
 
 		VideoFrame frame;

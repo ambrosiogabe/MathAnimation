@@ -23,13 +23,15 @@ namespace MathAnim
 		this->data->pboIds = (uint32*)g_memory_allocate(sizeof(uint32) * this->data->numPbos);
 		this->data->formatType = ByteFormat::R8_UI;
 		// We'll store 3 color channels in 1 pbo like YYYY...UUUU...VVVV
-		size_t singleColorChannelSize = width * height * sizeof(uint8);
-		this->data->pboSize = singleColorChannelSize * 3;
+		size_t yChannelSize = width * height * sizeof(uint8);
+		size_t uChannelSize = width / 2 * height / 2 * sizeof(uint8);
+		size_t vChannelSize = uChannelSize;
+		this->data->pboSize = yChannelSize + uChannelSize + vChannelSize;
 		
 		this->currentOutputPixels.dataSize = this->data->pboSize;
 		this->currentOutputPixels.yColorBuffer = (uint8*)g_memory_allocate(this->data->pboSize);
-		this->currentOutputPixels.uColorBuffer = this->currentOutputPixels.yColorBuffer + (singleColorChannelSize * 1);
-		this->currentOutputPixels.vColorBuffer = this->currentOutputPixels.yColorBuffer + (singleColorChannelSize * 2);
+		this->currentOutputPixels.uColorBuffer = this->currentOutputPixels.yColorBuffer + yChannelSize;
+		this->currentOutputPixels.vColorBuffer = this->currentOutputPixels.yColorBuffer + yChannelSize + uChannelSize;
 
 		GL::genBuffers(this->data->numPbos, this->data->pboIds);
 		for (uint8 i = 0; i < this->data->numPbos; i++)
@@ -42,44 +44,46 @@ namespace MathAnim
 		GL::bindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 	}
 
-	void PixelBufferDownload::queueDownloadFrom(const Texture& yTexture, const Texture& uTexture, const Texture& vTexture)
+	void PixelBufferDownload::queueDownloadFrom(const Framebuffer& yFramebuffer, const Framebuffer& uvFramebuffer)
 	{
 		if (!this->data)
 		{
 			return;
 		}
 
-		size_t yTextureSpaceAvailable = yTexture.width * yTexture.height * TextureUtil::formatSize(yTexture.format);
-		size_t uTextureSpaceAvailable = uTexture.width * uTexture.height * TextureUtil::formatSize(uTexture.format);
-		size_t vTextureSpaceAvailable = vTexture.width * vTexture.height * TextureUtil::formatSize(vTexture.format);
-		size_t totalTextureSpaceAvailable = yTextureSpaceAvailable + uTextureSpaceAvailable + vTextureSpaceAvailable;
+		size_t yChannelSize = yFramebuffer.width * yFramebuffer.height * TextureUtil::formatSize(yFramebuffer.colorAttachments.at(0).format);
+		size_t uChannelSize = uvFramebuffer.width * uvFramebuffer.height * TextureUtil::formatSize(uvFramebuffer.colorAttachments.at(0).format);
+		size_t vChannelSize = uChannelSize;
+		size_t totalTextureSpaceAvailable = yChannelSize + uChannelSize + vChannelSize;
 		g_logger_assert(totalTextureSpaceAvailable >= this->data->pboSize, "Texture is too small, can't transfer PBO data to this texture.");
 
 		// Adapted from https://www.roxlu.com/2014/048/fast-pixel-transfers-with-pixel-buffer-objects
+		yFramebuffer.bind();
 		GL::bindBuffer(GL_PIXEL_PACK_BUFFER, this->data->pboIds[this->writeQueueIndex]);
 		GL::readBuffer(GL_COLOR_ATTACHMENT0);
 		GL::readPixels(
 			0, 0, 
-			yTexture.width, yTexture.height,
+			yFramebuffer.width, yFramebuffer.height,
 			GL_RED_INTEGER,
 			GL_UNSIGNED_BYTE,
-			0
+			0 // Read into pbo[0]
+		);
+		uvFramebuffer.bind();
+		GL::readBuffer(GL_COLOR_ATTACHMENT0);
+		GL::readPixels(
+			0, 0,
+			uvFramebuffer.width, uvFramebuffer.height,
+			GL_RED_INTEGER,
+			GL_UNSIGNED_BYTE,
+			(void*)(yChannelSize) // Read into pbo[yTextureSpaceAvailable]
 		);
 		GL::readBuffer(GL_COLOR_ATTACHMENT1);
 		GL::readPixels(
 			0, 0,
-			uTexture.width, uTexture.height,
+			uvFramebuffer.width, uvFramebuffer.height,
 			GL_RED_INTEGER,
 			GL_UNSIGNED_BYTE,
-			(void*)(yTextureSpaceAvailable)
-		);
-		GL::readBuffer(GL_COLOR_ATTACHMENT2);
-		GL::readPixels(
-			0, 0,
-			vTexture.width, vTexture.height,
-			GL_RED_INTEGER,
-			GL_UNSIGNED_BYTE,
-			(void*)(yTextureSpaceAvailable + uTextureSpaceAvailable)
+			(void*)(yChannelSize + uChannelSize) // Read into pbo[yTextureSpaceAvailable + uTexAvail]
 		);
 		this->totalNumQueuedItems++;
 		this->numItemsInQueue++;
