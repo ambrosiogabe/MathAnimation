@@ -12,8 +12,7 @@ namespace MathAnim
 	{
 		uint8* pixels;
 		size_t pixelsSize;
-		std::string filepath;
-		bool cachedOnDisk;
+		size_t mappedFileOffset;
 	};
 
 	enum class VideoEncoderFlags : uint8
@@ -28,7 +27,7 @@ namespace MathAnim
 	class VideoEncoder
 	{
 	public:
-		static VideoEncoder* startEncodingFile(const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, size_t totalNumFramesInVideo, Mbps bitrate = 20, VideoEncoderFlags flags = VideoEncoderFlags::None, size_t ramLimitBytes = GB(48));
+		static VideoEncoder* startEncodingFile(const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, size_t totalNumFramesInVideo, Mbps bitrate = 20, VideoEncoderFlags flags = VideoEncoderFlags::None);
 		static void finalizeEncodingFile(VideoEncoder* encoder);
 		static void freeEncoder(VideoEncoder* encoder);
 
@@ -41,16 +40,12 @@ namespace MathAnim
 		float getPercentComplete() const { return percentComplete.load(); }
 
 		bool isEncodingVideo() const { return isEncoding.load(); }
-		size_t getAmountOfRamUsed() const { return approxRamUsed.load(); }
 
 		void destroy();
 
 	private:
 		void encodeThreadLoop();
 		void threadSafeFinalize();
-
-		bool encodePacket();
-		void printError(int errorNum) const;
 
 	private:
 		// General data
@@ -61,7 +56,6 @@ namespace MathAnim
 		int framerate;
 		int frameCounter;
 		int totalFrames;
-		size_t ramLimitGb;
 		bool logProgress;
 		VideoEncoderFlags flags;
 		FILE* outputFile;

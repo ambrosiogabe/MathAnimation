@@ -9,7 +9,6 @@ extern "C"
 #include <EbSvtAv1.h>
 }
 
-// overall context
 struct AV1Context
 {
 	MathAnim::VideoEncoder* videoEncoder;
@@ -21,53 +20,13 @@ struct AV1Context
 	FILE* fout;
 };
 
-// copied from FFmpeg
-
-// copied these from aom
-static void mem_put_le16(void* vmem, uint16_t val)
-{
-	uint8_t* mem = (uint8*)vmem;
-	mem[0] = 0xff & (val >> 0);
-	mem[1] = 0xff & (val >> 8);
-}
-
-static void mem_put_le32(void* vmem, uint32_t val)
-{
-	uint8_t* mem = (uint8*)vmem;
-	mem[0] = 0xff & (val >> 0);
-	mem[1] = 0xff & (val >> 8);
-	mem[2] = 0xff & (val >> 16);
-	mem[3] = 0xff & (val >> 24);
-}
-
-static void write_ivf_header(FILE* const fout, const size_t width, const size_t height,
-	const size_t numerator, const size_t denominator,
-	const size_t frame_count)
-{
-	unsigned char header[32] = { 'D', 'K', 'I', 'F', 0, 0, 32, 0, 'A', 'V', '0', '1' };
-	mem_put_le16(header + 12, width);
-	mem_put_le16(header + 14, height);
-	mem_put_le32(header + 16, numerator);
-	mem_put_le32(header + 20, denominator);
-	mem_put_le32(header + 24, frame_count);
-	fwrite(header, 32, 1, fout);
-}
-
-static void write_ivf_frame_size(FILE* const fout, const size_t size)
-{
-	unsigned char header[4];
-	mem_put_le32(header, size);
-	fwrite(header, 4, 1, fout);
-}
-
-static void write_ivf_frame_header(FILE* const fout, const size_t frame_size, const uint64_t pts)
-{
-	write_ivf_frame_size(fout, frame_size);
-	unsigned char header[8];
-	mem_put_le32(header + 0, pts & 0xFFFFFFFF);
-	mem_put_le32(header + 4, pts >> 32);
-	fwrite(header, 8, 1, fout);
-}
+// ----------- Internal Encoding Functions ------------
+// The encoding loop is modified from https://gitlab.com/AOMediaCodec/SVT-AV1/-/issues/1941
+static void mem_put_le16(void* vmem, uint16_t val);
+static void mem_put_le32(void* vmem, uint32_t val);
+static void write_ivf_header(const AV1Context* context);
+static void write_ivf_frame_size(AV1Context* const context, const size_t size);
+static void write_ivf_frame_header(AV1Context* const context, const size_t frame_size, const uint64_t pts);
 
 // sends a single picture, tries to avoid the stack since the library already uses so much
 static void send_frame(
@@ -79,116 +38,12 @@ static void send_frame(
 	const uint8* uChannel,
 	size_t uChannelSize,
 	const uint8* vChannel,
-	size_t vChannelSize)
-{
-	EbBufferHeaderType* const send_buffer = (EbBufferHeaderType*)calloc(1, sizeof(EbBufferHeaderType));
-	send_buffer->size = sizeof(EbBufferHeaderType);
-	send_buffer->p_buffer = (uint8*)pic;
-	send_buffer->pic_type = EB_AV1_INVALID_PICTURE;
-	send_buffer->pts = index;
-	// fill out the frame with a test source looking image
-	const uint8_t* y = pic->luma;
-	const uint8_t* u = pic->cb;
-	const uint8_t* v = pic->cr;
-	g_memory_copyMem((void*)y, (void*)yChannel, yChannelSize);
-	g_memory_copyMem((void*)u, (void*)uChannel, uChannelSize);
-	g_memory_copyMem((void*)v, (void*)vChannel, vChannelSize);
-	
-	// send the frame to the encoder
-	svt_av1_enc_send_picture(c->svt_handle, send_buffer);
-	free(send_buffer);
-}
+	size_t vChannelSize);
 
 // receives the whole ivf to fout in it's own thread so we don't have to try to track alt refs
-static void* write_ivf(void* p)
-{
-	const AV1Context* ctx = (AV1Context*)p;
-	EbComponentType* svt_handle = ctx->svt_handle;
-	const size_t width = ctx->width;
-	const size_t height = ctx->height;
-	const size_t frame_count = ctx->frame_count;
-	const size_t fps = ctx->fps;
-	FILE* fout = ctx->fout;
-
-	fputs("starting ivf thread\n", stderr);
-
-	EbBufferHeaderType* receive_buffer = NULL;
-	write_ivf_header(fout, width, height, fps, 1, frame_count);
-	bool eos = false;
-	// setup some variables for handling non-visible frames, based on aom's code
-	size_t frame_size = 0;
-	off_t  ivf_header_position = 0;
-	do
-	{
-		// retrieve the next ivf packet
-		switch (svt_av1_enc_get_packet(svt_handle, &receive_buffer, 0))
-		{
-		case EB_ErrorMax: fprintf(stderr, "Error: EB_ErrorMax\n");// pthread_exit(NULL);
-		case EB_NoErrorEmptyQueue: continue;
-		default: break;
-		}
-		const uint32_t flags = receive_buffer->flags;
-		const bool     alt_ref = flags & EB_BUFFERFLAG_IS_ALT_REF;
-		if (!alt_ref)
-		{
-			// if this a visible frame, write out the header and store the position and size
-			ivf_header_position = ftell(fout);
-			frame_size = receive_buffer->n_filled_len;
-			write_ivf_frame_header(fout, frame_size, receive_buffer->pts);
-		}
-		else
-		{
-			// aom seems to count all of the frames, visible or not inside the ivf frame header's size field
-			// but it's probably not necessary since both encoders and decoders seem to be fine with files from
-			// stdout, which wouldn't support fseek etc.
-			frame_size += receive_buffer->n_filled_len;
-
-			const off_t current_position = ftell(fout);
-			if (!fseek(fout, ivf_header_position, SEEK_SET))
-			{
-				write_ivf_frame_size(fout, frame_size);
-				fseek(fout, current_position, SEEK_SET);
-			}
-		}
-		// write out the frame
-		fwrite(receive_buffer->p_buffer, 1, receive_buffer->n_filled_len, fout);
-		// just to make sure it's actually written in case the output is a buffered file
-		fflush(fout);
-		ctx->videoEncoder->setPercentComplete((float)receive_buffer->pts / (float)ctx->frame_count);
-		// release back to the library
-		svt_av1_enc_release_out_buffer(&receive_buffer);
-		receive_buffer = NULL;
-		eos = flags & EB_BUFFERFLAG_EOS;
-	} while (!eos);
-
-	ctx->videoEncoder->setPercentComplete(1.0f);
-
-	return NULL;
-}
-
-static EbSvtIOFormat* allocate_io_format(const size_t width, const size_t height)
-{
-	EbSvtIOFormat* pic = (EbSvtIOFormat*)calloc(1, sizeof(EbSvtIOFormat));
-	pic->y_stride = width;
-	pic->cr_stride = width / 2;
-	pic->cb_stride = width / 2;
-	pic->width = width;
-	pic->height = height;
-	pic->color_fmt = EB_YUV420;
-	pic->bit_depth = EB_EIGHT_BIT;
-	pic->luma = (uint8*)calloc(height * pic->y_stride, sizeof(uint8_t));
-	pic->cb = (uint8*)calloc(height * pic->cb_stride, sizeof(uint8_t));
-	pic->cr = (uint8*)calloc(height * pic->cr_stride, sizeof(uint8_t));
-	return pic;
-}
-
-static void free_io_format(EbSvtIOFormat* const pic)
-{
-	free(pic->luma);
-	free(pic->cb);
-	free(pic->cr);
-	free(pic);
-}
+static void* write_ivf(void* p);
+static EbSvtIOFormat* allocate_io_format(const size_t width, const size_t height);
+static void free_io_format(EbSvtIOFormat* const pic);
 
 namespace MathAnim
 {
@@ -203,8 +58,7 @@ namespace MathAnim
 		int outputFramerate,
 		size_t totalNumFramesInVideo,
 		Mbps bitrate,
-		VideoEncoderFlags flags,
-		size_t ramLimitGb)
+		VideoEncoderFlags flags)
 	{
 		VideoEncoder* output = (VideoEncoder*)g_memory_allocate(sizeof(VideoEncoder));
 		new(output)VideoEncoder();
@@ -214,7 +68,6 @@ namespace MathAnim
 		output->framerate = outputFramerate;
 		output->frameCounter = 0;
 		output->logProgress = ((uint8)flags & (uint8)VideoEncoderFlags::LogProgress);
-		output->ramLimitGb = ramLimitGb;
 		output->isEncoding = true;
 
 		size_t outputFilenameLength = std::strlen(outputFilename);
@@ -377,36 +230,6 @@ namespace MathAnim
 		frame.pixels = (uint8*)g_memory_allocate(framePixelsSize);
 		g_memory_copyMem(frame.pixels, pixels, pixelsSize);
 		frame.pixelsSize = pixelsSize;
-		frame.cachedOnDisk = false;
-		frame.filepath = "";
-
-		// Check if we have enough room in RAM for more pixels, otherwise cache to the disk
-		size_t ramUsedExpected = approxRamUsed.load();
-		if (ramUsedExpected + frame.pixelsSize < ramLimitGb)
-		{
-			while (!approxRamUsed.compare_exchange_strong(ramUsedExpected, ramUsedExpected + frame.pixelsSize))
-			{
-				ramUsedExpected = approxRamUsed.load();
-			}
-		}
-		else
-		{
-			// Cache to disk
-			std::filesystem::path tmpDir = std::filesystem::path(Application::getCurrentProjectRoot()) / "tmp";
-			Platform::createDirIfNotExists(tmpDir.string().c_str());
-			std::string tmpFile = Platform::tmpFilename(tmpDir.string()) + ".bin";
-
-			FILE* fp = fopen(tmpFile.c_str(), "wb");
-			fwrite(pixels, pixelsSize, 1, fp);
-			fclose(fp);
-
-			frame.cachedOnDisk = true;
-			frame.filepath = tmpFile;
-
-			g_memory_free(frame.pixels);
-			frame.pixels = nullptr;
-			frame.pixelsSize = 0;
-		}
 
 		// Push frame onto queue
 		{
@@ -507,34 +330,6 @@ namespace MathAnim
 				queuedFrames.pop();
 			}
 
-			if (nextFrame.cachedOnDisk)
-			{
-				FILE* fp = fopen(nextFrame.filepath.c_str(), "rb");
-				if (fp)
-				{
-					fseek(fp, 0, SEEK_END);
-					size_t fileSize = ftell(fp);
-					fseek(fp, 0, SEEK_SET);
-
-					if (fileSize > 0)
-					{
-						nextFrame.pixelsSize = fileSize;
-						nextFrame.pixels = (uint8*)g_memory_allocate(fileSize);
-						fread(nextFrame.pixels, nextFrame.pixelsSize, 1, fp);
-
-						size_t expectedRamUsed = approxRamUsed.load();
-						while (!approxRamUsed.compare_exchange_strong(expectedRamUsed, expectedRamUsed + fileSize))
-						{
-							expectedRamUsed = approxRamUsed.load();
-						}
-					}
-
-					fclose(fp);
-				}
-
-				Platform::deleteFile(nextFrame.filepath.c_str());
-			}
-
 			if (!nextFrame.pixels)
 			{
 				g_logger_warning("Queued video frame had nullptr. Skipping that frame.");
@@ -574,58 +369,172 @@ namespace MathAnim
 		free_io_format(pic);
 		g_logger_info("Video Encoding loop finished.");
 	}
+}
 
-	bool VideoEncoder::encodePacket()
+// ----------- Internal Encoding Functions ------------
+static void mem_put_le16(void* vmem, uint16_t val)
+{
+	uint8_t* mem = (uint8*)vmem;
+	mem[0] = 0xff & (val >> 0);
+	mem[1] = 0xff & (val >> 8);
+}
+
+static void mem_put_le32(void* vmem, uint32_t val)
+{
+	uint8_t* mem = (uint8*)vmem;
+	mem[0] = 0xff & (val >> 0);
+	mem[1] = 0xff & (val >> 8);
+	mem[2] = 0xff & (val >> 16);
+	mem[3] = 0xff & (val >> 24);
+}
+
+static void write_ivf_header(const AV1Context* context)
+{
+	unsigned char header[32] = { 'D', 'K', 'I', 'F', 0, 0, 32, 0, 'A', 'V', '0', '1' };
+	mem_put_le16(header + 12, context->width);
+	mem_put_le16(header + 14, context->height);
+	const uint32 fpsNumerator = (uint32)context->fps;
+	const uint32 fpsDenominator = 1;
+	mem_put_le32(header + 16, fpsNumerator);
+	mem_put_le32(header + 20, fpsDenominator);
+	mem_put_le32(header + 24, context->frame_count);
+	fwrite(header, 32, 1, context->fout);
+}
+
+static void write_ivf_frame_size(AV1Context* const context, const size_t size)
+{
+	unsigned char header[4];
+	mem_put_le32(header, size);
+	fwrite(header, 4, 1, context->fout);
+}
+
+static void write_ivf_frame_header(AV1Context* const context, const size_t frame_size, const uint64_t pts)
+{
+	write_ivf_frame_size(context, frame_size);
+	unsigned char header[8];
+	mem_put_le32(header + 0, pts & 0xFFFFFFFF);
+	mem_put_le32(header + 4, pts >> 32);
+	fwrite(header, 8, 1, context->fout);
+}
+
+static void send_frame(
+	const EbSvtIOFormat* pic,
+	const AV1Context* const c,
+	const size_t index,
+	const uint8* yChannel,
+	size_t yChannelSize,
+	const uint8* uChannel,
+	size_t uChannelSize,
+	const uint8* vChannel,
+	size_t vChannelSize)
+{
+	// This memory is managed by av1, so we don't use g_memory_allocate here
+	EbBufferHeaderType* const sendBuffer = (EbBufferHeaderType*)g_memory_allocate(sizeof(EbBufferHeaderType));
+	g_memory_zeroMem(sendBuffer, sizeof(EbBufferHeaderType));
+	sendBuffer->size = sizeof(EbBufferHeaderType);
+	sendBuffer->p_buffer = (uint8*)pic;
+	sendBuffer->pic_type = EB_AV1_INVALID_PICTURE;
+	sendBuffer->pts = index;
+
+	// Copy the yuv channels to av1's frame buffer
+	const uint8_t* y = pic->luma;
+	const uint8_t* u = pic->cb;
+	const uint8_t* v = pic->cr;
+	g_memory_copyMem((void*)y, (void*)yChannel, yChannelSize);
+	g_memory_copyMem((void*)u, (void*)uChannel, uChannelSize);
+	g_memory_copyMem((void*)v, (void*)vChannel, vChannelSize);
+
+	// send the frame to the encoder
+	svt_av1_enc_send_picture(c->svt_handle, sendBuffer);
+	g_memory_free(sendBuffer);
+}
+
+static void* write_ivf(void* p)
+{
+	AV1Context* const ctx = (AV1Context*)p;
+	EbComponentType* svt_handle = ctx->svt_handle;
+	const size_t width = ctx->width;
+	const size_t height = ctx->height;
+	const size_t frame_count = ctx->frame_count;
+	const size_t fps = ctx->fps;
+	FILE* fout = ctx->fout;
+
+	fputs("starting ivf thread\n", stderr);
+
+	EbBufferHeaderType* receive_buffer = NULL;
+	write_ivf_header(ctx);
+	bool eos = false;
+	// setup some variables for handling non-visible frames, based on aom's code
+	size_t frame_size = 0;
+	off_t  ivf_header_position = 0;
+	do
 	{
-		int err;
-		//if ((err = avcodec_send_frame(codecContext, videoFrame)) < 0)
-		//{
-		//	g_logger_error("Failed to send frame '%d'", frameCounter);
-		//	printError(err);
-		//	return false;
-		//}
+		// retrieve the next ivf packet
+		switch (svt_av1_enc_get_packet(svt_handle, &receive_buffer, 0))
+		{
+		case EB_ErrorMax: fprintf(stderr, "Error: EB_ErrorMax\n");// pthread_exit(NULL);
+		case EB_NoErrorEmptyQueue: continue;
+		default: break;
+		}
+		const uint32_t flags = receive_buffer->flags;
+		const bool     alt_ref = flags & EB_BUFFERFLAG_IS_ALT_REF;
+		if (!alt_ref)
+		{
+			// if this a visible frame, write out the header and store the position and size
+			ivf_header_position = ftell(fout);
+			frame_size = receive_buffer->n_filled_len;
+			write_ivf_frame_header(ctx, frame_size, receive_buffer->pts);
+		}
+		else
+		{
+			// aom seems to count all of the frames, visible or not inside the ivf frame header's size field
+			// but it's probably not necessary since both encoders and decoders seem to be fine with files from
+			// stdout, which wouldn't support fseek etc.
+			frame_size += receive_buffer->n_filled_len;
 
-		//AVPacket pkt;
-		//av_init_packet(&pkt);
-		//pkt.data = NULL;
-		//pkt.size = 0;
-		//pkt.flags |= AV_PKT_FLAG_KEY;
-		//if ((err = avcodec_receive_packet(codecContext, &pkt)) < 0)
-		//{
-		//	// The packet needs to be sent again, let the client know that by returning true
-		//	if (err == AVERROR(EAGAIN))
-		//	{
-		//		return true;
-		//	}
+			const off_t current_position = ftell(fout);
+			if (!fseek(fout, ivf_header_position, SEEK_SET))
+			{
+				write_ivf_frame_size(ctx, frame_size);
+				fseek(fout, current_position, SEEK_SET);
+			}
+		}
+		// write out the frame
+		fwrite(receive_buffer->p_buffer, 1, receive_buffer->n_filled_len, fout);
+		// just to make sure it's actually written in case the output is a buffered file
+		fflush(fout);
+		ctx->videoEncoder->setPercentComplete((float)receive_buffer->pts / (float)ctx->frame_count);
+		// release back to the library
+		svt_av1_enc_release_out_buffer(&receive_buffer);
+		receive_buffer = NULL;
+		eos = flags & EB_BUFFERFLAG_EOS;
+	} while (!eos);
 
-		//	if (err != AVERROR_EOF)
-		//	{
-		//		g_logger_error("Failed to recieve packet.");
-		//		printError(err);
-		//		av_packet_unref(&pkt);
-		//	}
-		//	return false;
-		//}
+	ctx->videoEncoder->setPercentComplete(1.0f);
 
-		//if ((err = av_interleaved_write_frame(formatContext, &pkt)) < 0)
-		//{
-		//	g_logger_error("Failed to write frame: %d", frameCounter);
-		//	printError(err);
-		//	av_packet_unref(&pkt);
-		//	return false;
-		//}
+	return NULL;
+}
 
-		//av_packet_unref(&pkt);
+static EbSvtIOFormat* allocate_io_format(const size_t width, const size_t height)
+{
+	EbSvtIOFormat* pic = (EbSvtIOFormat*)calloc(1, sizeof(EbSvtIOFormat));
+	pic->y_stride = width;
+	pic->cr_stride = width / 2;
+	pic->cb_stride = width / 2;
+	pic->width = width;
+	pic->height = height;
+	pic->color_fmt = EB_YUV420;
+	pic->bit_depth = EB_EIGHT_BIT;
+	pic->luma = (uint8*)calloc(height * pic->y_stride, sizeof(uint8_t));
+	pic->cb = (uint8*)calloc(height * pic->cb_stride, sizeof(uint8_t));
+	pic->cr = (uint8*)calloc(height * pic->cr_stride, sizeof(uint8_t));
+	return pic;
+}
 
-		return true;
-	}
-
-	void VideoEncoder::printError(int errorNum) const
-	{
-		/*constexpr int errorBufferSize = 512;
-		char* errorBuffer = (char*)g_memory_allocate(sizeof(char) * errorBufferSize);
-		av_make_error_string(errorBuffer, errorBufferSize, errorNum);
-		g_logger_error("AV Error: %s", errorBuffer);
-		g_memory_free(errorBuffer);*/
-	}
+static void free_io_format(EbSvtIOFormat* const pic)
+{
+	free(pic->luma);
+	free(pic->cb);
+	free(pic->cr);
+	free(pic);
 }

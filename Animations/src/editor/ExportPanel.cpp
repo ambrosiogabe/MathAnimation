@@ -29,7 +29,6 @@ namespace MathAnim
 		static uint32 outputWidth;
 		static uint32 outputHeight;
 		static PreviewSvgFidelity fidelityBeforeExport = PreviewSvgFidelity::Low;
-		static float ramLimitGb = 32.0f;
 
 		// -------------------- Internal Functions --------------------
 		static void imgui(AnimationManagerData* am);
@@ -120,8 +119,6 @@ namespace MathAnim
 			ImGui::InputText(": Filename", filenameBuffer, filenameBufferSize);
 			ImGui::EndDisabled();
 
-			ImGui::DragFloat(": RAM Limit (GB)", &ramLimitGb, 1.0f, 1.0f);
-
 			ImGui::BeginDisabled(isExportingVideo());
 			if (ImGui::Button("Export"))
 			{
@@ -171,11 +168,6 @@ namespace MathAnim
 			}
 			ImGui::EndDisabled();
 
-			float approxRamUsed = isExportingVideo()
-				? (float)(encoder->getAmountOfRamUsed() / 1024.0f / 1024.0f / 1024.0f)
-				: 0.0f;
-			ImGui::Text("~%2.2f GB RAM used", approxRamUsed);
-
 			ImGui::End();
 		}
 
@@ -223,8 +215,7 @@ namespace MathAnim
 				framerate,
 				AnimationManager::lastAnimatedFrame(am),
 				bitrate,
-				VideoEncoderFlags::None,
-				(size_t)GB(ramLimitGb)
+				VideoEncoderFlags::None
 			);
 
 			if (encoder)
