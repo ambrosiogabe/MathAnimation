@@ -12,24 +12,24 @@ extern "C"
 struct AV1Context
 {
 	MathAnim::VideoEncoder* videoEncoder;
-	EbComponentType* svt_handle;
+	EbComponentType* svtHandle;
 	size_t width;
 	size_t height;
-	size_t frame_count;
+	size_t frameCount;
 	size_t fps;
-	FILE* fout;
+	FILE* fileOutput;
 };
 
 // ----------- Internal Encoding Functions ------------
 // The encoding loop is modified from https://gitlab.com/AOMediaCodec/SVT-AV1/-/issues/1941
-static void mem_put_le16(void* vmem, uint16_t val);
-static void mem_put_le32(void* vmem, uint32_t val);
-static void write_ivf_header(const AV1Context* context);
-static void write_ivf_frame_size(AV1Context* const context, const size_t size);
-static void write_ivf_frame_header(AV1Context* const context, const size_t frame_size, const uint64_t pts);
+static void memPutLe16(void* vmem, uint16_t val);
+static void memPutLe32(void* vmem, uint32_t val);
+static void writeIvfHeader(const AV1Context* context);
+static void writeIvfFrameSize(AV1Context* const context, const size_t size);
+static void writeIvfFrameHeader(AV1Context* const context, const size_t frame_size, const uint64_t pts);
 
 // sends a single picture, tries to avoid the stack since the library already uses so much
-static void send_frame(
+static void sendFrame(
 	const EbSvtIOFormat* pic,
 	const AV1Context* const c,
 	const size_t index,
@@ -41,9 +41,9 @@ static void send_frame(
 	size_t vChannelSize);
 
 // receives the whole ivf to fout in it's own thread so we don't have to try to track alt refs
-static void* write_ivf(void* p);
-static EbSvtIOFormat* allocate_io_format(const size_t width, const size_t height);
-static void free_io_format(EbSvtIOFormat* const pic);
+static void* ivfEncodeThread(void* p);
+static EbSvtIOFormat* allocateIoFormat(const size_t width, const size_t height);
+static void freeIoFormat(EbSvtIOFormat* const pic);
 
 namespace MathAnim
 {
@@ -126,17 +126,17 @@ namespace MathAnim
 		}
 
 		AV1Context* p = (AV1Context*)g_memory_allocate(sizeof(AV1Context));
-		p->svt_handle = svt_handle;
+		p->svtHandle = svt_handle;
 		p->width = video_width;
 		p->height = video_height;
-		p->frame_count = video_frames;
+		p->frameCount = video_frames;
 		p->fps = video_fps;
-		p->fout = output_file;
+		p->fileOutput = output_file;
 		p->videoEncoder = output;
 		output->av1Context = p;
 
 		// start the thread to receive frames from the encoder
-		output->ivfFileWriteThread = std::thread(write_ivf, p);
+		output->ivfFileWriteThread = std::thread(ivfEncodeThread, p);
 		output->thread = std::thread(&VideoEncoder::encodeThreadLoop, output);
 
 		return output;
@@ -283,7 +283,7 @@ namespace MathAnim
 		// send the EOS frame to the encoder
 		EbBufferHeaderType eofFlags = { 0 };
 		eofFlags.flags = EB_BUFFERFLAG_EOS;
-		svt_av1_enc_send_picture(av1Context->svt_handle, &eofFlags);
+		svt_av1_enc_send_picture(av1Context->svtHandle, &eofFlags);
 		g_logger_info("Sent all frames", stderr);
 
 		// wait for all of the frames to finish writing out
@@ -300,8 +300,8 @@ namespace MathAnim
 		}
 
 		// clean up the encoder
-		svt_av1_enc_deinit(av1Context->svt_handle);
-		svt_av1_enc_deinit_handle(av1Context->svt_handle);
+		svt_av1_enc_deinit(av1Context->svtHandle);
+		svt_av1_enc_deinit_handle(av1Context->svtHandle);
 		// pthread_exit here just in case a thread inside the library managed to not die
 		//pthread_exit(NULL);
 
@@ -312,7 +312,7 @@ namespace MathAnim
 
 	void VideoEncoder::encodeThreadLoop()
 	{
-		EbSvtIOFormat* pic = allocate_io_format(width, height);
+		EbSvtIOFormat* pic = allocateIoFormat(width, height);
 		size_t frameIndex = 0;
 
 		while (isEncoding.load())
@@ -340,7 +340,7 @@ namespace MathAnim
 			size_t yChannelSize = width * height * sizeof(uint8);
 			size_t uChannelSize = width / 2 * height / 2 * sizeof(uint8);
 			size_t vChannelSize = width / 2 * height / 2 * sizeof(uint8);
-			send_frame(
+			sendFrame(
 				pic,
 				av1Context,
 				frameIndex,
@@ -366,20 +366,20 @@ namespace MathAnim
 			}
 		}
 
-		free_io_format(pic);
+		freeIoFormat(pic);
 		g_logger_info("Video Encoding loop finished.");
 	}
 }
 
 // ----------- Internal Encoding Functions ------------
-static void mem_put_le16(void* vmem, uint16_t val)
+static void memPutLe16(void* vmem, uint16_t val)
 {
 	uint8_t* mem = (uint8*)vmem;
 	mem[0] = 0xff & (val >> 0);
 	mem[1] = 0xff & (val >> 8);
 }
 
-static void mem_put_le32(void* vmem, uint32_t val)
+static void memPutLe32(void* vmem, uint32_t val)
 {
 	uint8_t* mem = (uint8*)vmem;
 	mem[0] = 0xff & (val >> 0);
@@ -388,36 +388,36 @@ static void mem_put_le32(void* vmem, uint32_t val)
 	mem[3] = 0xff & (val >> 24);
 }
 
-static void write_ivf_header(const AV1Context* context)
+static void writeIvfHeader(const AV1Context* context)
 {
 	unsigned char header[32] = { 'D', 'K', 'I', 'F', 0, 0, 32, 0, 'A', 'V', '0', '1' };
-	mem_put_le16(header + 12, context->width);
-	mem_put_le16(header + 14, context->height);
+	memPutLe16(header + 12, context->width);
+	memPutLe16(header + 14, context->height);
 	const uint32 fpsNumerator = (uint32)context->fps;
 	const uint32 fpsDenominator = 1;
-	mem_put_le32(header + 16, fpsNumerator);
-	mem_put_le32(header + 20, fpsDenominator);
-	mem_put_le32(header + 24, context->frame_count);
-	fwrite(header, 32, 1, context->fout);
+	memPutLe32(header + 16, fpsNumerator);
+	memPutLe32(header + 20, fpsDenominator);
+	memPutLe32(header + 24, context->frameCount);
+	fwrite(header, 32, 1, context->fileOutput);
 }
 
-static void write_ivf_frame_size(AV1Context* const context, const size_t size)
+static void writeIvfFrameSize(AV1Context* const context, const size_t size)
 {
 	unsigned char header[4];
-	mem_put_le32(header, size);
-	fwrite(header, 4, 1, context->fout);
+	memPutLe32(header, size);
+	fwrite(header, 4, 1, context->fileOutput);
 }
 
-static void write_ivf_frame_header(AV1Context* const context, const size_t frame_size, const uint64_t pts)
+static void writeIvfFrameHeader(AV1Context* const context, const size_t frame_size, const uint64_t pts)
 {
-	write_ivf_frame_size(context, frame_size);
+	writeIvfFrameSize(context, frame_size);
 	unsigned char header[8];
-	mem_put_le32(header + 0, pts & 0xFFFFFFFF);
-	mem_put_le32(header + 4, pts >> 32);
-	fwrite(header, 8, 1, context->fout);
+	memPutLe32(header + 0, pts & 0xFFFFFFFF);
+	memPutLe32(header + 4, pts >> 32);
+	fwrite(header, 8, 1, context->fileOutput);
 }
 
-static void send_frame(
+static void sendFrame(
 	const EbSvtIOFormat* pic,
 	const AV1Context* const c,
 	const size_t index,
@@ -445,24 +445,24 @@ static void send_frame(
 	g_memory_copyMem((void*)v, (void*)vChannel, vChannelSize);
 
 	// send the frame to the encoder
-	svt_av1_enc_send_picture(c->svt_handle, sendBuffer);
+	svt_av1_enc_send_picture(c->svtHandle, sendBuffer);
 	g_memory_free(sendBuffer);
 }
 
-static void* write_ivf(void* p)
+static void* ivfEncodeThread(void* p)
 {
 	AV1Context* const ctx = (AV1Context*)p;
-	EbComponentType* svt_handle = ctx->svt_handle;
+	EbComponentType* svt_handle = ctx->svtHandle;
 	const size_t width = ctx->width;
 	const size_t height = ctx->height;
-	const size_t frame_count = ctx->frame_count;
+	const size_t frame_count = ctx->frameCount;
 	const size_t fps = ctx->fps;
-	FILE* fout = ctx->fout;
+	FILE* fout = ctx->fileOutput;
 
 	fputs("starting ivf thread\n", stderr);
 
 	EbBufferHeaderType* receive_buffer = NULL;
-	write_ivf_header(ctx);
+	writeIvfHeader(ctx);
 	bool eos = false;
 	// setup some variables for handling non-visible frames, based on aom's code
 	size_t frame_size = 0;
@@ -483,7 +483,7 @@ static void* write_ivf(void* p)
 			// if this a visible frame, write out the header and store the position and size
 			ivf_header_position = ftell(fout);
 			frame_size = receive_buffer->n_filled_len;
-			write_ivf_frame_header(ctx, frame_size, receive_buffer->pts);
+			writeIvfFrameHeader(ctx, frame_size, receive_buffer->pts);
 		}
 		else
 		{
@@ -495,7 +495,7 @@ static void* write_ivf(void* p)
 			const off_t current_position = ftell(fout);
 			if (!fseek(fout, ivf_header_position, SEEK_SET))
 			{
-				write_ivf_frame_size(ctx, frame_size);
+				writeIvfFrameSize(ctx, frame_size);
 				fseek(fout, current_position, SEEK_SET);
 			}
 		}
@@ -503,7 +503,7 @@ static void* write_ivf(void* p)
 		fwrite(receive_buffer->p_buffer, 1, receive_buffer->n_filled_len, fout);
 		// just to make sure it's actually written in case the output is a buffered file
 		fflush(fout);
-		ctx->videoEncoder->setPercentComplete((float)receive_buffer->pts / (float)ctx->frame_count);
+		ctx->videoEncoder->setPercentComplete((float)receive_buffer->pts / (float)ctx->frameCount);
 		// release back to the library
 		svt_av1_enc_release_out_buffer(&receive_buffer);
 		receive_buffer = NULL;
@@ -515,9 +515,12 @@ static void* write_ivf(void* p)
 	return NULL;
 }
 
-static EbSvtIOFormat* allocate_io_format(const size_t width, const size_t height)
+static EbSvtIOFormat* allocateIoFormat(const size_t width, const size_t height)
 {
-	EbSvtIOFormat* pic = (EbSvtIOFormat*)calloc(1, sizeof(EbSvtIOFormat));
+	EbSvtIOFormat* pic = (EbSvtIOFormat*)g_memory_allocate(sizeof(EbSvtIOFormat));
+	g_logger_assert(pic != nullptr, "Ran out of RAM.");
+
+	g_memory_zeroMem(pic, sizeof(EbSvtIOFormat));
 	pic->y_stride = width;
 	pic->cr_stride = width / 2;
 	pic->cb_stride = width / 2;
@@ -525,16 +528,19 @@ static EbSvtIOFormat* allocate_io_format(const size_t width, const size_t height
 	pic->height = height;
 	pic->color_fmt = EB_YUV420;
 	pic->bit_depth = EB_EIGHT_BIT;
-	pic->luma = (uint8*)calloc(height * pic->y_stride, sizeof(uint8_t));
-	pic->cb = (uint8*)calloc(height * pic->cb_stride, sizeof(uint8_t));
-	pic->cr = (uint8*)calloc(height * pic->cr_stride, sizeof(uint8_t));
+	pic->luma = (uint8*)g_memory_allocate(height * pic->y_stride * sizeof(uint8));
+	g_memory_zeroMem(pic->luma, height * pic->y_stride * sizeof(uint8));
+	pic->cb = (uint8*)g_memory_allocate(height * pic->cb_stride * sizeof(uint8));
+	g_memory_zeroMem(pic->cb, height * pic->cb_stride * sizeof(uint8));
+	pic->cr = (uint8*)g_memory_allocate(height * pic->cr_stride * sizeof(uint8));
+	g_memory_zeroMem(pic->cr, height * pic->cr_stride * sizeof(uint8));
 	return pic;
 }
 
-static void free_io_format(EbSvtIOFormat* const pic)
+static void freeIoFormat(EbSvtIOFormat* const pic)
 {
-	free(pic->luma);
-	free(pic->cb);
-	free(pic->cr);
-	free(pic);
+	g_memory_free(pic->luma);
+	g_memory_free(pic->cb);
+	g_memory_free(pic->cr);
+	g_memory_free(pic);
 }
