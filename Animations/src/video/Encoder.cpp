@@ -284,7 +284,6 @@ namespace MathAnim
 		EbBufferHeaderType eofFlags = { 0 };
 		eofFlags.flags = EB_BUFFERFLAG_EOS;
 		svt_av1_enc_send_picture(av1Context->svtHandle, &eofFlags);
-		g_logger_info("Sent all frames", stderr);
 
 		// wait for all of the frames to finish writing out
 		//pthread_join(receive_threads, NULL);

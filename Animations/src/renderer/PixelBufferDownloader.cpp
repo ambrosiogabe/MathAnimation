@@ -98,6 +98,9 @@ namespace MathAnim
 		}
 
 		this->writeQueueIndex = (this->writeQueueIndex + 1) % this->data->numPbos;
+
+		// Unbind pixel pack unpack buffer so we don't accidentally transfer pixels here
+		GL::bindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 	}
 
 	const Pixels& PixelBufferDownload::getPixels()
@@ -121,6 +124,9 @@ namespace MathAnim
 			this->pixelsAreReady = false;
 		}
 		this->downloadQueueIndex = (this->downloadQueueIndex + 1) % this->data->numPbos;
+
+		// Unbind pixel pack unpack buffer so we don't accidentally transfer pixels here
+		GL::bindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
 		return currentOutputPixels;
 	}
