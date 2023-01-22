@@ -120,23 +120,34 @@ namespace MathAnim
       char const delim = ':';
 
       size_t start = 0U;
-      size_t end = path.find(delim);
+      size_t end = path.find(delim);  
+
+      std::error_code dir_error_code;
+
       while (true)
       {
         std::string const folder = path.substr(start, end - start);
 
-        int i = 1;
-
-        for (std::filesystem::directory_entry const &directory_entry : std::filesystem::directory_iterator(folder))
+        std::filesystem::directory_iterator directory_iterator(folder, dir_error_code);
+        if (dir_error_code)
         {
-          std::filesystem::path const file = directory_entry.path();
-          if (strcmp(file.filename().c_str(), programDisplayName) == 0 && access(file.c_str(), X_OK) == 0)
+          g_logger_warning("Failed to create directory_iterator for %s: %s", folder.c_str(), dir_error_code.message().c_str());
+
+          dir_error_code.clear();
+        } else {
+          for (std::filesystem::directory_entry const &directory_entry : directory_iterator)
           {
-            strncpy(buffer, file.parent_path().c_str(), bufferLength - 1);
-            // Append / to the end of the path
-            buffer[strlen(buffer) + 1] = '\0';
-            buffer[strlen(buffer)] = '/';
-            return true;
+            std::filesystem::path const file = directory_entry.path();
+            // Check if filename matches, and if file is executable.
+            if (strcmp(file.filename().c_str(), programDisplayName) == 0 && access(file.c_str(), X_OK) == 0)
+            {
+              strncpy(buffer, file.parent_path().c_str(), bufferLength - 1);
+              // Append / to the end of the path
+              size_t buffer_strlen = strlen(buffer);
+              buffer[buffer_strlen + 1] = '\0';
+              buffer[buffer_strlen] = '/';
+              return true;
+            }
           }
         }
         if (end == std::string::npos)
