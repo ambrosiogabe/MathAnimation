@@ -15,7 +15,7 @@ namespace MathAnim
 
 		// -------------- Internal Functions --------------
 		static void iterateDirectory(
-			const std::string& directory,
+			const std::filesystem::path& directory,
 			AddButtonCallbackFn callback = nullptr,
 			FileRenamedCallbackFn renameCallback = nullptr,
 			FileSelectedFn fileSelectedCallback = nullptr,
@@ -30,14 +30,14 @@ namespace MathAnim
 		static void scriptSelectedCallback(const char* filename);
 
 		// -------------- Internal Variables --------------
-		static std::string assetsRoot;
-		static std::string scriptsRoot;
+		static std::filesystem::path assetsRoot;
+		static std::filesystem::path scriptsRoot;
 		static FileSystemWatcher* scriptWatcher = nullptr;
 
-		void init(const std::string& inAssetsRoot)
+		void init(const std::filesystem::path& inAssetsRoot)
 		{
 			assetsRoot = inAssetsRoot;
-			scriptsRoot = assetsRoot + "/scripts";
+			scriptsRoot = assetsRoot/"scripts";
 
 			// Initialize the script watcher
 			scriptWatcher = (FileSystemWatcher*)g_memory_allocate(sizeof(FileSystemWatcher));
@@ -87,7 +87,7 @@ namespace MathAnim
 
 		// -------------- Internal Functions --------------
 		static void iterateDirectory(
-			const std::string& directory,
+			const std::filesystem::path& directory,
 			AddButtonCallbackFn callback,
 			FileRenamedCallbackFn fileRenamedCallback,
 			FileSelectedFn fileSelectedCallback,

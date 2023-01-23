@@ -4,6 +4,17 @@
 
 namespace MathAnim
 {
+	struct MemMapUserData;
+
+	struct MemMappedFile
+	{
+		uint8* const data;
+		size_t dataSize;
+		// Implementation defined, this will contain mappings on windows
+		// and different information on Linux as needed
+		MemMapUserData* userData;
+	};
+
 	namespace Platform
 	{
 		const std::vector<std::string>& getAvailableFonts();
@@ -27,6 +38,10 @@ namespace MathAnim
 		std::string tmpFilename(const std::string& directory);
 
 		std::string getSpecialAppDir();
+
+		MemMappedFile* createTmpMemMappedFile(const std::string& directory, size_t fileSize);
+
+		void freeMemMappedFile(MemMappedFile* file);
 
 		void createDirIfNotExists(const char* dirName);
 

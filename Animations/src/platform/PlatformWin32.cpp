@@ -11,6 +11,12 @@
 
 namespace MathAnim
 {
+	struct MemMapUserData
+	{
+		HANDLE fileHandle;
+		HANDLE fileMappingHandle;
+	};
+
 	namespace Platform
 	{
 		// --------------- Internal Functions ---------------
@@ -247,7 +253,7 @@ namespace MathAnim
 			STARTUPINFOA si = { 0 };
 			si.cb = sizeof(si);
 			si.wShowWindow = false;
-			
+
 			PROCESS_INFORMATION pi = { 0 };
 			HANDLE fileHandle = 0;
 
@@ -388,6 +394,125 @@ namespace MathAnim
 			}
 
 			return "";
+		}
+
+		MemMappedFile* createTmpMemMappedFile(const std::string& directory, size_t size)
+		{
+			MemMappedFile* res = (MemMappedFile*)g_memory_allocate(sizeof(MemMappedFile));
+			g_memory_zeroMem(res, sizeof(MemMappedFile));
+			res->userData = (MemMapUserData*)g_memory_allocate(sizeof(MemMapUserData));
+			res->userData->fileHandle = INVALID_HANDLE_VALUE;
+			res->userData->fileMappingHandle = INVALID_HANDLE_VALUE;
+
+			std::string filepath = tmpFilename(directory);
+			res->userData->fileHandle = CreateFileA(
+				filepath.c_str(),
+				GENERIC_READ | GENERIC_WRITE,
+				0, // Specify exclusive access for memmapped file
+				NULL,
+				CREATE_ALWAYS,
+				FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE,
+				NULL
+			);
+
+			if (res->userData->fileHandle == INVALID_HANDLE_VALUE)
+			{
+				g_logger_error("Failed to create file '%s' for memmapping. Last error: %d", filepath.c_str(), GetLastError());
+				freeMemMappedFile(res);
+				return nullptr;
+			}
+
+			DWORD sizeHigh = (size >> 32) & 0xFFFFFFFF;
+			if (sizeof(size) < sizeof(uint64))
+			{
+				// Protect against overflow on machines with <64-bit architectures (even though this
+				// isn't meant to be run on <64-bit architectures)
+				sizeHigh = 0;
+			}
+			DWORD sizeLow = (size) & 0xFFFFFFFF;
+			res->userData->fileMappingHandle = CreateFileMappingA(
+				// TODO: Maybe this should be INVALID_HANDLE_VALUE so that the 
+				// OS will automatically use disk only if RAM usage is too high???
+				res->userData->fileHandle,
+				NULL,
+				PAGE_READWRITE,
+				sizeHigh,
+				sizeLow,
+				NULL
+			);
+			if (res->userData->fileMappingHandle == NULL)
+			{
+				res->userData->fileMappingHandle = INVALID_HANDLE_VALUE;
+				g_logger_error("Failed to memmap a temporary file. Last error: '%d'", GetLastError());
+				freeMemMappedFile(res);
+				return nullptr;
+			}
+
+			uint8* baseAddress = (uint8*)MapViewOfFile(
+				res->userData->fileMappingHandle,
+				FILE_MAP_ALL_ACCESS,
+				0,
+				0,
+				size
+			);
+			if (baseAddress == NULL)
+			{
+				g_logger_error("Failed to create a mapped view of the memmap handle. Last Error: '%d'", GetLastError());
+				freeMemMappedFile(res);
+				return nullptr;
+			}
+
+			res->dataSize = size;
+
+			// NOTE: This is kind of gross, but hopefully it communicates to the end user
+			// that this pointer is not supposed to be changed, and if they do something 
+			// similar bad stuff is gonna happen
+			(uint8*)res->data = baseAddress;
+			return res;
+		}
+
+		void freeMemMappedFile(MemMappedFile* file)
+		{
+			if (!file)
+			{
+				return;
+			}
+
+			if (file->data)
+			{
+				BOOL res = UnmapViewOfFile(file->data);
+				if (!res)
+				{
+					g_logger_error("Failed to unmap the file view for a memmapped file. Last error: '%d'", GetLastError());
+				}
+			}
+
+			if (file->userData)
+			{
+				if (file->userData->fileMappingHandle != INVALID_HANDLE_VALUE)
+				{
+					BOOL res = CloseHandle(file->userData->fileMappingHandle);
+					if (!res)
+					{
+						g_logger_error("Failed to close file mapping handle for a memmapped file. Last error: '%d'", GetLastError());
+					}
+				}
+
+				if (file->userData->fileHandle != INVALID_HANDLE_VALUE)
+				{
+					BOOL res = CloseHandle(file->userData->fileHandle);
+					if (!res)
+					{
+						g_logger_error("Failed to close file handle for a memmapped file. Last error: '%d'", GetLastError());
+					}
+				}
+
+				g_memory_free(file->userData);
+				file->userData = nullptr;
+			}
+
+			g_memory_zeroMem(file, sizeof(MemMappedFile));
+			g_memory_free(file);
 		}
 
 		void createDirIfNotExists(const char* dirName)

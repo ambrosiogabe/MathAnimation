@@ -40,9 +40,9 @@ namespace MathAnim
 		std::filesystem::path scriptDirectory = "";
 		const Bytecode* currentExecutingScript = nullptr;
 
-		void init(const std::string& inScriptDirectory, AnimationManagerData* am)
+		void init(const std::filesystem::path& inScriptDirectory, AnimationManagerData* am)
 		{
-			Platform::createDirIfNotExists(inScriptDirectory.c_str());
+			Platform::createDirIfNotExists(inScriptDirectory.string().c_str());
 
 			luaState = lua_newstate(luaAllocWrapper, NULL);
 			ScriptApi::registerGlobalFunctions(luaState, am);

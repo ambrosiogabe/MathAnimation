@@ -35,6 +35,7 @@
 #include "video/Encoder.h"
 #include "utils/TableOfContents.h"
 #include "scripting/LuauLayer.h"
+#include "platform/Platform.h"
 
 #include <imgui.h>
 #include <oniguruma.h>
@@ -60,7 +61,8 @@ namespace MathAnim
 		static int absoluteCurrentFrame = -1;
 		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
-		static std::string currentProjectRoot;
+		static std::filesystem::path currentProjectRoot;
+		static std::filesystem::path currentProjectTmpDir;
 		static SceneData sceneData = {};
 		static bool reloadCurrentScene = false;
 		static bool saveCurrentSceneOnReload = true;
@@ -118,10 +120,12 @@ namespace MathAnim
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 			editorFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
-			currentProjectRoot = std::filesystem::path(projectFile).parent_path().string() + "/";
+			currentProjectRoot = std::filesystem::path(projectFile).parent_path();
+			currentProjectTmpDir = currentProjectRoot / "tmp";
+			Platform::createDirIfNotExists(currentProjectTmpDir.string().c_str());
 
 			initializeSceneSystems();
-			loadProject(currentProjectRoot.c_str());
+			loadProject(currentProjectRoot);
 			if (sceneData.sceneNames.size() <= 0)
 			{
 				sceneData.sceneNames.push_back("New Scene");
@@ -129,7 +133,7 @@ namespace MathAnim
 			}
 
 			EditorGui::init(am, currentProjectRoot, outputWidth, outputHeight);
-			LuauLayer::init(currentProjectRoot + "/scripts", am);
+			LuauLayer::init(currentProjectRoot/"scripts", am);
 
 			svgCache = new SvgCache();
 			svgCache->init();
@@ -247,8 +251,7 @@ namespace MathAnim
 			AnimationManager::render(am, deltaFrame);
 			Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], am, false);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
-			std::filesystem::path currentPath = std::filesystem::path(currentProjectRoot);
-			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
+			std::filesystem::path outputFile = (currentProjectRoot / "projectPreview.png");
 			if (mainFramebuffer.width > 1280 || mainFramebuffer.height > 720)
 			{
 				constexpr int pngOutputWidth = 1280;
@@ -294,6 +297,9 @@ namespace MathAnim
 
 			saveProject();
 
+			// Empty tmp directory
+			std::filesystem::remove_all(currentProjectTmpDir);
+
 			mainFramebuffer.destroy();
 			editorFramebuffer.destroy();
 
@@ -326,7 +332,7 @@ namespace MathAnim
 			tableOfContents.init();
 			tableOfContents.addEntry(sceneDataMemory, "Scene_Data");
 
-			std::string projectFilepath = currentProjectRoot + "project.bin";
+			std::string projectFilepath = (currentProjectRoot/"project.bin").string();
 			tableOfContents.serialize(projectFilepath.c_str());
 
 			sceneDataMemory.free();
@@ -348,7 +354,7 @@ namespace MathAnim
 			tableOfContents.addEntry(timelineData, "Timeline_Data");
 			tableOfContents.addEntry(cameraData, "Camera_Data");
 
-			std::string filepath = currentProjectRoot + sceneToFilename(sceneData.sceneNames[sceneData.currentScene]);
+			std::string filepath = (currentProjectRoot/sceneToFilename(sceneData.sceneNames[sceneData.currentScene])).string();
 			tableOfContents.serialize(filepath.c_str());
 
 			animationData.free();
@@ -357,9 +363,9 @@ namespace MathAnim
 			tableOfContents.free();
 		}
 
-		void loadProject(const std::string& projectRoot)
+		void loadProject(const std::filesystem::path& projectRoot)
 		{
-			std::string projectFilepath = projectRoot + "project.bin";
+			std::string projectFilepath = (projectRoot/"project.bin").string();
 			FILE* fp = fopen(projectFilepath.c_str(), "rb");
 			if (!fp)
 			{
@@ -393,7 +399,7 @@ namespace MathAnim
 
 		void loadScene(const std::string& sceneName)
 		{
-			std::string filepath = currentProjectRoot + sceneToFilename(sceneName);
+			std::string filepath = (currentProjectRoot/sceneToFilename(sceneName)).string();
 			FILE* fp = fopen(filepath.c_str(), "rb");
 			if (!fp)
 			{
@@ -445,7 +451,7 @@ namespace MathAnim
 
 		void deleteScene(const std::string& sceneName)
 		{
-			std::string filepath = currentProjectRoot + sceneToFilename(sceneName);
+			std::string filepath = (currentProjectRoot/sceneToFilename(sceneName)).string();
 			remove(filepath.c_str());
 		}
 
@@ -526,9 +532,14 @@ namespace MathAnim
 			return mainFramebuffer;
 		}
 
-		const std::string& getCurrentProjectRoot()
+		const std::filesystem::path& getCurrentProjectRoot()
 		{
 			return currentProjectRoot;
+		}
+
+		const std::filesystem::path& getTmpDir()
+		{
+			return currentProjectTmpDir;
 		}
 
 		OrthoCamera* getEditorCamera()

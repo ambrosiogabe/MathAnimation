@@ -33,7 +33,7 @@ namespace MathAnim
 
 		void saveProject();
 		void saveCurrentScene();
-		void loadProject(const std::string& projectRoot);
+		void loadProject(const std::filesystem::path& projectRoot);
 		void loadScene(const std::string& sceneName);
 		void deleteScene(const std::string& sceneName);
 		void changeSceneTo(const std::string& sceneName, bool saveCurrentScene = true);
@@ -47,7 +47,8 @@ namespace MathAnim
 		void resetToFrame(int frame);
 
 		const Framebuffer& getMainFramebuffer();
-		const std::string& getCurrentProjectRoot();
+		const std::filesystem::path& getCurrentProjectRoot();
+		const std::filesystem::path& getTmpDir();
 
 		// TODO: Ugly hack
 		OrthoCamera* getEditorCamera();

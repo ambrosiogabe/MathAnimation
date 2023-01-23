@@ -8,11 +8,12 @@ extern "C" {
 
 namespace MathAnim
 {
+	struct MemMappedFile;
+
 	struct VideoFrame
 	{
 		uint8* pixels;
 		size_t pixelsSize;
-		size_t mappedFileOffset;
 	};
 
 	enum class VideoEncoderFlags : uint8
@@ -59,6 +60,8 @@ namespace MathAnim
 		bool logProgress;
 		VideoEncoderFlags flags;
 		FILE* outputFile;
+		MemMappedFile* videoFrameCache;
+		size_t numPushedFrames;
 
 		// AV1 Data
 		AV1Context* av1Context;

@@ -33,7 +33,7 @@ namespace MathAnim
 		static bool mainViewportIsActive;
 		static bool editorViewportIsActive;
 
-		void init(AnimationManagerData* am, const std::string& assetsRoot, uint32 outputWidth, uint32 outputHeight)
+		void init(AnimationManagerData* am, const std::filesystem::path& assetsRoot, uint32 outputWidth, uint32 outputHeight)
 		{
 			viewportOffset = { 0, 0 };
 			viewportSize = { 0, 0 };

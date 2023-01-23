@@ -69,6 +69,7 @@ namespace MathAnim
 		output->frameCounter = 0;
 		output->logProgress = ((uint8)flags & (uint8)VideoEncoderFlags::LogProgress);
 		output->isEncoding = true;
+		output->numPushedFrames = 0;
 
 		size_t outputFilenameLength = std::strlen(outputFilename);
 		output->filename = (uint8*)g_memory_allocate(sizeof(uint8) * (outputFilenameLength + 1));
@@ -80,6 +81,7 @@ namespace MathAnim
 		if (!output->outputFile)
 		{
 			// TODO: Clean up memory and stuff
+			g_logger_error("Failed to open a handle for video outputfile. Aborting export.");
 			return nullptr;
 		}
 
@@ -123,6 +125,21 @@ namespace MathAnim
 
 			// we no longer need enc_params past this point
 			free(enc_params);
+		}
+
+		// Create a memmapped file for video frame cache
+		size_t yChannelSize = outputWidth * outputHeight;
+		size_t uChannelSize = outputWidth / 2 * outputHeight / 2;
+		size_t vChannelSize = uChannelSize;
+		size_t frameSize = yChannelSize + uChannelSize + vChannelSize;
+		size_t cacheSize = frameSize * totalNumFramesInVideo;
+		std::string directory = Application::getTmpDir().string();
+		output->videoFrameCache = Platform::createTmpMemMappedFile(directory, cacheSize);
+		if (!output->videoFrameCache)
+		{
+			// TODO: Error handling
+			g_logger_error("Failed to create memmapped file for video frame cache. Aborting export.");
+			return nullptr;
 		}
 
 		AV1Context* p = (AV1Context*)g_memory_allocate(sizeof(AV1Context));
@@ -206,6 +223,8 @@ namespace MathAnim
 			g_memory_free(av1Context);
 		}
 
+		Platform::freeMemMappedFile(videoFrameCache);
+
 		av1Context = nullptr;
 		filename = nullptr;
 		frameCounter = 0;
@@ -214,6 +233,8 @@ namespace MathAnim
 		height = 0;
 		framerate = 0;
 		logProgress = false;
+		videoFrameCache = nullptr;
+		numPushedFrames = 0;
 
 		this->~VideoEncoder();
 	}
@@ -226,8 +247,14 @@ namespace MathAnim
 		size_t framePixelsSize = yChannelSize + uChannelSize + vChannelSize;
 		g_logger_assert(pixelsSize == framePixelsSize, "Invalid pixel buffer for video encoding. Width and height do not match pixelsLength.");
 
+		// Get offset into memmapped file for video frame
+		size_t pixelOffset = this->numPushedFrames * framePixelsSize;
+		this->numPushedFrames++;
+
+		g_logger_assert(pixelOffset < this->videoFrameCache->dataSize, "Invalid pixel offset for video frame. Tried to push more frames than allocated for this video export.");
+		
 		VideoFrame frame;
-		frame.pixels = (uint8*)g_memory_allocate(framePixelsSize);
+		frame.pixels = this->videoFrameCache->data + pixelOffset;
 		g_memory_copyMem(frame.pixels, pixels, pixelsSize);
 		frame.pixelsSize = pixelsSize;
 
@@ -303,10 +330,6 @@ namespace MathAnim
 		svt_av1_enc_deinit_handle(av1Context->svtHandle);
 		// pthread_exit here just in case a thread inside the library managed to not die
 		//pthread_exit(NULL);
-
-		// Delete any lingering temporary files
-		std::filesystem::path tmpDir = std::filesystem::path(Application::getCurrentProjectRoot()) / "tmp";
-		std::filesystem::remove_all(tmpDir);
 	}
 
 	void VideoEncoder::encodeThreadLoop()
@@ -351,7 +374,9 @@ namespace MathAnim
 				vChannelSize
 			);
 			frameIndex++;
-			g_memory_free(nextFrame.pixels);
+
+			// NOTE: No need to free the pixels since they're mapped to a file
+			// and will be freed automatically when the file is deleted
 
 			if (logProgress && ((frameCounter % framerate) == 0))
 			{
