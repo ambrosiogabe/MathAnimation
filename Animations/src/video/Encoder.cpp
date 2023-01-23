@@ -293,29 +293,28 @@ namespace MathAnim
 				return false;
 			}
 
-			AVPacket pkt;
-			av_init_packet(&pkt);
-			pkt.data = NULL;
-			pkt.size = 0;
-			pkt.flags |= AV_PKT_FLAG_KEY;
-			if ((err = avcodec_receive_packet(encoder.codecContext, &pkt)) < 0)
+			AVPacket* pkt = av_packet_alloc();
+			pkt->data = NULL;
+			pkt->size = 0;
+			pkt->flags |= AV_PKT_FLAG_KEY;
+			if ((err = avcodec_receive_packet(encoder.codecContext, pkt)) < 0)
 			{
 				g_logger_error("Failed to recieve packet.");
 				printError(err);
-				av_packet_unref(&pkt);
+				av_packet_unref(pkt);
 				return false;
 			}
 
-			uint8_t* size = ((uint8_t*)pkt.data);
-			if ((err = av_interleaved_write_frame(encoder.formatContext, &pkt)) < 0)
+			uint8_t* size = ((uint8_t*)pkt->data);
+			if ((err = av_interleaved_write_frame(encoder.formatContext, pkt)) < 0)
 			{
 				g_logger_error("Failed to write frame: %d", encoder.frameCounter);
 				printError(err);
-				av_packet_unref(&pkt);
+				av_packet_free(&pkt);
 				return false;
 			}
 
-			av_packet_unref(&pkt);
+			av_packet_free(&pkt);
 			return true;
 		}
 

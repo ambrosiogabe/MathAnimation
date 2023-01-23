@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.16.0)
 
 project(
     MathAnimationsPrj
@@ -14,10 +14,24 @@ set(GRAMMARS_DIR ${CMAKE_SOURCE_DIR}/Animations/vendor/grammars)
 set(THEMES_DIR ${CMAKE_SOURCE_DIR}/Animations/vendor/themes)
 
 # Debug stuff
+if (NOT MSVC)
+    # MSVC defines _DEBUG and _RELEASE, depending on build type
+    set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -D_DEBUG")
+    set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
+endif()
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug)
 set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug/lib)
 # Release stuff
+if (NOT MSVC)
+    # MSVC defines _DEBUG and _RELEASE, depending on build type
+    set (CMAKE_C_FLAGS_RELEASE          "${CMAKE_C_FLAGS_RELEASE} -s -D_RELEASE")
+    set (CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -s -D_RELEASE")
+    set (CMAKE_C_FLAGS_RELWITHDEBINFO   "${CMAKE_C_FLAGS_RELWITHDEBINFO} -D_RELEASE")
+    set (CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -D_RELEASE")
+    set (CMAKE_C_FLAGS_MINSIZEREL       "${CMAKE_C_FLAGS_MINSIZEREL} -s -D_RELEASE")
+    set (CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} -s -D_RELEASE")
+endif ()
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release)
 set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release/lib)
@@ -33,7 +47,7 @@ file(GLOB_RECURSE MathAnimations_SRC
     "Animations/include/*.hpp"
 )
 
-file(GLOB_RECURSE glm_SRC 
+file(GLOB_RECURSE glm_SRC
     "Animations/vendor/glm/glm/*.hpp"
     "Animations/vendor/glm/glm/*.inl"
 )
@@ -42,9 +56,46 @@ file(GLOB_RECURSE stb_SRC
     "Animations/vendor/stb/stb/*.h"
 )
 
+# Select best available linker on *NIX
+if (UNIX AND NOT APPLE)
+    include(ProcessorCount)
+    ProcessorCount(HOST_PROC_COUNT)
+
+    find_program(MOLD_PROGRAM mold)
+    if(MOLD_PROGRAM)
+        message(STATUS "Set linker to mold: ${MOLD_PROGRAM}")
+        add_link_options("-fuse-ld=mold")
+    elseif(${CMAKE_CXX_COMPILER_ID} MATCHES Clang)
+        # By default LLD uses all system threads.
+        # This could be tweaked for versions 11+ (--threads=1), but cannot be disabled for older versions
+        # add_link_options("-fuse-ld=lld-${CLANG_VERSION_MAJOR};LINKER:--threads=${HOST_PROC_COUNT}") #LLD>=11
+        # add_link_options("-fuse-ld=lld;LINKER:--threads")#LLD <= 10 this is the default state
+
+        string(REPLACE "." ";" VERSION_LIST ${CMAKE_CXX_COMPILER_VERSION})
+        list(GET VERSION_LIST 0 CLANG_VERSION_MAJOR) #extract major compiler version
+
+        find_program(LLD_PROGRAM_MATCH_VER lld-${CLANG_VERSION_MAJOR}) #search for lld-13 when clang 13.x.x is used
+        find_program(LLD_PROGRAM lld) #else find default lld
+
+        if (LLD_PROGRAM_MATCH_VER) #lld matching compiler version
+            message(STATUS "Set linker to LLD (multi-threaded): ${LLD_PROGRAM_MATCH_VER}")
+            add_link_options("-fuse-ld=lld-${CLANG_VERSION_MAJOR}")
+        elseif(LLD_PROGRAM) #default lld
+            message(STATUS "Set linker to LLD (multi-threaded): ${LLD_PROGRAM}")
+            add_link_options("-fuse-ld=lld")
+        endif(LLD_PROGRAM_MATCH_VER)
+    elseif(${CMAKE_CXX_COMPILER_ID} MATCHES GNU)
+        find_program(GNU_GOLD_PROGRAM gold)
+        if (GNU_GOLD_PROGRAM)
+            message(STATUS "Set linker to GNU gold: ${GNU_GOLD_PROGRAM}, using threads: ${HOST_PROC_COUNT}")
+            add_link_options("-fuse-ld=gold;LINKER:--threads,--thread-count=${HOST_PROC_COUNT}")
+        endif(GNU_GOLD_PROGRAM)
+    endif(MOLD_PROGRAM)
+endif(UNIX AND NOT APPLE)
+
 add_executable(
-    MathAnimations 
-    ${MathAnimations_SRC} 
+    MathAnimations
+    ${MathAnimations_SRC}
     ${glm_SRC}
     ${stb_SRC}
 )
@@ -81,7 +132,7 @@ add_custom_command(TARGET MathAnimations POST_BUILD
 add_custom_command(TARGET MathAnimations POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
     # Copy Themes
-    ${THEMES_DIR}/atomOneDark/themes/oneDark.json
+    ${THEMES_DIR}/atomOneDark/themes/OneDark.json
     ${THEMES_DIR}/gruvbox/themes/gruvbox-dark-soft.json
     ${THEMES_DIR}/monokaiNight/themes/default.json
     ${THEMES_DIR}/oneMonokai/themes/OneMonokai-color-theme.json
@@ -90,8 +141,23 @@ add_custom_command(TARGET MathAnimations POST_BUILD
     $<TARGET_FILE_DIR:MathAnimations>/assets/themes
 )
 
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+if (ipo_supported)
+    message(STATUS "IPO / LTO enabled for Release-builds")
+    set_property(TARGET MathAnimations PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+    set_property(TARGET MathAnimations PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+    set_property(TARGET MathAnimations PROPERTY INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL TRUE)
+    if (DEBUG_IPO)
+        message(STATUS "IPO / LTO enabled for Debug-builds")
+        set_property(TARGET MathAnimations PROPERTY INTERPROCEDURAL_OPTIMIZATION_DEBUG TRUE)
+    endif()
+else()
+    message(STATUS "IPO / LTO not supported: <${ipo_error}>")
+endif()
+
 if (MSVC)
-    set_property(TARGET MathAnimations PROPERTY 
+    set_property(TARGET MathAnimations PROPERTY
         VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:MathAnimations>
     )
 
@@ -107,7 +173,7 @@ target_compile_definitions(
 )
 
 target_include_directories(
-    MathAnimations PUBLIC 
+    MathAnimations PUBLIC
     "Animations/include"
     "Animations/vendor/GLFW/include"
     "Animations/vendor/glad/include"
@@ -140,7 +206,7 @@ set(DearImGuiBackend_SRC
 add_library(DearImGuiBackend ${DearImGuiBackend_SRC})
 
 target_include_directories(
-    DearImGuiBackend PUBLIC 
+    DearImGuiBackend PUBLIC
     "Animations/vendor/dearimgui"
     "Animations/vendor/GLFW/include"
 )
@@ -158,7 +224,7 @@ target_compile_definitions(DearImGui PUBLIC
 )
 
 target_include_directories(
-    DearImGui PUBLIC 
+    DearImGui PUBLIC
     "Animations/vendor/dearimgui"
     # This is so that my ImVec2 -> Vec2 transformations work
     "Animations/include"
@@ -175,24 +241,44 @@ set(Glad_SRC
 add_library(Glad ${Glad_SRC})
 
 target_include_directories(
-    Glad PUBLIC 
+    Glad PUBLIC
     "Animations/vendor/glad/include"
 )
 
 # Native File Dialogue
-file(GLOB_RECURSE nativeFileDialog_SRC
-    "Animations/vendor/nativeFileDialog/src/*.h"
-    "Animations/vendor/nativeFileDialog/src/include/*.h"
-    "Animations/vendor/nativeFileDialog/src/nfd_common.c"
-    "./Animations/vendor/nativeFileDialog/src/nfd_win.cpp"
-)
+if(WIN32)
+    file(GLOB_RECURSE nativeFileDialog_SRC
+        "Animations/vendor/nativeFileDialog/src/*.h"
+        "Animations/vendor/nativeFileDialog/src/include/*.h"
+        "Animations/vendor/nativeFileDialog/src/nfd_common.c"
+        "Animations/vendor/nativeFileDialog/src/nfd_win.cpp"
+    )
+else()
+    file(GLOB_RECURSE nativeFileDialog_SRC
+        "Animations/vendor/nativeFileDialog/src/*.h"
+        "Animations/vendor/nativeFileDialog/src/include/*.h"
+        "Animations/vendor/nativeFileDialog/src/nfd_common.c"
+        "Animations/vendor/nativeFileDialog/src/nfd_gtk.c"
+    )
+endif()
 
 add_library(NativeFileDialog ${nativeFileDialog_SRC})
 
-target_include_directories(
-    NativeFileDialog PUBLIC 
-    "./Animations/vendor/nativeFileDialog/src/include"
-)
+if(UNIX)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+    target_link_directories(NativeFileDialog PUBLIC ${GTK3_LIBRARY_DIRS})
+    target_include_directories(
+        NativeFileDialog PUBLIC
+        "./Animations/vendor/nativeFileDialog/src/include"
+        ${GTK3_INCLUDE_DIRS}
+    )
+else()
+    target_include_directories(
+        NativeFileDialog PUBLIC
+        "./Animations/vendor/nativeFileDialog/src/include"
+    )
+endif()
 
 # Plutovg
 add_library(plutovg STATIC)
@@ -210,7 +296,7 @@ set(tinyxml2_SRC
 add_library(tinyxml2 ${tinyxml2_SRC})
 
 target_include_directories(
-    tinyxml2 PUBLIC 
+    tinyxml2 PUBLIC
     "Animations/vendor/tinyxml2"
 )
 
@@ -286,10 +372,10 @@ set_target_properties(
     PROPERTIES
     CMAKE_CXX_STANDARD 17
     CMAKE_CXX_STANDARD_REQUIRED True
-    LINKER_LANGUAGE CXX 
+    LINKER_LANGUAGE CXX
 )
 
-if (MSVC) 
+if (MSVC)
     set_target_properties(
         MathAnimations
         NativeFileDialog
@@ -300,7 +386,7 @@ if (MSVC)
         plutovg
         OpenAL
         freetype
-        common 
+        common
         ex-common
 
         PROPERTIES
@@ -310,50 +396,102 @@ endif()
 
 # Link Options
 # Find FFMpeg stuff
-find_library(LIB_AVCODEC libavcodec HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_AVDEVICE libavdevice HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_AVFILTER libavfilter HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_AVFORMAT libavformat HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_AVUTIL libavutil HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_SWRESAMPLE libswresample HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
-find_library(LIB_SWSCALE libswscale HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+if (MSVC)
+    find_library(LIB_AVCODEC libavcodec HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_AVDEVICE libavdevice HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_AVFILTER libavfilter HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_AVFORMAT libavformat HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_AVUTIL libavutil HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_SWRESAMPLE libswresample HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_SWSCALE libswscale HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+else()
+    find_library(LIB_AVCODEC avcodec HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_AVDEVICE avdevice HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_AVFILTER avfilter HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_AVFORMAT avformat HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_AVUTIL avutil HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_SWRESAMPLE swresample HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+    find_library(LIB_SWSCALE swscale HINTS ${CMAKE_SOURCE_DIR}/Animations/vendor/ffmpeg/build/lib)
+endif()
 
-target_link_libraries(
-    MathAnimations 
-    glfw
-    freetype
-    DearImGuiBackend
-    Glad
-    NativeFileDialog
-    OpenAL
-    Luau.Ast 
-    Luau.CodeGen 
-    Luau.Compiler 
-    Luau.VM 
-    Luau.Analysis 
-    onig 
-    plutovg 
-    tinyxml2 
-    DearImGui
-    # FFmpeg stuff
-    ${LIB_AVCODEC}
-    ${LIB_AVDEVICE}
-    ${LIB_AVFILTER}
-    ${LIB_AVFORMAT}
-    ${LIB_AVUTIL}
-    ${LIB_SWRESAMPLE}
-    ${LIB_SWSCALE}
-    # Windows static libs required for ffmepg
-    Ws2_32
-    Secur32
-    Bcrypt
-    Mfuuid
-    Strmiids
-)
+if(WIN32)
+    target_link_libraries(
+        MathAnimations
+        glfw
+        freetype
+        DearImGuiBackend
+        Glad
+        NativeFileDialog
+        OpenAL
+        Luau.Ast
+        Luau.CodeGen
+        Luau.Compiler
+        Luau.VM
+        Luau.Analysis
+        onig
+        plutovg
+        tinyxml2
+        DearImGui
+        # FFmpeg stuff
+        ${LIB_AVCODEC}
+        ${LIB_AVDEVICE}
+        ${LIB_AVFILTER}
+        ${LIB_AVFORMAT}
+        ${LIB_AVUTIL}
+        ${LIB_SWRESAMPLE}
+        ${LIB_SWSCALE}
+        # Windows static libs required for ffmepg
+        Ws2_32
+        Secur32
+        Bcrypt
+        Mfuuid
+        Strmiids
+    )
+else()
+    target_link_libraries(
+        MathAnimations
+
+        ssl
+        crypto
+
+        glfw
+        freetype
+        DearImGuiBackend
+        Glad
+        NativeFileDialog
+        OpenAL
+        Luau.Ast
+        Luau.CodeGen
+        Luau.Compiler
+        Luau.VM
+        Luau.Analysis
+        onig
+        plutovg
+        tinyxml2
+        DearImGui
+        # FFmpeg stuff
+        va
+        vdpau
+        X11
+        va-x11
+        va-drm
+        bz2
+        z
+        ${GTK3_LIBRARIES}
+        ${LIB_AVCODEC}
+        ${LIB_AVDEVICE}
+        ${LIB_AVFILTER}
+        ${LIB_AVFORMAT}
+        ${LIB_AVUTIL}
+        ${LIB_SWRESAMPLE}
+        ${LIB_SWSCALE}
+        lzma
+    )
+endif()
 
 if (MSVC)
     set_property(
-        DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} 
+        DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         PROPERTY VS_STARTUP_PROJECT MathAnimations
     )
 endif()

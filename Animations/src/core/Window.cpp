@@ -13,8 +13,8 @@ namespace MathAnim
 		GL::viewport(0, 0, newWidth, newHeight);
 	}
 
-	Window::Window(int width, int height, const char* title, WindowFlags flags)
-		: width(width), height(height), title(title)
+	Window::Window(int width, int height, const char* title, const char* id, WindowFlags flags)
+		: width(width), height(height), title(title), id(id)
 	{
 		if (GLVersion.major < 3 || (GLVersion.major >= 3 && GLVersion.minor < 1)) 
 		{
@@ -28,6 +28,7 @@ namespace MathAnim
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 		glfwWindowHint(GLFW_SAMPLES, 4);
+		glfwWindowHintString(GLFW_WAYLAND_APP_ID, id);
 		if (flags & WindowFlags::OpenMaximized)
 		{
 			glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);

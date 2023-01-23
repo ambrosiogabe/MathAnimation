@@ -38,6 +38,8 @@
 #include <imgui.h>
 #include <oniguruma.h>
 
+#include <errno.h>
+
 namespace MathAnim
 {
 	namespace Application
@@ -98,7 +100,7 @@ namespace MathAnim
 
 			// Initiaize GLFW/Glad
 			GladLayer::init();
-			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
+			window = new Window(1920, 1080, winTitle, "mathanimations_project_view", WindowFlags::OpenMaximized);
 			window->setVSync(true);
 
 			// Initialize Onigiruma
@@ -132,7 +134,7 @@ namespace MathAnim
 			}
 
 			EditorGui::init(am, currentProjectRoot);
-			LuauLayer::init(currentProjectRoot + "/scripts", am);
+			LuauLayer::init(currentProjectRoot + "scripts", am);
 
 			svgCache = new SvgCache();
 			svgCache->init();
@@ -218,7 +220,6 @@ namespace MathAnim
 				GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "ImGui_Pass");
 				ImGuiLayer::beginFrame();
 				MenuBar::update();
-				ImGui::ShowDemoWindow();
 				SceneManagementPanel::update(sceneData);
 				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
 				ImGuiLayer::endFrame();
@@ -376,7 +377,7 @@ namespace MathAnim
 			FILE* fp = fopen(projectFilepath.c_str(), "rb");
 			if (!fp)
 			{
-				g_logger_warning("Could not load project '%s', error opening file.", projectFilepath.c_str());
+				g_logger_warning("Could not load project '%s', error opening file: %s.", projectFilepath.c_str(), strerror(errno));
 				return;
 			}
 

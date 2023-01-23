@@ -18,9 +18,13 @@ _bin-int/**
 build/
 
 project.4coder
+build.sh
 msbuild-build.bat
 run.bat
 myScene.bin
 imgui.ini
 
 latex/**
+
+*.make
+Makefile

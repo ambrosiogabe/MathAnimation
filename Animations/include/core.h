@@ -1,6 +1,11 @@
 #ifndef MATH_ANIM_CORE_H
 #define MATH_ANIM_CORE_H
 
+// _MAX_PATH is not a good constant, it lies, gets ignored sometimes, and is also not necessarily defined.
+#ifndef _MAX_PATH
+#define _MAX_PATH 520
+#endif
+
 // Glm
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -12,7 +17,7 @@
 #include <glm/gtx/matrix_decompose.hpp>
 
 // My stuff
-#include <cppUtils/cppUtils.hpp>
+#include <cppUtils/cppUtils.h>
 
 // Standard
 #include <filesystem>

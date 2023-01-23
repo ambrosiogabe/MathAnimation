@@ -70,8 +70,13 @@ namespace MathAnim
 			iconPadding.y *= dpiScale;
 
 			ImGuiIO& io = ImGui::GetIO();
+#if defined(_WIN32)
 			largeFont = io.Fonts->AddFontFromFileTTF("C:/Windows/FONTS/SegoeUI.ttf", 36.0f * dpiScale);
 			defaultFont = io.Fonts->AddFontFromFileTTF("C:/Windows/FONTS/SegoeUI.ttf", 20.0f * dpiScale);
+#elif defined(__linux__)
+			largeFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/TTF/DejaVuSans.ttf", 36.0f * dpiScale);
+			defaultFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/TTF/DejaVuSans.ttf", 20.0f * dpiScale);
+#endif
 
 			selectedProjectIndex = -1;
 
@@ -125,7 +130,7 @@ namespace MathAnim
 					availableSpace.x / 2.0f - textSize.x / 2.0f,
 					titleBarHeight / 2.0f - textSize.y / 2.0f
 				));
-				ImGui::Text(appTitle.c_str());
+				ImGui::Text("%s", appTitle.c_str());
 
 				ImGui::PopFont();
 			}
@@ -170,7 +175,7 @@ namespace MathAnim
 				ImVec2 rectMax = ImGui::GetItemRectMax();
 				drawList->PushClipRect(ImGui::GetCurrentWindow()->ClipRect.Min, ImGui::GetCurrentWindow()->ClipRect.Max);
 				drawList->AddImageRounded(
-					(ImTextureID)projects[i].texture.graphicsId,
+					(ImTextureID)(uint64)projects[i].texture.graphicsId,
 					rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1),
 					IM_COL32(255, 255, 255, 255), iconBorderRounding);
 
@@ -189,7 +194,7 @@ namespace MathAnim
 				float offsetX = (iconWidth / 2.0f - textSize.x / 2.0f) + iconPadding.x;
 				ImGui::PushStyleColor(ImGuiCol_Text, i == selectedProjectIndex ? Colors::Neutral[0] : Colors::Neutral[2]);
 				ImGui::SetCursorPosX(iconStart.x + offsetX);
-				ImGui::Text(pi.projectName.c_str());
+				ImGui::Text("%s", pi.projectName.c_str());
 				ImGui::PopStyleColor();
 
 				// Increment to next icon position
@@ -315,7 +320,7 @@ namespace MathAnim
 				projectAreaPadding.x,
 				createProjectTitleBarHeight / 2.0f - textSize.y / 2.0f
 			));
-			ImGui::Text(createProjectTitle.c_str());
+			ImGui::Text("%s", createProjectTitle.c_str());
 
 			ImGui::PopFont();
 

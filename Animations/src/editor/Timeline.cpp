@@ -466,7 +466,11 @@ namespace MathAnim
 				counter = 0;
 			}
 			char counterString[3];
+#ifdef _itoa_s
 			_itoa_s(counter, counterString, 10);
+#else
+			snprintf(counterString, sizeof(counterString), "%d", counter);
+#endif
 
 			if (inTrackName)
 			{

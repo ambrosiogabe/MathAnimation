@@ -12,6 +12,10 @@
 
 #include <plutovg.h>
 
+#ifndef isnan
+#include "math.h"
+#endif
+
 namespace MathAnim
 {
 	namespace Svg
@@ -791,7 +795,7 @@ namespace MathAnim
 							const Vec2& p2 = nextCurve.as.bezier3.p2;
 							const Vec2& p3 = nextCurve.as.bezier3.p3;
 
-							// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+							// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bÃ©zier-curve-by-reusing-a-basic-bÃ©zier-curve-function
 							{
 								// First split
 								float t0 = 0.0f;
@@ -866,7 +870,7 @@ namespace MathAnim
 							p2 = pr2;
 							Vec2 p3 = p2;
 
-							// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+							// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bÃ©zier-curve-by-reusing-a-basic-bÃ©zier-curve-function
 							{
 								// Split 1
 								float t0 = 0.0f;
@@ -1274,7 +1278,7 @@ namespace MathAnim
 			const Vec2& p2 = as.bezier3.p2;
 			const Vec2& p3 = as.bezier3.p3;
 
-			// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+			// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bÃ©zier-curve-by-reusing-a-basic-bÃ©zier-curve-function
 			float t0 = _t0;
 			float t1 = _t1;
 			float u0 = (1.0f - t0);
@@ -1319,7 +1323,7 @@ namespace MathAnim
 			Vec2 pr3 = p3;
 
 			// Interpolate the curve
-			// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+			// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bÃ©zier-curve-by-reusing-a-basic-bÃ©zier-curve-function
 			float t0 = _t0;
 			float t1 = _t1;
 			float u0 = (1.0f - t0);
@@ -2003,7 +2007,7 @@ namespace MathAnim
 								// Interpolate the curve
 								float percentOfCurveToDraw = lengthLeft / approxLength;
 
-								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bÃ©zier-curve-by-reusing-a-basic-bÃ©zier-curve-function
 								float t0 = 0.0f;
 								float t1 = percentOfCurveToDraw;
 								float u0 = 1.0f;
@@ -2074,7 +2078,7 @@ namespace MathAnim
 								p2 = (pr2 - pr1) * percentOfCurveToDraw + pr1;
 								p3 = (pr3 - pr2) * percentOfCurveToDraw + pr2;
 
-								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bézier-curve-by-reusing-a-basic-bézier-curve-function
+								// Taken from https://stackoverflow.com/questions/878862/drawing-part-of-a-bÃ©zier-curve-by-reusing-a-basic-bÃ©zier-curve-function
 								float t0 = 0.0f;
 								float t1 = percentOfCurveToDraw;
 								float u0 = 1.0f;

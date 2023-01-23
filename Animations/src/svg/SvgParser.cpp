@@ -6,8 +6,8 @@
 using namespace tinyxml2;
 
 #define PANIC(formatStr, ...) \
-	snprintf(errorBuffer, errorBufferSize, formatStr, __VA_ARGS__); \
-	g_logger_error(formatStr, __VA_ARGS__);
+	snprintf(errorBuffer, errorBufferSize, formatStr, ##__VA_ARGS__); \
+	g_logger_error(formatStr, ##__VA_ARGS__);
 
 namespace MathAnim
 {
@@ -510,7 +510,7 @@ namespace MathAnim
 
 							static uint64 rCounter = 0;
 							rCounter++;
-							std::string rCounterStr = "rect-" + rCounter;
+							std::string rCounterStr("rect-" + std::to_string(rCounter));
 							// Flip y-coords to be consistent with everything else positioning from 
 							// the bottom-left
 							y = y - viewbox.values[3];
@@ -1377,7 +1377,7 @@ namespace MathAnim
 			}
 			else
 			{
-				PANIC("Unknown symbol encountered while parsing SVG path. ParserInfo[%u/%u]:'%c'", parserInfo.cursor, parserInfo.textLength, peek(parserInfo));
+				PANIC("Unknown symbol encountered while parsing SVG path. ParserInfo[%zu/%zu]:'%c'", parserInfo.cursor, parserInfo.textLength, peek(parserInfo));
 			}
 
 			skipWhitespaceAndCommas(parserInfo);
@@ -1536,7 +1536,7 @@ namespace MathAnim
 			{
 				if (token.type != StyleTokenType::Identifier)
 				{
-					PANIC("Expected identifier. Instead got token of type: %d", token.type);
+					PANIC("Expected identifier. Instead got token of type: %hhu", token.type);
 					token.free();
 					return false;
 				}
@@ -1554,7 +1554,7 @@ namespace MathAnim
 				token = parseNextStyleToken(parserInfo);
 				if (token.type != StyleTokenType::Semicolon && token.type != StyleTokenType::EndOfFile)
 				{
-					PANIC("Expected ';' or 'EOF' to end a style attribute. Instead got token of type %d", token.type);
+					PANIC("Expected ';' or 'EOF' to end a style attribute. Instead got token of type %hhu", token.type);
 					token.free();
 					return false;
 				}
@@ -1578,13 +1578,13 @@ namespace MathAnim
 			if (consumeClosingCurlyBracket && token.type != StyleTokenType::RightCurlyBracket)
 			{
 				token.free();
-				PANIC("Expected '}' to end a style. Instead got token of type: %d", token.type);
+				PANIC("Expected '}' to end a style. Instead got token of type: %hhu", token.type);
 				return false;
 			}
 			else if (!consumeClosingCurlyBracket && token.type != StyleTokenType::EndOfFile)
 			{
 				token.free();
-				PANIC("Expected 'EOF' to end an inline-style. Instead got token of type: %d", token.type);
+				PANIC("Expected 'EOF' to end an inline-style. Instead got token of type: %hhu", token.type);
 				return false;
 			}
 
@@ -1622,7 +1622,7 @@ namespace MathAnim
 			}
 			else
 			{
-				PANIC("Cannot assign identifier of type %d as a style attribute. Must be a HashtagIdentifier or a DotIdentifier", identifier.type);
+				PANIC("Cannot assign identifier of type %hhu as a style attribute. Must be a HashtagIdentifier or a DotIdentifier", identifier.type);
 				return false;
 			}
 
@@ -1650,7 +1650,7 @@ namespace MathAnim
 			if (token.type != expected)
 			{
 				token.free();
-				PANIC("Expected token of type '%d' but got token of type '%d'.", expected, token.type);
+				PANIC("Expected token of type '%hhu' but got token of type '%hhu'.", expected, token.type);
 				token.type = StyleTokenType::Panic;
 				parserInfo.cursor = parserInfo.textLength;
 			}
@@ -1760,7 +1760,7 @@ namespace MathAnim
 		{
 			if (attributeName.type != StyleTokenType::Identifier)
 			{
-				PANIC("Attribute Name must be an identifier. This attribute name was of type %d", attributeName.type);
+				PANIC("Attribute Name must be an identifier. This attribute name was of type %hhu", attributeName.type);
 				return false;
 			}
 
@@ -2024,4 +2024,4 @@ namespace MathAnim
 	}
 }
 
-#undef PANIC;
+#undef PANIC

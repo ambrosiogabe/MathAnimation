@@ -22,9 +22,10 @@ namespace MathAnim
 		int width;
 		int height;
 		const char* title;
+		const char* id;
 		void* windowPtr;
         
-		Window(int width, int height, const char* title, WindowFlags flags = WindowFlags::None);
+		Window(int width, int height, const char* title, const char* id, WindowFlags flags = WindowFlags::None);
         
 		void makeContextCurrent();
         
