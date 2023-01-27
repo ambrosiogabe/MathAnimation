@@ -61,6 +61,3 @@
 [submodule "Animations/vendor/grammars/javascript"]
 	path = Animations/vendor/grammars/javascript
 	url = https://github.com/Microsoft/vscode-js-atom-grammar
-[submodule "Animations/vendor/av1"]
-	path = Animations/vendor/av1
-	url = https://gitlab.com/AOMediaCodec/SVT-AV1

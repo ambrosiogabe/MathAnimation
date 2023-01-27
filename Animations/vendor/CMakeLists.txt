@@ -121,3 +121,20 @@ add_subdirectory(nlohmann)
 #######
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE "${CMAKE_CURRENT_LIST_DIR}/stb")
+
+#######
+# AV1 #
+#######
+# Is this important?
+#-DCMAKE_INSTALL_PREFIX=%SYSTEMDRIVE%\svt-encoders 
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(ENABLE_AVX512 ON CACHE BOOL "" FORCE)
+set(BUILD_APPS OFF CACHE BOOL "" FORCE)
+set(BUILD_DEC OFF CACHE BOOL "" FORCE)
+set(CMAKE_ASM_NASM_COMPILER "yasm" CACHE BOOL "" FORCE)
+if (MSVC)
+    set(MSVC_STATIC_RUNTIME ON CACHE BOOL "" FORCE)
+endif()
+
+add_subdirectory(av1)

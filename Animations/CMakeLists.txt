@@ -76,6 +76,9 @@ target_link_libraries(MathAnimations PUBLIC
     Luau.Compiler
     Luau.VM
     Luau.Analysis
+
+    # AV1
+    SvtAv1Enc
 )
 
 if(MATH_ANIMATION_OS_LINUX)
