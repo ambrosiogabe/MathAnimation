@@ -10,6 +10,7 @@
 #include "renderer/Fonts.h"
 #include "utils/CMath.h"
 #include "editor/Gizmos.h"
+#include "editor/EditorSettings.h"
 
 namespace MathAnim
 {
@@ -1222,6 +1223,24 @@ namespace MathAnim
 			status = as.camera.isActiveCamera
 				? AnimObjectStatus::Active
 				: AnimObjectStatus::Inactive;
+		}
+	}
+
+	void AnimObject::retargetSvgScale()
+	{
+		float targetMaxLength = EditorSettings::getSettings().svgTargetScale;
+		if (svgObject)
+		{
+			svgScale = svgObject->calculateSvgScale(targetMaxLength);
+		}
+
+		// If it failed to get an svg scale then try again with _svgObjectStart
+		if (svgScale == 0.0f || svgObject == nullptr)
+		{
+			if (_svgObjectStart)
+			{
+				svgScale = _svgObjectStart->calculateSvgScale(targetMaxLength);
+			}
 		}
 	}
 

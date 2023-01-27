@@ -272,6 +272,8 @@ namespace MathAnim
 		static Shader shaderFont2D;
 		static Shader shader3DLine;
 		static Shader screenShader;
+		static Shader rgbToYuvShaderYChannel;
+		static Shader rgbToYuvShaderUvChannel;
 		static Shader shader3DOpaque;
 		static Shader shader3DTransparent;
 		static Shader shader3DComposite;
@@ -337,6 +339,8 @@ namespace MathAnim
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
+			rgbToYuvShaderYChannel.compile("assets/shaders/rgbToYuvYChannel.glsl");
+			rgbToYuvShaderUvChannel.compile("assets/shaders/rgbToYuvUvChannel.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
@@ -347,6 +351,8 @@ namespace MathAnim
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
+			rgbToYuvShaderYChannel.compile("assets/shaders/rgbToYuvYChannel.glsl");
+			rgbToYuvShaderUvChannel.compile("assets/shaders/rgbToYuvUvChannel.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
@@ -445,6 +451,59 @@ namespace MathAnim
 			GL::activeTexture(GL_TEXTURE0);
 			texture.bind();
 			screenShader.uploadInt("uTexture", 0);
+
+			GL::bindVertexArray(screenVao);
+			GL::drawArrays(GL_TRIANGLES, 0, 6);
+		}
+
+		void renderTextureToFramebuffer(const Texture& texture, const Framebuffer& framebuffer)
+		{
+			// We're rendering to this framebuffer
+			framebuffer.bind();
+			screenShader.bind();
+
+			GL::viewport(0, 0, framebuffer.width, framebuffer.height);
+
+			GL::activeTexture(GL_TEXTURE0);
+			texture.bind();
+			screenShader.uploadInt("uTexture", 0);
+
+			GL::bindVertexArray(screenVao);
+			GL::drawArrays(GL_TRIANGLES, 0, 6);
+		}
+
+		void renderTextureToYuvFramebuffer(const Texture& texture, const Framebuffer& yFramebuffer, const Framebuffer& uvFramebuffer)
+		{
+			// We do 2 Render passes, one for the bigger y channel and one for the smaller u/v channels
+			yFramebuffer.bind();
+
+			// First pass for the larger Y channel
+			rgbToYuvShaderYChannel.bind();
+			GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
+			GL::drawBuffers(4, drawBuffers);
+
+			GL::viewport(0, 0, yFramebuffer.width, yFramebuffer.height);
+
+			GL::activeTexture(GL_TEXTURE0);
+			texture.bind();
+			rgbToYuvShaderYChannel.uploadInt("uTexture", 0);
+
+			GL::bindVertexArray(screenVao);
+			GL::drawArrays(GL_TRIANGLES, 0, 6);
+
+			// Second pass for the smaller UV channels
+			uvFramebuffer.bind();
+
+			rgbToYuvShaderUvChannel.bind();
+			drawBuffers[0] = GL_COLOR_ATTACHMENT0;
+			drawBuffers[1] = GL_COLOR_ATTACHMENT1;
+			GL::drawBuffers(4, drawBuffers);
+
+			GL::viewport(0, 0, uvFramebuffer.width, uvFramebuffer.height);
+
+			GL::activeTexture(GL_TEXTURE0);
+			texture.bind();
+			rgbToYuvShaderUvChannel.uploadInt("uTexture", 0);
 
 			GL::bindVertexArray(screenVao);
 			GL::drawArrays(GL_TRIANGLES, 0, 6);

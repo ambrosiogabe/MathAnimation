@@ -27,6 +27,7 @@
 #include "editor/EditorSettings.h"
 #include "editor/SceneManagementPanel.h"
 #include "editor/MenuBar.h"
+#include "editor/ExportPanel.h"
 #include "parsers/SyntaxHighlighter.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
@@ -34,6 +35,7 @@
 #include "video/Encoder.h"
 #include "utils/TableOfContents.h"
 #include "scripting/LuauLayer.h"
+#include "platform/Platform.h"
 
 #include <imgui.h>
 #include <oniguruma.h>
@@ -45,10 +47,7 @@ namespace MathAnim
 	namespace Application
 	{
 		static AnimState animState = AnimState::Pause;
-		static bool outputVideoFile = false;
-		static std::string outputVideoFilename = "";
 
-		static int framerate = 60;
 		static int outputWidth = 3840;
 		static int outputHeight = 2160;
 		static float viewportWidth = 18.0f;
@@ -64,8 +63,8 @@ namespace MathAnim
 		static int absoluteCurrentFrame = -1;
 		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
-		static std::string currentProjectRoot;
-		static VideoEncoder encoder = {};
+		static std::filesystem::path currentProjectRoot;
+		static std::filesystem::path currentProjectTmpDir;
 		static SceneData sceneData = {};
 		static bool reloadCurrentScene = false;
 		static bool saveCurrentSceneOnReload = true;
@@ -123,18 +122,20 @@ namespace MathAnim
 			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 			editorFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
 
-			currentProjectRoot = std::filesystem::path(projectFile).parent_path().string() + "/";
+			currentProjectRoot = std::filesystem::path(projectFile).parent_path();
+			currentProjectTmpDir = currentProjectRoot / "tmp";
+			Platform::createDirIfNotExists(currentProjectTmpDir.string().c_str());
 
 			initializeSceneSystems();
-			loadProject(currentProjectRoot.c_str());
+			loadProject(currentProjectRoot);
 			if (sceneData.sceneNames.size() <= 0)
 			{
 				sceneData.sceneNames.push_back("New Scene");
 				sceneData.currentScene = 0;
 			}
 
-			EditorGui::init(am, currentProjectRoot);
-			LuauLayer::init(currentProjectRoot + "scripts", am);
+			EditorGui::init(am, currentProjectRoot, outputWidth, outputHeight);
+			LuauLayer::init(currentProjectRoot/"scripts", am);
 
 			svgCache = new SvgCache();
 			svgCache->init();
@@ -159,27 +160,35 @@ namespace MathAnim
 				previousTime = glfwGetTime();
 				window->pollInput();
 
-				if (outputVideoFile)
-				{
-					accumulatedTime += (1.0f / 60.0f);
-					absoluteCurrentFrame++;
-				}
-
 				// Update components
-				if (animState == AnimState::PlayForward)
+				switch (animState)
+				{
+				case AnimState::PlayForward:
 				{
 					accumulatedTime += deltaTime;
 					absoluteCurrentFrame = (int)(accumulatedTime * 60.0f);
 				}
-				else if (animState == AnimState::PlayReverse)
+				break;
+				case AnimState::PlayForwardFixedFrameTime:
 				{
-					absoluteCurrentFrame = glm::max(absoluteCurrentFrame - 1, 0);
+					absoluteCurrentFrame++;
+					accumulatedTime += (1.0f / 60.0f);
+				}
+				break;
+				case AnimState::PlayReverse:
+				{
+					accumulatedTime -= deltaTime;
+					absoluteCurrentFrame = (int)(accumulatedTime * 60.0f);
+				}
+				break;
+				case AnimState::Pause:
+					break;
 				}
 
 				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
 				if (deltaFrame != 0)
 				{
-					// TODO: Do something here...
+					// TODO: Once caching works again, update the cache and timeline
 					//svgCache->clearAll();
 				}
 
@@ -196,7 +205,7 @@ namespace MathAnim
 				// Render all animation draw calls to main framebuffer
 				bool renderPickingOutline = false;
 
-				if (EditorGui::mainViewportActive() || outputVideoFile)
+				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
 				{
 					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], am, renderPickingOutline);
 				}
@@ -229,21 +238,6 @@ namespace MathAnim
 				AnimationManager::endFrame(am);
 
 				// Miscellaneous
-				// TODO: Abstract this stuff out of here
-				if (outputVideoFile && absoluteCurrentFrame > -1)
-				{
-					Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0, true);
-
-					// TODO: Add a hardware accelerated version that usee CUDA and NVENC
-					VideoWriter::pushFrame(pixels, outputWidth * outputHeight, encoder);
-					mainFramebuffer.freePixels(pixels);
-
-					if (absoluteCurrentFrame >= AnimationManager::lastAnimatedFrame(am))
-					{
-						endExport();
-					}
-				}
-
 				window->swapBuffers();
 
 				if (reloadCurrentScene)
@@ -259,8 +253,7 @@ namespace MathAnim
 			AnimationManager::render(am, deltaFrame);
 			Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], am, false);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
-			std::filesystem::path currentPath = std::filesystem::path(currentProjectRoot);
-			std::filesystem::path outputFile = (currentPath / "projectPreview.png");
+			std::filesystem::path outputFile = (currentProjectRoot / "projectPreview.png");
 			if (mainFramebuffer.width > 1280 || mainFramebuffer.height > 720)
 			{
 				constexpr int pngOutputWidth = 1280;
@@ -304,10 +297,10 @@ namespace MathAnim
 			svgCache->free();
 			delete svgCache;
 
-			// Free it just in case, if the encoder isn't active this does nothing
-			VideoWriter::freeEncoder(encoder);
-
 			saveProject();
+
+			// Empty tmp directory
+			std::filesystem::remove_all(currentProjectTmpDir);
 
 			mainFramebuffer.destroy();
 			editorFramebuffer.destroy();
@@ -341,7 +334,7 @@ namespace MathAnim
 			tableOfContents.init();
 			tableOfContents.addEntry(sceneDataMemory, "Scene_Data");
 
-			std::string projectFilepath = currentProjectRoot + "project.bin";
+			std::string projectFilepath = (currentProjectRoot/"project.bin").string();
 			tableOfContents.serialize(projectFilepath.c_str());
 
 			sceneDataMemory.free();
@@ -363,7 +356,7 @@ namespace MathAnim
 			tableOfContents.addEntry(timelineData, "Timeline_Data");
 			tableOfContents.addEntry(cameraData, "Camera_Data");
 
-			std::string filepath = currentProjectRoot + sceneToFilename(sceneData.sceneNames[sceneData.currentScene]);
+			std::string filepath = (currentProjectRoot/sceneToFilename(sceneData.sceneNames[sceneData.currentScene])).string();
 			tableOfContents.serialize(filepath.c_str());
 
 			animationData.free();
@@ -372,9 +365,9 @@ namespace MathAnim
 			tableOfContents.free();
 		}
 
-		void loadProject(const std::string& projectRoot)
+		void loadProject(const std::filesystem::path& projectRoot)
 		{
-			std::string projectFilepath = projectRoot + "project.bin";
+			std::string projectFilepath = (projectRoot/"project.bin").string();
 			FILE* fp = fopen(projectFilepath.c_str(), "rb");
 			if (!fp)
 			{
@@ -408,7 +401,7 @@ namespace MathAnim
 
 		void loadScene(const std::string& sceneName)
 		{
-			std::string filepath = currentProjectRoot + sceneToFilename(sceneName);
+			std::string filepath = (currentProjectRoot/sceneToFilename(sceneName)).string();
 			FILE* fp = fopen(filepath.c_str(), "rb");
 			if (!fp)
 			{
@@ -460,7 +453,7 @@ namespace MathAnim
 
 		void deleteScene(const std::string& sceneName)
 		{
-			std::string filepath = currentProjectRoot + sceneToFilename(sceneName);
+			std::string filepath = (currentProjectRoot/sceneToFilename(sceneName)).string();
 			remove(filepath.c_str());
 		}
 
@@ -529,44 +522,26 @@ namespace MathAnim
 			return absoluteCurrentFrame;
 		}
 
-		int getFrameratePerSecond()
-		{
-			return framerate;
-		}
-
 		void resetToFrame(int frame)
 		{
 			absoluteCurrentFrame = frame;
 			absolutePrevFrame = frame;
+			accumulatedTime = frame * ExportPanel::getExportSecondsPerFrame();
 		}
 
-		void exportVideoTo(const std::string& filename)
+		const Framebuffer& getMainFramebuffer()
 		{
-			outputVideoFilename = filename;
-			if (VideoWriter::startEncodingFile(&encoder, outputVideoFilename.c_str(), outputWidth, outputHeight, framerate, 60, true))
-			{
-				absoluteCurrentFrame = -1;
-				outputVideoFile = true;
-			}
+			return mainFramebuffer;
 		}
 
-		bool isExportingVideo()
+		const std::filesystem::path& getCurrentProjectRoot()
 		{
-			return outputVideoFile;
+			return currentProjectRoot;
 		}
 
-		void endExport()
+		const std::filesystem::path& getTmpDir()
 		{
-			if (VideoWriter::finalizeEncodingFile(encoder))
-			{
-				g_logger_info("Finished exporting video file.");
-			}
-			else
-			{
-				g_logger_error("Failed to finalize encoding video file: %s", encoder.filename);
-			}
-			VideoWriter::freeEncoder(encoder);
-			outputVideoFile = false;
+			return currentProjectTmpDir;
 		}
 
 		OrthoCamera* getEditorCamera()
@@ -633,7 +608,7 @@ namespace MathAnim
 
 			loadScene(sceneData.sceneNames[sceneData.currentScene]);
 
-			EditorGui::init(am, currentProjectRoot);
+			EditorGui::init(am, currentProjectRoot, outputWidth, outputHeight);
 		}
 
 		static void freeSceneSystems()

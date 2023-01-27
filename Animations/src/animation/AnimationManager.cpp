@@ -4,6 +4,7 @@
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/OrthoCamera.h"
+#include "editor/EditorSettings.h"
 #include "svg/Svg.h"
 #include "core/Application.h"
 
@@ -159,6 +160,8 @@ namespace MathAnim
 			}
 			applyGlobalTransforms(am);
 			calculateBBoxes(am);
+
+			am->currentFrame = absoluteFrame;
 		}
 
 		void calculateAnimationKeyFrames(AnimationManagerData* am)
@@ -372,6 +375,11 @@ namespace MathAnim
 
 			// Add 1 extra second of footage for good measure
 			return lastFrame + 60;
+		}
+
+		bool isPastLastFrame(const AnimationManagerData* am)
+		{
+			return am->currentFrame >= AnimationManager::lastAnimatedFrame(am);
 		}
 
 		const AnimObject* getActiveOrthoCamera(const AnimationManagerData* am)
@@ -596,6 +604,15 @@ namespace MathAnim
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			std::sort(am->animations.begin(), am->animations.end(), compareAnimation);
+		}
+
+		void retargetSvgScales(AnimationManagerData* am)
+		{
+			float targetWidth = EditorSettings::getSettings().svgTargetScale;
+			for (int i = 0; i < am->objects.size(); i++)
+			{
+				am->objects[i].retargetSvgScale();
+			}
 		}
 
 		void applyGlobalTransforms(AnimationManagerData* am)

@@ -8,7 +8,7 @@ namespace MathAnim
 
 	namespace LuauLayer
 	{
-		void init(const std::string& scriptDirectory, AnimationManagerData* am);
+		void init(const std::filesystem::path& scriptDirectory, AnimationManagerData* am);
 
 		void update();
 

@@ -39,6 +39,8 @@ namespace MathAnim
 		bool RenamableIconSelectable(const char* icon, char* stringBuffer, size_t stringBufferSize, bool isSelected, float width);
 
 		void CenteredWrappedText(ImVec2 textPosition, ImColor color, const char* text, float maxWidth);
+
+		bool ProgressBar(const char* label, float value, float maxWidth = -1.0f);
 	}
 }
 

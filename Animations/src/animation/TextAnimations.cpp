@@ -69,6 +69,7 @@ namespace MathAnim
 				*(childObj._svgObjectStart) = Svg::createDefault();
 				*(childObj.svgObject) = Svg::createDefault();
 				Svg::copy(childObj._svgObjectStart, glyphOutline.svg);
+				childObj.retargetSvgScale();
 
 				childObj.name = (uint8*)g_memory_realloc(childObj.name, sizeof(uint8) * 2);
 				childObj.nameLength = 1;
@@ -409,6 +410,7 @@ namespace MathAnim
 				*(childObj._svgObjectStart) = Svg::createDefault();
 				*(childObj.svgObject) = Svg::createDefault();
 				Svg::copy(childObj._svgObjectStart, glyphOutline.svg);
+				childObj.retargetSvgScale();
 
 				childObj._fillColorStart = glm::u8vec4(
 					(uint8)(textColor.r * 255.0f),

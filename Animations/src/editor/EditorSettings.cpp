@@ -1,16 +1,11 @@
 #include "editor/EditorSettings.h"
 #include "renderer/GLApi.h"
+#include "animation/AnimationManager.h"
 
 namespace MathAnim
 {
 	namespace EditorSettings
 	{
-		static const char* viewModeStrings[(uint8)ViewMode::Length + 1] = {
-			"Wire Mesh View",
-			"Normal View",
-			"Length"
-		};
-
 		static EditorSettingsData* data = nullptr;
 
 		void init()
@@ -21,10 +16,12 @@ namespace MathAnim
 			// TODO: Load saved settings from file
 			data->mouseSensitivity = 5.0f;
 			data->scrollSensitvity = 5.0f;
+			data->previewFidelity = PreviewSvgFidelity::Medium;
+			data->svgTargetScale = _previewFidelityValues[(int)data->previewFidelity];
 			data->viewMode = ViewMode::Normal;
 		}
 
-		void imgui()
+		void imgui(AnimationManagerData* am)
 		{
 			if (data)
 			{
@@ -33,11 +30,26 @@ namespace MathAnim
 				ImGui::DragFloat(": Camera Pan Sensitivity", &data->mouseSensitivity, 0.2f, 1.0f, 20.0f);
 				ImGui::DragFloat(": Camera Zoom Sensitivity", &data->scrollSensitvity, 0.2f, 1.0f, 20.0f);
 
-				if (ImGui::BeginCombo("View Mode", viewModeStrings[(int)data->viewMode]))
+				if (ImGui::BeginCombo("Preview Fidelity", _previewFidelityEnumNames[(int)data->previewFidelity]))
+				{
+					for (int i = 0; i < (int)PreviewSvgFidelity::Length; i++)
+					{
+						if (ImGui::Selectable(_previewFidelityEnumNames[i]))
+						{
+							data->previewFidelity = (PreviewSvgFidelity)i;
+							data->svgTargetScale = _previewFidelityValues[i];
+							AnimationManager::retargetSvgScales(am);
+							ImGui::CloseCurrentPopup();
+						}
+					}
+					ImGui::EndCombo();
+				}
+
+				if (ImGui::BeginCombo("View Mode", _viewModeEnumNames[(int)data->viewMode]))
 				{
 					for (int i = 0; i < (int)ViewMode::Length; i++)
 					{
-						if (ImGui::Selectable(viewModeStrings[i]))
+						if (ImGui::Selectable(_viewModeEnumNames[i]))
 						{
 							data->viewMode = (ViewMode)i;
 							switch (data->viewMode)
@@ -69,6 +81,12 @@ namespace MathAnim
 				g_memory_free(data);
 				data = nullptr;
 			}
+		}
+
+		void setFidelity(PreviewSvgFidelity fidelity)
+		{
+			data->previewFidelity = fidelity;
+			data->svgTargetScale = _previewFidelityValues[(int)fidelity];
 		}
 
 		const EditorSettingsData& getSettings()

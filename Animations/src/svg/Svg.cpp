@@ -93,7 +93,8 @@ namespace MathAnim
 				group->uniqueObjects = (SvgObject*)g_memory_realloc(group->uniqueObjects, sizeof(SvgObject) * group->numUniqueObjects);
 				g_logger_assert(group->uniqueObjects != nullptr, "Ran out of RAM.");
 
-				group->uniqueObjects[group->numUniqueObjects - 1] = obj;
+				group->uniqueObjects[group->numUniqueObjects - 1] = Svg::createDefault();
+				Svg::copy(group->uniqueObjects + (group->numUniqueObjects - 1), &obj);
 				group->uniqueObjectNames[group->numUniqueObjects - 1] = (char*)g_memory_allocate(sizeof(char) * (id.length() + 1));
 				g_memory_copyMem(group->uniqueObjectNames[group->numUniqueObjects - 1], (void*)id.c_str(), id.length() * sizeof(char));
 				group->uniqueObjectNames[group->numUniqueObjects - 1][id.length()] = '\0';
@@ -1432,6 +1433,17 @@ namespace MathAnim
 				}
 			}
 		}
+	}
+
+	float SvgObject::calculateSvgScale(float targetWidth) const
+	{
+		float maxSize = glm::max(CMath::abs(bbox.max.x - bbox.min.x), CMath::abs(bbox.max.y - bbox.min.y));
+		if (maxSize != 0.0f)
+		{
+			return targetWidth / maxSize;
+		}
+
+		return 0.0f;
 	}
 
 	void SvgObject::render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const

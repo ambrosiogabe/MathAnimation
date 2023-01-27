@@ -4,6 +4,8 @@
 
 namespace MathAnim
 {
+	struct AnimationManagerData;
+
 	enum class ViewMode : int
 	{
 		WireMesh,
@@ -11,19 +13,50 @@ namespace MathAnim
 		Length
 	};
 
+	constexpr auto _viewModeEnumNames = fixedSizeArray<const char*, (size_t)ViewMode::Length>(
+		"Wire Mesh View",
+		"Normal View"
+	);
+
+	enum class PreviewSvgFidelity : uint8
+	{
+		Low,
+		Medium,
+		High,
+		Ultra,
+		Length
+	};
+
+	constexpr auto _previewFidelityEnumNames = fixedSizeArray<const char*, (size_t)PreviewSvgFidelity::Length>(
+		"Low",
+		"Medium",
+		"High",
+		"Ultra"
+	);
+
+	constexpr auto _previewFidelityValues = fixedSizeArray<float, (size_t)PreviewSvgFidelity::Length>(
+		100.0f,
+		200.0f,
+		300.0f,
+		500.0f
+	);
+
 	struct EditorSettingsData
 	{
 		float mouseSensitivity;
 		float scrollSensitvity;
 		ViewMode viewMode;
+		PreviewSvgFidelity previewFidelity;
+		float svgTargetScale;
 	};
 
 	namespace EditorSettings
 	{
 		void init();
-		void imgui();
+		void imgui(AnimationManagerData* am);
 		void free();
 
+		void setFidelity(PreviewSvgFidelity fidelity);
 		const EditorSettingsData& getSettings();
 	}
 }

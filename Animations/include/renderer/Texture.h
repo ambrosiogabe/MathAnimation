@@ -24,6 +24,7 @@ namespace MathAnim
 		RGBA16_F,
 
 		RGB8_UI,
+		RGB32_F,
 
 		R32_UI,
 		RG32_UI,

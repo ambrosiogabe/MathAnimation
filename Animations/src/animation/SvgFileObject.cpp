@@ -3,6 +3,7 @@
 #include "svg/Svg.h"
 #include "svg/SvgParser.h"
 #include "editor/SceneHierarchyPanel.h"
+#include "editor/EditorSettings.h"
 
 namespace MathAnim
 {
@@ -18,6 +19,8 @@ namespace MathAnim
 
 		// Generate children objects and place them accordingly
 		// Each child represents a group sub-object
+
+		float targetSvgScale = EditorSettings::getSettings().svgTargetScale;
 
 		for (int i = 0; i < svgGroup->numObjects; i++)
 		{
@@ -43,6 +46,7 @@ namespace MathAnim
 				(uint8)(obj.fillColor.b * 255.0f),
 				(uint8)(obj.fillColor.a * 255.0f)
 			);
+			childObj.retargetSvgScale();
 			childObj.fillColor = childObj._fillColorStart;
 
 			const char childName[] = "Generated Child";

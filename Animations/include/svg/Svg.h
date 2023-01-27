@@ -81,6 +81,7 @@ namespace MathAnim
 		void normalize();
 		void calculateApproximatePerimeter();
 		void calculateBBox();
+		float calculateSvgScale(float targetWidth) const;
 		void render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const;
 		void renderOutline(float t, const AnimObject* parent) const;
 		void free();

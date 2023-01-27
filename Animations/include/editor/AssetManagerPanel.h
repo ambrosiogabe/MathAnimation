@@ -6,7 +6,7 @@ namespace MathAnim
 {
 	namespace AssetManagerPanel
 	{
-		void init(const std::string& assetsRoot);
+		void init(const std::filesystem::path& assetsRoot);
 
 		void update();
 

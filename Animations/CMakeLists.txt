@@ -1,8 +1,9 @@
 # Configure vendored libraries
-set(DEAR_IMGUI_USER_CONFIG "${CMAKE_CURRENT_LIST_DIR}/include/core/InternalImGuiConfig.h")
+set(DEAR_IMGUI_USER_CONFIG ${CMAKE_CURRENT_LIST_DIR}/include/core/InternalImGuiConfig.h)
 set(DEAR_IMGUI_EXTRA_INCLUDE_DIRS
-        "${CMAKE_CURRENT_LIST_DIR}/vendor/cppUtils/single_include"
-        "${CMAKE_CURRENT_LIST_DIR}/include")
+    ${CMAKE_CURRENT_LIST_DIR}/vendor/cppUtils/single_include
+    ${CMAKE_CURRENT_LIST_DIR}/include
+)
 
 # Add all vendored libraries
 add_subdirectory(vendor)
@@ -10,11 +11,12 @@ add_subdirectory(vendor)
 ##############
 # Animations #
 ##############
-set(MATH_ANIMATIONS_ASSETS_DIR "${CMAKE_CURRENT_LIST_DIR}/../assets")
-set(MATH_ANIMATIONS_GRAMMARS_DIR "${CMAKE_CURRENT_LIST_DIR}/vendor/grammars")
-set(MATH_ANIMATIONS_THEMES_DIR "${CMAKE_CURRENT_LIST_DIR}/vendor/themes")
+set(MATH_ANIMATIONS_ASSETS_DIR ${CMAKE_CURRENT_LIST_DIR}/../assets)
+set(MATH_ANIMATIONS_GRAMMARS_DIR ${CMAKE_CURRENT_LIST_DIR}/vendor/grammars)
+set(MATH_ANIMATIONS_THEMES_DIR ${CMAKE_CURRENT_LIST_DIR}/vendor/themes)
 
-set(MATH_ANIMATIONS_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/include")
+set(MATH_ANIMATIONS_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+set(AV1_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/vendor/av1/Source/API)
 
 file(GLOB_RECURSE MATH_ANIMATIONS_SOURCE
     "src/*.cpp"
@@ -32,7 +34,7 @@ else()
 endif()
 
 add_executable(MathAnimations ${MATH_ANIMATIONS_SOURCE})
-target_include_directories(MathAnimations PUBLIC ${MATH_ANIMATIONS_INCLUDE_DIR})
+target_include_directories(MathAnimations PUBLIC ${MATH_ANIMATIONS_INCLUDE_DIR} ${AV1_INCLUDE_DIR})
 target_compile_definitions(MathAnimations PUBLIC
         MATH_ANIMATIONS_MAX_PATH=${MATH_ANIMATIONS_MAX_PATH}
 )
@@ -43,7 +45,7 @@ target_compile_definitions(MathAnimations PRIVATE
         $<$<CONFIG:Release>:_RELEASE=1>
 )
 
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${MATH_ANIMATIONS_SOURCE})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${MATH_ANIMATIONS_SOURCE})
 
 target_link_libraries(MathAnimations PUBLIC
     # OpenGL and windowing
@@ -76,6 +78,9 @@ target_link_libraries(MathAnimations PUBLIC
     Luau.Compiler
     Luau.VM
     Luau.Analysis
+
+    # AV1
+    SvtAv1Enc
 )
 
 if(MATH_ANIMATION_OS_LINUX)

@@ -67,6 +67,10 @@ MathAnim::Vec4 fromCssColor(const std::string& cssColorStr);
 // SIMD intrinsics
 #include <xmmintrin.h>
 
+#define KB(x) (x * 1024)
+#define MB(x) (x * KB(1024))
+#define GB(x) (x * MB(1024))
+
 struct RawMemory
 {
 	uint8* data;

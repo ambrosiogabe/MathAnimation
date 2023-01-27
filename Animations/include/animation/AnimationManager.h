@@ -36,6 +36,7 @@ namespace MathAnim
 		void render(AnimationManagerData* am, int deltaFrame);
 
 		int lastAnimatedFrame(const AnimationManagerData* am);
+		bool isPastLastFrame(const AnimationManagerData* am);
 		const AnimObject* getActiveOrthoCamera(const AnimationManagerData* am);
 		void setActiveOrthoCamera(AnimationManagerData* am, AnimObjId id);
 
@@ -55,6 +56,8 @@ namespace MathAnim
 		RawMemory serialize(const AnimationManagerData* am);
 		void deserialize(AnimationManagerData* am, RawMemory& memory, int currentFrame);
 		void sortAnimations(AnimationManagerData* am);
+
+		void retargetSvgScales(AnimationManagerData* am);
 
 		void applyGlobalTransforms(AnimationManagerData* am);
 		void applyGlobalTransformsTo(AnimationManagerData* am, AnimObjId obj);

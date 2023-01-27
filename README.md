@@ -12,86 +12,19 @@ This is a small GIF showcasing some of the capabilities of this tool:
 
 ## Compiling on Windows
 
+### Requirements
+
+* CMake 3.16 or later (download [here](https://github.com/Kitware/CMake/releases/download/v3.24.2/cmake-3.24.2-windows-x86_64.msi))
+* YASM Assembler version 1.2.0 or later
+  * Download the yasm exe from the following [link](http://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win64.exe)
+  * Rename yasm-*-win64.exe to yasm.exe
+  * Copy yasm.exe into a location that is in the `PATH` environment variable
+
 First clone the repository and the submodules by running:
 
 ```batch
 git clone --recursive https://github.com/ambrosiogabe/MathAnimation
 ```
-
-### First Time Setup
-
-These instructions only need to be followed the first time you ever compile this library.
-
-<details>
-
-<summary>
-Click to See First Time Setup Instructions
-</summary>
-
-### Compiling FFmpeg
-
-In order to compile this manually, you need to build static binaries for FFmpeg so they can be copied to the final build and statically linked into the application.
-
-#### Setting up Environment for ffmpeg
-
-I'm only writing instructions for Windows and MSVC. For information on compiling ffmpeg in a different environment, please see the [ffmpeg documentation](https://ffmpeg.org/platform.html#Windows) for further details and make the appropriate changes.
-
-Unfortunately, ffmpeg is a particularly wild beast, so compiling is non-trivial.
-
-(_The following instructions are modified from [ffmpeg documentation](https://ffmpeg.org/platform.html#Windows)_)
-
-First, make sure to have these tools installed:
-
-* [MSYS2](https://www.msys2.org)
-* [NASM](https://www.nasm.us)
-
-Next, follow these steps:
-
-1. Place `nasm.exe` in your `PATH`.
-2. To set up a proper environment in MSYS2, you need to run `msys_shell.bat` from the Visual Studio or Intel Compiler command prompt. To do this:
-    * First type in `x86_x64 Cross Tools Command Prompt for VS 2022` in your windows search bar.
-      * NOTE: If you're compiling for 32-bit architecture, you'll have to open the x86 version and modify the instructions below to use 32 bit architecture information
-    * Run the command prompt.
-    * Change directories to where you installed msys2.
-        * The default directory for me is `cd C:\tools\msys64`
-    * Run `msys2_shell.cmd -use-full-path` to launch msys2.
-3. Make sure `cl` works. Running `cl` should print something starting with: `Microsoft (R) C/C++...`
-4. Make sure `NASM` is available. Running `nasm -v` should print the version.
-5. Change into the directory where you have this repo installed.
-    * You may need to install some dependencies in order to compile this:
-        * `pacman -S diffutils`
-        * `pacman -S make`
-6. Finally, to compile ffmpeg, run this command in the terminal that you launched from step 2:
-
-```bash
-# NOTE This will take quite some time to compile
-# To compile it faster you can use `make -j{core count}` instead of `make` where
-# core count is 2 cores less than the number of cores available on your machine
-pushd ./Animations/vendor/ffmpeg
-./configure \
-    --toolchain=msvc \
-    --prefix=./build \
-    --disable-doc \
-    --arch=x86_64 \
-    --disable-x86asm 
-make 
-make install
-
-# Rename the files to .lib extension to make premake happy
-mv ./build/lib/libavcodec.a ./build/lib/libavcodec.lib
-mv ./build/lib/libavdevice.a ./build/lib/libavdevice.lib
-mv ./build/lib/libavfilter.a ./build/lib/libavfilter.lib
-mv ./build/lib/libavformat.a ./build/lib/libavformat.lib
-mv ./build/lib/libavutil.a ./build/lib/libavutil.lib
-mv ./build/lib/libswresample.a ./build/lib/libswresample.lib
-mv ./build/lib/libswscale.a ./build/lib/libswscale.lib
-popd
-```
-
-7. Verify that you compiled everything correctly. There should be a file named `build` in the directory `./Animations/vendor/ffmpeg/build`. Inside this directory you should see several files with a `.lib` extension, these are the ffmpeg binaries.
-    * If this is correct, then you're done compiling ffmpeg.
-
-</details>
 
 ### Compiling
 

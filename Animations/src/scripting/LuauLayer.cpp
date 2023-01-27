@@ -40,9 +40,9 @@ namespace MathAnim
 		std::filesystem::path scriptDirectory = "";
 		const Bytecode* currentExecutingScript = nullptr;
 
-		void init(const std::string& inScriptDirectory, AnimationManagerData* am)
+		void init(const std::filesystem::path& inScriptDirectory, AnimationManagerData* am)
 		{
-			Platform::createDirIfNotExists(inScriptDirectory.c_str());
+			Platform::createDirIfNotExists(inScriptDirectory.string().c_str());
 
 			luaState = lua_newstate(luaAllocWrapper, NULL);
 			ScriptApi::registerGlobalFunctions(luaState, am);
@@ -253,6 +253,15 @@ namespace MathAnim
 					ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
 					lua_pop(luaState, 1);
 					return false;
+				}
+
+				for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
+				{
+					AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
+					if (childObj)
+					{
+						childObj->retargetSvgScale();
+					}
 				}
 
 				currentExecutingScript = nullptr;
