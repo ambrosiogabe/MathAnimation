@@ -7,10 +7,6 @@
 [submodule "Animations/vendor/cppUtils"]
 	path = Animations/vendor/cppUtils
 	url = https://github.com/ambrosiogabe/CppUtils
-[submodule "Animations/vendor/ffmpeg"]
-	path = Animations/vendor/ffmpeg
-	url = https://github.com/FFmpeg/FFmpeg.git
-	ignore=dirty
 [submodule "Animations/vendor/freetype"]
 	path = Animations/vendor/freetype
 	url = https://gitlab.freedesktop.org/freetype/freetype.git
