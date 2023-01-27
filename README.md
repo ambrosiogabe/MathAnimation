@@ -28,11 +28,7 @@ git clone --recursive https://github.com/ambrosiogabe/MathAnimation
 
 ### Compiling
 
-> _NOTE:_ Make sure that you have completed the first time setup instructions if this is your first time compiling this project. Click the dropdown above to get the full instructions.
-
-<br/>
-
-> _NOTE:_ CMake is required to build this. Make sure you have CMake 3.15 or newer installed.
+> _NOTE:_ Make sure that you have installed the requirements listed above.
 
 Run the following commands:
 
