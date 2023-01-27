@@ -318,14 +318,14 @@ namespace MathAnim
 			{
 				float fontHeightDifference = ImGui::GetFont()->FontSize;
 				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (lineHeight - fontHeightDifference) / 2.0f);
-				ImGui::Text(icon);
+				ImGui::Text("%s", icon);
 			}
 			else
 			{
 				ImGui::PushFont(ImGuiLayer::getMediumRegularIconFont());
 				float fontSize = ImGuiLayer::getMediumRegularIconFont()->FontSize;
 				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (lineHeight - fontSize) / 2.0f - ImGui::GetStyle().FramePadding.y);
-				ImGui::Text(icon);
+				ImGui::Text("%s", icon);
 				ImGui::PopFont();
 			}
 		}
@@ -342,7 +342,7 @@ namespace MathAnim
 				ImGui::PushFont(ImGuiLayer::getMediumRegularIconFont());
 			}
 
-			ImGui::Text(icon);
+			ImGui::Text("%s", icon);
 
 			ImGui::PopStyleColor();
 			ImGui::PopFont();
@@ -360,7 +360,7 @@ namespace MathAnim
 				ImGui::PushFont(ImGuiLayer::getLargeRegularIconFont());
 			}
 
-			ImGui::Text(icon);
+			ImGui::Text("%s", icon);
 
 			ImGui::PopStyleColor();
 			ImGui::PopFont();

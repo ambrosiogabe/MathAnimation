@@ -1679,7 +1679,11 @@ namespace MathAnim
 		g_logger_assert(strBufferLength >= requiredBufferSize, "String buffer length must be at least '%d' characters.", requiredBufferSize);
 		if (numHours < 100 && numHours >= 0)
 		{
+#ifdef sprintf_s
 			sprintf_s(strBuffer, strBufferLength, "%02d:%02d:%02d.%02d", numHours, numRelativeMinutes, numRelativeSeconds, relativeFrame);
+#else
+			snprintf(strBuffer, strBufferLength, "%02d:%02d:%02d.%02d", numHours, numRelativeMinutes, numRelativeSeconds, relativeFrame);
+#endif
 		}
 		else
 		{

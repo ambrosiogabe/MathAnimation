@@ -95,7 +95,7 @@ namespace MathAnim
 			const char* addButtonText
 		)
 		{
-			constexpr size_t stringBufferSize = _MAX_PATH;
+			constexpr size_t stringBufferSize = MATH_ANIMATIONS_MAX_PATH;
 			char stringBuffer[stringBufferSize];
 
 			ImVec2 buttonSize = ImVec2(256, 0);

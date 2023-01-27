@@ -113,7 +113,7 @@ namespace MathAnim
 				: 0.0f;
 			ImGuiExtended::ProgressBar(": Export Progress", percentExported);
 
-			constexpr int filenameBufferSize = _MAX_PATH;
+			constexpr int filenameBufferSize = MATH_ANIMATIONS_MAX_PATH;
 			static char filenameBuffer[filenameBufferSize];
 			ImGui::BeginDisabled();
 			ImGui::InputText(": Filename", filenameBuffer, filenameBufferSize);

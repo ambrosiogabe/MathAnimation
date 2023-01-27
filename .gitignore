@@ -24,3 +24,9 @@ myScene.bin
 imgui.ini
 
 latex/**
+
+*.make
+Makefile
+
+.idea/
+cmake-build-*/

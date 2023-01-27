@@ -24,8 +24,8 @@ namespace MathAnim
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
 			GladLayer::init();
 
-			// Initiaize GLFW/Glad
-			window = new Window(1920, 1080, winTitle);
+			// Initialize GLFW/Glad
+			window = new Window(1920, 1080, winTitle, WindowFlags::None);
 			window->setVSync(true);
 
 			ImGuiLayer::init(*window);

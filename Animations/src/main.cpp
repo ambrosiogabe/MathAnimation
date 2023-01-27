@@ -3,9 +3,11 @@
 #include "core/ProjectApp.h"
 
 using namespace MathAnim;
+
 int main()
 {
-	g_memory_init(true);
+	g_logger_init();
+	g_memory_init_padding(true, 5);
 
 	ProjectApp::init();
 	std::string projectFile = ProjectApp::run();

@@ -30,14 +30,15 @@ namespace MathAnim
 			glfwSetWindowShouldClose((GLFWwindow*)windowPtr, true);
 
 			// Load OpenGL functions using Glad
-			if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+            int version = gladLoadGL(static_cast<GLADloadfunc>(glfwGetProcAddress));
+
+			if (version == 0)
 			{
 				g_logger_error("Failed to initialize glad.");
 				return;
 			}
 			g_logger_info("GLAD initialized.");
-			g_logger_info("Running OpenGL %d.%d", GLVersion.major, GLVersion.minor);
-			GL::init(GLVersion.major, GLVersion.minor);
+			GL::init(GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
 			// Destroy the dummy window now that we've patched the function pointers
 			glfwDestroyWindow(windowPtr);
