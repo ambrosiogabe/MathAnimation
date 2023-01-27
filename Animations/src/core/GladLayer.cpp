@@ -38,7 +38,6 @@ namespace MathAnim
 				return;
 			}
 			g_logger_info("GLAD initialized.");
-			g_logger_info("Running OpenGL %d.%d", GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 			GL::init(GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
 
 			// Destroy the dummy window now that we've patched the function pointers
