@@ -11,8 +11,10 @@ include(ExternalProject)
 ############
 # cppUtils #
 ############
+set(CMAKE_CXX_STANDARD 20)
 add_library(CppUtils INTERFACE)
 target_include_directories(CppUtils INTERFACE "${CMAKE_CURRENT_LIST_DIR}/cppUtils/single_include")
+set(CMAKE_CXX_STANDARD 17)
 
 ########
 # GLFW #
@@ -54,10 +56,8 @@ add_subdirectory(openal)
 ########
 # Luau #
 ########
-set(CMAKE_CXX_STANDARD 17) # Luau doesn't build with C++20
-
-set(LUAU_BUILD_CLI OFF)
-set(LUAU_BUILD_TESTS OFF)
+set(LUAU_BUILD_CLI OFF CACHE BOOL "" FORCE)
+set(LUAU_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
 if (MSVC)
     # Might not do anything, static CRT linking is enabled
@@ -66,8 +66,6 @@ if (MSVC)
 endif()
 
 add_subdirectory(luau)
-
-set(CMAKE_CXX_STANDARD 20) # See above
 
 #############
 # Onigurama #
@@ -88,17 +86,15 @@ add_subdirectory(tinyxml2)
 ###########
 # PlutoVG #
 ###########
-add_subdirectory(plutovg)
+add_library(plutovg STATIC)
+
+add_subdirectory(plutovg/include)
+add_subdirectory(plutovg/source)
 
 #############
 # dearimgui #
 #############
 include(DearImGUI.cmake)
-
-##########
-# ffmpeg #
-##########
-include(ffmpeg.cmake)
 
 ########
 # Glad #

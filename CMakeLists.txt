@@ -17,11 +17,6 @@ endif()
 
 if(WIN32)
     set(MATH_ANIMATION_OS_WINDOWS TRUE)
-
-    # Unix tools on Windows installations tend to behave
-    # differently than what you expect. We ignore them and
-    # instead rely on our own tools.
-    set(PROVIDED_TOOLS_SKIP_PATH TRUE)
 endif()
 
 if(APPLE)
@@ -39,7 +34,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/bin/Relea
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/bin/Release/lib)
 
 # Configure language defaults
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -48,10 +43,6 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-#################
-# Project setup #
-#################
-
 # Include main module
 add_subdirectory(Animations)
 
@@ -59,6 +50,6 @@ add_subdirectory(Animations)
 # IDE setup #
 #############
 set_property(
-        DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        PROPERTY VS_STARTUP_PROJECT MathAnimations
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    PROPERTY VS_STARTUP_PROJECT MathAnimations
 )
