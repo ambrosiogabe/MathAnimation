@@ -64,3 +64,6 @@
 [submodule "Animations/vendor/av1"]
 	path = Animations/vendor/av1
 	url = https://gitlab.com/AOMediaCodec/SVT-AV1
+[submodule "Animations/vendor/tracy"]
+	path = Animations/vendor/tracy
+	url = https://github.com/wolfpld/tracy
