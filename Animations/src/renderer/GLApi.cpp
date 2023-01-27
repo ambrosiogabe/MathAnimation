@@ -11,8 +11,21 @@ namespace MathAnim
 		static bool gl43Support = true;
 		static bool gl44Support = true;
 
+		static constexpr int minSupportedVersionMajor = 3;
+		static constexpr int minSupportedVersionMinor = 1;
+
 		void init(int versionMajor, int versionMinor)
 		{
+			if (versionMajor < minSupportedVersionMajor || 
+				(versionMajor >= minSupportedVersionMajor && versionMinor < minSupportedVersionMinor))
+			{
+				g_logger_error("You are running OpenGL version less than %d.%d. This app does not support GL versions less than %d.%d, you can try to update your graphics drivers to see if that helps.",
+					minSupportedVersionMajor, minSupportedVersionMinor,
+					minSupportedVersionMajor, minSupportedVersionMinor
+				);
+				g_logger_assert(false, "GL Version %d.%d not supported.", versionMajor, versionMinor);
+			}
+
 			if (versionMajor >= 4 && versionMinor >= 6)
 			{
 				compatMode = false;
@@ -37,6 +50,8 @@ namespace MathAnim
 				}
 				g_logger_warning("You are using an OpenGL version <= 4.6. This means it will run in compatibility mode. This means the app may render inappropriately in certain cases, and performance may be degraded. Please update your drivers if possible to the latest GL version.");
 			}
+
+			g_logger_info("Initialized GL wrapper with version %d.%d", versionMajor, versionMinor);
 		}
 
 		// Blending
