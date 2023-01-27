@@ -17,7 +17,7 @@ namespace MathAnim
 		{
 			ImGui::Begin("Export Video");
 
-			constexpr int filenameBufferSize = _MAX_PATH;
+			constexpr int filenameBufferSize = MATH_ANIMATIONS_MAX_PATH;
 			static char filenameBuffer[filenameBufferSize];
 			ImGui::BeginDisabled();
 			ImGui::InputText(": Filename", filenameBuffer, filenameBufferSize);

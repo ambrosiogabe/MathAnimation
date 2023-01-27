@@ -38,6 +38,8 @@
 #include <imgui.h>
 #include <oniguruma.h>
 
+#include <errno.h>
+
 namespace MathAnim
 {
 	namespace Application
@@ -132,7 +134,7 @@ namespace MathAnim
 			}
 
 			EditorGui::init(am, currentProjectRoot);
-			LuauLayer::init(currentProjectRoot + "/scripts", am);
+			LuauLayer::init(currentProjectRoot + "scripts", am);
 
 			svgCache = new SvgCache();
 			svgCache->init();
@@ -376,7 +378,7 @@ namespace MathAnim
 			FILE* fp = fopen(projectFilepath.c_str(), "rb");
 			if (!fp)
 			{
-				g_logger_warning("Could not load project '%s', error opening file.", projectFilepath.c_str());
+				g_logger_warning("Could not load project '%s', error opening file: %s.", projectFilepath.c_str(), strerror(errno));
 				return;
 			}
 

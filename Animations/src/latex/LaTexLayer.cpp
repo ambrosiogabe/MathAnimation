@@ -53,11 +53,19 @@ namespace MathAnim
 
 		// ----------- Internal variables ----------- 
 		static bool latexIsInstalled;
-		static char latexInstallLocation[_MAX_PATH];
-		static char latexProgram[_MAX_PATH];
+		static char latexInstallLocation[MATH_ANIMATIONS_MAX_PATH];
+		static char latexProgram[MATH_ANIMATIONS_MAX_PATH];
+#ifdef _WIN32
 		static const char* latexExeName = "/miktex/bin/x64/latex.exe";
-		static char dvisvgmProgram[_MAX_PATH];
+#else
+		static const char* latexExeName = "miktex";
+#endif
+		static char dvisvgmProgram[MATH_ANIMATIONS_MAX_PATH];
+#ifdef _WIN32
 		static const char* dvisvgmExeName = "/miktex/bin/x64/dvisvgm.exe";
+#else
+		static const char* dvisvgmExeName = "miktex-dvisvgm";
+#endif
 
 		static std::mutex latexQueueMutex;
 		static std::unordered_map<std::string, std::string> latexCachedMd5;
@@ -71,7 +79,7 @@ namespace MathAnim
 		void init()
 		{
 			// Check if the user has latex.exe installed
-			latexIsInstalled = Platform::getProgramInstallDir("miktex", latexInstallLocation, _MAX_PATH);
+			latexIsInstalled = Platform::getProgramInstallDir("miktex", latexInstallLocation, MATH_ANIMATIONS_MAX_PATH);
 			if (!latexIsInstalled)
 			{
 				// TODO: Check alternative installation names
@@ -86,7 +94,7 @@ namespace MathAnim
 				// Setup latex install location
 				size_t latexInstallLocationLength = std::strlen(latexInstallLocation);
 				size_t latexExeNameLength = std::strlen(latexExeName);
-				if (latexInstallLocationLength + latexExeNameLength + 1 <= _MAX_PATH)
+				if (latexInstallLocationLength + latexExeNameLength + 1 <= MATH_ANIMATIONS_MAX_PATH)
 				{
 					g_memory_copyMem(latexProgram, latexInstallLocation, sizeof(char) * latexInstallLocationLength);
 					g_memory_copyMem(latexProgram + latexInstallLocationLength, (void*)latexExeName, sizeof(char) * latexExeNameLength);
@@ -110,7 +118,7 @@ namespace MathAnim
 
 				// Setup dvisvgm location
 				size_t dvisvgmExeLength = std::strlen(dvisvgmExeName);
-				if (latexInstallLocationLength + dvisvgmExeLength + 1 <= _MAX_PATH)
+				if (latexInstallLocationLength + dvisvgmExeLength + 1 <= MATH_ANIMATIONS_MAX_PATH)
 				{
 					g_memory_copyMem(dvisvgmProgram, latexInstallLocation, sizeof(char) * latexInstallLocationLength);
 					g_memory_copyMem(dvisvgmProgram + latexInstallLocationLength, (void*)dvisvgmExeName, sizeof(char) * dvisvgmExeLength);

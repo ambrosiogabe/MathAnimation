@@ -8,6 +8,9 @@ using namespace tinyxml2;
 #define PANIC(formatStr, ...) \
 	snprintf(errorBuffer, errorBufferSize, formatStr, __VA_ARGS__); \
 	g_logger_error(formatStr, __VA_ARGS__);
+#define PANIC_NOFMT(str) \
+	snprintf(errorBuffer, errorBufferSize, str); \
+	g_logger_error(str);
 
 namespace MathAnim
 {
@@ -391,7 +394,7 @@ namespace MathAnim
 					{
 						if (styleElement != nullptr)
 						{
-							PANIC("We don't support multi-stylesheet SVGs yet. This SVG has multiple embedded stylesheets.");
+							PANIC_NOFMT("We don't support multi-stylesheet SVGs yet. This SVG has multiple embedded stylesheets.");
 						}
 						else
 						{
@@ -510,7 +513,7 @@ namespace MathAnim
 
 							static uint64 rCounter = 0;
 							rCounter++;
-							std::string rCounterStr = "rect-" + rCounter;
+							std::string rCounterStr("rect-" + std::to_string(rCounter));
 							// Flip y-coords to be consistent with everything else positioning from 
 							// the bottom-left
 							y = y - viewbox.values[3];
@@ -598,7 +601,7 @@ namespace MathAnim
 			SvgObject res = Svg::createDefault();
 			if (pathTextLength <= 0)
 			{
-				PANIC("Cannot parse an SVG path that has no text.");
+				PANIC_NOFMT("Cannot parse an SVG path that has no text.");
 				return false;
 			}
 
@@ -667,7 +670,7 @@ namespace MathAnim
 			Stylesheet res = {};
 			if (styleTextLength <= 0)
 			{
-				PANIC("Cannot parse an SVG style that has no text.");
+				PANIC_NOFMT("Cannot parse an SVG style that has no text.");
 				return false;
 			}
 
@@ -692,7 +695,7 @@ namespace MathAnim
 				{
 					if (!parseStyle(parserInfo, &res, token))
 					{
-						PANIC("Error while parsing embedded style in SVG doc. See logs for more info.");
+						PANIC_NOFMT("Error while parsing embedded style in SVG doc. See logs for more info.");
 						token.free();
 						return false;
 					}
@@ -849,7 +852,7 @@ namespace MathAnim
 						}
 						else
 						{
-							PANIC("Failed to parse inline style.");
+							PANIC_NOFMT("Failed to parse inline style.");
 						}
 					}
 					else if (sanitizeAttribute(attribute, &sanitizedAttribute))
@@ -942,12 +945,12 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC("Error interpreting move to command. No coordinates provided.");
+					PANIC_NOFMT("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
@@ -970,12 +973,12 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC("Error interpreting line to command. Invalid coordinate encountered.");
+					PANIC_NOFMT("Error interpreting line to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC("Error interpreting line to command. No coordinates provided.");
+					PANIC_NOFMT("Error interpreting line to command. No coordinates provided.");
 					return false;
 				}
 
@@ -990,12 +993,12 @@ namespace MathAnim
 				std::vector<float> numberList;
 				if (!parseHzNumberList(numberList, parserInfo))
 				{
-					PANIC("Error interpreting line to command. Invalid coordinate encountered.");
+					PANIC_NOFMT("Error interpreting line to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (numberList.size() <= 0)
 				{
-					PANIC("Error interpreting line to command. No coordinates provided.");
+					PANIC_NOFMT("Error interpreting line to command. No coordinates provided.");
 					return false;
 				}
 
@@ -1010,12 +1013,12 @@ namespace MathAnim
 				std::vector<float> numberList;
 				if (!parseVtNumberList(numberList, parserInfo))
 				{
-					PANIC("Error interpreting line to command. Invalid coordinate encountered.");
+					PANIC_NOFMT("Error interpreting line to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (numberList.size() <= 0)
 				{
-					PANIC("Error interpreting line to command. No coordinates provided.");
+					PANIC_NOFMT("Error interpreting line to command. No coordinates provided.");
 					return false;
 				}
 
@@ -1030,18 +1033,18 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC("Error interpreting move to command. No coordinates provided.");
+					PANIC_NOFMT("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
 				if (vec2List.size() % 3 != 0)
 				{
-					PANIC("Cubic polybezier curve must have a multiple of 3 coordinates, otherwise it's not a valid polybezier curve.");
+					PANIC_NOFMT("Cubic polybezier curve must have a multiple of 3 coordinates, otherwise it's not a valid polybezier curve.");
 					return false;
 				}
 
@@ -1057,18 +1060,18 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC("Error interpreting move to command. No coordinates provided.");
+					PANIC_NOFMT("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
 				if (vec2List.size() % 2 != 0)
 				{
-					PANIC("Smooth cubic polybezier curve must have a multiple of 2 coordinates, otherwise it's not a valid polybezier curve.");
+					PANIC_NOFMT("Smooth cubic polybezier curve must have a multiple of 2 coordinates, otherwise it's not a valid polybezier curve.");
 					return false;
 				}
 
@@ -1084,18 +1087,18 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC("Error interpreting move to command. No coordinates provided.");
+					PANIC_NOFMT("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
 				if (vec2List.size() % 2 != 0)
 				{
-					PANIC("Quadratic polybezier curve must have a multiple of 2 coordinates, otherwise it's not a valid polybezier curve.");
+					PANIC_NOFMT("Quadratic polybezier curve must have a multiple of 2 coordinates, otherwise it's not a valid polybezier curve.");
 					return false;
 				}
 
@@ -1111,12 +1114,12 @@ namespace MathAnim
 				std::vector<Vec2> vec2List;
 				if (!parseVec2List(vec2List, parserInfo))
 				{
-					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (vec2List.size() <= 0)
 				{
-					PANIC("Error interpreting move to command. No coordinates provided.");
+					PANIC_NOFMT("Error interpreting move to command. No coordinates provided.");
 					return false;
 				}
 
@@ -1131,12 +1134,12 @@ namespace MathAnim
 				std::vector<ArcParams> arcParamsList;
 				if (!parseArcParamsList(arcParamsList, parserInfo))
 				{
-					PANIC("Error interpreting move to command. Invalid coordinate encountered.");
+					PANIC_NOFMT("Error interpreting move to command. Invalid coordinate encountered.");
 					return false;
 				}
 				if (arcParamsList.size() <= 0)
 				{
-					PANIC("Error interpreting arc to command. No coordinates provided.");
+					PANIC_NOFMT("Error interpreting arc to command. No coordinates provided.");
 					return false;
 				}
 
@@ -1155,7 +1158,7 @@ namespace MathAnim
 			}
 			break;
 			case PathTokenType::EndOfFile:
-				PANIC("Interpreting SVG EOF as a command. Something must have gone wrong. Check logs.");
+				PANIC_NOFMT("Interpreting SVG EOF as a command. Something must have gone wrong. Check logs.");
 				break;
 			case PathTokenType::Length:
 			case PathTokenType::Number:
@@ -1377,7 +1380,7 @@ namespace MathAnim
 			}
 			else
 			{
-				PANIC("Unknown symbol encountered while parsing SVG path. ParserInfo[%u/%u]:'%c'", parserInfo.cursor, parserInfo.textLength, peek(parserInfo));
+				PANIC("Unknown symbol encountered while parsing SVG path. ParserInfo[%zu/%zu]:'%c'", parserInfo.cursor, parserInfo.textLength, peek(parserInfo));
 			}
 
 			skipWhitespaceAndCommas(parserInfo);
@@ -1536,7 +1539,7 @@ namespace MathAnim
 			{
 				if (token.type != StyleTokenType::Identifier)
 				{
-					PANIC("Expected identifier. Instead got token of type: %d", token.type);
+					PANIC("Expected identifier. Instead got token of type: %hhu", token.type);
 					token.free();
 					return false;
 				}
@@ -1554,7 +1557,7 @@ namespace MathAnim
 				token = parseNextStyleToken(parserInfo);
 				if (token.type != StyleTokenType::Semicolon && token.type != StyleTokenType::EndOfFile)
 				{
-					PANIC("Expected ';' or 'EOF' to end a style attribute. Instead got token of type %d", token.type);
+					PANIC("Expected ';' or 'EOF' to end a style attribute. Instead got token of type %hhu", token.type);
 					token.free();
 					return false;
 				}
@@ -1578,13 +1581,13 @@ namespace MathAnim
 			if (consumeClosingCurlyBracket && token.type != StyleTokenType::RightCurlyBracket)
 			{
 				token.free();
-				PANIC("Expected '}' to end a style. Instead got token of type: %d", token.type);
+				PANIC("Expected '}' to end a style. Instead got token of type: %hhu", token.type);
 				return false;
 			}
 			else if (!consumeClosingCurlyBracket && token.type != StyleTokenType::EndOfFile)
 			{
 				token.free();
-				PANIC("Expected 'EOF' to end an inline-style. Instead got token of type: %d", token.type);
+				PANIC("Expected 'EOF' to end an inline-style. Instead got token of type: %hhu", token.type);
 				return false;
 			}
 
@@ -1622,7 +1625,7 @@ namespace MathAnim
 			}
 			else
 			{
-				PANIC("Cannot assign identifier of type %d as a style attribute. Must be a HashtagIdentifier or a DotIdentifier", identifier.type);
+				PANIC("Cannot assign identifier of type %hhu as a style attribute. Must be a HashtagIdentifier or a DotIdentifier", identifier.type);
 				return false;
 			}
 
@@ -1650,7 +1653,7 @@ namespace MathAnim
 			if (token.type != expected)
 			{
 				token.free();
-				PANIC("Expected token of type '%d' but got token of type '%d'.", expected, token.type);
+				PANIC("Expected token of type '%hhu' but got token of type '%hhu'.", expected, token.type);
 				token.type = StyleTokenType::Panic;
 				parserInfo.cursor = parserInfo.textLength;
 			}
@@ -1760,7 +1763,7 @@ namespace MathAnim
 		{
 			if (attributeName.type != StyleTokenType::Identifier)
 			{
-				PANIC("Attribute Name must be an identifier. This attribute name was of type %d", attributeName.type);
+				PANIC("Attribute Name must be an identifier. This attribute name was of type %hhu", attributeName.type);
 				return false;
 			}
 
@@ -1986,7 +1989,7 @@ namespace MathAnim
 
 			if (stringEndIndex - stringStartIndex == 1 && parserInfo.text[stringStartIndex] == '-')
 			{
-				PANIC("Cannot have an identifier that is just a dash like this '-'.");
+				PANIC_NOFMT("Cannot have an identifier that is just a dash like this '-'.");
 				goto cleanupReturnFalse;
 			}
 

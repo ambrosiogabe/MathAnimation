@@ -342,7 +342,7 @@ namespace MathAnim
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
 			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
-#elif defined(_RELEASE)
+#else
 			// TODO: Replace these with hardcoded strings
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");

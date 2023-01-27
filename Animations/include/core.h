@@ -12,7 +12,7 @@
 #include <glm/gtx/matrix_decompose.hpp>
 
 // My stuff
-#include <cppUtils/cppUtils.hpp>
+#include <cppUtils/cppUtils.h>
 
 // Standard
 #include <filesystem>
@@ -36,7 +36,7 @@
 #include <regex>
 
 // GLFW/glad
-#include <glad/glad.h>
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
 // stb
@@ -51,7 +51,6 @@
 // Core library stuff
 #include "math/DataStructures.h"
 
-#define IMGUI_USER_CONFIG "core/InternalImGuiConfig.h"
 #include <imgui.h>
 
 // Regex Library for textmate grammar

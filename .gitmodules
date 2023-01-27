@@ -9,7 +9,7 @@
 	url = https://github.com/ambrosiogabe/CppUtils
 [submodule "Animations/vendor/ffmpeg"]
 	path = Animations/vendor/ffmpeg
-	url = https://git.ffmpeg.org/ffmpeg.git
+	url = https://github.com/FFmpeg/FFmpeg.git
 	ignore=dirty
 [submodule "Animations/vendor/freetype"]
 	path = Animations/vendor/freetype

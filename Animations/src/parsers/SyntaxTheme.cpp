@@ -323,13 +323,13 @@ namespace MathAnim
 				if (themeSettingsDict)
 				{
 					const XMLElement* backgroundValue = getValue(themeSettingsDict, "background");
-					if (backgroundValue && backgroundValue->Name() == "string")
+					if (backgroundValue && (std::strcmp(backgroundValue->Name(), "string") == 0))
 					{
 						theme->defaultBackground = fromCssColor(backgroundValue->Value());
 					}
 
 					const XMLElement* foregroundValue = getValue(themeSettingsDict, "foreground");
-					if (foregroundValue && foregroundValue->Name() == "string")
+					if (foregroundValue && (std::strcmp(foregroundValue->Name(), "string") == 0))
 					{
 						theme->defaultForeground = fromCssColor(foregroundValue->Value());
 					}
