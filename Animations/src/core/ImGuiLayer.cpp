@@ -3,6 +3,7 @@
 #include "core/Colors.h"
 #include "utils/FontAwesome.h"
 #include "renderer/GLApi.h"
+#include "core/Profiling.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -10,6 +11,7 @@
 #include <backends/imgui_impl_opengl3.h>
 
 #include <GLFW/glfw3.h>
+#include <optick.h>
 
 namespace MathAnim
 {
@@ -102,6 +104,8 @@ namespace MathAnim
         
 		void beginFrame()
 		{
+			OPTICK_EVENT("ImGuiLayer_BeginFrame");
+
 			// Start the Dear ImGui frame
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
@@ -113,6 +117,8 @@ namespace MathAnim
         
 		void endFrame()
 		{
+			OPTICK_EVENT("ImGuiLayer_EndFrame");
+
 			if (ImGui::IsAnyItemFocused())
 			{
 				ImGui::CaptureKeyboardFromApp(false);

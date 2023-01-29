@@ -2,8 +2,10 @@
 #include "editor/ImGuiExtended.h"
 #include "core/Application.h"
 #include "core/Colors.h"
-
+#include "core/Profiling.h"
 #include "utils/FontAwesome.h"
+
+#include <optick.h>
 
 namespace MathAnim
 {
@@ -16,6 +18,8 @@ namespace MathAnim
 
 		void update(SceneData& sd)
 		{
+			MP_PROFILE_EVENT("SceneManagementPanel_Update");
+
 			constexpr size_t stringBufferSize = 256;
 			char stringBuffer[stringBufferSize];
 

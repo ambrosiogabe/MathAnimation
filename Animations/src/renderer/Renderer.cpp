@@ -12,6 +12,7 @@
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
+#include "core/Profiling.h"
 #include "editor/Timeline.h"
 #include "editor/EditorGui.h"
 #include "editor/EditorSettings.h"
@@ -21,6 +22,8 @@
 #include "shaders/default.glsl.hpp"
 #include "shaders/screen.glsl.hpp"
 #endif
+
+#include <optick.h>
 
 namespace MathAnim
 {
@@ -511,6 +514,8 @@ namespace MathAnim
 
 		void endFrame()
 		{
+			MP_PROFILE_EVENT("Renderer_EndFrame");
+
 			// Track metrics
 			list2DNumDrawCalls = drawList2D.drawCommands.size();
 			listFont2DNumDrawCalls = drawListFont2D.drawCommands.size();

@@ -7,6 +7,9 @@
 #include "editor/EditorSettings.h"
 #include "svg/Svg.h"
 #include "core/Application.h"
+#include "core/Profiling.h"
+
+#include <optick.h>
 
 namespace MathAnim
 {
@@ -106,6 +109,8 @@ namespace MathAnim
 
 		void endFrame(AnimationManagerData* am)
 		{
+			MP_PROFILE_EVENT("AnimationManager_EndFrame");
+
 			// Remove all queued delete objects
 			for (auto animObjId : am->queuedRemoveObjects)
 			{
@@ -141,6 +146,7 @@ namespace MathAnim
 
 		void resetToFrame(AnimationManagerData* am, uint32 absoluteFrame)
 		{
+			MP_PROFILE_EVENT("AnimationManager_ResetToFrame");
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			// Reset all object states
@@ -331,6 +337,7 @@ namespace MathAnim
 		void render(AnimationManagerData* am, int deltaFrame)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+			MP_PROFILE_EVENT("AnimationManager_Render");
 
 			if (deltaFrame != 0)
 			{
@@ -340,23 +347,27 @@ namespace MathAnim
 			// Render any active/animating objects
 			// Make sure to initialize the NanoVG cache and then flush it after all the 
 			// draw calls are complete
-			for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 			{
-				if (objectIter->status != AnimObjectStatus::Inactive)
-				{
-					objectIter->render(am);
-				}
+				MP_PROFILE_EVENT("AnimationManager_UpdateActiveObjects");
 
-				// Update any updateable objects
-				if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
+				for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 				{
-					objectIter->as.laTexObject.update(am, objectIter->id);
-				}
-				else if (objectIter->objectType == AnimObjectTypeV1::Camera)
-				{
-					if (objectIter->as.camera.is2D)
+					if (objectIter->status != AnimObjectStatus::Inactive)
 					{
-						objectIter->as.camera.camera2D.position = CMath::vector2From3(objectIter->globalPosition);
+						objectIter->render(am);
+					}
+
+					// Update any updateable objects
+					if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
+					{
+						objectIter->as.laTexObject.update(am, objectIter->id);
+					}
+					else if (objectIter->objectType == AnimObjectTypeV1::Camera)
+					{
+						if (objectIter->as.camera.is2D)
+						{
+							objectIter->as.camera.camera2D.position = CMath::vector2From3(objectIter->globalPosition);
+						}
 					}
 				}
 			}
@@ -617,6 +628,7 @@ namespace MathAnim
 
 		void applyGlobalTransforms(AnimationManagerData* am)
 		{
+			MP_PROFILE_EVENT("AnimationManager_ApplyGlobalTransforms");
 			// ----- Apply the parent->child transformations -----
 			// Find all root objects and update recursively
 			for (auto objIter = am->objects.begin(); objIter != am->objects.end(); objIter++)
@@ -680,6 +692,7 @@ namespace MathAnim
 
 		void calculateBBoxes(AnimationManagerData* am)
 		{
+			MP_PROFILE_EVENT("AnimationManager_CalculateBBoxes");
 			// ----- Calculate child bbox first then parent -----
 			// Find all root objects and update recursively
 			for (auto objIter = am->objects.begin(); objIter != am->objects.end(); objIter++)
@@ -1012,6 +1025,7 @@ namespace MathAnim
 
 		static void applyDelta(AnimationManagerData* am, int deltaFrame)
 		{
+			MP_PROFILE_EVENT("AnimationManager_ApplyDelta");
 			int previousFrame = am->currentFrame;
 			am->currentFrame += deltaFrame;
 			int newFrame = am->currentFrame;

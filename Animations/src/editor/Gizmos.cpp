@@ -8,6 +8,9 @@
 #include "core/Colors.h"
 #include "core/Input.h"
 #include "core/Application.h"
+#include "core/Profiling.h"
+
+#include <optick.h>
 
 namespace MathAnim
 {
@@ -69,6 +72,7 @@ namespace MathAnim
 
 		void update(AnimationManagerData* am)
 		{
+			MP_PROFILE_EVENT("Gizmo_Update");
 			GlobalContext* g = gGizmoManager;
 			g->lastActiveGizmo = g->activeGizmo;
 
@@ -77,6 +81,8 @@ namespace MathAnim
 
 		void render(AnimationManagerData* am)
 		{
+			MP_PROFILE_EVENT("Gizmo_Render");
+
 			// Render call stuff
 			GlobalContext* g = gGizmoManager;
 			for (auto iter : g->gizmos)
