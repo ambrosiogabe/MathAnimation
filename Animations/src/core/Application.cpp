@@ -5,6 +5,7 @@
 #include "core/GladLayer.h"
 #include "core/ImGuiLayer.h"
 #include "core/Colors.h"
+#include "core/Profiling.h"
 #include "renderer/Renderer.h"
 #include "renderer/OrthoCamera.h"
 #include "renderer/PerspectiveCamera.h"
@@ -39,7 +40,7 @@
 
 #include <imgui.h>
 #include <oniguruma.h>
-
+#include <optick.h>
 #include <errno.h>
 
 namespace MathAnim
@@ -156,6 +157,8 @@ namespace MathAnim
 
 			while (isRunning && !window->shouldClose())
 			{
+				MP_PROFILE_FRAME("MainLoop");
+
 				deltaTime = (float)(glfwGetTime() - previousTime);
 				previousTime = glfwGetTime();
 				window->pollInput();

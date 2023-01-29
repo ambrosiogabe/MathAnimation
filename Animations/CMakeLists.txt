@@ -43,6 +43,7 @@ target_compile_definitions(MathAnimations PRIVATE
         $<$<CONFIG:RelWithDebInfo>:_RELEASE=1>
         $<$<CONFIG:MinSizeRel>:_RELEASE=1>
         $<$<CONFIG:Release>:_RELEASE=1>
+        $<$<CONFIG:RelWithProfiler>:_PROFILER=1>
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${MATH_ANIMATIONS_SOURCE})
@@ -81,6 +82,9 @@ target_link_libraries(MathAnimations PUBLIC
 
     # AV1
     SvtAv1Enc
+
+    # Optick
+    OptickCore
 )
 
 if(MATH_ANIMATION_OS_LINUX)
