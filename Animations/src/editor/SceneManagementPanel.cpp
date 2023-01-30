@@ -5,8 +5,6 @@
 #include "core/Profiling.h"
 #include "utils/FontAwesome.h"
 
-#include <optick.h>
-
 namespace MathAnim
 {
 	namespace SceneManagementPanel

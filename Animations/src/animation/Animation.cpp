@@ -13,8 +13,6 @@
 #include "editor/Gizmos.h"
 #include "editor/EditorSettings.h"
 
-#include <optick.h>
-
 namespace MathAnim
 {
 	// ------- Private variables --------

@@ -84,7 +84,7 @@ target_link_libraries(MathAnimations PUBLIC
     SvtAv1Enc
 
     # Optick
-    OptickCore
+    $<$<CONFIG:RelWithProfiler>:OptickCore>
 )
 
 if(MATH_ANIMATION_OS_LINUX)

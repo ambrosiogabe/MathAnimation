@@ -40,7 +40,6 @@
 
 #include <imgui.h>
 #include <oniguruma.h>
-#include <optick.h>
 #include <errno.h>
 
 namespace MathAnim

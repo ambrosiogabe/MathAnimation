@@ -10,8 +10,6 @@
 #include "core/Application.h"
 #include "core/Profiling.h"
 
-#include <optick.h>
-
 namespace MathAnim
 {
 	// -------------- Internal Structures --------------

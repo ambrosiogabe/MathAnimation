@@ -8,8 +8,6 @@
 #include "utils/CMath.h"
 #include "core/Profiling.h"
 
-#include <optick.h>
-
 namespace MathAnim
 {
 	Vec2 SvgCache::cachePadding = { 10.0f, 10.0f };

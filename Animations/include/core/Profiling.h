@@ -2,6 +2,8 @@
 #define MATH_ANIMATIONS_PROFILING_H
 
 #ifdef _PROFILER 
+	#include <optick.h>
+
 	#define MP_PROFILE_FRAME(name) OPTICK_FRAME(name)
 	#define MP_PROFILE_EVENT(name) OPTICK_EVENT(name)
 	#define MP_PROFILE_THREAD(name) OPTICK_THREAD(name)

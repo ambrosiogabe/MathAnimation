@@ -6,8 +6,6 @@
 #include "core/Input.h"
 #include "core/Profiling.h"
 
-#include <optick.h>
-
 namespace MathAnim
 {
 	namespace EditorCameraController

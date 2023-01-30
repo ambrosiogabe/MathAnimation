@@ -17,7 +17,6 @@
 #include "core/Profiling.h"
 
 #include <imgui.h>
-#include <optick.h>
 
 namespace MathAnim
 {

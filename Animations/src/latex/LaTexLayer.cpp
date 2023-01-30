@@ -4,8 +4,6 @@
 #include "multithreading/GlobalThreadPool.h"
 #include "core/Profiling.h"
 
-#include <optick.h>
-
 static const char preamble[] = \
 R"raw(\documentclass[preview]{standalone}
 

@@ -141,9 +141,7 @@ add_subdirectory(av1)
 ##########
 # Optick #
 ##########
-if (OPTICK) 
-    option(OPTICK_ENABLED "" ON)
-endif()
-option(OPTICK_INSTALL_TARGETS "" OFF)
+set(OPTICK_INSTALL_TARGETS OFF)
+set(OPTICK_ENABLED ON)
 
 add_subdirectory(optick)

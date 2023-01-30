@@ -11,7 +11,6 @@
 #include <backends/imgui_impl_opengl3.h>
 
 #include <GLFW/glfw3.h>
-#include <optick.h>
 
 namespace MathAnim
 {
@@ -104,7 +103,7 @@ namespace MathAnim
         
 		void beginFrame()
 		{
-			OPTICK_EVENT("ImGuiLayer_BeginFrame");
+			MP_PROFILE_EVENT("ImGuiLayer_BeginFrame");
 
 			// Start the Dear ImGui frame
 			ImGui_ImplOpenGL3_NewFrame();
@@ -117,7 +116,7 @@ namespace MathAnim
         
 		void endFrame()
 		{
-			OPTICK_EVENT("ImGuiLayer_EndFrame");
+			MP_PROFILE_EVENT("ImGuiLayer_EndFrame");
 
 			if (ImGui::IsAnyItemFocused())
 			{

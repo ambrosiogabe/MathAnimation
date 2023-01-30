@@ -23,8 +23,6 @@
 #include "shaders/screen.glsl.hpp"
 #endif
 
-#include <optick.h>
-
 namespace MathAnim
 {
 	template<typename T>

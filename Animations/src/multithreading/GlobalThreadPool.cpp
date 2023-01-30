@@ -1,8 +1,6 @@
 #include "multithreading/GlobalThreadPool.h"
 #include "core/Profiling.h"
 
-#include <optick.h>
-
 namespace MathAnim
 {
 	bool CompareThreadTask::operator()(const ThreadTask& a, const ThreadTask& b) const
