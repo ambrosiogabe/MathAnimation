@@ -6,6 +6,7 @@
 #include "renderer/Renderer.h"
 #include "renderer/GLApi.h"
 #include "utils/CMath.h"
+#include "core/Profiling.h"
 
 namespace MathAnim
 {
@@ -58,6 +59,7 @@ namespace MathAnim
 
 	SvgCacheEntry SvgCache::getOrCreateIfNotExist(AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
+		MP_PROFILE_EVENT("SvgCache_GetOrCreateIfNotExists");
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
 		auto entry = getInternal(hash(obj, animObj->svgScale, animObj->percentReplacementTransformed));
 		if (entry.has_value())
@@ -75,6 +77,7 @@ namespace MathAnim
 
 	void SvgCache::put(const AnimObject* parent, SvgObject* svg)
 	{
+		MP_PROFILE_EVENT("SvgCache_Put");
 		uint64 hashValue = hash(parent->id, parent->svgScale, parent->percentReplacementTransformed);
 
 		// Only add the SVG if it hasn't already been added
@@ -190,6 +193,8 @@ namespace MathAnim
 
 	void SvgCache::render(AnimationManagerData* am, SvgObject* svg, AnimObjId obj)
 	{
+		MP_PROFILE_EVENT("SvgCache_Render");
+
 		const AnimObject* parent = AnimationManager::getObject(am, obj);
 		if (parent)
 		{
@@ -251,7 +256,7 @@ namespace MathAnim
 		GL::viewport(0, 0, framebuffer.width, framebuffer.height);
 		for (int i = 0; i < framebuffer.colorAttachments.size(); i++)
 		{
-			framebuffer.clearColorAttachmentRgba(i, "#00000000"_hex);
+			framebuffer.clearColorAttachmentRgba(i, Vec4{0, 0, 0, 0});
 		}
 		framebuffer.clearDepthStencil();
 
@@ -281,6 +286,10 @@ namespace MathAnim
 		// TODO: This should just add a new color attachment
 		cacheCurrentColorAttachment = (cacheCurrentColorAttachment + 1) % framebuffer.colorAttachments.size();
 		this->cachedSvgs[cacheCurrentColorAttachment].clear();
+		framebuffer.bind();
+		GL::viewport(0, 0, framebuffer.width, framebuffer.height);
+		this->framebuffer.clearColorAttachmentRgba(cacheCurrentColorAttachment, Vec4{ 0, 0, 0, 0 });
+		framebuffer.clearDepthStencil();
 		this->cacheCurrentPos = Vec2{ 0, 0 };
 	}
 

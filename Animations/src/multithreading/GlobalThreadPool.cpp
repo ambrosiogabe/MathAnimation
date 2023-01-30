@@ -1,4 +1,5 @@
 #include "multithreading/GlobalThreadPool.h"
+#include "core/Profiling.h"
 
 namespace MathAnim
 {
@@ -75,10 +76,8 @@ namespace MathAnim
 	void GlobalThreadPool::processLoop(uint32 threadIndex)
 #pragma warning( pop )
 	{
-#ifdef _USE_OPTICK
 		std::string threadName = "GlobalThread_" + std::to_string(threadIndex);
-		OPTICK_THREAD(threadName.c_str());
-#endif
+		MP_PROFILE_THREAD(threadName.c_str());
 
 		bool shouldContinue = true;
 		while (shouldContinue)
@@ -108,9 +107,7 @@ namespace MathAnim
 			if (task.fn)
 			{
 				{
-#ifdef _USE_OPTICK
-					OPTICK_EVENT_DYNAMIC(task.taskName);
-#endif
+					MP_PROFILE_DYNAMIC_EVENT(task.taskName);
 					task.fn(task.data, task.dataSize);
 				}
 				if (task.callback)

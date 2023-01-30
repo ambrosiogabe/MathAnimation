@@ -2,6 +2,7 @@
 #include "core.h"
 #include "core/Application.h"
 #include "core/Colors.h"
+#include "core/Profiling.h"
 #include "animation/AnimationManager.h"
 #include "svg/Svg.h"
 #include "svg/SvgCache.h"
@@ -925,15 +926,19 @@ namespace MathAnim
 
 	void AnimObject::render(AnimationManagerData* am) const
 	{
-		// TODO: This is gross fixme
-		const Animation* circumscribeAnim = AnimationManager::getAnimation(am, this->circumscribeId);
-		if (circumscribeAnim)
 		{
-			if (circumscribeAnim->type == AnimTypeV1::Circumscribe)
+			MP_PROFILE_EVENT("AnimObject_Render_Circumscribe");
+
+			// TODO: This is gross fixme
+			const Animation* circumscribeAnim = AnimationManager::getAnimation(am, this->circumscribeId);
+			if (circumscribeAnim)
 			{
-				if (bbox.max.x >= bbox.min.x && bbox.max.y >= bbox.min.y)
+				if (circumscribeAnim->type == AnimTypeV1::Circumscribe)
 				{
-					circumscribeAnim->as.circumscribe.render(bbox);
+					if (bbox.max.x >= bbox.min.x && bbox.max.y >= bbox.min.y)
+					{
+						circumscribeAnim->as.circumscribe.render(bbox);
+					}
 				}
 			}
 		}
@@ -945,6 +950,8 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgObject:
 		case AnimObjectTypeV1::Arrow:
 		{
+			MP_PROFILE_EVENT("AnimObject_Render_SvgObject");
+
 			// If svgObject is null, don't do anything with it
 			static bool warned = false;
 			if (this->svgObject == nullptr)

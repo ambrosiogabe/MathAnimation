@@ -5,6 +5,7 @@
 #include "core/GladLayer.h"
 #include "core/ImGuiLayer.h"
 #include "core/Colors.h"
+#include "core/Profiling.h"
 #include "renderer/Renderer.h"
 #include "renderer/OrthoCamera.h"
 #include "renderer/PerspectiveCamera.h"
@@ -39,7 +40,6 @@
 
 #include <imgui.h>
 #include <oniguruma.h>
-
 #include <errno.h>
 
 namespace MathAnim
@@ -135,7 +135,7 @@ namespace MathAnim
 			}
 
 			EditorGui::init(am, currentProjectRoot, outputWidth, outputHeight);
-			LuauLayer::init(currentProjectRoot/"scripts", am);
+			LuauLayer::init(currentProjectRoot / "scripts", am);
 
 			svgCache = new SvgCache();
 			svgCache->init();
@@ -156,6 +156,8 @@ namespace MathAnim
 
 			while (isRunning && !window->shouldClose())
 			{
+				MP_PROFILE_FRAME("MainLoop");
+
 				deltaTime = (float)(glfwGetTime() - previousTime);
 				previousTime = glfwGetTime();
 				window->pollInput();
@@ -207,6 +209,7 @@ namespace MathAnim
 
 				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
 				{
+					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
 					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], am, renderPickingOutline);
 				}
 				// Collect gizmo draw calls
@@ -215,6 +218,7 @@ namespace MathAnim
 				renderPickingOutline = true;
 				if (EditorGui::editorViewportActive())
 				{
+					MP_PROFILE_EVENT("MainLoop_RenderToEditorViewport");
 					Renderer::renderToFramebuffer(editorFramebuffer, Colors::Neutral[7], editorCamera2D, editorCamera3D, renderPickingOutline);
 				}
 				Renderer::endFrame();
@@ -238,10 +242,14 @@ namespace MathAnim
 				AnimationManager::endFrame(am);
 
 				// Miscellaneous
-				window->swapBuffers();
+				{
+					MP_PROFILE_EVENT("MainThreadLoop_SwapBuffers");
+					window->swapBuffers();
+				}
 
 				if (reloadCurrentScene)
 				{
+					MP_PROFILE_EVENT("MainThreadLoop_ReloadCurrentScene");
 					reloadCurrentSceneInternal();
 					reloadCurrentScene = false;
 				}
@@ -334,7 +342,7 @@ namespace MathAnim
 			tableOfContents.init();
 			tableOfContents.addEntry(sceneDataMemory, "Scene_Data");
 
-			std::string projectFilepath = (currentProjectRoot/"project.bin").string();
+			std::string projectFilepath = (currentProjectRoot / "project.bin").string();
 			tableOfContents.serialize(projectFilepath.c_str());
 
 			sceneDataMemory.free();
@@ -356,7 +364,7 @@ namespace MathAnim
 			tableOfContents.addEntry(timelineData, "Timeline_Data");
 			tableOfContents.addEntry(cameraData, "Camera_Data");
 
-			std::string filepath = (currentProjectRoot/sceneToFilename(sceneData.sceneNames[sceneData.currentScene])).string();
+			std::string filepath = (currentProjectRoot / sceneToFilename(sceneData.sceneNames[sceneData.currentScene])).string();
 			tableOfContents.serialize(filepath.c_str());
 
 			animationData.free();
@@ -367,7 +375,7 @@ namespace MathAnim
 
 		void loadProject(const std::filesystem::path& projectRoot)
 		{
-			std::string projectFilepath = (projectRoot/"project.bin").string();
+			std::string projectFilepath = (projectRoot / "project.bin").string();
 			FILE* fp = fopen(projectFilepath.c_str(), "rb");
 			if (!fp)
 			{
@@ -401,7 +409,7 @@ namespace MathAnim
 
 		void loadScene(const std::string& sceneName)
 		{
-			std::string filepath = (currentProjectRoot/sceneToFilename(sceneName)).string();
+			std::string filepath = (currentProjectRoot / sceneToFilename(sceneName)).string();
 			FILE* fp = fopen(filepath.c_str(), "rb");
 			if (!fp)
 			{
@@ -453,7 +461,7 @@ namespace MathAnim
 
 		void deleteScene(const std::string& sceneName)
 		{
-			std::string filepath = (currentProjectRoot/sceneToFilename(sceneName)).string();
+			std::string filepath = (currentProjectRoot / sceneToFilename(sceneName)).string();
 			remove(filepath.c_str());
 		}
 

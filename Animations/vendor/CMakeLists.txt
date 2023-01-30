@@ -136,3 +136,12 @@ if (MSVC)
 endif()
 
 add_subdirectory(av1)
+
+
+##########
+# Optick #
+##########
+set(OPTICK_INSTALL_TARGETS OFF)
+set(OPTICK_ENABLED ON)
+
+add_subdirectory(optick)

@@ -14,8 +14,9 @@
 #include "core/Colors.h"
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
+#include "core/Profiling.h"
 
-#include "imgui.h"
+#include <imgui.h>
 
 namespace MathAnim
 {
@@ -54,6 +55,8 @@ namespace MathAnim
 
 		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am)
 		{
+			MP_PROFILE_EVENT("EditorGui_Update");
+
 			// TODO: Do this in a central file
 			checkHotKeys();
 			checkForMousePicking(editorFramebuffer);

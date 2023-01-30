@@ -2,6 +2,7 @@
 #include "core/Application.h"
 #include "platform/Platform.h"
 #include "multithreading/GlobalThreadPool.h"
+#include "core/Profiling.h"
 
 static const char preamble[] = \
 R"raw(\documentclass[preview]{standalone}
@@ -208,6 +209,8 @@ namespace MathAnim
 
 		void update()
 		{
+			MP_PROFILE_EVENT("LaTexLayer_Update");
+
 			std::lock_guard<std::mutex> lock(latexQueueMutex);
 
 			// This loop ensures that only one LaTex file gets processed at a time so

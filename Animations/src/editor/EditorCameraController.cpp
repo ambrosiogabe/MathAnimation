@@ -4,6 +4,7 @@
 #include "renderer/OrthoCamera.h"
 #include "renderer/PerspectiveCamera.h"
 #include "core/Input.h"
+#include "core/Profiling.h"
 
 namespace MathAnim
 {
@@ -16,6 +17,8 @@ namespace MathAnim
 
 		void updateOrtho(OrthoCamera& camera)
 		{
+			MP_PROFILE_EVENT("EditorCameraController_UpdateOrtho");
+
 			const EditorSettingsData& data = EditorSettings::getSettings();
 
 			if (Input::mouseUp(MouseButton::Middle))

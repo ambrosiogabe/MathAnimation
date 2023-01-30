@@ -1,5 +1,6 @@
 #include "editor/MenuBar.h"
 #include "core/Application.h"
+#include "core/Profiling.h"
 
 #include <imgui.h>
 
@@ -16,6 +17,8 @@ namespace MathAnim
 
 		void update()
 		{
+			MP_PROFILE_EVENT("MenuBar_Update");
+
 			if (ImGui::BeginMainMenuBar())
 			{
 				if (ImGui::BeginMenu("File"))
