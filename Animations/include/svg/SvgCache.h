@@ -71,7 +71,7 @@ namespace MathAnim
 
 		void generateDefaultFramebuffer(uint32 width, uint32 height);
 
-		uint64 hash(AnimObjId obj, float svgScale, float replacementTransform);
+		uint64 hash(const uint8* svgMd5, size_t svgMd5Length, float svgScale, float replacementTransform);
 
 	private:
 		std::vector<LRUCache<uint64, _SvgCacheEntryInternal>> cachedSvgs;

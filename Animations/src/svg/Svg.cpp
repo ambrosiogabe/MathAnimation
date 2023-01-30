@@ -9,6 +9,8 @@
 #include "renderer/Colors.h"
 #include "renderer/PerspectiveCamera.h"
 #include "core/Application.h"
+#include "core/Profiling.h"
+#include "platform/Platform.h"
 
 #include <plutovg.h>
 
@@ -581,9 +583,12 @@ namespace MathAnim
 
 			dest->fillType = src->fillType;
 			dest->fillColor = src->fillColor;
+			dest->approximatePerimeter = src->approximatePerimeter;
+			dest->bbox = src->bbox;
 
-			dest->calculateApproximatePerimeter();
-			dest->calculateBBox();
+			dest->md5Length = src->md5Length;
+			dest->md5 = (uint8*)g_memory_realloc(dest->md5, sizeof(uint8) * (src->md5Length + 1));
+			g_memory_copyMem(dest->md5, (void*)src->md5, sizeof(uint8) * (src->md5Length + 1));
 		}
 
 		SvgObject* interpolate(const SvgObject* src, const SvgObject* dst, float t)
@@ -1089,8 +1094,7 @@ namespace MathAnim
 				Svg::closePath(res, true, isHole);
 			}
 
-			res->calculateApproximatePerimeter();
-			res->calculateBBox();
+			res->finalize();
 
 			// Free temporary memory
 			modifiedSrcObject->free();
@@ -1119,6 +1123,8 @@ namespace MathAnim
 	// SvgObject internal functions
 	static void fillWithPluto(plutovg_t* pluto, const AnimObject* parent, const SvgObject* obj);
 	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj);
+	static void writeBuffer(uint8** buffer, size_t* capacity, size_t* numElements, const char* string, size_t stringLength = 0);
+	static void growBufferIfNeeded(uint8** buffer, size_t* capacity, size_t numElements, size_t numElementsToAdd);
 
 	void SvgObject::normalize()
 	{
@@ -1435,93 +1441,25 @@ namespace MathAnim
 		}
 	}
 
-	float SvgObject::calculateSvgScale(float targetWidth) const
+	void SvgObject::calculateMd5()
 	{
-		float maxSize = glm::max(CMath::abs(bbox.max.x - bbox.min.x), CMath::abs(bbox.max.y - bbox.min.y));
-		if (maxSize != 0.0f)
-		{
-			return targetWidth / maxSize;
-		}
-
-		return 0.0f;
+		std::string pathAsStr = getPathAsString();
+		std::string md5Str = Platform::md5FromString(pathAsStr);
+		
+		md5Length = md5Str.length();
+		md5 = (uint8*)g_memory_allocate(sizeof(uint8) * (md5Length + 1));
+		g_memory_copyMem(md5, (void*)md5Str.c_str(), sizeof(uint8) * md5Length);
+		md5[md5Length] = '\0';
 	}
 
-	void SvgObject::render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const
+	void SvgObject::finalize()
 	{
-		Vec2 bboxSize = (bbox.max - bbox.min) * parent->svgScale;
-
-		// Setup pluto context to render SVG to
-		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
-		plutovg_t* pluto = plutovg_create(surface);
-
-		fillWithPluto(pluto, parent, this);
-
-		unsigned char* pixels = plutovg_surface_get_data(surface);
-		int surfaceWidth = plutovg_surface_get_width(surface);
-		int surfaceHeight = plutovg_surface_get_height(surface);
-		texture.uploadSubImage(
-			(int)textureOffset.x,
-			(int)(texture.height - textureOffset.y - surfaceHeight),
-			surfaceWidth,
-			surfaceHeight,
-			pixels,
-			surfaceWidth * surfaceHeight * sizeof(uint8) * 4,
-			true
-		);
-
-		plutovg_surface_destroy(surface);
-		plutovg_destroy(pluto);
+		this->calculateApproximatePerimeter();
+		this->calculateBBox();
+		this->calculateMd5();
 	}
 
-	void SvgObject::renderOutline(float t, const AnimObject* parent) const
-	{
-		renderOutline2D(t, parent, this);
-	}
-
-	void SvgObject::free()
-	{
-		for (int pathi = 0; pathi < numPaths; pathi++)
-		{
-			if (paths[pathi].curves)
-			{
-				g_memory_free(paths[pathi].curves);
-			}
-			paths[pathi].numCurves = 0;
-			paths[pathi].maxCapacity = 0;
-		}
-
-		if (paths)
-		{
-			g_memory_free(paths);
-		}
-
-		numPaths = 0;
-		approximatePerimeter = 0.0f;
-	}
-
-	static void growBufferIfNeeded(uint8** buffer, size_t* capacity, size_t numElements, size_t numElementsToAdd)
-	{
-		if (numElements + numElementsToAdd >= *capacity)
-		{
-			*capacity = (numElements + numElementsToAdd) * 2;
-			*buffer = (uint8*)g_memory_realloc(*buffer, *capacity);
-			g_logger_assert(*buffer != nullptr, "Ran out of RAM.");
-		}
-	}
-
-	static void writeBuffer(uint8** buffer, size_t* capacity, size_t* numElements, const char* string, size_t stringLength = 0)
-	{
-		if (stringLength == 0)
-		{
-			stringLength = std::strlen(string);
-		}
-
-		growBufferIfNeeded(buffer, capacity, *numElements, stringLength);
-		g_memory_copyMem(*buffer + *numElements, (void*)string, stringLength * sizeof(uint8));
-		*numElements += stringLength;
-	}
-
-	void SvgObject::serialize(RawMemory& memory) const
+	std::string SvgObject::getPathAsString() const
 	{
 		size_t numElements = 0;
 		size_t capacity = 256;
@@ -1594,17 +1532,101 @@ namespace MathAnim
 			}
 		}
 
+		std::string pathAsString = std::string((char*)buffer, numElements);
+		g_memory_free(buffer);
+		return pathAsString;
+	}
+
+	float SvgObject::calculateSvgScale(float targetWidth) const
+	{
+		float maxSize = glm::max(CMath::abs(bbox.max.x - bbox.min.x), CMath::abs(bbox.max.y - bbox.min.y));
+		if (maxSize != 0.0f)
+		{
+			return targetWidth / maxSize;
+		}
+
+		return 0.0f;
+	}
+
+	void SvgObject::render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const
+	{
+		MP_PROFILE_EVENT("Svg_RenderWithPluto");
+		Vec2 bboxSize = (bbox.max - bbox.min) * parent->svgScale;
+
+		// Setup pluto context to render SVG to
+		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
+		plutovg_t* pluto = plutovg_create(surface);
+
+		fillWithPluto(pluto, parent, this);
+
+		{
+			MP_PROFILE_EVENT("Svg_UploadPlutoImageToGPU");
+			unsigned char* pixels = plutovg_surface_get_data(surface);
+			int surfaceWidth = plutovg_surface_get_width(surface);
+			int surfaceHeight = plutovg_surface_get_height(surface);
+			texture.uploadSubImage(
+				(int)textureOffset.x,
+				(int)(texture.height - textureOffset.y - surfaceHeight),
+				surfaceWidth,
+				surfaceHeight,
+				pixels,
+				surfaceWidth * surfaceHeight * sizeof(uint8) * 4,
+				true
+			);
+		}
+
+		plutovg_surface_destroy(surface);
+		plutovg_destroy(pluto);
+	}
+
+	void SvgObject::renderOutline(float t, const AnimObject* parent) const
+	{
+		renderOutline2D(t, parent, this);
+	}
+
+	void SvgObject::free()
+	{
+		for (int pathi = 0; pathi < numPaths; pathi++)
+		{
+			if (paths[pathi].curves)
+			{
+				g_memory_free(paths[pathi].curves);
+			}
+			paths[pathi].numCurves = 0;
+			paths[pathi].maxCapacity = 0;
+		}
+
+		if (paths)
+		{
+			g_memory_free(paths);
+		}
+
+		if (md5)
+		{
+			g_memory_free(md5);
+		}
+
+		md5 = nullptr;
+		md5Length = 0;
+		paths = nullptr;
+		numPaths = 0;
+		approximatePerimeter = 0.0f;
+	}
+
+	void SvgObject::serialize(RawMemory& memory) const
+	{
+		std::string pathAsString = getPathAsString();
+		size_t pathLength = pathAsString.size();
+
 		// fillType         -> u8
 		// fillColor        -> Vec4
 		// pathLength       -> u64
 		// path             -> u8[pathLength]
+
 		memory.write<FillType>(&fillType);
 		CMath::serialize(memory, fillColor);
-		uint64 stringLength = (uint64)numElements;
-		memory.write<uint64>(&stringLength);
-		memory.writeDangerous(buffer, numElements);
-
-		g_memory_free(buffer);
+		memory.write<uint64>(&pathLength);
+		memory.writeDangerous((const uint8*)pathAsString.c_str(), pathLength);
 	}
 
 	SvgObject* SvgObject::deserialize(RawMemory& memory, uint32 version)
@@ -1813,6 +1835,7 @@ namespace MathAnim
 	// ------------------- Svg Object Internal functions -------------------
 	static void fillWithPluto(plutovg_t* pluto, const AnimObject* parent, const SvgObject* obj)
 	{
+		MP_PROFILE_EVENT("Svg_FillWithPluto");
 		// Can't render SVG's with 0 paths
 		if (obj->numPaths <= 0)
 		{
@@ -2178,5 +2201,27 @@ namespace MathAnim
 				}
 			}
 		}
+	}
+
+	static void growBufferIfNeeded(uint8** buffer, size_t* capacity, size_t numElements, size_t numElementsToAdd)
+	{
+		if (numElements + numElementsToAdd >= *capacity)
+		{
+			*capacity = (numElements + numElementsToAdd) * 2;
+			*buffer = (uint8*)g_memory_realloc(*buffer, *capacity);
+			g_logger_assert(*buffer != nullptr, "Ran out of RAM.");
+		}
+	}
+
+	static void writeBuffer(uint8** buffer, size_t* capacity, size_t* numElements, const char* string, size_t stringLength)
+	{
+		if (stringLength == 0)
+		{
+			stringLength = std::strlen(string);
+		}
+
+		growBufferIfNeeded(buffer, capacity, *numElements, stringLength);
+		g_memory_copyMem(*buffer + *numElements, (void*)string, stringLength * sizeof(uint8));
+		*numElements += stringLength;
 	}
 }

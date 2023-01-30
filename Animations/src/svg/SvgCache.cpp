@@ -31,20 +31,25 @@ namespace MathAnim
 	bool SvgCache::exists(AnimationManagerData* am, AnimObjId obj)
 	{
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
-		return existsInternal(hash(obj, animObj->svgScale, animObj->percentReplacementTransformed));
+		if (!animObj->svgObject || !animObj->svgObject->md5) return false;
+
+		return existsInternal(hash(animObj->svgObject->md5, animObj->svgObject->md5Length, animObj->svgScale, animObj->percentReplacementTransformed));
 	}
 
 	SvgCacheEntry SvgCache::get(AnimationManagerData* am, AnimObjId obj)
 	{
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
-		auto entry = getInternal(hash(obj, animObj->svgScale, animObj->percentReplacementTransformed));
-		if (entry.has_value())
+		if (animObj->svgObject && animObj->svgObject->md5)
 		{
-			return SvgCacheEntry{
-				entry->texCoordsMin,
-				entry->texCoordsMax,
-				framebuffer.getColorAttachment(entry->colorAttachment)
-			};
+			auto entry = getInternal(hash(animObj->svgObject->md5, animObj->svgObject->md5Length, animObj->svgScale, animObj->percentReplacementTransformed));
+			if (entry.has_value())
+			{
+				return SvgCacheEntry{
+					entry->texCoordsMin,
+					entry->texCoordsMax,
+					framebuffer.getColorAttachment(entry->colorAttachment)
+				};
+			}
 		}
 
 		static Texture dummy = TextureBuilder()
@@ -61,14 +66,17 @@ namespace MathAnim
 	{
 		MP_PROFILE_EVENT("SvgCache_GetOrCreateIfNotExists");
 		const AnimObject* animObj = AnimationManager::getObject(am, obj);
-		auto entry = getInternal(hash(obj, animObj->svgScale, animObj->percentReplacementTransformed));
-		if (entry.has_value())
+		if (animObj->svgObject && animObj->svgObject->md5)
 		{
-			return SvgCacheEntry{
-				entry->texCoordsMin,
-				entry->texCoordsMax,
-				framebuffer.getColorAttachment(entry->colorAttachment)
-			};
+			auto entry = getInternal(hash(animObj->svgObject->md5, animObj->svgObject->md5Length, animObj->svgScale, animObj->percentReplacementTransformed));
+			if (entry.has_value())
+			{
+				return SvgCacheEntry{
+					entry->texCoordsMin,
+					entry->texCoordsMax,
+					framebuffer.getColorAttachment(entry->colorAttachment)
+				};
+			}
 		}
 
 		put(animObj, svg);
@@ -78,7 +86,7 @@ namespace MathAnim
 	void SvgCache::put(const AnimObject* parent, SvgObject* svg)
 	{
 		MP_PROFILE_EVENT("SvgCache_Put");
-		uint64 hashValue = hash(parent->id, parent->svgScale, parent->percentReplacementTransformed);
+		uint64 hashValue = hash(svg->md5, svg->md5Length, parent->svgScale, parent->percentReplacementTransformed);
 
 		// Only add the SVG if it hasn't already been added
 		if (!existsInternal(hashValue))
@@ -256,7 +264,7 @@ namespace MathAnim
 		GL::viewport(0, 0, framebuffer.width, framebuffer.height);
 		for (int i = 0; i < framebuffer.colorAttachments.size(); i++)
 		{
-			framebuffer.clearColorAttachmentRgba(i, Vec4{0, 0, 0, 0});
+			framebuffer.clearColorAttachmentRgba(i, Vec4{ 0, 0, 0, 0 });
 		}
 		framebuffer.clearDepthStencil();
 
@@ -354,14 +362,16 @@ namespace MathAnim
 		cachedSvgs.push_back({});
 	}
 
-	uint64 SvgCache::hash(AnimObjId obj, float svgScale, float replacementTransform)
+	uint64 SvgCache::hash(const uint8* svgMd5, size_t svgMd5Length, float svgScale, float replacementTransform)
 	{
-		uint64 hash = obj;
+		uint64 hash = 0;
 		// Only hash floating point numbers to 3 decimal places
 		int roundedSvgScale = (int)(svgScale * 1000.0f);
 		hash = CMath::combineHash<int>(roundedSvgScale, hash);
 		int roundedTransform = (int)(replacementTransform * 100.0f);
 		hash = CMath::combineHash<int>(roundedTransform, hash);
+		uint64 md5Hash = std::hash<std::string>{}(std::string((const char*)svgMd5, svgMd5Length));
+		hash = CMath::combineHash<uint64>(md5Hash, hash);
 		return hash;
 	}
 }

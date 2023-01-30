@@ -26,8 +26,7 @@ namespace MathAnim
 		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
 		Svg::closePath(parent->_svgObjectStart);
 
-		parent->_svgObjectStart->calculateApproximatePerimeter();
-		parent->_svgObjectStart->calculateBBox();
+		parent->_svgObjectStart->finalize();
 		parent->retargetSvgScale();
 	}
 
@@ -86,8 +85,7 @@ namespace MathAnim
 
 		Svg::closePath(parent->_svgObjectStart);
 
-		parent->_svgObjectStart->calculateApproximatePerimeter();
-		parent->_svgObjectStart->calculateBBox();
+		parent->_svgObjectStart->finalize();
 		parent->retargetSvgScale();
 	}
 
@@ -137,8 +135,7 @@ namespace MathAnim
 		Svg::lineTo(parent->_svgObjectStart, Vec2{ -stemLength, 0.0f }, false);
 		Svg::closePath(parent->_svgObjectStart);
 
-		parent->_svgObjectStart->calculateApproximatePerimeter();
-		parent->_svgObjectStart->calculateBBox();
+		parent->_svgObjectStart->finalize();
 		parent->retargetSvgScale();
 	}
 
