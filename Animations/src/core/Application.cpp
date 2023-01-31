@@ -98,7 +98,7 @@ namespace MathAnim
 			//globalThreadPool = new GlobalThreadPool(true);
 
 			// Initiaize GLFW/Glad
-			GladLayer::init();
+			GlVersion glVersion = GladLayer::init();
 			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
 			window->setVSync(true);
 
@@ -109,7 +109,7 @@ namespace MathAnim
 
 			Fonts::init();
 			Renderer::init();
-			ImGuiLayer::init(*window);
+			ImGuiLayer::init(glVersion.major, glVersion.minor, *window);
 			Audio::init();
 			GizmoManager::init();
 			Svg::init();

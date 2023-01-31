@@ -1,3 +1,4 @@
+#include "core/GladLayer.h"
 #include "core.h"
 
 #include "renderer/GLApi.h"
@@ -8,7 +9,7 @@ namespace MathAnim
 	{
 		static void GLAPIENTRY messageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 
-		void init()
+		GlVersion init()
 		{
 			// Initialize glfw first
 			glfwInit();
@@ -24,7 +25,7 @@ namespace MathAnim
 			{
 				glfwTerminate();
 				g_logger_error("Dummy window creation failed, cannot determine OpenGL version.");
-				return;
+				return {0, 0};
 			}
 			glfwMakeContextCurrent((GLFWwindow*)windowPtr);
 			glfwSetWindowShouldClose((GLFWwindow*)windowPtr, true);
@@ -35,10 +36,13 @@ namespace MathAnim
 			if (version == 0)
 			{
 				g_logger_error("Failed to initialize glad.");
-				return;
+				return {0, 0};
 			}
 			g_logger_info("GLAD initialized.");
-			GL::init(GLAD_VERSION_MAJOR(version), GLAD_VERSION_MINOR(version));
+			GlVersion res;
+			res.major = GLAD_VERSION_MAJOR(version);
+			res.minor = GLAD_VERSION_MINOR(version);
+			GL::init(res.major, res.minor);
 
 			// Destroy the dummy window now that we've patched the function pointers
 			glfwDestroyWindow(windowPtr);
@@ -54,6 +58,8 @@ namespace MathAnim
 
 			// Enable multisampling
 			GL::enable(GL_MULTISAMPLE);
+
+			return res;
 		}
 
 		void deinit()

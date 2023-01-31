@@ -14,6 +14,7 @@ namespace MathAnim
 		void blendFunc(GLenum sfactor, GLenum dfactor);
 		void blendFunci(GLuint buf, GLenum src, GLenum dst);
 		void blendEquation(GLenum mode);
+		void blendFuncSeparate(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha);
 
 		// Framebuffers
 		void bindFramebuffer(GLenum target, GLuint framebuffer);
@@ -42,14 +43,19 @@ namespace MathAnim
 		// Buffer objects
 		void bindBuffer(GLenum target, GLuint buffer);
 		void bufferData(GLenum target, GLsizeiptr size, const void* data, GLenum usage);
+		void bufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const void* data);
 		void genBuffers(GLsizei n, GLuint* buffers);
 		void deleteBuffers(GLsizei n, const GLuint* buffers);
 		void* mapBuffer(GLenum target, GLenum access);
 		GLboolean unmapBuffer(GLenum target);
 
+		// Scissor stuff
+		void scissor(GLint x, GLint y, GLsizei width, GLsizei height);
+
 		// Render functions
 		void drawArrays(GLenum mode, GLint first, GLsizei count);
 		void drawElements(GLenum mode, GLsizei count, GLenum type, const void* indices);
+		void drawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const void* indices, GLint basevertex);
 
 		// Textures
 		void clearTexImage(const Texture& texture, GLint level, const void* data, size_t dataLength);
@@ -62,6 +68,7 @@ namespace MathAnim
 		void texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels);
 		void texParameteri(GLenum target, GLenum pname, GLint param);
 		void texParameteriv(GLenum target, GLenum pname, const GLint* params);
+		void pixelStorei(GLenum pname, GLint param);
 
 		// Shaders
 		GLuint createProgram(void);
@@ -80,6 +87,7 @@ namespace MathAnim
 		void getShaderInfoLog(GLuint shader, GLsizei bufSize, GLsizei* length, GLchar* infoLog);
 		void getActiveUniform(GLuint program, GLuint index, GLsizei bufSize, GLsizei* length, GLint* size, GLenum* type, GLchar* name);
 		GLint getUniformLocation(GLuint program, const GLchar* name);
+		GLint getAttribLocation(GLuint program, const GLchar* name);
 		void uniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
 		void uniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2);
 		void uniform2f(GLint location, GLfloat v0, GLfloat v1);
@@ -100,6 +108,8 @@ namespace MathAnim
 		void viewport(GLint x, GLint y, GLsizei width, GLsizei height);
 		void lineWidth(GLfloat width);
 		void polygonMode(GLenum face, GLenum mode);
+		void getIntegerv(GLenum pname, GLint* data);
+		const GLubyte* getStringi(GLenum name, GLuint index);
 
 		// Debug callback stuffs
 		void debugMessageCallback(GLDEBUGPROC callback, const void* userParam);

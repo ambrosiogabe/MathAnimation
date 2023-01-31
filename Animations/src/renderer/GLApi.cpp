@@ -79,6 +79,11 @@ namespace MathAnim
 			glBlendEquation(mode);
 		}
 
+		void blendFuncSeparate(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha)
+		{
+			glBlendFuncSeparate(sfactorRGB, dfactorRGB, sfactorAlpha, dfactorAlpha);
+		}
+
 		// Framebuffers
 		void bindFramebuffer(GLenum target, GLuint framebuffer)
 		{
@@ -192,6 +197,11 @@ namespace MathAnim
 			glBufferData(target, size, data, usage);
 		}
 
+		void bufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const void* data)
+		{
+			glBufferSubData(target, offset, size, data);
+		}
+
 		void genBuffers(GLsizei n, GLuint* buffers)
 		{
 			glGenBuffers(n, buffers);
@@ -212,6 +222,11 @@ namespace MathAnim
 			return glUnmapBuffer(target);
 		}
 
+		void scissor(GLint x, GLint y, GLsizei width, GLsizei height)
+		{
+			glScissor(x, y, width, height);
+		}
+
 		// Render functions
 		void drawArrays(GLenum mode, GLint first, GLsizei count)
 		{
@@ -221,6 +236,11 @@ namespace MathAnim
 		void drawElements(GLenum mode, GLsizei count, GLenum type, const void* indices)
 		{
 			glDrawElements(mode, count, type, indices);
+		}
+
+		void drawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const void* indices, GLint basevertex)
+		{
+			glDrawElementsBaseVertex(mode, count, type, indices, basevertex);
 		}
 
 		// Textures
@@ -320,6 +340,11 @@ namespace MathAnim
 			glTexParameteriv(target, pname, params);
 		}
 
+		void pixelStorei(GLenum pname, GLint param)
+		{
+			glPixelStorei(pname, param);
+		}
+
 		// Shaders
 		GLuint createProgram(void)
 		{
@@ -399,6 +424,11 @@ namespace MathAnim
 		GLint getUniformLocation(GLuint program, const GLchar* name)
 		{
 			return glGetUniformLocation(program, name);
+		}
+
+		GLint getAttribLocation(GLuint program, const GLchar* name)
+		{
+			return glGetAttribLocation(program, name);
 		}
 
 		void uniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
@@ -490,6 +520,16 @@ namespace MathAnim
 		void polygonMode(GLenum face, GLenum mode)
 		{
 			glPolygonMode(face, mode);
+		}
+
+		void getIntegerv(GLenum pname, GLint* data)
+		{
+			glGetIntegerv(pname, data);
+		}
+
+		const GLubyte* getStringi(GLenum name, GLuint index)
+		{
+			return glGetStringi(name, index);
 		}
 
 		// Debug callback stuffs

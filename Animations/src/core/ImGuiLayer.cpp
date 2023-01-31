@@ -4,11 +4,11 @@
 #include "utils/FontAwesome.h"
 #include "renderer/GLApi.h"
 #include "core/Profiling.h"
+#include "editor/ImGuiOpenGLLayer.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
 
 #include <GLFW/glfw3.h>
 
@@ -27,27 +27,27 @@ namespace MathAnim
 
 		// ---------- Internal Functions ----------
 		static void loadCustomTheme();
-        
-		void init(const Window& window)
+
+		void init(int glVersionMajor, int glVersionMinor, const Window& window)
 		{
 			// Set up dear imgui
 			ImGui::CreateContext();
-            
+
 			ImGuiIO& io = ImGui::GetIO();
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
 			io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 			io.ConfigWindowsMoveFromTitleBarOnly = true;
-            
-            // NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
+
+			// NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
 			glm::ivec2 monitor_size = Window::getMonitorWorkingSize();
-            float fontSize = monitor_size.x / (128.f + 16.0f);
+			float fontSize = monitor_size.x / (128.f + 16.0f);
 #if defined(_WIN32)
 			defaultFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize);
 #elif defined(__linux__)
 			defaultFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/liberation/LiberationSans-Regular.ttf", fontSize);
 #endif
-            
+
 			static const ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
 			ImFontConfig config = {};
 			config.MergeMode = true;
@@ -72,7 +72,7 @@ namespace MathAnim
 #elif defined(__linux__)
 			monoFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/liberation/LiberationMono-Regular.ttf", fontSize);
 #endif
-            
+
 			config.SizePixels = fontSize * 1.5f;
 			mediumSolidIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 1.5f, &config, iconRanges);
 			mediumRegularIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-regular-400.ttf", fontSize * 1.5f, &config, iconRanges);
@@ -80,9 +80,9 @@ namespace MathAnim
 			config.SizePixels = fontSize * 2.0f;
 			largeSolidIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 2.0f, &config, iconRanges);
 			largeRegularIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-regular-400.ttf", fontSize * 2.0f, &config, iconRanges);
-            
+
 			ImGui::StyleColorsDark();
-            
+
 			// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
 			ImGuiStyle& style = ImGui::GetStyle();
 			style.ScaleAllSizes(window.getContentScale());
@@ -93,27 +93,27 @@ namespace MathAnim
 			}
 
 			loadCustomTheme();
-            
+
 			// Setup Platform/Renderer backends
 			ImGui_ImplGlfw_InitForOpenGL((GLFWwindow*)window.windowPtr, true);
-            
+
 			const char* glsl_version = "#version 330";
-			ImGui_ImplOpenGL3_Init(glsl_version);
+			MathAnim_ImplOpenGL3_Init(glVersionMajor, glVersionMinor, glsl_version);
 		}
-        
+
 		void beginFrame()
 		{
 			MP_PROFILE_EVENT("ImGuiLayer_BeginFrame");
 
 			// Start the Dear ImGui frame
-			ImGui_ImplOpenGL3_NewFrame();
+			MathAnim_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 			ImGui::CaptureKeyboardFromApp(true);
-            
-            ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+
+			ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 		}
-        
+
 		void endFrame()
 		{
 			MP_PROFILE_EVENT("ImGuiLayer_EndFrame");
@@ -123,56 +123,62 @@ namespace MathAnim
 				ImGui::CaptureKeyboardFromApp(false);
 			}
 
-			GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
+			{
+				MP_PROFILE_EVENT("ImGuiLayer_EndFrame_Render");
+				ImGui::Render();
+			}
+			MathAnim_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-			ImGui::Render();
-			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-            
 			ImGuiIO& io = ImGui::GetIO();
-            
+
 			// Update and Render additional Platform Windows
 			// (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
 			//  For this specific demo app we could also call glfwMakeContextCurrent(window) directly)
 			if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 			{
+				MP_PROFILE_EVENT("ImGuiLayer_EndFrame_UpdatePlatformWindows");
+
 				GLFWwindow* backup_current_context = glfwGetCurrentContext();
 				ImGui::UpdatePlatformWindows();
 				ImGui::RenderPlatformWindowsDefault();
 				glfwMakeContextCurrent(backup_current_context);
 			}
+
+			GL::disable(GL_SCISSOR_TEST);
+			GL::enable(GL_STENCIL_TEST);
 		}
-        
+
 		void keyEvent()
 		{
-			
+
 		}
-        
+
 		void mouseEvent()
 		{
-            
+
 		}
-        
+
 		void free()
 		{
 			defaultFont = nullptr;
 			mediumFont = nullptr;
-			
+
 			largeSolidIconFont = nullptr;
 			largeRegularIconFont = nullptr;
 			mediumSolidIconFont = nullptr;
 			mediumRegularIconFont = nullptr;
-            
+
 			// Cleanup
-			ImGui_ImplOpenGL3_Shutdown();
+			MathAnim_ImplOpenGL3_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
 			ImGui::DestroyContext();
 		}
-        
+
 		ImFont* getDefaultFont()
 		{
 			return defaultFont;
 		}
-        
+
 		ImFont* getMediumFont()
 		{
 			return mediumFont;
@@ -182,7 +188,7 @@ namespace MathAnim
 		{
 			return monoFont;
 		}
-        
+
 		ImFont* getLargeSolidIconFont()
 		{
 			return largeSolidIconFont;

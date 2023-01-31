@@ -3,9 +3,15 @@
 
 namespace MathAnim
 {
+	struct GlVersion
+	{
+		int major;
+		int minor;
+	};
+
 	namespace GladLayer
 	{
-		void init();
+		GlVersion init();
 
 		void deinit();
 	}
