@@ -100,7 +100,7 @@ namespace MathAnim
 			// Initiaize GLFW/Glad
 			GlVersion glVersion = GladLayer::init();
 			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
-			window->setVSync(true);
+			window->setVSync(false);
 
 			// Initialize Onigiruma
 			OnigEncoding use_encs[1];

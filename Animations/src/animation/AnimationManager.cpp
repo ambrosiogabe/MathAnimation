@@ -1116,6 +1116,8 @@ namespace MathAnim
 
 		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int currentFrame, bool calculateKeyframes)
 		{
+			MP_PROFILE_EVENT("AnimationManager_ApplyAnimationsFrom");
+
 			// Apply any changes from animations in order
 			for (auto animIter = am->animations.begin() + startIndex; animIter != am->animations.end(); animIter++)
 			{
