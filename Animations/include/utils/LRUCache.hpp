@@ -17,6 +17,9 @@ namespace MathAnim
 	class LRUCache
 	{
 	public:
+		LRUCache()
+			: newestEntry(nullptr), oldestEntry(nullptr), indexLookup({}) { }
+
 		bool exists(const Key& key)
 		{
 			return indexLookup.find(key) != indexLookup.end();
@@ -139,6 +142,7 @@ namespace MathAnim
 
 		inline LRUCacheEntry<Key, Value>* getOldest() { return oldestEntry; }
 		inline LRUCacheEntry<Key, Value>* getNewest() { return newestEntry; }
+		inline size_t size() const { return this->indexLookup.size(); }
 
 		void clear()
 		{

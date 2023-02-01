@@ -1973,6 +1973,7 @@ namespace MathAnim
 
 	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj)
 	{
+		MP_PROFILE_EVENT("Svg_RenderOutline2D");
 		constexpr float defaultStrokeWidth = 0.02f;
 
 		// Start the fade in after 80% of the svg object is drawn
@@ -1986,6 +1987,7 @@ namespace MathAnim
 
 		if (lengthToDraw > 0 && obj->numPaths > 0)
 		{
+			MP_PROFILE_EVENT("Svg_RenderOutline2D_GeneratePath2D");
 			float lengthDrawn = 0.0f;
 
 			for (int pathi = 0; pathi < obj->numPaths; pathi++)
@@ -2190,12 +2192,14 @@ namespace MathAnim
 
 				if (lengthDrawn >= lengthToDraw && t < 1.0f)
 				{
+					MP_PROFILE_EVENT("Svg_RenderOutline2D_EndPath");
 					Renderer::endPath(context, false);
 					Renderer::free(context);
 					break;
 				}
 				else
 				{
+					MP_PROFILE_EVENT("Svg_RenderOutline2D_EndPath");
 					Renderer::endPath(context);
 					Renderer::free(context);
 				}

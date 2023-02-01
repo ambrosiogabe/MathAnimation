@@ -118,8 +118,14 @@ namespace MathAnim
 				{
 					// Evict the first potential result from the LRU cache that
 					// can contain the size of this SVG
+
+					// Only evict up to the oldest 20% entries. If nothing is big enough in the oldest 20% entries
+					// then grow the cache instead of evicting a newer entry
+					constexpr float evictionThreshold = 0.2;
 					LRUCacheEntry<uint64, _SvgCacheEntryInternal>* oldest = this->cachedSvgs[this->cacheCurrentColorAttachment].getOldest();
-					while (oldest != nullptr)
+					const size_t maxNumEntriesToTry = (int)(evictionThreshold * (float)this->cachedSvgs[this->cacheCurrentColorAttachment].size());
+					size_t counter = 0;
+					while (oldest != nullptr && counter < maxNumEntriesToTry)
 					{
 						if (oldest->data.allottedSize.x >= svgTotalWidth && oldest->data.allottedSize.y >= svgTotalHeight)
 						{
@@ -145,9 +151,10 @@ namespace MathAnim
 
 						// Try to find an entry that will fit this new SVG
 						oldest = oldest->next;
+						counter++;
 					}
 
-					if (oldest == nullptr)
+					if (oldest == nullptr || counter >= maxNumEntriesToTry)
 					{
 						// Didn't find room so just clear an entire texture and let
 						// everything get recached
@@ -159,10 +166,10 @@ namespace MathAnim
 					{
 						GL::enable(GL_SCISSOR_TEST);
 						GL::scissor(
-							(int)svgTextureOffset.x,
-							(int)(textureToRenderTo->height - svgTextureOffset.y - svgTotalHeight),
-							svgTotalWidth,
-							svgTotalHeight
+							(GLint)svgTextureOffset.x,
+							(GLint)(textureToRenderTo->height - svgTextureOffset.y - allottedSize.y),
+							(GLsizei)allottedSize.x,
+							(GLsizei)allottedSize.y
 						);
 						this->framebuffer.bind();
 						this->framebuffer.clearColorAttachmentRgba(cacheCurrentColorAttachment, Vec4{ 0.0f, 0, 0, 0.0f });
@@ -365,7 +372,7 @@ namespace MathAnim
 			.addColorAttachment(cacheTexture)
 			.includeDepthStencil()
 			.generate();
-		// Push back four caches since we have four color attachments
+		// Push back 4 caches since we have 4 color attachments
 		cachedSvgs.push_back({});
 		cachedSvgs.push_back({});
 		cachedSvgs.push_back({});
