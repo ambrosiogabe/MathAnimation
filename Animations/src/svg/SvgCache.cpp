@@ -7,6 +7,7 @@
 #include "renderer/GLApi.h"
 #include "utils/CMath.h"
 #include "core/Profiling.h"
+#include "editor/ExportPanel.h"
 
 namespace MathAnim
 {
@@ -119,9 +120,9 @@ namespace MathAnim
 					// Evict the first potential result from the LRU cache that
 					// can contain the size of this SVG
 
-					// Only evict up to the oldest 20% entries. If nothing is big enough in the oldest 20% entries
+					// Only evict up to the oldest evictionThreshold% entries. If nothing is big enough in the oldest 20% entries
 					// then grow the cache instead of evicting a newer entry
-					constexpr float evictionThreshold = 0.2;
+					constexpr float evictionThreshold = 0.1;
 					LRUCacheEntry<uint64, _SvgCacheEntryInternal>* oldest = this->cachedSvgs[this->cacheCurrentColorAttachment].getOldest();
 					const size_t maxNumEntriesToTry = (int)(evictionThreshold * (float)this->cachedSvgs[this->cacheCurrentColorAttachment].size());
 					size_t counter = 0;
@@ -180,11 +181,22 @@ namespace MathAnim
 				}
 			}
 
-			svg->render(
-				parent,
-				*textureToRenderTo,
-				svgTextureOffset
-			);
+			// If we're exporting video, frame drops don't matter and we want every frame
+			// exported to the encoder to be perfect
+			if (ExportPanel::isExportingVideo())
+			{
+				svg->render(parent->svgScale, *textureToRenderTo, svgTextureOffset);
+			}
+			else
+			{
+				// Otherwise, it's ok if we don't get the texture immediately,
+				// so we can dump it on a background thread and wait for the result
+				svg->renderAsync(
+					parent->svgScale,
+					*textureToRenderTo,
+					svgTextureOffset
+				);
+			}
 
 			Vec2 cacheUvMin = Vec2{
 				svgTextureOffset.x / framebuffer.width,

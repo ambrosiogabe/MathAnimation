@@ -20,6 +20,7 @@ namespace MathAnim
 		cv = new std::condition_variable();
 		generalMtx = new std::mutex();
 		queueMtx = new std::mutex();
+		finishedQueueMtx = new std::mutex();
 		workerThreads = new std::thread[numThreads];
 #ifdef _DEBUG
 		forceSynchronous = false;
@@ -39,6 +40,7 @@ namespace MathAnim
 		cv = nullptr;
 		generalMtx = nullptr;
 		queueMtx = nullptr;
+		finishedQueueMtx = nullptr;
 		workerThreads = nullptr;
 		doWork = false;
 		numThreads = 0;
@@ -68,6 +70,19 @@ namespace MathAnim
 		delete tasks;
 		delete generalMtx;
 		delete queueMtx;
+		delete finishedQueueMtx;
+	}
+
+	void GlobalThreadPool::processFinishedTasks() 
+	{
+		MP_PROFILE_EVENT("GlobalThreadPool_ProcessFinishedTasks");
+		std::lock_guard<std::mutex> lock(*this->finishedQueueMtx);
+		while (!this->finishedTasks.empty())
+		{
+			ThreadTask& task = finishedTasks.front();
+			task.callback(task.data, task.dataSize);
+			finishedTasks.pop();
+		}
 	}
 
 // Disable this warning since this parameter is used in certain builds
@@ -112,7 +127,8 @@ namespace MathAnim
 				}
 				if (task.callback)
 				{
-					task.callback(task.data, task.dataSize);
+					std::lock_guard<std::mutex> lock(*this->finishedQueueMtx);
+					this->finishedTasks.push(task);
 				}
 			}
 		}

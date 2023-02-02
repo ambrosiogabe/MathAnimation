@@ -10,6 +10,7 @@
 #include "renderer/PerspectiveCamera.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
+#include "multithreading/GlobalThreadPool.h"
 #include "platform/Platform.h"
 
 #include <plutovg.h>
@@ -1119,9 +1120,21 @@ namespace MathAnim
 		}
 	}
 
+	struct RenderAsyncData
+	{
+		float svgScale;
+		const Texture* texture;
+		Vec2 textureOffset;
+		const SvgObject* obj;
+		plutovg_surface_t* surface;
+		plutovg_t* pluto;
+	};
+
 	// ----------------- SvgObject functions -----------------
 	// SvgObject internal functions
-	static void fillWithPluto(plutovg_t* pluto, const AnimObject* parent, const SvgObject* obj);
+	static void rasterizeAsyncCallback(void* renderAsyncData, size_t dataSize);
+	static void uploadRasterizedPixelsCallback(void* renderAsyncData, size_t dataSize);
+	static void fillWithPluto(plutovg_t* pluto, float scale, const SvgObject* obj);
 	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj);
 	static void writeBuffer(uint8** buffer, size_t* capacity, size_t* numElements, const char* string, size_t stringLength = 0);
 	static void growBufferIfNeeded(uint8** buffer, size_t* capacity, size_t numElements, size_t numElementsToAdd);
@@ -1445,7 +1458,7 @@ namespace MathAnim
 	{
 		std::string pathAsStr = getPathAsString();
 		std::string md5Str = Platform::md5FromString(pathAsStr);
-		
+
 		md5Length = md5Str.length();
 		md5 = (uint8*)g_memory_allocate(sizeof(uint8) * (md5Length + 1));
 		g_memory_copyMem(md5, (void*)md5Str.c_str(), sizeof(uint8) * md5Length);
@@ -1548,16 +1561,16 @@ namespace MathAnim
 		return 0.0f;
 	}
 
-	void SvgObject::render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const
+	void SvgObject::render(float svgScale, const Texture& texture, const Vec2& textureOffset) const
 	{
 		MP_PROFILE_EVENT("Svg_RenderWithPluto");
-		Vec2 bboxSize = (bbox.max - bbox.min) * parent->svgScale;
+		Vec2 bboxSize = (bbox.max - bbox.min) * svgScale;
 
 		// Setup pluto context to render SVG to
 		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
 		plutovg_t* pluto = plutovg_create(surface);
 
-		fillWithPluto(pluto, parent, this);
+		fillWithPluto(pluto, svgScale, this);
 
 		{
 			MP_PROFILE_EVENT("Svg_UploadPlutoImageToGPU");
@@ -1577,6 +1590,25 @@ namespace MathAnim
 
 		plutovg_surface_destroy(surface);
 		plutovg_destroy(pluto);
+	}
+
+	void SvgObject::renderAsync(float svgScale, const Texture& texture, const Vec2& textureOffset) const
+	{
+		RenderAsyncData* data = (RenderAsyncData*)g_memory_allocate(sizeof(RenderAsyncData));
+		*data = RenderAsyncData{
+			svgScale,
+			&texture,
+			textureOffset,
+			this
+		};
+		Application::threadPool()->queueTask(
+			rasterizeAsyncCallback,
+			"RenderSvgAsync",
+			data,
+			sizeof(RenderAsyncData),
+			Priority::None,
+			uploadRasterizedPixelsCallback
+		);
 	}
 
 	void SvgObject::renderOutline(float t, const AnimObject* parent) const
@@ -1833,7 +1865,51 @@ namespace MathAnim
 	}
 
 	// ------------------- Svg Object Internal functions -------------------
-	static void fillWithPluto(plutovg_t* pluto, const AnimObject* parent, const SvgObject* obj)
+	static void rasterizeAsyncCallback(void* renderAsyncData, size_t dataSize)
+	{
+		g_logger_assert(dataSize == sizeof(RenderAsyncData), "Invalid data passed to renderAsyncCallback");
+
+		RenderAsyncData* data = (RenderAsyncData*)renderAsyncData;
+		Vec2 bboxSize = (data->obj->bbox.max - data->obj->bbox.min) * data->svgScale;
+
+		// Setup pluto context to render SVG to
+		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
+		plutovg_t* pluto = plutovg_create(surface);
+		data->surface = surface;
+		data->pluto = pluto;
+
+		fillWithPluto(pluto, data->svgScale, data->obj);
+	}
+
+	static void uploadRasterizedPixelsCallback(void* renderAsyncData, size_t dataSize)
+	{
+		g_logger_assert(dataSize == sizeof(RenderAsyncData), "Invalid data passed to renderAsyncCallback");
+
+		// TODO: Add some sort of texture handle so we're not potentially dereferencing
+		// nullptr's here
+		RenderAsyncData* data = (RenderAsyncData*)renderAsyncData;
+
+		MP_PROFILE_EVENT("Svg_UploadPlutoImageToGPU");
+		unsigned char* pixels = plutovg_surface_get_data(data->surface);
+		int surfaceWidth = plutovg_surface_get_width(data->surface);
+		int surfaceHeight = plutovg_surface_get_height(data->surface);
+		data->texture->uploadSubImage(
+			(int)data->textureOffset.x,
+			(int)(data->texture->height - data->textureOffset.y - surfaceHeight),
+			surfaceWidth,
+			surfaceHeight,
+			pixels,
+			surfaceWidth * surfaceHeight * sizeof(uint8) * 4,
+			true
+		);
+
+		plutovg_surface_destroy(data->surface);
+		plutovg_destroy(data->pluto);
+
+		g_memory_free(renderAsyncData);
+	}
+
+	static void fillWithPluto(plutovg_t* pluto, float scale, const SvgObject* obj)
 	{
 		MP_PROFILE_EVENT("Svg_FillWithPluto");
 		// Can't render SVG's with 0 paths
@@ -1844,14 +1920,12 @@ namespace MathAnim
 
 		// Instead of translating, we'll map every coordinate from the SVG min-max range to
 		// the preferred coordinate range
-		Vec2 scaledBboxMin = obj->bbox.min * parent->svgScale;
-		Vec2 scaledBboxMax = obj->bbox.max * parent->svgScale;
-		Vec2 inXRange = Vec2{ scaledBboxMin.x, scaledBboxMax.x };
-		Vec2 inYRange = Vec2{ scaledBboxMin.y, scaledBboxMax.y };
+		Vec2 inXRange = Vec2{ obj->bbox.min.x, obj->bbox.max.x };
+		Vec2 inYRange = Vec2{ obj->bbox.min.y, obj->bbox.max.y };
 
-		Vec2 bboxSize = scaledBboxMax - scaledBboxMin;
+		Vec2 bboxSize = obj->bbox.max - obj->bbox.min;
 		Vec2 minCoord = Vec2{ 0, 0 };
-		Vec2 maxCoord = minCoord + bboxSize;
+		Vec2 maxCoord = minCoord + (bboxSize * scale);
 		Vec2 outXRange = Vec2{ minCoord.x, maxCoord.x };
 		Vec2 outYRange = Vec2{ minCoord.y, maxCoord.y };
 
@@ -1863,8 +1937,6 @@ namespace MathAnim
 			{
 				{
 					Vec2 p0 = obj->paths[pathi].curves[0].p0;
-					p0.x *= parent->svgScale;
-					p0.y *= parent->svgScale;
 					p0.x = CMath::mapRange(inXRange, outXRange, p0.x);
 					p0.y = CMath::mapRange(inYRange, outYRange, p0.y);
 
@@ -1887,18 +1959,12 @@ namespace MathAnim
 						Vec2 p2 = curve.as.bezier3.p2;
 						Vec2 p3 = curve.as.bezier3.p3;
 
-						p1.x *= parent->svgScale;
-						p1.y *= parent->svgScale;
 						p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 						p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
-						p2.x *= parent->svgScale;
-						p2.y *= parent->svgScale;
 						p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
 						p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
 
-						p3.x *= parent->svgScale;
-						p3.y *= parent->svgScale;
 						p3.x = CMath::mapRange(inXRange, outXRange, p3.x);
 						p3.y = CMath::mapRange(inYRange, outYRange, p3.y);
 
@@ -1915,13 +1981,9 @@ namespace MathAnim
 						Vec2 p1 = curve.as.bezier2.p1;
 						Vec2 p2 = curve.as.bezier2.p2;
 
-						p1.x *= parent->svgScale;
-						p1.y *= parent->svgScale;
 						p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 						p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
-						p2.x *= parent->svgScale;
-						p2.y *= parent->svgScale;
 						p2.x = CMath::mapRange(inXRange, outXRange, p2.x);
 						p2.y = CMath::mapRange(inYRange, outYRange, p2.y);
 
@@ -1936,8 +1998,6 @@ namespace MathAnim
 					{
 						Vec2 p1 = curve.as.line.p1;
 
-						p1.x *= parent->svgScale;
-						p1.y *= parent->svgScale;
 						p1.x = CMath::mapRange(inXRange, outXRange, p1.x);
 						p1.y = CMath::mapRange(inYRange, outYRange, p1.y);
 
@@ -1955,7 +2015,6 @@ namespace MathAnim
 		}
 
 		// Draw the SVG with full alpha since we apply alpha changes at the compositing level
-		const glm::u8vec4& fillColor = parent->fillColor;
 		// Render the SVG in white then color it when blitting the
 		// texture to a quad
 		plutovg_set_rgba(pluto, 1.0, 1.0, 1.0, 1.0);

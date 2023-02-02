@@ -188,12 +188,6 @@ namespace MathAnim
 				}
 
 				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
-				if (deltaFrame != 0)
-				{
-					// TODO: Once caching works again, update the cache and timeline
-					//svgCache->clearAll();
-				}
-
 				absolutePrevFrame = absoluteCurrentFrame;
 
 				// Update systems all systems/collect systems draw calls
@@ -242,6 +236,7 @@ namespace MathAnim
 				AnimationManager::endFrame(am);
 
 				// Miscellaneous
+				globalThreadPool->processFinishedTasks();
 				{
 					MP_PROFILE_EVENT("MainThreadLoop_SwapBuffers");
 					window->swapBuffers();

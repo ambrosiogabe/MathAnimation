@@ -127,6 +127,8 @@ namespace MathAnim
 				MP_PROFILE_EVENT("ImGuiLayer_EndFrame_Render");
 				ImGui::Render();
 			}
+
+			GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
 			MathAnim_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 			ImGuiIO& io = ImGui::GetIO();
