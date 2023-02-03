@@ -74,7 +74,7 @@ namespace MathAnim
 		uint64 hash(const uint8* svgMd5, size_t svgMd5Length, float svgScale, float replacementTransform);
 
 	private:
-		std::vector<LRUCache<uint64, _SvgCacheEntryInternal>> cachedSvgs;
+		LRUCache<uint64, _SvgCacheEntryInternal> cachedSvgs;
 		Framebuffer framebuffer;
 
 	public:

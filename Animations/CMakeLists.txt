@@ -15,13 +15,18 @@ set(MATH_ANIMATIONS_ASSETS_DIR ${CMAKE_CURRENT_LIST_DIR}/../assets)
 set(MATH_ANIMATIONS_GRAMMARS_DIR ${CMAKE_CURRENT_LIST_DIR}/vendor/grammars)
 set(MATH_ANIMATIONS_THEMES_DIR ${CMAKE_CURRENT_LIST_DIR}/vendor/themes)
 
-set(MATH_ANIMATIONS_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+set(MATH_ANIMATIONS_INCLUDE_DIR 
+    ${CMAKE_CURRENT_LIST_DIR}/include 
+    ${CMAKE_CURRENT_LIST_DIR}/tests
+)
 set(AV1_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/vendor/av1/Source/API)
 
 file(GLOB_RECURSE MATH_ANIMATIONS_SOURCE
     "src/*.cpp"
     "include/*.h"
     "include/*.hpp"
+    "tests/*.h"
+    "tests/*.cpp"
 )
 
 if(MATH_ANIMATION_OS_LINUX)
@@ -44,6 +49,7 @@ target_compile_definitions(MathAnimations PRIVATE
         $<$<CONFIG:MinSizeRel>:_RELEASE=1>
         $<$<CONFIG:Release>:_RELEASE=1>
         $<$<CONFIG:RelWithProfiler>:_PROFILER=1>
+        $<$<CONFIG:RelTests>:_MATH_ANIM_TESTS=1>
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${MATH_ANIMATIONS_SOURCE})

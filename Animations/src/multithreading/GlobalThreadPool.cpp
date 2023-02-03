@@ -66,6 +66,9 @@ namespace MathAnim
 		{
 			workerThreads[i].join();
 		}
+
+		processFinishedTasks();
+
 		delete[] workerThreads;
 		delete tasks;
 		delete generalMtx;

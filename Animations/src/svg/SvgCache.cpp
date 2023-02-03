@@ -22,11 +22,7 @@ namespace MathAnim
 	void SvgCache::free()
 	{
 		framebuffer.destroy();
-		for (size_t i = 0; i < cachedSvgs.size(); i++)
-		{
-			cachedSvgs[i].clear();
-		}
-		this->cachedSvgs.clear();
+		cachedSvgs.clear();
 	}
 
 	bool SvgCache::exists(AnimationManagerData* am, AnimObjId obj)
@@ -94,7 +90,7 @@ namespace MathAnim
 		{
 			// Setup the texture coords and everything 
 			Vec2 svgTextureOffset = cacheCurrentPos;
-			const Texture* textureToRenderTo = &this->framebuffer.getColorAttachment(this->cacheCurrentColorAttachment);
+			int colorAttachmentToRenderTo = this->cacheCurrentColorAttachment;
 
 			// Check if the SVG cache needs to regenerate
 			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale);
@@ -120,27 +116,28 @@ namespace MathAnim
 					// Evict the first potential result from the LRU cache that
 					// can contain the size of this SVG
 
-					// Only evict up to the oldest evictionThreshold% entries. If nothing is big enough in the oldest 20% entries
-					// then grow the cache instead of evicting a newer entry
-					constexpr float evictionThreshold = 0.1;
-					LRUCacheEntry<uint64, _SvgCacheEntryInternal>* oldest = this->cachedSvgs[this->cacheCurrentColorAttachment].getOldest();
-					const size_t maxNumEntriesToTry = (int)(evictionThreshold * (float)this->cachedSvgs[this->cacheCurrentColorAttachment].size());
+					// Only evict up to the oldest evictionThreshold% entries. If nothing is big enough in the oldest 
+					// evictionThreshold% entries then grow the cache instead of evicting a newer entry
+					constexpr float evictionThreshold = 0.1f;
+					LRUCacheEntry<uint64, _SvgCacheEntryInternal>* oldest = this->cachedSvgs.getOldest();
+					const size_t maxNumEntriesToTry = (size_t)(evictionThreshold * (float)this->cachedSvgs.size());
 					size_t counter = 0;
 					while (oldest != nullptr && counter < maxNumEntriesToTry)
 					{
 						if (oldest->data.allottedSize.x >= svgTotalWidth && oldest->data.allottedSize.y >= svgTotalHeight)
 						{
-							allottedSize = oldest->data.allottedSize;
-
 							// We found an entry that will fit this 
 							// in the future we could evict this entry, 
 							// repack the texture and then insert the new svg
 							// but in practice this will probably be too slow
 
 							// So for now I'll just "evict" then re-insert the new entry
+
+							allottedSize = oldest->data.allottedSize;
 							svgTextureOffset = oldest->data.textureOffset;
-							textureToRenderTo = &this->framebuffer.getColorAttachment(oldest->data.colorAttachment);
-							if (!this->cachedSvgs[this->cacheCurrentColorAttachment].evict(oldest->key))
+							colorAttachmentToRenderTo = oldest->data.colorAttachment;
+
+							if (!this->cachedSvgs.evict(oldest->key))
 							{
 								g_logger_error("SVG cache eviction failed: 0x%8x", oldest->key);
 								oldest = nullptr;
@@ -161,19 +158,20 @@ namespace MathAnim
 						// everything get recached
 						growCache();
 						svgTextureOffset = cacheCurrentPos;
-						textureToRenderTo = &this->framebuffer.getColorAttachment(this->cacheCurrentColorAttachment);
+						colorAttachmentToRenderTo = this->cacheCurrentColorAttachment;
 					}
 					else
 					{
+						const Texture& textureToRenderTo = framebuffer.getColorAttachment(colorAttachmentToRenderTo);
 						GL::enable(GL_SCISSOR_TEST);
 						GL::scissor(
 							(GLint)svgTextureOffset.x,
-							(GLint)(textureToRenderTo->height - svgTextureOffset.y - allottedSize.y),
+							(GLint)(textureToRenderTo.height - svgTextureOffset.y - allottedSize.y),
 							(GLsizei)allottedSize.x,
 							(GLsizei)allottedSize.y
 						);
-						this->framebuffer.bind();
-						this->framebuffer.clearColorAttachmentRgba(cacheCurrentColorAttachment, Vec4{ 0.0f, 0, 0, 0.0f });
+						framebuffer.bind();
+						framebuffer.clearColorAttachmentRgba(colorAttachmentToRenderTo, Vec4{ 1.0f, 0, 0, 1.0f });
 						framebuffer.clearDepthStencil();
 						incrementX = false;
 						GL::disable(GL_SCISSOR_TEST);
@@ -181,23 +179,7 @@ namespace MathAnim
 				}
 			}
 
-			// If we're exporting video, frame drops don't matter and we want every frame
-			// exported to the encoder to be perfect
-			if (ExportPanel::isExportingVideo())
-			{
-				svg->render(parent->svgScale, *textureToRenderTo, svgTextureOffset);
-			}
-			else
-			{
-				// Otherwise, it's ok if we don't get the texture immediately,
-				// so we can dump it on a background thread and wait for the result
-				svg->renderAsync(
-					parent->svgScale,
-					*textureToRenderTo,
-					svgTextureOffset
-				);
-			}
-
+			// Calculate UVs and stuff for LRU cache
 			Vec2 cacheUvMin = Vec2{
 				svgTextureOffset.x / framebuffer.width,
 				1.0f - (svgTextureOffset.y / framebuffer.width) - (svgTotalHeight / framebuffer.height)
@@ -214,15 +196,38 @@ namespace MathAnim
 				checkLineHeight(svgTotalHeight);
 			}
 
-			// Finally store the results
-			_SvgCacheEntryInternal res;
-			res.colorAttachment = cacheCurrentColorAttachment;
+			// Store the results here
+			_SvgCacheEntryInternal res = {};
+			res.colorAttachment = colorAttachmentToRenderTo;
 			res.texCoordsMin = cacheUvMin;
 			res.texCoordsMax = cacheUvMax;
 			res.svgSize = Vec2{ svgTotalWidth, svgTotalHeight };
 			res.allottedSize = allottedSize;
 			res.textureOffset = svgTextureOffset;
-			this->cachedSvgs[this->cacheCurrentColorAttachment].insert(hashValue, res);
+			this->cachedSvgs.insert(hashValue, res);
+
+			// Then begin the rasterization after we've updated the LRU cache
+
+			// If we're exporting video, frame drops don't matter and we want every frame
+			// exported to the encoder to be perfect
+			if (ExportPanel::isExportingVideo())
+			{
+				svg->render(
+					parent->svgScale,
+					framebuffer.getColorAttachment(colorAttachmentToRenderTo),
+					svgTextureOffset
+				);
+			}
+			else
+			{
+				// Otherwise, it's ok if we don't get the texture immediately,
+				// so we can dump it on a background thread and wait for the result
+				svg->renderAsync(
+					parent->svgScale,
+					framebuffer.getColorAttachment(colorAttachmentToRenderTo),
+					svgTextureOffset
+				);
+			}
 		}
 	}
 
@@ -280,10 +285,7 @@ namespace MathAnim
 		cacheCurrentPos.y = 0;
 		cacheCurrentColorAttachment = 0;
 		cacheLineHeight = 0;
-		for (size_t i = 0; i < cachedSvgs.size(); i++)
-		{
-			cachedSvgs[i].clear();
-		}
+		cachedSvgs.clear();
 
 		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "SVG_Cache_Reset");
 
@@ -322,7 +324,28 @@ namespace MathAnim
 	{
 		// TODO: This should just add a new color attachment
 		cacheCurrentColorAttachment = (cacheCurrentColorAttachment + 1) % framebuffer.colorAttachments.size();
-		this->cachedSvgs[cacheCurrentColorAttachment].clear();
+		{
+			// Delete all cached svg entries that are attached to cacheCurrentColorAttachment
+			LRUCacheEntry<uint64, _SvgCacheEntryInternal>* oldest = this->cachedSvgs.getOldest();
+			while (oldest != nullptr)
+			{
+				if (oldest->data.colorAttachment == cacheCurrentColorAttachment)
+				{
+					LRUCacheEntry<uint64, _SvgCacheEntryInternal>* next = oldest->next;
+					if (!cachedSvgs.evict(oldest->key))
+					{
+						g_logger_error("Failed to evict cache entry %u", oldest->key);
+					}
+					oldest = next;
+				}
+				else
+				{
+					oldest = oldest->next;
+				}
+			}
+		}
+
+		// Clear the color attachment
 		framebuffer.bind();
 		GL::viewport(0, 0, framebuffer.width, framebuffer.height);
 		this->framebuffer.clearColorAttachmentRgba(cacheCurrentColorAttachment, Vec4{ 0, 0, 0, 0 });
@@ -332,13 +355,10 @@ namespace MathAnim
 
 	std::optional<_SvgCacheEntryInternal> SvgCache::getInternal(uint64 hash)
 	{
-		for (size_t i = 0; i < cachedSvgs.size(); i++)
+		const auto& res = cachedSvgs.get(hash);
+		if (res.has_value())
 		{
-			const auto& res = cachedSvgs[(cacheCurrentColorAttachment + i) % cachedSvgs.size()].get(hash);
-			if (res.has_value())
-			{
-				return res;
-			}
+			return res;
 		}
 
 		return std::nullopt;
@@ -346,16 +366,7 @@ namespace MathAnim
 
 	bool SvgCache::existsInternal(uint64 hash)
 	{
-		for (size_t i = 0; i < cachedSvgs.size(); i++)
-		{
-			const auto& res = cachedSvgs[(cacheCurrentColorAttachment + i) % cachedSvgs.size()].get(hash);
-			if (res.has_value())
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return cachedSvgs.exists(hash);
 	}
 
 	void SvgCache::generateDefaultFramebuffer(uint32 width, uint32 height)
@@ -384,11 +395,7 @@ namespace MathAnim
 			.addColorAttachment(cacheTexture)
 			.includeDepthStencil()
 			.generate();
-		// Push back 4 caches since we have 4 color attachments
-		cachedSvgs.push_back({});
-		cachedSvgs.push_back({});
-		cachedSvgs.push_back({});
-		cachedSvgs.push_back({});
+		cachedSvgs = {};
 	}
 
 	uint64 SvgCache::hash(const uint8* svgMd5, size_t svgMd5Length, float svgScale, float replacementTransform)
