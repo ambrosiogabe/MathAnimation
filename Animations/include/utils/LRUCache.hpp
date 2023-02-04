@@ -39,6 +39,11 @@ namespace MathAnim
 					return entry->data;
 				}
 
+				if (entry == oldestEntry)
+				{
+					oldestEntry = entry->next;
+				}
+
 				// Update the surrounding nodes in the doubly linked list
 				if (entry->next)
 				{
@@ -140,8 +145,10 @@ namespace MathAnim
 			}
 		}
 
-		inline LRUCacheEntry<Key, Value>* getOldest() { return oldestEntry; }
-		inline LRUCacheEntry<Key, Value>* getNewest() { return newestEntry; }
+		inline LRUCacheEntry<Key, Value>* getOldest() const { return oldestEntry; }
+		inline LRUCacheEntry<Key, Value>* getNewest() const { return newestEntry; }
+		inline const LRUCacheEntry<Key, Value>* getOldestConst() const { return oldestEntry; }
+		inline const LRUCacheEntry<Key, Value>* getNewestConst() const { return newestEntry; }
 		inline size_t size() const { return this->indexLookup.size(); }
 
 		void clear()
