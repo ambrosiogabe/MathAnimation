@@ -24,7 +24,7 @@ namespace MathAnim
 	struct TestSuite
 	{
 		const char* name;
-		bool* testResults;
+		char** testResults;
 		TestPrototype* tests;
 		size_t testsLength;
 		size_t numTestsPassed;
@@ -59,9 +59,9 @@ namespace MathAnim
 				testSuite.tests,
 				sizeof(TestPrototype) * testSuite.testsLength
 			);
-			testSuite.testResults = (bool*)g_memory_realloc(
+			testSuite.testResults = (char**)g_memory_realloc(
 				testSuite.testResults,
-				sizeof(bool) * testSuite.testsLength
+				sizeof(char**) * testSuite.testsLength
 			);
 
 			TestPrototype test = {};
@@ -72,7 +72,7 @@ namespace MathAnim
 			test.name[test.nameLength] = '\0';
 
 			testSuite.tests[testSuite.testsLength - 1] = test;
-			testSuite.testResults[testSuite.testsLength - 1] = false;
+			testSuite.testResults[testSuite.testsLength - 1] = nullptr;
 		}
 
 		void runTests()
@@ -125,6 +125,11 @@ namespace MathAnim
 						g_memory_free(testSuite.tests[i].name);
 					}
 
+					if (testSuite.testResults[i])
+					{
+						g_memory_free(testSuite.testResults[i]);
+					}
+
 					testSuite.tests[i].name = nullptr;
 					testSuite.tests[i].nameLength = 0;
 					testSuite.tests[i].fn = nullptr;
@@ -158,10 +163,17 @@ namespace MathAnim
 
 			for (size_t i = 0; i < testSuite->testsLength; i++)
 			{
-				testSuite->testResults[i] = testSuite->tests[i].fn();
-				if (testSuite->testResults[i])
+				const char* result = testSuite->tests[i].fn();
+				if (result == nullptr)
 				{
 					testSuite->numTestsPassed++;
+					testSuite->testResults[i] = nullptr;
+				}
+				else
+				{
+					size_t strLength = std::strlen(result) + 1;
+					testSuite->testResults[i] = (char*)g_memory_allocate(sizeof(char) * strLength);
+					g_memory_copyMem(testSuite->testResults[i], (void*)result, strLength);
 				}
 			}
 		}
@@ -175,7 +187,7 @@ namespace MathAnim
 
 			for (size_t i = 0; i < testSuite->testsLength; i++)
 			{
-				if (testSuite->testResults[i])
+				if (testSuite->testResults[i] == nullptr)
 				{
 					printf(
 						ANSI_COLOR_GREEN
@@ -192,9 +204,14 @@ namespace MathAnim
 						ANSI_COLOR_RED
 						"      + Fail    "
 						ANSI_COLOR_RESET
-						"'%s::%s'\n",
+						"'%s::%s'\n"
+						"        Failed at: "
+						ANSI_COLOR_RED
+						"%s\n"
+						ANSI_COLOR_RESET,
 						testSuite->name,
-						testSuite->tests[i].name
+						testSuite->tests[i].name,
+						testSuite->testResults[i]
 					);
 				}
 			}

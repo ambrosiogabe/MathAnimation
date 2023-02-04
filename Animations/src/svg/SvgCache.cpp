@@ -171,7 +171,7 @@ namespace MathAnim
 							(GLsizei)allottedSize.y
 						);
 						framebuffer.bind();
-						framebuffer.clearColorAttachmentRgba(colorAttachmentToRenderTo, Vec4{ 1.0f, 0, 0, 1.0f });
+						framebuffer.clearColorAttachmentRgba(colorAttachmentToRenderTo, Vec4{ 0.0f, 0, 0, 0.0f });
 						framebuffer.clearDepthStencil();
 						incrementX = false;
 						GL::disable(GL_SCISSOR_TEST);

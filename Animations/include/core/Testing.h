@@ -5,14 +5,20 @@
 
 #define ADD_TEST(testSuite, testName) Tests::addTest(testSuite, #testName, testName)
 
-#define ASSERT_TRUE(val) { if (!(val)) return false; }
-#define ASSERT_FALSE(val) { if (val) return false; }
+#define ASSERT_TRUE(val) { if (!(val)) return "ASSERT_TRUE("#val")"; }
+#define ASSERT_FALSE(val) { if (val) return "ASSERT_FALSE("#val")"; }
+
+#define ASSERT_EQUAL(a, b) { if (a != b) return "ASSERT_EQUAL("#a", "#b")"; }
+#define ASSERT_NOT_EQUAL(a, b) { if (a == b) return "ASSERT_NOT_EQUAL("#a", "#b")"; }
+
+#define DEFINE_TEST(fnName) const char* fnName()
+#define END_TEST return nullptr
 
 namespace MathAnim
 {
 	struct TestSuite;
 
-	typedef bool (*TestFn)();
+	typedef const char* (*TestFn)();
 
 	namespace Tests
 	{

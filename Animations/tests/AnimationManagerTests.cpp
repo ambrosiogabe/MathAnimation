@@ -7,8 +7,15 @@ namespace MathAnim
 	namespace AnimationManagerTests
 	{
 		// -------------------- Tests --------------------
-		bool dummyOne();
-		bool dummyTwo();
+		DEFINE_TEST(dummyOne)
+		{
+			END_TEST;
+		}
+
+		DEFINE_TEST(dummyTwo)
+		{
+			END_TEST;
+		}
 
 		void setupTestSuite()
 		{
@@ -16,17 +23,6 @@ namespace MathAnim
 
 			ADD_TEST(testSuite, dummyOne);
 			ADD_TEST(testSuite, dummyTwo);
-		}
-
-		// -------------------- Tests --------------------
-		bool dummyOne()
-		{
-			return true;
-		}
-
-		bool dummyTwo()
-		{
-			return true;
 		}
 	}
 }
