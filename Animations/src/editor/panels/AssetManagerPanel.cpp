@@ -1,5 +1,5 @@
-#include "editor/AssetManagerPanel.h"
-#include "editor/ImGuiExtended.h"
+#include "editor/panels/AssetManagerPanel.h"
+#include "editor/imgui/ImGuiExtended.h"
 #include "utils/FontAwesome.h"
 #include "platform/Platform.h"
 #include "platform/FileSystemWatcher.h"

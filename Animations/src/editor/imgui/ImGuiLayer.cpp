@@ -1,10 +1,10 @@
-#include "core/ImGuiLayer.h"
+#include "editor/imgui/ImGuiLayer.h"
+#include "editor/imgui/ImGuiOpenGLLayer.h"
 #include "core/Window.h"
-#include "core/Colors.h"
 #include "utils/FontAwesome.h"
+#include "renderer/Colors.h"
 #include "renderer/GLApi.h"
 #include "core/Profiling.h"
-#include "editor/ImGuiOpenGLLayer.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>

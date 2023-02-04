@@ -5,9 +5,9 @@
 #include "renderer/Texture.h"
 #include "renderer/Renderer.h"
 #include "renderer/GLApi.h"
-#include "utils/CMath.h"
+#include "math/CMath.h"
 #include "core/Profiling.h"
-#include "editor/ExportPanel.h"
+#include "editor/panels/ExportPanel.h"
 
 namespace MathAnim
 {

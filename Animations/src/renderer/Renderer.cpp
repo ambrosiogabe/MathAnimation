@@ -13,10 +13,11 @@
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
-#include "editor/Timeline.h"
+#include "editor/timeline/Timeline.h"
 #include "editor/EditorGui.h"
 #include "editor/EditorSettings.h"
 #include "svg/Svg.h"
+#include "math/CMath.h"
 
 #ifdef _RELEASE
 #include "shaders/default.glsl.hpp"

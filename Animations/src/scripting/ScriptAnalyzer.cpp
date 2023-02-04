@@ -1,7 +1,7 @@
 #include "scripting/ScriptAnalyzer.h"
 #include "scripting/MathAnimGlobals.h"
 #include "platform/Platform.h"
-#include "editor/ConsoleLog.h"
+#include "editor/panels/ConsoleLog.h"
 
 #include <lua.h>
 #include <luacode.h>

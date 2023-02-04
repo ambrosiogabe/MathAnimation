@@ -1,4 +1,5 @@
-#include "editor/ExportPanel.h"
+#include "editor/panels/ExportPanel.h"
+#include "editor/imgui/ImGuiExtended.h"
 #include "editor/EditorSettings.h"
 #include "core.h"
 #include "core/Application.h"
@@ -9,7 +10,6 @@
 #include "renderer/Texture.h"
 #include "renderer/PixelBufferDownloader.h"
 #include "renderer/GLApi.h"
-#include "editor/ImGuiExtended.h"
 
 #include <nfd.h>
 

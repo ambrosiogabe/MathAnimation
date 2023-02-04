@@ -1,6 +1,6 @@
 #include "renderer/Shader.h"
 #include "renderer/GLApi.h"
-#include "utils/CMath.h"
+#include "math/CMath.h"
 
 #include <unordered_map>
 

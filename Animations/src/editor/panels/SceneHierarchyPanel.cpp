@@ -1,9 +1,9 @@
-#include "editor/SceneHierarchyPanel.h"
-#include "editor/Timeline.h"
+#include "editor/panels/SceneHierarchyPanel.h"
+#include "editor/timeline/Timeline.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "utils/IconsFontAwesome5.h"
-#include "core/Colors.h"
+#include "renderer/Colors.h"
 #include "core/Input.h"
 
 #include <imgui.h>

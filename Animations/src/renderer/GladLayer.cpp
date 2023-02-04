@@ -1,4 +1,4 @@
-#include "core/GladLayer.h"
+#include "renderer/GladLayer.h"
 #include "core.h"
 
 #include "renderer/GLApi.h"

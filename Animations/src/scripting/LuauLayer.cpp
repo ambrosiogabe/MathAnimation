@@ -5,7 +5,7 @@
 #include "platform/Platform.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
-#include "editor/ConsoleLog.h"
+#include "editor/panels/ConsoleLog.h"
 
 #include <lua.h>
 #include <lualib.h>

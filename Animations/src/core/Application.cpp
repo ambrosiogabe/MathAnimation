@@ -2,10 +2,9 @@
 #include "core.h"
 #include "core/Window.h"
 #include "core/Input.h"
-#include "core/GladLayer.h"
-#include "core/ImGuiLayer.h"
-#include "core/Colors.h"
 #include "core/Profiling.h"
+#include "renderer/Colors.h"
+#include "renderer/GladLayer.h"
 #include "renderer/Renderer.h"
 #include "renderer/OrthoCamera.h"
 #include "renderer/PerspectiveCamera.h"
@@ -22,13 +21,14 @@
 #include "svg/SvgParser.h"
 #include "svg/SvgCache.h"
 #include "editor/EditorGui.h"
-#include "editor/Timeline.h"
 #include "editor/Gizmos.h"
 #include "editor/EditorCameraController.h"
 #include "editor/EditorSettings.h"
-#include "editor/SceneManagementPanel.h"
-#include "editor/MenuBar.h"
-#include "editor/ExportPanel.h"
+#include "editor/timeline/Timeline.h"
+#include "editor/imgui/ImGuiLayer.h"
+#include "editor/panels/SceneManagementPanel.h"
+#include "editor/panels/MenuBar.h"
+#include "editor/panels/ExportPanel.h"
 #include "parsers/SyntaxHighlighter.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
@@ -154,6 +154,9 @@ namespace MathAnim
 
 			svgCache->clearAll();
 
+			// TODO: Make this customizable through the project settings
+			const Vec4 greenBrown = "#272822FF"_hex;
+
 			while (isRunning && !window->shouldClose())
 			{
 				MP_PROFILE_FRAME("MainLoop");
@@ -204,7 +207,7 @@ namespace MathAnim
 				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
 				{
 					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
-					Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], am, renderPickingOutline);
+					Renderer::renderToFramebuffer(mainFramebuffer, greenBrown, am, renderPickingOutline);
 				}
 				// Collect gizmo draw calls
 				GizmoManager::render(am);
@@ -254,7 +257,7 @@ namespace MathAnim
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
 			AnimationManager::render(am, deltaFrame);
-			Renderer::renderToFramebuffer(mainFramebuffer, colors[(uint8)Color::GreenBrown], am, false);
+			Renderer::renderToFramebuffer(mainFramebuffer, greenBrown, am, false);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path outputFile = (currentProjectRoot / "projectPreview.png");
 			if (mainFramebuffer.width > 1280 || mainFramebuffer.height > 720)

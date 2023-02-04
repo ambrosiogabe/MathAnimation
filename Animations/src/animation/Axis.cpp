@@ -2,7 +2,7 @@
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "svg/Svg.h"
-#include "utils/CMath.h"
+#include "math/CMath.h"
 
 namespace MathAnim
 {

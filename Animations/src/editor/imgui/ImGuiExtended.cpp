@@ -1,7 +1,7 @@
-#include "editor/Timeline.h"
-#include "editor/ImGuiExtended.h"
-#include "core/ImGuiLayer.h"
-#include "core/Colors.h"
+#include "editor/timeline/Timeline.h"
+#include "editor/imgui/ImGuiExtended.h"
+#include "editor/imgui/ImGuiLayer.h"
+#include "renderer/Colors.h"
 #include "animation/AnimationManager.h"
 
 namespace MathAnim

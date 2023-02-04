@@ -1,10 +1,10 @@
 #include "core/ProjectApp.h"
 #include "core/Window.h"
-#include "core/GladLayer.h"
-#include "core/ImGuiLayer.h"
 #include "editor/ProjectScreen.h"
+#include "editor/imgui/ImGuiLayer.h"
 #include "multithreading/GlobalThreadPool.h"
 #include "platform/Platform.h"
+#include "renderer/GladLayer.h"
 #include "renderer/GLApi.h"
 
 #include <imgui.h>

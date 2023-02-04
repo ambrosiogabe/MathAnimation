@@ -2,7 +2,6 @@
 #include "svg/SvgParser.h"
 #include "svg/SvgCache.h"
 #include "animation/Animation.h"
-#include "utils/CMath.h"
 #include "renderer/Renderer.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
@@ -11,6 +10,7 @@
 #include "core/Application.h"
 #include "core/Profiling.h"
 #include "multithreading/GlobalThreadPool.h"
+#include "math/CMath.h"
 #include "platform/Platform.h"
 
 #include <plutovg.h>

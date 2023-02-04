@@ -1,4 +1,4 @@
-#include "utils/CMath.h"
+#include "math/CMath.h"
 
 namespace MathAnim
 {

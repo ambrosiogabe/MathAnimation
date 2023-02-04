@@ -6,6 +6,7 @@
 #include "renderer/OrthoCamera.h"
 #include "editor/EditorSettings.h"
 #include "svg/Svg.h"
+#include "math/CMath.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
 

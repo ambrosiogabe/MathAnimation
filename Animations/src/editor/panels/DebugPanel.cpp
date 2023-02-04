@@ -1,9 +1,9 @@
-#include "editor/DebugPanel.h"
+#include "editor/panels/DebugPanel.h"
 #include "core.h"
 #include "core/Application.h"
-#include "core/Colors.h"
 #include "svg/Svg.h"
 #include "svg/SvgCache.h"
+#include "renderer/Colors.h"
 #include "renderer/Texture.h"
 #include "renderer/Renderer.h"
 
