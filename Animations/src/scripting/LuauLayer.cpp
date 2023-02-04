@@ -7,9 +7,14 @@
 #include "animation/AnimationManager.h"
 #include "editor/panels/ConsoleLog.h"
 
+#pragma warning( push )
+#pragma warning( disable : 4100 )
+#pragma warning( disable : 4324 )
+#pragma warning( disable : 4324 )
 #include <lua.h>
 #include <lualib.h>
 #include <luacode.h>
+#pragma warning ( pop )
 
 namespace MathAnim
 {
@@ -380,7 +385,7 @@ namespace MathAnim
 				{
 					foundLineNumberStart = true;
 					lineNumberStart = i;
-					for (int j = i; j < messageLength; j++)
+					for (size_t j = i; j < messageLength; j++)
 					{
 						if (message[j] < '0' || message[j] > '9')
 						{

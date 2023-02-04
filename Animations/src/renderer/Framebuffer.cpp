@@ -29,9 +29,7 @@ namespace MathAnim
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsInt(texture), "Cannot clear non-uint texture as if it were a uint texture.");
 
-		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
-		uint32 formatType = TextureUtil::toGlDataType(texture.format);
-		GL::clearTexImage(texture, 0, &clearColor, sizeof(uint32));
+		GL::clearBufferuiv(GL_COLOR, colorAttachment, &clearColor);
 	}
 
 	void Framebuffer::clearColorAttachmentUint64(int colorAttachment, uint64 clearColor) const
@@ -40,9 +38,7 @@ namespace MathAnim
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsUint64(texture), "Cannot clear non-uint texture as if it were a uint texture.");
 
-		uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
-		uint32 formatType = TextureUtil::toGlDataType(texture.format);
-		GL::clearTexImage(texture, 0, &clearColor, sizeof(uint64));
+		GL::clearBufferuiv(GL_COLOR, colorAttachment, (uint32*)&clearColor);
 	}
 
 	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, const glm::vec3& clearColor) const

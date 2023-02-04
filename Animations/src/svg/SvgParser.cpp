@@ -221,7 +221,8 @@ namespace MathAnim
 				return color;
 			}
 
-			return "#fc03f8"_hex;
+			static Vec4 invalidColorGrossPink = "#fc03f8"_hex;
+			return invalidColorGrossPink;
 		}
 
 		float asNumber() const
@@ -378,7 +379,6 @@ namespace MathAnim
 						const XMLAttribute* id = childEl->FindAttribute("id");
 						if (id == nullptr) g_logger_warning("Child element '%s' had no id attribute.", childEl->Name());
 
-						const XMLAttribute* pathAttribute = childEl->FindAttribute("d");
 						SvgObject obj;
 						if (parseSvgPathTag(childEl, &obj, rootStylesheet))
 						{
@@ -1670,6 +1670,8 @@ namespace MathAnim
 			return token;
 		}
 
+#pragma warning( push )
+#pragma warning( disable : 4505 )
 		static void printStyleToken(StyleToken& token)
 		{
 			switch (token.type)
@@ -1719,6 +1721,7 @@ namespace MathAnim
 				break;
 			}
 		}
+#pragma warning( pop )
 
 		static bool parseColor(const std::string& color, Vec4* output)
 		{
@@ -2036,4 +2039,4 @@ namespace MathAnim
 	}
 }
 
-#undef PANIC;
+#undef PANIC

@@ -57,7 +57,6 @@ namespace MathAnim
 		int outputHeight,
 		int outputFramerate,
 		size_t totalNumFramesInVideo,
-		Mbps bitrate,
 		VideoEncoderFlags flags)
 	{
 		VideoEncoder* output = (VideoEncoder*)g_memory_allocate(sizeof(VideoEncoder));
@@ -415,20 +414,20 @@ static void memPutLe32(void* vmem, uint32_t val)
 static void writeIvfHeader(const AV1Context* context)
 {
 	unsigned char header[32] = { 'D', 'K', 'I', 'F', 0, 0, 32, 0, 'A', 'V', '0', '1' };
-	memPutLe16(header + 12, context->width);
-	memPutLe16(header + 14, context->height);
+	memPutLe16(header + 12, (uint16)context->width);
+	memPutLe16(header + 14, (uint16)context->height);
 	const uint32 fpsNumerator = (uint32)context->fps;
 	const uint32 fpsDenominator = 1;
 	memPutLe32(header + 16, fpsNumerator);
 	memPutLe32(header + 20, fpsDenominator);
-	memPutLe32(header + 24, context->frameCount);
+	memPutLe32(header + 24, (uint32)context->frameCount);
 	fwrite(header, 32, 1, context->fileOutput);
 }
 
 static void writeIvfFrameSize(AV1Context* const context, const size_t size)
 {
 	unsigned char header[4];
-	memPutLe32(header, size);
+	memPutLe32(header, (uint32)size);
 	fwrite(header, 4, 1, context->fileOutput);
 }
 
@@ -477,10 +476,6 @@ static void* ivfEncodeThread(void* p)
 {
 	AV1Context* const ctx = (AV1Context*)p;
 	EbComponentType* svt_handle = ctx->svtHandle;
-	const size_t width = ctx->width;
-	const size_t height = ctx->height;
-	const size_t frame_count = ctx->frameCount;
-	const size_t fps = ctx->fps;
 	FILE* fout = ctx->fileOutput;
 
 	fputs("starting ivf thread\n", stderr);
@@ -545,11 +540,11 @@ static EbSvtIOFormat* allocateIoFormat(const size_t width, const size_t height)
 	g_logger_assert(pic != nullptr, "Ran out of RAM.");
 
 	g_memory_zeroMem(pic, sizeof(EbSvtIOFormat));
-	pic->y_stride = width;
-	pic->cr_stride = width / 2;
-	pic->cb_stride = width / 2;
-	pic->width = width;
-	pic->height = height;
+	pic->y_stride = (uint32)width;
+	pic->cr_stride = (uint32)(width / 2);
+	pic->cb_stride = (uint32)(width / 2);
+	pic->width = (uint32)width;
+	pic->height = (uint32)height;
 	pic->color_fmt = EB_YUV420;
 	pic->bit_depth = EB_EIGHT_BIT;
 	pic->luma = (uint8*)g_memory_allocate(height * pic->y_stride * sizeof(uint8));

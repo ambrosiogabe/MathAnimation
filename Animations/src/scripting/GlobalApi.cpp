@@ -11,6 +11,9 @@
 #include <lualib.h>
 #include <luaconf.h>
 
+#pragma warning( push )
+#pragma warning( disable : 4702 )
+
 #define throwError(L, errorMessage) \
 do { \
 	lua_pushstring(L, errorMessage); \
@@ -44,6 +47,8 @@ do { \
 	} \
 } while(false)
 
+static std::string getAsString(lua_State * L, int index = 1);
+
 extern "C"
 {
 	using namespace MathAnim;
@@ -65,15 +70,13 @@ extern "C"
 	static SvgObject* checkIfSvgIsNull(lua_State* L, int index);
 
 	// Print helpers
-	static std::string getAsString(lua_State* L, int index = 1);
 	static void luaPrintTable(lua_State* L, char* buffer, size_t bufferSize, int index, int tabDepth = 1, int maxTabDepth = 5);
-	static std::string getAsString(lua_State* L, int index);
-	static int luaPrintItem(lua_State* L, g_logger_level logLevel, const std::string& scriptFilepath, const lua_Debug& debugInfo, int index = 1);
+	static int luaPrintItem(lua_State* L, g_logger_level logLevel, const std::string& scriptFilepath, const lua_Debug& debugInfo);
 	static int luaPrint(lua_State* L, g_logger_level logLevel);
 
-	int global_printStackVar(lua_State* L, int index)
+	int global_printStackVar(lua_State* L, int)
 	{
-		luaPrintItem(L, g_logger_level_Info, "Null", {}, index);
+		luaPrintItem(L, g_logger_level_Info, "Null", {});
 
 		return 0;
 	}
@@ -202,19 +205,19 @@ extern "C"
 		uint64 id = toU64(L, -1);
 		lua_pop(L, 1);
 
-		float x = lua_tonumber(L, 2);
+		float x = (float)lua_tonumber(L, 2);
 		if (!lua_isnumber(L, 2))
 		{
 			throwError(L, "Expected number as first argument in setPosition(x, y, z). Got something else instead.");
 		}
 
-		float y = lua_tonumber(L, 3);
+		float y = (float)lua_tonumber(L, 3);
 		if (!lua_isnumber(L, 3))
 		{
 			throwError(L, "Expected number as second argument in setPosition(x, y, z). Got something else instead.");
 		}
 
-		float z = lua_tonumber(L, 4);
+		float z = (float)lua_tonumber(L, 4);
 		if (!lua_isnumber(L, 4))
 		{
 			throwError(L, "Expected number as third argument in setPosition(x, y, z). Got something else instead.");
@@ -313,8 +316,6 @@ extern "C"
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 1, closePath: (connectLastPoint: boolean), nargs);
 
-		AnimationManagerData* am = getAnimationManagerData(L);
-
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
 		SvgObject* svgPtr = checkIfSvgIsNull(L, -1);
@@ -330,6 +331,8 @@ extern "C"
 		bool connectToFirstPoint = lua_toboolean(L, 2);
 
 		Svg::closePath(svgPtr, connectToFirstPoint);
+
+		return 0;
 	}
 
 	int global_svgSetPathAsHole(lua_State* L)
@@ -337,8 +340,6 @@ extern "C"
 		// setPathAsHole: () -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 0, setPathAsHole: (), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -363,8 +364,6 @@ extern "C"
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 1, moveTo: (connectLastPoint: boolean), nargs);
 
-		AnimationManagerData* am = getAnimationManagerData(L);
-
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
 		SvgObject* svgPtr = checkIfSvgIsNull(L, -1);
@@ -385,8 +384,6 @@ extern "C"
 		// lineTo: (p0: Vec2) -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 1, lineTo: (p0: Vec2), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -409,8 +406,6 @@ extern "C"
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 1, vtLineTo: (y0: number), nargs);
 
-		AnimationManagerData* am = getAnimationManagerData(L);
-
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
 		SvgObject* svgPtr = checkIfSvgIsNull(L, -1);
@@ -424,7 +419,7 @@ extern "C"
 		{
 			throwError(L, "Expected number as first argument in SvgObject.vtLineTo(y0: number)");
 		}
-		float y0 = lua_tonumber(L, 2);
+		float y0 = (float)lua_tonumber(L, 2);
 		Svg::vtLineTo(svgPtr, y0);
 
 		return 0;
@@ -435,8 +430,6 @@ extern "C"
 		// hzLineTo: (x0: number) -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 1, hzLineTo: (x0: number), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -451,7 +444,7 @@ extern "C"
 		{
 			throwError(L, "Expected number as first argument in SvgObject.hzLineTo(x0: number)");
 		}
-		float x0 = lua_tonumber(L, 2);
+		float x0 = (float)lua_tonumber(L, 2);
 		Svg::hzLineTo(svgPtr, x0);
 
 		return 0;
@@ -462,8 +455,6 @@ extern "C"
 		// quadTo: (p0: Vec2, p1: Vec2) -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 2, quadTo: (p0: Vec2, p1 : Vec2), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -489,8 +480,6 @@ extern "C"
 		// cubicTo: (p0: Vec2, p1: Vec2, p2: Vec2) -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 3, cubicTo: (p0: Vec2, p1 : Vec2, p2 : Vec2), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -519,8 +508,6 @@ extern "C"
 		// arcTo: (radius: Vec2, xAxisRot: number, largeArcFlag: boolean, sweepFlag: boolean, p0: Vec2) -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 5, arcTo: (radius: Vec2, xAxisRot : number, largeArcFlag : boolean, sweepFlag : boolean, p0 : Vec2), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -569,8 +556,6 @@ extern "C"
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 1, moveTo: (connectLastPoint: boolean), nargs);
 
-		AnimationManagerData* am = getAnimationManagerData(L);
-
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
 		SvgObject* svgPtr = checkIfSvgIsNull(L, -1);
@@ -591,8 +576,6 @@ extern "C"
 		// lineTo: (p0: Vec2) -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 1, lineTo: (p0: Vec2), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -615,8 +598,6 @@ extern "C"
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 1, vtLineTo: (y0: number), nargs);
 
-		AnimationManagerData* am = getAnimationManagerData(L);
-
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
 		SvgObject* svgPtr = checkIfSvgIsNull(L, -1);
@@ -630,7 +611,7 @@ extern "C"
 		{
 			throwError(L, "Expected number as first argument in SvgObject.vtLineTo(y0: number)");
 		}
-		float y0 = lua_tonumber(L, 2);
+		float y0 = (float)lua_tonumber(L, 2);
 		Svg::vtLineTo(svgPtr, y0, false);
 
 		return 0;
@@ -641,8 +622,6 @@ extern "C"
 		// hzLineTo: (x0: number) -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 1, hzLineTo: (x0: number), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -657,7 +636,7 @@ extern "C"
 		{
 			throwError(L, "Expected number as first argument in SvgObject.hzLineTo(x0: number)");
 		}
-		float x0 = lua_tonumber(L, 2);
+		float x0 = (float)lua_tonumber(L, 2);
 		Svg::hzLineTo(svgPtr, x0, false);
 
 		return 0;
@@ -668,8 +647,6 @@ extern "C"
 		// quadTo: (p0: Vec2, p1: Vec2) -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 2, quadTo: (p0: Vec2, p1 : Vec2), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -695,8 +672,6 @@ extern "C"
 		// cubicTo: (p0: Vec2, p1: Vec2, p2: Vec2) -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 3, cubicTo: (p0: Vec2, p1 : Vec2, p2 : Vec2), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -725,8 +700,6 @@ extern "C"
 		// arcTo: (radius: Vec2, xAxisRot: number, largeArcFlag: boolean, sweepFlag: boolean, p0: Vec2) -> ()
 		int nargs = lua_gettop(L);
 		argumentCheckWithSelf(L, 5, arcTo: (radius: Vec2, xAxisRot : number, largeArcFlag : boolean, sweepFlag : boolean, p0 : Vec2), nargs);
-
-		AnimationManagerData* am = getAnimationManagerData(L);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -895,6 +868,8 @@ extern "C"
 		return res;
 	}
 
+#pragma warning( push )
+#pragma warning( disable : 4505 )
 	static void pushVec4(lua_State* L, const Vec4& value)
 	{
 		lua_createtable(L, 0, 4);
@@ -991,6 +966,11 @@ extern "C"
 		lua_setfield(L, -2, "y");
 	}
 
+#pragma warning( pop )
+
+#pragma warning( push )
+#pragma warning( disable : 4702 )
+
 	static void pushCFunction(lua_State* L, lua_CFunction fn, const char* debugName)
 	{
 		lua_pushcfunction(L, fn, debugName);
@@ -1006,7 +986,7 @@ extern "C"
 
 	static SvgObject* checkIfSvgIsNull(lua_State* L, int index)
 	{
-		if (!lua_islightuserdata(L, -1))
+		if (!lua_islightuserdata(L, index))
 		{
 			throwErrorNoReturn(L, "SvgObject.ptr is not a pointer. Somehow the SvgObject got malformed.");
 			return nullptr;
@@ -1115,74 +1095,7 @@ extern "C"
 		// Stack is now the same as it was on entry to this function
 	}
 
-	static std::string getAsString(lua_State* L, int index)
-	{
-		if (lua_isstring(L, index))
-		{
-			// Numbers also return true for "isstring" but I don't want to wrap them
-			// in quotes so I'll just exit early here to avoid that
-			if (lua_isnumber(L, index))
-			{
-				return lua_tostring(L, index);
-			}
-
-			/* Pop the next arg using lua_tostring(L, i) and do your print */
-			return std::string("\"") + lua_tostring(L, index) + std::string("\"");
-		}
-		else if (lua_isboolean(L, index))
-		{
-			bool val = lua_toboolean(L, index);
-			return val ? "true" : "false";
-		}
-		else if (lua_istable(L, index))
-		{
-			// 10KB should be enough for a table...?
-			constexpr size_t tableBufferSize = 1024 * 10;
-			char tableBuffer[tableBufferSize];
-			luaPrintTable(L, tableBuffer, tableBufferSize, index);
-			return tableBuffer;
-		}
-		else if (lua_iscfunction(L, index))
-		{
-			lua_CFunction func = lua_tocfunction(L, index);
-			std::string fnName = "Unregistered C Function";
-			auto iter = cFunctionDebugNames.find(func);
-			if (iter != cFunctionDebugNames.end())
-			{
-				fnName = iter->second;
-			}
-
-			return fnName;
-		}
-		else if (lua_isnil(L, index))
-		{
-			return "nil";
-		}
-		else if (lua_islightuserdata(L, index))
-		{
-			void* ptr = lua_tolightuserdata(L, index);
-			if (ptr)
-			{
-				std::stringstream stream;
-				stream << "0x" << std::setfill('0') << std::setw(sizeof(uint64)) << std::hex << (uint64)ptr;
-				return stream.str();
-			}
-
-			return "nullptr";
-		}
-		else if (lua_isfunction(L, index))
-		{
-			return "lua_function";
-		}
-		else
-		{
-			ConsoleLog::warning(L, "Lua Log tried to print non-string or boolean or number value.");
-		}
-
-		return "(null)";
-	}
-
-	static int luaPrintItem(lua_State* L, g_logger_level logLevel, const std::string& scriptFilepath, const lua_Debug& debugInfo, int index)
+	static int luaPrintItem(lua_State* L, g_logger_level logLevel, const std::string& scriptFilepath, const lua_Debug& debugInfo)
 	{
 		std::string str = getAsString(L);
 		if (logLevel == g_logger_level_Log)
@@ -1223,6 +1136,73 @@ extern "C"
 
 		return 0;
 	}
+}
+
+static std::string getAsString(lua_State* L, int index)
+{
+	if (lua_isstring(L, index))
+	{
+		// Numbers also return true for "isstring" but I don't want to wrap them
+		// in quotes so I'll just exit early here to avoid that
+		if (lua_isnumber(L, index))
+		{
+			return lua_tostring(L, index);
+		}
+
+		/* Pop the next arg using lua_tostring(L, i) and do your print */
+		return std::string("\"") + lua_tostring(L, index) + std::string("\"");
+	}
+	else if (lua_isboolean(L, index))
+	{
+		bool val = lua_toboolean(L, index);
+		return val ? "true" : "false";
+	}
+	else if (lua_istable(L, index))
+	{
+		// 10KB should be enough for a table...?
+		constexpr size_t tableBufferSize = 1024 * 10;
+		char tableBuffer[tableBufferSize];
+		luaPrintTable(L, tableBuffer, tableBufferSize, index);
+		return tableBuffer;
+	}
+	else if (lua_iscfunction(L, index))
+	{
+		lua_CFunction func = lua_tocfunction(L, index);
+		std::string fnName = "Unregistered C Function";
+		auto iter = cFunctionDebugNames.find(func);
+		if (iter != cFunctionDebugNames.end())
+		{
+			fnName = iter->second;
+		}
+
+		return fnName;
+	}
+	else if (lua_isnil(L, index))
+	{
+		return "nil";
+	}
+	else if (lua_islightuserdata(L, index))
+	{
+		void* ptr = lua_tolightuserdata(L, index);
+		if (ptr)
+		{
+			std::stringstream stream;
+			stream << "0x" << std::setfill('0') << std::setw(sizeof(uint64)) << std::hex << (uint64)ptr;
+			return stream.str();
+		}
+
+		return "nullptr";
+	}
+	else if (lua_isfunction(L, index))
+	{
+		return "lua_function";
+	}
+	else
+	{
+		ConsoleLog::warning(L, "Lua Log tried to print non-string or boolean or number value.");
+	}
+
+	return "(null)";
 }
 
 namespace MathAnim
@@ -1358,3 +1338,5 @@ namespace MathAnim
 		}
 	}
 }
+
+#pragma warning( pop )

@@ -160,7 +160,7 @@ namespace MathAnim
 
 		void init();
 
-		void addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, int textureId, AnimObjId objId);
+		void addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, uint32 textureId, AnimObjId objId);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& shader, const OrthoCamera& orthoCamera);
@@ -322,8 +322,6 @@ namespace MathAnim
 		static void setupDefaultWhiteTexture();
 		static void setupScreenVao();
 		static void renderPickingOutline(const Framebuffer& mainFramebuffer);
-		static uint32 getColorCompressed();
-		static float getStrokeWidth();
 		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth);
 		static void lineToInternal(Path2DContext* path, const Vec2& point, bool addToRawCurve);
 		static void lineToInternal(Path2DContext* path, const Path_Vertex2DLine& vert, bool addToRawCurve);
@@ -1612,55 +1610,35 @@ namespace MathAnim
 			GL::enableVertexAttribArray(1);
 		}
 
-		static void renderPickingOutline(const Framebuffer& mainFramebuffer)
+		static void renderPickingOutline(const Framebuffer&)
 		{
-			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Active_Object_Outline_Pass");
+			// TODO: This is broken and we need to rethink outlining active objects
+			//GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Active_Object_Outline_Pass");
 
-			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
-			GL::drawBuffers(4, compositeDrawBuffers);
-			pickingOutlineShader.bind();
+			//GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
+			//GL::drawBuffers(4, compositeDrawBuffers);
+			//pickingOutlineShader.bind();
 
-			const Texture& objIdTexture = mainFramebuffer.getColorAttachment(3);
-			GL::activeTexture(GL_TEXTURE0);
-			objIdTexture.bind();
-			pickingOutlineShader.uploadInt("uObjectIdTexture", 0);
+			//const Texture& objIdTexture = mainFramebuffer.getColorAttachment(3);
+			//GL::activeTexture(GL_TEXTURE0);
+			//objIdTexture.bind();
+			//pickingOutlineShader.uploadInt("uObjectIdTexture", 0);
 
-			const Texture& colorTexture = mainFramebuffer.getColorAttachment(0);
-			GL::activeTexture(GL_TEXTURE1);
-			colorTexture.bind();
-			pickingOutlineShader.uploadInt("uColorTexture", 1);
+			//const Texture& colorTexture = mainFramebuffer.getColorAttachment(0);
+			//GL::activeTexture(GL_TEXTURE1);
+			//colorTexture.bind();
+			//pickingOutlineShader.uploadInt("uColorTexture", 1);
 
-			pickingOutlineShader.uploadU64AsUVec2("uActiveObjectId", Timeline::getActiveAnimObject());
-			glm::vec2 textureSize = glm::vec2((float)objIdTexture.width, (float)objIdTexture.height);
-			pickingOutlineShader.uploadVec2("uResolution", textureSize);
+			//pickingOutlineShader.uploadU64AsUVec2("uActiveObjectId", Timeline::getActiveAnimObject());
+			//glm::vec2 textureSize = glm::vec2((float)objIdTexture.width, (float)objIdTexture.height);
+			//pickingOutlineShader.uploadVec2("uResolution", textureSize);
 
-			//pickingOutlineShader.uploadFloat("uThreshold", EditorGui::getThreshold());
+			////pickingOutlineShader.uploadFloat("uThreshold", EditorGui::getThreshold());
 
-			GL::bindVertexArray(screenVao);
-			GL::drawArrays(GL_TRIANGLES, 0, 6);
+			//GL::bindVertexArray(screenVao);
+			//GL::drawArrays(GL_TRIANGLES, 0, 6);
 
-			GL::popDebugGroup();
-		}
-
-		static uint32 getColorCompressed()
-		{
-			const glm::vec4& color = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-			uint32 packedColor =
-				((uint32)(color.r * 255.0f) << 24) |
-				((uint32)(color.g * 255.0f) << 16) |
-				((uint32)(color.b * 255.0f) << 8) |
-				((uint32)(color.a * 255.0f));
-			return packedColor;
-		}
-
-		static float getStrokeWidth()
-		{
-			float strokeWidth = strokeWidthStackPtr > 0
-				? strokeWidthStack[strokeWidthStackPtr - 1]
-				: defaultStrokeWidth;
-			return strokeWidth;
+			//GL::popDebugGroup();
 		}
 
 		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth)
@@ -1782,7 +1760,7 @@ namespace MathAnim
 		glm::vec4 topRight = transform * glm::vec4(max.x, max.y, 0.0f, 1.0f);
 		glm::vec4 bottomRight = transform * glm::vec4(max.x, min.y, 0.0f, 1.0f);
 
-		int rectStartIndex = cmd.elementCounter;
+		uint16 rectStartIndex = (uint16)cmd.elementCounter;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
 		cmd.elementCounter += 4;
@@ -1826,7 +1804,7 @@ namespace MathAnim
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		int rectStartIndex = cmd.elementCounter;
+		uint16 rectStartIndex = (uint16)cmd.elementCounter;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
 		cmd.elementCounter += 4;
@@ -1870,7 +1848,7 @@ namespace MathAnim
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		int rectStartIndex = cmd.elementCounter;
+		uint16 rectStartIndex = (uint16)cmd.elementCounter;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		cmd.elementCounter += 3;
 		cmd.numElements += 3;
@@ -1910,7 +1888,7 @@ namespace MathAnim
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		int rectStartIndex = cmd.elementCounter;
+		uint16 rectStartIndex = (uint16)cmd.elementCounter;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		cmd.elementCounter += 3;
 		cmd.numElements += 3;
@@ -2079,7 +2057,7 @@ namespace MathAnim
 		setupGraphicsBuffers();
 	}
 
-	void DrawListFont2D::addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, int textureId, AnimObjId objId)
+	void DrawListFont2D::addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, uint32 textureId, AnimObjId objId)
 	{
 		// Check if we need to switch to a new batch
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != textureId)
@@ -2096,7 +2074,7 @@ namespace MathAnim
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		int rectStartIndex = cmd.elementCounter;
+		uint16 rectStartIndex = (uint16)cmd.elementCounter;
 		// Tri 1 indices
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		// Tri 2 indices
@@ -2499,9 +2477,9 @@ namespace MathAnim
 		vertices.push(vertToAdd);
 
 		// Add the indices. Gonna be 36 of them, very fun...
-		for (int face = 0; face < 6; face++)
+		for (uint16 face = 0; face < 6; face++)
 		{
-			int faceIndex = indexStart + (face * 4);
+			uint16 faceIndex = (uint16)indexStart + (face * 4);
 			indices.push(faceIndex + 0); indices.push(faceIndex + 1); indices.push(faceIndex + 2);
 			indices.push(faceIndex + 0); indices.push(faceIndex + 2); indices.push(faceIndex + 3);
 		}
@@ -2524,7 +2502,7 @@ namespace MathAnim
 
 		DrawCmd3D& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		int rectStartIndex = cmd.elementCount / 6 * 4;
+		uint16 rectStartIndex = (uint16)(cmd.elementCount / 6 * 4);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
 		cmd.elementCount += 6;

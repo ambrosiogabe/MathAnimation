@@ -20,6 +20,8 @@ namespace MathAnim
 		void bindFramebuffer(GLenum target, GLuint framebuffer);
 		void bindRenderbuffer(GLenum target, GLuint renderbuffer);
 		void readBuffer(GLenum src);
+		void clearBufferiv(GLenum buffer, GLint drawbuffer, const GLint* value);
+		void clearBufferuiv(GLenum buffer, GLint drawbuffer, const GLuint* value);
 		void clearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat* value);
 		void clearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
 		void deleteFramebuffers(GLsizei n, const GLuint* framebuffers);
@@ -58,7 +60,6 @@ namespace MathAnim
 		void drawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const void* indices, GLint basevertex);
 
 		// Textures
-		void clearTexImage(const Texture& texture, GLint level, const void* data, size_t dataLength);
 		void readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels);
 		void genTextures(GLsizei n, GLuint* textures);
 		void activeTexture(GLenum texture);

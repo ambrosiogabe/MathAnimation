@@ -214,7 +214,6 @@ namespace MathAnim
 				outputHeight,
 				framerate,
 				AnimationManager::lastAnimatedFrame(am),
-				bitrate,
 				VideoEncoderFlags::None
 			);
 

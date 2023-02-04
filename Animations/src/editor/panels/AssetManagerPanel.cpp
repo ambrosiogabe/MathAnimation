@@ -57,9 +57,6 @@ namespace MathAnim
 		{
 			scriptWatcher->poll();
 
-			constexpr size_t stringBufferSize = 256;
-			char stringBuffer[stringBufferSize];
-
 			ImGui::Begin("Asset Manager");
 
 			iterateDirectory(

@@ -388,10 +388,10 @@ namespace MathAnim
 				if (foregroundSetting)
 				{
 					const std::string& colorHexStr = foregroundSetting->Value();
-					ThemeSetting setting = {};
-					setting.type = ThemeSettingType::ForegroundColor;
-					setting.foregroundColor = fromCssColor(colorHexStr);
-					rule.settings.emplace_back(setting);
+					ThemeSetting foregroundSettingAsThemeSetting = {};
+					foregroundSettingAsThemeSetting.type = ThemeSettingType::ForegroundColor;
+					foregroundSettingAsThemeSetting.foregroundColor = fromCssColor(colorHexStr);
+					rule.settings.emplace_back(foregroundSettingAsThemeSetting);
 				}
 
 				theme->tokenColors.emplace_back(rule);

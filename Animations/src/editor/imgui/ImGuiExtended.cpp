@@ -277,7 +277,7 @@ namespace MathAnim
 			return res;
 		}
 
-		bool FileDragDropInputBox(const char* label, AnimationManagerData* am, char* outBuffer, size_t outBufferSize)
+		bool FileDragDropInputBox(const char* label, char* outBuffer, size_t outBufferSize)
 		{
 			ImGui::BeginDisabled();
 			ImGui::InputText(label, outBuffer, outBufferSize, ImGuiInputTextFlags_ReadOnly);
@@ -593,6 +593,8 @@ namespace MathAnim
 			ImGui::SameLine();
 			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (size.y / 2.0f - labelSize.y / 2.0f));
 			ImGui::Text(label);
+
+			return false;
 		}
 	}
 }

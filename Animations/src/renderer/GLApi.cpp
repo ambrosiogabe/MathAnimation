@@ -100,6 +100,16 @@ namespace MathAnim
 			glReadBuffer(src);
 		}
 
+		void clearBufferiv(GLenum buffer, GLint drawbuffer, const GLint* value)
+		{
+			glClearBufferiv(buffer, drawbuffer, value);
+		}
+
+		void clearBufferuiv(GLenum buffer, GLint drawbuffer, const GLuint* value)
+		{
+			glClearBufferuiv(buffer, drawbuffer, value);
+		}
+
 		void clearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat* value)
 		{
 			glClearBufferfv(buffer, drawbuffer, value);
@@ -244,57 +254,6 @@ namespace MathAnim
 		}
 
 		// Textures
-		void clearTexImage(const Texture& texture, GLint level, const void* data, size_t dataLength)
-		{
-			GLenum format = TextureUtil::toGlExternalFormat(texture.format);
-			GLenum type = TextureUtil::toGlDataType(texture.format);
-
-			if (gl44Support)
-			{
-				glClearTexImage(
-					texture.graphicsId,
-					level,
-					format,
-					type,
-					data
-				);
-			}
-			else
-			{
-				// glCompatMode
-				// Allocate the memory real quick and then upload it to mimic the behavior (gross I know)...
-				size_t formatSize = TextureUtil::formatSize(texture.format);
-				size_t textureSize = sizeof(uint8) * texture.width * texture.height * formatSize;
-				uint8* pixels = (uint8*)g_memory_allocate(textureSize);
-				g_memory_zeroMem(pixels, textureSize);
-				if (data && (dataLength == formatSize))
-				{
-					// This should hopefully speed up the fill operation, but I need typed data here
-					// so we need to cast the pointer to the appropriate sized type
-					if (formatSize == sizeof(uint64))
-						std::fill(pixels, pixels + textureSize, (*(uint64*)data));
-					else if (formatSize == sizeof(uint32))
-						std::fill(pixels, pixels + textureSize, (*(uint32*)data));
-					else if (formatSize == sizeof(uint16))
-						std::fill(pixels, pixels + textureSize, (*(uint16*)data));
-					else if (formatSize == sizeof(uint8))
-						std::fill(pixels, pixels + textureSize, (*(uint8*)data));
-					else
-						g_logger_error("Cannot fill data of size: %d", formatSize);
-				}
-
-				// TODO: This tanks performance, see if you can use a pbo or something that you cache and reuse
-				glTexSubImage2D(
-					texture.graphicsId,
-					level,
-					0, 0, texture.width, texture.height,
-					format, type,
-					pixels
-				);
-				g_memory_free(pixels);
-			}
-		}
-
 		void readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels)
 		{
 			glReadPixels(x, y, width, height, format, type, pixels);

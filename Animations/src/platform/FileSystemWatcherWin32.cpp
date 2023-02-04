@@ -111,7 +111,6 @@ namespace MathAnim
 
 			DWORD event = WaitForMultipleObjects(2, hEvents, FALSE, INFINITE);
 			offset = 0;
-			int rename = 0;
 
 			if (event == WAIT_OBJECT_0 + 1)
 			{
@@ -123,7 +122,8 @@ namespace MathAnim
 			{
 				pNotify = (FILE_NOTIFY_INFORMATION*)((char*)buffer + offset);
 				strcpy(filename, "");
-				int filenamelen = WideCharToMultiByte(CP_ACP, 0, pNotify->FileName, pNotify->FileNameLength / 2, filename, sizeof(filename), NULL, NULL);
+				// TODO: This is probably the proper way to do this
+				//int filenamelen = WideCharToMultiByte(CP_ACP, 0, pNotify->FileName, pNotify->FileNameLength / 2, filename, sizeof(filename), NULL, NULL);
 				filename[pNotify->FileNameLength / 2] = '\0';
 				switch (pNotify->Action)
 				{

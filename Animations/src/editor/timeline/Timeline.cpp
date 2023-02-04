@@ -1406,7 +1406,7 @@ namespace MathAnim
 				buffer[script.scriptFilepathLength] = '\0';
 			}
 
-			if (ImGuiExtended::FileDragDropInputBox(": Script File##ScriptFileTarget", am, buffer, bufferSize))
+			if (ImGuiExtended::FileDragDropInputBox(": Script File##ScriptFileTarget", buffer, bufferSize))
 			{
 				size_t newFilepathLength = std::strlen(buffer);
 				script.scriptFilepath = (char*)g_memory_realloc(script.scriptFilepath, sizeof(char) * (newFilepathLength + 1));

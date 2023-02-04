@@ -42,6 +42,7 @@ add_executable(MathAnimations ${MATH_ANIMATIONS_SOURCE})
 target_include_directories(MathAnimations PUBLIC ${MATH_ANIMATIONS_INCLUDE_DIR} ${AV1_INCLUDE_DIR})
 target_compile_definitions(MathAnimations PUBLIC
         MATH_ANIMATIONS_MAX_PATH=${MATH_ANIMATIONS_MAX_PATH}
+        _CRT_SECURE_NO_WARNINGS=1
 )
 target_compile_definitions(MathAnimations PRIVATE
         $<$<CONFIG:Debug>:_DEBUG=1>
@@ -140,3 +141,8 @@ add_custom_command(TARGET MathAnimations
 set_property(TARGET MathAnimations PROPERTY
     VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:MathAnimations>
 )
+if(MSVC)
+  target_compile_options(MathAnimations PRIVATE /W4 /WX)
+else()
+  target_compile_options(MathAnimations PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()

@@ -2,6 +2,8 @@
 #define MATH_ANIM_CORE_H
 
 // Glm
+#pragma warning( push )
+#pragma warning( disable : 4201 )
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -10,6 +12,7 @@
 #include <glm/gtx/norm.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
+#pragma warning( pop )
 
 // My stuff
 #include <cppUtils/cppUtils.hpp>
@@ -36,8 +39,15 @@
 #include <regex>
 
 // GLFW/glad
+#ifdef _WIN32
+#define APIENTRY __stdcall // NOTE: This hack should prevent me from having to include Windows.h to stop APIENTRY from being redefined
+#else 
+#define APIENTRY
+#endif
+
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
+#undef APIENTRY
 
 // stb
 #include <stb/stb_image.h>

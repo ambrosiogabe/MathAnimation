@@ -20,8 +20,6 @@ namespace MathAnim
 		// Generate children objects and place them accordingly
 		// Each child represents a group sub-object
 
-		float targetSvgScale = EditorSettings::getSettings().svgTargetScale;
-
 		for (int i = 0; i < svgGroup->numObjects; i++)
 		{
 			const SvgObject& obj = svgGroup->objects[i];

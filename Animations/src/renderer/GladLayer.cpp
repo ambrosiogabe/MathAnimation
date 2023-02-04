@@ -1,13 +1,19 @@
 #include "renderer/GladLayer.h"
 #include "core.h"
-
 #include "renderer/GLApi.h"
+
+#ifdef _WIN32
+#define APIENTRY __stdcall 
+#else 
+#define APIENTRY
+#endif
 
 namespace MathAnim
 {
 	namespace GladLayer
 	{
-		static void GLAPIENTRY messageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+
+		static void APIENTRY messageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 
 		GlVersion init()
 		{
@@ -68,6 +74,8 @@ namespace MathAnim
 			g_logger_info("Glad/GLFW de-initialized.");
 		}
 
+#pragma warning( push )
+#pragma warning( disable : 4505 )
 		static void GLAPIENTRY
 			messageCallback(GLenum,
 				GLenum type,
@@ -90,5 +98,8 @@ namespace MathAnim
 				}
 			}
 		}
+#pragma warning( pop )
 	}
 }
+
+#undef APIENTRY
