@@ -22,13 +22,13 @@ namespace MathAnim
 		void init()
 		{
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
-			GladLayer::init();
+			GlVersion glVersion = GladLayer::init();
 
 			// Initialize GLFW/Glad
 			window = new Window(1920, 1080, winTitle, WindowFlags::None);
 			window->setVSync(true);
 
-			ImGuiLayer::init(*window);
+			ImGuiLayer::init(glVersion.major, glVersion.minor, *window);
 
 			GL::enable(GL_BLEND);
 			GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

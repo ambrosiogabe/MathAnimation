@@ -60,8 +60,8 @@ namespace MathAnim
 		static Vec2 cachePadding;
 
 	private:
-		void incrementCacheCurrentY();
-		void incrementCacheCurrentX(float distance);
+		Vec2 incrementCacheCurrentY();
+		Vec2 incrementCacheCurrentX(float distance);
 		//const Vec2& getCacheCurrentPos();
 		void checkLineHeight(float newLineHeight);
 		void growCache();
@@ -71,11 +71,12 @@ namespace MathAnim
 
 		void generateDefaultFramebuffer(uint32 width, uint32 height);
 
-		uint64 hash(AnimObjId obj, float svgScale, float replacementTransform);
+		uint64 hash(const uint8* svgMd5, size_t svgMd5Length, float svgScale, float replacementTransform);
 
 	private:
-		std::vector<LRUCache<uint64, _SvgCacheEntryInternal>> cachedSvgs;
+		LRUCache<uint64, _SvgCacheEntryInternal> cachedSvgs;
 		Framebuffer framebuffer;
+
 	public:
 		Vec2 cacheCurrentPos;
 	private:

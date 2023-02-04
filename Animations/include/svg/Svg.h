@@ -77,12 +77,18 @@ namespace MathAnim
 		Vec2 _cursor;
 		Vec4 fillColor;
 		FillType fillType;
+		uint8* md5;
+		size_t md5Length;
 
 		void normalize();
 		void calculateApproximatePerimeter();
 		void calculateBBox();
+		void calculateMd5();
+		void finalize();
+		std::string getPathAsString() const;
 		float calculateSvgScale(float targetWidth) const;
-		void render(const AnimObject* parent, const Texture& texture, const Vec2& textureOffset) const;
+		void render(float svgScale, const Texture& texture, const Vec2& textureOffset) const;
+		void renderAsync(float svgScale, const Texture& texture, const Vec2& textureOffset) const;
 		void renderOutline(float t, const AnimObject* parent) const;
 		void free();
 

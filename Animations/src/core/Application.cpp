@@ -98,7 +98,7 @@ namespace MathAnim
 			//globalThreadPool = new GlobalThreadPool(true);
 
 			// Initiaize GLFW/Glad
-			GladLayer::init();
+			GlVersion glVersion = GladLayer::init();
 			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
 			window->setVSync(true);
 
@@ -109,7 +109,7 @@ namespace MathAnim
 
 			Fonts::init();
 			Renderer::init();
-			ImGuiLayer::init(*window);
+			ImGuiLayer::init(glVersion.major, glVersion.minor, *window);
 			Audio::init();
 			GizmoManager::init();
 			Svg::init();
@@ -188,12 +188,6 @@ namespace MathAnim
 				}
 
 				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
-				if (deltaFrame != 0)
-				{
-					// TODO: Once caching works again, update the cache and timeline
-					//svgCache->clearAll();
-				}
-
 				absolutePrevFrame = absoluteCurrentFrame;
 
 				// Update systems all systems/collect systems draw calls
@@ -242,6 +236,7 @@ namespace MathAnim
 				AnimationManager::endFrame(am);
 
 				// Miscellaneous
+				globalThreadPool->processFinishedTasks();
 				{
 					MP_PROFILE_EVENT("MainThreadLoop_SwapBuffers");
 					window->swapBuffers();

@@ -9,7 +9,7 @@ namespace MathAnim
 
 	namespace ImGuiLayer
 	{
-		void init(const Window& window);
+		void init(int glVersionMajor, int glVersionMinor, const Window& window);
 
 		void beginFrame();
 		void endFrame();

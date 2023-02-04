@@ -2747,6 +2747,7 @@ namespace MathAnim
 		// Reset GL state
 		// Enable writing to the depth buffer again
 		GL::depthMask(GL_TRUE);
+		GL::disable(GL_DEPTH_TEST);
 
 		GL::popDebugGroup();
 	}

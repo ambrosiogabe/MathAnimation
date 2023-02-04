@@ -17,6 +17,9 @@ namespace MathAnim
 	class LRUCache
 	{
 	public:
+		LRUCache()
+			: newestEntry(nullptr), oldestEntry(nullptr), indexLookup({}) { }
+
 		bool exists(const Key& key)
 		{
 			return indexLookup.find(key) != indexLookup.end();
@@ -27,12 +30,18 @@ namespace MathAnim
 			if (exists(key))
 			{
 				auto iter = indexLookup.find(key);
+				g_logger_assert(iter != indexLookup.end(), "How did this happen. Somehow key without value exists in our lookup.");
 				LRUCacheEntry<Key, Value>* entry = iter->second;
 
 				// If this is already the newest entry, no need to promote it
 				if (entry == newestEntry)
 				{
 					return entry->data;
+				}
+
+				if (entry == oldestEntry)
+				{
+					oldestEntry = entry->next;
 				}
 
 				// Update the surrounding nodes in the doubly linked list
@@ -46,16 +55,14 @@ namespace MathAnim
 					entry->prev->next = entry->next;
 				}
 
-				// Set the new newest to have no older entry just in case there is none
-				entry->prev = nullptr;
+				// Set up this guy's pointers
+				entry->prev = newestEntry;
 				entry->next = nullptr;
 
 				// If there is a newest, update it's next pointer
 				if (newestEntry)
 				{
 					newestEntry->next = entry;
-					// Update the new newest older entry... confusing stuff
-					entry->prev = newestEntry;
 				}
 
 				// Move this to the front of the list since this is the new "newest"
@@ -70,6 +77,8 @@ namespace MathAnim
 		void insert(const Key& key, const Value& value)
 		{
 			LRUCacheEntry<Key, Value>* newEntry = (LRUCacheEntry<Key, Value>*)g_memory_allocate(sizeof(LRUCacheEntry<Key, Value>));
+			new(newEntry)LRUCacheEntry<Key, Value>();
+
 			*newEntry = {};
 			newEntry->data = value;
 			newEntry->key = key; 
@@ -126,6 +135,7 @@ namespace MathAnim
 
 				// Free the memory now and get rid of this entry
 				indexLookup.erase(entryToEvictIter);
+				entryToEvict->~LRUCacheEntry<Key, Value>();
 				g_memory_free(entryToEvict);
 				return true;
 			}
@@ -135,8 +145,11 @@ namespace MathAnim
 			}
 		}
 
-		inline LRUCacheEntry<Key, Value>* getOldest() { return oldestEntry; }
-		inline LRUCacheEntry<Key, Value>* getNewest() { return newestEntry; }
+		inline LRUCacheEntry<Key, Value>* getOldest() const { return oldestEntry; }
+		inline LRUCacheEntry<Key, Value>* getNewest() const { return newestEntry; }
+		inline const LRUCacheEntry<Key, Value>* getOldestConst() const { return oldestEntry; }
+		inline const LRUCacheEntry<Key, Value>* getNewestConst() const { return newestEntry; }
+		inline size_t size() const { return this->indexLookup.size(); }
 
 		void clear()
 		{

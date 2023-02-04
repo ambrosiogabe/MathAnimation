@@ -36,9 +36,9 @@ namespace MathAnim
 
 	constexpr auto _previewFidelityValues = fixedSizeArray<float, (size_t)PreviewSvgFidelity::Length>(
 		100.0f,
+		150.0f,
 		200.0f,
-		300.0f,
-		500.0f
+		300.0f
 	);
 
 	struct EditorSettingsData

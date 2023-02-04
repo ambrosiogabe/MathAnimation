@@ -41,6 +41,7 @@ namespace MathAnim
 
 		void free();
 
+		void processFinishedTasks();
 		void processLoop(uint32 threadIndex);
 		void queueTask(
 			TaskFunction function,
@@ -54,10 +55,12 @@ namespace MathAnim
 
 	private:
 		std::priority_queue<ThreadTask, std::vector<ThreadTask>, CompareThreadTask>* tasks;
+		std::queue<ThreadTask> finishedTasks;
 		std::thread* workerThreads;
 		std::condition_variable* cv;
 		std::mutex* generalMtx;
 		std::mutex* queueMtx;
+		std::mutex* finishedQueueMtx;
 		bool doWork;
 		uint32 numThreads;
 #ifdef _DEBUG

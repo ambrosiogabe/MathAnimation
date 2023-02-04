@@ -123,6 +123,13 @@ namespace MathAnim
 			return (hash ^ ((int32)t + 0x9e3779b9 + (hash << 6) + (hash >> 2)));
 		}
 
+		template<>
+		inline uint64 combineHash(const uint64& t, uint64 hash)
+		{
+			// Taken from https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values
+			return (hash ^ ((uint64)t + 0x9e3779b9 + (hash << 6) + (hash >> 2)));
+		}
+
 		// Vector conversions
 		Vec2 vector2From3(const Vec3& vec);
 		Vec3 vector3From2(const Vec2& vec);

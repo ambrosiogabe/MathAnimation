@@ -655,8 +655,7 @@ namespace MathAnim
 				Svg::closePath(&res, false, isHole);
 			}
 
-			res.calculateApproximatePerimeter();
-			res.calculateBBox();
+			res.finalize();
 			*output = res;
 
 			return true;

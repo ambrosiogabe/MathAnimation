@@ -1,3 +1,4 @@
+#ifndef _MATH_ANIM_TESTS
 #include "core.h"
 #include "core/Application.h"
 #include "core/ProjectApp.h"
@@ -23,3 +24,5 @@ int main()
 	g_memory_dumpMemoryLeaks();
 	return 0;
 }
+
+#endif
