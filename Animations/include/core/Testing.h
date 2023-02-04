@@ -11,6 +11,9 @@
 #define ASSERT_EQUAL(a, b) { if (a != b) return "ASSERT_EQUAL("#a", "#b")"; }
 #define ASSERT_NOT_EQUAL(a, b) { if (a == b) return "ASSERT_NOT_EQUAL("#a", "#b")"; }
 
+#define ASSERT_NULL(val) { if (val != nullptr) return "ASSERT_NULL("#val")"; }
+#define ASSERT_NOT_NULL(val) { if (val == nullptr) return "ASSERT_NOT_NULL("#val")"; }
+
 #define DEFINE_TEST(fnName) const char* fnName()
 #define END_TEST return nullptr
 
