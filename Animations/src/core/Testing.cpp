@@ -10,7 +10,7 @@
 #define ANSI_COLOR_MAGENTA "\u001b[35m"
 #define ANSI_COLOR_CYAN    "\u001b[36m"
 #define ANSI_COLOR_RESET   "\u001b[0m"
-
+ 
 namespace MathAnim
 {
 	// ----------------- Internal structures -----------------
