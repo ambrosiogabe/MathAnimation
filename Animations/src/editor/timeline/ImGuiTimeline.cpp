@@ -1,6 +1,6 @@
-#include "editor/ImGuiTimeline.h"
-#include "core/ImGuiLayer.h"
-#include "core/Colors.h"
+#include "editor/timeline/ImGuiTimeline.h"
+#include "editor/imgui/ImGuiLayer.h"
+#include "renderer/Colors.h"
 
 #include "imgui.h"
 #include "utils/FontAwesome.h"

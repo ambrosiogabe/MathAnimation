@@ -1,4 +1,4 @@
-#include "utils/CMath.h"
+#include "math/CMath.h"
 
 namespace MathAnim
 {
@@ -250,7 +250,7 @@ namespace MathAnim
 				t * t * t * p3;
 		}
 
-		Vec2 bezier1Normal(const Vec2& p0, const Vec2& p1, float t)
+		Vec2 bezier1Normal(const Vec2& p0, const Vec2& p1, float)
 		{
 			return normalize(p1 - p0);
 		}
@@ -276,7 +276,7 @@ namespace MathAnim
 			);
 		}
 
-		Vec3 bezier1Normal(const Vec3& p0, const Vec3& p1, float t)
+		Vec3 bezier1Normal(const Vec3& p0, const Vec3& p1, float)
 		{
 			return normalize(p1 -  p0);
 		}

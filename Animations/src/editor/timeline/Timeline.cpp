@@ -1,10 +1,9 @@
+#include "editor/timeline/Timeline.h"
+#include "editor/timeline/ImGuiTimeline.h"
+#include "editor/panels/SceneHierarchyPanel.h"
+#include "editor/imgui/ImGuiExtended.h"
 #include "core.h"
 #include "core/Application.h"
-#include "core/Colors.h"
-#include "editor/Timeline.h"
-#include "editor/ImGuiTimeline.h"
-#include "editor/SceneHierarchyPanel.h"
-#include "editor/ImGuiExtended.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "svg/Svg.h"
@@ -15,6 +14,8 @@
 #include "scripting/LuauLayer.h"
 #include "utils/IconsFontAwesome5.h"
 #include "platform/Platform.h"
+#include "renderer/Colors.h"
+#include "math/CMath.h"
 
 #include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -1405,7 +1406,7 @@ namespace MathAnim
 				buffer[script.scriptFilepathLength] = '\0';
 			}
 
-			if (ImGuiExtended::FileDragDropInputBox(": Script File##ScriptFileTarget", am, buffer, bufferSize))
+			if (ImGuiExtended::FileDragDropInputBox(": Script File##ScriptFileTarget", buffer, bufferSize))
 			{
 				size_t newFilepathLength = std::strlen(buffer);
 				script.scriptFilepath = (char*)g_memory_realloc(script.scriptFilepath, sizeof(char) * (newFilepathLength + 1));

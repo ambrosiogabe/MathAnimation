@@ -2,7 +2,7 @@
 #include "animation/AnimationManager.h"
 #include "svg/Svg.h"
 #include "svg/SvgParser.h"
-#include "editor/SceneHierarchyPanel.h"
+#include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/EditorSettings.h"
 
 namespace MathAnim
@@ -19,8 +19,6 @@ namespace MathAnim
 
 		// Generate children objects and place them accordingly
 		// Each child represents a group sub-object
-
-		float targetSvgScale = EditorSettings::getSettings().svgTargetScale;
 
 		for (int i = 0; i < svgGroup->numObjects; i++)
 		{

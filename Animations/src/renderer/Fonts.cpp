@@ -2,7 +2,7 @@
 #include "renderer/Renderer.h"
 #include "core/Application.h"
 #include "svg/Svg.h"
-#include "utils/CMath.h"
+#include "math/CMath.h"
 
 #include <freetype/ftglyph.h>
 #include <freetype/freetype.h>

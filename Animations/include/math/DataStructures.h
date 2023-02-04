@@ -3,6 +3,9 @@
 
 #include <cppUtils/cppUtils.hpp>
 
+#pragma warning( push )
+#pragma warning( disable : 4201 )
+
 namespace MathAnim
 {
 	union Vec2
@@ -221,5 +224,7 @@ namespace MathAnim
 		Vec4 normalize(const Vec4& vec);
 	}
 }
+
+#pragma warning( pop )
 
 #endif

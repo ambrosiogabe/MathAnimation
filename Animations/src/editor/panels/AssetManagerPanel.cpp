@@ -1,5 +1,5 @@
-#include "editor/AssetManagerPanel.h"
-#include "editor/ImGuiExtended.h"
+#include "editor/panels/AssetManagerPanel.h"
+#include "editor/imgui/ImGuiExtended.h"
 #include "utils/FontAwesome.h"
 #include "platform/Platform.h"
 #include "platform/FileSystemWatcher.h"
@@ -56,9 +56,6 @@ namespace MathAnim
 		void update()
 		{
 			scriptWatcher->poll();
-
-			constexpr size_t stringBufferSize = 256;
-			char stringBuffer[stringBufferSize];
 
 			ImGui::Begin("Asset Manager");
 

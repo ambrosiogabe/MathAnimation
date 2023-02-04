@@ -65,8 +65,8 @@ void main()
         uvec2 sample = texture(uObjectIdTexture, fTexCoords + (offsets[i] * offsetSize)).rg;
         // Make sure not to use UINT64_MAX so that precision doesn't get messed up
         float fSample = sample.r == 0xFFFFFFFFU && sample.g == 0xFFFFFFFFU ? float(0xFFFFFUL) : float(sample.g);
-        gradientX += float(sample.g) * sobelXKernel[i];
-        gradientY += float(sample.g) * sobelYKernel[i];
+        gradientX += float(fSample) * sobelXKernel[i];
+        gradientY += float(fSample) * sobelYKernel[i];
         numCorrectSamples += int(sample.r == uActiveObjectId.r && sample.g == uActiveObjectId.g);
     }
     float gradient = sqrt(gradientX * gradientX + gradientY * gradientY);
@@ -74,9 +74,10 @@ void main()
     //float fSample = sample == 0xFFFFFFFFUL ? float(0xFFFFFUL) : sample;
     //float gradient = fwidth(gradient);
 
+    // TODO: This is broken, rethink outlining active objects
     if (gradient > 2.5 && numCorrectSamples > 0) {
-        FragColor = vec4(1.0, 1.0, 1.0 - texture(uColorTexture, fTexCoords).b, 1.0);
+        //FragColor = vec4(1.0, 1.0, 1.0 - texture(uColorTexture, fTexCoords).b, 1.0);
     } else {
-        discard;
+        //discard;
     }
 }

@@ -1,6 +1,6 @@
 #include "renderer/Shader.h"
 #include "renderer/GLApi.h"
-#include "utils/CMath.h"
+#include "math/CMath.h"
 
 #include <unordered_map>
 
@@ -242,7 +242,9 @@ namespace MathAnim
 		// Split the number into two parts 
 		//   R = High
 		//   G = Low
-		GL::uniform2ui(varLocation, value & 0xFFFF'FFFF'0000'0000, value & 0x0000'0000'FFFF'FFFF);
+		uint32 r = (uint32)((value & 0xFFFF'FFFF'0000'0000) >> 32);
+		uint32 g = (uint32)(value & 0x0000'0000'FFFF'FFFF);
+		GL::uniform2ui(varLocation, r, g);
 	}
 
 	void Shader::uploadMat4(const char* varName, const glm::mat4& mat4) const

@@ -1,6 +1,6 @@
 #include "renderer/PerspectiveCamera.h"
 #include "core/Application.h"
-#include "utils/CMath.h"
+#include "math/CMath.h"
 
 namespace MathAnim
 {

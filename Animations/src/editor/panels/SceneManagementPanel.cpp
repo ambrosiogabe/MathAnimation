@@ -1,8 +1,8 @@
-#include "editor/SceneManagementPanel.h"
-#include "editor/ImGuiExtended.h"
+#include "editor/panels/SceneManagementPanel.h"
+#include "editor/imgui/ImGuiExtended.h"
 #include "core/Application.h"
-#include "core/Colors.h"
 #include "core/Profiling.h"
+#include "renderer/Colors.h"
 #include "utils/FontAwesome.h"
 
 namespace MathAnim

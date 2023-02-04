@@ -1,7 +1,7 @@
 #include "animation/Shapes.h"
 #include "animation/Animation.h"
 #include "svg/Svg.h"
-#include "utils/CMath.h"
+#include "math/CMath.h"
 
 namespace MathAnim
 {

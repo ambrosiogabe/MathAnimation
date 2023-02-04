@@ -9,9 +9,9 @@ namespace MathAnim
 
 	// ----------- Internal Functions -----------
 	static Grammar* importGrammarFromJson(const json& j);
-	static SyntaxPattern parsePattern(const std::string& key, const json& json);
+	static SyntaxPattern parsePattern(const json& json);
 	static std::vector<SyntaxPattern> parsePatternsArray(const json& json);
-	static regex_t* onigFromString(const std::string& str, bool multiline);
+	static regex_t* onigFromString(const std::string& str);
 	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t start, size_t end, regex_t* reg, OnigRegion* region);
 	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t start, size_t end, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures);
 
@@ -54,7 +54,7 @@ namespace MathAnim
 		return res;
 	}
 
-	bool SimpleSyntaxPattern::match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
+	bool SimpleSyntaxPattern::match(const std::string& str, size_t start, size_t end, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
 	{
 		std::vector<GrammarMatch> subMatches = checkForMatches(str, start, end, this->regMatch, region, this->captures);
 
@@ -214,7 +214,7 @@ namespace MathAnim
 		{
 			if (simplePattern.has_value())
 			{
-				return simplePattern->match(str, start, end, repo, region, outMatches);
+				return simplePattern->match(str, start, end, region, outMatches);
 			}
 		}
 		case PatternType::Invalid:
@@ -374,7 +374,7 @@ namespace MathAnim
 		{
 			for (auto& [key, val] : j["repository"].items())
 			{
-				SyntaxPattern pattern = parsePattern(key, val);
+				SyntaxPattern pattern = parsePattern(val);
 				if (pattern.type != PatternType::Invalid)
 				{
 					res->repository.patterns[key] = pattern;
@@ -395,7 +395,7 @@ namespace MathAnim
 		return res;
 	}
 
-	static SyntaxPattern parsePattern(const std::string& key, const json& json)
+	static SyntaxPattern parsePattern(const json& json)
 	{
 		SyntaxPattern dummy = {};
 		dummy.type = PatternType::Invalid;
@@ -422,7 +422,7 @@ namespace MathAnim
 			res.type = PatternType::Simple;
 
 			SimpleSyntaxPattern p = {};
-			p.regMatch = onigFromString(json["match"], false);
+			p.regMatch = onigFromString(json["match"]);
 
 			if (json.contains("name"))
 			{
@@ -458,8 +458,8 @@ namespace MathAnim
 			}
 
 			ComplexSyntaxPattern c = {};
-			c.begin = onigFromString(json["begin"], false);
-			c.end = onigFromString(json["end"], true);
+			c.begin = onigFromString(json["begin"]);
+			c.end = onigFromString(json["end"]);
 
 			if (json.contains("name"))
 			{
@@ -521,7 +521,7 @@ namespace MathAnim
 
 		for (json::const_iterator it = json.begin(); it != json.end(); it++)
 		{
-			SyntaxPattern pattern = parsePattern("anonymous", *it);
+			SyntaxPattern pattern = parsePattern(*it);
 			if (pattern.type != PatternType::Invalid)
 			{
 				res.emplace_back(pattern);
@@ -535,7 +535,7 @@ namespace MathAnim
 		return res;
 	}
 
-	static regex_t* onigFromString(const std::string& str, bool multiline)
+	static regex_t* onigFromString(const std::string& str)
 	{
 		const char* pattern = str.c_str();
 		const char* patternEnd = pattern + str.length();

@@ -126,35 +126,35 @@ namespace MathAnim
 		graphicsId = NULL_TEXTURE_ID;
 	}
 
-	void Texture::uploadSubImage(int offsetX, int offsetY, int width, int height, uint8* buffer, size_t bufferLength, bool flipVertically) const
+	void Texture::uploadSubImage(int offsetX, int offsetY, int subWidth, int subHeight, uint8* buffer, size_t bufferLength, bool flipVertically) const
 	{
 		g_logger_assert(format != ByteFormat::None, "Cannot generate texture without color format.");
-		g_logger_assert(offsetX + width <= this->width, "Sub-image out of range. OffsetX + width = %d which is greater than the texture width: %d", offsetX + width, this->width);
-		g_logger_assert(offsetY + height <= this->height, "Sub-image out of range. OffsetY + height = %d which is greater than the texture height: %d", offsetY + height, this->height);
+		g_logger_assert(offsetX + subWidth <= this->width, "Sub-image out of range. OffsetX + width = %d which is greater than the texture width: %d", offsetX + subWidth, this->width);
+		g_logger_assert(offsetY + subHeight <= this->height, "Sub-image out of range. OffsetY + height = %d which is greater than the texture height: %d", offsetY + subHeight, this->height);
 		g_logger_assert(offsetX >= 0, "Sub-image out of range. OffsetX is negative: %d", offsetX);
 		g_logger_assert(offsetY >= 0, "Sub-image out of range. OffsetY is negative: %d", offsetY);
-		g_logger_assert(width >= 0, "Sub-image out of range. Width is negative: %d", width);
-		g_logger_assert(height >= 0, "Sub-image out of range. Height is negative: %d", height);
+		g_logger_assert(subWidth >= 0, "Sub-image out of range. Width is negative: %d", subWidth);
+		g_logger_assert(subHeight >= 0, "Sub-image out of range. Height is negative: %d", subHeight);
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(format);
 		uint32 dataType = TextureUtil::toGlDataType(format);
 		size_t componentsSize = TextureUtil::formatSize(format);
 
-		g_logger_assert(componentsSize * width * height <= bufferLength, "Buffer overrun when trying to upload texture subimage to GPU.");
+		g_logger_assert(componentsSize * subWidth * subHeight <= bufferLength, "Buffer overrun when trying to upload texture subimage to GPU.");
 
 		if (flipVertically)
 		{
-			int stride = (int)(width * componentsSize);
-			uint8* newBuffer = (uint8*)g_memory_allocate(stride * height);
-			for (int i = 0; i < height; i++)
+			int stride = (int)(subWidth * componentsSize);
+			uint8* newBuffer = (uint8*)g_memory_allocate(stride * subHeight);
+			for (int i = 0; i < subHeight; i++)
 			{
-				g_memory_copyMem(newBuffer + (i * stride), buffer + ((height - i - 1) * stride), stride);
+				g_memory_copyMem(newBuffer + (i * stride), buffer + ((subHeight - i - 1) * stride), stride);
 			}
 			buffer = newBuffer;
 		}
 
 		this->bind();
-		GL::texSubImage2D(GL_TEXTURE_2D, 0, offsetX, offsetY, width, height, externalFormat, dataType, buffer);
+		GL::texSubImage2D(GL_TEXTURE_2D, 0, offsetX, offsetY, subWidth, subHeight, externalFormat, dataType, buffer);
 
 		if (flipVertically)
 		{

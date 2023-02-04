@@ -5,10 +5,11 @@
 #include "renderer/Renderer.h"
 #include "renderer/OrthoCamera.h"
 #include "renderer/PerspectiveCamera.h"
-#include "core/Colors.h"
+#include "renderer/Colors.h"
 #include "core/Input.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
+#include "math/CMath.h"
 
 namespace MathAnim
 {

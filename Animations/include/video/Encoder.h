@@ -28,7 +28,7 @@ namespace MathAnim
 	class VideoEncoder
 	{
 	public:
-		static VideoEncoder* startEncodingFile(const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, size_t totalNumFramesInVideo, Mbps bitrate = 20, VideoEncoderFlags flags = VideoEncoderFlags::None);
+		static VideoEncoder* startEncodingFile(const char* outputFilename, int outputWidth, int outputHeight, int outputFramerate, size_t totalNumFramesInVideo, VideoEncoderFlags flags = VideoEncoderFlags::None);
 		static void finalizeEncodingFile(VideoEncoder* encoder);
 		static void freeEncoder(VideoEncoder* encoder);
 

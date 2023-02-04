@@ -31,7 +31,7 @@ namespace MathAnim
 		regex_t* regMatch;
 		std::optional<CaptureList> captures;
 
-		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t start, size_t end, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 
 		void free();
 	};

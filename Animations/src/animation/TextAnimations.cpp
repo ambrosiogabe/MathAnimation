@@ -9,7 +9,7 @@
 #include "renderer/OrthoCamera.h"
 #include "core/Application.h"
 #include "latex/LaTexLayer.h"
-#include "editor/SceneHierarchyPanel.h"
+#include "editor/panels/SceneHierarchyPanel.h"
 #include "parsers/SyntaxTheme.h"
 
 namespace MathAnim

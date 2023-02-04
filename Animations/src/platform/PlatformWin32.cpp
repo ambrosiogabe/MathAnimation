@@ -423,7 +423,7 @@ namespace MathAnim
 			}
 
 			DWORD sizeHigh = (size >> 32) & 0xFFFFFFFF;
-			if (sizeof(size) < sizeof(uint64))
+			if constexpr (sizeof(size) < sizeof(uint64))
 			{
 				// Protect against overflow on machines with <64-bit architectures (even though this
 				// isn't meant to be run on <64-bit architectures)
@@ -467,7 +467,10 @@ namespace MathAnim
 			// NOTE: This is kind of gross, but hopefully it communicates to the end user
 			// that this pointer is not supposed to be changed, and if they do something 
 			// similar bad stuff is gonna happen
+#pragma warning( push )
+#pragma warning( disable : 4213 )
 			(uint8*)res->data = baseAddress;
+#pragma warning( pop )
 			return res;
 		}
 

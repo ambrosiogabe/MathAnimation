@@ -29,7 +29,7 @@ namespace MathAnim
 		bool AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation = NULL_ANIM);
 
 		const FilePayload* FileDragDropTarget();
-		bool FileDragDropInputBox(const char* label, AnimationManagerData* am, char* outBuffer, size_t outBufferSize);
+		bool FileDragDropInputBox(const char* label, char* outBuffer, size_t outBufferSize);
 		const char* getFileDragDropPayloadId();
 
 		void Icon(const char* icon, bool solid = true, float lineHeight = 0.0f);

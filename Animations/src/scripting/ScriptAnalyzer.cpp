@@ -1,13 +1,18 @@
 #include "scripting/ScriptAnalyzer.h"
 #include "scripting/MathAnimGlobals.h"
 #include "platform/Platform.h"
-#include "editor/ConsoleLog.h"
+#include "editor/panels/ConsoleLog.h"
 
+#pragma warning( push )
+#pragma warning( disable : 4100 )
+#pragma warning( disable : 4324 )
+#pragma warning( disable : 4324 )
 #include <lua.h>
 #include <luacode.h>
 #include <lualib.h>
 #include <Luau/Frontend.h>
 #include <Luau/BuiltinDefinitions.h>
+#pragma warning( pop )
 
 // ------------------------------- Internal Types -------------------------------
 struct ScriptFileResolver : public Luau::FileResolver
@@ -85,7 +90,8 @@ namespace MathAnim
 				}
 			}
 
-			Luau::TypeArena& arena = frontend->typeChecker.globalTypes;
+			// TODO: Why was this code here and then commented out?
+			//Luau::TypeArena& arena = frontend->typeChecker.globalTypes;
 			//arena.addType(loadResult.module.get()->astTypes[0]);
 		}
 		{
@@ -272,7 +278,7 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 	return res;
 }
 
-std::optional<Luau::ModuleInfo> ScriptFileResolver::resolveModule(const Luau::ModuleInfo* context, Luau::AstExpr* node)
+std::optional<Luau::ModuleInfo> ScriptFileResolver::resolveModule(const Luau::ModuleInfo*, Luau::AstExpr* node)
 {
 	if (Luau::AstExprConstantString* expr = node->as<Luau::AstExprConstantString>())
 	{
@@ -296,7 +302,7 @@ ScriptConfigResolver::ScriptConfigResolver()
 	defaultConfig.mode = Luau::Mode::Strict;
 }
 
-const Luau::Config& ScriptConfigResolver::getConfig(const Luau::ModuleName& name) const
+const Luau::Config& ScriptConfigResolver::getConfig(const Luau::ModuleName&) const
 {
 	return defaultConfig;
 }
@@ -316,25 +322,18 @@ static void report(ReportFormat format, const char* filepath, const Luau::Locati
 	switch (format)
 	{
 	case ReportFormat::Default:
-		//ConsoleLogError("%s(%d,%d): %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, type, message);
 		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "Analysis Failed: %s: %s", type, message);
 		break;
 
 	case ReportFormat::Luacheck:
 	{
-		// Note: luacheck's end column is inclusive but our end column is exclusive
-		// In addition, luacheck doesn't support multi-line messages, so if the error is multiline we'll fake end column as 100 and hope for the best
-		int columnEnd = (loc.begin.line == loc.end.line) ? loc.end.column : 100;
-
 		// Use stdout to match luacheck behavior
-		//ConsoleLogError("%s:%d:%d-%d: (W0) %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, columnEnd, type, message);
 		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "Analysis Failed: (W0) %s: %s", type, message);
 		break;
 	}
 
 	case ReportFormat::Gnu:
 		// Note: GNU end column is inclusive but our end column is exclusive
-		//ConsoleLogError("%s:%d.%d-%d.%d: %s: %s", name, loc.begin.line + 1, loc.begin.column + 1, loc.end.line + 1, loc.end.column, type, message);
 		MathAnim::ConsoleLog::error(filepath, loc.begin.line + 1, "Analysis Failed: %s: %s", type, message);
 		break;
 	}

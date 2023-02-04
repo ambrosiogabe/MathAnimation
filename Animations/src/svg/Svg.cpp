@@ -2,7 +2,6 @@
 #include "svg/SvgParser.h"
 #include "svg/SvgCache.h"
 #include "animation/Animation.h"
-#include "utils/CMath.h"
 #include "renderer/Renderer.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
@@ -11,6 +10,7 @@
 #include "core/Application.h"
 #include "core/Profiling.h"
 #include "multithreading/GlobalThreadPool.h"
+#include "math/CMath.h"
 #include "platform/Platform.h"
 
 #include <plutovg.h>
@@ -63,7 +63,7 @@ namespace MathAnim
 		{
 		}
 
-		void beginSvgGroup(SvgGroup* group)
+		void beginSvgGroup(SvgGroup*)
 		{
 		}
 
@@ -344,8 +344,8 @@ namespace MathAnim
 			// with the axes of the ellipse.
 
 			// Compute the midpoint of the line between the current and the end point
-			Precision dx2 = (object->_cursor.x - dst.x) / 2.0;
-			Precision dy2 = (object->_cursor.y - dst.y) / 2.0;
+			Precision dx2 = (Precision)((object->_cursor.x - dst.x) / 2.0);
+			Precision dy2 = (Precision)((object->_cursor.y - dst.y) / 2.0);
 
 			// Step 1 : Compute (x1', y1')
 			// x1,y1 is the midpoint vector rotated to take the arc's angle out of consideration
@@ -363,7 +363,7 @@ namespace MathAnim
 			Precision radiiCheck = x1_sq / rx_sq + y1_sq / ry_sq;
 			if (radiiCheck > 0.99999)
 			{
-				Precision radiiScale = glm::sqrt(radiiCheck) * 1.00001;
+				Precision radiiScale = (Precision)(glm::sqrt(radiiCheck) * 1.00001);
 				rx = (float)(radiiScale * rx);
 				ry = (float)(radiiScale * ry);
 				rx_sq = rx * rx;
@@ -371,7 +371,7 @@ namespace MathAnim
 			}
 
 			// Step 2 : Compute (cx1, cy1) - the transformed centre point
-			Precision sign = (largeArc == sweep) ? -1 : 1;
+			Precision sign = (Precision)((largeArc == sweep) ? -1 : 1);
 			Precision sq = ((rx_sq * ry_sq) - (rx_sq * y1_sq) - (ry_sq * x1_sq)) / ((rx_sq * y1_sq) + (ry_sq * x1_sq));
 			sq = (sq < 0) ? 0 : sq;
 			Precision coef = (sign * glm::sqrt(sq));
@@ -379,8 +379,8 @@ namespace MathAnim
 			Precision cy1 = coef * -((ry * x1) / rx);
 
 			// Step 3 : Compute (cx, cy) from (cx1, cy1)
-			Precision sx2 = (object->_cursor.x + dst.x) / 2.0;
-			Precision sy2 = (object->_cursor.y + dst.y) / 2.0;
+			Precision sx2 = (Precision)((object->_cursor.x + dst.x) / 2.0);
+			Precision sy2 = (Precision)((object->_cursor.y + dst.y) / 2.0);
 			Precision cx = sx2 + (cosAngle * cx1 - sinAngle * cy1);
 			Precision cy = sy2 + (sinAngle * cx1 + cosAngle * cy1);
 
@@ -396,9 +396,9 @@ namespace MathAnim
 
 			// Compute the start angle
 			// The angle between (ux,uy) and the 0deg angle (1,0)
-			n = glm::sqrt((ux * ux) + (uy * uy));  // len(u) * len(1,0) == len(u)
-			p = ux;                                // u.v == (ux,uy).(1,0) == (1 * ux) + (0 * uy) == ux
-			sign = (uy < 0) ? -1.0 : 1.0;          // u x v == (1 * uy - ux * 0) == uy
+			n = glm::sqrt((ux * ux) + (uy * uy));      // len(u) * len(1,0) == len(u)
+			p = ux;                                    // u.v == (ux,uy).(1,0) == (1 * ux) + (0 * uy) == ux
+			sign = (Precision)((uy < 0) ? -1.0 : 1.0); // u x v == (1 * uy - ux * 0) == uy
 			Precision angleStart = sign * glm::acos(p / n);  // No need for checkedArcCos() here. (p >= n) should always be true.
 
 			// Compute the angle extent
@@ -436,7 +436,7 @@ namespace MathAnim
 			Precision angleIncrement = angleExtent / numSegments;
 
 			// The length of each control point vector is given by the following formula.
-			Precision controlLength = 4.0 / 3.0 * glm::sin(angleIncrement / 2.0) / (1.0 + glm::cos(angleIncrement / 2.0));
+			Precision controlLength = (Precision)(4.0 / 3.0 * glm::sin(angleIncrement / 2.0) / (1.0 + glm::cos(angleIncrement / 2.0)));
 
 			const int bezierPointsLength = numSegments * 6;
 			float* bezierPoints = (float*)g_memory_allocate(sizeof(float) * bezierPointsLength);
@@ -675,7 +675,8 @@ namespace MathAnim
 				{
 					// Check if we're starting a new sub-path for split obj
 					bool beginNewSubpath = false;
-					bool splitIsHole, nonSplitIsHole;
+					bool splitIsHole = false;
+					bool nonSplitIsHole = false;
 					if (splitCurvei >= splitPath->numCurves)
 					{
 						splitIsHole = splitObj->paths[splitPathi].isHole;
@@ -1663,34 +1664,39 @@ namespace MathAnim
 
 	SvgObject* SvgObject::deserialize(RawMemory& memory, uint32 version)
 	{
-		SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-
-		// fillType         -> u8
-		// fillColor        -> Vec4
-		// pathLength       -> u64
-		// path             -> u8[pathLength]
-		memory.read<FillType>(&res->fillType);
-		res->fillColor = CMath::deserializeVec4(memory);
-		uint64 stringLength;
-		memory.read<uint64>(&stringLength);
-		uint8* string = (uint8*)g_memory_allocate(sizeof(uint8) * (stringLength + 1));
-		memory.readDangerous(string, stringLength);
-		string[stringLength] = '\0';
-
-		if (stringLength > 0)
+		if (version == 1)
 		{
-			if (!SvgParser::parseSvgPath((const char*)string, stringLength, res))
+			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+
+			// fillType         -> u8
+			// fillColor        -> Vec4
+			// pathLength       -> u64
+			// path             -> u8[pathLength]
+			memory.read<FillType>(&res->fillType);
+			res->fillColor = CMath::deserializeVec4(memory);
+			uint64 stringLength;
+			memory.read<uint64>(&stringLength);
+			uint8* string = (uint8*)g_memory_allocate(sizeof(uint8) * (stringLength + 1));
+			memory.readDangerous(string, stringLength);
+			string[stringLength] = '\0';
+
+			if (stringLength > 0)
 			{
-				g_logger_error("Error deserializing SVG. Bad path data: '%s'", string);
+				if (!SvgParser::parseSvgPath((const char*)string, stringLength, res))
+				{
+					g_logger_error("Error deserializing SVG. Bad path data: '%s'", string);
+				}
 			}
-		}
-		else
-		{
-			*res = Svg::createDefault();
-		}
-		g_memory_free(string);
+			else
+			{
+				*res = Svg::createDefault();
+			}
+			g_memory_free(string);
 
-		return res;
+			return res;
+		}
+
+		return nullptr;
 	}
 
 	void SvgGroup::normalize()

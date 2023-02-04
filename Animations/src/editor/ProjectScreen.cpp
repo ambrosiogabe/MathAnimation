@@ -1,9 +1,9 @@
 #include "editor/ProjectScreen.h"
 #include "core/ProjectApp.h"
 #include "core/Window.h"
-#include "core/Colors.h"
-#include "platform/Platform.h"
+#include "renderer/Colors.h"
 #include "renderer/Texture.h"
+#include "platform/Platform.h"
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>

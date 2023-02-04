@@ -1,8 +1,8 @@
-#include "editor/ConsoleLog.h"
-#include "editor/ImGuiExtended.h"
+#include "editor/panels/ConsoleLog.h"
+#include "editor/imgui/ImGuiExtended.h"
+#include "editor/imgui/ImGuiLayer.h"
 #include "scripting/LuauLayer.h"
-#include "core/Colors.h"
-#include "core/ImGuiLayer.h"
+#include "renderer/Colors.h"
 #include "utils/FontAwesome.h"
 #include "platform/Platform.h"
 

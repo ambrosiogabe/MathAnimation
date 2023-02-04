@@ -1,4 +1,4 @@
-#include "editor/MenuBar.h"
+#include "editor/panels/MenuBar.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
 

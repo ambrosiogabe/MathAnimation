@@ -58,7 +58,6 @@ namespace MathAnim
 		size_t highlightCursor = 0;
 		for (size_t i = 0; i < matches.size(); i++)
 		{
-			bool usedDefaultTheme;
 			highlightCursor = applyTheme(matches[i], highlightCursor, theme, res, nullptr);
 		}
 

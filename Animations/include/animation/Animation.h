@@ -1,13 +1,13 @@
 #ifndef MATH_ANIM_ANIMATION_H
 #define MATH_ANIM_ANIMATION_H
 #include "core.h"
-#include "utils/CMath.h"
 
 #include "animation/TextAnimations.h"
 #include "animation/SvgFileObject.h"
 #include "animation/Shapes.h"
 #include "animation/Axis.h"
 #include "renderer/OrthoCamera.h"
+#include "math/CMath.h"
 
 namespace MathAnim
 {

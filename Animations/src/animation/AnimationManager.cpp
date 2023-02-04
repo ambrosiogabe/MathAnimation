@@ -6,6 +6,7 @@
 #include "renderer/OrthoCamera.h"
 #include "editor/EditorSettings.h"
 #include "svg/Svg.h"
+#include "math/CMath.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
 
@@ -617,7 +618,6 @@ namespace MathAnim
 
 		void retargetSvgScales(AnimationManagerData* am)
 		{
-			float targetWidth = EditorSettings::getSettings().svgTargetScale;
 			for (int i = 0; i < am->objects.size(); i++)
 			{
 				am->objects[i].retargetSvgScale();
@@ -1024,7 +1024,7 @@ namespace MathAnim
 		static void applyDelta(AnimationManagerData* am, int deltaFrame)
 		{
 			MP_PROFILE_EVENT("AnimationManager_ApplyDelta");
-			int previousFrame = am->currentFrame;
+			//int previousFrame = am->currentFrame;
 			am->currentFrame += deltaFrame;
 			int newFrame = am->currentFrame;
 
