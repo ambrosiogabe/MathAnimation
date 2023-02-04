@@ -65,7 +65,6 @@ namespace MathAnim
 		DEFINE_TEST(existsShouldReturnTrueForExistingItem)
 		{
 			auto cache = createCache();
-			bool exists = cache.exists(KEY_ONE);
 
 			ASSERT_TRUE(cache.exists(KEY_ONE));
 
@@ -395,12 +394,14 @@ namespace MathAnim
 			cache.insert(KEY_ONE, VALUE_ONE);
 			for (size_t i = 0; i < 10; i++)
 			{
-				cache.insert(i + 1, DummyData{ (int)i, (float)i * 3.14f });
+				cache.insert((uint32)i + 1, DummyData{ (int)i, (float)i * 3.14f });
 			}
 
 			return cache;
 		}
 
+#pragma warning( push )
+#pragma warning( disable : 4505 )
 		static void printCache(const LRUCache<uint32, DummyData>& cache)
 		{
 			std::string stringBuffer = "null <- ";
@@ -426,4 +427,5 @@ namespace MathAnim
 	}
 }
 
+#pragma warning( pop )
 #endif
