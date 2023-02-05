@@ -77,4 +77,90 @@ namespace MathAnim
 
 		return res;
 	}
+
+	namespace Parser
+	{
+		ParserInfo openParserForFile(const char* filepath)
+		{
+			FILE* fp = fopen(filepath, "rb");
+			if (!fp)
+			{
+				g_logger_warning("Could not load file '%s' while trying to open parser. Error: '%s'.", filepath, strerror(errno));
+				return {};
+			}
+
+			fseek(fp, 0, SEEK_END);
+			size_t fileSize = ftell(fp);
+			fseek(fp, 0, SEEK_SET);
+
+			ParserInfo parserInfo;
+			parserInfo.cursor = 0;
+			parserInfo.textLength = fileSize;
+			parserInfo.text = (const char*)g_memory_allocate(sizeof(char) * fileSize);
+			fread((void*)parserInfo.text, fileSize, 1, fp);
+			fclose(fp);
+
+			return parserInfo;
+		}
+
+		ParserInfo openParserForFile(const std::string& filepath)
+		{
+			return openParserForFile(filepath.c_str());
+		}
+
+		bool parseNumber(ParserInfo& parserInfo, float* out)
+		{
+			size_t numberStart = parserInfo.cursor;
+			size_t numberEnd = parserInfo.cursor;
+
+			bool seenDot = false;
+			if (Parser::peek(parserInfo) == '-')
+			{
+				numberEnd++;
+				Parser::advance(parserInfo);
+			}
+
+			while (Parser::isDigit(Parser::peek(parserInfo)) || (Parser::peek(parserInfo) == '.' && !seenDot))
+			{
+				seenDot = seenDot || Parser::peek(parserInfo) == '.';
+				numberEnd++;
+				Parser::advance(parserInfo);
+			}
+
+			if (numberEnd > numberStart)
+			{
+				constexpr int maxSmallBufferSize = 32;
+				char smallBuffer[maxSmallBufferSize];
+				g_logger_assert(numberEnd - numberStart <= maxSmallBufferSize, "Cannot parse number greater than %d characters big.", maxSmallBufferSize);
+				g_memory_copyMem(smallBuffer, (void*)(parserInfo.text + numberStart), sizeof(char) * (numberEnd - numberStart));
+				smallBuffer[numberEnd - numberStart] = '\0';
+				// TODO: atof is not safe use a safer modern alternative
+				*out = (float)atof(smallBuffer);
+				return true;
+			}
+
+			*out = 0.0f;
+			return false;
+		}
+
+		void skipWhitespaceAndCommas(ParserInfo& parserInfo)
+		{
+			while (Parser::isWhitespace(Parser::peek(parserInfo)) || Parser::peek(parserInfo) == ',')
+			{
+				Parser::advance(parserInfo);
+				if (Parser::peek(parserInfo) == '\0')
+					break;
+			}
+		}
+
+		void skipWhitespace(ParserInfo& parserInfo)
+		{
+			while (Parser::isWhitespace(Parser::peek(parserInfo)))
+			{
+				Parser::advance(parserInfo);
+				if (Parser::peek(parserInfo) == '\0')
+					break;
+			}
+		}
+	}
 }

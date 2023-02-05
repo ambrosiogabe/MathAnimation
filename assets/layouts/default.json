@@ -1,0 +1,98 @@
+{
+  "Windows": [
+    {
+      "name": "Debug##Default",
+      "Pos": {
+        "X": 623,
+        "Y": 212
+      },
+      "Size": {
+        "X": 578,
+        "Y": 577
+      },
+      "Collapsed": false
+    },
+    {
+        "name": "Dear ImGui Demo",
+        "Pos": {
+          "X": 3055,
+          "Y": 1434
+        },
+        "Size": {
+          "X": 785,
+          "Y": 600
+        },
+        "Collapsed": false,
+        "DockId": "0x00000004,2"
+      },
+      {
+        "name": "DockSpace Demo",
+        "Size": {
+          "X": 3840,
+          "Y": 2035
+        },
+        "Collapsed": false
+      },
+      {
+        "name": "DockSpaceViewport_11111111",
+        "Pos": {
+          "X": 0,
+          "Y": 46
+        },
+        "Size": {
+          "X": 3840,
+          "Y": 1988
+        },
+        "Collapsed": false
+      },
+      {
+        "name": "Animation View",
+        "Pos": {
+          "X": 541,
+          "Y": 46
+        },
+        "Size": {
+          "X": 2031,
+          "Y": 1389
+        },
+        "Collapsed": false,
+        "DockId": "0x00000012,1"
+      },
+      {
+        "name": "Animation View",
+        "Pos": {
+          "X": 541,
+          "Y": 46
+        },
+        "Size": {
+          "X": 2031,
+          "Y": 1389
+        },
+        "Collapsed": false,
+        "DockId": "0x00000012,1"
+      },
+      {
+        "name": "Create New Project",
+        "ViewportPos": {
+          "X": 990,
+          "Y": 860
+        },
+        "Size": {
+          "X": 1070,
+          "Y": 390
+        },
+        "ViewportId": "0x644D7B11",
+        "Collapsed": false
+      }
+  ],
+  "Tables": [
+    {
+        "id": "0xC9935533,3",
+        "ColumnsWeights": [
+            0.5092,
+            1.1673,
+            1.3235
+        ]
+    }
+  ]
+}

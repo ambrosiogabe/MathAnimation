@@ -42,6 +42,8 @@ namespace MathAnim
 			res._cursor = Vec2{ 0, 0 };
 			res.fillColor = Vec4{ 1, 1, 1, 1 };
 			res.fillType = FillType::NonZeroFillType;
+			res.md5 = nullptr;
+			res.md5Length = 0;
 			return res;
 		}
 
@@ -588,8 +590,15 @@ namespace MathAnim
 			dest->bbox = src->bbox;
 
 			dest->md5Length = src->md5Length;
-			dest->md5 = (uint8*)g_memory_realloc(dest->md5, sizeof(uint8) * (src->md5Length + 1));
-			g_memory_copyMem(dest->md5, (void*)src->md5, sizeof(uint8) * (src->md5Length + 1));
+			if (dest->md5Length > 0)
+			{
+				dest->md5 = (uint8*)g_memory_realloc(dest->md5, sizeof(uint8) * (src->md5Length + 1));
+				g_memory_copyMem(dest->md5, (void*)src->md5, sizeof(uint8) * (src->md5Length + 1));
+			}
+			else
+			{
+				dest->md5 = nullptr;
+			}
 		}
 
 		SvgObject* interpolate(const SvgObject* src, const SvgObject* dst, float t)
