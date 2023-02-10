@@ -6,6 +6,9 @@
 #include "renderer/GLApi.h"
 #include "core/Profiling.h"
 
+#include "parsers/ImGuiIniParser.h"
+#include "core/Application.h"
+
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <backends/imgui_impl_glfw.h>
@@ -30,6 +33,10 @@ namespace MathAnim
 
 		void init(int glVersionMajor, int glVersionMinor, const Window& window)
 		{
+			//glm::vec2 resolution = Application::getAppWindowSize();
+			ImGuiIniParser::convertImGuiIniToJson("imgui.ini", "imgui.ini.json", Vec2{ 3840.0f, 2160.0f });// Vec2{ resolution.x, resolution.y });
+			ImGuiIniParser::convertJsonToImGuiIni("imgui.ini.json", "imgui.v2.ini", Vec2{ 1920.0f, 1080.0f });
+
 			// Set up dear imgui
 			ImGui::CreateContext();
 

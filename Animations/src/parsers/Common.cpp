@@ -108,6 +108,18 @@ namespace MathAnim
 			return openParserForFile(filepath.c_str());
 		}
 
+		void freeParser(ParserInfo& parser)
+		{
+			if (parser.text)
+			{
+				g_memory_free((void*)parser.text);
+			}
+
+			parser.text = nullptr;
+			parser.textLength = 0;
+			parser.cursor = 0;
+		}
+
 		bool parseNumber(ParserInfo& parserInfo, float* out)
 		{
 			size_t numberStart = parserInfo.cursor;
