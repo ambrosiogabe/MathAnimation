@@ -279,7 +279,103 @@ namespace MathAnim
 						}
 					}
 				}
-				
+
+				// Then dockspace data
+				if (j.contains("DockingData"))
+				{
+					// First find max indentation level
+					uint8 maxIndentation = 0;
+					for (const nlohmann::json& node : j["DockingData"]["nodes"])
+					{
+						std::string type = node["type"];
+						float indentationF = (float)node["indentationLevel"];
+						uint8 indentation = (uint8)indentationF;
+						indentation += type.length() + 2;
+						if (indentation > maxIndentation)
+						{
+							maxIndentation = indentation;
+						}
+					}
+
+					// Then write out the dock space nodes
+					if (j["DockingData"]["nodes"].size() > 0)
+					{
+						snprintf(formatBuffer, sizeof(formatBuffer), "%s", "\n[Docking][Data]\n");
+						fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+					}
+
+					for (const nlohmann::json& node : j["DockingData"]["nodes"])
+					{
+						std::string type = node["type"];
+						uint8 indentation = node["indentationLevel"];
+						uint8 indentationRight = maxIndentation - indentation - type.length();
+						if (indentation > 0)
+						{
+							snprintf(formatBuffer, sizeof(formatBuffer), "%*c%s%*c", indentation, ' ', type.c_str(), indentationRight, ' ');
+						}
+						else
+						{
+							snprintf(formatBuffer, sizeof(formatBuffer), "%s%*c", type.c_str(), indentationRight, ' ');
+						}
+						fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+
+						if (!node["id"].is_null())
+						{
+							std::string id = node["id"];
+							snprintf(formatBuffer, sizeof(formatBuffer), "ID=%s ", id.c_str());
+							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+						}
+						if (node.contains("window") && !node["window"].is_null())
+						{
+							std::string window = node["window"];
+							snprintf(formatBuffer, sizeof(formatBuffer), "Window=%s ", window.c_str());
+							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+						}
+						if (node.contains("parent") && !node["parent"].is_null())
+						{
+							std::string parent = node["parent"];
+							snprintf(formatBuffer, sizeof(formatBuffer), "Parent=%s ", parent.c_str());
+							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+						}
+						if (node.contains("pos") && !node["pos"].is_null())
+						{
+							Vec2 pos = parseVec2(node["pos"]);
+							snprintf(formatBuffer, sizeof(formatBuffer), "Pos=%d,%d ", (int)(pos.x * scaleX), (int)(pos.y * scaleY));
+							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+						}
+						if (node.contains("size") && !node["size"].is_null())
+						{
+							Vec2 size = parseVec2(node["size"]);
+							snprintf(formatBuffer, sizeof(formatBuffer), "Size=%d,%d ", (int)(size.x * scaleX), (int)(size.y * scaleY));
+							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+						}
+						if (node.contains("sizeRef") && !node["sizeRef"].is_null())
+						{
+							Vec2 size = parseVec2(node["sizeRef"]);
+							snprintf(formatBuffer, sizeof(formatBuffer), "SizeRef=%d,%d ", (int)(size.x * scaleX), (int)(size.y * scaleY));
+							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+						}
+						if (node.contains("centralNode") && !node["centralNode"].is_null())
+						{
+							std::string centralNode = node["centralNode"];
+							snprintf(formatBuffer, sizeof(formatBuffer), "CentralNode=%s ", centralNode.c_str());
+							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+						}
+						if (!node["split"].is_null())
+						{
+							std::string split = node["split"];
+							snprintf(formatBuffer, sizeof(formatBuffer), "Split=%s ", split.c_str());
+							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+						}
+						if (!node["selected"].is_null())
+						{
+							std::string selected = node["selected"];
+							snprintf(formatBuffer, sizeof(formatBuffer), "Selected=%s\n", selected.c_str());
+							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+						}
+					}
+				}
+
 				fclose(outputFile);
 			}
 			catch (std::exception ex)
@@ -331,6 +427,7 @@ namespace MathAnim
 				{
 					const DockNodeData& dockNode = line.dockNodeData.value();
 					node["type"] = "DockNode";
+					node["indentationLevel"] = line.indentationLevel;
 					node["id"] = dockNode.id;
 					node["parent"] = dockNode.parent;
 					node["sizeRef"] = parseVec2(dockNode.sizeRef);
@@ -345,6 +442,7 @@ namespace MathAnim
 					const DockSpaceData& dockSpace = line.dockSpaceData.value();
 					node["type"] = "DockSpace";
 					node["id"] = dockSpace.id;
+					node["indentationLevel"] = line.indentationLevel;
 					node["window"] = dockSpace.window;
 					node["pos"] = parseVec2(dockSpace.pos);
 					node["size"] = parseVec2(dockSpace.size);
@@ -792,7 +890,7 @@ namespace MathAnim
 
 		static Vec2 parseVec2(const nlohmann::json& j)
 		{
-			Vec2 res = {NAN, NAN};
+			Vec2 res = { NAN, NAN };
 			if (j.contains("X"))
 			{
 				res.x = j["X"];
