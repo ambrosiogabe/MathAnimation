@@ -3,6 +3,8 @@
 
 #include <nlohmann/json.hpp>
 
+#pragma warning(push, 0)
+
 namespace MathAnim
 {
 	struct StringView
@@ -903,3 +905,5 @@ namespace MathAnim
 		}
 	}
 }
+
+#pragma warning(pop)
