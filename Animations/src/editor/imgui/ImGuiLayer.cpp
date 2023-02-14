@@ -1,5 +1,4 @@
 #include "editor/imgui/ImGuiLayer.h"
-#include "editor/imgui/ImGuiOpenGLLayer.h"
 #include "core/Window.h"
 #include "utils/FontAwesome.h"
 #include "renderer/Colors.h"
@@ -12,6 +11,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #include <GLFW/glfw3.h>
 
@@ -28,15 +28,15 @@ namespace MathAnim
 		static ImFont* largeRegularIconFont;
 		static ImFont* mediumRegularIconFont;
 
+		static bool reloadLayout = false;
+		static std::string reloadLayoutFilepath = "";
+
 		// ---------- Internal Functions ----------
 		static void loadCustomTheme();
+		static void generateLayoutFile(const std::filesystem::path& layoutPath, const Vec2& targetResolution);
 
-		void init(int glVersionMajor, int glVersionMinor, const Window& window)
+		void init(int, int, const Window& window, const char* jsonLayoutFile)
 		{
-			//glm::vec2 resolution = Application::getAppWindowSize();
-			ImGuiIniParser::convertImGuiIniToJson("imgui.ini", "imgui.ini.json", Vec2{ 3840.0f, 2160.0f });// Vec2{ resolution.x, resolution.y });
-			ImGuiIniParser::convertJsonToImGuiIni("imgui.ini.json", "imgui.v2.ini", Vec2{ 1920.0f, 1080.0f });
-
 			// Set up dear imgui
 			ImGui::CreateContext();
 
@@ -105,7 +105,16 @@ namespace MathAnim
 			ImGui_ImplGlfw_InitForOpenGL((GLFWwindow*)window.windowPtr, true);
 
 			const char* glsl_version = "#version 330";
-			MathAnim_ImplOpenGL3_Init(glVersionMajor, glVersionMinor, glsl_version);
+			//MathAnim_ImplOpenGL3_Init(glVersionMajor, glVersionMinor, glsl_version);
+			ImGui_ImplOpenGL3_Init(glsl_version);
+
+			if (jsonLayoutFile)
+			{
+				glm::vec2 windowSize = Application::getAppWindowSize();
+				generateLayoutFile(jsonLayoutFile, Vec2{ windowSize.x, windowSize.y });
+				// Load the layout file immediately
+				ImGui::LoadIniSettingsFromDisk(reloadLayoutFilepath.c_str());
+			}
 		}
 
 		void beginFrame()
@@ -113,7 +122,8 @@ namespace MathAnim
 			MP_PROFILE_EVENT("ImGuiLayer_BeginFrame");
 
 			// Start the Dear ImGui frame
-			MathAnim_ImplOpenGL3_NewFrame();
+			//MathAnim_ImplOpenGL3_NewFrame();
+			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 			ImGui::CaptureKeyboardFromApp(true);
@@ -136,7 +146,8 @@ namespace MathAnim
 			}
 
 			GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
-			MathAnim_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+			//MathAnim_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 			ImGuiIO& io = ImGui::GetIO();
 
@@ -155,6 +166,16 @@ namespace MathAnim
 
 			GL::disable(GL_SCISSOR_TEST);
 			GL::enable(GL_STENCIL_TEST);
+
+			// TODO: This is super gross, come up with a better way to dynamically load ini files
+			// at runtime
+			if (reloadLayout)
+			{
+				free();
+				init(0, 0, Application::getWindow());
+				ImGui::LoadIniSettingsFromDisk(reloadLayoutFilepath.c_str());
+				reloadLayout = false;
+			}
 		}
 
 		void keyEvent()
@@ -178,9 +199,23 @@ namespace MathAnim
 			mediumRegularIconFont = nullptr;
 
 			// Cleanup
-			MathAnim_ImplOpenGL3_Shutdown();
+			ImGui_ImplOpenGL3_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
 			ImGui::DestroyContext();
+		}
+
+		void saveEditorLayout()
+		{
+			glm::vec2 resolution = Application::getAppWindowSize();
+			std::remove("editorLayout.ini");
+			ImGui::SaveIniSettingsToDisk("editorLayout.ini");
+			ImGuiIniParser::convertImGuiIniToJson("editorLayout.ini", "editorLayout.json", Vec2{ resolution.x, resolution.y });
+		}
+
+		void loadEditorLayout(const std::filesystem::path& layoutPath, const Vec2& targetResolution)
+		{
+			generateLayoutFile(layoutPath, targetResolution);
+			reloadLayout = true;
 		}
 
 		ImFont* getDefaultFont()
@@ -300,6 +335,13 @@ namespace MathAnim
 			colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
 			colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
 			colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
+		}
+
+		static void generateLayoutFile(const std::filesystem::path& layoutPath, const Vec2& targetResolution)
+		{
+			std::filesystem::path iniFilename = (layoutPath.parent_path() / (layoutPath.stem().string() + ".ini"));
+			ImGuiIniParser::convertJsonToImGuiIni(layoutPath.string().c_str(), iniFilename.string().c_str(), targetResolution);
+			reloadLayoutFilepath = iniFilename.string().c_str();
 		}
 	}
 }

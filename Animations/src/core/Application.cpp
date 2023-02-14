@@ -109,7 +109,7 @@ namespace MathAnim
 
 			Fonts::init();
 			Renderer::init();
-			ImGuiLayer::init(glVersion.major, glVersion.minor, *window);
+			ImGuiLayer::init(glVersion.major, glVersion.minor, *window, "./assets/layouts/Default.json");
 			Audio::init();
 			GizmoManager::init();
 			Svg::init();
@@ -516,6 +516,11 @@ namespace MathAnim
 		glm::vec2 getAppWindowSize()
 		{
 			return glm::vec2(window->width, window->height);
+		}
+
+		const Window& getWindow()
+		{
+			return *window;
 		}
 
 		void setFrameIndex(int frame)

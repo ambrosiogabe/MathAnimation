@@ -10,7 +10,7 @@ namespace MathAnim
 
 	namespace EditorGui
 	{
-		void init(AnimationManagerData* am, const std::filesystem::path& assetsRoot, uint32 outputWidth, uint32 outputHeight);
+		void init(AnimationManagerData* am, const std::filesystem::path& projectRoot, uint32 outputWidth, uint32 outputHeight);
 
 		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am);
 		void onGizmo(AnimationManagerData* am);

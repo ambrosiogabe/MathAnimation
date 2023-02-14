@@ -74,13 +74,65 @@
                 "type": "DockNode"
             },
             {
-                "centralNode": "1",
+                "centralNode": null,
                 "id": "0x0000000C",
                 "indentationLevel": 8,
                 "parent": "0x00000005",
                 "selected": "0xDA9CC429",
                 "sizeRef": {
                     "X": 2057.0,
+                    "Y": 1352.0
+                },
+                "split": "X",
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000011",
+                "indentationLevel": 10,
+                "parent": "0x0000000C",
+                "selected": "0x392A5ADD",
+                "sizeRef": {
+                    "X": 539.0,
+                    "Y": 1352.0
+                },
+                "split": "Y",
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x0000000F",
+                "indentationLevel": 12,
+                "parent": "0x00000011",
+                "selected": "0x392A5ADD",
+                "sizeRef": {
+                    "X": 539.0,
+                    "Y": 655.0
+                },
+                "split": null,
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000010",
+                "indentationLevel": 12,
+                "parent": "0x00000011",
+                "selected": "0x03EF1E3A",
+                "sizeRef": {
+                    "X": 539.0,
+                    "Y": 651.0
+                },
+                "split": null,
+                "type": "DockNode"
+            },
+            {
+                "centralNode": "1",
+                "id": "0x00000012",
+                "indentationLevel": 10,
+                "parent": "0x0000000C",
+                "selected": "0xDA9CC429",
+                "sizeRef": {
+                    "X": 2031.0,
                     "Y": 1352.0
                 },
                 "split": null,
@@ -159,7 +211,7 @@
                 "selected": "0x6B85460A",
                 "sizeRef": {
                     "X": 764.0,
-                    "Y": 1419.0
+                    "Y": 1305.0
                 },
                 "split": null,
                 "type": "DockNode"
@@ -169,10 +221,10 @@
                 "id": "0x00000004",
                 "indentationLevel": 4,
                 "parent": "0x00000002",
-                "selected": "0x74269F8F",
+                "selected": "0xDD83D5A9",
                 "sizeRef": {
                     "X": 764.0,
-                    "Y": 567.0
+                    "Y": 565.0
                 },
                 "split": null,
                 "type": "DockNode"
@@ -211,11 +263,11 @@
             "name": "Dear ImGui Demo",
             "pos": {
                 "X": 3055.0,
-                "Y": 1467.0
+                "Y": 1434.0
             },
             "size": {
                 "X": 785.0,
-                "Y": 567.0
+                "Y": 600.0
             },
             "viewportId": null,
             "viewportPos": null
@@ -249,14 +301,14 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x0000000C,1",
+            "dockId": "0x00000012,1",
             "name": "Animation View",
             "pos": {
-                "X": 0.0,
+                "X": 541.0,
                 "Y": 46.0
             },
             "size": {
-                "X": 2572.0,
+                "X": 2031.0,
                 "Y": 1424.0
             },
             "viewportId": null,
@@ -366,15 +418,15 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x00000004,3",
+            "dockId": "0x0000000F,0",
             "name": "Debug",
             "pos": {
-                "X": 3055.0,
-                "Y": 1467.0
+                "X": 0.0,
+                "Y": 46.0
             },
             "size": {
-                "X": 785.0,
-                "Y": 567.0
+                "X": 539.0,
+                "Y": 713.0
             },
             "viewportId": null,
             "viewportPos": null
@@ -419,7 +471,7 @@
             },
             "size": {
                 "X": 785.0,
-                "Y": 1419.0
+                "Y": 1386.0
             },
             "viewportId": null,
             "viewportPos": null
@@ -430,11 +482,11 @@
             "name": "Animation Inspector",
             "pos": {
                 "X": 3055.0,
-                "Y": 1467.0
+                "Y": 1434.0
             },
             "size": {
                 "X": 785.0,
-                "Y": 567.0
+                "Y": 600.0
             },
             "viewportId": null,
             "viewportPos": null
@@ -456,14 +508,14 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x0000000C,0",
+            "dockId": "0x00000012,0",
             "name": "Animation Editor View",
             "pos": {
-                "X": 0.0,
+                "X": 541.0,
                 "Y": 46.0
             },
             "size": {
-                "X": 2572.0,
+                "X": 2031.0,
                 "Y": 1424.0
             },
             "viewportId": null,
@@ -475,11 +527,11 @@
             "name": "Editor Settings",
             "pos": {
                 "X": 3055.0,
-                "Y": 1467.0
+                "Y": 1434.0
             },
             "size": {
                 "X": 785.0,
-                "Y": 567.0
+                "Y": 600.0
             },
             "viewportId": null,
             "viewportPos": null
@@ -576,15 +628,15 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x00000004,4",
+            "dockId": "0x00000010,0",
             "name": "App Metrics",
             "pos": {
-                "X": 3055.0,
-                "Y": 1467.0
+                "X": 0.0,
+                "Y": 761.0
             },
             "size": {
-                "X": 785.0,
-                "Y": 567.0
+                "X": 539.0,
+                "Y": 709.0
             },
             "viewportId": null,
             "viewportPos": null

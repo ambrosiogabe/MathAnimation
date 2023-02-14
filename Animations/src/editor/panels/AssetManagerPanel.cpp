@@ -34,9 +34,9 @@ namespace MathAnim
 		static std::filesystem::path scriptsRoot;
 		static FileSystemWatcher* scriptWatcher = nullptr;
 
-		void init(const std::filesystem::path& inAssetsRoot)
+		void init(const std::filesystem::path& projectRoot)
 		{
-			assetsRoot = inAssetsRoot;
+			assetsRoot = projectRoot;
 			scriptsRoot = assetsRoot/"scripts";
 
 			// Initialize the script watcher
