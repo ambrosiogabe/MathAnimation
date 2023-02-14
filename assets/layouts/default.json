@@ -1,0 +1,668 @@
+{
+    "ConfigResolution": {
+        "X": 3840.0,
+        "Y": 2035.0
+    },
+    "DockingData": {
+        "nodes": [
+            {
+                "id": "0x8B93E3BD",
+                "indentationLevel": 0,
+                "pos": {
+                    "X": 0.0,
+                    "Y": 91.0
+                },
+                "selected": "0x3CB661AD",
+                "size": {
+                    "X": 3840.0,
+                    "Y": 1988.0
+                },
+                "split": "X",
+                "type": "DockSpace",
+                "window": "0xA787BDB4"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000001",
+                "indentationLevel": 2,
+                "parent": "0x8B93E3BD",
+                "selected": "0x3CB661AD",
+                "sizeRef": {
+                    "X": 3053.0,
+                    "Y": 1336.0
+                },
+                "split": "X",
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x0000000D",
+                "indentationLevel": 4,
+                "parent": "0x00000001",
+                "selected": "0xDA9CC429",
+                "sizeRef": {
+                    "X": 2572.0,
+                    "Y": 1352.0
+                },
+                "split": "Y",
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000005",
+                "indentationLevel": 6,
+                "parent": "0x0000000D",
+                "selected": "0xDA9CC429",
+                "sizeRef": {
+                    "X": 2494.0,
+                    "Y": 1308.0
+                },
+                "split": "X",
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x0000000B",
+                "indentationLevel": 8,
+                "parent": "0x00000005",
+                "selected": "0x392A5ADD",
+                "sizeRef": {
+                    "X": 541.0,
+                    "Y": 1352.0
+                },
+                "split": null,
+                "type": "DockNode"
+            },
+            {
+                "centralNode": "1",
+                "id": "0x0000000C",
+                "indentationLevel": 8,
+                "parent": "0x00000005",
+                "selected": "0xDA9CC429",
+                "sizeRef": {
+                    "X": 2057.0,
+                    "Y": 1352.0
+                },
+                "split": null,
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000006",
+                "indentationLevel": 6,
+                "parent": "0x0000000D",
+                "selected": "0x0F18B61B",
+                "sizeRef": {
+                    "X": 2494.0,
+                    "Y": 562.0
+                },
+                "split": null,
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x0000000E",
+                "indentationLevel": 4,
+                "parent": "0x00000001",
+                "selected": "0x15AAE186",
+                "sizeRef": {
+                    "X": 479.0,
+                    "Y": 1352.0
+                },
+                "split": "Y",
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000007",
+                "indentationLevel": 6,
+                "parent": "0x0000000E",
+                "selected": "0x15AAE186",
+                "sizeRef": {
+                    "X": 480.0,
+                    "Y": 1421.0
+                },
+                "split": null,
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000008",
+                "indentationLevel": 6,
+                "parent": "0x0000000E",
+                "selected": "0x21BEBADD",
+                "sizeRef": {
+                    "X": 480.0,
+                    "Y": 565.0
+                },
+                "split": null,
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000002",
+                "indentationLevel": 2,
+                "parent": "0x8B93E3BD",
+                "selected": "0xBDA07027",
+                "sizeRef": {
+                    "X": 785.0,
+                    "Y": 1336.0
+                },
+                "split": "Y",
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000003",
+                "indentationLevel": 4,
+                "parent": "0x00000002",
+                "selected": "0x6B85460A",
+                "sizeRef": {
+                    "X": 764.0,
+                    "Y": 1419.0
+                },
+                "split": null,
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000004",
+                "indentationLevel": 4,
+                "parent": "0x00000002",
+                "selected": "0x74269F8F",
+                "sizeRef": {
+                    "X": 764.0,
+                    "Y": 567.0
+                },
+                "split": null,
+                "type": "DockNode"
+            }
+        ]
+    },
+    "Tables": [
+        {
+            "lines": [
+                "Column 0  Weight=0.5092\r\n",
+                "Column 1  Weight=1.1673\r\n",
+                "Column 2  Weight=1.3235\r\n"
+            ],
+            "name": "0xC9935533,3"
+        }
+    ],
+    "Windows": [
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "Debug##Default",
+            "pos": {
+                "X": 623.0,
+                "Y": 199.0
+            },
+            "size": {
+                "X": 578.0,
+                "Y": 543.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000004,2",
+            "name": "Dear ImGui Demo",
+            "pos": {
+                "X": 3055.0,
+                "Y": 1467.0
+            },
+            "size": {
+                "X": 785.0,
+                "Y": 567.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "DockSpace Demo",
+            "pos": null,
+            "size": {
+                "X": 3840.0,
+                "Y": 1917.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "DockSpaceViewport_11111111",
+            "pos": {
+                "X": 0.0,
+                "Y": 46.0
+            },
+            "size": {
+                "X": 3840.0,
+                "Y": 1988.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x0000000C,1",
+            "name": "Animation View",
+            "pos": {
+                "X": 0.0,
+                "Y": 46.0
+            },
+            "size": {
+                "X": 2572.0,
+                "Y": 1424.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000006,0",
+            "name": "Timeline",
+            "pos": {
+                "X": 0.0,
+                "Y": 1472.0
+            },
+            "size": {
+                "X": 2572.0,
+                "Y": 562.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000003,1",
+            "name": "Animation Objects",
+            "pos": {
+                "X": 3076.0,
+                "Y": 0.0
+            },
+            "size": {
+                "X": 764.0,
+                "Y": 597.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "Extra Window",
+            "pos": {
+                "X": 37.0,
+                "Y": 604.0
+            },
+            "size": {
+                "X": 510.0,
+                "Y": 116.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000004,0",
+            "name": "Inspector",
+            "pos": {
+                "X": 3076.0,
+                "Y": 599.0
+            },
+            "size": {
+                "X": 764.0,
+                "Y": 1124.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000008,1",
+            "name": "Animations",
+            "pos": {
+                "X": 2574.0,
+                "Y": 1469.0
+            },
+            "size": {
+                "X": 479.0,
+                "Y": 565.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "Project Selector",
+            "pos": null,
+            "size": {
+                "X": 1920.0,
+                "Y": 1017.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "Create New Project",
+            "pos": null,
+            "size": {
+                "X": 1070.0,
+                "Y": 367.0
+            },
+            "viewportId": "0x644D7B11",
+            "viewportPos": {
+                "X": 990.0,
+                "Y": 810.0
+            }
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000004,3",
+            "name": "Debug",
+            "pos": {
+                "X": 3055.0,
+                "Y": 1467.0
+            },
+            "size": {
+                "X": 785.0,
+                "Y": 567.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000008,0",
+            "name": "Export Video",
+            "pos": {
+                "X": 2574.0,
+                "Y": 1469.0
+            },
+            "size": {
+                "X": 479.0,
+                "Y": 565.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000007,0",
+            "name": " Scene",
+            "pos": {
+                "X": 2574.0,
+                "Y": 46.0
+            },
+            "size": {
+                "X": 479.0,
+                "Y": 1421.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000003,0",
+            "name": "Anim Object Inspector",
+            "pos": {
+                "X": 3055.0,
+                "Y": 46.0
+            },
+            "size": {
+                "X": 785.0,
+                "Y": 1419.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000004,0",
+            "name": "Animation Inspector",
+            "pos": {
+                "X": 3055.0,
+                "Y": 1467.0
+            },
+            "size": {
+                "X": 785.0,
+                "Y": 567.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "Tmp",
+            "pos": {
+                "X": 2811.0,
+                "Y": 1035.0
+            },
+            "size": {
+                "X": 896.0,
+                "Y": 695.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x0000000C,0",
+            "name": "Animation Editor View",
+            "pos": {
+                "X": 0.0,
+                "Y": 46.0
+            },
+            "size": {
+                "X": 2572.0,
+                "Y": 1424.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000004,1",
+            "name": "Editor Settings",
+            "pos": {
+                "X": 3055.0,
+                "Y": 1467.0
+            },
+            "size": {
+                "X": 785.0,
+                "Y": 567.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000006,1",
+            "name": "Scene Manager",
+            "pos": {
+                "X": 0.0,
+                "Y": 1472.0
+            },
+            "size": {
+                "X": 2572.0,
+                "Y": 562.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x0000000B,0",
+            "name": "Dear ImGui Metrics/Debugger",
+            "pos": {
+                "X": 0.0,
+                "Y": 787.0
+            },
+            "size": {
+                "X": 541.0,
+                "Y": 565.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "Delete?",
+            "pos": {
+                "X": 1702.0,
+                "Y": 838.0
+            },
+            "size": {
+                "X": 435.0,
+                "Y": 238.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "Stacked 2",
+            "pos": {
+                "X": 1764.0,
+                "Y": 830.0
+            },
+            "size": {
+                "X": 404.0,
+                "Y": 148.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "Stacked 1",
+            "pos": {
+                "X": 1582.0,
+                "Y": 772.0
+            },
+            "size": {
+                "X": 676.0,
+                "Y": 370.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "Error Importing SVG##ERROR_IMPORTING_SVG",
+            "pos": {
+                "X": 1359.0,
+                "Y": 863.0
+            },
+            "size": {
+                "X": 1121.0,
+                "Y": 188.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000004,4",
+            "name": "App Metrics",
+            "pos": {
+                "X": 3055.0,
+                "Y": 1467.0
+            },
+            "size": {
+                "X": 785.0,
+                "Y": 567.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000006,2",
+            "name": "Asset Manager",
+            "pos": {
+                "X": 0.0,
+                "Y": 1472.0
+            },
+            "size": {
+                "X": 2572.0,
+                "Y": 562.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000006,3",
+            "name": "Console Output",
+            "pos": {
+                "X": 0.0,
+                "Y": 1472.0
+            },
+            "size": {
+                "X": 2572.0,
+                "Y": 562.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "TmpSettings",
+            "pos": {
+                "X": 1747.0,
+                "Y": 360.0
+            },
+            "size": {
+                "X": 1055.0,
+                "Y": 342.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "MENU_BAR_WINDOW",
+            "pos": {
+                "X": 810.0,
+                "Y": 641.0
+            },
+            "size": {
+                "X": 820.0,
+                "Y": 314.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": null,
+            "name": "CREDITS_POPUP_WINDOW",
+            "pos": {
+                "X": 1597.0,
+                "Y": 863.0
+            },
+            "size": {
+                "X": 648.0,
+                "Y": 240.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        }
+    ]
+}

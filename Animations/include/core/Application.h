@@ -8,6 +8,7 @@ namespace MathAnim
 	struct OrthoCamera;
 	class SvgCache;
 	struct Framebuffer;
+	struct Window;
 
 	enum class AnimState : uint8
 	{
@@ -30,6 +31,7 @@ namespace MathAnim
 		glm::vec2 getOutputSize();
 		glm::vec2 getViewportSize();
 		glm::vec2 getAppWindowSize();
+		const Window& getWindow();
 
 		void saveProject();
 		void saveCurrentScene();

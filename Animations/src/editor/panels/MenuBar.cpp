@@ -1,4 +1,6 @@
 #include "editor/panels/MenuBar.h"
+#include "editor/imgui/ImGuiLayer.h"
+#include "editor/EditorLayout.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
 
@@ -34,6 +36,58 @@ namespace MathAnim
 					}
 
 					ImGui::Separator();
+
+					if (ImGui::MenuItem("Save Editor Layout"))
+					{
+						ImGuiLayer::saveEditorLayout();
+					}
+
+					ImGui::EndMenu();
+				}
+
+				if (ImGui::BeginMenu("Edit"))
+				{
+					ImGui::EndMenu();
+				}
+
+				if (ImGui::BeginMenu("View"))
+				{
+					if (ImGui::BeginMenu("Layouts"))
+					{
+						if (ImGui::MenuItem("Save Custom Layout"))
+						{
+							g_logger_warning("TODO: Implement Layout Saving");
+						}
+
+						ImGui::Separator();
+
+						const std::vector<std::filesystem::path>& defaultLayouts = EditorLayout::getDefaultLayouts();
+						for (const auto& layout : defaultLayouts)
+						{
+							if (ImGui::MenuItem(layout.stem().string().c_str()))
+							{
+								glm::vec2 windowSize = Application::getAppWindowSize();
+								ImGuiLayer::loadEditorLayout(layout, Vec2{ windowSize.x, windowSize.y });
+							}
+						}
+
+						const std::vector<std::filesystem::path>& customLayouts = EditorLayout::getCustomLayouts();
+						if (customLayouts.size() > 0)
+						{
+							ImGui::Separator();
+						}
+
+						for (const auto& layout : customLayouts)
+						{
+							if (ImGui::MenuItem(layout.stem().string().c_str()))
+							{
+								glm::vec2 windowSize = Application::getAppWindowSize();
+								ImGuiLayer::loadEditorLayout(layout, Vec2{ windowSize.x, windowSize.y });
+							}
+						}
+
+						ImGui::EndMenu();
+					}
 
 					ImGui::EndMenu();
 				}

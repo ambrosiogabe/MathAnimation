@@ -13,8 +13,8 @@ namespace MathAnim
 		GL::viewport(0, 0, newWidth, newHeight);
 	}
 
-	Window::Window(int width, int height, const char* title, WindowFlags flags)
-		: width(width), height(height), title(title)
+	Window::Window(int inWidth, int inHeight, const char* inTitle, WindowFlags flags)
+		: width(inWidth), height(inHeight), title(inTitle)
 	{
 		// Minimum required version
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -44,6 +44,12 @@ namespace MathAnim
 		glfwSetMouseButtonCallback((GLFWwindow*)windowPtr, Input::mouseButtonCallback);
 		glfwSetScrollCallback((GLFWwindow*)windowPtr, Input::scrollCallback);
 		glfwSetFramebufferSizeCallback((GLFWwindow*)windowPtr, resizeCallback);
+
+		if (flags & WindowFlags::OpenMaximized)
+		{
+			// Set width/height to actual window size
+			glfwGetWindowSize((GLFWwindow*)windowPtr, &width, &height);
+		}
 	}
 
 	void Window::setCursorMode(CursorMode cursorMode)

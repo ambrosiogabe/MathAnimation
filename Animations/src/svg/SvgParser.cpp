@@ -1,5 +1,6 @@
 #include "svg/SvgParser.h"
 #include "svg/Svg.h"
+#include "parsers/Common.h"
 
 #include <../tinyxml2/tinyxml2.h>
 
@@ -25,13 +26,6 @@ namespace MathAnim
 		Polygon,
 		Style,
 		Defs
-	};
-
-	struct ParserInfo
-	{
-		const char* text;
-		size_t textLength;
-		size_t cursor;
 	};
 
 	enum class PathTokenType : uint8
@@ -293,20 +287,11 @@ namespace MathAnim
 		static bool sanitizeAttribute(const XMLAttribute* attribute, StyleAttribute* output);
 
 		// -------- Generic Parser Stuff --------
-		static bool parseNumber(ParserInfo& parserInfo, float* out);
 		static bool parseString(ParserInfo& parserInfo, DumbString* string, char stringTerminator);
 		static bool parseIdentifier(ParserInfo& parserInfo, DumbString* string, bool canStartWithNumber = false);
-		static void skipWhitespaceAndCommas(ParserInfo& parserInfo);
-		static void skipWhitespace(ParserInfo& parserInfo);
 
 		// -------- Helpers --------
-		static inline char advance(ParserInfo& parserInfo) { char c = parserInfo.cursor < parserInfo.textLength ? parserInfo.text[parserInfo.cursor] : '\0'; parserInfo.cursor++; return c; }
-		static inline char peek(const ParserInfo& parserInfo, int advance = 0) { return parserInfo.cursor + advance > parserInfo.textLength - 1 ? '\0' : parserInfo.text[parserInfo.cursor + advance]; }
-		static inline bool isDigit(char c) { return (c >= '0' && c <= '9'); }
-		static inline bool isNumberPart(char c) { return isDigit(c) || c == '-' || c == '.'; }
-		static inline bool isAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
-		static inline bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\0'; }
-		static inline bool isStyleIdentifierPart(char c) { return isAlpha(c) || c == '-'; }
+		static inline bool isStyleIdentifierPart(char c) { return Parser::isAlpha(c) || c == '-'; }
 
 		void init()
 		{
@@ -1196,7 +1181,7 @@ namespace MathAnim
 				{
 					return false;
 				}
-			} while (isNumberPart(peek(parserInfo)));
+			} while (Parser::isNumberPart(Parser::peek(parserInfo)));
 
 			return true;
 		}
@@ -1217,7 +1202,7 @@ namespace MathAnim
 				{
 					return false;
 				}
-			} while (isNumberPart(peek(parserInfo)));
+			} while (Parser::isNumberPart(Parser::peek(parserInfo)));
 
 			return true;
 		}
@@ -1238,7 +1223,7 @@ namespace MathAnim
 				{
 					return false;
 				}
-			} while (isNumberPart(peek(parserInfo)));
+			} while (Parser::isNumberPart(Parser::peek(parserInfo)));
 
 			return true;
 		}
@@ -1276,7 +1261,7 @@ namespace MathAnim
 				{
 					return false;
 				}
-			} while (isNumberPart(peek(parserInfo)));
+			} while (Parser::isNumberPart(Parser::peek(parserInfo)));
 
 			return true;
 		}
@@ -1311,9 +1296,9 @@ namespace MathAnim
 			PathToken result;
 			result.type = PathTokenType::Panic;
 
-			if (isAlpha(peek(parserInfo)))
+			if (Parser::isAlpha(Parser::peek(parserInfo)))
 			{
-				char commandLetter = advance(parserInfo);
+				char commandLetter = Parser::advance(parserInfo);
 				switch (commandLetter)
 				{
 				case 'M':
@@ -1367,11 +1352,11 @@ namespace MathAnim
 					break;
 				}
 			}
-			else if (isNumberPart(peek(parserInfo)))
+			else if (Parser::isNumberPart(Parser::peek(parserInfo)))
 			{
 				float number;
 				size_t cursorStart = parserInfo.cursor;
-				if (!parseNumber(parserInfo, &number))
+				if (!Parser::parseNumber(parserInfo, &number))
 				{
 					size_t previewEnd = glm::min(cursorStart + 10, parserInfo.textLength);
 					std::string errorPreview = std::string(&parserInfo.text[cursorStart], &parserInfo.text[previewEnd]);
@@ -1389,10 +1374,10 @@ namespace MathAnim
 			}
 			else
 			{
-				PANIC("Unknown symbol encountered while parsing SVG path. ParserInfo[%zu/%zu]:'%c'", parserInfo.cursor, parserInfo.textLength, peek(parserInfo));
+				PANIC("Unknown symbol encountered while parsing SVG path. ParserInfo[%zu/%zu]:'%c'", parserInfo.cursor, parserInfo.textLength, Parser::peek(parserInfo));
 			}
 
-			skipWhitespaceAndCommas(parserInfo);
+			Parser::skipWhitespaceAndCommas(parserInfo);
 			return result;
 		}
 
@@ -1412,7 +1397,7 @@ namespace MathAnim
 
 		static StyleToken parseNextStyleToken(ParserInfo& parserInfo)
 		{
-			skipWhitespace(parserInfo);
+			Parser::skipWhitespace(parserInfo);
 
 			/*
 				Color # identifier, // Handled later phase of parsing
@@ -1420,7 +1405,7 @@ namespace MathAnim
 			StyleToken res;
 			res.type = StyleTokenType::Panic;
 
-			switch (peek(parserInfo))
+			switch (Parser::peek(parserInfo))
 			{
 			case '{': return consumeChar('{', StyleTokenType::LeftCurlyBracket, parserInfo);
 			case '}': return consumeChar('}', StyleTokenType::RightCurlyBracket, parserInfo);
@@ -1433,7 +1418,7 @@ namespace MathAnim
 			{
 				// We have #something don't know if it's a color or identifier until
 				// we start interpreting
-				char hashtag = advance(parserInfo);
+				char hashtag = Parser::advance(parserInfo);
 				g_logger_assert(hashtag == '#', "Something went horribly wrong.");
 
 				if (parseIdentifier(parserInfo, &res.as.identifier, true))
@@ -1446,9 +1431,9 @@ namespace MathAnim
 			{
 				// We have a number or a .identifier
 
-				if (!isNumberPart(peek(parserInfo, 1)))
+				if (!Parser::isNumberPart(Parser::peek(parserInfo, 1)))
 				{
-					char hashtag = advance(parserInfo);
+					char hashtag = Parser::advance(parserInfo);
 					g_logger_assert(hashtag == '.', "Something went horribly wrong.");
 
 					if (parseIdentifier(parserInfo, &res.as.identifier))
@@ -1459,7 +1444,7 @@ namespace MathAnim
 					break;
 				}
 
-				if (parseNumber(parserInfo, &res.as.number))
+				if (Parser::parseNumber(parserInfo, &res.as.number))
 				{
 					res.type = StyleTokenType::Number;
 					break;
@@ -1471,7 +1456,7 @@ namespace MathAnim
 			{
 				// Pass through whether this is a single quote string or 
 				// double quote string
-				if (parseString(parserInfo, &res.as.identifier, peek(parserInfo)))
+				if (parseString(parserInfo, &res.as.identifier, Parser::peek(parserInfo)))
 				{
 					res.type = StyleTokenType::String;
 					break;
@@ -1483,9 +1468,9 @@ namespace MathAnim
 				// We have a -1.2 negative number or an identifier -moz-blah
 
 				// This must be a number
-				if (peek(parserInfo, 1) == '.' || isDigit(peek(parserInfo, 1)))
+				if (Parser::peek(parserInfo, 1) == '.' || Parser::isDigit(Parser::peek(parserInfo, 1)))
 				{
-					if (parseNumber(parserInfo, &res.as.number))
+					if (Parser::parseNumber(parserInfo, &res.as.number))
 					{
 						res.type = StyleTokenType::Number;
 					}
@@ -1504,9 +1489,9 @@ namespace MathAnim
 			{
 				// We have a number or identifier or unknown
 
-				if (isDigit(peek(parserInfo)))
+				if (Parser::isDigit(Parser::peek(parserInfo)))
 				{
-					if (parseNumber(parserInfo, &res.as.number))
+					if (Parser::parseNumber(parserInfo, &res.as.number))
 					{
 						res.type = StyleTokenType::Number;
 					}
@@ -1526,14 +1511,14 @@ namespace MathAnim
 			if (res.type == StyleTokenType::Number)
 			{
 				// Check if this has a unit of measurement afterwards and adjust appropriately if necessary
-				char c1 = peek(parserInfo);
-				char c2 = peek(parserInfo, 1);
-				char c3 = peek(parserInfo, 2);
-				if (c1 == 'p' && c2 == 'x' && (isWhitespace(c3) || c3 == ';'))
+				char c1 = Parser::peek(parserInfo);
+				char c2 = Parser::peek(parserInfo, 1);
+				char c3 = Parser::peek(parserInfo, 2);
+				if (c1 == 'p' && c2 == 'x' && (Parser::isWhitespace(c3) || c3 == ';'))
 				{
 					// This is a number of pixels
 					// Skip past the px and reset our type then continue
-					advance(parserInfo); advance(parserInfo);
+					Parser::advance(parserInfo); Parser::advance(parserInfo);
 					res.type = StyleTokenType::NumberPixels;
 				}
 			}
@@ -1646,7 +1631,7 @@ namespace MathAnim
 			StyleToken token;
 			token.type = resType;
 
-			char c = advance(parserInfo);
+			char c = Parser::advance(parserInfo);
 			if (c != expectedChar)
 			{
 				token.type = StyleTokenType::Panic;
@@ -1902,45 +1887,9 @@ namespace MathAnim
 		}
 
 		// -------- Generic Parser Stuff --------
-
-		static bool parseNumber(ParserInfo& parserInfo, float* out)
-		{
-			size_t numberStart = parserInfo.cursor;
-			size_t numberEnd = parserInfo.cursor;
-
-			bool seenDot = false;
-			if (peek(parserInfo) == '-')
-			{
-				numberEnd++;
-				advance(parserInfo);
-			}
-
-			while (isDigit(peek(parserInfo)) || (peek(parserInfo) == '.' && !seenDot))
-			{
-				seenDot = seenDot || peek(parserInfo) == '.';
-				numberEnd++;
-				advance(parserInfo);
-			}
-
-			if (numberEnd > numberStart)
-			{
-				constexpr int maxSmallBufferSize = 32;
-				char smallBuffer[maxSmallBufferSize];
-				g_logger_assert(numberEnd - numberStart <= maxSmallBufferSize, "Cannot parse number greater than %d characters big.", maxSmallBufferSize);
-				g_memory_copyMem(smallBuffer, (void*)(parserInfo.text + numberStart), sizeof(char) * (numberEnd - numberStart));
-				smallBuffer[numberEnd - numberStart] = '\0';
-				// TODO: atof is not safe use a safer modern alternative
-				*out = (float)atof(smallBuffer);
-				return true;
-			}
-
-			*out = 0.0f;
-			return false;
-		}
-
 		static bool parseString(ParserInfo& parserInfo, DumbString* string, char stringTerminator)
 		{
-			char stringStart = advance(parserInfo);
+			char stringStart = Parser::advance(parserInfo);
 			if (stringStart != stringTerminator)
 			{
 				*string = {};
@@ -1950,13 +1899,13 @@ namespace MathAnim
 			size_t stringStartIndex = parserInfo.cursor;
 			size_t stringEndIndex = parserInfo.cursor;
 
-			while (peek(parserInfo) != stringTerminator)
+			while (Parser::peek(parserInfo) != stringTerminator)
 			{
-				advance(parserInfo);
+				Parser::advance(parserInfo);
 				stringEndIndex++;
 			}
 
-			char stringEnd = advance(parserInfo);
+			char stringEnd = Parser::advance(parserInfo);
 			if (stringEnd != stringTerminator)
 			{
 				*string = {};
@@ -1979,19 +1928,19 @@ namespace MathAnim
 			size_t stringStartIndex = parserInfo.cursor;
 			size_t stringEndIndex = parserInfo.cursor;
 
-			char idStart = advance(parserInfo);
+			char idStart = Parser::advance(parserInfo);
 			stringEndIndex++;
 			if (!isStyleIdentifierPart(idStart))
 			{
-				if (!(isDigit(idStart) && canStartWithNumber))
+				if (!(Parser::isDigit(idStart) && canStartWithNumber))
 				{
 					goto cleanupReturnFalse;
 				}
 			}
 
-			while (isStyleIdentifierPart(peek(parserInfo)) || isDigit(peek(parserInfo)))
+			while (isStyleIdentifierPart(Parser::peek(parserInfo)) || Parser::isDigit(Parser::peek(parserInfo)))
 			{
-				advance(parserInfo);
+				Parser::advance(parserInfo);
 				stringEndIndex++;
 			}
 
@@ -2015,26 +1964,6 @@ namespace MathAnim
 		cleanupReturnFalse:
 			*string = {};
 			return false;
-		}
-
-		static void skipWhitespaceAndCommas(ParserInfo& parserInfo)
-		{
-			while (isWhitespace(peek(parserInfo)) || peek(parserInfo) == ',')
-			{
-				advance(parserInfo);
-				if (peek(parserInfo) == '\0')
-					break;
-			}
-		}
-
-		static void skipWhitespace(ParserInfo& parserInfo)
-		{
-			while (isWhitespace(peek(parserInfo)))
-			{
-				advance(parserInfo);
-				if (peek(parserInfo) == '\0')
-					break;
-			}
 		}
 	}
 }

@@ -8,6 +8,7 @@
 #include "editor/timeline/Timeline.h"
 #include "editor/Gizmos.h"
 #include "editor/EditorSettings.h"
+#include "editor/EditorLayout.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
 #include "core/Input.h"
@@ -34,7 +35,7 @@ namespace MathAnim
 		static bool mainViewportIsActive;
 		static bool editorViewportIsActive;
 
-		void init(AnimationManagerData* am, const std::filesystem::path& assetsRoot, uint32 outputWidth, uint32 outputHeight)
+		void init(AnimationManagerData* am, const std::filesystem::path& projectRoot, uint32 outputWidth, uint32 outputHeight)
 		{
 			viewportOffset = { 0, 0 };
 			viewportSize = { 0, 0 };
@@ -49,7 +50,8 @@ namespace MathAnim
 			AnimObjectPanel::init();
 			ExportPanel::init(outputWidth, outputHeight);
 			SceneHierarchyPanel::init(am);
-			AssetManagerPanel::init(assetsRoot);
+			AssetManagerPanel::init(projectRoot);
+			EditorLayout::init(projectRoot);
 			timelineLoaded = true;
 		}
 
@@ -119,7 +121,6 @@ namespace MathAnim
 
 			ImGui::PopStyleVar();
 
-			Timeline::update(timeline, am);
 			AnimObjectPanel::update();
 			DebugPanel::update();
 			ExportPanel::update(am);
@@ -127,6 +128,7 @@ namespace MathAnim
 			AssetManagerPanel::update();
 			EditorSettings::imgui(am);
 			ConsoleLog::update();
+			Timeline::update(timeline, am);
 		}
 
 		void onGizmo(AnimationManagerData* am)
