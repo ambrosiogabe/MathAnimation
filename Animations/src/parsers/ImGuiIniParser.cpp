@@ -3,8 +3,6 @@
 
 #include <nlohmann/json.hpp>
 
-#pragma warning(push, 0)
-
 namespace MathAnim
 {
 	struct StringView
@@ -284,13 +282,13 @@ namespace MathAnim
 				if (j.contains("DockingData"))
 				{
 					// First find max indentation level
-					uint8 maxIndentation = 0;
+					uint32 maxIndentation = 0;
 					for (const nlohmann::json& node : j["DockingData"]["nodes"])
 					{
 						std::string type = node["type"];
 						float indentationF = (float)node["indentationLevel"];
-						uint8 indentation = (uint8)indentationF;
-						indentation += type.length() + 2;
+						uint32 indentation = (uint32)indentationF;
+						indentation += (uint32)type.length() + 2;
 						if (indentation > maxIndentation)
 						{
 							maxIndentation = indentation;
@@ -307,8 +305,8 @@ namespace MathAnim
 					for (const nlohmann::json& node : j["DockingData"]["nodes"])
 					{
 						std::string type = node["type"];
-						uint8 indentation = node["indentationLevel"];
-						uint8 indentationRight = maxIndentation - indentation - type.length();
+						uint32 indentation = (uint32)node["indentationLevel"];
+						uint32 indentationRight = maxIndentation - indentation - (uint32)type.length();
 						if (indentation > 0)
 						{
 							snprintf(formatBuffer, sizeof(formatBuffer), "%*c%s%*c", indentation, ' ', type.c_str(), indentationRight, ' ');
@@ -540,7 +538,7 @@ namespace MathAnim
 
 				std::string identifierStr = identifier.toString();
 				DockingLine dockingLine = {};
-				dockingLine.indentationLevel = indentationLevel;
+				dockingLine.indentationLevel = (uint8)indentationLevel;
 				dockingLine.dockNodeData = std::nullopt;
 				dockingLine.dockSpaceData = std::nullopt;
 
@@ -905,5 +903,3 @@ namespace MathAnim
 		}
 	}
 }
-
-#pragma warning(pop)
