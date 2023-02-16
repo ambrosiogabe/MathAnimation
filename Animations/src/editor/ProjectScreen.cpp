@@ -295,6 +295,9 @@ namespace MathAnim
 			bool res = false;
 
 			ImGui::SetNextWindowSize(createProjectWindowSize, ImGuiCond_Always);
+			Window* window = ProjectApp::getWindow();
+			ImVec2 windowSize = { (float)window->width, (float)window->height };
+			ImGui::SetNextWindowPos(windowSize / 2.0f - createProjectWindowSize / 2.0f, ImGuiCond_Appearing);
 
 			ImGui::PushFont(defaultFont);
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
