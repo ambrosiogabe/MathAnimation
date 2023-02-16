@@ -4,6 +4,7 @@
 #include "editor/panels/ExportPanel.h"
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/panels/AssetManagerPanel.h"
+#include "editor/panels/InspectorPanel.h"
 #include "editor/panels/ConsoleLog.h"
 #include "editor/timeline/Timeline.h"
 #include "editor/Gizmos.h"
@@ -129,11 +130,12 @@ namespace MathAnim
 			EditorSettings::imgui(am);
 			ConsoleLog::update();
 			Timeline::update(timeline, am);
+			InspectorPanel::update(am);
 		}
 
 		void onGizmo(AnimationManagerData* am)
 		{
-			AnimObjId activeAnimObjectId = Timeline::getActiveAnimObject();
+			AnimObjId activeAnimObjectId = InspectorPanel::getActiveAnimObject();
 			AnimObject* activeAnimObject = AnimationManager::getMutableObject(am, activeAnimObjectId);
 			if (activeAnimObject)
 			{
@@ -151,7 +153,7 @@ namespace MathAnim
 				}
 			}
 
-			AnimId activeAnimationId = Timeline::getActiveAnimation();
+			AnimId activeAnimationId = InspectorPanel::getActiveAnimation();
 			Animation* activeAnimation = AnimationManager::getMutableAnimation(am, activeAnimationId);
 			if (activeAnimation)
 			{
@@ -253,11 +255,11 @@ namespace MathAnim
 					AnimObjId objId = mainFramebuffer.readPixelUint64(3, (int)mousePixelPos.x, (int)mousePixelPos.y);
 					if (objId != NULL_ANIM_OBJECT)
 					{
-						Timeline::setActiveAnimObject((int)objId);
+						InspectorPanel::setActiveAnimObject(objId);
 					}
 					else
 					{
-						Timeline::setActiveAnimObject(NULL_ANIM_OBJECT);
+						InspectorPanel::setActiveAnimObject(NULL_ANIM_OBJECT);
 					}
 				}
 			}
