@@ -13,6 +13,9 @@ namespace MathAnim
 
 		void init(const std::filesystem::path& projectRoot)
 		{
+			defaultLayouts.clear();
+			customLayouts.clear();
+
 			std::filesystem::path appRoot = projectRoot.parent_path();
 			// Copy default layouts to assets directory if it does not exist
 			layoutsRoot = appRoot / "editorLayouts";
