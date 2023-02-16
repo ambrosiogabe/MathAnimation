@@ -109,7 +109,7 @@ namespace MathAnim
 
 			Fonts::init();
 			Renderer::init();
-			ImGuiLayer::init(glVersion.major, glVersion.minor, *window, "./assets/layouts/Default.json");
+			ImGuiLayer::init(*window, "./assets/layouts/Default.json");
 			Audio::init();
 			GizmoManager::init();
 			Svg::init();
@@ -128,11 +128,6 @@ namespace MathAnim
 
 			initializeSceneSystems();
 			loadProject(currentProjectRoot);
-			if (sceneData.sceneNames.size() <= 0)
-			{
-				sceneData.sceneNames.push_back("New Scene");
-				sceneData.currentScene = 0;
-			}
 
 			EditorGui::init(am, currentProjectRoot, outputWidth, outputHeight);
 			LuauLayer::init(currentProjectRoot / "scripts", am);
@@ -374,6 +369,17 @@ namespace MathAnim
 		void loadProject(const std::filesystem::path& projectRoot)
 		{
 			std::string projectFilepath = (projectRoot / "project.bin").string();
+			if (!Platform::fileExists(projectFilepath.c_str()))
+			{
+				// Save empty project now
+				sceneData.sceneNames.push_back("New Scene");
+				sceneData.currentScene = 0;
+				// This should create a default scene since nothing exists
+				loadScene(sceneData.sceneNames[sceneData.currentScene]);
+				saveProject();
+				return;
+			}
+
 			FILE* fp = fopen(projectFilepath.c_str(), "rb");
 			if (!fp)
 			{
@@ -408,6 +414,12 @@ namespace MathAnim
 		void loadScene(const std::string& sceneName)
 		{
 			std::string filepath = (currentProjectRoot / sceneToFilename(sceneName)).string();
+			if (!Platform::fileExists(filepath.c_str()))
+			{
+				// Load default scene template
+				filepath = "./assets/sceneTemplates/default.bin";
+			}
+
 			FILE* fp = fopen(filepath.c_str(), "rb");
 			if (!fp)
 			{

@@ -27,6 +27,7 @@ namespace MathAnim
 		static ImFont* mediumSolidIconFont;
 		static ImFont* largeRegularIconFont;
 		static ImFont* mediumRegularIconFont;
+		static ImGuiLayerFlags layerFlags;
 
 		static bool reloadLayout = false;
 		static std::string reloadLayoutFilepath = "";
@@ -35,15 +36,19 @@ namespace MathAnim
 		static void loadCustomTheme();
 		static void generateLayoutFile(const std::filesystem::path& layoutPath, const Vec2& targetResolution);
 
-		void init(int, int, const Window& window, const char* jsonLayoutFile)
+		void init(const Window& window, const char* jsonLayoutFile, ImGuiLayerFlags flags)
 		{
+			layerFlags = flags;
+
 			// Set up dear imgui
 			ImGui::CreateContext();
 
 			ImGuiIO& io = ImGui::GetIO();
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
-			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-			io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+			if ((uint8)flags & (uint8)ImGuiLayerFlags::EnableDocking)
+				io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;       // Enable Docking
+			if ((uint8)flags & (uint8)ImGuiLayerFlags::EnableViewports) 
+				io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;     // Enable Multi-Viewport / Platform Windows
 			io.ConfigWindowsMoveFromTitleBarOnly = true;
 
 			// NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
@@ -122,13 +127,14 @@ namespace MathAnim
 			MP_PROFILE_EVENT("ImGuiLayer_BeginFrame");
 
 			// Start the Dear ImGui frame
-			//MathAnim_ImplOpenGL3_NewFrame();
 			ImGui_ImplOpenGL3_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 			ImGui::CaptureKeyboardFromApp(true);
 
-			ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+			if ((uint8)layerFlags & (uint8)ImGuiLayerFlags::EnableDocking &&
+				(uint8)layerFlags & (uint8)ImGuiLayerFlags::EnableViewports)
+				ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 		}
 
 		void endFrame()
@@ -146,7 +152,6 @@ namespace MathAnim
 			}
 
 			GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
-			//MathAnim_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 			ImGuiIO& io = ImGui::GetIO();
@@ -164,15 +169,12 @@ namespace MathAnim
 				glfwMakeContextCurrent(backup_current_context);
 			}
 
-			GL::disable(GL_SCISSOR_TEST);
-			GL::enable(GL_STENCIL_TEST);
-
 			// TODO: This is super gross, come up with a better way to dynamically load ini files
 			// at runtime
 			if (reloadLayout)
 			{
 				free();
-				init(0, 0, Application::getWindow());
+				init(Application::getWindow(), nullptr, layerFlags);
 				ImGui::LoadIniSettingsFromDisk(reloadLayoutFilepath.c_str());
 				reloadLayout = false;
 			}

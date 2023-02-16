@@ -105,8 +105,7 @@ namespace MathAnim
 			Window* window = ProjectApp::getWindow();
 			ImVec2 size = {(float)window->width, (float)window->height};
 			ImGui::SetNextWindowSize(size, ImGuiCond_Always);
-			ImGuiViewport* viewport = ImGui::GetMainViewport();
-			ImGui::SetNextWindowPos(viewport->GetWorkCenter() - viewport->WorkSize / 2.0f, ImGuiCond_Always);
+			ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
 
 			ImGui::PushFont(defaultFont);
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -115,7 +114,7 @@ namespace MathAnim
 			ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, Colors::Neutral[4]);
 			ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive, Colors::Neutral[2]);
 			ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, Colors::Neutral[2]);
-			ImGui::Begin("Project Selector", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDocking);
+			ImGui::Begin("Project Selector", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
 			ImVec2 cursorPos = ImGui::GetCursorScreenPos();
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 			ImVec2 availableSpace = ImGui::GetContentRegionAvail();
@@ -296,6 +295,9 @@ namespace MathAnim
 			bool res = false;
 
 			ImGui::SetNextWindowSize(createProjectWindowSize, ImGuiCond_Always);
+			Window* window = ProjectApp::getWindow();
+			ImVec2 windowSize = { (float)window->width, (float)window->height };
+			ImGui::SetNextWindowPos(windowSize / 2.0f - createProjectWindowSize / 2.0f, ImGuiCond_Appearing);
 
 			ImGui::PushFont(defaultFont);
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));

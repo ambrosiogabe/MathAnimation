@@ -28,7 +28,7 @@ namespace MathAnim
 			window = new Window(1920, 1080, winTitle, WindowFlags::None);
 			window->setVSync(true);
 
-			ImGuiLayer::init(glVersion.major, glVersion.minor, *window);
+			ImGuiLayer::init(*window, nullptr, ImGuiLayerFlags::None);
 
 			GL::enable(GL_BLEND);
 			GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -66,6 +66,7 @@ namespace MathAnim
 
 				GL::viewport(0, 0, window->width, window->height);
 				GL::clearColor(0, 0, 0, 0);
+				GL::clear(GL_COLOR_BUFFER_BIT);
 
 				// Do ImGui stuff
 				ImGuiLayer::beginFrame();
