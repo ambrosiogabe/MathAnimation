@@ -14,6 +14,7 @@ namespace MathAnim
 		None = 0,
 		EnableDocking =    1 << 0,
 		EnableViewports =  1 << 1,
+		SaveIniSettings =  1 << 2
 	};
 
 	namespace ImGuiLayer
@@ -23,7 +24,8 @@ namespace MathAnim
 			const char* jsonLayoutFile = nullptr,
 			ImGuiLayerFlags flags = (ImGuiLayerFlags)(
 				(uint8)ImGuiLayerFlags::EnableDocking | 
-				(uint8)ImGuiLayerFlags::EnableViewports
+				(uint8)ImGuiLayerFlags::EnableViewports |
+				(uint8)ImGuiLayerFlags::SaveIniSettings
 				)
 		);
 

@@ -1,6 +1,7 @@
 #include "editor/panels/InspectorPanel.h"
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/imgui/ImGuiExtended.h"
+#include "editor/imgui/ImGuiLayer.h"
 #include "animation/AnimationManager.h"
 #include "animation/Animation.h"
 #include "animation/TextAnimations.h"
@@ -27,6 +28,7 @@ namespace MathAnim
 		static AnimId activeAnimationId = NULL_ANIM;
 
 		static constexpr float slowDragSpeed = 0.02f;
+		static constexpr float indentationDepth = 25.0f;
 		static bool svgErrorPopupOpen = false;
 		static const char* ERROR_IMPORTING_SVG_POPUP = "Error Importing SVG##ERROR_IMPORTING_SVG";
 		static const char* ANIM_OBJECT_DROP_TARGET_ID = "ANIM_OBJECT_DROP_TARGET_ID";
@@ -60,20 +62,30 @@ namespace MathAnim
 
 		void update(AnimationManagerData* am)
 		{
-			ImGui::Begin("Anim Object Inspector");
-			if (!isNull(activeAnimObjectId))
+			ImGui::Begin(ICON_FA_LIST " Inspector");
+			if (ImGui::CollapsingHeader("Animation Object Inspector", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				handleAnimObjectInspector(am, activeAnimObjectId);
-				// TODO: This slows stuff down a lot. Optimize the heck out of it
-				AnimationManager::updateObjectState(am, activeAnimObjectId);
+				ImGui::Indent(indentationDepth);
+				if (!isNull(activeAnimObjectId))
+				{
+					handleAnimObjectInspector(am, activeAnimObjectId);
+					// TODO: This slows stuff down a lot. Optimize the heck out of it
+					AnimationManager::updateObjectState(am, activeAnimObjectId);
+				}
+				ImGui::Unindent(indentationDepth);
 			}
-			ImGui::End();
 
-			ImGui::Begin("Animation Inspector");
-			if (!isNull(activeAnimationId))
+			ImGui::Separator();
+			if (ImGui::CollapsingHeader("Animation Inspector", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				handleAnimationInspector(am, activeAnimationId);
+				ImGui::Indent(indentationDepth);
+				if (!isNull(activeAnimationId))
+				{
+					handleAnimationInspector(am, activeAnimationId);
+				}
+				ImGui::Unindent(indentationDepth);
 			}
+
 			ImGui::End();
 
 			checkSvgErrorPopup();
@@ -86,7 +98,7 @@ namespace MathAnim
 			activeAnimObjectId = NULL_ANIM_OBJECT;
 		}
 
-		void setActiveAnimation(AnimId animationId) 
+		void setActiveAnimation(AnimId animationId)
 		{
 			activeAnimationId = animationId;
 		}
@@ -159,140 +171,156 @@ namespace MathAnim
 				return;
 			}
 
-			constexpr int scratchLength = 256;
-			char scratch[scratchLength] = {};
-			if (animObject->nameLength < scratchLength - 1)
+			std::string transformComponentName = "Transform##" + std::to_string(animObjectId);
+			if (ImGui::CollapsingHeader(transformComponentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				g_memory_copyMem(scratch, animObject->name, animObject->nameLength * sizeof(char));
-				scratch[animObject->nameLength] = '\0';
-				if (ImGui::InputText(": Name", scratch, scratchLength * sizeof(char)))
+				constexpr int scratchLength = 256;
+				char scratch[scratchLength] = {};
+				if (animObject->nameLength < scratchLength - 1)
 				{
-					animObject->setName(scratch);
+					g_memory_copyMem(scratch, animObject->name, animObject->nameLength * sizeof(char));
+					scratch[animObject->nameLength] = '\0';
+					if (ImGui::InputText(": Name", scratch, scratchLength * sizeof(char)))
+					{
+						animObject->setName(scratch);
+					}
 				}
-			}
-			else
-			{
-				g_logger_error("Anim Object name has more 256 characters. Tell Gabe to increase scratch length for Anim Object names.");
-			}
-
-			ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed);
-			ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
-			ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
-
-			static bool scaleToggled = false;
-			if (ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed))
-			{
-				if (scaleToggled)
+				else
 				{
-					animObject->copySvgScaleToChildren(am);
+					g_logger_error("Anim Object name has more 256 characters. Tell Gabe to increase scratch length for Anim Object names.");
 				}
-			}
-			applySettingToChildren("##SvgScaleChildrenApply", &scaleToggled);
 
-			// NanoVG only allows stroke width between [0-200] so we reflect that here
-			static bool strokeWidthToggled = false;
-			if (ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f))
+				ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed);
+				ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
+				ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
+
+				ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
+				ImGui::Checkbox(": Is 3D", &animObject->is3D);
+			}
+
+			std::string svgPropsComponentName = "Svg Properties##" + std::to_string(animObjectId);
+			if (ImGui::CollapsingHeader(svgPropsComponentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				if (strokeWidthToggled)
+				static bool scaleToggled = false;
+				if (ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed))
 				{
-					animObject->copyStrokeWidthToChildren(am);
+					if (scaleToggled)
+					{
+						animObject->copySvgScaleToChildren(am);
+					}
 				}
-			}
-			applySettingToChildren("##StrokeWidthChildrenApply", &strokeWidthToggled);
+				applySettingToChildren("##SvgScaleChildrenApply", &scaleToggled);
 
-			float strokeColor[4] = {
-				(float)animObject->_strokeColorStart.r / 255.0f,
-				(float)animObject->_strokeColorStart.g / 255.0f,
-				(float)animObject->_strokeColorStart.b / 255.0f,
-				(float)animObject->_strokeColorStart.a / 255.0f,
-			};
-			static bool strokeColorToggled = false;
-			if (ImGui::ColorEdit4(": Stroke Color", strokeColor))
-			{
-				animObject->_strokeColorStart.r = (uint8)(strokeColor[0] * 255.0f);
-				animObject->_strokeColorStart.g = (uint8)(strokeColor[1] * 255.0f);
-				animObject->_strokeColorStart.b = (uint8)(strokeColor[2] * 255.0f);
-				animObject->_strokeColorStart.a = (uint8)(strokeColor[3] * 255.0f);
-
-				if (strokeColorToggled)
+				// NanoVG only allows stroke width between [0-200] so we reflect that here
+				static bool strokeWidthToggled = false;
+				if (ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f))
 				{
-					animObject->copyStrokeColorToChildren(am);
+					if (strokeWidthToggled)
+					{
+						animObject->copyStrokeWidthToChildren(am);
+					}
 				}
-			}
-			applySettingToChildren("##StrokeColorChildrenApply", &strokeColorToggled);
+				applySettingToChildren("##StrokeWidthChildrenApply", &strokeWidthToggled);
 
-			float fillColor[4] = {
-				(float)animObject->_fillColorStart.r / 255.0f,
-				(float)animObject->_fillColorStart.g / 255.0f,
-				(float)animObject->_fillColorStart.b / 255.0f,
-				(float)animObject->_fillColorStart.a / 255.0f,
-			};
-			static bool fillColorToggled = false;
-			if (ImGui::ColorEdit4(": Fill Color", fillColor))
-			{
-				animObject->_fillColorStart.r = (uint8)(fillColor[0] * 255.0f);
-				animObject->_fillColorStart.g = (uint8)(fillColor[1] * 255.0f);
-				animObject->_fillColorStart.b = (uint8)(fillColor[2] * 255.0f);
-				animObject->_fillColorStart.a = (uint8)(fillColor[3] * 255.0f);
-
-				if (fillColorToggled)
+				float strokeColor[4] = {
+					(float)animObject->_strokeColorStart.r / 255.0f,
+					(float)animObject->_strokeColorStart.g / 255.0f,
+					(float)animObject->_strokeColorStart.b / 255.0f,
+					(float)animObject->_strokeColorStart.a / 255.0f,
+				};
+				static bool strokeColorToggled = false;
+				if (ImGui::ColorEdit4(": Stroke Color", strokeColor))
 				{
-					animObject->copyFillColorToChildren(am);
+					animObject->_strokeColorStart.r = (uint8)(strokeColor[0] * 255.0f);
+					animObject->_strokeColorStart.g = (uint8)(strokeColor[1] * 255.0f);
+					animObject->_strokeColorStart.b = (uint8)(strokeColor[2] * 255.0f);
+					animObject->_strokeColorStart.a = (uint8)(strokeColor[3] * 255.0f);
+
+					if (strokeColorToggled)
+					{
+						animObject->copyStrokeColorToChildren(am);
+					}
 				}
-			}
-			applySettingToChildren("##FillColorChildrenApply", &fillColorToggled);
+				applySettingToChildren("##StrokeColorChildrenApply", &strokeColorToggled);
 
-			ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
-			ImGui::Checkbox(": Is 3D", &animObject->is3D);
-			ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
-			if (animObject->drawDebugBoxes)
-			{
-				ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
-			}
-			ImGui::Checkbox(": Draw Curves", &animObject->drawCurves);
-			ImGui::Checkbox(": Draw Control Points", &animObject->drawControlPoints);
+				float fillColor[4] = {
+					(float)animObject->_fillColorStart.r / 255.0f,
+					(float)animObject->_fillColorStart.g / 255.0f,
+					(float)animObject->_fillColorStart.b / 255.0f,
+					(float)animObject->_fillColorStart.a / 255.0f,
+				};
+				static bool fillColorToggled = false;
+				if (ImGui::ColorEdit4(": Fill Color", fillColor))
+				{
+					animObject->_fillColorStart.r = (uint8)(fillColor[0] * 255.0f);
+					animObject->_fillColorStart.g = (uint8)(fillColor[1] * 255.0f);
+					animObject->_fillColorStart.b = (uint8)(fillColor[2] * 255.0f);
+					animObject->_fillColorStart.a = (uint8)(fillColor[3] * 255.0f);
 
-			switch (animObject->objectType)
+					if (fillColorToggled)
+					{
+						animObject->copyFillColorToChildren(am);
+					}
+				}
+				applySettingToChildren("##FillColorChildrenApply", &fillColorToggled);
+
+				ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
+				if (animObject->drawDebugBoxes)
+				{
+					ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
+				}
+				ImGui::Checkbox(": Draw Curves", &animObject->drawCurves);
+				ImGui::Checkbox(": Draw Control Points", &animObject->drawControlPoints);
+			}
+
+			std::string componentName = std::string(_animationObjectTypeNames[(uint8)animObject->objectType])
+				+ "##" + std::to_string(animObjectId);
+
+			bool shouldShow = !_isInternalObjectOnly[(uint8)animObject->objectType];
+			if (shouldShow && ImGui::CollapsingHeader(componentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
-			case AnimObjectTypeV1::TextObject:
-				handleTextObjectInspector(am, animObject);
-				break;
-			case AnimObjectTypeV1::CodeBlock:
-				handleCodeBlockInspector(am, animObject);
-				break;
-			case AnimObjectTypeV1::LaTexObject:
-				handleLaTexObjectInspector(animObject);
-				break;
-			case AnimObjectTypeV1::Square:
-				handleSquareInspector(animObject);
-				break;
-			case AnimObjectTypeV1::Circle:
-				handleCircleInspector(animObject);
-				break;
-			case AnimObjectTypeV1::Cube:
-				handleCubeInspector(animObject);
-				break;
-			case AnimObjectTypeV1::Axis:
-				handleAxisInspector(animObject);
-				break;
-			case AnimObjectTypeV1::SvgFileObject:
-				handleSvgFileObjectInspector(am, animObject);
-				break;
-			case AnimObjectTypeV1::Camera:
-				handleCameraObjectInspector(am, animObject);
-				break;
-			case AnimObjectTypeV1::SvgObject:
-				// NOP
-				break;
-			case AnimObjectTypeV1::ScriptObject:
-				handleScriptObjectInspector(am, animObject);
-				break;
-			case AnimObjectTypeV1::Arrow:
-				handleArrowInspector(animObject);
-				break;
-			case AnimObjectTypeV1::Length:
-			case AnimObjectTypeV1::None:
-				break;
+				switch (animObject->objectType)
+				{
+				case AnimObjectTypeV1::TextObject:
+					handleTextObjectInspector(am, animObject);
+					break;
+				case AnimObjectTypeV1::CodeBlock:
+					handleCodeBlockInspector(am, animObject);
+					break;
+				case AnimObjectTypeV1::LaTexObject:
+					handleLaTexObjectInspector(animObject);
+					break;
+				case AnimObjectTypeV1::Square:
+					handleSquareInspector(animObject);
+					break;
+				case AnimObjectTypeV1::Circle:
+					handleCircleInspector(animObject);
+					break;
+				case AnimObjectTypeV1::Cube:
+					handleCubeInspector(animObject);
+					break;
+				case AnimObjectTypeV1::Axis:
+					handleAxisInspector(animObject);
+					break;
+				case AnimObjectTypeV1::SvgFileObject:
+					handleSvgFileObjectInspector(am, animObject);
+					break;
+				case AnimObjectTypeV1::Camera:
+					handleCameraObjectInspector(am, animObject);
+					break;
+				case AnimObjectTypeV1::SvgObject:
+					// NOP
+					break;
+				case AnimObjectTypeV1::ScriptObject:
+					handleScriptObjectInspector(am, animObject);
+					break;
+				case AnimObjectTypeV1::Arrow:
+					handleArrowInspector(animObject);
+					break;
+				case AnimObjectTypeV1::Length:
+				case AnimObjectTypeV1::None:
+					break;
+				}
 			}
 		}
 
@@ -306,55 +334,112 @@ namespace MathAnim
 				return;
 			}
 
-			if (Animation::isAnimationGroup(animation->type))
+			std::string animPropsComponentName = "Animation Properties##" + std::to_string(animationId);
+			if (ImGui::CollapsingHeader(animPropsComponentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				if (ImGui::CollapsingHeader("Anim Objects"))
+				int currentType = (int)(animation->easeType) - 1;
+				if (ImGui::Combo(": Ease Type", &currentType, &easeTypeNames[1], (int)EaseType::Length - 1))
 				{
-					std::unordered_set<AnimObjId> objectIdsCopy = animation->animObjectIds;
-					for (auto animObjectIdIter = objectIdsCopy.begin(); animObjectIdIter != objectIdsCopy.end(); animObjectIdIter++)
-					{
-						const AnimObject* obj = AnimationManager::getObject(am, *animObjectIdIter);
-						if (obj)
-						{
-							// Treat the uint64 as a pointer ID so ImGui hashes it into an int
-							ImGui::PushID((const void*)*animObjectIdIter);
-							ImGui::BeginDisabled();
-							ImGui::InputText("##AnimObjectId", (char*)obj->name, obj->nameLength, ImGuiInputTextFlags_ReadOnly);
-							ImGui::EndDisabled();
-							ImGui::SameLine();
-							if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
-							{
-								AnimationManager::removeObjectFromAnim(am, *animObjectIdIter, animation->id);
-							}
-							ImGui::PopID();
-						}
-					}
+					g_logger_assert(currentType >= 0 && currentType + 1 < (int)EaseType::Length, "How did this happen?");
+					animation->easeType = (EaseType)(currentType + 1);
+				}
 
+				int currentDirection = (int)(animation->easeDirection) - 1;
+				if (ImGui::Combo(": Ease Direction", &currentDirection, &easeDirectionNames[1], (int)EaseDirection::Length - 1))
+				{
+					g_logger_assert(currentDirection >= 0 && currentDirection + 1 < (int)EaseDirection::Length, "How did this happen?");
+					animation->easeDirection = (EaseDirection)(currentDirection + 1);
+				}
+
+				int currentPlaybackType = (int)(animation->playbackType) - 1;
+				if (ImGui::Combo(": Playback Type", &currentPlaybackType, &_playbackTypeNames[1], (int)PlaybackType::Length - 1))
+				{
+					g_logger_assert(currentPlaybackType >= 0 && currentPlaybackType + 1 < (int)PlaybackType::Length, "How did this happen?");
+					animation->playbackType = (PlaybackType)(currentPlaybackType + 1);
+				}
+
+				ImGui::BeginDisabled(animation->playbackType == PlaybackType::Synchronous);
+				ImGui::DragFloat(": Lag Ratio", &animation->lagRatio, slowDragSpeed, 0.0f, 1.0f);
+				ImGui::EndDisabled();
+
+
+				if (Animation::isAnimationGroup(animation->type))
+				{
 					static bool isAddingAnimObject = false;
-					if (isAddingAnimObject)
+					ImGui::PushStyleColor(ImGuiCol_FrameBg, Colors::Neutral[7]);
+
+					// TODO: UI needs some work
+					if (ImGui::BeginListBox(": Anim Objects", ImVec2(0.0f, 5 * ImGui::GetTextLineHeightWithSpacing())))
 					{
-						const char dummyInputText[] = "Drag Object Here";
-						size_t dummyInputTextSize = sizeof(dummyInputText);
-						ImGui::BeginDisabled();
-						ImGui::InputText("##AnimObjectDropTarget", (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
-						ImGui::EndDisabled();
-
-						if (auto objPayload = ImGuiExtended::AnimObjectDragDropTarget(); objPayload != nullptr)
+						std::unordered_set<AnimObjId> objectIdsCopy = animation->animObjectIds;
+						for (auto animObjectIdIter = objectIdsCopy.begin(); animObjectIdIter != objectIdsCopy.end(); animObjectIdIter++)
 						{
-							bool exists =
-								std::find(
-									animation->animObjectIds.begin(),
-									animation->animObjectIds.end(),
-									objPayload->animObjectId
-								) != animation->animObjectIds.end();
-
-							if (!exists)
+							const AnimObject* obj = AnimationManager::getObject(am, *animObjectIdIter);
+							if (obj)
 							{
-								AnimationManager::addObjectToAnim(am, objPayload->animObjectId, animation->id);
+								static ImVec2 buttonSize = ImVec2(0.0f, 0.0f);
+
+								// Draw custom rect for background of textbox
+								ImVec2 framePadding = ImGui::GetStyle().FramePadding;
+								framePadding.y *= 0.7f;
+								ImVec2 pMin = ImGui::GetCursorScreenPos() - framePadding;
+								ImVec2 pMax = pMin + ImVec2(ImGui::GetContentRegionAvail().x, buttonSize.y) + (framePadding * 2.0f);
+								ImGui::GetWindowDrawList()->AddRectFilled(
+									pMin, pMax, ImColor(Colors::Neutral[5])
+								);
+
+								// Treat the uint64 as a pointer ID so ImGui hashes it into an int
+								ImGui::PushID((const void*)*animObjectIdIter);
+								float oldCursorPosY = ImGui::GetCursorPosY();
+								ImVec2 textSize = ImGui::CalcTextSize((char*)obj->name);
+								ImGui::SetCursorPosY(oldCursorPosY + (buttonSize.y / 2.0f - textSize.y / 2.0f));
+								ImGui::Text((char*)obj->name);
+								ImGui::SameLine();
+								ImGui::SetCursorPosY(oldCursorPosY);
+
+								ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonSize.x);
+								if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
+								{
+									AnimationManager::removeObjectFromAnim(am, *animObjectIdIter, animation->id);
+								}
+								buttonSize = ImGui::GetItemRectSize();
+
+								ImGui::PopID();
+
+								ImGui::SetCursorScreenPos(
+									ImVec2(ImGui::GetCursorScreenPos().x, pMax.y + framePadding.y * 2.0f)
+								);
 							}
-							isAddingAnimObject = false;
+						}
+
+						if (isAddingAnimObject)
+						{
+							const char dummyInputText[] = "Drag Object Here";
+							size_t dummyInputTextSize = sizeof(dummyInputText);
+							ImGui::BeginDisabled();
+							ImGui::InputText("##AnimObjectDropTarget", (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
+							ImGui::EndDisabled();
+
+							if (auto objPayload = ImGuiExtended::AnimObjectDragDropTarget(); objPayload != nullptr)
+							{
+								bool exists =
+									std::find(
+										animation->animObjectIds.begin(),
+										animation->animObjectIds.end(),
+										objPayload->animObjectId
+									) != animation->animObjectIds.end();
+
+								if (!exists)
+								{
+									AnimationManager::addObjectToAnim(am, objPayload->animObjectId, animation->id);
+								}
+								isAddingAnimObject = false;
+							}
 						}
 					}
+
+					ImGui::EndListBox();
+					ImGui::PopStyleColor();
 
 					if (ImGui::Button(ICON_FA_PLUS " Add Anim Object"))
 					{
@@ -363,70 +448,51 @@ namespace MathAnim
 				}
 			}
 
-			int currentType = (int)(animation->easeType) - 1;
-			if (ImGui::Combo(": Ease Type", &currentType, &easeTypeNames[1], (int)EaseType::Length - 1))
-			{
-				g_logger_assert(currentType >= 0 && currentType + 1 < (int)EaseType::Length, "How did this happen?");
-				animation->easeType = (EaseType)(currentType + 1);
-			}
+			std::string componentName = std::string(_animationTypeNames[(uint8)animation->type]) 
+				+ "##" + std::to_string(animationId);
 
-			int currentDirection = (int)(animation->easeDirection) - 1;
-			if (ImGui::Combo(": Ease Direction", &currentDirection, &easeDirectionNames[1], (int)EaseDirection::Length - 1))
+			if (ImGui::CollapsingHeader(componentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				g_logger_assert(currentDirection >= 0 && currentDirection + 1 < (int)EaseDirection::Length, "How did this happen?");
-				animation->easeDirection = (EaseDirection)(currentDirection + 1);
-			}
-
-			int currentPlaybackType = (int)(animation->playbackType) - 1;
-			if (ImGui::Combo(": Playback Type", &currentPlaybackType, &_playbackTypeNames[1], (int)PlaybackType::Length - 1))
-			{
-				g_logger_assert(currentPlaybackType >= 0 && currentPlaybackType + 1 < (int)PlaybackType::Length, "How did this happen?");
-				animation->playbackType = (PlaybackType)(currentPlaybackType + 1);
-			}
-
-			ImGui::BeginDisabled(animation->playbackType == PlaybackType::Synchronous);
-			ImGui::DragFloat(": Lag Ratio", &animation->lagRatio, slowDragSpeed, 0.0f, 1.0f);
-			ImGui::EndDisabled();
-
-			switch (animation->type)
-			{
-			case AnimTypeV1::Create:
-			case AnimTypeV1::UnCreate:
-			case AnimTypeV1::FadeIn:
-			case AnimTypeV1::FadeOut:
-				// NOP
-				break;
-			case AnimTypeV1::Transform:
-				handleTransformAnimation(am, animation);
-				break;
-			case AnimTypeV1::MoveTo:
-				handleMoveToAnimationInspector(am, animation);
-				break;
-			case AnimTypeV1::AnimateScale:
-				handleAnimateScaleInspector(am, animation);
-				break;
-			case AnimTypeV1::Shift:
-				handleShiftInspector(animation);
-				break;
-			case AnimTypeV1::RotateTo:
-				handleRotateToAnimationInspector(animation);
-				break;
-			case AnimTypeV1::AnimateFillColor:
-				handleAnimateFillColorAnimationInspector(animation);
-				break;
-			case AnimTypeV1::AnimateStrokeColor:
-				handleAnimateStrokeColorAnimationInspector(animation);
-				break;
-			case AnimTypeV1::AnimateStrokeWidth:
-				//handleAnimateStrokeWidthInspector(animation);
-				g_logger_warning("TODO: Implement me.");
-				break;
-			case AnimTypeV1::Circumscribe:
-				handleCircumscribeInspector(am, animation);
-				break;
-			case AnimTypeV1::Length:
-			case AnimTypeV1::None:
-				break;
+				switch (animation->type)
+				{
+				case AnimTypeV1::Create:
+				case AnimTypeV1::UnCreate:
+				case AnimTypeV1::FadeIn:
+				case AnimTypeV1::FadeOut:
+					// NOP
+					break;
+				case AnimTypeV1::Transform:
+					handleTransformAnimation(am, animation);
+					break;
+				case AnimTypeV1::MoveTo:
+					handleMoveToAnimationInspector(am, animation);
+					break;
+				case AnimTypeV1::AnimateScale:
+					handleAnimateScaleInspector(am, animation);
+					break;
+				case AnimTypeV1::Shift:
+					handleShiftInspector(animation);
+					break;
+				case AnimTypeV1::RotateTo:
+					handleRotateToAnimationInspector(animation);
+					break;
+				case AnimTypeV1::AnimateFillColor:
+					handleAnimateFillColorAnimationInspector(animation);
+					break;
+				case AnimTypeV1::AnimateStrokeColor:
+					handleAnimateStrokeColorAnimationInspector(animation);
+					break;
+				case AnimTypeV1::AnimateStrokeWidth:
+					//handleAnimateStrokeWidthInspector(animation);
+					g_logger_warning("TODO: Implement me.");
+					break;
+				case AnimTypeV1::Circumscribe:
+					handleCircumscribeInspector(am, animation);
+					break;
+				case AnimTypeV1::Length:
+				case AnimTypeV1::None:
+					break;
+				}
 			}
 		}
 
