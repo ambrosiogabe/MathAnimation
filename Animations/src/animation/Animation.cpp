@@ -788,7 +788,7 @@ namespace MathAnim
 	CameraObject CameraObject::createDefault()
 	{
 		CameraObject res = {};
-		res.camera2D.projectionSize = Vec2{ 9.0f, 18.0f };
+		res.camera2D.projectionSize = Vec2{ 18.0f, 9.0f };
 		res.camera2D.position = res.camera2D.projectionSize / 2.0f;
 		res.camera2D.zoom = 1.0f;
 		res.is2D = true;
