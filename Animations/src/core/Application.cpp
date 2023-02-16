@@ -109,7 +109,7 @@ namespace MathAnim
 
 			Fonts::init();
 			Renderer::init();
-			ImGuiLayer::init(glVersion.major, glVersion.minor, *window, "./assets/layouts/Default.json");
+			ImGuiLayer::init(*window, "./assets/layouts/Default.json");
 			Audio::init();
 			GizmoManager::init();
 			Svg::init();

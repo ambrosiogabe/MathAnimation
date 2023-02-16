@@ -9,9 +9,23 @@ namespace MathAnim
 	struct Window;
 	union Vec2;
 
+	enum class ImGuiLayerFlags : uint8
+	{
+		None = 0,
+		EnableDocking =    1 << 0,
+		EnableViewports =  1 << 1,
+	};
+
 	namespace ImGuiLayer
 	{
-		void init(int glVersionMajor, int glVersionMinor, const Window& window, const char* jsonLayoutFile = nullptr);
+		void init(
+			const Window& window, 
+			const char* jsonLayoutFile = nullptr,
+			ImGuiLayerFlags flags = (ImGuiLayerFlags)(
+				(uint8)ImGuiLayerFlags::EnableDocking | 
+				(uint8)ImGuiLayerFlags::EnableViewports
+				)
+		);
 
 		void beginFrame();
 		void endFrame();
