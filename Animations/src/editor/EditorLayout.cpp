@@ -43,7 +43,6 @@ namespace MathAnim
 				const auto& iter = std::find(defaultLayouts.begin(), defaultLayouts.end(), absPath);
 				if (iter == defaultLayouts.end() && absPath.extension().string() == ".json")
 				{
-					g_logger_info("Custom layout: %s", absPath.string().c_str());
 					customLayouts.push_back(absPath);
 				}
 			}
@@ -54,6 +53,11 @@ namespace MathAnim
 
 		}
 
+		void addCustomLayout(const std::filesystem::path& layoutFilepath)
+		{
+			customLayouts.push_back(std::filesystem::absolute(layoutFilepath));
+		}
+
 		const std::vector<std::filesystem::path>& getDefaultLayouts()
 		{
 			return defaultLayouts;
@@ -62,6 +66,24 @@ namespace MathAnim
 		const std::vector<std::filesystem::path>& getCustomLayouts()
 		{
 			return customLayouts;
+		}
+
+		const std::filesystem::path& getLayoutsRoot()
+		{
+			return layoutsRoot;
+		}
+
+		bool isReserved(const char* name)
+		{
+			for (const auto& layoutPath : defaultLayouts)
+			{
+				if (layoutPath.stem().string() == name)
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}
 	}
 }

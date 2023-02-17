@@ -17,6 +17,14 @@ namespace MathAnim
 		SaveIniSettings =  1 << 2
 	};
 
+	enum class SaveEditorLayoutError : uint8
+	{
+		None = 0,
+		ReservedLayoutName,
+		FailedToSaveImGuiIni,
+		FailedToConvertIniToJson
+	};
+
 	namespace ImGuiLayer
 	{
 		void init(
@@ -36,7 +44,7 @@ namespace MathAnim
 		void mouseEvent();
 
 		void free();
-		void saveEditorLayout();
+		SaveEditorLayoutError saveEditorLayout(const char* name);
 		void loadEditorLayout(const std::filesystem::path& layoutPath, const Vec2& targetResolution);
 
 		ImFont* getDefaultFont();

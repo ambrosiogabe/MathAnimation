@@ -3,6 +3,7 @@
 #include "editor/EditorLayout.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
+#include "renderer/Colors.h"
 
 #include <imgui.h>
 
@@ -13,9 +14,17 @@ namespace MathAnim
 		// -------------- Internal Variables --------------
 		static const char* creditsPopupId = "CREDITS_POPUP_WINDOW";
 		static bool openCreditsPopup = false;
+		static const char* saveEditorLayoutPopupId = "Save Layout##SAVE_EDITOR_LAYOUT_WINDOW";
+		static bool openSaveEditorLayoutPopup = false;
+
+		static const char* errorPopupId = "Error##MENU_BAR_ERROR_POPUP";
+		static std::string errorMessage = "";
+		static bool openErrorPopup = false;
 
 		// -------------- Internal Functions --------------
 		static void creditsWindow();
+		static void saveEditorLayoutPopup();
+		static void errorPopup();
 
 		void update()
 		{
@@ -39,7 +48,7 @@ namespace MathAnim
 
 					if (ImGui::MenuItem("Save Editor Layout"))
 					{
-						ImGuiLayer::saveEditorLayout();
+						openSaveEditorLayoutPopup = true;
 					}
 
 					ImGui::EndMenu();
@@ -54,13 +63,6 @@ namespace MathAnim
 				{
 					if (ImGui::BeginMenu("Layouts"))
 					{
-						if (ImGui::MenuItem("Save Custom Layout"))
-						{
-							g_logger_warning("TODO: Implement Layout Saving");
-						}
-
-						ImGui::Separator();
-
 						const std::vector<std::filesystem::path>& defaultLayouts = EditorLayout::getDefaultLayouts();
 						for (const auto& layout : defaultLayouts)
 						{
@@ -111,7 +113,21 @@ namespace MathAnim
 				openCreditsPopup = false;
 			}
 
+			if (openSaveEditorLayoutPopup)
+			{
+				ImGui::OpenPopup(saveEditorLayoutPopupId);
+				openSaveEditorLayoutPopup = false;
+			}
+
+			if (openErrorPopup)
+			{
+				ImGui::OpenPopup(errorPopupId);
+				openErrorPopup = false;
+			}
+
 			creditsWindow();
+			saveEditorLayoutPopup();
+			errorPopup();
 		}
 
 		// -------------- Internal Functions --------------
@@ -125,6 +141,73 @@ namespace MathAnim
 				{
 					ImGui::CloseCurrentPopup();
 				}
+
+				ImGui::EndPopup();
+			}
+		}
+
+		static void saveEditorLayoutPopup()
+		{
+			ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+			ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+			if (ImGui::BeginPopupModal(saveEditorLayoutPopupId))
+			{
+				constexpr size_t saveNameBufferSize = 256;
+				static char saveNameBuffer[saveNameBufferSize];
+				ImGui::InputText(": Template Name", saveNameBuffer, saveNameBufferSize);
+
+				if (ImGui::Button("Cancel"))
+				{
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::SameLine();
+				if (ImGui::Button("Save"))
+				{
+					SaveEditorLayoutError errorCode = ImGuiLayer::saveEditorLayout(saveNameBuffer);
+					openErrorPopup = errorCode != SaveEditorLayoutError::None;
+
+					switch (errorCode)
+					{
+					case SaveEditorLayoutError::ReservedLayoutName:
+						errorMessage = "Failed to save editor layout. Name '" + std::string(saveNameBuffer) + "' is reserved.";
+						g_logger_warning("Failed to save editor layout. Name '%s' is reserved.", saveNameBuffer);
+						break;
+					case SaveEditorLayoutError::FailedToSaveImGuiIni:
+						errorMessage = "Failed to save editor layout. Failed to save imgui file for '" + std::string(saveNameBuffer) + "'";
+						g_logger_warning("Failed to save editor layout. Failed to save imgui file for '%s'.", saveNameBuffer);
+						break;
+					case SaveEditorLayoutError::FailedToConvertIniToJson:
+						errorMessage = "Failed to save editor layout. Failed to save convert imgui file to json for '" + std::string(saveNameBuffer) + "'";
+						g_logger_warning("Failed to save editor layout. Failed to save convert imgui file to json for '%s'.", saveNameBuffer);
+						break;
+					case SaveEditorLayoutError::None:
+						break;
+					}
+
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
+			}
+		}
+
+		static void errorPopup()
+		{
+			if (ImGui::BeginPopupModal(errorPopupId, NULL, ImGuiWindowFlags_AlwaysAutoResize))
+			{
+				ImGui::TextColored(Colors::AccentRed[3], "Error:");
+				ImGui::SameLine();
+				ImGui::Text("%s", errorMessage.c_str());
+				ImGui::NewLine();
+				ImGui::Separator();
+
+				if (ImGui::Button("OK", ImVec2(120, 0)))
+				{
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::SetItemDefaultFocus();
 
 				ImGui::EndPopup();
 			}

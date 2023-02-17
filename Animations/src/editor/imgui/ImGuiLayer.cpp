@@ -1,4 +1,5 @@
 #include "editor/imgui/ImGuiLayer.h"
+#include "editor/EditorLayout.h"
 #include "core/Window.h"
 #include "core/Profiling.h"
 #include "core/Application.h"
@@ -218,12 +219,39 @@ namespace MathAnim
 			ImGui::DestroyContext();
 		}
 
-		void saveEditorLayout()
+		SaveEditorLayoutError saveEditorLayout(const char* name)
 		{
+			// If the layout name is one of the default layouts, the user
+			// can't save another layout with that name
+			if (EditorLayout::isReserved(name))
+			{
+				return SaveEditorLayoutError::ReservedLayoutName;
+			}
+
+			const std::filesystem::path& layoutRoot = EditorLayout::getLayoutsRoot();
+			std::filesystem::path fullPathJson = (layoutRoot/(std::string(name) + ".json"));
+			std::filesystem::path fullPathIni = (layoutRoot/(std::string(name) + ".ini"));
+
 			glm::vec2 resolution = Application::getAppWindowSize();
-			std::remove("editorLayout.ini");
-			ImGui::SaveIniSettingsToDisk("editorLayout.ini");
-			ImGuiIniParser::convertImGuiIniToJson("editorLayout.ini", "editorLayout.json", Vec2{ resolution.x, resolution.y });
+			ImGui::SaveIniSettingsToDisk(fullPathIni.string().c_str());
+			if (!Platform::fileExists(fullPathIni.string().c_str()))
+			{
+				return SaveEditorLayoutError::FailedToSaveImGuiIni;
+			}
+
+			ImGuiIniParser::convertImGuiIniToJson(
+				fullPathIni.string().c_str(), 
+				fullPathJson.string().c_str(), 
+				Vec2{resolution.x, resolution.y}
+			);
+			if (!Platform::fileExists(fullPathJson.string().c_str()))
+			{
+				return SaveEditorLayoutError::FailedToConvertIniToJson;
+			}
+
+			EditorLayout::addCustomLayout(fullPathJson);
+
+			return SaveEditorLayoutError::None;
 		}
 
 		void loadEditorLayout(const std::filesystem::path& layoutPath, const Vec2& targetResolution)
