@@ -10,8 +10,12 @@ namespace MathAnim
 
 		void update();
 
+		void addCustomLayout(const std::filesystem::path& layoutFilepath);
 		const std::vector<std::filesystem::path>& getDefaultLayouts();
 		const std::vector<std::filesystem::path>& getCustomLayouts();
+
+		const std::filesystem::path& getLayoutsRoot();
+		bool isReserved(const char* name);
 	}
 }
 

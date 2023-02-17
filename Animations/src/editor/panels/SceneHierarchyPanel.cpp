@@ -1,5 +1,5 @@
 #include "editor/panels/SceneHierarchyPanel.h"
-#include "editor/timeline/Timeline.h"
+#include "editor/panels/InspectorPanel.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "utils/IconsFontAwesome5.h"
@@ -186,7 +186,7 @@ namespace MathAnim
 			static int inBetweenIndex = 0;
 			if (imGuiSceneHeirarchyWindow(&inBetweenIndex))
 			{
-				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Timeline::getAnimObjectPayloadId()))
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(InspectorPanel::getAnimObjectPayloadId()))
 				{
 					g_logger_assert(payload->DataSize == sizeof(AnimObjectPayload), "Invalid payload.");
 					const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
@@ -211,7 +211,7 @@ namespace MathAnim
 					// the anim objects from the animation manager and the timeline
 					deleteAnimObject(*animObject);
 					AnimationManager::removeAnimObject(am, animObject->id);
-					Timeline::setActiveAnimObject(NULL_ANIM_OBJECT);
+					InspectorPanel::setActiveAnimObject(NULL_ANIM_OBJECT);
 				}
 			}
 
@@ -404,14 +404,14 @@ namespace MathAnim
 				static AnimObjectPayload payload;
 				payload.animObjectId = element.animObjectId;
 				payload.sceneHierarchyIndex = element.index;
-				ImGui::SetDragDropPayload(Timeline::getAnimObjectPayloadId(), &payload, sizeof(AnimObjectPayload));
+				ImGui::SetDragDropPayload(InspectorPanel::getAnimObjectPayloadId(), &payload, sizeof(AnimObjectPayload));
 				ImGui::Text("%s", animObject.name);
 				ImGui::EndDragDropSource();
 			}
 
 			if (ImGui::BeginDragDropTarget())
 			{
-				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Timeline::getAnimObjectPayloadId()))
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(InspectorPanel::getAnimObjectPayloadId()))
 				{
 					g_logger_assert(payload->DataSize == sizeof(AnimObjectPayload), "Invalid payload.");
 					const AnimObjectPayload* objPayload = (const AnimObjectPayload*)payload->Data;
@@ -430,10 +430,10 @@ namespace MathAnim
 
 			if (clicked)
 			{
-				Timeline::setActiveAnimObject(element.animObjectId);
+				InspectorPanel::setActiveAnimObject(element.animObjectId);
 			}
 
-			element.selected = Timeline::getActiveAnimObject() == element.animObjectId;
+			element.selected = InspectorPanel::getActiveAnimObject() == element.animObjectId;
 			return open;
 		}
 
@@ -461,7 +461,7 @@ namespace MathAnim
 			if (!g.DragDropActive)
 				return false;
 
-			if (std::strcmp(g.DragDropPayload.DataType, Timeline::getAnimObjectPayloadId()) != 0)
+			if (std::strcmp(g.DragDropPayload.DataType, InspectorPanel::getAnimObjectPayloadId()) != 0)
 				return false;
 
 			ImGuiWindow* window = g.CurrentWindow;

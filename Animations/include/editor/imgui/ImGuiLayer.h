@@ -14,6 +14,15 @@ namespace MathAnim
 		None = 0,
 		EnableDocking =    1 << 0,
 		EnableViewports =  1 << 1,
+		SaveIniSettings =  1 << 2
+	};
+
+	enum class SaveEditorLayoutError : uint8
+	{
+		None = 0,
+		ReservedLayoutName,
+		FailedToSaveImGuiIni,
+		FailedToConvertIniToJson
 	};
 
 	namespace ImGuiLayer
@@ -23,7 +32,8 @@ namespace MathAnim
 			const char* jsonLayoutFile = nullptr,
 			ImGuiLayerFlags flags = (ImGuiLayerFlags)(
 				(uint8)ImGuiLayerFlags::EnableDocking | 
-				(uint8)ImGuiLayerFlags::EnableViewports
+				(uint8)ImGuiLayerFlags::EnableViewports |
+				(uint8)ImGuiLayerFlags::SaveIniSettings
 				)
 		);
 
@@ -34,7 +44,7 @@ namespace MathAnim
 		void mouseEvent();
 
 		void free();
-		void saveEditorLayout();
+		SaveEditorLayoutError saveEditorLayout(const char* name);
 		void loadEditorLayout(const std::filesystem::path& layoutPath, const Vec2& targetResolution);
 
 		ImFont* getDefaultFont();

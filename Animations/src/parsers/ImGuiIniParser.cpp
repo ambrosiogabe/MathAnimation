@@ -27,7 +27,7 @@ namespace MathAnim
 		std::string size;
 		std::string split;
 		std::string centralNode;
-		std::string selected;
+		std::optional<std::string> selected;
 	};
 
 	struct DockNodeData
@@ -37,7 +37,7 @@ namespace MathAnim
 		std::string sizeRef;
 		std::optional<std::string> split;
 		std::optional<std::string> centralNode;
-		std::string selected;
+		std::optional<std::string> selected;
 	};
 
 	struct WindowBlock
@@ -367,11 +367,16 @@ namespace MathAnim
 							snprintf(formatBuffer, sizeof(formatBuffer), "Split=%s ", split.c_str());
 							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
 						}
-						if (!node["selected"].is_null())
+						if (node.contains("selected") && !node["selected"].is_null())
 						{
 							std::string selected = node["selected"];
 							snprintf(formatBuffer, sizeof(formatBuffer), "Selected=%s\n", selected.c_str());
 							fwrite(formatBuffer, std::strlen(formatBuffer), 1, outputFile);
+						}
+						else
+						{
+							const char* newline = "\n";
+							fwrite(newline, std::strlen(newline), 1, outputFile);
 						}
 					}
 				}
@@ -435,7 +440,8 @@ namespace MathAnim
 					if (dockNode.split.has_value()) node["split"] = dockNode.split.value();
 					node["centralNode"] = nullptr;
 					if (dockNode.centralNode.has_value()) node["centralNode"] = dockNode.centralNode.value();
-					node["selected"] = dockNode.selected;
+					node["selected"] = nullptr;
+					if (dockNode.selected.has_value()) node["selected"] = dockNode.selected.value();
 				}
 				else if (line.dockSpaceData.has_value())
 				{
@@ -447,7 +453,8 @@ namespace MathAnim
 					node["pos"] = parseVec2(dockSpace.pos);
 					node["size"] = parseVec2(dockSpace.size);
 					node["split"] = dockSpace.split;
-					node["selected"] = dockSpace.selected;
+					node["selected"] = nullptr;
+					if (dockSpace.selected.has_value()) node["selected"] = dockSpace.selected.value();
 				}
 				dockingAsJson["nodes"].emplace_back(node);
 			}
@@ -595,7 +602,7 @@ namespace MathAnim
 
 			// Make sure everything exists
 			const std::string requiredKeys[] = {
-				"ID", "Window", "Pos", "Size", "Split", "Selected"
+				"ID", "Window", "Pos", "Size", "Split"
 			};
 			for (const std::string& key : requiredKeys)
 			{
@@ -606,13 +613,19 @@ namespace MathAnim
 				}
 			}
 
+
 			DockSpaceData res = {};
+			res.selected = std::nullopt;
+			if (keyValuePairs.find("Selected") != keyValuePairs.end())
+			{
+				res.selected = keyValuePairs["Selected"];
+			}
+
 			res.id = keyValuePairs["ID"];
 			res.window = keyValuePairs["Window"];
 			res.pos = keyValuePairs["Pos"];
 			res.size = keyValuePairs["Size"];
 			res.split = keyValuePairs["Split"];
-			res.selected = keyValuePairs["Selected"];
 			output = res;
 			return true;
 		}
@@ -637,7 +650,7 @@ namespace MathAnim
 
 			// Make sure everything exists
 			const std::string requiredKeys[] = {
-				"ID", "Parent", "SizeRef", "Selected"
+				"ID", "Parent", "SizeRef"
 			};
 			for (const std::string& key : requiredKeys)
 			{
@@ -651,6 +664,7 @@ namespace MathAnim
 			DockNodeData res = {};
 			res.split = std::nullopt;
 			res.centralNode = std::nullopt;
+			res.selected = std::nullopt;
 
 			res.id = keyValuePairs["ID"];
 			res.parent = keyValuePairs["Parent"];
@@ -663,7 +677,10 @@ namespace MathAnim
 			{
 				res.centralNode = keyValuePairs["CentralNode"];
 			}
-			res.selected = keyValuePairs["Selected"];
+			if (keyValuePairs.find("Selected") != keyValuePairs.end())
+			{
+				res.selected = keyValuePairs["Selected"];
+			}
 			output = res;
 			return true;
 		}

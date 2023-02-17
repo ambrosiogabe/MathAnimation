@@ -1,6 +1,7 @@
 #include "editor/timeline/Timeline.h"
 #include "editor/imgui/ImGuiExtended.h"
 #include "editor/imgui/ImGuiLayer.h"
+#include "editor/panels/InspectorPanel.h"
 #include "renderer/Colors.h"
 #include "animation/AnimationManager.h"
 
@@ -200,7 +201,7 @@ namespace MathAnim
 
 			if (ImGui::BeginDragDropTarget())
 			{
-				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(Timeline::getAnimObjectPayloadId()))
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(InspectorPanel::getAnimObjectPayloadId()))
 				{
 					if (payload->DataSize == sizeof(AnimObjectPayload))
 					{

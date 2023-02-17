@@ -1,12 +1,13 @@
 #include "editor/imgui/ImGuiLayer.h"
+#include "editor/EditorLayout.h"
 #include "core/Window.h"
+#include "core/Profiling.h"
+#include "core/Application.h"
 #include "utils/FontAwesome.h"
 #include "renderer/Colors.h"
 #include "renderer/GLApi.h"
-#include "core/Profiling.h"
-
+#include "platform/Platform.h"
 #include "parsers/ImGuiIniParser.h"
-#include "core/Application.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -50,6 +51,11 @@ namespace MathAnim
 			if ((uint8)flags & (uint8)ImGuiLayerFlags::EnableViewports) 
 				io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;     // Enable Multi-Viewport / Platform Windows
 			io.ConfigWindowsMoveFromTitleBarOnly = true;
+			bool wantSaveIniFile = (uint8)ImGuiLayerFlags::SaveIniSettings & (uint8)layerFlags;
+			if (wantSaveIniFile)
+				io.IniFilename = "./imgui.ini";
+			else
+				io.IniFilename = "./tmp.ini"; // Save to some dummy file if we don't actually want results
 
 			// NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
 			glm::ivec2 monitor_size = Window::getMonitorWorkingSize();
@@ -113,12 +119,15 @@ namespace MathAnim
 			//MathAnim_ImplOpenGL3_Init(glVersionMajor, glVersionMinor, glsl_version);
 			ImGui_ImplOpenGL3_Init(glsl_version);
 
-			if (jsonLayoutFile)
+			// If imgui.ini file exists, don't overwrite the user's saved settings with the default layout
+			if (jsonLayoutFile && wantSaveIniFile && !Platform::fileExists("./imgui.ini"))
 			{
 				glm::vec2 windowSize = Application::getAppWindowSize();
 				generateLayoutFile(jsonLayoutFile, Vec2{ windowSize.x, windowSize.y });
 				// Load the layout file immediately
 				ImGui::LoadIniSettingsFromDisk(reloadLayoutFilepath.c_str());
+
+				ImGui::GetIO().IniFilename = "./imgui.ini";
 			}
 		}
 
@@ -177,6 +186,10 @@ namespace MathAnim
 				init(Application::getWindow(), nullptr, layerFlags);
 				ImGui::LoadIniSettingsFromDisk(reloadLayoutFilepath.c_str());
 				reloadLayout = false;
+
+				// Make sure any changes are saved to the default ini file and not
+				// overwriting the one we just generated
+				ImGui::GetIO().IniFilename = "./imgui.ini";
 			}
 		}
 
@@ -206,12 +219,39 @@ namespace MathAnim
 			ImGui::DestroyContext();
 		}
 
-		void saveEditorLayout()
+		SaveEditorLayoutError saveEditorLayout(const char* name)
 		{
+			// If the layout name is one of the default layouts, the user
+			// can't save another layout with that name
+			if (EditorLayout::isReserved(name))
+			{
+				return SaveEditorLayoutError::ReservedLayoutName;
+			}
+
+			const std::filesystem::path& layoutRoot = EditorLayout::getLayoutsRoot();
+			std::filesystem::path fullPathJson = (layoutRoot/(std::string(name) + ".json"));
+			std::filesystem::path fullPathIni = (layoutRoot/(std::string(name) + ".ini"));
+
 			glm::vec2 resolution = Application::getAppWindowSize();
-			std::remove("editorLayout.ini");
-			ImGui::SaveIniSettingsToDisk("editorLayout.ini");
-			ImGuiIniParser::convertImGuiIniToJson("editorLayout.ini", "editorLayout.json", Vec2{ resolution.x, resolution.y });
+			ImGui::SaveIniSettingsToDisk(fullPathIni.string().c_str());
+			if (!Platform::fileExists(fullPathIni.string().c_str()))
+			{
+				return SaveEditorLayoutError::FailedToSaveImGuiIni;
+			}
+
+			ImGuiIniParser::convertImGuiIniToJson(
+				fullPathIni.string().c_str(), 
+				fullPathJson.string().c_str(), 
+				Vec2{resolution.x, resolution.y}
+			);
+			if (!Platform::fileExists(fullPathJson.string().c_str()))
+			{
+				return SaveEditorLayoutError::FailedToConvertIniToJson;
+			}
+
+			EditorLayout::addCustomLayout(fullPathJson);
+
+			return SaveEditorLayoutError::None;
 		}
 
 		void loadEditorLayout(const std::filesystem::path& layoutPath, const Vec2& targetResolution)

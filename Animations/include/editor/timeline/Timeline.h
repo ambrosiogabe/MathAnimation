@@ -13,12 +13,6 @@ namespace MathAnim
 		bool isAnimObject;
 	};
 
-	struct AnimObjectPayload
-	{
-		AnimObjId animObjectId;
-		int32 sceneHierarchyIndex;
-	};
-
 	struct TimelineData
 	{
 		uint8* audioSourceFile;
@@ -37,12 +31,6 @@ namespace MathAnim
 
 		void freeInstance(TimelineData& data);
 		void free(AnimationManagerData* am);
-
-		void setActiveAnimObject(AnimObjId animObjectId);
-		AnimObjId getActiveAnimObject();
-		AnimId getActiveAnimation();
-
-		const char* getAnimObjectPayloadId();
 
 		RawMemory serialize(const TimelineData& data);
 		TimelineData deserialize(RawMemory& memory);
