@@ -14,9 +14,10 @@ add_subdirectory(vendor)
 set(MATH_ANIMATIONS_ASSETS_DIR ${CMAKE_CURRENT_LIST_DIR}/../assets)
 set(MATH_ANIMATIONS_GRAMMARS_DIR ${CMAKE_CURRENT_LIST_DIR}/vendor/grammars)
 set(MATH_ANIMATIONS_THEMES_DIR ${CMAKE_CURRENT_LIST_DIR}/vendor/themes)
+set(MATH_ANIMATIONS_WORKING_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
 
-set(MATH_ANIMATIONS_INCLUDE_DIR 
-    ${CMAKE_CURRENT_LIST_DIR}/include 
+set(MATH_ANIMATIONS_INCLUDE_DIR
+    ${CMAKE_CURRENT_LIST_DIR}/include
     ${CMAKE_CURRENT_LIST_DIR}/tests
 )
 set(AV1_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/vendor/av1/Source/API)
@@ -101,15 +102,6 @@ endif()
 
 # Asset processing
 add_custom_command(TARGET MathAnimations
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${MATH_ANIMATIONS_ASSETS_DIR}
-        $<TARGET_FILE_DIR:MathAnimations>/assets
-
-    COMMENT "Copying assets"
-    POST_BUILD
-)
-
-add_custom_command(TARGET MathAnimations
     COMMAND ${CMAKE_COMMAND} -E make_directory
         $<TARGET_FILE_DIR:MathAnimations>/assets/grammars
     COMMAND ${CMAKE_COMMAND} -E copy
@@ -139,7 +131,7 @@ add_custom_command(TARGET MathAnimations
 )
 
 set_property(TARGET MathAnimations PROPERTY
-    VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:MathAnimations>
+    VS_DEBUGGER_WORKING_DIRECTORY ${MATH_ANIMATIONS_WORKING_DIR}
 )
 if(MSVC)
   target_compile_options(MathAnimations PRIVATE /W4 /WX)
