@@ -279,7 +279,6 @@ namespace MathAnim
 		static Shader shader3DOpaque;
 		static Shader shader3DTransparent;
 		static Shader shader3DComposite;
-		static Shader pickingOutlineShader;
 
 		static constexpr int MAX_STACK_SIZE = 64;
 
@@ -345,7 +344,6 @@ namespace MathAnim
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
-			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
 #else
 			// TODO: Replace these with hardcoded strings
 			shader2D.compile("assets/shaders/default.glsl");
@@ -357,7 +355,6 @@ namespace MathAnim
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
-			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
 #endif
 
 			drawList2D.init();
@@ -370,8 +367,11 @@ namespace MathAnim
 
 		void free()
 		{
+			shader2D.destroy();
 			shaderFont2D.destroy();
 			screenShader.destroy();
+			rgbToYuvShaderYChannel.destroy();
+			rgbToYuvShaderUvChannel.destroy();
 			shader3DLine.destroy();
 			shader3DOpaque.destroy();
 			shader3DTransparent.destroy();
@@ -386,7 +386,8 @@ namespace MathAnim
 		// ----------- Render calls ----------- 
 		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera, bool shouldRenderPickingOutline)
 		{
-			g_logger_assert(framebuffer.colorAttachments.size() == 4, "Invalid framebuffer. Should have 3 color attachments.");
+			constexpr size_t numExpectedColorAttachments = 4;
+			g_logger_assert(framebuffer.colorAttachments.size() == numExpectedColorAttachments, "Invalid framebuffer. Should have %d color attachments.", numExpectedColorAttachments);
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
 
 			debugMsgId = 0;
@@ -1613,7 +1614,7 @@ namespace MathAnim
 		static void renderPickingOutline(const Framebuffer&)
 		{
 			// TODO: This is broken and we need to rethink outlining active objects
-			//GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Active_Object_Outline_Pass");
+			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Active_Object_Outline_Pass");
 
 			//GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
 			//GL::drawBuffers(4, compositeDrawBuffers);
@@ -1638,7 +1639,7 @@ namespace MathAnim
 			//GL::bindVertexArray(screenVao);
 			//GL::drawArrays(GL_TRIANGLES, 0, 6);
 
-			//GL::popDebugGroup();
+			GL::popDebugGroup();
 		}
 
 		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth)
@@ -2529,9 +2530,6 @@ namespace MathAnim
 
 	void DrawList3D::setupGraphicsBuffers()
 	{
-		// Vec3 position;
-		// Vec4 color;
-		// Vec2 textureCoords;
 		// Create the batched vao
 		GL::createVertexArray(&vao);
 		GL::bindVertexArray(vao);
