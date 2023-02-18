@@ -436,9 +436,10 @@ namespace MathAnim
 								isAddingAnimObject = false;
 							}
 						}
+
+						ImGui::EndListBox();
 					}
 
-					ImGui::EndListBox();
 					ImGui::PopStyleColor();
 
 					if (ImGui::Button(ICON_FA_PLUS " Add Anim Object"))
@@ -448,7 +449,7 @@ namespace MathAnim
 				}
 			}
 
-			std::string componentName = std::string(_animationTypeNames[(uint8)animation->type]) 
+			std::string componentName = std::string(_animationTypeNames[(uint8)animation->type])
 				+ "##" + std::to_string(animationId);
 
 			if (ImGui::CollapsingHeader(componentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
