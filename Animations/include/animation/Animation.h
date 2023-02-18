@@ -374,6 +374,7 @@ namespace MathAnim
 		// This is the combined parent+child positions and transformations
 		Vec3 _globalPositionStart;
 		Vec3 globalPosition;
+		glm::mat4 _globalTransformStart;
 		glm::mat4 globalTransform;
 		BBox bbox;
 

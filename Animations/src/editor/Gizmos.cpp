@@ -14,13 +14,24 @@
 namespace MathAnim
 {
 	// -------------- Internal Structures --------------
+	enum class FollowMouseMoveMode : uint8
+	{
+		None = 0,
+		HzOnly,
+		VtOnly,
+		FreeMove
+	};
+
 	struct GizmoState
 	{
 		GizmoType gizmoType;
 		GizmoVariant variant;
 		uint64 idHash;
 		Vec3 position;
-		bool wasUpdated;
+		Vec3 positionMoveStart;
+		Vec3 mouseDelta;
+		FollowMouseMoveMode moveMode;
+		bool shouldDraw;
 
 		void render();
 	};
@@ -35,7 +46,8 @@ namespace MathAnim
 		uint64 activeGizmo;
 		uint64 lastActiveGizmo; // Gizmo active last frame
 		GizmoVariant hotGizmoVariant; // Variant of the above IDs
-		Vec2 dragStartScreenCoords;
+		Vec3 mouseWorldPos3f;
+		Vec2 mouseWorldPos2f;
 	};
 
 	namespace GizmoManager
@@ -59,14 +71,18 @@ namespace MathAnim
 		static uint64 hashName(const char* name);
 		static GizmoState* createDefaultGizmoState(const char* name, GizmoType type);
 		static bool isMouseHovered(const Vec2& centerPosition, const Vec2& size);
+		static Vec3 getMouseWorldPos3f();
+		static Vec2 getMouseWorldPos2f();
 		static void handleActiveCheck(GizmoState* gizmo, const Vec2& offset, const Vec2& gizmoSize);
 
 		void init()
 		{
 			void* gMemory = g_memory_allocate(sizeof(GlobalContext));
 			gGizmoManager = new(gMemory)GlobalContext();
-			gGizmoManager->hoveredGizmo = UINT64_MAX;
-			gGizmoManager->activeGizmo = UINT64_MAX;
+			gGizmoManager->hoveredGizmo = NullGizmo;
+			gGizmoManager->activeGizmo = NullGizmo;
+			gGizmoManager->mouseWorldPos3f = Vec3{ NAN, NAN, NAN };
+			gGizmoManager->mouseWorldPos2f = Vec2{ 0.0f, 0.0f };
 		}
 
 		void update(AnimationManagerData* am)
@@ -74,6 +90,8 @@ namespace MathAnim
 			MP_PROFILE_EVENT("Gizmo_Update");
 			GlobalContext* g = gGizmoManager;
 			g->lastActiveGizmo = g->activeGizmo;
+			//g->mouseWorldPos3f = getMouseWorldPos3f();
+			g->mouseWorldPos2f = getMouseWorldPos2f();
 
 			EditorGui::onGizmo(am);
 		}
@@ -86,7 +104,7 @@ namespace MathAnim
 			GlobalContext* g = gGizmoManager;
 			for (auto iter : g->gizmos)
 			{
-				if (iter->wasUpdated)
+				if (iter->shouldDraw)
 				{
 					// Draw the gizmo
 					iter->render();
@@ -96,7 +114,7 @@ namespace MathAnim
 			// End Frame stuff
 			for (auto iter : g->gizmos)
 			{
-				iter->wasUpdated = false;
+				iter->shouldDraw = false;
 			}
 
 			const AnimObject* orthoCameraObj = AnimationManager::getActiveOrthoCamera(am);
@@ -141,17 +159,112 @@ namespace MathAnim
 
 		bool translateGizmo(const char* gizmoName, Vec3* position, GizmoVariant variant)
 		{
+			GlobalContext* g = gGizmoManager;
+
 			// Find or create the gizmo
 			GizmoState* gizmo = getGizmoByName(gizmoName);
 			if (!gizmo)
 			{
 				gizmo = createDefaultGizmoState(gizmoName, GizmoType::Translation);
+				// Initialize to something sensible
+				gizmo->positionMoveStart = *position;
 			}
-			gizmo->wasUpdated = true;
 			gizmo->position = *position;
 			gizmo->variant = variant;
 
-			GlobalContext* g = gGizmoManager;
+			if (Input::keyPressed(GLFW_KEY_G))
+			{
+				switch (gizmo->moveMode)
+				{
+				case FollowMouseMoveMode::None:
+					gizmo->positionMoveStart = *position;
+					gizmo->mouseDelta = gizmo->positionMoveStart - CMath::vector3From2(g->mouseWorldPos2f);
+					gizmo->moveMode = FollowMouseMoveMode::FreeMove;
+					break;
+				case FollowMouseMoveMode::HzOnly:
+				case FollowMouseMoveMode::VtOnly:
+				case FollowMouseMoveMode::FreeMove:
+					break;
+				}
+			}
+
+			if (gizmo->moveMode != FollowMouseMoveMode::None)
+			{
+				if (Input::keyPressed(GLFW_KEY_X))
+				{
+					switch (gizmo->moveMode)
+					{
+					case FollowMouseMoveMode::VtOnly:
+					case FollowMouseMoveMode::FreeMove:
+						gizmo->moveMode = FollowMouseMoveMode::HzOnly;
+						break;
+					case FollowMouseMoveMode::HzOnly:
+					case FollowMouseMoveMode::None:
+						break;
+					}
+					*position = gizmo->positionMoveStart;
+				}
+				if (Input::keyPressed(GLFW_KEY_Y))
+				{
+					switch (gizmo->moveMode)
+					{
+					case FollowMouseMoveMode::HzOnly:
+					case FollowMouseMoveMode::FreeMove:
+						gizmo->moveMode = FollowMouseMoveMode::VtOnly;
+						break;
+					case FollowMouseMoveMode::VtOnly:
+					case FollowMouseMoveMode::None:
+						break;
+					}
+					*position = gizmo->positionMoveStart;
+				}
+				if (Input::keyPressed(GLFW_KEY_ESCAPE))
+				{
+					// We can return immediately from a cancel operation
+					*position = gizmo->positionMoveStart;
+					gizmo->moveMode = FollowMouseMoveMode::None;
+					return true;
+				}
+			}
+
+			if (gizmo->moveMode != FollowMouseMoveMode::None)
+			{
+				Vec2 mousePos = EditorGui::mouseToNormalizedViewport();
+				OrthoCamera* camera = Application::getEditorCamera();
+				Vec2 unprojectedMousePos = camera->reverseProject(mousePos);
+				switch (gizmo->moveMode)
+				{
+				case FollowMouseMoveMode::VtOnly:
+					position->y = unprojectedMousePos.y + gizmo->mouseDelta.y;
+					gizmo->shouldDraw = true;
+					break;
+				case FollowMouseMoveMode::HzOnly:
+					position->x = unprojectedMousePos.x + gizmo->mouseDelta.x;
+					gizmo->shouldDraw = true;
+					break;
+				case FollowMouseMoveMode::FreeMove:
+					position->x = unprojectedMousePos.x + gizmo->mouseDelta.x;
+					position->y = unprojectedMousePos.y + gizmo->mouseDelta.y;
+					break;
+				case FollowMouseMoveMode::None:
+					break;
+				}
+
+				g->activeGizmo = gizmo->idHash;
+				if (Input::mouseClicked(MouseButton::Left))
+				{
+					gizmo->moveMode = FollowMouseMoveMode::None;
+					g->activeGizmo = NullGizmo;
+				}
+
+				// If we're in gizmo follow mouse mode, then every frame results in a change operation.
+				// So, we return true here every time.
+				return true;
+			}
+
+			// Otherwise, we continue on to the regular gizmo logic
+
+			gizmo->shouldDraw = true;
 			if (g->hoveredGizmo == NullGizmo && g->activeGizmo == NullGizmo)
 			{
 				// Check if free move variant is hovered
@@ -199,29 +312,39 @@ namespace MathAnim
 				{
 					g->activeGizmo = NullGizmo;
 				}
+				else if (Input::keyPressed(GLFW_KEY_ESCAPE))
+				{
+					// Cancel move operation
+					g->activeGizmo = NullGizmo;
+					*position = gizmo->positionMoveStart;
+					modified = true;
+				}
 				else
 				{
 					// Handle mouse dragging
 					// Transform the position passed in to the current mouse position
-					Vec2 newPos = EditorGui::mouseToNormalizedViewport();
-					OrthoCamera* camera = Application::getEditorCamera();
-					newPos = camera->reverseProject(newPos);
-					if (g->hotGizmoVariant == GizmoVariant::Free)
+					switch (g->hotGizmoVariant)
 					{
-						// Don't modify the z-coord since this is a 2D gizmo
-						newPos.y -= defaultFreeMoveSize.y;
-						*position = Vec3{ newPos.x, newPos.y, position->z };
+					case GizmoVariant::Free:
+						*position = CMath::vector3From2(g->mouseWorldPos2f);
+						break;
+					case GizmoVariant::Vertical:
+						// NOTE: We subtract mouseDelta here to make sure it's offset properly from the mouse
+						// and then when it gets added back in below it cancels the operation
+						*position = Vec3{ position->x - gizmo->mouseDelta.x, g->mouseWorldPos2f.y, 0.0f };
+						break;
+					case GizmoVariant::Horizontal:
+						// NOTE: Same note as above
+						*position = Vec3{ g->mouseWorldPos2f.x, position->y - gizmo->mouseDelta.y, 0.0f };
+						break;
+					case GizmoVariant::None:
+					case GizmoVariant::All:
+						break;
 					}
-					else if (g->hotGizmoVariant == GizmoVariant::Vertical)
-					{
-						newPos.y -= defaultVerticalMoveSize.y;
-						*position = Vec3{ position->x, newPos.y, position->z };
-					}
-					else if (g->hotGizmoVariant == GizmoVariant::Horizontal)
-					{
-						newPos.y -= defaultHorizontalMoveSize.y;
-						*position = Vec3{ newPos.x, position->y, position->z };
-					}
+
+					// Add back in mouse delta to make sure we maintain original distance
+					// when we started dragging the object
+					*position += gizmo->mouseDelta;
 					gizmo->position = *position;
 					modified = true;
 				}
@@ -271,7 +394,9 @@ namespace MathAnim
 			gizmoState->gizmoType = type;
 			uint64 hash = hashName(name);
 			gizmoState->idHash = hash;
-			gizmoState->wasUpdated = false;
+			gizmoState->shouldDraw = false;
+			gizmoState->moveMode = FollowMouseMoveMode::None;
+			gizmoState->mouseDelta = Vec3{ 0.0f, 0.0f, 0.0f };
 
 			GlobalContext* g = gGizmoManager;
 			g->gizmos.push_back(gizmoState);
@@ -282,9 +407,7 @@ namespace MathAnim
 
 		static bool isMouseHovered(const Vec2& centerPosition, const Vec2& size)
 		{
-			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
-			OrthoCamera* camera = Application::getEditorCamera();
-			Vec2 worldCoords = camera->reverseProject(normalizedMousePos);
+			const Vec2& worldCoords = gGizmoManager->mouseWorldPos2f;
 			Vec2 bottomLeft = centerPosition - (Vec2{ size.x, size.y } / 2.0f);
 
 			return worldCoords.x >= bottomLeft.x && worldCoords.x <= bottomLeft.x + size.x &&
@@ -296,6 +419,7 @@ namespace MathAnim
 			GlobalContext* g = gGizmoManager;
 			if (Input::mouseDown(MouseButton::Left) && isMouseHovered(CMath::vector2From3(gizmo->position) + offset, gizmoSize))
 			{
+				gizmo->mouseDelta = gizmo->position - CMath::vector3From2(g->mouseWorldPos2f);
 				g->activeGizmo = gizmo->idHash;
 				g->hoveredGizmo = NullGizmo;
 			}
@@ -303,6 +427,23 @@ namespace MathAnim
 			{
 				g->hoveredGizmo = NullGizmo;
 			}
+		}
+
+#pragma warning( push )
+#pragma warning( disable : 4505 )
+		static Vec3 getMouseWorldPos3f()
+		{
+			g_logger_warning("TODO: Implement 3D getMouseWorldPos3f() in gizmos.cpp");
+			return Vec3{ NAN, NAN, NAN };
+		}
+#pragma warning( pop )
+
+		static Vec2 getMouseWorldPos2f()
+		{
+			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
+			OrthoCamera* camera = Application::getEditorCamera();
+			Vec2 worldCoords = camera->reverseProject(normalizedMousePos);
+			return worldCoords;
 		}
 	}
 
@@ -313,24 +454,59 @@ namespace MathAnim
 	{
 		GlobalContext* g = GizmoManager::gGizmoManager;
 
-		// Render the gizmo shapes
+		// If it's in free move mode, render guidelines
+		if (moveMode != FollowMouseMoveMode::None)
+		{
+			const OrthoCamera* camera = Application::getEditorCamera();
+			const Vec2& cameraProjectionSize = camera->projectionSize * camera->zoom;
+			Vec3 leftGuideline = this->positionMoveStart - Vec3{ cameraProjectionSize.x, 0.0f, 0.0f };
+			Vec3 rightGuideline = this->positionMoveStart + Vec3{ cameraProjectionSize.x, 0.0f, 0.0f };
+			Vec3 bottomGuideline = this->positionMoveStart - Vec3{ 0.0f, cameraProjectionSize.y, 0.0f };
+			Vec3 topGuideline = this->positionMoveStart + Vec3{ 0.0f, cameraProjectionSize.y, 0.0f };
+
+			float hzGuidelineWidth = cameraProjectionSize.x / 1'000.0f;
+			float vtGuidelineWidth = cameraProjectionSize.y / 400.0f;
+			Vec2 hzGuidelineSize = Vec2{ rightGuideline.x - leftGuideline.x, hzGuidelineWidth };
+			Vec2 vtGuidelineSize = Vec2{ vtGuidelineWidth, topGuideline.y - bottomGuideline.y };
+
+			switch (moveMode)
+			{
+			case FollowMouseMoveMode::HzOnly:
+				Renderer::pushColor(Colors::AccentRed[4]);
+				Renderer::drawFilledQuad(CMath::vector2From3(this->positionMoveStart), hzGuidelineSize);
+				Renderer::popColor();
+				break;
+			case FollowMouseMoveMode::VtOnly:
+				Renderer::pushColor(Colors::AccentGreen[4]);
+				Renderer::drawFilledQuad(CMath::vector2From3(this->positionMoveStart), vtGuidelineSize);
+				Renderer::popColor();
+				break;
+			case FollowMouseMoveMode::None:
+			case FollowMouseMoveMode::FreeMove:
+				break;
+			}
+
+			return;
+		}
+
+		// Otherwise render the gizmo shapes
 		if ((uint8)variant & (uint8)GizmoVariant::Free)
 		{
 			if ((idHash != g->hoveredGizmo && idHash != g->activeGizmo) || g->hotGizmoVariant != GizmoVariant::Free)
 			{
-				Renderer::pushColor(Colors::AccentRed[4]);
+				Renderer::pushColor(Colors::Primary[4]);
 				Renderer::drawFilledQuad(CMath::vector2From3(this->position), GizmoManager::defaultFreeMoveSize);
 				Renderer::popColor();
 			}
 			else if (idHash == g->hoveredGizmo)
 			{
-				Renderer::pushColor(Colors::AccentRed[5]);
+				Renderer::pushColor(Colors::Primary[5]);
 				Renderer::drawFilledQuad(CMath::vector2From3(this->position), GizmoManager::defaultFreeMoveSize);
 				Renderer::popColor();
 			}
 			else if (idHash == g->activeGizmo)
 			{
-				Renderer::pushColor(Colors::AccentRed[6]);
+				Renderer::pushColor(Colors::Primary[6]);
 				Renderer::drawFilledQuad(CMath::vector2From3(this->position), GizmoManager::defaultFreeMoveSize);
 				Renderer::popColor();
 			}
@@ -342,15 +518,15 @@ namespace MathAnim
 			const Vec4* color = nullptr;
 			if ((idHash != g->hoveredGizmo && idHash != g->activeGizmo) || g->hotGizmoVariant != GizmoVariant::Horizontal)
 			{
-				color = &Colors::Primary[4];
+				color = &Colors::AccentRed[4];
 			}
 			else if (idHash == g->hoveredGizmo)
 			{
-				color = &Colors::Primary[5];
+				color = &Colors::AccentRed[5];
 			}
 			else if (idHash == g->activeGizmo)
 			{
-				color = &Colors::Primary[6];
+				color = &Colors::AccentRed[6];
 			}
 
 			if (color != nullptr)

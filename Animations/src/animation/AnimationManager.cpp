@@ -44,7 +44,7 @@ namespace MathAnim
 		// -------- Internal Functions --------
 		static void deserializeAnimationManagerExV1(AnimationManagerData* am, RawMemory& memory);
 		static bool compareAnimation(const Animation& a1, const Animation& a2);
-		static void updateGlobalTransform(AnimObject& obj);
+		static void updateGlobalTransform(AnimObject& obj, const glm::mat4& parentTransform, const glm::mat4& parentTransformStart);
 		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj);
 		static void addQueuedAnimation(AnimationManagerData* am, const Animation& anim);
 		static void removeQueuedAnimObject(AnimationManagerData* am, AnimObjId animObj);
@@ -529,6 +529,28 @@ namespace MathAnim
 			return res;
 		}
 
+		AnimObjId getNextSibling(const AnimationManagerData* am, AnimObjId objId)
+		{
+			const AnimObject* obj = getObject(am, objId);
+			if (obj)
+			{
+				bool passedMyself = false;
+				for (int i = 0; i < am->objects.size(); i++)
+				{
+					if (am->objects[i].id == objId)
+					{
+						passedMyself = true;
+					}
+					else if (am->objects[i].parentId == obj->parentId && passedMyself)
+					{
+						return am->objects[i].id;
+					}
+				}
+			}
+
+			return objId;
+		}
+
 		RawMemory serialize(const AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
@@ -658,22 +680,15 @@ namespace MathAnim
 				AnimObject* nextObj = getMutableObject(am, nextObjId);
 				if (nextObj)
 				{
-					updateGlobalTransform(*nextObj);
-
-					// Then apply parent transformation if the parent exists
-					// At this point the parent should have been updated already
-					// since the queue is FIFO
-					if (!isNull(nextObj->parentId))
+					glm::mat4 parentTransform = glm::mat4(1.0f);
+					glm::mat4 parentTransformStart = glm::mat4(1.0f);
+					const AnimObject* parent = getObject(am, nextObj->parentId);
+					if (parent)
 					{
-						const AnimObject* parent = getObject(am, nextObj->parentId);
-						if (parent)
-						{
-							// Apply parent transform to child
-							nextObj->globalTransform = parent->globalTransform * nextObj->globalTransform;
-							nextObj->_globalPositionStart += parent->_globalPositionStart;
-							nextObj->globalPosition += parent->globalPosition;
-						}
+						parentTransform = parent->globalTransform;
+						parentTransformStart = parent->_globalTransformStart;
 					}
+					updateGlobalTransform(*nextObj, parentTransform, parentTransformStart);
 
 					// Then append all direct children to the queue so they are
 					// recursively updated
@@ -883,19 +898,19 @@ namespace MathAnim
 			return a1.frameStart < a2.frameStart;
 		}
 
-		static void updateGlobalTransform(AnimObject& obj)
+		static void updateGlobalTransform(AnimObject& obj, const glm::mat4& parentTransform, const glm::mat4& parentTransformStart)
 		{
-			obj._globalPositionStart = obj._positionStart;
-			obj.globalPosition = obj.position;
+			// Calculate local transformation
+			obj.globalTransform = CMath::calculateTransform(obj.rotation, obj.scale, obj.position);
+			obj._globalTransformStart = CMath::calculateTransform(obj._rotationStart, obj._scaleStart, obj._positionStart);
 
-			glm::quat xRotation = glm::angleAxis(glm::radians(obj.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-			glm::quat yRotation = glm::angleAxis(glm::radians(obj.rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-			glm::quat zRotation = glm::angleAxis(glm::radians(obj.rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+			// Multiply parent transforms through to apply global transformation
+			obj.globalTransform = parentTransform * obj.globalTransform;
+			obj._globalTransformStart = parentTransformStart * obj._globalTransformStart;
 
-			glm::mat4 rotation = glm::toMat4(xRotation * yRotation * zRotation);
-			glm::mat4 scale = glm::scale(glm::mat4(1.0f), CMath::convert(obj.scale));
-			glm::mat4 translation = glm::translate(glm::mat4(1.0f), CMath::convert(obj.globalPosition));
-			obj.globalTransform = translation * rotation * scale;
+			// Extract positions
+			obj.globalPosition = CMath::extractPosition(obj.globalTransform);
+			obj._globalPositionStart = CMath::extractPosition(obj._globalTransformStart);
 		}
 
 		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj)
