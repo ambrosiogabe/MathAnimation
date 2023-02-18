@@ -210,6 +210,10 @@ namespace MathAnim
 		glm::u8vec4 interpolate(float t, const glm::u8vec4& src, const glm::u8vec4& target);
 		float interpolate(float t, float src, float target);
 
+		// Transformation helpers
+		glm::mat4 calculateTransform(const Vec3& eulerAnglesRotation, const Vec3& scale, const Vec3& position);
+		Vec3 extractPosition(const glm::mat4& transformation);
+
 		// (de)Serialization functions
 		void serialize(RawMemory& memory, const Vec4& vec);
 		void serialize(RawMemory& memory, const Vec3& vec);
