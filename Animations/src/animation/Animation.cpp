@@ -2,6 +2,7 @@
 #include "core.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
+#include "core/Input.h"
 #include "animation/AnimationManager.h"
 #include "svg/Svg.h"
 #include "svg/SvgCache.h"
@@ -12,6 +13,7 @@
 #include "math/CMath.h"
 #include "editor/Gizmos.h"
 #include "editor/EditorSettings.h"
+#include "editor/EditorGui.h"
 
 namespace MathAnim
 {
@@ -861,6 +863,52 @@ namespace MathAnim
 
 	void AnimObject::onGizmo(AnimationManagerData* am)
 	{
+		static bool isInMoveMode = false;
+		static bool isInHzMoveMode = false;
+		static bool isInVtMoveMode = false;
+		static Vec3 positionWhenStartMoveMode = Vec3{ NAN, NAN, NAN };
+		bool resetGlobalPosition = false;
+		bool cancelledMoveMode = false;
+		if (Input::keyPressed(GLFW_KEY_G))
+		{
+			positionWhenStartMoveMode = this->_globalPositionStart;
+			isInMoveMode = !isInMoveMode;
+
+			// Reset state
+			if (!isInMoveMode)
+			{
+				isInMoveMode = false;
+				isInHzMoveMode = false;
+				isInVtMoveMode = false;
+				resetGlobalPosition = false;
+				cancelledMoveMode = false;
+			}
+		}
+
+		if (isInMoveMode)
+		{
+			if (Input::keyPressed(GLFW_KEY_X))
+			{
+				isInVtMoveMode = false;
+				isInHzMoveMode = !isInHzMoveMode;
+				resetGlobalPosition = true;
+			}
+			if (Input::keyPressed(GLFW_KEY_Y))
+			{
+				isInHzMoveMode = false;
+				isInVtMoveMode = !isInVtMoveMode;
+				resetGlobalPosition = true;
+			}
+			if (Input::keyPressed(GLFW_KEY_ESCAPE))
+			{
+				isInMoveMode = false;
+				isInHzMoveMode = false;
+				isInVtMoveMode = false;
+				resetGlobalPosition = true;
+				cancelledMoveMode = true;
+			}
+		}
+
 		if (is3D)
 		{
 			// TODO: Render and handle 3D gizmo logic based on edit mode
@@ -874,7 +922,34 @@ namespace MathAnim
 			// the result back to local coordinates since the user is editing with gizmos in global
 			// space
 			Vec3 globalPositionStart = this->_globalPositionStart;
-			if (GizmoManager::translateGizmo(gizmoName.c_str(), &globalPositionStart))
+			if (resetGlobalPosition)
+			{
+				globalPositionStart = positionWhenStartMoveMode;
+				this->_globalPositionStart = positionWhenStartMoveMode;
+				resetGlobalPosition = false;
+			}
+
+			if (isInMoveMode)
+			{
+				Vec2 mousePos = EditorGui::mouseToNormalizedViewport();
+				OrthoCamera* camera = Application::getEditorCamera();
+				Vec2 unprojectedMousePos = camera->reverseProject(mousePos);
+				if (isInVtMoveMode)
+				{
+					globalPositionStart.y = unprojectedMousePos.y;
+				}
+				else if (isInHzMoveMode)
+				{
+					globalPositionStart.x = unprojectedMousePos.x;
+				}
+				else
+				{
+					globalPositionStart.x = unprojectedMousePos.x;
+					globalPositionStart.y = unprojectedMousePos.y;
+				}
+			}
+
+			if (cancelledMoveMode || isInMoveMode || GizmoManager::translateGizmo(gizmoName.c_str(), &globalPositionStart))
 			{
 				glm::mat4 parentsTransform = glm::mat4(1.0f);
 				if (!isNull(this->parentId))
@@ -893,6 +968,14 @@ namespace MathAnim
 				this->_positionStart = Vec3{ newLocal.x, newLocal.y, newLocal.z };
 				this->_globalPositionStart = globalPositionStart;
 				AnimationManager::updateObjectState(am, this->id);
+
+				if (Input::mouseDown(MouseButton::Left))
+				{
+					isInMoveMode = false;
+					isInVtMoveMode = false;
+					isInHzMoveMode = false;
+					cancelledMoveMode = false;
+				}
 			}
 		}
 
