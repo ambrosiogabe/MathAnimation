@@ -105,29 +105,38 @@ namespace MathAnim
 			if (mods & GLFW_MOD_SHIFT)
 			{
 				shiftKeyDownData[key] = action == GLFW_PRESS || action == GLFW_REPEAT;
-				shiftKeyUpData[key] = action == GLFW_RELEASE;
 			}
 
 			if (mods & GLFW_MOD_ALT)
 			{
 				altKeyDownData[key] = action == GLFW_PRESS || action == GLFW_REPEAT;
-				altKeyUpData[key] = action == GLFW_RELEASE;
 			}
 
 			if (mods & GLFW_MOD_CONTROL)
 			{
 				ctrlKeyDownData[key] = action == GLFW_PRESS || action == GLFW_REPEAT;
-				ctrlKeyUpData[key] = action == GLFW_RELEASE;
 			}
 
 			if (mods & GLFW_MOD_SUPER)
 			{
 				superKeyDownData[key] = action == GLFW_PRESS || action == GLFW_REPEAT;
-				superKeyUpData[key] = action == GLFW_RELEASE;
 			}
 
 			keyDownData[key] = action == GLFW_PRESS || action == GLFW_REPEAT;
-			keyUpData[key] = action == GLFW_RELEASE;
+
+			if (action == GLFW_RELEASE)
+			{
+				keyUpData[key] = true;
+				shiftKeyUpData[key] = true;
+				altKeyUpData[key] = true;
+				ctrlKeyUpData[key] = true;
+				superKeyUpData[key] = true;
+
+				shiftKeyDownData[key] = false;
+				ctrlKeyDownData[key] = false;
+				altKeyDownData[key] = false;
+				superKeyDownData[key] = false;
+			}
 		}
 
 		bool keyPressed(int key, KeyMods mods)
@@ -142,7 +151,7 @@ namespace MathAnim
 
 				if (mods == KeyMods::None)
 					return res && !shiftMod && !ctrlMod && !altMod && !superMod;
-				
+
 				res = (uint8)(mods & KeyMods::Shift) ? res && shiftMod : res && !shiftMod;
 				res = (uint8)(mods & KeyMods::Alt) ? res && altMod : res && !altMod;
 				res = (uint8)(mods & KeyMods::Ctrl) ? res && ctrlMod : res && !ctrlMod;

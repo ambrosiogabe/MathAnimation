@@ -529,6 +529,28 @@ namespace MathAnim
 			return res;
 		}
 
+		AnimObjId getNextSibling(const AnimationManagerData* am, AnimObjId objId)
+		{
+			const AnimObject* obj = getObject(am, objId);
+			if (obj)
+			{
+				bool passedMyself = false;
+				for (int i = 0; i < am->objects.size(); i++)
+				{
+					if (am->objects[i].id == objId)
+					{
+						passedMyself = true;
+					}
+					else if (am->objects[i].parentId == obj->parentId && passedMyself)
+					{
+						return am->objects[i].id;
+					}
+				}
+			}
+
+			return objId;
+		}
+
 		RawMemory serialize(const AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");

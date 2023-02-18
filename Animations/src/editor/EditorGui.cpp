@@ -26,10 +26,10 @@ namespace MathAnim
 	{
 		// ------------- Internal Functions -------------
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
-		static void checkHotKeys();
+		static void checkHotKeys(AnimationManagerData* am);
 		static void checkForMousePicking(const Framebuffer& mainFramebuffer);
 
-		static void showActiveObjectSelctionCtxMenu();
+		static void showActiveObjectSelctionCtxMenu(AnimationManagerData* am);
 
 		// ------------- Internal data -------------
 		static TimelineData timeline;
@@ -68,7 +68,7 @@ namespace MathAnim
 			MP_PROFILE_EVENT("EditorGui_Update");
 
 			// TODO: Do this in a central file
-			checkHotKeys();
+			checkHotKeys(am);
 			checkForMousePicking(editorFramebuffer);
 
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -222,29 +222,24 @@ namespace MathAnim
 		}
 
 		// ------------- Internal Functions -------------
-		static void checkHotKeys()
+		static void checkHotKeys(AnimationManagerData* am)
 		{
-			ImGuiIO& io = ImGui::GetIO();
 			AnimObjId activeAnimObj = InspectorPanel::getActiveAnimObject();
-			if (io.KeyCtrl)
+			if (Input::keyPressed(GLFW_KEY_S, KeyMods::Ctrl))
 			{
-				if (ImGui::IsKeyPressed(ImGuiKey_S, false))
-				{
-					Application::saveProject();
-				}
+				Application::saveProject();
 			}
 
-			if (io.KeyShift)
+			if (mouseHoveringViewport && !isNull(activeAnimObj) && Input::keyPressed(GLFW_KEY_G, KeyMods::Shift))
 			{
-				if (mouseHoveringViewport && !isNull(activeAnimObj) && ImGui::IsKeyPressed(ImGuiKey_G, false))
-				{
-					openActiveObjectSelectionContextMenu = true;
-				}
+				Input::keyPressed(GLFW_KEY_G, KeyMods::Shift);
+				openActiveObjectSelectionContextMenu = true;
 			}
 
+			ImGuiIO& io = ImGui::GetIO();
 			if (!io.WantTextInput)
 			{
-				if (ImGui::IsKeyPressed(ImGuiKey_Space, false))
+				if (Input::keyPressed(GLFW_KEY_SPACE))
 				{
 					AnimState currentPlayState = Application::getEditorPlayState();
 					AnimState newState = currentPlayState == AnimState::PlayForward
@@ -260,7 +255,7 @@ namespace MathAnim
 				openActiveObjectSelectionContextMenu = false;
 			}
 
-			showActiveObjectSelctionCtxMenu();
+			showActiveObjectSelctionCtxMenu(am);
 		}
 
 		static void checkForMousePicking(const Framebuffer& mainFramebuffer)
@@ -325,15 +320,64 @@ namespace MathAnim
 			}
 		}
 
-		static void showActiveObjectSelctionCtxMenu()
+		static void showActiveObjectSelctionCtxMenu(AnimationManagerData* am)
 		{
 			if (ImGui::BeginPopupContextItem(openActiveObjectSelectionContextMenuId))
 			{
+				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Neutral[2]);
+				ImGui::PushStyleColor(ImGuiCol_Separator, Colors::Neutral[2]);
 				ImGui::Text("Select Grouped");
 				ImGui::Separator();
+				ImGui::PopStyleColor(2);
 
-				if (ImGui::Selectable("Set to zero")) {}
-				if (ImGui::Selectable("Set to PI")) {}
+				AnimObjId activeObject = InspectorPanel::getActiveAnimObject();
+				const AnimObject* obj = AnimationManager::getObject(am, activeObject);
+				if (ImGui::Selectable("Root"))
+				{
+					// Find the parent
+					AnimObjId newActiveObj = activeObject;
+					AnimObjId parent = NULL_ANIM_OBJECT;
+					if (obj)
+					{
+						parent = obj->parentId;
+					}
+					while (!isNull(parent))
+					{
+						obj = AnimationManager::getObject(am, parent);
+						if (obj)
+						{
+							parent = obj->parentId;
+							newActiveObj = obj->id;
+						}
+						else
+						{
+							parent = NULL_ANIM_OBJECT;
+						}
+					}
+
+					InspectorPanel::setActiveAnimObject(newActiveObj);
+				}
+				if (ImGui::Selectable("Parent"))
+				{
+					// Find the parent
+					if (obj && !isNull(obj->parentId))
+					{
+						InspectorPanel::setActiveAnimObject(obj->parentId);
+					}
+				}
+				if (ImGui::Selectable("First Child"))
+				{
+					std::vector<AnimObjId> children = AnimationManager::getChildren(am, activeObject);
+					if (children.size() > 0)
+					{
+						InspectorPanel::setActiveAnimObject(children[0]);
+					}
+				}
+				if (ImGui::Selectable("Next Sibling"))
+				{
+					AnimObjId sibling = AnimationManager::getNextSibling(am, activeObject);
+					InspectorPanel::setActiveAnimObject(sibling);
+				}
 				ImGui::EndPopup();
 			}
 		}
