@@ -876,16 +876,22 @@ namespace MathAnim
 			Vec3 globalPositionStart = this->_globalPositionStart;
 			if (GizmoManager::translateGizmo(gizmoName.c_str(), &globalPositionStart))
 			{
-				this->_globalPositionStart = globalPositionStart;
-
-				// Then get local position
-				Vec3 localPosition = this->_globalPositionStart;
+				glm::mat4 parentsTransform = glm::mat4(1.0f);
 				if (!isNull(this->parentId))
 				{
 					const AnimObject* parent = AnimationManager::getObject(am, this->parentId);
-					localPosition = this->_globalPositionStart - parent->_globalPositionStart;
+					if (parent)
+					{
+						parentsTransform = parent->_globalTransformStart;
+					}
 				}
-				this->_positionStart = localPosition;
+				glm::mat4 inverseParentTransform = glm::inverse(parentsTransform);
+				glm::vec4 newGlobalPosition = glm::vec4(globalPositionStart.x, globalPositionStart.y, globalPositionStart.z, 1.0f);
+				glm::vec4 newLocal = inverseParentTransform * newGlobalPosition;
+
+				// Then get local position
+				this->_positionStart = Vec3{ newLocal.x, newLocal.y, newLocal.z };
+				this->_globalPositionStart = globalPositionStart;
 				AnimationManager::updateObjectState(am, this->id);
 			}
 		}
@@ -1214,8 +1220,8 @@ namespace MathAnim
 		{
 			Svg::copy(svgObject, _svgObjectStart);
 		}
-		globalPosition = _globalPositionStart;
 		position = _positionStart;
+		globalPosition = _positionStart;
 		rotation = _rotationStart;
 		scale = _scaleStart;
 		fillColor = _fillColorStart;
@@ -1598,6 +1604,7 @@ namespace MathAnim
 		res.position = res._positionStart;
 
 		res.globalTransform = glm::identity<glm::mat4>();
+		res._globalTransformStart = glm::identity<glm::mat4>();
 
 		switch (type)
 		{
@@ -1859,6 +1866,8 @@ namespace MathAnim
 		// Initialize other variables
 		res.position = res._positionStart;
 		res.rotation = res._rotationStart;
+		res.globalPosition = res.position;
+		res._globalPositionStart = res._positionStart;
 		res.scale = res._scaleStart;
 		res.strokeColor = res._strokeColorStart;
 		res.fillColor = res._fillColorStart;
