@@ -28,6 +28,10 @@ namespace MathAnim
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
 		static void checkHotKeys();
 		static void checkForMousePicking(const Framebuffer& mainFramebuffer);
+
+		static void showActiveObjectSelctionCtxMenu();
+
+		// ------------- Internal data -------------
 		static TimelineData timeline;
 		static bool timelineLoaded = false;
 		static ImVec2 viewportOffset;
@@ -35,6 +39,9 @@ namespace MathAnim
 		static bool mouseHoveringViewport;
 		static bool mainViewportIsActive;
 		static bool editorViewportIsActive;
+
+		static bool openActiveObjectSelectionContextMenu = false;
+		static const char* openActiveObjectSelectionContextMenuId = "##ACTIVE_OBJECT_SELECTION_CTX_MENU";
 
 		void init(AnimationManagerData* am, const std::filesystem::path& projectRoot, uint32 outputWidth, uint32 outputHeight)
 		{
@@ -218,12 +225,20 @@ namespace MathAnim
 		static void checkHotKeys()
 		{
 			ImGuiIO& io = ImGui::GetIO();
+			AnimObjId activeAnimObj = InspectorPanel::getActiveAnimObject();
 			if (io.KeyCtrl)
 			{
 				if (ImGui::IsKeyPressed(ImGuiKey_S, false))
 				{
 					Application::saveProject();
-					g_logger_info("Saving project.");
+				}
+			}
+
+			if (io.KeyShift)
+			{
+				if (mouseHoveringViewport && !isNull(activeAnimObj) && ImGui::IsKeyPressed(ImGuiKey_G, false))
+				{
+					openActiveObjectSelectionContextMenu = true;
 				}
 			}
 
@@ -238,6 +253,14 @@ namespace MathAnim
 					Application::setEditorPlayState(newState);
 				}
 			}
+
+			if (openActiveObjectSelectionContextMenu)
+			{
+				ImGui::OpenPopup(openActiveObjectSelectionContextMenuId);
+				openActiveObjectSelectionContextMenu = false;
+			}
+
+			showActiveObjectSelctionCtxMenu();
 		}
 
 		static void checkForMousePicking(const Framebuffer& mainFramebuffer)
@@ -299,6 +322,19 @@ namespace MathAnim
 			{
 				float xOffset = (contentRegion.x - res.x - (padding.x * 2.0f)) / 2.0f;
 				offset->x += xOffset;
+			}
+		}
+
+		static void showActiveObjectSelctionCtxMenu()
+		{
+			if (ImGui::BeginPopupContextItem(openActiveObjectSelectionContextMenuId))
+			{
+				ImGui::Text("Select Grouped");
+				ImGui::Separator();
+
+				if (ImGui::Selectable("Set to zero")) {}
+				if (ImGui::Selectable("Set to PI")) {}
+				ImGui::EndPopup();
 			}
 		}
 	}

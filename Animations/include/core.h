@@ -77,6 +77,21 @@ MathAnim::Vec4 fromCssColor(const std::string& cssColorStr);
 // SIMD intrinsics
 #include <xmmintrin.h>
 
+#define MATH_ANIM_ENUM_FLAG_OPS(enumName) \
+inline enumName operator|(enumName lhs, enumName rhs) { \
+	return static_cast<enumName>( \
+		static_cast<std::underlying_type_t<enumName>>(lhs) | \
+		static_cast<std::underlying_type_t<enumName>>(rhs)   \
+		); \
+} \
+inline enumName operator&(enumName lhs, enumName rhs) \
+{ \
+	return static_cast<enumName>( \
+		static_cast<std::underlying_type_t<enumName>>(lhs) & \
+		static_cast<std::underlying_type_t<enumName>>(rhs)   \
+		); \
+}
+
 #define KB(x) (x * 1024)
 #define MB(x) (x * KB(1024))
 #define GB(x) (x * MB(1024))

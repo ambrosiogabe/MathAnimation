@@ -19,6 +19,16 @@ namespace MathAnim
 		Length
 	};
 
+	enum class KeyMods : uint8
+	{
+		None = 0,
+		Shift = 1 << 0,
+		Alt   = 1 << 1,
+		Ctrl  = 1 << 2,
+		Super = 1 << 3
+	};
+	MATH_ANIM_ENUM_FLAG_OPS(KeyMods);
+
 	namespace Input
 	{
 		extern float mouseX;
@@ -34,9 +44,9 @@ namespace MathAnim
 		void endFrame();
 		
 		void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-		bool keyPressed(int key);
-		bool keyDown(int key);
-		bool keyUp(int key);
+		bool keyPressed(int key, KeyMods mods = KeyMods::None);
+		bool keyDown(int key, KeyMods mods = KeyMods::None);
+		bool keyUp(int key, KeyMods mods = KeyMods::None);
 
 		bool mouseClicked(MouseButton button);
 		bool mouseDown(MouseButton button);
