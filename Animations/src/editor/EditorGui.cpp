@@ -239,6 +239,7 @@ namespace MathAnim
 				}
 			}
 		}
+
 		static void checkForMousePicking(const Framebuffer& mainFramebuffer)
 		{
 			if (mouseHoveringViewport && !GizmoManager::anyGizmoActive())

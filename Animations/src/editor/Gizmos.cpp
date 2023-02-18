@@ -250,9 +250,11 @@ namespace MathAnim
 					break;
 				}
 
-				if (Input::mouseDown(MouseButton::Left))
+				g->activeGizmo = gizmo->idHash;
+				if (Input::mouseClicked(MouseButton::Left))
 				{
 					gizmo->moveMode = FollowMouseMoveMode::None;
+					g->activeGizmo = NullGizmo;
 				}
 
 				// If we're in gizmo follow mouse mode, then every frame results in a change operation.
