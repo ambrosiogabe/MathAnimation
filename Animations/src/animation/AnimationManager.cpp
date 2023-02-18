@@ -44,7 +44,7 @@ namespace MathAnim
 		// -------- Internal Functions --------
 		static void deserializeAnimationManagerExV1(AnimationManagerData* am, RawMemory& memory);
 		static bool compareAnimation(const Animation& a1, const Animation& a2);
-		static void updateGlobalTransform(AnimObject& obj);
+		static void updateGlobalTransform(AnimObject& obj, const glm::mat4& parentTransform, const glm::mat4& parentTransformStart);
 		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj);
 		static void addQueuedAnimation(AnimationManagerData* am, const Animation& anim);
 		static void removeQueuedAnimObject(AnimationManagerData* am, AnimObjId animObj);
@@ -658,36 +658,15 @@ namespace MathAnim
 				AnimObject* nextObj = getMutableObject(am, nextObjId);
 				if (nextObj)
 				{
-					updateGlobalTransform(*nextObj);
-
-					// Then apply parent transformation if the parent exists
-					// At this point the parent should have been updated already
-					// since the queue is FIFO
-					if (!isNull(nextObj->parentId))
+					glm::mat4 parentTransform = glm::mat4(1.0f);
+					glm::mat4 parentTransformStart = glm::mat4(1.0f);
+					const AnimObject* parent = getObject(am, nextObj->parentId);
+					if (parent)
 					{
-						const AnimObject* parent = getObject(am, nextObj->parentId);
-						if (parent)
-						{
-							// Apply parent transform to child
-							nextObj->globalTransform = parent->globalTransform * nextObj->globalTransform;
-							nextObj->_globalTransformStart = parent->_globalTransformStart * nextObj->_globalTransformStart;
-							{
-								// TODO: Deduplicate this stuff
-								glm::vec3 position, scale, skew;
-								glm::quat rotation;
-								glm::vec4 perspective;
-								glm::decompose(nextObj->globalTransform, scale, rotation, position, skew, perspective);
-								nextObj->globalPosition = Vec3{ position.x, position.y, position.z };
-							}
-							{
-								glm::vec3 position, scale, skew;
-								glm::quat rotation;
-								glm::vec4 perspective;
-								glm::decompose(nextObj->_globalTransformStart, scale, rotation, position, skew, perspective);
-								nextObj->_globalPositionStart = Vec3{ position.x, position.y, position.z };
-							}
-						}
+						parentTransform = parent->globalTransform;
+						parentTransformStart = parent->_globalTransformStart;
 					}
+					updateGlobalTransform(*nextObj, parentTransform, parentTransformStart);
 
 					// Then append all direct children to the queue so they are
 					// recursively updated
@@ -897,29 +876,40 @@ namespace MathAnim
 			return a1.frameStart < a2.frameStart;
 		}
 
-		static void updateGlobalTransform(AnimObject& obj)
+		static glm::mat4 calculateTransform(const Vec3& eulerAnglesRotation, const Vec3& scale, const Vec3& position)
 		{
-			{
-				glm::quat xRotation = glm::angleAxis(glm::radians(obj.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-				glm::quat yRotation = glm::angleAxis(glm::radians(obj.rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-				glm::quat zRotation = glm::angleAxis(glm::radians(obj.rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+			glm::quat xRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+			glm::quat yRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+			glm::quat zRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-				glm::mat4 rotation = glm::toMat4(xRotation * yRotation * zRotation);
-				glm::mat4 scale = glm::scale(glm::mat4(1.0f), CMath::convert(obj.scale));
-				glm::mat4 translation = glm::translate(glm::mat4(1.0f), CMath::convert(obj.position));
-				obj.globalTransform = translation * rotation * scale;
-			}
+			glm::mat4 rotation = glm::toMat4(xRotation * yRotation * zRotation);
+			glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), CMath::convert(scale));
+			glm::mat4 translation = glm::translate(glm::mat4(1.0f), CMath::convert(position));
+			
+			return translation * rotation * scaleMatrix;
+		}
 
-			{
-				glm::quat xRotation = glm::angleAxis(glm::radians(obj._rotationStart.x), glm::vec3(1.0f, 0.0f, 0.0f));
-				glm::quat yRotation = glm::angleAxis(glm::radians(obj._rotationStart.y), glm::vec3(0.0f, 1.0f, 0.0f));
-				glm::quat zRotation = glm::angleAxis(glm::radians(obj._rotationStart.z), glm::vec3(0.0f, 0.0f, 1.0f));
+		static void updateGlobalTransform(AnimObject& obj, const glm::mat4& parentTransform, const glm::mat4& parentTransformStart)
+		{
+			// Calculate local transformation
+			obj.globalTransform = calculateTransform(obj.rotation, obj.scale, obj.position);
+			obj._globalTransformStart = calculateTransform(obj._rotationStart, obj._scaleStart, obj._positionStart);
 
-				glm::mat4 rotation = glm::toMat4(xRotation * yRotation * zRotation);
-				glm::mat4 scale = glm::scale(glm::mat4(1.0f), CMath::convert(obj._scaleStart));
-				glm::mat4 translation = glm::translate(glm::mat4(1.0f), CMath::convert(obj._positionStart));
-				obj._globalTransformStart = translation * rotation * scale;
-			}
+			// Multiply parent transforms through to apply global transformation
+			obj.globalTransform = parentTransform * obj.globalTransform;
+			obj._globalTransformStart = parentTransformStart * obj._globalTransformStart;
+
+			// Extract positions
+			obj.globalPosition = Vec3{
+				obj.globalTransform[3][0],
+				obj.globalTransform[3][1],
+				obj.globalTransform[3][2]
+			};
+			obj._globalPositionStart = Vec3{
+				obj._globalTransformStart[3][0],
+				obj._globalTransformStart[3][1],
+				obj._globalTransformStart[3][2]
+			};
 		}
 
 		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj)

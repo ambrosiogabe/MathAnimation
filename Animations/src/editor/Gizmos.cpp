@@ -310,6 +310,13 @@ namespace MathAnim
 				{
 					g->activeGizmo = NullGizmo;
 				}
+				else if (Input::keyPressed(GLFW_KEY_ESCAPE))
+				{
+					// Cancel move operation
+					g->activeGizmo = NullGizmo;
+					*position = gizmo->positionMoveStart;
+					modified = true;
+				}
 				else
 				{
 					// Handle mouse dragging

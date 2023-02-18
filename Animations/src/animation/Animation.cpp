@@ -875,8 +875,7 @@ namespace MathAnim
 			// It's important to render the gizmo at the global location, and then transform
 			// the result back to local coordinates since the user is editing with gizmos in global
 			// space
-			Vec3 globalPositionStart = this->_globalPositionStart;
-			if (GizmoManager::translateGizmo(gizmoName.c_str(), &globalPositionStart))
+			if (GizmoManager::translateGizmo(gizmoName.c_str(), &this->_globalPositionStart))
 			{
 				glm::mat4 parentsTransform = glm::mat4(1.0f);
 				if (!isNull(this->parentId))
@@ -888,12 +887,11 @@ namespace MathAnim
 					}
 				}
 				glm::mat4 inverseParentTransform = glm::inverse(parentsTransform);
-				glm::vec4 newGlobalPosition = glm::vec4(globalPositionStart.x, globalPositionStart.y, globalPositionStart.z, 1.0f);
+				glm::vec4 newGlobalPosition = glm::vec4(_globalPositionStart.x, _globalPositionStart.y, _globalPositionStart.z, 1.0f);
 				glm::vec4 newLocal = inverseParentTransform * newGlobalPosition;
 
 				// Then get local position
 				this->_positionStart = Vec3{ newLocal.x, newLocal.y, newLocal.z };
-				this->_globalPositionStart = globalPositionStart;
 				AnimationManager::updateObjectState(am, this->id);
 			}
 		}
