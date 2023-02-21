@@ -237,6 +237,21 @@ namespace MathAnim
 			glScissor(x, y, width, height);
 		}
 
+		void stencilOp(GLenum fail, GLenum zfail, GLenum zpass)
+		{
+			glStencilOp(fail, zfail, zpass);
+		}
+
+		void stencilMask(GLuint mask)
+		{
+			glStencilMask(mask);
+		}
+
+		void stencilFunc(GLenum func, GLint ref, GLuint mask)
+		{
+			glStencilFunc(func, ref, mask);
+		}
+
 		// Render functions
 		void drawArrays(GLenum mode, GLint first, GLsizei count)
 		{

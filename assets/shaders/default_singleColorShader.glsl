@@ -23,29 +23,21 @@ void main()
 #type fragment
 #version 330 core
 layout (location = 0) out vec4 FragColor;
-layout (location = 3) out uvec2 ObjId;
 
 in vec4 fColor;
 in vec2 fTexCoord;
 flat in uvec2 fObjId;
 
 uniform sampler2D uTexture;
-uniform int uWireframeOn;
+uniform vec4 uColor;
 
 void main()
 {
-    // Just early out for wireframe
-    if (uWireframeOn != 0) {
-        FragColor = vec4(1);
-        return;
-    }
-
     vec4 texColor = texture(uTexture, fTexCoord);
     if (texColor.a < 0.05 || fColor.a < 0.05) {
         FragColor = vec4(0);
         return;
     }
 
-    FragColor = fColor * texColor;
-    ObjId = fObjId;
+    FragColor = uColor;
 }

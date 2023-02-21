@@ -11,6 +11,15 @@ namespace MathAnim
 	struct OrthoCamera;
 
 	struct AnimationManagerData;
+	
+	enum class RenderType : uint8
+	{
+		AllObjects,
+		ActiveObjectsOnly,
+		ActiveObjectsScaledUp,
+		ActiveObjectsScaledDown,
+		InactiveObjectsOnly
+	};
 
 	namespace AnimationManager
 	{
@@ -33,7 +42,7 @@ namespace MathAnim
 		void setAnimationTrack(AnimationManagerData* am, AnimId anim, int track);
 
 		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight);
-		void render(AnimationManagerData* am, int deltaFrame);
+		void render(AnimationManagerData* am, int deltaFrame, RenderType renderType = RenderType::AllObjects);
 
 		int lastAnimatedFrame(const AnimationManagerData* am);
 		bool isPastLastFrame(const AnimationManagerData* am);

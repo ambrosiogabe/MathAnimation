@@ -41,12 +41,16 @@ namespace MathAnim
 		void free();
 
 		// ----------- Render calls ----------- 
-		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera, bool shouldRenderPickingOutline);
-		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, AnimationManagerData* am, bool shouldRenderPickingOutline);
+		void bindAndUpdateViewportForFramebuffer(Framebuffer& framebuffer);
+		void clearFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor);
+		void renderToFramebuffer(Framebuffer& framebuffer, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera);
+		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am);
+		void renderStencilOutlineToFramebuffer(AnimationManagerData* am, Framebuffer& framebuffer, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera);
+
 		void renderFramebuffer(const Framebuffer& framebuffer);
 		void renderTextureToFramebuffer(const Texture& texture, const Framebuffer& framebuffer);
 		void renderTextureToYuvFramebuffer(const Texture& texture, const Framebuffer& yFramebuffer, const Framebuffer& uvFramebuffer);
-		void endFrame();
+		void clearDrawCalls();
 
 		// ----------- Styles ----------- 
 		// TODO: Should this be push/pop calls, or more like nvgStroke calls with implicit pops?

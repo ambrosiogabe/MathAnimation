@@ -197,72 +197,105 @@ namespace MathAnim
 	void Shader::uploadVec4(const char* varName, const glm::vec4& vec4) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		GL::uniform4f(varLocation, vec4.x, vec4.y, vec4.z, vec4.w);
+		if (varLocation != -1)
+		{
+			GL::uniform4f(varLocation, vec4.x, vec4.y, vec4.z, vec4.w);
+		}
 	}
 
 	void Shader::uploadVec3(const char* varName, const glm::vec3& vec3) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		GL::uniform3f(varLocation, vec3.x, vec3.y, vec3.z);
+		if (varLocation != -1)
+		{
+			GL::uniform3f(varLocation, vec3.x, vec3.y, vec3.z);
+		}
 	}
 
 	void Shader::uploadVec2(const char* varName, const glm::vec2& vec2) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		GL::uniform2f(varLocation, vec2.x, vec2.y);
+		if (varLocation != -1)
+		{
+			GL::uniform2f(varLocation, vec2.x, vec2.y);
+		}
 	}
 
 	void Shader::uploadFloat(const char* varName, float value) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		GL::uniform1f(varLocation, value);
+		if (varLocation != -1)
+		{
+			GL::uniform1f(varLocation, value);
+		}
 	}
 
 	void Shader::uploadInt(const char* varName, int value) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		GL::uniform1i(varLocation, value);
+		if (varLocation != -1)
+		{
+			GL::uniform1i(varLocation, value);
+		}
 	}
 
 	void Shader::uploadUInt(const char* varName, uint32 value) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		GL::uniform1ui(varLocation, value);
+		if (varLocation != -1)
+		{
+			GL::uniform1ui(varLocation, value);
+		}
 	}
 
 	void Shader::uploadUVec2(const char* varName, const glm::uvec2& vec2) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		GL::uniform2ui(varLocation, vec2.x, vec2.y);
+		if (varLocation != -1)
+		{
+			GL::uniform2ui(varLocation, vec2.x, vec2.y);
+		}
 	}
 
 	void Shader::uploadU64AsUVec2(const char* varName, uint64 value) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		// Split the number into two parts 
-		//   R = High
-		//   G = Low
-		uint32 r = (uint32)((value & 0xFFFF'FFFF'0000'0000) >> 32);
-		uint32 g = (uint32)(value & 0x0000'0000'FFFF'FFFF);
-		GL::uniform2ui(varLocation, r, g);
+		if (varLocation != -1)
+		{
+			// Split the number into two parts 
+			//   R = High
+			//   G = Low
+			uint32 r = (uint32)((value & 0xFFFF'FFFF'0000'0000) >> 32);
+			uint32 g = (uint32)(value & 0x0000'0000'FFFF'FFFF);
+			GL::uniform2ui(varLocation, r, g);
+		}
 	}
 
 	void Shader::uploadMat4(const char* varName, const glm::mat4& mat4) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		GL::uniformMatrix4fv(varLocation, 1, GL_FALSE, glm::value_ptr(mat4));
+		if (varLocation != -1)
+		{
+			GL::uniformMatrix4fv(varLocation, 1, GL_FALSE, glm::value_ptr(mat4));
+		}
 	}
 
 	void Shader::uploadMat3(const char* varName, const glm::mat3& mat3) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		GL::uniformMatrix3fv(varLocation, 1, GL_FALSE, glm::value_ptr(mat3));
+		if (varLocation != -1)
+		{
+			GL::uniformMatrix3fv(varLocation, 1, GL_FALSE, glm::value_ptr(mat3));
+		}
 	}
 
 	void Shader::uploadIntArray(const char* varName, int length, const int* array) const
 	{
 		int varLocation = GetVariableLocation(*this, varName);
-		GL::uniform1iv(varLocation, length, array);
+		if (varLocation != -1)
+		{
+			GL::uniform1iv(varLocation, length, array);
+		}
 	}
 
 	bool Shader::isNull() const
@@ -289,8 +322,6 @@ namespace MathAnim
 			return iter->second;
 		}
 
-		g_logger_warning("Could not find shader variable '%s' for shader '%s'. Hint, maybe the shader variable is not used in the program? If so, then it will be compiled out of existence.", 
-			varName, shader.filepath.string().c_str());
 		return -1;
 	}
 

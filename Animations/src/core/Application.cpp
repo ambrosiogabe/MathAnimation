@@ -197,23 +197,49 @@ namespace MathAnim
 				LuauLayer::update();
 
 				// Render all animation draw calls to main framebuffer
-				bool renderPickingOutline = false;
-
 				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
 				{
 					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
-					Renderer::renderToFramebuffer(mainFramebuffer, greenBrown, am, renderPickingOutline);
+					Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
+					Renderer::clearFramebuffer(mainFramebuffer, greenBrown);
+					Renderer::renderToFramebuffer(mainFramebuffer, am);
+
+					Renderer::clearDrawCalls();
 				}
-				// Collect gizmo draw calls
-				GizmoManager::render(am);
-				// Render all gizmo draw calls and animation draw calls to the editor framebuffer
-				renderPickingOutline = true;
+
+				// Render active objects with outlines around them
 				if (EditorGui::editorViewportActive())
 				{
-					MP_PROFILE_EVENT("MainLoop_RenderToEditorViewport");
-					Renderer::renderToFramebuffer(editorFramebuffer, Colors::Neutral[7], editorCamera2D, editorCamera3D, renderPickingOutline);
+					Renderer::bindAndUpdateViewportForFramebuffer(editorFramebuffer);
+					Renderer::clearFramebuffer(editorFramebuffer, Colors::Neutral[7]);
+
+					{
+						MP_PROFILE_EVENT("MainLoop_RenderActiveObjectOutlines");
+						Renderer::renderStencilOutlineToFramebuffer(am, editorFramebuffer, editorCamera2D, editorCamera3D);
+
+						Renderer::clearDrawCalls();
+					}
+
+					{
+						// Then render the rest of the stuff
+						MP_PROFILE_EVENT("MainLoop_RenderToEditorViewport");
+						editorFramebuffer.clearDepthStencil();
+						AnimationManager::render(am, deltaFrame, RenderType::InactiveObjectsOnly);
+						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera2D, editorCamera3D);
+
+						Renderer::clearDrawCalls();
+					}
+
+					{
+						// Collect gizmo draw calls and render on top of outlined object
+						MP_PROFILE_EVENT("MainLoop_RenderGizmos");
+						editorFramebuffer.clearDepthStencil();
+						GizmoManager::render(am);
+						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera2D, editorCamera3D);
+
+						Renderer::clearDrawCalls();
+					}
 				}
-				Renderer::endFrame();
 
 				// Bind the window framebuffer and render ImGui results
 				GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -252,7 +278,9 @@ namespace MathAnim
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
 			AnimationManager::render(am, deltaFrame);
-			Renderer::renderToFramebuffer(mainFramebuffer, greenBrown, am, false);
+			Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
+			Renderer::clearFramebuffer(mainFramebuffer, greenBrown);
+			Renderer::renderToFramebuffer(mainFramebuffer, am);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path outputFile = (currentProjectRoot / "projectPreview.png");
 			if (mainFramebuffer.width > 1280 || mainFramebuffer.height > 720)

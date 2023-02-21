@@ -51,8 +51,11 @@ namespace MathAnim
 		void* mapBuffer(GLenum target, GLenum access);
 		GLboolean unmapBuffer(GLenum target);
 
-		// Scissor stuff
+		// Stencil/Scissor stuff
 		void scissor(GLint x, GLint y, GLsizei width, GLsizei height);
+		void stencilOp(GLenum fail, GLenum zfail, GLenum zpass);
+		void stencilMask(GLuint mask);
+		void stencilFunc(GLenum func, GLint ref, GLuint mask);
 
 		// Render functions
 		void drawArrays(GLenum mode, GLint first, GLsizei count);

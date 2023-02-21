@@ -5,6 +5,7 @@
 #include "renderer/Framebuffer.h"
 #include "renderer/OrthoCamera.h"
 #include "editor/EditorSettings.h"
+#include "editor/panels/InspectorPanel.h"
 #include "svg/Svg.h"
 #include "math/CMath.h"
 #include "core/Application.h"
@@ -333,10 +334,12 @@ namespace MathAnim
 			return res;
 		}
 
-		void render(AnimationManagerData* am, int deltaFrame)
+		void render(AnimationManagerData* am, int deltaFrame, RenderType renderType)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 			MP_PROFILE_EVENT("AnimationManager_Render");
+
+			AnimObjId activeObject = InspectorPanel::getActiveAnimObject();
 
 			if (deltaFrame != 0)
 			{
@@ -351,9 +354,42 @@ namespace MathAnim
 
 				for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 				{
-					if (objectIter->status != AnimObjectStatus::Inactive)
+					bool shouldScale = renderType == RenderType::ActiveObjectsScaledUp || renderType == RenderType::ActiveObjectsScaledDown;
+					bool shouldRender = renderType == RenderType::AllObjects
+						? true
+						: renderType == RenderType::InactiveObjectsOnly 
+						? objectIter->id != activeObject
+						: objectIter->id == activeObject;
+
+					Vec3 oldObjectScale = objectIter->scale;
+					glm::mat4 oldObjectTransform = objectIter->globalTransform;
+					glm::mat4 oldObjectTransformStart = objectIter->_globalTransformStart;
+					if (shouldScale && objectIter->id == activeObject)
+					{
+						glm::mat4 parentTransform = glm::mat4(1.0f);
+						glm::mat4 parentTransformStart = glm::mat4(1.0f);
+						const AnimObject* parent = getObject(am, objectIter->parentId);
+						if (parent)
+						{
+							parentTransform = parent->globalTransform;
+							parentTransformStart = parent->_globalTransformStart;
+						}
+						shouldRender = true;
+						float scale = renderType == RenderType::ActiveObjectsScaledUp ? 1.02f : 0.98f;
+						objectIter->scale *= scale;
+						updateGlobalTransform(*objectIter, parentTransform, parentTransformStart);
+					}
+
+					if (objectIter->status != AnimObjectStatus::Inactive && shouldRender)
 					{
 						objectIter->render(am);
+					}
+
+					if (shouldScale && objectIter->id == activeObject)
+					{
+						objectIter->scale = oldObjectScale;
+						objectIter->globalTransform = oldObjectTransform;
+						objectIter->_globalTransformStart = oldObjectTransformStart;
 					}
 
 					// Update any updateable objects
@@ -900,13 +936,9 @@ namespace MathAnim
 
 		static void updateGlobalTransform(AnimObject& obj, const glm::mat4& parentTransform, const glm::mat4& parentTransformStart)
 		{
-			// Calculate local transformation
-			obj.globalTransform = CMath::calculateTransform(obj.rotation, obj.scale, obj.position);
-			obj._globalTransformStart = CMath::calculateTransform(obj._rotationStart, obj._scaleStart, obj._positionStart);
-
-			// Multiply parent transforms through to apply global transformation
-			obj.globalTransform = parentTransform * obj.globalTransform;
-			obj._globalTransformStart = parentTransformStart * obj._globalTransformStart;
+			// Calculate global transformation
+			obj.globalTransform = parentTransform * CMath::calculateTransform(obj.rotation, obj.scale, obj.position);
+			obj._globalTransformStart = parentTransformStart * CMath::calculateTransform(obj._rotationStart, obj._scaleStart, obj._positionStart);
 
 			// Extract positions
 			obj.globalPosition = CMath::extractPosition(obj.globalTransform);
