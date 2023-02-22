@@ -27,6 +27,7 @@
 #include "editor/timeline/Timeline.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/panels/SceneManagementPanel.h"
+#include "editor/panels/InspectorPanel.h"
 #include "editor/panels/MenuBar.h"
 #include "editor/panels/ExportPanel.h"
 #include "parsers/SyntaxHighlighter.h"
@@ -214,18 +215,19 @@ namespace MathAnim
 					Renderer::clearFramebuffer(editorFramebuffer, Colors::Neutral[7]);
 
 					{
-						MP_PROFILE_EVENT("MainLoop_RenderActiveObjectOutlines");
-						Renderer::renderStencilOutlineToFramebuffer(am, editorFramebuffer, editorCamera2D, editorCamera3D);
+						// Then render the rest of the stuff
+						MP_PROFILE_EVENT("MainLoop_RenderToEditorViewport");
+						editorFramebuffer.clearDepthStencil();
+						AnimationManager::render(am, deltaFrame);
+						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera2D, editorCamera3D);
 
 						Renderer::clearDrawCalls();
 					}
 
 					{
-						// Then render the rest of the stuff
-						MP_PROFILE_EVENT("MainLoop_RenderToEditorViewport");
-						editorFramebuffer.clearDepthStencil();
-						AnimationManager::render(am, deltaFrame, RenderType::InactiveObjectsOnly);
-						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera2D, editorCamera3D);
+						MP_PROFILE_EVENT("MainLoop_RenderActiveObjectOutlines");
+						const std::vector<AnimObjId>& activeObjects = InspectorPanel::getAllActiveAnimObjects();
+						Renderer::renderStencilOutlineToFramebuffer(editorFramebuffer, activeObjects);
 
 						Renderer::clearDrawCalls();
 					}

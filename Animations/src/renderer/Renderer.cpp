@@ -274,14 +274,13 @@ namespace MathAnim
 		static Shader shaderFont2D;
 		static Shader shader3DLine;
 		static Shader screenShader;
+		static Shader activeObjectMaskShader;
 		static Shader rgbToYuvShaderYChannel;
 		static Shader rgbToYuvShaderUvChannel;
 		static Shader shader3DOpaque;
 		static Shader shader3DTransparent;
 		static Shader shader3DComposite;
-
-		static Shader shader2D_singleColor;
-		static Shader shader3DComposite_singleColor;
+		static Shader jumpFloodShader;
 
 		static constexpr int MAX_STACK_SIZE = 64;
 
@@ -340,29 +339,27 @@ namespace MathAnim
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
+			activeObjectMaskShader.compile("assets/shaders/activeObjectMask.glsl");
 			rgbToYuvShaderYChannel.compile("assets/shaders/rgbToYuvYChannel.glsl");
 			rgbToYuvShaderUvChannel.compile("assets/shaders/rgbToYuvUvChannel.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
-
-			shader2D_singleColor.compile("assets/shaders/default_singleColorShader.glsl");
-			shader3DComposite_singleColor.compile("assets/shaders/shader3DComposite_singleColorShader.glsl");
+			jumpFloodShader.compile("assets/shaders/jumpFlood.glsl");
 #else
 			// TODO: Replace these with hardcoded strings
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
+			activeObjectMaskShader.compile("assets/shaders/activeObjectMask.glsl");
 			rgbToYuvShaderYChannel.compile("assets/shaders/rgbToYuvYChannel.glsl");
 			rgbToYuvShaderUvChannel.compile("assets/shaders/rgbToYuvUvChannel.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
-
-			shader2D_singleColor.compile("assets/shaders/default_singleColorShader.glsl");
-			shader3DComposite_singleColor.compile("assets/shaders/shader3DComposite_singleColorShader.glsl");
+			jumpFloodShader.compile("assets/shaders/jumpFlood.glsl");
 #endif
 
 			drawList2D.init();
@@ -378,15 +375,14 @@ namespace MathAnim
 			shader2D.destroy();
 			shaderFont2D.destroy();
 			screenShader.destroy();
+			activeObjectMaskShader.destroy();
 			rgbToYuvShaderYChannel.destroy();
 			rgbToYuvShaderUvChannel.destroy();
 			shader3DLine.destroy();
 			shader3DOpaque.destroy();
 			shader3DTransparent.destroy();
 			shader3DComposite.destroy();
-
-			shader2D_singleColor.destroy();
-			shader3DComposite_singleColor.destroy();
+			jumpFloodShader.destroy();
 
 			drawList2D.free();
 			drawListFont2D.free();
@@ -412,7 +408,7 @@ namespace MathAnim
 
 		void renderToFramebuffer(Framebuffer& framebuffer, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera)
 		{
-			constexpr size_t numExpectedColorAttachments = 4;
+			constexpr size_t numExpectedColorAttachments = 6;
 			g_logger_assert(framebuffer.colorAttachments.size() == numExpectedColorAttachments, "Invalid framebuffer. Should have %d color attachments.", numExpectedColorAttachments);
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
 
@@ -464,68 +460,76 @@ namespace MathAnim
 			renderToFramebuffer(framebuffer, orthoCamera, perspCamera);
 		}
 
-		void renderStencilOutlineToFramebuffer(AnimationManagerData* am, Framebuffer& framebuffer, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera)
+		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects)
 		{
+			// Algorithm instructions modified from
+			// Source[0]: https://bgolus.medium.com/the-quest-for-very-wide-outlines-ba82ed442cd9
+			// Source[1]: https://blog.demofox.org/2016/02/29/fast-voronoi-diagrams-and-distance-dield-textures-on-the-gpu-with-the-jump-flooding-algorithm/
+
 			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Main_Framebuffer_Pass_StencilOutline");
 
-			// Clear the depth and stencil buffers so that we overdraw the active objects
-			framebuffer.clearDepthStencil();
-
-			//GL::enable(GL_STENCIL_TEST);
-			//GL::stencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-			//GL::stencilFunc(GL_ALWAYS, 1, 0xFF);
-
-			// TODO: This is probably poor for performance, do some analysis to see if there needs to 
-			// be a better way to separate active object draw calls so that we don't have to overdraw
-			// for no reason
-
-			//GL::stencilFunc(GL_NOTEQUAL, 1, 0xFF);
-			//GL::stencilMask(0x00);
 			GL::disable(GL_DEPTH_TEST);
+			GL::viewport(0, 0, framebuffer.width, framebuffer.height);
 
+			// Reset the draw draw buffers
+			const GLenum compositeDrawBuffers[] = { GL_NONE, GL_NONE, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5 };
+			GL::drawBuffers(6, compositeDrawBuffers);
+
+			// Clear the draw buffer to 0s
+			framebuffer.bind();
+			float maskClearColor[4] = { -1.0f, -1.0f, -1.0f, -1.0f };
+			GL::clearBufferfv(GL_COLOR, 4, maskClearColor);
+			GL::clearBufferfv(GL_COLOR, 5, maskClearColor);
+
+			// Do a screen pass for the active object and each one of its children
+			activeObjectMaskShader.bind();
+
+			const Texture& objectIdTexture = framebuffer.getColorAttachment(3);
+			GL::activeTexture(GL_TEXTURE0);
+			objectIdTexture.bind();
+			activeObjectMaskShader.uploadInt("uObjectIdTexture", 0);
+
+			for (auto activeObjId : activeObjects)
 			{
-				AnimationManager::render(am, 0, RenderType::ActiveObjectsScaledUp);
-				AnimationManager::render(am, 0, RenderType::ActiveObjectsScaledDown);
+				activeObjectMaskShader.uploadU64AsUVec2("uActiveObjectId", activeObjId);
 
-				// Reset the draw buffers to draw to FB_attachment_0
-				GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
-				GL::drawBuffers(4, compositeDrawBuffers);
-
-				// Do all the draw calls
-				// Draw lines and strings
-				//drawList3DLine.render(shader3DLine, perspectiveCamera);
-				//drawListFont2D.render(shaderFont2D, orthoCamera);
-
-				// Draw 3D objects after the lines so that we can do appropriate blending
-				// using OIT
-				shader3DComposite_singleColor.bind();
-				const Vec4 higlightColor = "#f2d357"_hex;
-				shader3DComposite_singleColor.uploadVec4("uColor", glm::vec4(higlightColor.r, higlightColor.g, higlightColor.b, higlightColor.a));
-				drawList3D.render(shader3DOpaque, shader3DTransparent, shader3DComposite_singleColor, framebuffer, perspectiveCamera);
-
-				// Reset the draw buffers to draw to FB_attachment_0
-				GL::drawBuffers(4, compositeDrawBuffers);
-
-				// Draw 2D stuff over 3D stuff so that 3D stuff is always "behind" the
-				// 2D stuff like a HUD
-				// These should be blended appropriately
-				shader2D_singleColor.bind();
-				shader2D_singleColor.uploadVec4("uColor", glm::vec4(higlightColor.r, higlightColor.g, higlightColor.b, higlightColor.a));
-				drawList2D.render(shader2D_singleColor, orthoCamera);
+				GL::bindVertexArray(screenVao);
+				GL::drawArrays(GL_TRIANGLES, 0, 6);
 			}
 
-			// Collect draw calls for active objects only and then render them normally
-			clearDrawCalls();
+			// Do Jump Flood Algorithm
+			jumpFloodShader.bind();
+			// We'll always read from texture slot 0 in the loop
+			jumpFloodShader.uploadInt("uJumpMask", 0);
 
-			AnimationManager::render(am, 0, RenderType::ActiveObjectsOnly);
-			renderToFramebuffer(framebuffer, orthoCamera, perspectiveCamera);
-			clearDrawCalls();
+			const GLenum pingBuffer[] = { GL_COLOR_ATTACHMENT4, GL_NONE, GL_NONE, GL_NONE, GL_NONE };
+			const GLenum pongBuffer[] = { GL_COLOR_ATTACHMENT5, GL_NONE, GL_NONE, GL_NONE, GL_NONE };
+
+			int numPasses = (int)glm::log2((float)glm::max(framebuffer.width, framebuffer.height));
+			const GLenum* currentDrawBuffer = pongBuffer;
+			for (int pass = 0; pass < numPasses; pass++)
+			{
+				GL::drawBuffers(5, currentDrawBuffer);
+				int readBufferId = currentDrawBuffer == pingBuffer ? 5 : 4;
+				const Texture& currentReadBuffer = framebuffer.getColorAttachment(readBufferId);
+				GL::activeTexture(GL_TEXTURE0);
+				currentReadBuffer.bind();
+				// Switch where we draw to and read from every frame
+				currentDrawBuffer = currentDrawBuffer == pingBuffer ? pongBuffer : pingBuffer;
+
+				float sampleOffset = glm::exp2((float)numPasses - (float)pass - 1.0f);
+				glm::vec2 normalizedSampleOffset = glm::vec2(1.0f / framebuffer.width, 1.0f / framebuffer.height) * sampleOffset;
+				jumpFloodShader.uploadVec2("uSampleOffset", normalizedSampleOffset);
+
+				GL::bindVertexArray(screenVao);
+				GL::drawArrays(GL_TRIANGLES, 0, 6);
+			}
 
 			// Reset state
-			//GL::stencilMask(0xFF);
-			//GL::stencilFunc(GL_ALWAYS, 1, 0xFF);
-			//GL::disable(GL_STENCIL_TEST);
+			const GLenum regularDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE, GL_NONE };
+			GL::drawBuffers(5, regularDrawBuffers);
 			GL::enable(GL_DEPTH_TEST);
+			clearDrawCalls();
 
 			GL::popDebugGroup();
 		}

@@ -311,7 +311,7 @@ namespace MathAnim
 	class AnimObjectBreadthFirstIter
 	{
 	public:
-		AnimObjectBreadthFirstIter(AnimationManagerData* am, AnimObjId parentId);
+		AnimObjectBreadthFirstIter(const AnimationManagerData* am, AnimObjId parentId);
 
 		void operator++();
 
@@ -320,7 +320,7 @@ namespace MathAnim
 		inline AnimObjId operator*() const { return currentId; }
 
 	private: 
-		AnimationManagerData* am;
+		const AnimationManagerData* am;
 		std::deque<AnimObjId> childrenLeft;
 		AnimObjId currentId;
 	};
@@ -437,7 +437,7 @@ namespace MathAnim
 		void copyStrokeColorToChildren(AnimationManagerData* am) const;
 		void copyFillColorToChildren(AnimationManagerData* am) const;
 
-		AnimObjectBreadthFirstIter beginBreadthFirst(AnimationManagerData* am) const;
+		AnimObjectBreadthFirstIter beginBreadthFirst(const AnimationManagerData* am) const;
 		inline AnimObjId end() const { return NULL_ANIM_OBJECT; }
 		
 		void free();

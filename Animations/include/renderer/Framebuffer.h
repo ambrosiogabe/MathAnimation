@@ -30,7 +30,7 @@ namespace MathAnim
 
 		void bind() const;
 		void unbind() const;
-		void clearColorAttachmentUint32(int colorAttachment, uint32 clearColor) const;
+		void clearColorAttachmentUint32(int colorAttachment, uint32 clearColor[4]) const;
 		// Clear the RG values of the color attachment using the HIGH LOW 
 		// values of a uint64 value
 		void clearColorAttachmentUint64(int colorAttachment, uint64 clearColor) const;

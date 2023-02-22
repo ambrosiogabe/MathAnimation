@@ -265,8 +265,8 @@ namespace MathAnim
 			// Split the number into two parts 
 			//   R = High
 			//   G = Low
-			uint32 r = (uint32)((value & 0xFFFF'FFFF'0000'0000) >> 32);
-			uint32 g = (uint32)(value & 0x0000'0000'FFFF'FFFF);
+			uint32 g = (uint32)((value & 0xFFFF'FFFF'0000'0000) >> 32);
+			uint32 r = (uint32)(value & 0x0000'0000'FFFF'FFFF);
 			GL::uniform2ui(varLocation, r, g);
 		}
 	}

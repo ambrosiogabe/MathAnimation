@@ -20,9 +20,12 @@ namespace MathAnim
 		const char* getAnimObjectPayloadId();
 
 		void setActiveAnimation(AnimId animationId);
-		void setActiveAnimObject(AnimObjId animObjectId);
+		void setActiveAnimObject(const AnimationManagerData* am, AnimObjId animObjectId);
+
 		AnimObjId getActiveAnimObject();
 		AnimId getActiveAnimation();
+
+		const std::vector<AnimObjId>& getAllActiveAnimObjects();
 	}
 }
 

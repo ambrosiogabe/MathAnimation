@@ -45,7 +45,7 @@ namespace MathAnim
 		void clearFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor);
 		void renderToFramebuffer(Framebuffer& framebuffer, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera);
 		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am);
-		void renderStencilOutlineToFramebuffer(AnimationManagerData* am, Framebuffer& framebuffer, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera);
+		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects);
 
 		void renderFramebuffer(const Framebuffer& framebuffer);
 		void renderTextureToFramebuffer(const Texture& texture, const Framebuffer& framebuffer);

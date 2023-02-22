@@ -212,6 +212,8 @@ namespace MathAnim
 				return GL_RGB8;
 			case ByteFormat::RGB32_F:
 				return GL_RGB32F;
+			case ByteFormat::RG32_F:
+				return GL_RG32F;
 			case ByteFormat::R32_UI:
 				return GL_R32UI;
 			case ByteFormat::RG32_UI:
@@ -239,6 +241,8 @@ namespace MathAnim
 				return GL_RGB;
 			case ByteFormat::RGB32_F:
 				return GL_RGB;
+			case ByteFormat::RG32_F:
+				return GL_RG;
 			case ByteFormat::R32_UI:
 				return GL_RED_INTEGER;
 			case ByteFormat::RG32_UI:
@@ -266,6 +270,8 @@ namespace MathAnim
 				return GL_UNSIGNED_BYTE;
 			case ByteFormat::RGB32_F:
 				return GL_FLOAT;
+			case ByteFormat::RG32_F:
+				return GL_FLOAT;
 			case ByteFormat::R32_UI:
 				return GL_UNSIGNED_INT;
 			case ByteFormat::RG32_UI:
@@ -292,6 +298,8 @@ namespace MathAnim
 			case ByteFormat::RGB8_UI:
 				return false;
 			case ByteFormat::RGB32_F:
+				return false;
+			case ByteFormat::RG32_F:
 				return false;
 			case ByteFormat::R32_UI:
 				return true;
@@ -321,6 +329,8 @@ namespace MathAnim
 				return true;
 			case ByteFormat::RGB32_F:
 				return true;
+			case ByteFormat::RG32_F:
+				return false;
 			case ByteFormat::R32_UI:
 				return false;
 			case ByteFormat::RG32_UI:
@@ -347,6 +357,8 @@ namespace MathAnim
 			case ByteFormat::RGB8_UI:
 				return false;
 			case ByteFormat::RGB32_F:
+				return false;
+			case ByteFormat::RG32_F:
 				return false;
 			case ByteFormat::R32_UI:
 				return false;
@@ -398,6 +410,8 @@ namespace MathAnim
 				return sizeof(uint8) * 3;
 			case ByteFormat::RGB32_F:
 				return sizeof(float) * 3;
+			case ByteFormat::RG32_F:
+				return sizeof(float) * 2;
 			case ByteFormat::R32_UI:
 				return sizeof(uint32);
 			case ByteFormat::RG32_UI:

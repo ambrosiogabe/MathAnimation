@@ -23,13 +23,13 @@ namespace MathAnim
 		GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	void Framebuffer::clearColorAttachmentUint32(int colorAttachment, uint32 clearColor) const
+	void Framebuffer::clearColorAttachmentUint32(int colorAttachment, uint32 clearColor[4]) const
 	{
 		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsInt(texture), "Cannot clear non-uint texture as if it were a uint texture.");
 
-		GL::clearBufferuiv(GL_COLOR, colorAttachment, &clearColor);
+		GL::clearBufferuiv(GL_COLOR, colorAttachment, clearColor);
 	}
 
 	void Framebuffer::clearColorAttachmentUint64(int colorAttachment, uint64 clearColor) const

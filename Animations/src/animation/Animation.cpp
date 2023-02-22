@@ -1009,7 +1009,7 @@ namespace MathAnim
 	}
 
 	// ----------------------------- Iterators -----------------------------
-	AnimObjectBreadthFirstIter::AnimObjectBreadthFirstIter(AnimationManagerData* am, AnimObjId parentId)
+	AnimObjectBreadthFirstIter::AnimObjectBreadthFirstIter(const AnimationManagerData* am, AnimObjId parentId)
 	{
 		this->am = am;
 		std::vector<AnimObjId> children = AnimationManager::getChildren(am, parentId);
@@ -1032,7 +1032,7 @@ namespace MathAnim
 			// Push back all children's children
 			AnimObjId childId = childrenLeft.front();
 			childrenLeft.pop_front();
-			AnimObject* child = AnimationManager::getMutableObject(am, childId);
+			const AnimObject* child = AnimationManager::getObject(am, childId);
 			if (child)
 			{
 				std::vector<AnimObjId> childrensChildren = AnimationManager::getChildren(am, child->id);
@@ -1331,7 +1331,7 @@ namespace MathAnim
 		}
 	}
 
-	AnimObjectBreadthFirstIter AnimObject::beginBreadthFirst(AnimationManagerData* am) const
+	AnimObjectBreadthFirstIter AnimObject::beginBreadthFirst(const AnimationManagerData* am) const
 	{
 		return AnimObjectBreadthFirstIter(am, this->id);
 	}
