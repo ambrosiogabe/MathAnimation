@@ -52,8 +52,7 @@ void main()
     }
 
     if (texColor.a < 0.05 || fColor.a < 0.05) {
-        FragColor = vec4(0);
-        return;
+        discard;
     }
 
     FragColor = fColor * texColor;

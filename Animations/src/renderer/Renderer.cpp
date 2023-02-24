@@ -568,10 +568,6 @@ namespace MathAnim
 				GL::drawArrays(GL_TRIANGLES, 0, 6);
 			}
 
-			// Reset the rest of state
-			GL::enable(GL_DEPTH_TEST);
-			clearDrawCalls();
-
 			GL::popDebugGroup();
 		}
 
