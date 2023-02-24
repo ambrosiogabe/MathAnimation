@@ -357,12 +357,10 @@ namespace MathAnim
 			return res;
 		}
 
-		void render(AnimationManagerData *am, int deltaFrame, RenderType renderType)
+		void render(AnimationManagerData *am, int deltaFrame)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 			MP_PROFILE_EVENT("AnimationManager_Render");
-
-			AnimObjId activeObject = InspectorPanel::getActiveAnimObject();
 
 			if (deltaFrame != 0)
 			{
@@ -377,42 +375,9 @@ namespace MathAnim
 
 				for (auto objectIter = am->objects.begin(); objectIter != am->objects.end(); objectIter++)
 				{
-					bool shouldScale = renderType == RenderType::ActiveObjectsScaledUp || renderType == RenderType::ActiveObjectsScaledDown;
-					bool shouldRender = renderType == RenderType::AllObjects
-											? true
-										: renderType == RenderType::InactiveObjectsOnly
-											? objectIter->id != activeObject
-											: objectIter->id == activeObject;
-
-					Vec3 oldObjectScale = objectIter->scale;
-					glm::mat4 oldObjectTransform = objectIter->globalTransform;
-					glm::mat4 oldObjectTransformStart = objectIter->_globalTransformStart;
-					if (shouldScale && objectIter->id == activeObject)
-					{
-						glm::mat4 parentTransform = glm::mat4(1.0f);
-						glm::mat4 parentTransformStart = glm::mat4(1.0f);
-						const AnimObject *parent = getObject(am, objectIter->parentId);
-						if (parent)
-						{
-							parentTransform = parent->globalTransform;
-							parentTransformStart = parent->_globalTransformStart;
-						}
-						shouldRender = true;
-						float scale = renderType == RenderType::ActiveObjectsScaledUp ? 1.02f : 0.98f;
-						objectIter->scale *= scale;
-						updateGlobalTransform(*objectIter, parentTransform, parentTransformStart);
-					}
-
-					if (objectIter->status != AnimObjectStatus::Inactive && shouldRender)
+					if (objectIter->status != AnimObjectStatus::Inactive)
 					{
 						objectIter->render(am);
-					}
-
-					if (shouldScale && objectIter->id == activeObject)
-					{
-						objectIter->scale = oldObjectScale;
-						objectIter->globalTransform = oldObjectTransform;
-						objectIter->_globalTransformStart = oldObjectTransformStart;
 					}
 
 					// Update any updateable objects
