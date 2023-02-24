@@ -212,7 +212,7 @@ namespace MathAnim
 				if (EditorGui::editorViewportActive())
 				{
 					Renderer::bindAndUpdateViewportForFramebuffer(editorFramebuffer);
-					Renderer::clearFramebuffer(editorFramebuffer, Colors::Neutral[7]);
+					Renderer::clearFramebuffer(editorFramebuffer, "#3a3a39"_hex);
 
 					{
 						// Then render the rest of the stuff

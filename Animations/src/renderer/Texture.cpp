@@ -208,6 +208,8 @@ namespace MathAnim
 				return GL_RGBA8;
 			case ByteFormat::RGBA16_F:
 				return GL_RGBA16F;
+			case ByteFormat::RGBA32_F:
+				return GL_RGBA32F;
 			case ByteFormat::RGB8_UI:
 				return GL_RGB8;
 			case ByteFormat::RGB32_F:
@@ -236,6 +238,8 @@ namespace MathAnim
 			case ByteFormat::RGBA8_UI:
 				return GL_RGBA;
 			case ByteFormat::RGBA16_F:
+				return GL_RGBA;
+			case ByteFormat::RGBA32_F:
 				return GL_RGBA;
 			case ByteFormat::RGB8_UI:
 				return GL_RGB;
@@ -266,6 +270,8 @@ namespace MathAnim
 				return GL_UNSIGNED_BYTE;
 			case ByteFormat::RGBA16_F:
 				return GL_HALF_FLOAT;
+			case ByteFormat::RGBA32_F:
+				return GL_FLOAT;
 			case ByteFormat::RGB8_UI:
 				return GL_UNSIGNED_BYTE;
 			case ByteFormat::RGB32_F:
@@ -294,6 +300,8 @@ namespace MathAnim
 			case ByteFormat::RGBA8_UI:
 				return false;
 			case ByteFormat::RGBA16_F:
+				return false;
+			case ByteFormat::RGBA32_F:
 				return false;
 			case ByteFormat::RGB8_UI:
 				return false;
@@ -325,6 +333,8 @@ namespace MathAnim
 				return true;
 			case ByteFormat::RGBA16_F:
 				return true;
+			case ByteFormat::RGBA32_F:
+				return true;
 			case ByteFormat::RGB8_UI:
 				return true;
 			case ByteFormat::RGB32_F:
@@ -353,6 +363,8 @@ namespace MathAnim
 			case ByteFormat::RGBA8_UI:
 				return false;
 			case ByteFormat::RGBA16_F:
+				return false;
+			case ByteFormat::RGBA32_F:
 				return false;
 			case ByteFormat::RGB8_UI:
 				return false;
@@ -406,6 +418,8 @@ namespace MathAnim
 				return sizeof(uint8) * 4;
 			case ByteFormat::RGBA16_F:
 				return sizeof(uint16) * 4;
+			case ByteFormat::RGBA32_F:
+				return sizeof(float) * 4;
 			case ByteFormat::RGB8_UI:
 				return sizeof(uint8) * 3;
 			case ByteFormat::RGB32_F:

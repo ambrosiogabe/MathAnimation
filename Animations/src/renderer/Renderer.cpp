@@ -281,6 +281,7 @@ namespace MathAnim
 		static Shader shader3DTransparent;
 		static Shader shader3DComposite;
 		static Shader jumpFloodShader;
+		static Shader outlineShader;
 
 		static constexpr int MAX_STACK_SIZE = 64;
 
@@ -347,6 +348,7 @@ namespace MathAnim
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
 			jumpFloodShader.compile("assets/shaders/jumpFlood.glsl");
+			outlineShader.compile("assets/shaders/outlineShader.glsl");
 #else
 			// TODO: Replace these with hardcoded strings
 			shader2D.compile("assets/shaders/default.glsl");
@@ -360,6 +362,7 @@ namespace MathAnim
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
 			jumpFloodShader.compile("assets/shaders/jumpFlood.glsl");
+			outlineShader.compile("assets/shaders/outlineShader.glsl");
 #endif
 
 			drawList2D.init();
@@ -383,6 +386,7 @@ namespace MathAnim
 			shader3DTransparent.destroy();
 			shader3DComposite.destroy();
 			jumpFloodShader.destroy();
+			outlineShader.destroy();
 
 			drawList2D.free();
 			drawListFont2D.free();
@@ -462,6 +466,11 @@ namespace MathAnim
 
 		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects)
 		{
+			if (activeObjects.size() == 0)
+			{
+				return;
+			}
+
 			// Algorithm instructions modified from
 			// Source[0]: https://bgolus.medium.com/the-quest-for-very-wide-outlines-ba82ed442cd9
 			// Source[1]: https://blog.demofox.org/2016/02/29/fast-voronoi-diagrams-and-distance-dield-textures-on-the-gpu-with-the-jump-flooding-algorithm/
@@ -469,7 +478,11 @@ namespace MathAnim
 			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Main_Framebuffer_Pass_StencilOutline");
 
 			GL::disable(GL_DEPTH_TEST);
+			GL::disable(GL_BLEND);
 			GL::viewport(0, 0, framebuffer.width, framebuffer.height);
+
+			// All the draw calls following will use this VAO
+			GL::bindVertexArray(screenVao);
 
 			// Reset the draw draw buffers
 			const GLenum compositeDrawBuffers[] = { GL_NONE, GL_NONE, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5 };
@@ -493,7 +506,6 @@ namespace MathAnim
 			{
 				activeObjectMaskShader.uploadU64AsUVec2("uActiveObjectId", activeObjId);
 
-				GL::bindVertexArray(screenVao);
 				GL::drawArrays(GL_TRIANGLES, 0, 6);
 			}
 
@@ -518,16 +530,45 @@ namespace MathAnim
 				currentDrawBuffer = currentDrawBuffer == pingBuffer ? pongBuffer : pingBuffer;
 
 				float sampleOffset = glm::exp2((float)numPasses - (float)pass - 1.0f);
-				glm::vec2 normalizedSampleOffset = glm::vec2(1.0f / framebuffer.width, 1.0f / framebuffer.height) * sampleOffset;
+				glm::vec2 normalizedSampleOffset = glm::vec2(1.0f / framebuffer.width, 1.0f / framebuffer.height);
+				if (pass != numPasses - 1)
+				{
+					normalizedSampleOffset *= sampleOffset;
+				}
 				jumpFloodShader.uploadVec2("uSampleOffset", normalizedSampleOffset);
 
-				GL::bindVertexArray(screenVao);
 				GL::drawArrays(GL_TRIANGLES, 0, 6);
 			}
 
-			// Reset state
+			// Reset drawBuffers
 			const GLenum regularDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE, GL_NONE };
 			GL::drawBuffers(5, regularDrawBuffers);
+			GL::enable(GL_BLEND);
+
+			// Finally use the generated texture to draw the outline. PROFIT!
+			{
+				outlineShader.bind();
+
+				int readBufferId = currentDrawBuffer == pingBuffer ? 5 : 4;
+				const Texture& currentReadBuffer = framebuffer.getColorAttachment(readBufferId);
+				GL::activeTexture(GL_TEXTURE0);
+				currentReadBuffer.bind();
+				outlineShader.uploadInt("uJumpMask", 0);
+
+				GL::activeTexture(GL_TEXTURE1);
+				framebuffer.getColorAttachment(3).bind();
+				outlineShader.uploadInt("uObjectIdTexture", 1);
+
+				const EditorSettingsData& editorSettings = EditorSettings::getSettings();
+				outlineShader.uploadFloat("uOutlineWidth", editorSettings.activeObjectOutlineWidth);
+				outlineShader.uploadVec4("uOutlineColor", editorSettings.activeObjectHighlightColor);
+				outlineShader.uploadVec2("uFramebufferSize", glm::vec2((float)framebuffer.width, (float)framebuffer.height));
+				outlineShader.uploadU64AsUVec2("uActiveObjectId", activeObjects[0]);
+
+				GL::drawArrays(GL_TRIANGLES, 0, 6);
+			}
+
+			// Reset the rest of state
 			GL::enable(GL_DEPTH_TEST);
 			clearDrawCalls();
 

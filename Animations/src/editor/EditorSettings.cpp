@@ -19,6 +19,8 @@ namespace MathAnim
 			data->previewFidelity = PreviewSvgFidelity::Medium;
 			data->svgTargetScale = _previewFidelityValues[(int)data->previewFidelity];
 			data->viewMode = ViewMode::Normal;
+			data->activeObjectOutlineWidth = 9.0f;
+			data->activeObjectHighlightColor = "#FF9E28"_hex;
 		}
 
 		void imgui(AnimationManagerData* am)
@@ -29,6 +31,9 @@ namespace MathAnim
 
 				ImGui::DragFloat(": Camera Pan Sensitivity", &data->mouseSensitivity, 0.2f, 1.0f, 20.0f);
 				ImGui::DragFloat(": Camera Zoom Sensitivity", &data->scrollSensitvity, 0.2f, 1.0f, 20.0f);
+
+				ImGui::ColorEdit4(": Selection Highlight Color", &data->activeObjectHighlightColor.r);
+				ImGui::DragFloat(": Selection Highlight Width", &data->activeObjectOutlineWidth, 0.2f, 1.0f, 50.0f);
 
 				if (ImGui::BeginCombo("Preview Fidelity", _previewFidelityEnumNames[(int)data->previewFidelity]))
 				{

@@ -13,8 +13,8 @@ void main()
 
 #type fragment
 #version 330 core
-layout(location = 4) out vec4 FragColor;
-layout(location = 5) out vec4 FragColor2;
+layout(location = 4) out vec4 JumpMaskOne;
+layout(location = 5) out vec4 JumpMaskTwo;
 
 in vec2 fTexCoords;
 
@@ -25,8 +25,8 @@ void main()
 {
     uvec2 sample = texture(uObjectIdTexture, fTexCoords).rg;
     if (sample == uActiveObjectId) {
-        FragColor = vec4(fTexCoords, -1.0f, -1.0f);
-        FragColor2 = vec4(fTexCoords, -1.0f, -1.0f);
+        JumpMaskOne = vec4(fTexCoords, -1.0f, -1.0f);
+        JumpMaskTwo = vec4(fTexCoords, -1.0f, -1.0f);
     } else {
         discard;
     }

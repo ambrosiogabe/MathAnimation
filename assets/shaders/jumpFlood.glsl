@@ -29,13 +29,18 @@ vec2 offsets[9] = vec2[](
 void main()
 {
     float closestDistance = -1.0f;
+    vec2 closestSample = vec2(-1.0f, -1.0f);
     for (int i = 0; i < 9; i++) {
-        vec4 pixelCoord = texture(uJumpMask, uSampleOffset + offsets[i]);
+        vec2 sampleLocation = fTexCoords + uSampleOffset * offsets[i];
+        vec4 pixelCoord = texture(uJumpMask, sampleLocation);
         if (pixelCoord.rg != vec2(-1.0f, -1.0f)) {
-            float currentDistance = distance(uSampleOffset, vec2(0.0f));
-            if (pixelCoord.b == -1.0f || currentDistance < pixelCoord.b) {
-                FragColor = vec4(pixelCoord.rg, currentDistance, -1.0f);
+            float currentDistance = distance(pixelCoord.rg, fTexCoords);
+            if (closestDistance == -1.0f || currentDistance < closestDistance) {
+                closestDistance = currentDistance;
+                closestSample = pixelCoord.rg;
             }
         }
     }
+
+    FragColor = vec4(closestSample, -1.0f, -1.0f);
 }
