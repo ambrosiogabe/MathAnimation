@@ -2,6 +2,8 @@
 #include "core/Application.h"
 #include "math/CMath.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
 	// -------------- Internal Functions --------------
@@ -38,14 +40,11 @@ namespace MathAnim
 		return Vec2{ res.x, res.y };
 	}
 
-	void OrthoCamera::serialize(RawMemory& memory) const
+	void OrthoCamera::serialize(nlohmann::json& memory) const
 	{
-		// position        -> Vec2
-		// projectionSize  -> Vec2
-		// zoom            -> float
-		CMath::serialize(memory, position);
-		CMath::serialize(memory, projectionSize);
-		memory.write<float>(&zoom);
+		CMath::serialize(memory, "Position", position);
+		CMath::serialize(memory, "ProjectionSize", projectionSize);
+		memory["Zoom"] = zoom;
 	}
 
 	OrthoCamera OrthoCamera::deserialize(RawMemory& memory, uint32 version)

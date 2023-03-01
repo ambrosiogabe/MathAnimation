@@ -2,6 +2,8 @@
 #define MATH_ANIM_SHAPES_H
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 struct RawMemory;
 
 namespace MathAnim
@@ -13,7 +15,7 @@ namespace MathAnim
 		float sideLength;
 
 		void init(AnimObject* parent);
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 
 		static Square deserialize(RawMemory& memory, uint32 version);
 	};
@@ -23,7 +25,7 @@ namespace MathAnim
 		float radius;
 
 		void init(AnimObject* parent);
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 
 		static Circle deserialize(RawMemory& memory, uint32 version);
 	};
@@ -36,7 +38,7 @@ namespace MathAnim
 		float tipLength;
 
 		void init(AnimObject* parent);
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 
 		static Arrow deserialize(RawMemory& memory, uint32 version);
 	};
@@ -46,7 +48,7 @@ namespace MathAnim
 		float sideLength;
 
 		void init(AnimObject* parent);
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 
 		static Cube deserialize(RawMemory& memory, uint32 version);
 	};

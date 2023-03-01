@@ -2,6 +2,8 @@
 #include "core/Application.h"
 #include "math/CMath.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
 	// -------------- Internal Functions --------------
@@ -37,16 +39,12 @@ namespace MathAnim
 		);
 	};
 
-	void PerspectiveCamera::serialize(RawMemory& memory) const
+	void PerspectiveCamera::serialize(nlohmann::json& memory) const
 	{
-		// position        -> Vec3
-		// orientation     -> Vec3
-		// forward         -> Vec3
-		// fov             -> float
-		CMath::serialize(memory, Vec3{ position.x, position.y, position.z });
-		CMath::serialize(memory, Vec3{ orientation.x, orientation.y, orientation.z });
-		CMath::serialize(memory, Vec3{ forward.x, forward.y, forward.z });
-		memory.write<float>(&fov);
+		CMath::serialize(memory, "Position", Vec3{position.x, position.y, position.z});
+		CMath::serialize(memory, "Orientation", Vec3{orientation.x, orientation.y, orientation.z});
+		CMath::serialize(memory, "Forward", Vec3{forward.x, forward.y, forward.z});
+		memory["FieldOfView"] = fov;
 	}
 	
 	PerspectiveCamera PerspectiveCamera::deserialize(RawMemory& memory, uint32 version)

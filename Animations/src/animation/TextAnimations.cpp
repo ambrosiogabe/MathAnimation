@@ -12,6 +12,8 @@
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "parsers/SyntaxTheme.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
 	// ------------- Internal Functions -------------
@@ -106,30 +108,17 @@ namespace MathAnim
 		init(am, obj->id);
 	}
 
-	void TextObject::serialize(RawMemory& memory) const
+	void TextObject::serialize(nlohmann::json& memory) const
 	{
-		// textLength           -> int32
-		// text                 -> char[textLength]
-		// fontFilepathLength   -> int32
-		// fontFilepath         -> char[fontFilepathLength]
-		memory.write<int32>(&textLength);
-		memory.writeDangerous((uint8*)text, sizeof(uint8) * textLength);
+		memory["Text"] = text;
 
-		// TODO: Overflow error checking would be good here
 		if (font != nullptr)
 		{
-			int32 fontFilepathLength = (int32)font->fontFilepath.size();
-			memory.write<int32>(&fontFilepathLength);
-			memory.writeDangerous((uint8*)font->fontFilepath.c_str(), sizeof(uint8) * fontFilepathLength);
+			memory["FontFilepath"] = font->fontFilepath;
 		}
 		else
 		{
-			const char stringToWrite[] = "nullFont";
-			int32 fontFilepathLength = (sizeof(stringToWrite) / sizeof(char));
-			// Subtract null byte
-			fontFilepathLength -= 1;
-			memory.write<int32>(&fontFilepathLength);
-			memory.writeDangerous((uint8*)stringToWrite, sizeof(uint8) * fontFilepathLength);
+			memory["FontFilepath"] = "nullFont";
 		}
 	}
 
@@ -278,16 +267,10 @@ namespace MathAnim
 		isParsingLaTex = true;
 	}
 
-	void LaTexObject::serialize(RawMemory& memory) const
+	void LaTexObject::serialize(nlohmann::json& memory) const
 	{
-		// textLength       -> i32
-		// text             -> char[textLength]
-		// isEquation       -> u8 (bool)
-		memory.write<int32>(&textLength);
-		memory.writeDangerous((const uint8*)text, sizeof(uint8) * textLength);
-
-		uint8 isEquationU8 = isEquation ? 1 : 0;
-		memory.write<uint8>(&isEquationU8);
+		memory["Text"] = text;
+		memory["IsEquation"] = isEquation;
 	}
 
 	void LaTexObject::free()
@@ -462,17 +445,11 @@ namespace MathAnim
 		init(am, obj->id);
 	}
 
-	void CodeBlock::serialize(RawMemory& memory) const
+	void CodeBlock::serialize(nlohmann::json& memory) const
 	{
-		// theme                -> uint8
-		// language             -> uint8
-		// textLength           -> int32
-		// text                 -> char[textLength]
-		memory.write<HighlighterTheme>(&theme);
-		memory.write<HighlighterLanguage>(&language);
-
-		memory.write<int32>(&textLength);
-		memory.writeDangerous((uint8*)text, sizeof(uint8) * textLength);
+		memory["Theme"] = _highlighterThemeNames[(uint8)theme];
+		memory["Language"] = _highlighterLanguageNames[(uint8)language];
+		memory["Text"] = text;
 	}
 
 	void CodeBlock::free()

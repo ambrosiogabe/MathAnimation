@@ -2,6 +2,8 @@
 #define MATH_ANIM_AXIS_H
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct AnimObject;
@@ -22,7 +24,7 @@ namespace MathAnim
 		float labelStrokeWidth;
 
 		void init(AnimObject* parent);
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 
 		static Axis deserialize(RawMemory& memory, uint32 version);
 	};

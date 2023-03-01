@@ -3,6 +3,8 @@
 
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct PerspectiveCamera
@@ -15,7 +17,7 @@ namespace MathAnim
 		glm::mat4 calculateViewMatrix();
 		glm::mat4 calculateProjectionMatrix() const;
 
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		static PerspectiveCamera deserialize(RawMemory& memory, uint32 version);
 	};
 }

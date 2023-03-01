@@ -4,6 +4,8 @@
 #include "renderer/OrthoCamera.h"
 #include "parsers/SyntaxHighlighter.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct Font;
@@ -19,7 +21,7 @@ namespace MathAnim
 
 		void init(AnimationManagerData* am, AnimObjId parentId);
 		void reInit(AnimationManagerData* am, AnimObject* obj);
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		void free();
 
 		static TextObject deserialize(RawMemory& memory, uint32 version);
@@ -47,7 +49,7 @@ namespace MathAnim
 		void setText(const std::string& str);
 		void setText(const char* str);
 		void parseLaTex();
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		void free();
 
 		static LaTexObject deserialize(RawMemory& memory, uint32 version);
@@ -63,7 +65,7 @@ namespace MathAnim
 
 		void init(AnimationManagerData* am, AnimObjId parentId);
 		void reInit(AnimationManagerData* am, AnimObject* obj);
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		void free();
 
 		static CodeBlock deserialize(RawMemory& memory, uint32 version);

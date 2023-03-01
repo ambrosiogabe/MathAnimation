@@ -3,6 +3,8 @@
 
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 // TODO: Find who's leaking min, max macros...
 #ifdef min 
 #undef min
@@ -215,15 +217,15 @@ namespace MathAnim
 		Vec3 extractPosition(const glm::mat4& transformation);
 
 		// (de)Serialization functions
-		void serialize(RawMemory& memory, const Vec4& vec);
-		void serialize(RawMemory& memory, const Vec3& vec);
-		void serialize(RawMemory& memory, const Vec2& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2& vec);
 
-		void serialize(RawMemory& memory, const Vec4i& vec);
-		void serialize(RawMemory& memory, const Vec3i& vec);
-		void serialize(RawMemory& memory, const Vec2i& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4i& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3i& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2i& vec);
 
-		void serialize(RawMemory& memory, const glm::u8vec4& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const glm::u8vec4& vec);
 
 		Vec4 deserializeVec4(RawMemory& memory);
 		Vec3 deserializeVec3(RawMemory& memory);

@@ -2,6 +2,8 @@
 #define MATH_ANIM_SCENE_HIERARCHY_WINDOW_H
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct AnimObject;
@@ -16,7 +18,7 @@ namespace MathAnim
 		void update(AnimationManagerData* am);
 		void deleteAnimObject(const AnimObject& animObject);
 
-		void serialize(RawMemory& memory);
+		void serialize(nlohmann::json& memory);
 		void deserialize(RawMemory& memory);
 	};
 }

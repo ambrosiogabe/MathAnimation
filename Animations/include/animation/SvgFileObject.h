@@ -2,6 +2,8 @@
 #define MATH_ANIM_SVG_FILE_OBJECT_H
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct AnimationManagerData;
@@ -18,7 +20,7 @@ namespace MathAnim
 		void reInit(AnimationManagerData* am, AnimObject* obj);
 		bool setFilepath(const std::string& newFilepath);
 		bool setFilepath(const char* newFilepath);
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		void free();
 
 		static SvgFileObject deserialize(RawMemory& memory, uint32 version);

@@ -5,6 +5,8 @@
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/EditorSettings.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
 	// Internal Functions
@@ -103,15 +105,9 @@ namespace MathAnim
 		return setFilepath(std::string(newFilepath));
 	}
 
-	void SvgFileObject::serialize(RawMemory& memory) const
+	void SvgFileObject::serialize(nlohmann::json& memory) const
 	{
-		// filepathLength       -> u32
-		// filepath             -> u8[textLength]
-		memory.write<uint32>(&filepathLength);
-		if (filepathLength)
-		{
-			memory.writeDangerous((const uint8*)filepath, sizeof(uint8) * (filepathLength + 1));
-		}
+		memory["Filepath"] = filepath;
 	}
 
 	void SvgFileObject::free()

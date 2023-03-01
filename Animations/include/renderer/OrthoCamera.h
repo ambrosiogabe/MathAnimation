@@ -3,6 +3,8 @@
 
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct OrthoCamera
@@ -15,7 +17,7 @@ namespace MathAnim
 		glm::mat4 calculateProjectionMatrix() const;
 		Vec2 reverseProject(const Vec2& normalizedInput) const;
 
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		static OrthoCamera deserialize(RawMemory& memory, uint32 version);
 	};
 }

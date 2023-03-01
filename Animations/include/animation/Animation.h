@@ -9,6 +9,8 @@
 #include "renderer/OrthoCamera.h"
 #include "math/CMath.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct Font;
@@ -182,7 +184,7 @@ namespace MathAnim
 		AnimObjId srcAnimObjectId;
 		AnimObjId dstAnimObjectId;
 
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		static ReplacementTransformData deserialize(RawMemory& memory);
 	};
 
@@ -192,7 +194,7 @@ namespace MathAnim
 		Vec2 target;
 		AnimObjId object;
 
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		static MoveToData deserialize(RawMemory& memory);
 	};
 
@@ -202,7 +204,7 @@ namespace MathAnim
 		Vec2 target;
 		AnimObjId object;
 
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		static AnimateScaleData deserialize(RawMemory& memory);
 	};
 
@@ -245,7 +247,7 @@ namespace MathAnim
 		float tValue;
 
 		void render(const BBox& bbox) const;
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		static Circumscribe deserialize(RawMemory& memory);
 		static Circumscribe createDefault();
 	};
@@ -292,7 +294,7 @@ namespace MathAnim
 		void onGizmo();
 
 		void free();
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		static Animation deserialize(RawMemory& memory, uint32 version);
 		static Animation createDefault(AnimTypeV1 type, int32 frameStart, int32 duration);
 
@@ -331,7 +333,7 @@ namespace MathAnim
 		bool is2D;
 		bool isActiveCamera;
 
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		void free();
 
 		static CameraObject deserialize(RawMemory& memory, uint32 version);
@@ -343,7 +345,7 @@ namespace MathAnim
 		char* scriptFilepath;
 		size_t scriptFilepathLength;
 
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		void free();
 
 		static ScriptObject deserialize(RawMemory& memory, uint32 version);
@@ -441,7 +443,7 @@ namespace MathAnim
 		inline AnimObjId end() const { return NULL_ANIM_OBJECT; }
 		
 		void free();
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		static AnimObject deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version);
 		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId, bool addChildAsGenerated = false);
 		static AnimObject createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj);

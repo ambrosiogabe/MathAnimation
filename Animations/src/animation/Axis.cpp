@@ -4,6 +4,8 @@
 #include "svg/Svg.h"
 #include "math/CMath.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
 	// ------------------ Internal Functions ------------------
@@ -150,33 +152,20 @@ namespace MathAnim
 		//}
 	}
 
-	void Axis::serialize(RawMemory& memory) const
+	void Axis::serialize(nlohmann::json& memory) const
 	{
-		// axesLength   -> Vec3
-		// xRange       -> Vec2i
-		// yRange       -> Vec2i
-		// zRange       -> Vec2i
-		// xStep        -> float
-		// yStep        -> float
-		// zStep        -> float
-		// tickWidth    -> float 
-		// drawNumbers  -> u8
-		// fontSizePx   -> float
-		// labelPadding -> float
-		// labelStrokeWidth -> float
-		CMath::serialize(memory, axesLength);
-		CMath::serialize(memory, xRange);
-		CMath::serialize(memory, yRange);
-		CMath::serialize(memory, zRange);
-		memory.write<float>(&xStep);
-		memory.write<float>(&yStep);
-		memory.write<float>(&zStep);
-		memory.write<float>(&tickWidth);
-		const uint8 drawNumbersU8 = drawNumbers ? 1 : 0;
-		memory.write<uint8>(&drawNumbersU8);
-		memory.write<float>(&fontSizePixels);
-		memory.write<float>(&labelPadding);
-		memory.write<float>(&labelStrokeWidth);
+		CMath::serialize(memory, "AxesLength", axesLength);
+		CMath::serialize(memory, "XRange",xRange);
+		CMath::serialize(memory, "YRange", yRange);
+		CMath::serialize(memory, "ZRange", zRange);
+		memory["XStep"] = xStep;
+		memory["YStep"] = yStep;
+		memory["ZStep"] = zStep;
+		memory["TickWidth"] = tickWidth;
+		memory["DrawNumbers"] = drawNumbers;
+		memory["FontSizePx"] = fontSizePixels;
+		memory["LabelPadding"] = labelPadding;
+		memory["LabelStrokeWidth"] = labelStrokeWidth;
 	}
 
 	Axis Axis::deserialize(RawMemory& memory, uint32 version)

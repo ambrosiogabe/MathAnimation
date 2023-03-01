@@ -2,6 +2,8 @@
 #define MATH_ANIM_SVG_OBJECT_H
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct AnimObject;
@@ -22,7 +24,13 @@ namespace MathAnim
 	{
 		NonZeroFillType = 0,
 		EvenOddFillType,
+		Length
 	};
+
+	constexpr auto _fillTypeNames = fixedSizeArray<const char*, (uint8)FillType::Length>(
+		"NonZero",
+		"EvenOdd"
+	);
 
 	struct Line
 	{
@@ -92,7 +100,7 @@ namespace MathAnim
 		void renderOutline(float t, const AnimObject* parent) const;
 		void free();
 
-		void serialize(RawMemory& memory) const;
+		void serialize(nlohmann::json& memory) const;
 		static SvgObject* deserialize(RawMemory& memory, uint32 version);
 	};
 

@@ -11,9 +11,10 @@
 #include "core/Profiling.h"
 #include "multithreading/GlobalThreadPool.h"
 #include "math/CMath.h"
-#include "platform/Platform.h"
+#include "platform/Platform.h" 
 
 #include <plutovg.h>
+#include <nlohmann/json.hpp>
 
 #ifndef isnan
 #include "math.h"
@@ -1655,20 +1656,11 @@ namespace MathAnim
 		approximatePerimeter = 0.0f;
 	}
 
-	void SvgObject::serialize(RawMemory& memory) const
+	void SvgObject::serialize(nlohmann::json& memory) const
 	{
-		std::string pathAsString = getPathAsString();
-		size_t pathLength = pathAsString.size();
-
-		// fillType         -> u8
-		// fillColor        -> Vec4
-		// pathLength       -> u64
-		// path             -> u8[pathLength]
-
-		memory.write<FillType>(&fillType);
-		CMath::serialize(memory, fillColor);
-		memory.write<uint64>(&pathLength);
-		memory.writeDangerous((const uint8*)pathAsString.c_str(), pathLength);
+		CMath::serialize(memory, "FillColor", fillColor);
+		memory["FillType"] = _fillTypeNames[(uint8)fillType];
+		memory["Path"] = getPathAsString();
 	}
 
 	SvgObject* SvgObject::deserialize(RawMemory& memory, uint32 version)

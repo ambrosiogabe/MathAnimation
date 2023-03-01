@@ -3,6 +3,8 @@
 #include "svg/Svg.h"
 #include "math/CMath.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
 	// ------------------ Internal Functions ------------------
@@ -30,10 +32,9 @@ namespace MathAnim
 		parent->retargetSvgScale();
 	}
 
-	void Square::serialize(RawMemory& memory) const
+	void Square::serialize(nlohmann::json& memory) const
 	{
-		// sideLength       -> float
-		memory.write<float>(&sideLength);
+		memory["SideLength"] = sideLength;
 	}
 
 	Square Square::deserialize(RawMemory& memory, uint32 version)
@@ -89,10 +90,9 @@ namespace MathAnim
 		parent->retargetSvgScale();
 	}
 
-	void Circle::serialize(RawMemory& memory) const
+	void Circle::serialize(nlohmann::json& memory) const
 	{
-		// radius   -> float
-		memory.write<float>(&radius);
+		memory["Radius"] = radius;
 	}
 
 	Circle Circle::deserialize(RawMemory& memory, uint32 version)
@@ -139,16 +139,12 @@ namespace MathAnim
 		parent->retargetSvgScale();
 	}
 
-	void Arrow::serialize(RawMemory& memory) const
+	void Arrow::serialize(nlohmann::json& memory) const
 	{
-		// stemWidth    -> f32
-		// stemLength   -> f32
-		// tipWidth	    -> f32
-		// tipLength    -> f32
-		memory.write<float>(&stemWidth);
-		memory.write<float>(&stemLength);
-		memory.write<float>(&tipWidth);
-		memory.write<float>(&tipLength);
+		memory["StemWidth"] = stemWidth;
+		memory["StemLength"] = stemLength;
+		memory["TipWidth"] = tipWidth;
+		memory["TipLength"] = tipLength;
 	}
 
 	Arrow Arrow::deserialize(RawMemory& memory, uint32 version)
@@ -217,10 +213,9 @@ namespace MathAnim
 		//}
 	}
 
-	void Cube::serialize(RawMemory& memory) const
+	void Cube::serialize(nlohmann::json& memory) const
 	{
-		// sideLength       -> float
-		memory.write<float>(&sideLength);
+		memory["SideLength"] = sideLength;
 	}
 
 	Cube Cube::deserialize(RawMemory& memory, uint32 version)

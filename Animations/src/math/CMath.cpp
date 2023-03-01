@@ -1,5 +1,7 @@
 #include "math/CMath.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
 	namespace CMath
@@ -574,83 +576,54 @@ namespace MathAnim
 		}
 
 		// (de)Serialization functions
-		void serialize(RawMemory& memory, const Vec4& vec)
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4& vec)
 		{
-			// Target
-			//   X    -> float
-			//   Y    -> float
-			//   Z    -> float
-			//   W    -> float
-			memory.write<float>(&vec.x);
-			memory.write<float>(&vec.y);
-			memory.write<float>(&vec.z);
-			memory.write<float>(&vec.w);
+			memory[propertyName]["X"] = vec.x;
+			memory[propertyName]["Y"] = vec.y;
+			memory[propertyName]["Z"] = vec.z;
+			memory[propertyName]["W"] = vec.w;
 		}
 
-		void serialize(RawMemory& memory, const Vec3& vec)
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3& vec)
 		{
-			// Target
-			//   X    -> float
-			//   Y    -> float
-			//   Z    -> float
-			memory.write<float>(&vec.x);
-			memory.write<float>(&vec.y);
-			memory.write<float>(&vec.z);
+			memory[propertyName]["X"] = vec.x;
+			memory[propertyName]["Y"] = vec.y;
+			memory[propertyName]["Z"] = vec.z;
 		}
 
-		void serialize(RawMemory& memory, const Vec2& vec)
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2& vec)
 		{
-			// Target
-			//   X    -> float
-			//   Y    -> float
-			memory.write<float>(&vec.x);
-			memory.write<float>(&vec.y);
+			memory[propertyName]["X"] = vec.x;
+			memory[propertyName]["Y"] = vec.y;
 		}
 
-		void serialize(RawMemory& memory, const Vec4i& vec)
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4i& vec)
 		{
-			// Target
-			//   X    -> i32
-			//   Y    -> i32
-			//   Z    -> i32
-			//   W    -> i32
-			memory.write<int32>(&vec.x);
-			memory.write<int32>(&vec.y);
-			memory.write<int32>(&vec.z);
-			memory.write<int32>(&vec.w);
+			memory[propertyName]["X"] = vec.x;
+			memory[propertyName]["Y"] = vec.y;
+			memory[propertyName]["Z"] = vec.z;
+			memory[propertyName]["W"] = vec.w;
 		}
 
-		void serialize(RawMemory& memory, const Vec3i& vec)
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3i& vec)
 		{
-			// Target
-			//   X    -> i32
-			//   Y    -> i32
-			//   Z    -> i32
-			memory.write<int32>(&vec.x);
-			memory.write<int32>(&vec.y);
-			memory.write<int32>(&vec.z);
+			memory[propertyName]["X"] = vec.x;
+			memory[propertyName]["Y"] = vec.y;
+			memory[propertyName]["Z"] = vec.z;
 		}
 
-		void serialize(RawMemory& memory, const Vec2i& vec)
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2i& vec)
 		{
-			// Target
-			//   X    -> i32
-			//   Y    -> i32
-			memory.write<int32>(&vec.x);
-			memory.write<int32>(&vec.y);
+			memory[propertyName]["X"] = vec.x;
+			memory[propertyName]["Y"] = vec.y;
 		}
 
-		void serialize(RawMemory& memory, const glm::u8vec4& vec)
+		void serialize(nlohmann::json& memory, const char* propertyName, const glm::u8vec4& vec)
 		{
-			// Target 
-			//  R -> u8
-			//  G -> u8
-			//  B -> u8
-			//  A -> u8
-			memory.write<uint8>(&vec.r);
-			memory.write<uint8>(&vec.g);
-			memory.write<uint8>(&vec.b);
-			memory.write<uint8>(&vec.a);
+			memory[propertyName]["R"] = vec.r;
+			memory[propertyName]["G"] = vec.g;
+			memory[propertyName]["B"] = vec.b;
+			memory[propertyName]["A"] = vec.a;
 		}
 
 		Vec4 deserializeVec4(RawMemory& memory)
