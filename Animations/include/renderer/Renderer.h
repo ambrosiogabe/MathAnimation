@@ -82,7 +82,7 @@ namespace MathAnim
 		// ----------- 2D Line stuff ----------- 
 		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void free(Path2DContext* path);
-		void endPath(Path2DContext* path, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
+		bool endPath(Path2DContext* path, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
 		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
 
 		void lineTo(Path2DContext* path, const Vec2& point, bool applyTransform = true);

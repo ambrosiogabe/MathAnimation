@@ -15,7 +15,7 @@ namespace MathAnim
 
 	namespace ProjectScreen
 	{
-		void init();
+		void init(const std::filesystem::path& appRoot);
 
 		bool update();
 

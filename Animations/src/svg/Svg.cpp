@@ -2267,14 +2267,24 @@ namespace MathAnim
 				if (lengthDrawn >= lengthToDraw && t < 1.0f)
 				{
 					MP_PROFILE_EVENT("Svg_RenderOutline2D_EndPath");
-					Renderer::endPath(context, false);
+					if (!Renderer::endPath(context, false, parent->id))
+					{
+#ifdef _DEBUG
+						g_logger_warning("Failed to end path for object: %d<%s>", parent->id, parent->name);
+#endif
+					}
 					Renderer::free(context);
 					break;
 				}
 				else
 				{
 					MP_PROFILE_EVENT("Svg_RenderOutline2D_EndPath");
-					Renderer::endPath(context);
+					if (!Renderer::endPath(context, true, parent->id))
+					{
+#ifdef _DEBUG
+						g_logger_warning("Failed to end path for object: %d<%s>", parent->id, parent->name);
+#endif
+					}
 					Renderer::free(context);
 				}
 			}
