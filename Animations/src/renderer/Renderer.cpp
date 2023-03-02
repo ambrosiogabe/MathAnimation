@@ -964,9 +964,17 @@ namespace MathAnim
 			g_memory_free(path);
 		}
 
-		void endPath(Path2DContext* path, bool closePath, AnimObjId objId)
+		bool endPath(Path2DContext* path, bool closePath, AnimObjId objId)
 		{
 			g_logger_assert(path != nullptr, "Null path.");
+
+			if (path->data.size() <= 1)
+			{
+#ifdef _DEBUG
+				g_logger_warning("Corrupted path data found for AnimObjId: %d", objId);
+#endif
+				return false;
+			}
 
 			// NOTE: This is some weird shenanigans in order to get the path
 			// to close correctly and join the last vertex to the first vertex
@@ -1090,6 +1098,8 @@ namespace MathAnim
 				drawMultiColoredTri(vertex.frontP1, vertex.color, vertex.frontP2, vertex.color, nextVertex.backP1, nextVertex.color, objId);
 				drawMultiColoredTri(vertex.frontP2, vertex.color, nextVertex.backP2, nextVertex.color, nextVertex.backP1, nextVertex.color, objId);
 			}
+
+			return true;
 		}
 
 		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath, AnimObjId)
