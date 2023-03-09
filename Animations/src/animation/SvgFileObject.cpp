@@ -10,7 +10,7 @@
 namespace MathAnim
 {
 	// Internal Functions
-	static SvgFileObject deserializeSvgFileObjectV1(RawMemory& memory);
+	static SvgFileObject deserializeSvgFileObjectV1(const nlohmann::json& j);
 
 	void SvgFileObject::init(AnimationManagerData* am, AnimObjId parentId)
 	{
@@ -127,11 +127,11 @@ namespace MathAnim
 		}
 	}
 
-	SvgFileObject SvgFileObject::deserialize(RawMemory& memory, uint32 version)
+	SvgFileObject SvgFileObject::deserialize(const nlohmann::json& j , uint32 version)
 	{
 		if (version == 1)
 		{
-			return deserializeSvgFileObjectV1(memory);
+			return deserializeSvgFileObjectV1(j);
 		}
 
 		g_logger_error("Invalid version '%d' while deserializing text object.", version);
@@ -151,19 +151,19 @@ namespace MathAnim
 	}
 
 	// -------------------- Internal Functions --------------------
-	static SvgFileObject deserializeSvgFileObjectV1(RawMemory& memory)
+	static SvgFileObject deserializeSvgFileObjectV1(const nlohmann::json& j)
 	{
 		SvgFileObject res = {};
 
 		// filepathLength       -> u32
 		// filepath             -> u8[textLength]
 
-		memory.read<uint32>(&res.filepathLength);
+		const std::string& filepath = j.contains("Filepath") ? j["Filepath"] : "Undefined";
+		res.filepathLength = (uint32)filepath.length();
 		if (res.filepathLength > 0)
 		{
 			res.filepath = (char*)g_memory_allocate(sizeof(char) * (res.filepathLength + 1));
-			memory.readDangerous((uint8*)res.filepath, res.filepathLength * sizeof(uint8));
-			memory.read<char>(&res.filepath[res.filepathLength]);
+			g_memory_copyMem(res.filepath, (void*)filepath.c_str(), sizeof(char) * (res.filepathLength + 1));
 		}
 		else
 		{

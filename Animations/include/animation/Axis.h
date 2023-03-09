@@ -26,7 +26,7 @@ namespace MathAnim
 		void init(AnimObject* parent);
 		void serialize(nlohmann::json& memory) const;
 
-		static Axis deserialize(RawMemory& memory, uint32 version);
+		static Axis deserialize(const nlohmann::json& j, uint32 version);
 	};
 }
 

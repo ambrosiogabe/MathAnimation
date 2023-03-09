@@ -18,10 +18,15 @@ namespace MathAnim
 	struct AnimationManagerData;
 	
 	// Constants
-	constexpr uint32 SERIALIZER_VERSION = 1;
+	constexpr uint32 SERIALIZER_VERSION_MAJOR = 2;
+	constexpr uint32 SERIALIZER_VERSION_MINOR = 0;
 	constexpr uint32 MAGIC_NUMBER = 0xDEADBEEF;
 
 	inline bool isNull(AnimObjId animObj) { return animObj == NULL_ANIM_OBJECT; }
+	void writeIdToJson(const char* propertyName, AnimObjId id, nlohmann::json& j);
+	void convertIdToJson(AnimObjId id, nlohmann::json& j);
+	AnimId readIdFromJson(const nlohmann::json& j, const char* propertyName);
+	AnimId convertJsonToId(const nlohmann::json& j);
 
 	// Types
 	enum class AnimObjectTypeV1 : uint32
@@ -185,7 +190,7 @@ namespace MathAnim
 		AnimObjId dstAnimObjectId;
 
 		void serialize(nlohmann::json& memory) const;
-		static ReplacementTransformData deserialize(RawMemory& memory);
+		static ReplacementTransformData deserialize(const nlohmann::json& memory);
 	};
 
 	struct MoveToData
@@ -195,7 +200,7 @@ namespace MathAnim
 		AnimObjId object;
 
 		void serialize(nlohmann::json& memory) const;
-		static MoveToData deserialize(RawMemory& memory);
+		static MoveToData deserialize(const nlohmann::json& memory);
 	};
 
 	struct AnimateScaleData
@@ -205,7 +210,7 @@ namespace MathAnim
 		AnimObjId object;
 
 		void serialize(nlohmann::json& memory) const;
-		static AnimateScaleData deserialize(RawMemory& memory);
+		static AnimateScaleData deserialize(const nlohmann::json& memory);
 	};
 
 	enum class CircumscribeShape : uint8
@@ -248,7 +253,7 @@ namespace MathAnim
 
 		void render(const BBox& bbox) const;
 		void serialize(nlohmann::json& memory) const;
-		static Circumscribe deserialize(RawMemory& memory);
+		static Circumscribe deserialize(const nlohmann::json& j);
 		static Circumscribe createDefault();
 	};
 
@@ -295,7 +300,7 @@ namespace MathAnim
 
 		void free();
 		void serialize(nlohmann::json& memory) const;
-		static Animation deserialize(RawMemory& memory, uint32 version);
+		static Animation deserialize(const nlohmann::json& j, uint32 version);
 		static Animation createDefault(AnimTypeV1 type, int32 frameStart, int32 duration);
 
 		static inline bool appliesToChildren(AnimTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimTypeV1::Length, "Type name out of bounds."); return _appliesToChildrenData[(size_t)type]; }
@@ -336,7 +341,7 @@ namespace MathAnim
 		void serialize(nlohmann::json& memory) const;
 		void free();
 
-		static CameraObject deserialize(RawMemory& memory, uint32 version);
+		static CameraObject deserialize(const nlohmann::json& j, uint32 version);
 		static CameraObject createDefault();
 	};
 
@@ -348,7 +353,7 @@ namespace MathAnim
 		void serialize(nlohmann::json& memory) const;
 		void free();
 
-		static ScriptObject deserialize(RawMemory& memory, uint32 version);
+		static ScriptObject deserialize(const nlohmann::json& j, uint32 version);
 		static ScriptObject createDefault();
 	};
 
@@ -444,7 +449,7 @@ namespace MathAnim
 		
 		void free();
 		void serialize(nlohmann::json& memory) const;
-		static AnimObject deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version);
+		static AnimObject deserialize(AnimationManagerData* am, const nlohmann::json& j, uint32 version);
 		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId, bool addChildAsGenerated = false);
 		static AnimObject createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj);
 		static AnimObject createDefault(AnimationManagerData* am, AnimObjectTypeV1 type);

@@ -18,7 +18,7 @@ namespace MathAnim
 		Vec2 reverseProject(const Vec2& normalizedInput) const;
 
 		void serialize(nlohmann::json& memory) const;
-		static OrthoCamera deserialize(RawMemory& memory, uint32 version);
+		static OrthoCamera deserialize(const nlohmann::json& memory, uint32 version);
 	};
 }
 

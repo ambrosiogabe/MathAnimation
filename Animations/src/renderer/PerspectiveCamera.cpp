@@ -7,7 +7,7 @@
 namespace MathAnim
 {
 	// -------------- Internal Functions --------------
-	static PerspectiveCamera deserializeCameraV1(RawMemory& memory);
+	static PerspectiveCamera deserializeCameraV1(const nlohmann::json& j);
 
 	// TODO: Cache these values and make this const by separating
 	// calculations from getting the matrices
@@ -47,29 +47,30 @@ namespace MathAnim
 		memory["FieldOfView"] = fov;
 	}
 	
-	PerspectiveCamera PerspectiveCamera::deserialize(RawMemory& memory, uint32 version)
+	PerspectiveCamera PerspectiveCamera::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
-			return deserializeCameraV1(memory);
+			return deserializeCameraV1(j);
 		}
 
+		g_logger_warning("Perspective camera serialized with unknown version: %d", version);
 		PerspectiveCamera res = {};
 		return res;
 	}
 
 	// -------------- Internal Functions --------------
-	static PerspectiveCamera deserializeCameraV1(RawMemory& memory)
+	static PerspectiveCamera deserializeCameraV1(const nlohmann::json& j)
 	{
 		// position        -> Vec3
 		// orientation     -> Vec3
 		// forward         -> Vec3
 		// fov             -> float
 		PerspectiveCamera res;
-		res.position = CMath::convert(CMath::deserializeVec3(memory));
-		res.orientation = CMath::convert(CMath::deserializeVec3(memory));
-		res.forward = CMath::convert(CMath::deserializeVec3(memory));
-		memory.read<float>(&res.fov);
+		res.position = CMath::convert(CMath::deserializeVec3(j["Position"]));
+		res.orientation = CMath::convert(CMath::deserializeVec3(j["Orientation"]));
+		res.forward = CMath::convert(CMath::deserializeVec3(j["Forward"]));
+		res.fov = j.contains("FieldOfView") ? j["FieldOfView"] : 75.0f;
 
 		return res;
 	}

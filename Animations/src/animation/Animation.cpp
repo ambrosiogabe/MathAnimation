@@ -24,13 +24,60 @@ namespace MathAnim
 	static AnimObjId animationUidCounter = 0;
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory);
-	static Animation deserializeAnimationExV1(RawMemory& memory);
-	static CameraObject deserializeCameraObjectV1(RawMemory& memory);
+	static AnimObject deserializeAnimObjectV2(AnimationManagerData* am, const nlohmann::json& j);
+	static Animation deserializeAnimationV2(const nlohmann::json& memory);
+	static CameraObject deserializeCameraObjectV1(const nlohmann::json& j, uint32 version);
 
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
 
 	// ----------------------------- Animation Functions -----------------------------
+	void writeIdToJson(const char* propertyName, AnimObjId id, nlohmann::json& j)
+	{
+		if (isNull(id))
+		{
+			j[propertyName] = nullptr;
+		}
+		else
+		{
+			j[propertyName] = id;
+		}
+	}
+
+	void convertIdToJson(AnimObjId id, nlohmann::json& j)
+	{
+		if (isNull(id))
+		{
+			j = nullptr;
+		}
+		else
+		{
+			j = id;
+		}
+	}
+
+	AnimId readIdFromJson(const nlohmann::json& j, const char* propertyName)
+	{
+		if (j.contains(propertyName))
+		{
+			if (!j[propertyName].is_null())
+			{
+				return j[propertyName];
+			}
+		}
+
+		return NULL_ANIM;
+	}
+
+	AnimId convertJsonToId(const nlohmann::json& j)
+	{
+		if (j.is_null())
+		{
+			return NULL_ANIM;
+		}
+
+		return j;
+	}
+
 	void Animation::applyAnimation(AnimationManagerData* am, float t) const
 	{
 		if (Animation::appliesToChildren(type))
@@ -419,7 +466,7 @@ namespace MathAnim
 		memory["AnimationType"] = _animationTypeNames[(uint8)type];
 		memory["FrameStart"] = frameStart;
 		memory["Duration"] = duration;
-		memory["ID"] = id;
+		writeIdToJson("ID", id, memory);
 		memory["EaseType"] = easeTypeNames[(uint8)easeType];
 		memory["EaseDirection"] = easeDirectionNames[(uint8)easeDirection];
 
@@ -430,7 +477,10 @@ namespace MathAnim
 		memory["Objects"] = nlohmann::json::array();
 		for (auto animObjId : animObjectIds)
 		{
-			memory["Objects"].push_back(animObjId);
+			nlohmann::json idAsJson{};
+			convertIdToJson(animObjId, idAsJson);
+			memory["Objects"].push_back(idAsJson);
+
 		}
 
 		switch (this->type)
@@ -472,62 +522,47 @@ namespace MathAnim
 
 	void ReplacementTransformData::serialize(nlohmann::json& memory) const
 	{
-		memory["SrcObjectId"] = srcAnimObjectId;
-		memory["DstObjectId"] = dstAnimObjectId;
+		writeIdToJson("SrcObjectId", srcAnimObjectId, memory);
+		writeIdToJson("DstObjectId", dstAnimObjectId, memory);
 	}
 
-	ReplacementTransformData ReplacementTransformData::deserialize(RawMemory& memory)
+	ReplacementTransformData ReplacementTransformData::deserialize(const nlohmann::json& memory)
 	{
-		// srcObjectId -> AnimObjId
-		// dstObjectId -> AnimObjId
 		ReplacementTransformData res;
-		memory.read<AnimObjId>(&res.srcAnimObjectId);
-		memory.read<AnimObjId>(&res.dstAnimObjectId);
-
+		res.srcAnimObjectId = readIdFromJson(memory, "SrcObjectId");
+		res.dstAnimObjectId = readIdFromJson(memory, "DstObjectId");
 		return res;
 	}
 
 	void MoveToData::serialize(nlohmann::json& memory) const
 	{
-		// source -> Vec2
-		// target -> Vec2
-		// object -> AnimObjId
 		CMath::serialize(memory, "Source", this->source);
 		CMath::serialize(memory, "Target", this->target);
-		memory["Object"] = object;
+		writeIdToJson("Object", object, memory);
 	}
 
-	MoveToData MoveToData::deserialize(RawMemory& memory)
+	MoveToData MoveToData::deserialize(const nlohmann::json& memory)
 	{
-		// source -> Vec2
-		// target -> Vec2
-		// object -> AnimObjId
 		MoveToData res;
 		res.source = CMath::deserializeVec2(memory);
 		res.target = CMath::deserializeVec2(memory);
-		memory.read<AnimObjId>(&res.object);
+		res.object = readIdFromJson(memory, "Object");
 		return res;
 	}
 
 	void AnimateScaleData::serialize(nlohmann::json& memory) const
 	{
-		// source -> Vec2
-		// target -> Vec2
-		// object -> AnimObjId
 		CMath::serialize(memory, "Source", this->source);
 		CMath::serialize(memory, "Target", this->target);
-		memory["Object"] = object;
+		writeIdToJson("Object", object, memory);
 	}
 
-	AnimateScaleData AnimateScaleData::deserialize(RawMemory& memory)
+	AnimateScaleData AnimateScaleData::deserialize(const nlohmann::json& memory)
 	{
-		// source -> Vec2
-		// target -> Vec2
-		// object -> AnimObjId
 		AnimateScaleData res;
 		res.source = CMath::deserializeVec2(memory);
 		res.target = CMath::deserializeVec2(memory);
-		memory.read<AnimObjId>(&res.object);
+		res.object = readIdFromJson(memory, "Object");
 		return res;
 	}
 
@@ -631,24 +666,20 @@ namespace MathAnim
 		memory["FadeType"] = _circumscribeFadeNames[(uint8)fade];
 		memory["BufferSize"] = bufferSize;
 		memory["TimeWidth"] = timeWidth;
-		memory["Object"] = obj;
+		writeIdToJson("Object", obj, memory);
 	}
 
-	Circumscribe Circumscribe::deserialize(RawMemory& memory)
+	Circumscribe Circumscribe::deserialize(const nlohmann::json& j)
 	{
-		// color          -> Vec4
-		// shape          -> u8
-		// fade           -> u8
-		// bufferSize     -> f32
-		// timeWidth      -> f32
-		// obj            -> AnimObjId
 		Circumscribe res;
-		res.color = CMath::deserializeVec4(memory);
-		memory.read<CircumscribeShape>(&res.shape);
-		memory.read<CircumscribeFade>(&res.fade);
-		memory.read<float>(&res.bufferSize);
-		memory.read<float>(&res.timeWidth);
-		memory.read<AnimObjId>(&res.obj);
+		res.color = CMath::deserializeVec4(j["Color"]);
+		const std::string& shapeName = j["Shape"];
+		res.shape = findMatchingEnum<CircumscribeShape, (size_t)CircumscribeShape::Length>(_circumscribeShapeNames, shapeName);
+		const std::string& fadeName = j["FadeType"];
+		res.fade = findMatchingEnum<CircumscribeFade, (size_t)CircumscribeFade::Length>(_circumscribeFadeNames, fadeName);
+		res.bufferSize = j.contains("BufferSize") ? j["BufferSize"] : NAN;
+		res.timeWidth = j.contains("TimeWidth") ? j["TimeWidth"] : NAN;
+		res.obj = readIdFromJson(j, "Object");
 
 		return res;
 	}
@@ -666,11 +697,11 @@ namespace MathAnim
 		return res;
 	}
 
-	Animation Animation::deserialize(RawMemory& memory, uint32 version)
+	Animation Animation::deserialize(const nlohmann::json& memory, uint32 version)
 	{
 		if (version == 1)
 		{
-			return deserializeAnimationExV1(memory);
+			return deserializeAnimationV2(memory);
 		}
 
 		g_logger_error("AnimationEx serialized with unknown version '%d'. Memory potentially corrupted.", version);
@@ -740,11 +771,9 @@ namespace MathAnim
 
 	void CameraObject::serialize(nlohmann::json& memory) const
 	{
-		//OrthoCamera camera2D;
-		//bool is2D;
-		//bool isActiveCamera;
 		camera2D.serialize(memory);
-		memory["is2D"] = is2D;
+		memory["Is2D"] = is2D;
+		memory["IsActiveCamera"] = isActiveCamera;
 	}
 
 	void CameraObject::free()
@@ -752,13 +781,14 @@ namespace MathAnim
 
 	}
 
-	CameraObject CameraObject::deserialize(RawMemory& memory, uint32 version)
+	CameraObject CameraObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
-			return deserializeCameraObjectV1(memory);
+			return deserializeCameraObjectV1(j, version);
 		}
 
+		g_logger_warning("Camera serialized with unknown version: %d", version);
 		CameraObject res = {};
 		return res;
 	}
@@ -790,20 +820,16 @@ namespace MathAnim
 		scriptFilepathLength = 0;
 	}
 
-	ScriptObject ScriptObject::deserialize(RawMemory& memory, uint32 version)
+	ScriptObject ScriptObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		if (version == 1)
 		{
 			ScriptObject res;
 
-			// ScriptFilepathLength    -> u32
-			// ScriptFilepath          -> u8[ScriptFilepathLength]
-			uint32 scriptFilepathLengthU32;
-			memory.read<uint32>(&scriptFilepathLengthU32);
-			res.scriptFilepathLength = (size_t)scriptFilepathLengthU32;
+			const std::string& filepathStr = j.contains("Filepath") ? j["Filepath"] : "Undefined";
+			res.scriptFilepathLength = filepathStr.length();
 			res.scriptFilepath = (char*)g_memory_allocate(sizeof(uint8) * (res.scriptFilepathLength + 1));
-			memory.readDangerous((uint8*)res.scriptFilepath, sizeof(uint8) * res.scriptFilepathLength);
-			res.scriptFilepath[res.scriptFilepathLength] = '\0';
+			g_memory_copyMem(res.scriptFilepath, (void*)filepathStr.c_str(), sizeof(uint8) * (res.scriptFilepathLength + 1));
 			return res;
 		}
 
@@ -1388,19 +1414,23 @@ namespace MathAnim
 		memory["DrawDebugBoxes"] = drawDebugBoxes;
 		memory["DrawCurveDebugBoxes"] = drawCurveDebugBoxes;
 
-		memory["ID"] = id;
+		writeIdToJson("ID", id, memory);
 		memory["ParentID"] = parentId;
 
 		memory["GeneratedChildren"] = nlohmann::json::array();
 		for (auto generatedId : generatedChildrenIds)
 		{
-			memory["GeneratedChildren"].push_back(generatedId);
+			nlohmann::json generatedChildId{};
+			convertIdToJson(generatedId, generatedChildId);
+			memory["GeneratedChildren"].emplace_back(generatedChildId);
 		}
 
 		memory["ReferencedAnimations"] = nlohmann::json::array();
 		for (auto animId : referencedAnimations)
 		{
-			memory["ReferencedAnimations"].push_back(animId);
+			nlohmann::json animIdJson{};
+			convertIdToJson(animId, animIdJson);
+			memory["ReferencedAnimations"].emplace_back(animIdJson);
 		}
 
 		memory["Name"] = (char*)name;
@@ -1450,11 +1480,11 @@ namespace MathAnim
 		}
 	}
 
-	AnimObject AnimObject::deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version)
+	AnimObject AnimObject::deserialize(AnimationManagerData* am, const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
-			return deserializeAnimObjectV1(am, memory);
+			return deserializeAnimObjectV2(am, j);
 		}
 
 		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
@@ -1699,12 +1729,8 @@ namespace MathAnim
 	}
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV1(AnimationManagerData*, RawMemory& memory)
+	static AnimObject deserializeAnimObjectV2(AnimationManagerData*, const nlohmann::json& j)
 	{
-		// TODO: Replace this with some sort of library where you register 
-		// an object layout and it automatically serializes/deserializes stuff
-		// for you
-
 		AnimObject res;
 		// If the object is being read in from the file then it's not
 		// generated since all generated objects don't get saved
@@ -1713,90 +1739,45 @@ namespace MathAnim
 		res.drawControlPoints = false;
 		res.percentCreated = 0.0f;
 
-		// AnimObjectType     -> uint32
-		// _PositionStart     -> Vec3
-		// RotationStart      -> Vec3
-		// ScaleStart         -> Vec3
-		// _FillColorStart    -> Vec4U8
-		// _StrokeColorStart  -> Vec4U8
-		// 
-		// _StrokeWidthStart  -> f32
-		// svgScale           -> f32
-		// 
-		// isTransparent      -> u8
-		// is3D               -> u8
-		// drawDebugBoxes     -> u8
-		// drawCurveDebugBoxes -> u8
-		// 
-		// Id                   -> AnimObjId
-		// ParentId             -> AnimObjId
-		// NumGeneratedChildren -> uint32
-		// GeneratedChildrenIds -> AnimObjId[numGeneratedChildren]
-		//
-		// numRefAnimations     -> uint32
-		// referencedAnimations -> AnimId[numObjects]
-		// 
-		// NameLength         -> uint32
-		// Name               -> uint8[NameLength + 1]
 		// AnimObject Specific Data
-		uint32 animObjectType;
-		memory.read<uint32>(&animObjectType);
-		g_logger_assert(animObjectType < (uint32)AnimObjectTypeV1::Length, "Invalid AnimObjectType '%d' from memory. Must be corrupted memory.", animObjectType);
-		res.objectType = (AnimObjectTypeV1)animObjectType;
-		res._positionStart = CMath::deserializeVec3(memory);
-		res._rotationStart = CMath::deserializeVec3(memory);
-		res._scaleStart = CMath::deserializeVec3(memory);
-		res._fillColorStart = CMath::deserializeU8Vec4(memory);
-		res._strokeColorStart = CMath::deserializeU8Vec4(memory);
+		const std::string& objectTypeStr = j.contains("AnimObjectType") ? j["AnimObjectType"] : "Undefined";
+		res.objectType = findMatchingEnum<AnimObjectTypeV1, (size_t)AnimObjectTypeV1::Length>(_animationObjectTypeNames, objectTypeStr);
+		res._positionStart = CMath::deserializeVec3(j["PositionStart"]);
+		res._rotationStart = CMath::deserializeVec3(j["RotationStart"]);
+		res._scaleStart = CMath::deserializeVec3(j["ScaleStart"]);
+		res._fillColorStart = CMath::deserializeU8Vec4(j["FillColorStart"]);
+		res._strokeColorStart = CMath::deserializeU8Vec4(j["StrokeColorStart"]);
 
-		memory.read<float>(&res._strokeWidthStart);
-		memory.read<float>(&res.svgScale);
+		res._strokeWidthStart = j.contains("StrokeWidthStart") ? j["StrokeWidthStart"] : 0.0f;
+		res.svgScale = j.contains("SvgScale") ? j["SvgScale"] : 0.0f;
+		res.isTransparent = j.contains("IsTransparent") ? j["IsTransparent"] : false;
+		res.is3D = j.contains("Is3D") ? j["Is3D"] : false;
+		res.drawDebugBoxes = j.contains("DrawDebugBoxes") ? j["DrawDebugBoxes"] : false;
+		res.drawCurveDebugBoxes = j.contains("DrawCurveDebugBoxes") ? j["DrawCurveDebugBoxes"] : false;
 
-		uint8 isTransparent;
-		memory.read<uint8>(&isTransparent);
-		res.isTransparent = isTransparent != 0;
-
-		uint8 is3D;
-		memory.read<uint8>(&is3D);
-		res.is3D = is3D != 0;
-
-		uint8 drawDebugBoxes;
-		memory.read<uint8>(&drawDebugBoxes);
-		res.drawDebugBoxes = drawDebugBoxes != 0;
-
-		uint8 drawCurveDebugBoxes;
-		memory.read<uint8>(&drawCurveDebugBoxes);
-		res.drawCurveDebugBoxes = drawCurveDebugBoxes != 0;
-
-		memory.read<AnimObjId>(&res.id);
-		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
-		memory.read<AnimObjId>(&res.parentId);
-
-		uint32 numGeneratedChildrenIds;
-		memory.read<uint32>(&numGeneratedChildrenIds);
-		res.generatedChildrenIds.reserve(numGeneratedChildrenIds);
-		for (uint32 i = 0; i < numGeneratedChildrenIds; i++)
+		res.parentId = readIdFromJson(j, "ParentId");
+		res.id = readIdFromJson(j, "ID");
+		if (!isNull(res.id))
 		{
-			AnimObjId childId;
-			memory.read<AnimObjId>(&childId);
-			res.generatedChildrenIds.push_back(childId);
+			animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
 		}
 
-		uint32 numReferencedAnimations;
-		memory.read<uint32>(&numReferencedAnimations);
-		for (uint32 i = 0; i < numReferencedAnimations; i++)
+		for (size_t i = 0; i < j["GeneratedChildren"].size(); i++)
 		{
-			AnimId refAnim;
-			memory.read<AnimId>(&refAnim);
+			AnimObjId childId = convertJsonToId(j["GeneratedChildren"][i]);
+			res.generatedChildrenIds.emplace_back(childId);
+		}
+
+		for (size_t i = 0; i < j["ReferencedAnimations"].size(); i++)
+		{
+			AnimId refAnim = convertJsonToId(j["ReferencedAnimations"][i]);
 			res.referencedAnimations.insert(refAnim);
 		}
 
-		if (!memory.read<uint32>(&res.nameLength))
-		{
-			g_logger_assert(false, "Corrupted project data. Irrecoverable.");
-		}
+		const std::string& nameStr = j.contains("Name") ? j["Name"] : "Undefined";
+		res.nameLength = (uint32)nameStr.length();
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
-		memory.readDangerous(res.name, res.nameLength + 1);
+		g_memory_copyMem(res.name, (void*)nameStr.c_str(), sizeof(uint8) * (res.nameLength + 1));
 
 		// Initialize other variables
 		res.position = res._positionStart;
@@ -1810,52 +1791,52 @@ namespace MathAnim
 		res.svgObject = nullptr;
 		res._svgObjectStart = nullptr;
 
-		// We're in V1 so this is version 1
-		constexpr uint32 version = 1;
+		// We're in V2 so this is version 2
+		constexpr uint32 version = 2;
 		switch (res.objectType)
 		{
 		case AnimObjectTypeV1::TextObject:
-			res.as.textObject = TextObject::deserialize(memory, version);
+			res.as.textObject = TextObject::deserialize(j["TextObject"], version);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
-			res.as.laTexObject = LaTexObject::deserialize(memory, version);
+			res.as.laTexObject = LaTexObject::deserialize(j["LaTexObject"], version);
 			break;
 		case AnimObjectTypeV1::Square:
-			res.as.square = Square::deserialize(memory, version);
+			res.as.square = Square::deserialize(j["Square"], version);
 			res.as.square.init(&res);
 			break;
 		case AnimObjectTypeV1::SvgObject:
-			res._svgObjectStart = SvgObject::deserialize(memory, version);
+			res._svgObjectStart = SvgObject::deserialize(j["SvgObject"], version);
 			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 			*res.svgObject = Svg::createDefault();
 			Svg::copy(res.svgObject, res._svgObjectStart);
 			break;
 		case AnimObjectTypeV1::Circle:
-			res.as.circle = Circle::deserialize(memory, version);
+			res.as.circle = Circle::deserialize(j["Circle"], version);
 			res.as.circle.init(&res);
 			break;
 		case AnimObjectTypeV1::Cube:
-			res.as.cube = Cube::deserialize(memory, version);
+			res.as.cube = Cube::deserialize(j["Cube"], version);
 			res.as.cube.init(&res);
 			break;
 		case AnimObjectTypeV1::Axis:
-			res.as.axis = Axis::deserialize(memory, version);
+			res.as.axis = Axis::deserialize(j["Axis"], version);
 			res.as.axis.init(&res);
 			break;
 		case AnimObjectTypeV1::SvgFileObject:
-			res.as.svgFile = SvgFileObject::deserialize(memory, version);
+			res.as.svgFile = SvgFileObject::deserialize(j["SvgFileObject"], version);
 			break;
 		case AnimObjectTypeV1::Camera:
-			res.as.camera = CameraObject::deserialize(memory, version);
+			res.as.camera = CameraObject::deserialize(j["Camera"], version);
 			break;
 		case AnimObjectTypeV1::ScriptObject:
-			res.as.script = ScriptObject::deserialize(memory, version);
+			res.as.script = ScriptObject::deserialize(j["ScriptObject"], version);
 			break;
 		case AnimObjectTypeV1::CodeBlock:
-			res.as.codeBlock = CodeBlock::deserialize(memory, version);
+			res.as.codeBlock = CodeBlock::deserialize(j["CodeBlock"], version);
 			break;
 		case AnimObjectTypeV1::Arrow:
-			res.as.arrow = Arrow::deserialize(memory, version);
+			res.as.arrow = Arrow::deserialize(j["Arrow"], version);
 			res.as.arrow.init(&res);
 			break;
 		case AnimObjectTypeV1::Length:
@@ -1866,54 +1847,34 @@ namespace MathAnim
 		return res;
 	}
 
-	Animation deserializeAnimationExV1(RawMemory& memory)
+	Animation deserializeAnimationV2(const nlohmann::json& j)
 	{
-		// type           -> uint32
-		// frameStart     -> int32
-		// duration       -> int32
-		// id             -> int32
-		// easeType       -> uint8
-		// easeDirection  -> uint8
-		// timelineTrack  -> int32
-		// playbackType   -> uint8
-		// lagRatio       -> f32
-		// 
-		// numObjects     -> uint32
-		// objectIds      -> AnimObjId[numObjects]
-		// Custom animation data -> dynamic
 		Animation res;
-		uint32 animType;
-		memory.read<uint32>(&animType);
-		g_logger_assert(animType < (uint32)AnimTypeV1::Length, "Invalid animation type '%d' from memory. Must be corrupted memory.", animType);
-		res.type = (AnimTypeV1)animType;
-		memory.read<int32>(&res.frameStart);
-		memory.read<int32>(&res.duration);
 
-		memory.read<AnimId>(&res.id);
-		animationUidCounter = glm::max(animationUidCounter, res.id + 1);
-
-		uint8 easeTypeInt, easeDirectionInt;
-		memory.read<uint8>(&easeTypeInt);
-		memory.read<uint8>(&easeDirectionInt);
-		g_logger_assert(easeTypeInt < (uint8)EaseType::Length, "Corrupted memory. Ease type was %d which is out of bounds.", easeTypeInt);
-		res.easeType = (EaseType)easeTypeInt;
-		g_logger_assert(easeDirectionInt < (uint8)EaseDirection::Length, "Corrupted memory. Ease direction was %d which is out of bounds.", easeDirectionInt);
-		res.easeDirection = (EaseDirection)easeDirectionInt;
-
-		memory.read<int32>(&res.timelineTrack);
-		uint8 playbackType;
-		memory.read<uint8>(&playbackType);
-		g_logger_assert(playbackType < (uint8)PlaybackType::Length, "Corrupted memory. PlaybackType was %d which is out of bounds.", playbackType);
-		res.playbackType = (PlaybackType)playbackType;
-		memory.read<float>(&res.lagRatio);
-
-		uint32 numObjects;
-		memory.read<uint32>(&numObjects);
-		for (uint32 i = 0; i < numObjects; i++)
+		const std::string& animationTypeStr = j.contains("AnimationType") ? j["AnimationType"] : "Undefined";
+		res.type = findMatchingEnum<AnimTypeV1, (size_t)AnimTypeV1::Length>(_animationTypeNames, animationTypeStr);
+		res.frameStart = j.contains("FrameStart") ? j["FrameStart"] : 0.0f;
+		res.duration = j.contains("Duration") ? j["Duration"] : 0.0f;
+		res.id = readIdFromJson(j, "ID");
+		if (!isNull(res.id))
 		{
-			AnimObjId tmp;
-			memory.read<AnimObjId>(&tmp);
-			res.animObjectIds.insert(tmp);
+			animationUidCounter = glm::max(animationUidCounter, res.id + 1);
+		}
+
+		const std::string& easeTypeStr = j.contains("EaseType") ? j["EaseType"] : "Undefined";
+		res.easeType = findMatchingEnum<EaseType, (size_t)EaseType::Length>(easeTypeNames, easeTypeStr);
+		const std::string& easeDirectionStr = j.contains("EaseDirection") ? j["EaseDirection"] : "Undefined";
+		res.easeDirection = findMatchingEnum<EaseDirection, (size_t)EaseDirection::Length>(easeDirectionNames, easeDirectionStr);
+
+		res.timelineTrack = j.contains("TimelineTrack") ? j["TimelineTrack"] : 0;
+		const std::string& playbackTypeStr = j.contains("PlaybackType") ? j["PlaybackType"] : "Undefined";
+		res.playbackType = findMatchingEnum<PlaybackType, (size_t)PlaybackType::Length>(_playbackTypeNames, playbackTypeStr);
+		res.lagRatio = j.contains("LagRatio") ? j["LagRatio"] : 0.0f;
+
+		for (size_t i = 0; i < j["Objects"].size(); i++)
+		{
+			AnimObjId id = convertJsonToId(j["Objects"][i]);
+			res.animObjectIds.insert(id);
 		}
 
 		switch (res.type)
@@ -1928,22 +1889,22 @@ namespace MathAnim
 		case AnimTypeV1::Shift:
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
-			res.as.modifyU8Vec4.target = CMath::deserializeU8Vec4(memory);
+			res.as.modifyU8Vec4.target = CMath::deserializeU8Vec4(j);
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
 			break;
 		case AnimTypeV1::Transform:
-			res.as.replacementTransform = ReplacementTransformData::deserialize(memory);
+			res.as.replacementTransform = ReplacementTransformData::deserialize(j);
 			break;
 		case AnimTypeV1::MoveTo:
-			res.as.moveTo = MoveToData::deserialize(memory);
+			res.as.moveTo = MoveToData::deserialize(j);
 			break;
 		case AnimTypeV1::AnimateScale:
-			res.as.animateScale = AnimateScaleData::deserialize(memory);
+			res.as.animateScale = AnimateScaleData::deserialize(j);
 			break;
 		case AnimTypeV1::Circumscribe:
-			res.as.circumscribe = Circumscribe::deserialize(memory);
+			res.as.circumscribe = Circumscribe::deserialize(j);
 			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
@@ -1953,16 +1914,13 @@ namespace MathAnim
 		return res;
 	}
 
-	static CameraObject deserializeCameraObjectV1(RawMemory& memory)
+	static CameraObject deserializeCameraObjectV1(const nlohmann::json& j, uint32 version)
 	{
-		//OrthoCamera camera2D;
-		//bool is2D;
-		//bool isActiveCamera;
 		CameraObject res;
-		res.camera2D = OrthoCamera::deserialize(memory, 1);
-		uint8 is2DU8;
-		memory.read<uint8>(&is2DU8);
-		res.is2D = is2DU8 == 1;
+
+		res.camera2D = OrthoCamera::deserialize(j, version);
+		res.is2D = j.contains("Is2D") ? j["Is2D"] : false;
+		res.isActiveCamera = j.contains("IsActiveCamera") ? j["IsActiveCamera"] : false;
 
 		return res;
 	}

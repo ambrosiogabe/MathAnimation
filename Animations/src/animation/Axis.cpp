@@ -9,7 +9,7 @@
 namespace MathAnim
 {
 	// ------------------ Internal Functions ------------------
-	static Axis deserializeAxisV1(RawMemory& memory);
+	static Axis deserializeAxisV1(const nlohmann::json& j);
 
 	void Axis::init(AnimObject*)
 	{
@@ -168,12 +168,12 @@ namespace MathAnim
 		memory["LabelStrokeWidth"] = labelStrokeWidth;
 	}
 
-	Axis Axis::deserialize(RawMemory& memory, uint32 version)
+	Axis Axis::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		switch (version)
 		{
 		case 1:
-			return deserializeAxisV1(memory);
+			return deserializeAxisV1(j);
 			break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of axis %d. It looks like you have corrupted scene data.");
@@ -184,35 +184,21 @@ namespace MathAnim
 	}
 
 	// ------------------ Internal Functions ------------------
-	static Axis deserializeAxisV1(RawMemory& memory)
+	static Axis deserializeAxisV1(const nlohmann::json& j)
 	{
-		// axesLength    -> Vec3
-		// xRange        -> Vec2i
-		// yRange        -> Vec2i
-		// zRange        -> Vec2i
-		// xStep         -> float
-		// yStep         -> float
-		// zStep         -> float
-		// tickWidth     -> float 
-		// drawNumbers   -> u8
-		// fontSizePx    -> float
-		// labelPadding  -> float
-		// labelStrokeWidth -> float
 		Axis res;
-		res.axesLength = CMath::deserializeVec3(memory);
-		res.xRange = CMath::deserializeVec2i(memory);
-		res.yRange = CMath::deserializeVec2i(memory);
-		res.zRange = CMath::deserializeVec2i(memory);
-		memory.read<float>(&res.xStep);
-		memory.read<float>(&res.yStep);
-		memory.read<float>(&res.zStep);
-		memory.read<float>(&res.tickWidth);
-		uint8 drawNumbersU8;
-		memory.read<uint8>(&drawNumbersU8);
-		res.drawNumbers = drawNumbersU8 == 1;
-		memory.read<float>(&res.fontSizePixels);
-		memory.read<float>(&res.labelPadding);
-		memory.read<float>(&res.labelStrokeWidth);
+		res.axesLength = CMath::deserializeVec3(j);
+		res.xRange = CMath::deserializeVec2i(j);
+		res.yRange = CMath::deserializeVec2i(j);
+		res.zRange = CMath::deserializeVec2i(j);
+		res.xStep = j.contains("XStep") ? j["XStep"] : 0.0f;
+		res.xStep = j.contains("YStep") ? j["YStep"] : 0.0f;
+		res.xStep = j.contains("ZStep") ? j["ZStep"] : 0.0f;
+		res.tickWidth = j.contains("TickWidth") ? j["TickWidth"] : 0.0f;
+		res.drawNumbers = j.contains("DrawNumbers") ? j["DrawNumbers"] : false;
+		res.fontSizePixels = j.contains("FontSizePixels") ? j["FontSizePixels"] : 0.0f;
+		res.labelPadding = j.contains("LabelPadding") ? j["LabelPadding"] : 0.0f;
+		res.labelStrokeWidth = j.contains("LabelStrokeWidth") ? j["LabelStrokeWidth"] : 0.0f;
 
 		return res;
 	}

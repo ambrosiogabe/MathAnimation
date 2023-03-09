@@ -7,7 +7,7 @@
 namespace MathAnim
 {
 	// -------------- Internal Functions --------------
-	static OrthoCamera deserializeCameraV1(RawMemory& memory);
+	static OrthoCamera deserializeCameraV1(const nlohmann::json& memory);
 
 	glm::mat4 OrthoCamera::calculateViewMatrix() const
 	{
@@ -47,11 +47,15 @@ namespace MathAnim
 		memory["Zoom"] = zoom;
 	}
 
-	OrthoCamera OrthoCamera::deserialize(RawMemory& memory, uint32 version)
+	OrthoCamera OrthoCamera::deserialize(const nlohmann::json& memory, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
 			return deserializeCameraV1(memory);
+		}
+		else
+		{
+			g_logger_warning("Unknown camera version: %d", version);
 		}
 
 		OrthoCamera res = {};
@@ -59,15 +63,12 @@ namespace MathAnim
 	}
 
 	// -------------- Internal Functions --------------
-	static OrthoCamera deserializeCameraV1(RawMemory& memory)
+	static OrthoCamera deserializeCameraV1(const nlohmann::json& j)
 	{
-		// position        -> Vec2
-		// projectionSize  -> Vec2
-		// zoom            -> float
 		OrthoCamera res = {};
-		res.position = CMath::deserializeVec2(memory);
-		res.projectionSize = CMath::deserializeVec2(memory);
-		memory.read<float>(&res.zoom);
+		res.position = CMath::deserializeVec2(j["Position"]);
+		res.projectionSize = CMath::deserializeVec2(j["ProjectionSize"]);
+		res.zoom = j.contains("Zoom") ? j["Zoom"] : 1.0f;
 
 		return res;
 	}

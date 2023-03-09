@@ -205,6 +205,20 @@ constexpr std::array<T, N> fixedSizeArray(Args&&... values)
 	return std::array<T, N>{values...};
 }
 
+template<typename T, std::size_t N>
+T findMatchingEnum(const std::array<const char*, N> enumNamesAsStr, const std::string& enumToFind)
+{
+	for (size_t i = 0; i < enumNamesAsStr.size(); i++)
+	{
+		if (enumNamesAsStr[i] == enumToFind)
+		{
+			return (T)i;
+		}
+	}
+
+	return (T)(0);
+}
+
 typedef uint64 AnimObjId;
 typedef uint64 AnimId;
 

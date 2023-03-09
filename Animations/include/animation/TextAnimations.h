@@ -24,7 +24,7 @@ namespace MathAnim
 		void serialize(nlohmann::json& memory) const;
 		void free();
 
-		static TextObject deserialize(RawMemory& memory, uint32 version);
+		static TextObject deserialize(const nlohmann::json& j, uint32 version);
 		static TextObject createDefault();
 		static TextObject createCopy(const TextObject& from);
 	};
@@ -52,7 +52,7 @@ namespace MathAnim
 		void serialize(nlohmann::json& memory) const;
 		void free();
 
-		static LaTexObject deserialize(RawMemory& memory, uint32 version);
+		static LaTexObject deserialize(const nlohmann::json& j, uint32 version);
 		static LaTexObject createDefault();
 	};
 
@@ -68,7 +68,7 @@ namespace MathAnim
 		void serialize(nlohmann::json& memory) const;
 		void free();
 
-		static CodeBlock deserialize(RawMemory& memory, uint32 version);
+		static CodeBlock deserialize(const nlohmann::json& j, uint32 version);
 		static CodeBlock createDefault();
 	};
 }

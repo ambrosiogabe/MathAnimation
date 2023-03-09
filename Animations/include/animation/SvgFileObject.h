@@ -23,7 +23,7 @@ namespace MathAnim
 		void serialize(nlohmann::json& memory) const;
 		void free();
 
-		static SvgFileObject deserialize(RawMemory& memory, uint32 version);
+		static SvgFileObject deserialize(const nlohmann::json& j, uint32 version);
 		static SvgFileObject createDefault();
 	};
 }

@@ -17,7 +17,7 @@ namespace MathAnim
 		void init(AnimObject* parent);
 		void serialize(nlohmann::json& memory) const;
 
-		static Square deserialize(RawMemory& memory, uint32 version);
+		static Square deserialize(const nlohmann::json& j, uint32 version);
 	};
 
 	struct Circle
@@ -27,7 +27,7 @@ namespace MathAnim
 		void init(AnimObject* parent);
 		void serialize(nlohmann::json& memory) const;
 
-		static Circle deserialize(RawMemory& memory, uint32 version);
+		static Circle deserialize(const nlohmann::json& j, uint32 version);
 	};
 
 	struct Arrow
@@ -40,7 +40,7 @@ namespace MathAnim
 		void init(AnimObject* parent);
 		void serialize(nlohmann::json& memory) const;
 
-		static Arrow deserialize(RawMemory& memory, uint32 version);
+		static Arrow deserialize(const nlohmann::json& j, uint32 version);
 	};
 
 	struct Cube
@@ -50,7 +50,7 @@ namespace MathAnim
 		void init(AnimObject* parent);
 		void serialize(nlohmann::json& memory) const;
 
-		static Cube deserialize(RawMemory& memory, uint32 version);
+		static Cube deserialize(const nlohmann::json& j, uint32 version);
 	};
 }
 

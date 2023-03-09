@@ -101,7 +101,7 @@ namespace MathAnim
 		void free();
 
 		void serialize(nlohmann::json& memory) const;
-		static SvgObject* deserialize(RawMemory& memory, uint32 version);
+		static SvgObject* deserialize(const nlohmann::json& j, uint32 version);
 	};
 
 	struct SvgGroup

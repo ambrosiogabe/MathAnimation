@@ -17,9 +17,9 @@
 namespace MathAnim
 {
 	// ------------- Internal Functions -------------
-	static TextObject deserializeTextV1(RawMemory& memory);
-	static LaTexObject deserializeLaTexV1(RawMemory& memory);
-	static CodeBlock deserializeCodeBlockV1(RawMemory& memory);
+	static TextObject deserializeTextV1(const nlohmann::json& j);
+	static LaTexObject deserializeLaTexV1(const nlohmann::json& j);
+	static CodeBlock deserializeCodeBlockV1(const nlohmann::json& j);
 
 	// Number of spaces for tabs. Make this configurable
 	constexpr int tabDepth = 2;
@@ -138,7 +138,7 @@ namespace MathAnim
 		}
 	}
 
-	TextObject TextObject::deserialize(RawMemory& memory, uint32 version)
+	TextObject TextObject::deserialize(const nlohmann::json& memory, uint32 version)
 	{
 		if (version == 1)
 		{
@@ -219,7 +219,7 @@ namespace MathAnim
 		childObj.as.svgFile.setFilepath(filepath);
 		childObj.as.svgFile.init(am, childObj.id);
 	}
-		
+
 	void LaTexObject::reInit(AnimationManagerData* am, AnimObject* obj)
 	{
 		// First remove all generated children, which were generated as a result
@@ -282,11 +282,11 @@ namespace MathAnim
 		}
 	}
 
-	LaTexObject LaTexObject::deserialize(RawMemory& memory, uint32 version)
+	LaTexObject LaTexObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		if (version == 1)
 		{
-			return deserializeLaTexV1(memory);
+			return deserializeLaTexV1(j);
 		}
 
 		g_logger_error("Invalid version '%d' while deserializing text object.", version);
@@ -462,11 +462,11 @@ namespace MathAnim
 		}
 	}
 
-	CodeBlock CodeBlock::deserialize(RawMemory& memory, uint32 version)
+	CodeBlock CodeBlock::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		if (version == 1)
 		{
-			return deserializeCodeBlockV1(memory);
+			return deserializeCodeBlockV1(j);
 		}
 
 		g_logger_error("Invalid version '%d' while deserializing code object.", version);
@@ -496,70 +496,56 @@ int main()
 	}
 
 	// ------------- Internal Functions -------------
-	static TextObject deserializeTextV1(RawMemory& memory)
+	static TextObject deserializeTextV1(const nlohmann::json& j)
 	{
 		TextObject res;
 
-		// textLength           -> int32
-		// text                 -> char[textLength]
-		// fontFilepathLength   -> int32
-		// fontFilepath         -> char[fontFilepathLength]
-
-		memory.read<int32>(&res.textLength);
+		const std::string& textStr = j.contains("Text") ? j["Text"] : "Undefined";
+		res.textLength = (int32)textStr.length();
 		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
-		memory.readDangerous((uint8*)res.text, sizeof(uint8) * res.textLength);
-		res.text[res.textLength] = '\0';
+		g_memory_copyMem(res.text, (void*)textStr.c_str(), sizeof(char) * (res.textLength + 1));
 
 		// TODO: Error checking would be good here
-		int32 fontFilepathLength;
-		memory.read<int32>(&fontFilepathLength);
-		uint8* fontFilepath = (uint8*)g_memory_allocate(sizeof(uint8) * (fontFilepathLength + 1));
-		memory.readDangerous((uint8*)fontFilepath, sizeof(uint8) * fontFilepathLength);
-		fontFilepath[fontFilepathLength] = '\0';
-
-		res.font = Fonts::loadFont((const char*)fontFilepath);
-		g_memory_free(fontFilepath);
+		const std::string& fontFilepathStr = j.contains("FontFilepath") ? j["FontFilepath"] : "nullFont";
+		if (fontFilepathStr != "nullFont")
+		{
+			res.font = Fonts::loadFont(fontFilepathStr.c_str());
+		}
+		else
+		{
+			res.font = nullptr;
+		}
 
 		return res;
 	}
 
-	static LaTexObject deserializeLaTexV1(RawMemory& memory)
+	static LaTexObject deserializeLaTexV1(const nlohmann::json& j)
 	{
 		LaTexObject res;
 
-		// textLength       -> i32
-		// text             -> char[textLength]
-		// isEquation       -> u8 (bool)
-
-		memory.read<int32>(&res.textLength);
+		const std::string& textStr = j.contains("Text") ? j["Text"] : "Undefined";
+		res.textLength = (int32)textStr.length();
 		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
-		memory.readDangerous((uint8*)res.text, res.textLength * sizeof(uint8));
-		res.text[res.textLength] = '\0';
+		g_memory_copyMem(res.text, (void*)textStr.c_str(), sizeof(char) * (res.textLength + 1));
 
-		uint8 isEquationU8;
-		memory.read<uint8>(&isEquationU8);
-		res.isEquation = isEquationU8 == 1;
-		res.isParsingLaTex = false;
+		res.isEquation = j.contains("IsEquation") ? j["IsEquation"] : false;
 
 		return res;
 	}
 
-	static CodeBlock deserializeCodeBlockV1(RawMemory& memory)
+	static CodeBlock deserializeCodeBlockV1(const nlohmann::json& j)
 	{
 		CodeBlock res;
 
-		// theme                -> uint8
-		// language             -> uint8
-		// textLength           -> int32
-		// text                 -> char[textLength]
+		const std::string& themeStr = j.contains("Theme") ? j["Theme"] : "Undefined";
+		res.theme = findMatchingEnum<HighlighterTheme, (size_t)HighlighterTheme::Length>(_highlighterThemeNames, themeStr);
+		const std::string languageStr = j.contains("Language") ? j["Language"] : "Undefined";
+		res.language = findMatchingEnum<HighlighterLanguage, (size_t)HighlighterLanguage::Length>(_highlighterLanguageNames, languageStr);
 
-		memory.read<HighlighterTheme>(&res.theme);
-		memory.read<HighlighterLanguage>(&res.language);
-
-		memory.read<int32>(&res.textLength);
+		const std::string& textStr = j.contains("Text") ? j["Text"] : "Undefined";
+		res.textLength = (int32)textStr.length();
 		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
-		memory.readDangerous((uint8*)res.text, sizeof(uint8) * res.textLength);
-		res.text[res.textLength] = '\0';
+		g_memory_copyMem(res.text, (void*)textStr.c_str(), sizeof(char) * (res.textLength + 1));
 
 		return res;
 	}

@@ -42,6 +42,7 @@
 #include <imgui.h>
 #include <oniguruma.h>
 #include <errno.h>
+#include <nlohmann/json.hpp>
 
 namespace MathAnim
 {
@@ -66,6 +67,7 @@ namespace MathAnim
 		static float accumulatedTime = 0.0f;
 		static std::filesystem::path currentProjectRoot;
 		static std::filesystem::path currentProjectTmpDir;
+		static std::filesystem::path currentProjectSceneDir;
 		static SceneData sceneData = {};
 		static bool reloadCurrentScene = false;
 		static bool saveCurrentSceneOnReload = true;
@@ -76,9 +78,9 @@ namespace MathAnim
 		static const char* winTitle = "Math Animations";
 
 		// ------- Internal Functions -------
-		static RawMemory serializeCameras();
-		static void deserializeCameras(RawMemory& cameraData);
-		static std::string sceneToFilename(const std::string& stringName);
+		static nlohmann::json serializeCameras();
+		static void deserializeCameras(const nlohmann::json& cameraData, uint32 version);
+		static std::string sceneToFilename(const std::string& stringName, const char* ext);
 		static void reloadCurrentSceneInternal();
 		static void initializeSceneSystems();
 		static void freeSceneSystems();
@@ -126,6 +128,8 @@ namespace MathAnim
 			currentProjectRoot = std::filesystem::path(projectFile).parent_path();
 			currentProjectTmpDir = currentProjectRoot / "tmp";
 			Platform::createDirIfNotExists(currentProjectTmpDir.string().c_str());
+			currentProjectSceneDir = currentProjectRoot / "scenes";
+			Platform::createDirIfNotExists(currentProjectSceneDir.string().c_str());
 
 			initializeSceneSystems();
 			loadProject(currentProjectRoot);
@@ -376,24 +380,35 @@ namespace MathAnim
 
 		void saveCurrentScene()
 		{
-			RawMemory animationData = AnimationManager::serialize(am);
 			RawMemory timelineData = Timeline::serialize(EditorGui::getTimelineData());
-			RawMemory cameraData = serializeCameras();
 
 			TableOfContents tableOfContents;
 			tableOfContents.init();
 
-			tableOfContents.addEntry(animationData, "Animation_Data");
 			tableOfContents.addEntry(timelineData, "Timeline_Data");
-			tableOfContents.addEntry(cameraData, "Camera_Data");
 
-			std::string filepath = (currentProjectRoot / sceneToFilename(sceneData.sceneNames[sceneData.currentScene])).string();
+			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneData.sceneNames[sceneData.currentScene], ".bin")).string();
 			tableOfContents.serialize(filepath.c_str());
 
-			animationData.free();
 			timelineData.free();
-			cameraData.free();
 			tableOfContents.free();
+
+			// Write data to json files
+			nlohmann::json sceneJson = nlohmann::json();
+
+			// This data should always be present regardless of file version
+			// Container data layout
+			sceneJson["Version"]["Major"] = SERIALIZER_VERSION_MAJOR;
+			sceneJson["Version"]["Minor"] = SERIALIZER_VERSION_MINOR;
+			sceneJson["Version"]["Full"] = std::to_string(SERIALIZER_VERSION_MAJOR) + "." + std::to_string(SERIALIZER_VERSION_MINOR);
+
+			AnimationManager::serialize(am, sceneJson["AnimationManager"]);
+			nlohmann::json cameraData = serializeCameras();
+			sceneJson["EditorCameras"] = cameraData;
+
+			std::string jsonFilepath = (currentProjectSceneDir / sceneToFilename(sceneData.sceneNames[sceneData.currentScene], ".json")).string();
+			std::ofstream jsonFile(jsonFilepath);
+			jsonFile << std::setw(4) << sceneJson << std::endl;
 		}
 
 		void loadProject(const std::filesystem::path& projectRoot)
@@ -443,7 +458,7 @@ namespace MathAnim
 
 		void loadScene(const std::string& sceneName)
 		{
-			std::string filepath = (currentProjectRoot / sceneToFilename(sceneName)).string();
+			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".bin")).string();
 			if (!Platform::fileExists(filepath.c_str()))
 			{
 				// Load default scene template
@@ -470,9 +485,7 @@ namespace MathAnim
 			TableOfContents toc = TableOfContents::deserialize(memory);
 			memory.free();
 
-			RawMemory animationData = toc.getEntry("Animation_Data");
 			RawMemory timelineData = toc.getEntry("Timeline_Data");
-			RawMemory cameraData = toc.getEntry("Camera_Data");
 			toc.free();
 
 			int loadedProjectCurrentFrame = 0;
@@ -482,26 +495,42 @@ namespace MathAnim
 				EditorGui::setTimelineData(timeline);
 				loadedProjectCurrentFrame = timeline.currentFrame;
 			}
-			if (animationData.data)
-			{
-				AnimationManager::deserialize(am, animationData, loadedProjectCurrentFrame);
-				// Flush any pending objects to be created for real
-				AnimationManager::endFrame(am);
 
-			}
-			if (cameraData.data)
+			std::string sceneJsonFilepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
+			if (Platform::fileExists(filepath.c_str()))
 			{
-				deserializeCameras(cameraData);
+				std::ifstream inputFile(sceneJsonFilepath);
+				nlohmann::json sceneJson;
+				inputFile >> sceneJson;
+
+				// Read version
+				uint32 versionMajor = 0;
+				uint32 versionMinor = 0;
+				if (sceneJson.contains("Version"))
+				{
+					if (sceneJson["Version"].contains("Major") && sceneJson["Version"].contains("Minor"))
+					{
+						versionMajor = sceneJson["Version"]["Major"];
+						versionMinor = sceneJson["Version"]["Minor"];
+					}
+				}
+
+				if (sceneJson.contains("AnimationManager"))
+				{
+					AnimationManager::deserialize(am, sceneJson["AnimationManager"], loadedProjectCurrentFrame, versionMajor, versionMinor);
+					// Flush any pending objects to be created for real
+					AnimationManager::endFrame(am);
+				}
+
+				deserializeCameras(sceneJson["EditorCameras"], versionMajor);
 			}
 
-			animationData.free();
 			timelineData.free();
-			cameraData.free();
 		}
 
 		void deleteScene(const std::string& sceneName)
 		{
-			std::string filepath = (currentProjectRoot / sceneToFilename(sceneName)).string();
+			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".bin")).string();
 			remove(filepath.c_str());
 		}
 
@@ -612,38 +641,42 @@ namespace MathAnim
 			return globalThreadPool;
 		}
 
-		static RawMemory serializeCameras()
+		static nlohmann::json serializeCameras()
 		{
-			RawMemory cameraData;
-			cameraData.init(sizeof(OrthoCamera) + sizeof(PerspectiveCamera));
+			nlohmann::json cameraData = nlohmann::json();
 
-			// Version    -> u32
-			// camera2D   -> OrthoCamera
-			// camera3D   -> PerspCamera
-			const uint32 version = 1;
-			cameraData.write<uint32>(&version);
+			editorCamera2D.serialize(cameraData["EditorCamera2D"]);
+			editorCamera3D.serialize(cameraData["EditorCamera3D"]);
 
-			editorCamera2D.serialize(cameraData);
-			editorCamera3D.serialize(cameraData);
-
-			cameraData.shrinkToFit();
 			return cameraData;
 		}
 
-		static void deserializeCameras(RawMemory& cameraData)
+		static void deserializeCameras(const nlohmann::json& cameraData, uint32 version)
 		{
-			// Version    -> u32
-			// camera2D   -> OrthoCamera
-			// camera3D   -> PerspCamera
-			uint32 version = 1;
-			cameraData.read<uint32>(&version);
-			editorCamera2D = OrthoCamera::deserialize(cameraData, version);
-			editorCamera3D = PerspectiveCamera::deserialize(cameraData, version);
+			switch (version)
+			{
+			case 2:
+			{
+				if (cameraData.contains("EditorCamera2D"))
+				{
+					editorCamera2D = OrthoCamera::deserialize(cameraData["EditorCamera2D"], version);
+				}
+				if (cameraData.contains("EditorCamera3D"))
+				{
+					editorCamera3D = PerspectiveCamera::deserialize(cameraData["EditorCamera3D"], version);
+				}
+			}
+			break;
+			default:
+			{
+				g_logger_warning("Editor data serialized with unknown version: %d", version);
+			}
+			}
 		}
 
-		static std::string sceneToFilename(const std::string& stringName)
+		static std::string sceneToFilename(const std::string& stringName, const char* ext)
 		{
-			return "Scene_" + stringName + ".bin";
+			return "Scene_" + stringName + ext;
 		}
 
 		static void reloadCurrentSceneInternal()

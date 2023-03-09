@@ -626,96 +626,133 @@ namespace MathAnim
 			memory[propertyName]["A"] = vec.a;
 		}
 
-		Vec4 deserializeVec4(RawMemory& memory)
+		Vec4 deserializeVec4(const nlohmann::json& memory)
 		{
-			// Target
-			//   X    -> float
-			//   Y    -> float
-			//   Z    -> float
-			//   W    -> float
-			Vec4 res;
-			memory.read<float>(&res.x);
-			memory.read<float>(&res.y);
-			memory.read<float>(&res.z);
-			memory.read<float>(&res.w);
+			Vec4 res = {NAN, NAN, NAN, NAN};
+			if (memory.contains("X"))
+			{
+				res.x = memory["X"];
+			}
+			if (memory.contains("Y"))
+			{
+				res.y = memory["Y"];
+			}
+			if (memory.contains("Z"))
+			{
+				res.z = memory["Z"];
+			}
+			if (memory.contains("W"))
+			{
+				res.w = memory["W"];
+			}
 			return res;
 		}
 
-		Vec3 deserializeVec3(RawMemory& memory)
+		Vec3 deserializeVec3(const nlohmann::json& memory)
 		{
-			// Target
-			//   X    -> float
-			//   Y    -> float
-			//   Z    -> float
-			Vec3 res;
-			memory.read<float>(&res.x);
-			memory.read<float>(&res.y);
-			memory.read<float>(&res.z);
+			Vec3 res = { NAN, NAN, NAN };
+			if (memory.contains("X"))
+			{
+				res.x = memory["X"];
+			}
+			if (memory.contains("Y"))
+			{
+				res.y = memory["Y"];
+			}
+			if (memory.contains("Z"))
+			{
+				res.z = memory["Z"];
+			}
 			return res;
 		}
 
-		Vec2 deserializeVec2(RawMemory& memory)
+		Vec2 deserializeVec2(const nlohmann::json& memory)
 		{
-			// Target
-			//   X    -> float
-			//   Y    -> float
-			Vec2 res;
-			memory.read<float>(&res.x);
-			memory.read<float>(&res.y);
+			Vec2 res = { NAN, NAN };
+			if (memory.contains("X"))
+			{
+				res.x = memory["X"];
+			}
+			if (memory.contains("Y"))
+			{
+				res.y = memory["Y"];
+			}
 			return res;
 		}
 
-		Vec4i deserializeVec4i(RawMemory& memory)
+		Vec4i deserializeVec4i(const nlohmann::json& memory)
 		{
-			// Target
-			//   X    -> i32
-			//   Y    -> i32
-			//   Z    -> i32
-			//   W    -> i32
-			Vec4i res;
-			memory.read<int32>(&res.x);
-			memory.read<int32>(&res.y);
-			memory.read<int32>(&res.z);
-			memory.read<int32>(&res.w);
+			Vec4i res = { INT32_MAX, INT32_MAX, INT32_MAX, INT32_MAX };
+			if (memory.contains("X"))
+			{
+				res.x = memory["X"];
+			}
+			if (memory.contains("Y"))
+			{
+				res.y = memory["Y"];
+			}
+			if (memory.contains("Z"))
+			{
+				res.z = memory["Z"];
+			}
+			if (memory.contains("W"))
+			{
+				res.w = memory["W"];
+			}
 			return res;
 		}
 
-		Vec3i deserializeVec3i(RawMemory& memory)
+		Vec3i deserializeVec3i(const nlohmann::json& memory)
 		{
-			// Target
-			//   X    -> i32
-			//   Y    -> i32
-			//   Z    -> i32
-			Vec3i res;
-			memory.read<int32>(&res.x);
-			memory.read<int32>(&res.y);
-			memory.read<int32>(&res.z);
+			Vec3i res = { INT32_MAX, INT32_MAX, INT32_MAX };
+			if (memory.contains("X"))
+			{
+				res.x = memory["X"];
+			}
+			if (memory.contains("Y"))
+			{
+				res.y = memory["Y"];
+			}
+			if (memory.contains("Z"))
+			{
+				res.z = memory["Z"];
+			}
 			return res;
 		}
 
-		Vec2i deserializeVec2i(RawMemory& memory)
+		Vec2i deserializeVec2i(const nlohmann::json& memory)
 		{
-			// Target
-			//   X    -> i32
-			//   Y    -> i32
-			Vec2i res;
-			memory.read<int32>(&res.x);
-			memory.read<int32>(&res.y);
+			Vec2i res = { INT32_MAX, INT32_MAX };
+			if (memory.contains("X"))
+			{
+				res.x = memory["X"];
+			}
+			if (memory.contains("Y"))
+			{
+				res.y = memory["Y"];
+			}
 			return res;
 		}
 
-		glm::u8vec4 deserializeU8Vec4(RawMemory& memory)
+		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory)
 		{
-			// Target 
-			//  R -> u8
-			//  G -> u8
-			//  B -> u8
-			//  A -> u8
-			glm::u8vec4 res;
-			memory.read<uint8>(&res.r);
-			memory.read<uint8>(&res.g);
-			memory.read<uint8>(&res.b);
-			memory.read<uint8>(&res.a);
+			glm::u8vec4 res = { UINT8_MAX, UINT8_MAX, UINT8_MAX, UINT8_MAX };
+			if (memory.contains("R"))
+			{
+				res.x = memory["R"];
+			}
+			if (memory.contains("G"))
+			{
+				res.y = memory["G"];
+			}
+			if (memory.contains("B"))
+			{
+				res.z = memory["B"];
+			}
+			if (memory.contains("A"))
+			{
+				res.w = memory["A"];
+			}
 			return res;
 		}
 

@@ -8,9 +8,9 @@
 namespace MathAnim
 {
 	// ------------------ Internal Functions ------------------
-	static Square deserializeSquareV1(RawMemory& memory);
-	static Circle deserializeCircleV1(RawMemory& memory);
-	static Cube deserializeCubeV1(RawMemory& memory);
+	static Square deserializeSquareV1(const nlohmann::json& j);
+	static Circle deserializeCircleV1(const nlohmann::json& j);
+	static Cube deserializeCubeV1(const nlohmann::json& j);
 
 	void Square::init(AnimObject* parent)
 	{
@@ -37,12 +37,12 @@ namespace MathAnim
 		memory["SideLength"] = sideLength;
 	}
 
-	Square Square::deserialize(RawMemory& memory, uint32 version)
+	Square Square::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		switch (version)
 		{
 		case 1:
-			return deserializeSquareV1(memory);
+			return deserializeSquareV1(j);
 			break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
@@ -95,12 +95,12 @@ namespace MathAnim
 		memory["Radius"] = radius;
 	}
 
-	Circle Circle::deserialize(RawMemory& memory, uint32 version)
+	Circle Circle::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		switch (version)
 		{
 		case 1:
-			return deserializeCircleV1(memory);
+			return deserializeCircleV1(j);
 			break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
@@ -147,19 +147,15 @@ namespace MathAnim
 		memory["TipLength"] = tipLength;
 	}
 
-	Arrow Arrow::deserialize(RawMemory& memory, uint32 version)
+	Arrow Arrow::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		if (version == 1)
 		{
-			// stemWidth    -> f32
-			// stemLength   -> f32
-			// tipWidth	    -> f32
-			// tipLength    -> f32
 			Arrow res = {};
-			memory.read<float>(&res.stemWidth);
-			memory.read<float>(&res.stemLength);
-			memory.read<float>(&res.tipWidth);
-			memory.read<float>(&res.tipLength);
+			res.stemWidth = j.contains("StemWidth") ? j["StemWidth"] : 0.0f;
+			res.stemLength = j.contains("StemLength") ? j["StemLength"] : 0.0f;
+			res.tipLength = j.contains("TipLength") ? j["TipLength"] : 0.0f;
+			res.tipWidth = j.contains("TipWidth") ? j["TipWidth"] : 0.0f;
 
 			return res;
 		}
@@ -218,12 +214,12 @@ namespace MathAnim
 		memory["SideLength"] = sideLength;
 	}
 
-	Cube Cube::deserialize(RawMemory& memory, uint32 version)
+	Cube Cube::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		switch (version)
 		{
 		case 1:
-			return deserializeCubeV1(memory);
+			return deserializeCubeV1(j);
 			break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
@@ -234,27 +230,24 @@ namespace MathAnim
 	}
 
 	// ------------------ Internal Functions ------------------
-	static Square deserializeSquareV1(RawMemory& memory)
+	static Square deserializeSquareV1(const nlohmann::json& j)
 	{
-		// sideLength       -> float
 		Square res;
-		memory.read<float>(&res.sideLength);
+		res.sideLength = j.contains("SideLength") ? j["SideLength"] : 0.0f;
 		return res;
 	}
 
-	static Circle deserializeCircleV1(RawMemory& memory)
+	static Circle deserializeCircleV1(const nlohmann::json& j)
 	{
-		// radius   -> float
 		Circle res;
-		memory.read<float>(&res.radius);
+		res.radius = j.contains("Radius") ? j["Radius"] : 0.0f;
 		return res;
 	}
 
-	static Cube deserializeCubeV1(RawMemory& memory)
+	static Cube deserializeCubeV1(const nlohmann::json& j)
 	{
-		// sideLength       -> float
 		Cube res;
-		memory.read<float>(&res.sideLength);
+		res.sideLength = j.contains("SideLength") ? j["SideLength"] : 0.0f;
 		return res;
 	}
 }

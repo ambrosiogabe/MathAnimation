@@ -1663,36 +1663,28 @@ namespace MathAnim
 		memory["Path"] = getPathAsString();
 	}
 
-	SvgObject* SvgObject::deserialize(RawMemory& memory, uint32 version)
+	SvgObject* SvgObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		if (version == 1)
 		{
 			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 
-			// fillType         -> u8
-			// fillColor        -> Vec4
-			// pathLength       -> u64
-			// path             -> u8[pathLength]
-			memory.read<FillType>(&res->fillType);
-			res->fillColor = CMath::deserializeVec4(memory);
-			uint64 stringLength;
-			memory.read<uint64>(&stringLength);
-			uint8* string = (uint8*)g_memory_allocate(sizeof(uint8) * (stringLength + 1));
-			memory.readDangerous(string, stringLength);
-			string[stringLength] = '\0';
+			const std::string& fillTypeStr = j.contains("FillType") ? j["FillType"] : "Undefined";
+			res->fillType = findMatchingEnum<FillType, (size_t)FillType::Length>(_fillTypeNames, fillTypeStr);
+			res->fillColor = CMath::deserializeVec4(j);
+			const std::string& pathStr = j.contains("Path") ? j["Path"] : "";
 
-			if (stringLength > 0)
+			if (pathStr.size() > 0)
 			{
-				if (!SvgParser::parseSvgPath((const char*)string, stringLength, res))
+				if (!SvgParser::parseSvgPath((const char*)pathStr.c_str(), pathStr.length(), res))
 				{
-					g_logger_error("Error deserializing SVG. Bad path data: '%s'", string);
+					g_logger_error("Error deserializing SVG. Bad path data: '%s'", pathStr.c_str());
 				}
 			}
 			else
 			{
 				*res = Svg::createDefault();
 			}
-			g_memory_free(string);
 
 			return res;
 		}
