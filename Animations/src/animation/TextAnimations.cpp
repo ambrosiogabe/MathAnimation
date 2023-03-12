@@ -8,6 +8,7 @@
 #include "renderer/PerspectiveCamera.h"
 #include "renderer/OrthoCamera.h"
 #include "core/Application.h"
+#include "core/Serialization.hpp"
 #include "latex/LaTexLayer.h"
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "parsers/SyntaxTheme.h"
@@ -112,9 +113,10 @@ namespace MathAnim
 	{
 		memory["Text"] = text;
 
+
 		if (font != nullptr)
 		{
-			memory["FontFilepath"] = font->fontFilepath;
+			SERIALIZE_NULLABLE_CSTRING_PROPERTY(memory, font, fontFilepath);
 		}
 		else
 		{

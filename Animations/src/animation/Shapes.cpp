@@ -1,5 +1,6 @@
 #include "animation/Shapes.h"
 #include "animation/Animation.h"
+#include "core/Serialization.hpp"
 #include "svg/Svg.h"
 #include "math/CMath.h"
 
@@ -34,7 +35,7 @@ namespace MathAnim
 
 	void Square::serialize(nlohmann::json& memory) const
 	{
-		memory["SideLength"] = sideLength;
+		SERIALIZE_NON_NULL_PROP(memory, this, sideLength);
 	}
 
 	Square Square::deserialize(const nlohmann::json& j, uint32 version)
@@ -92,7 +93,7 @@ namespace MathAnim
 
 	void Circle::serialize(nlohmann::json& memory) const
 	{
-		memory["Radius"] = radius;
+		SERIALIZE_NON_NULL_PROP(memory, this, radius);
 	}
 
 	Circle Circle::deserialize(const nlohmann::json& j, uint32 version)
@@ -141,21 +142,21 @@ namespace MathAnim
 
 	void Arrow::serialize(nlohmann::json& memory) const
 	{
-		memory["StemWidth"] = stemWidth;
-		memory["StemLength"] = stemLength;
-		memory["TipWidth"] = tipWidth;
-		memory["TipLength"] = tipLength;
+		SERIALIZE_NON_NULL_PROP(memory, this, stemWidth);
+		SERIALIZE_NON_NULL_PROP(memory, this, stemLength);
+		SERIALIZE_NON_NULL_PROP(memory, this, tipWidth);
+		SERIALIZE_NON_NULL_PROP(memory, this, tipLength);
 	}
 
 	Arrow Arrow::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
 			Arrow res = {};
-			res.stemWidth = j.contains("StemWidth") ? j["StemWidth"] : 0.0f;
-			res.stemLength = j.contains("StemLength") ? j["StemLength"] : 0.0f;
-			res.tipLength = j.contains("TipLength") ? j["TipLength"] : 0.0f;
-			res.tipWidth = j.contains("TipWidth") ? j["TipWidth"] : 0.0f;
+			DESERIALIZE_PROP(&res, stemWidth, j, 0.0f);
+			DESERIALIZE_PROP(&res, stemLength, j, 0.0f);
+			DESERIALIZE_PROP(&res, tipLength, j, 0.0f);
+			DESERIALIZE_PROP(&res, tipWidth, j, 0.0f);
 
 			return res;
 		}
@@ -211,7 +212,7 @@ namespace MathAnim
 
 	void Cube::serialize(nlohmann::json& memory) const
 	{
-		memory["SideLength"] = sideLength;
+		SERIALIZE_NON_NULL_PROP(memory, this, sideLength);
 	}
 
 	Cube Cube::deserialize(const nlohmann::json& j, uint32 version)
@@ -232,22 +233,22 @@ namespace MathAnim
 	// ------------------ Internal Functions ------------------
 	static Square deserializeSquareV2(const nlohmann::json& j)
 	{
-		Square res;
-		res.sideLength = j.contains("SideLength") ? j["SideLength"] : 0.0f;
+		Square res = {};
+		DESERIALIZE_PROP(&res, sideLength, j, 0.0f);
 		return res;
 	}
 
 	static Circle deserializeCircleV2(const nlohmann::json& j)
 	{
-		Circle res;
-		res.radius = j.contains("Radius") ? j["Radius"] : 0.0f;
+		Circle res = {};
+		DESERIALIZE_PROP(&res, radius, j, 0.0f);
 		return res;
 	}
 
 	static Cube deserializeCubeV2(const nlohmann::json& j)
 	{
-		Cube res;
-		res.sideLength = j.contains("SideLength") ? j["SideLength"] : 0.0f;
+		Cube res = {};
+		DESERIALIZE_PROP(&res, sideLength, j, 0.0f);
 		return res;
 	}
 }

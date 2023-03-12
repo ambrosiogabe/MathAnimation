@@ -1,5 +1,6 @@
 #include "renderer/OrthoCamera.h"
 #include "core/Application.h"
+#include "core/Serialization.hpp"
 #include "math/CMath.h"
 
 #include <nlohmann/json.hpp>
@@ -7,7 +8,7 @@
 namespace MathAnim
 {
 	// -------------- Internal Functions --------------
-	static OrthoCamera deserializeCameraV1(const nlohmann::json& memory);
+	static OrthoCamera deserializeCameraV2(const nlohmann::json& memory);
 
 	glm::mat4 OrthoCamera::calculateViewMatrix() const
 	{
@@ -42,16 +43,16 @@ namespace MathAnim
 
 	void OrthoCamera::serialize(nlohmann::json& memory) const
 	{
-		CMath::serialize(memory, "Position", position);
-		CMath::serialize(memory, "ProjectionSize", projectionSize);
-		memory["Zoom"] = zoom;
+		SERIALIZE_VEC(memory, this, position);
+		SERIALIZE_VEC(memory, this, projectionSize);
+		SERIALIZE_NON_NULL_PROP(memory, this, zoom);
 	}
 
 	OrthoCamera OrthoCamera::deserialize(const nlohmann::json& memory, uint32 version)
 	{
 		if (version == 2)
 		{
-			return deserializeCameraV1(memory);
+			return deserializeCameraV2(memory);
 		}
 		else
 		{
@@ -63,13 +64,12 @@ namespace MathAnim
 	}
 
 	// -------------- Internal Functions --------------
-	static OrthoCamera deserializeCameraV1(const nlohmann::json& j)
+	static OrthoCamera deserializeCameraV2(const nlohmann::json& j)
 	{
 		OrthoCamera res = {};
-		res.position = CMath::deserializeVec2(j["Position"]);
-		res.projectionSize = CMath::deserializeVec2(j["ProjectionSize"]);
-		res.zoom = j.contains("Zoom") ? j["Zoom"] : 1.0f;
-
+		DESERIALIZE_VEC2(&res, position, j);
+		DESERIALIZE_VEC2(&res, projectionSize, j);
+		DESERIALIZE_PROP(&res, zoom, j, 1.0f);
 		return res;
 	}
 }

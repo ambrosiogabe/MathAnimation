@@ -1,8 +1,9 @@
 #include "animation/Animation.h"
 #include "core.h"
 #include "core/Application.h"
-#include "core/Profiling.h"
 #include "core/Input.h"
+#include "core/Profiling.h"
+#include "core/Serialization.hpp"
 #include "animation/AnimationManager.h"
 #include "svg/Svg.h"
 #include "svg/SvgCache.h"
@@ -463,25 +464,18 @@ namespace MathAnim
 
 	void Animation::serialize(nlohmann::json& memory) const
 	{
-		memory["AnimationType"] = _animationTypeNames[(uint8)type];
-		memory["FrameStart"] = frameStart;
-		memory["Duration"] = duration;
-		writeIdToJson("ID", id, memory);
-		memory["EaseType"] = easeTypeNames[(uint8)easeType];
-		memory["EaseDirection"] = easeDirectionNames[(uint8)easeDirection];
+		SERIALIZE_ENUM(memory, this, type, _animationTypeNames);
+		SERIALIZE_NON_NULL_PROP(memory, this, frameStart);
+		SERIALIZE_NON_NULL_PROP(memory, this, duration);
+		SERIALIZE_ID(memory, this, id);
+		SERIALIZE_ENUM(memory, this, easeType, easeTypeNames);
+		SERIALIZE_ENUM(memory, this, easeDirection, easeDirectionNames);
 
-		memory["TimelineTrack"] = timelineTrack;
-		memory["PlaybackType"] = _playbackTypeNames[(uint8)playbackType];
-		memory["LagRatio"] = lagRatio;
+		SERIALIZE_NON_NULL_PROP(memory, this, timelineTrack);
+		SERIALIZE_ENUM(memory, this, playbackType, _playbackTypeNames);
+		SERIALIZE_NON_NULL_PROP(memory, this, lagRatio);
 
-		memory["Objects"] = nlohmann::json::array();
-		for (auto animObjId : animObjectIds)
-		{
-			nlohmann::json idAsJson{};
-			convertIdToJson(animObjId, idAsJson);
-			memory["Objects"].push_back(idAsJson);
-
-		}
+		SERIALIZE_ID_ARRAY(memory, this, animObjectIds);
 
 		switch (this->type)
 		{
@@ -1396,80 +1390,67 @@ namespace MathAnim
 
 	void AnimObject::serialize(nlohmann::json& memory) const
 	{
-		memory["AnimObjectType"] = _animationObjectTypeNames[(uint8)objectType];
-		CMath::serialize(memory, "PositionStart", _positionStart);
-		CMath::serialize(memory, "RotationStart", _rotationStart);
-		CMath::serialize(memory, "ScaleStart", _scaleStart);
-		CMath::serialize(memory, "FillColorStart", _fillColorStart);
-		CMath::serialize(memory, "StrokeColorStart", _strokeColorStart);
+		SERIALIZE_ENUM(memory, this, objectType, _animationObjectTypeNames);
+		SERIALIZE_VEC(memory, this, _positionStart);
+		SERIALIZE_VEC(memory, this, _rotationStart);
+		SERIALIZE_VEC(memory, this, _scaleStart);
+		SERIALIZE_VEC(memory, this, _fillColorStart);
+		SERIALIZE_VEC(memory, this, _strokeColorStart);
 
-		memory["StrokeWidthStart"] = _strokeWidthStart;
-		memory["SvgScale"] = svgScale;
+		SERIALIZE_NON_NULL_PROP(memory, this, _strokeWidthStart);
+		SERIALIZE_NON_NULL_PROP(memory, this, svgScale);
 
-		memory["IsTransparent"] = isTransparent;
-		memory["Is3D"] = is3D;
-		memory["DrawDebugBoxes"] = drawDebugBoxes;
-		memory["DrawCurveDebugBoxes"] = drawCurveDebugBoxes;
+		SERIALIZE_NON_NULL_PROP(memory, this, isTransparent);
+		SERIALIZE_NON_NULL_PROP(memory, this, is3D);
+		SERIALIZE_NON_NULL_PROP(memory, this, drawDebugBoxes);
+		SERIALIZE_NON_NULL_PROP(memory, this, drawCurveDebugBoxes);
 
-		writeIdToJson("ID", id, memory);
-		writeIdToJson("ParentID", parentId, memory);
+		SERIALIZE_ID(memory, this, id);
+		SERIALIZE_ID(memory, this, parentId);
 
-		memory["GeneratedChildren"] = nlohmann::json::array();
-		for (auto generatedId : generatedChildrenIds)
-		{
-			nlohmann::json generatedChildId{};
-			convertIdToJson(generatedId, generatedChildId);
-			memory["GeneratedChildren"].emplace_back(generatedChildId);
-		}
+		SERIALIZE_ID_ARRAY(memory, this, generatedChildrenIds);
+		SERIALIZE_ID_ARRAY(memory, this, referencedAnimations);
 
-		memory["ReferencedAnimations"] = nlohmann::json::array();
-		for (auto animId : referencedAnimations)
-		{
-			nlohmann::json animIdJson{};
-			convertIdToJson(animId, animIdJson);
-			memory["ReferencedAnimations"].emplace_back(animIdJson);
-		}
-
-		memory["Name"] = (char*)name;
+		SERIALIZE_NULLABLE_U8_CSTRING(memory, this, name);
 
 		switch (objectType)
 		{
 		case AnimObjectTypeV1::TextObject:
-			this->as.textObject.serialize(memory["TextObject"]);
+			SERIALIZE_OBJECT(memory, this, as.textObject);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
-			this->as.laTexObject.serialize(memory["LaTexObject"]);
+			SERIALIZE_OBJECT(memory, this, as.laTexObject);
 			break;
 		case AnimObjectTypeV1::SvgObject:
 			g_logger_assert(this->_svgObjectStart != nullptr, "Somehow SVGObject has no object allocated.");
-			this->_svgObjectStart->serialize(memory["SvgObject"]);
+			SERIALIZE_OBJECT_PTR(memory, this, _svgObjectStart);
 			break;
 		case AnimObjectTypeV1::Square:
-			this->as.square.serialize(memory["Square"]);
+			SERIALIZE_OBJECT(memory, this, as.square);
 			break;
 		case AnimObjectTypeV1::Circle:
-			this->as.circle.serialize(memory["Circle"]);
+			SERIALIZE_OBJECT(memory, this, as.circle);
 			break;
 		case AnimObjectTypeV1::Cube:
-			this->as.cube.serialize(memory["Cube"]);
+			SERIALIZE_OBJECT(memory, this, as.cube);
 			break;
 		case AnimObjectTypeV1::Axis:
-			this->as.axis.serialize(memory["Axis"]);
+			SERIALIZE_OBJECT(memory, this, as.axis);
 			break;
 		case AnimObjectTypeV1::SvgFileObject:
-			this->as.svgFile.serialize(memory["SvgFileObject"]);
+			SERIALIZE_OBJECT(memory, this, as.svgFile);
 			break;
 		case AnimObjectTypeV1::Camera:
-			this->as.camera.serialize(memory["Camera"]);
+			SERIALIZE_OBJECT(memory, this, as.camera);
 			break;
 		case AnimObjectTypeV1::ScriptObject:
-			this->as.script.serialize(memory["ScriptObject"]);
+			SERIALIZE_OBJECT(memory, this, as.script);
 			break;
 		case AnimObjectTypeV1::CodeBlock:
-			this->as.codeBlock.serialize(memory["CodeBlock"]);
+			SERIALIZE_OBJECT(memory, this, as.codeBlock);
 			break;
 		case AnimObjectTypeV1::Arrow:
-			this->as.arrow.serialize(memory["Arrow"]);
+			SERIALIZE_OBJECT(memory, this, as.arrow);
 			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
@@ -1728,7 +1709,7 @@ namespace MathAnim
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV2(AnimationManagerData*, const nlohmann::json& j)
 	{
-		AnimObject res;
+		AnimObject res = {};
 		// If the object is being read in from the file then it's not
 		// generated since all generated objects don't get saved
 		res.isGenerated = false;
@@ -1737,44 +1718,31 @@ namespace MathAnim
 		res.percentCreated = 0.0f;
 
 		// AnimObject Specific Data
-		const std::string& objectTypeStr = j.contains("AnimObjectType") ? j["AnimObjectType"] : "Undefined";
-		res.objectType = findMatchingEnum<AnimObjectTypeV1, (size_t)AnimObjectTypeV1::Length>(_animationObjectTypeNames, objectTypeStr);
-		res._positionStart = CMath::deserializeVec3(j["PositionStart"]);
-		res._rotationStart = CMath::deserializeVec3(j["RotationStart"]);
-		res._scaleStart = CMath::deserializeVec3(j["ScaleStart"]);
-		res._fillColorStart = CMath::deserializeU8Vec4(j["FillColorStart"]);
-		res._strokeColorStart = CMath::deserializeU8Vec4(j["StrokeColorStart"]);
+		DESERIALIZE_ENUM(&res, objectType, _animationObjectTypeNames, AnimObjectTypeV1, j);
+		DESERIALIZE_VEC3(&res, _positionStart, j);
+		DESERIALIZE_VEC3(&res, _rotationStart, j);
+		DESERIALIZE_VEC3(&res, _scaleStart, j);
+		DESERIALIZE_GLM_U8VEC4(&res, _fillColorStart, j);
+		DESERIALIZE_GLM_U8VEC4(&res, _strokeColorStart, j);
 
-		res._strokeWidthStart = j.contains("StrokeWidthStart") ? j["StrokeWidthStart"] : 0.0f;
-		res.svgScale = j.contains("SvgScale") ? j["SvgScale"] : 0.0f;
-		res.isTransparent = j.contains("IsTransparent") ? j["IsTransparent"] : false;
-		res.is3D = j.contains("Is3D") ? j["Is3D"] : false;
-		res.drawDebugBoxes = j.contains("DrawDebugBoxes") ? j["DrawDebugBoxes"] : false;
-		res.drawCurveDebugBoxes = j.contains("DrawCurveDebugBoxes") ? j["DrawCurveDebugBoxes"] : false;
+		DESERIALIZE_PROP(&res, _strokeWidthStart, j, 0.0f);
+		DESERIALIZE_PROP(&res, svgScale, j, 0.0f);
+		DESERIALIZE_PROP(&res, isTransparent, j, false);
+		DESERIALIZE_PROP(&res, is3D, j, false);
+		DESERIALIZE_PROP(&res, drawDebugBoxes, j, false);
+		DESERIALIZE_PROP(&res, drawCurveDebugBoxes, j, false);
 
-		res.parentId = readIdFromJson(j, "ParentID");
-		res.id = readIdFromJson(j, "ID");
+		DESERIALIZE_ID(&res, parentId, j);
+		DESERIALIZE_ID(&res, id, j);
 		if (!isNull(res.id))
 		{
 			animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
 		}
 
-		for (size_t i = 0; i < j["GeneratedChildren"].size(); i++)
-		{
-			AnimObjId childId = convertJsonToId(j["GeneratedChildren"][i]);
-			res.generatedChildrenIds.emplace_back(childId);
-		}
+		DESERIALIZE_ID_ARRAY(&res, generatedChildrenIds, j);
+		DESERIALIZE_ID_SET(&res, referencedAnimations, j);
 
-		for (size_t i = 0; i < j["ReferencedAnimations"].size(); i++)
-		{
-			AnimId refAnim = convertJsonToId(j["ReferencedAnimations"][i]);
-			res.referencedAnimations.insert(refAnim);
-		}
-
-		const std::string& nameStr = j.contains("Name") ? j["Name"] : "Undefined";
-		res.nameLength = (uint32)nameStr.length();
-		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
-		g_memory_copyMem(res.name, (void*)nameStr.c_str(), sizeof(uint8) * (res.nameLength + 1));
+		DESERIALIZE_NULLABLE_U8_CSTRING(&res, name, j);
 
 		// Initialize other variables
 		res.position = res._positionStart;
@@ -1793,47 +1761,47 @@ namespace MathAnim
 		switch (res.objectType)
 		{
 		case AnimObjectTypeV1::TextObject:
-			res.as.textObject = TextObject::deserialize(j["TextObject"], version);
+			DESERIALIZE_OBJECT(&res, as.textObject, TextObject, version, j);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
-			res.as.laTexObject = LaTexObject::deserialize(j["LaTexObject"], version);
+			DESERIALIZE_OBJECT(&res, as.laTexObject, LaTexObject, version, j);
 			break;
 		case AnimObjectTypeV1::Square:
-			res.as.square = Square::deserialize(j["Square"], version);
+			DESERIALIZE_OBJECT(&res, as.square, Square, version, j);
 			res.as.square.init(&res);
 			break;
 		case AnimObjectTypeV1::SvgObject:
-			res._svgObjectStart = SvgObject::deserialize(j["SvgObject"], version);
+			DESERIALIZE_OBJECT(&res, _svgObjectStart, SvgObject, version, j);
 			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 			*res.svgObject = Svg::createDefault();
 			Svg::copy(res.svgObject, res._svgObjectStart);
 			break;
 		case AnimObjectTypeV1::Circle:
-			res.as.circle = Circle::deserialize(j["Circle"], version);
+			DESERIALIZE_OBJECT(&res, as.circle, Circle, version, j);
 			res.as.circle.init(&res);
 			break;
 		case AnimObjectTypeV1::Cube:
-			res.as.cube = Cube::deserialize(j["Cube"], version);
+			DESERIALIZE_OBJECT(&res, as.cube, Cube, version, j);
 			res.as.cube.init(&res);
 			break;
 		case AnimObjectTypeV1::Axis:
-			res.as.axis = Axis::deserialize(j["Axis"], version);
+			DESERIALIZE_OBJECT(&res, as.axis, Axis, version, j);
 			res.as.axis.init(&res);
 			break;
 		case AnimObjectTypeV1::SvgFileObject:
-			res.as.svgFile = SvgFileObject::deserialize(j["SvgFileObject"], version);
+			DESERIALIZE_OBJECT(&res, as.svgFile, SvgFileObject, version, j);
 			break;
 		case AnimObjectTypeV1::Camera:
-			res.as.camera = CameraObject::deserialize(j["Camera"], version);
+			DESERIALIZE_OBJECT(&res, as.camera, CameraObject, version, j);
 			break;
 		case AnimObjectTypeV1::ScriptObject:
-			res.as.script = ScriptObject::deserialize(j["ScriptObject"], version);
+			DESERIALIZE_OBJECT(&res, as.script, ScriptObject, version, j);
 			break;
 		case AnimObjectTypeV1::CodeBlock:
-			res.as.codeBlock = CodeBlock::deserialize(j["CodeBlock"], version);
+			DESERIALIZE_OBJECT(&res, as.codeBlock, CodeBlock, version, j);
 			break;
 		case AnimObjectTypeV1::Arrow:
-			res.as.arrow = Arrow::deserialize(j["Arrow"], version);
+			DESERIALIZE_OBJECT(&res, as.arrow, Arrow, version, j);
 			res.as.arrow.init(&res);
 			break;
 		case AnimObjectTypeV1::Length:

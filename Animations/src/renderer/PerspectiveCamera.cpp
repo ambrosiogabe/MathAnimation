@@ -1,5 +1,6 @@
 #include "renderer/PerspectiveCamera.h"
 #include "core/Application.h"
+#include "core/Serialization.hpp"
 #include "math/CMath.h"
 
 #include <nlohmann/json.hpp>
@@ -7,7 +8,7 @@
 namespace MathAnim
 {
 	// -------------- Internal Functions --------------
-	static PerspectiveCamera deserializeCameraV1(const nlohmann::json& j);
+	static PerspectiveCamera deserializeCameraV2(const nlohmann::json& j);
 
 	// TODO: Cache these values and make this const by separating
 	// calculations from getting the matrices
@@ -41,17 +42,17 @@ namespace MathAnim
 
 	void PerspectiveCamera::serialize(nlohmann::json& memory) const
 	{
-		CMath::serialize(memory, "Position", Vec3{position.x, position.y, position.z});
-		CMath::serialize(memory, "Orientation", Vec3{orientation.x, orientation.y, orientation.z});
-		CMath::serialize(memory, "Forward", Vec3{forward.x, forward.y, forward.z});
-		memory["FieldOfView"] = fov;
+		SERIALIZE_GLM_VEC3(memory, this, position);
+		SERIALIZE_GLM_VEC3(memory, this, orientation);
+		SERIALIZE_GLM_VEC3(memory, this, forward);
+		SERIALIZE_NON_NULL_PROP(memory, this, fov);
 	}
 	
 	PerspectiveCamera PerspectiveCamera::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		if (version == 2)
 		{
-			return deserializeCameraV1(j);
+			return deserializeCameraV2(j);
 		}
 
 		g_logger_warning("Perspective camera serialized with unknown version: %d", version);
@@ -60,18 +61,13 @@ namespace MathAnim
 	}
 
 	// -------------- Internal Functions --------------
-	static PerspectiveCamera deserializeCameraV1(const nlohmann::json& j)
+	static PerspectiveCamera deserializeCameraV2(const nlohmann::json& j)
 	{
-		// position        -> Vec3
-		// orientation     -> Vec3
-		// forward         -> Vec3
-		// fov             -> float
 		PerspectiveCamera res;
-		res.position = CMath::convert(CMath::deserializeVec3(j["Position"]));
-		res.orientation = CMath::convert(CMath::deserializeVec3(j["Orientation"]));
-		res.forward = CMath::convert(CMath::deserializeVec3(j["Forward"]));
-		res.fov = j.contains("FieldOfView") ? j["FieldOfView"] : 75.0f;
-
+		DESERIALIZE_GLM_VEC3(&res, position, j);
+		DESERIALIZE_GLM_VEC3(&res, orientation, j);
+		DESERIALIZE_GLM_VEC3(&res, forward, j);
+		DESERIALIZE_PROP(&res, fov, j, 75.0f);
 		return res;
 	}
 }
