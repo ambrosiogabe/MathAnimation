@@ -8,9 +8,9 @@
 namespace MathAnim
 {
 	// ------------------ Internal Functions ------------------
-	static Square deserializeSquareV1(const nlohmann::json& j);
-	static Circle deserializeCircleV1(const nlohmann::json& j);
-	static Cube deserializeCubeV1(const nlohmann::json& j);
+	static Square deserializeSquareV2(const nlohmann::json& j);
+	static Circle deserializeCircleV2(const nlohmann::json& j);
+	static Cube deserializeCubeV2(const nlohmann::json& j);
 
 	void Square::init(AnimObject* parent)
 	{
@@ -41,8 +41,8 @@ namespace MathAnim
 	{
 		switch (version)
 		{
-		case 1:
-			return deserializeSquareV1(j);
+		case 2:
+			return deserializeSquareV2(j);
 			break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
@@ -99,8 +99,8 @@ namespace MathAnim
 	{
 		switch (version)
 		{
-		case 1:
-			return deserializeCircleV1(j);
+		case 2:
+			return deserializeCircleV2(j);
 			break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
@@ -218,8 +218,8 @@ namespace MathAnim
 	{
 		switch (version)
 		{
-		case 1:
-			return deserializeCubeV1(j);
+		case 2:
+			return deserializeCubeV2(j);
 			break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
@@ -230,21 +230,21 @@ namespace MathAnim
 	}
 
 	// ------------------ Internal Functions ------------------
-	static Square deserializeSquareV1(const nlohmann::json& j)
+	static Square deserializeSquareV2(const nlohmann::json& j)
 	{
 		Square res;
 		res.sideLength = j.contains("SideLength") ? j["SideLength"] : 0.0f;
 		return res;
 	}
 
-	static Circle deserializeCircleV1(const nlohmann::json& j)
+	static Circle deserializeCircleV2(const nlohmann::json& j)
 	{
 		Circle res;
 		res.radius = j.contains("Radius") ? j["Radius"] : 0.0f;
 		return res;
 	}
 
-	static Cube deserializeCubeV1(const nlohmann::json& j)
+	static Cube deserializeCubeV2(const nlohmann::json& j)
 	{
 		Cube res;
 		res.sideLength = j.contains("SideLength") ? j["SideLength"] : 0.0f;

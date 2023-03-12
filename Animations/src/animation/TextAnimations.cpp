@@ -17,9 +17,9 @@
 namespace MathAnim
 {
 	// ------------- Internal Functions -------------
-	static TextObject deserializeTextV1(const nlohmann::json& j);
-	static LaTexObject deserializeLaTexV1(const nlohmann::json& j);
-	static CodeBlock deserializeCodeBlockV1(const nlohmann::json& j);
+	static TextObject deserializeTextV2(const nlohmann::json& j);
+	static LaTexObject deserializeLaTexV2(const nlohmann::json& j);
+	static CodeBlock deserializeCodeBlockV2(const nlohmann::json& j);
 
 	// Number of spaces for tabs. Make this configurable
 	constexpr int tabDepth = 2;
@@ -140,9 +140,9 @@ namespace MathAnim
 
 	TextObject TextObject::deserialize(const nlohmann::json& memory, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
-			return deserializeTextV1(memory);
+			return deserializeTextV2(memory);
 		}
 
 		g_logger_error("Invalid version '%d' while deserializing text object.", version);
@@ -284,9 +284,9 @@ namespace MathAnim
 
 	LaTexObject LaTexObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
-			return deserializeLaTexV1(j);
+			return deserializeLaTexV2(j);
 		}
 
 		g_logger_error("Invalid version '%d' while deserializing text object.", version);
@@ -464,9 +464,9 @@ namespace MathAnim
 
 	CodeBlock CodeBlock::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
-			return deserializeCodeBlockV1(j);
+			return deserializeCodeBlockV2(j);
 		}
 
 		g_logger_error("Invalid version '%d' while deserializing code object.", version);
@@ -496,7 +496,7 @@ int main()
 	}
 
 	// ------------- Internal Functions -------------
-	static TextObject deserializeTextV1(const nlohmann::json& j)
+	static TextObject deserializeTextV2(const nlohmann::json& j)
 	{
 		TextObject res;
 
@@ -519,7 +519,7 @@ int main()
 		return res;
 	}
 
-	static LaTexObject deserializeLaTexV1(const nlohmann::json& j)
+	static LaTexObject deserializeLaTexV2(const nlohmann::json& j)
 	{
 		LaTexObject res;
 
@@ -533,7 +533,7 @@ int main()
 		return res;
 	}
 
-	static CodeBlock deserializeCodeBlockV1(const nlohmann::json& j)
+	static CodeBlock deserializeCodeBlockV2(const nlohmann::json& j)
 	{
 		CodeBlock res;
 

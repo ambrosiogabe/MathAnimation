@@ -10,7 +10,7 @@
 namespace MathAnim
 {
 	// Internal Functions
-	static SvgFileObject deserializeSvgFileObjectV1(const nlohmann::json& j);
+	static SvgFileObject deserializeSvgFileObjectV2(const nlohmann::json& j);
 
 	void SvgFileObject::init(AnimationManagerData* am, AnimObjId parentId)
 	{
@@ -107,7 +107,7 @@ namespace MathAnim
 
 	void SvgFileObject::serialize(nlohmann::json& memory) const
 	{
-		memory["Filepath"] = filepath;
+		memory["Filepath"] = filepath ? filepath : nlohmann::json();
 	}
 
 	void SvgFileObject::free()
@@ -127,11 +127,11 @@ namespace MathAnim
 		}
 	}
 
-	SvgFileObject SvgFileObject::deserialize(const nlohmann::json& j , uint32 version)
+	SvgFileObject SvgFileObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
-			return deserializeSvgFileObjectV1(j);
+			return deserializeSvgFileObjectV2(j);
 		}
 
 		g_logger_error("Invalid version '%d' while deserializing text object.", version);
@@ -151,14 +151,11 @@ namespace MathAnim
 	}
 
 	// -------------------- Internal Functions --------------------
-	static SvgFileObject deserializeSvgFileObjectV1(const nlohmann::json& j)
+	static SvgFileObject deserializeSvgFileObjectV2(const nlohmann::json& j)
 	{
 		SvgFileObject res = {};
 
-		// filepathLength       -> u32
-		// filepath             -> u8[textLength]
-
-		const std::string& filepath = j.contains("Filepath") ? j["Filepath"] : "Undefined";
+		const std::string& filepath = j.contains("Filepath") && !j["Filepath"].is_null() ? j["Filepath"] : "Undefined";
 		res.filepathLength = (uint32)filepath.length();
 		if (res.filepathLength > 0)
 		{

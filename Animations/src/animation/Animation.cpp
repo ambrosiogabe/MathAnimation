@@ -699,18 +699,15 @@ namespace MathAnim
 
 	Animation Animation::deserialize(const nlohmann::json& memory, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
 			return deserializeAnimationV2(memory);
 		}
 
 		g_logger_error("AnimationEx serialized with unknown version '%d'. Memory potentially corrupted.", version);
-		Animation res;
+		Animation res = {};
 		res.id = NULL_ANIM;
 		res.animObjectIds.clear();
-		res.type = AnimTypeV1::None;
-		res.duration = 0;
-		res.frameStart = 0;
 		return res;
 	}
 
@@ -1415,7 +1412,7 @@ namespace MathAnim
 		memory["DrawCurveDebugBoxes"] = drawCurveDebugBoxes;
 
 		writeIdToJson("ID", id, memory);
-		memory["ParentID"] = parentId;
+		writeIdToJson("ParentID", parentId, memory);
 
 		memory["GeneratedChildren"] = nlohmann::json::array();
 		for (auto generatedId : generatedChildrenIds)
@@ -1755,7 +1752,7 @@ namespace MathAnim
 		res.drawDebugBoxes = j.contains("DrawDebugBoxes") ? j["DrawDebugBoxes"] : false;
 		res.drawCurveDebugBoxes = j.contains("DrawCurveDebugBoxes") ? j["DrawCurveDebugBoxes"] : false;
 
-		res.parentId = readIdFromJson(j, "ParentId");
+		res.parentId = readIdFromJson(j, "ParentID");
 		res.id = readIdFromJson(j, "ID");
 		if (!isNull(res.id))
 		{

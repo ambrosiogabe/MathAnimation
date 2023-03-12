@@ -9,7 +9,7 @@
 namespace MathAnim
 {
 	// ------------------ Internal Functions ------------------
-	static Axis deserializeAxisV1(const nlohmann::json& j);
+	static Axis deserializeAxisV2(const nlohmann::json& j);
 
 	void Axis::init(AnimObject*)
 	{
@@ -172,8 +172,8 @@ namespace MathAnim
 	{
 		switch (version)
 		{
-		case 1:
-			return deserializeAxisV1(j);
+		case 2:
+			return deserializeAxisV2(j);
 			break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of axis %d. It looks like you have corrupted scene data.");
@@ -184,7 +184,7 @@ namespace MathAnim
 	}
 
 	// ------------------ Internal Functions ------------------
-	static Axis deserializeAxisV1(const nlohmann::json& j)
+	static Axis deserializeAxisV2(const nlohmann::json& j)
 	{
 		Axis res;
 		res.axesLength = CMath::deserializeVec3(j);

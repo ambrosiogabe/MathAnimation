@@ -1665,7 +1665,7 @@ namespace MathAnim
 
 	SvgObject* SvgObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
 			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 
