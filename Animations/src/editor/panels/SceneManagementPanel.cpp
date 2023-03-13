@@ -71,14 +71,14 @@ namespace MathAnim
 					ImGui::BeginDisabled(isDisabled);
 					if (ImGui::MenuItem("Delete"))
 					{
-						// Delete the current scene
-						Application::deleteScene(sd.sceneNames[i]);
 						if (i == sd.currentScene)
 						{
 							// Change to the next scene if we deleted the current scene
 							sd.currentScene = (sd.currentScene + 1) % sd.sceneNames.size();
 							Application::changeSceneTo(sd.sceneNames[sd.currentScene], false);
 						}
+						// Delete the current scene
+						Application::deleteScene(sd.sceneNames[i]);
 						sd.sceneNames.erase(sd.sceneNames.begin() + i);
 						i--;
 					}

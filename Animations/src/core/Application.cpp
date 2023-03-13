@@ -458,86 +458,90 @@ namespace MathAnim
 
 		void loadScene(const std::string& sceneName)
 		{
-			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".bin")).string();
+			// TODO: Save/Load timeline data
+			//FILE* fp = fopen(filepath.c_str(), "rb");
+			//if (!fp)
+			//{
+			//	g_logger_warning("Could not load scene '%s', error opening file.", filepath.c_str());
+			//	resetToFrame(0);
+			//	return;
+			//}
+
+			//fseek(fp, 0, SEEK_END);
+			//size_t fileSize = ftell(fp);
+			//fseek(fp, 0, SEEK_SET);
+
+			//RawMemory memory;
+			//memory.init(fileSize);
+			//fread(memory.data, fileSize, 1, fp);
+			//fclose(fp);
+
+			//TableOfContents toc = TableOfContents::deserialize(memory);
+			//memory.free();
+
+			//RawMemory timelineData = toc.getEntry("Timeline_Data");
+			//toc.free();
+
+			//if (timelineData.data)
+			//{
+			//	TimelineData timeline = Timeline::deserialize(timelineData);
+			//	EditorGui::setTimelineData(timeline);
+			//	loadedProjectCurrentFrame = timeline.currentFrame;
+			//}
+
+			int loadedProjectCurrentFrame = 0;
+
+			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
 			if (!Platform::fileExists(filepath.c_str()))
 			{
 				// Load default scene template
-				filepath = "./assets/sceneTemplates/default.bin";
+				filepath = "./assets/sceneTemplates/default.json";
 			}
 
-			FILE* fp = fopen(filepath.c_str(), "rb");
-			if (!fp)
+			if (!Platform::fileExists(filepath.c_str()))
 			{
-				g_logger_warning("Could not load scene '%s', error opening file.", filepath.c_str());
+				g_logger_error("Missing default asset './assets/sceneTemplates/default.json'. Cannot load scene.");
 				resetToFrame(0);
 				return;
 			}
 
-			fseek(fp, 0, SEEK_END);
-			size_t fileSize = ftell(fp);
-			fseek(fp, 0, SEEK_SET);
-
-			RawMemory memory;
-			memory.init(fileSize);
-			fread(memory.data, fileSize, 1, fp);
-			fclose(fp);
-
-			TableOfContents toc = TableOfContents::deserialize(memory);
-			memory.free();
-
-			RawMemory timelineData = toc.getEntry("Timeline_Data");
-			toc.free();
-
-			int loadedProjectCurrentFrame = 0;
-			if (timelineData.data)
+			try
 			{
-				TimelineData timeline = Timeline::deserialize(timelineData);
-				EditorGui::setTimelineData(timeline);
-				loadedProjectCurrentFrame = timeline.currentFrame;
-			}
+				std::ifstream inputFile(filepath);
+				nlohmann::json sceneJson;
+				inputFile >> sceneJson;
 
-			std::string sceneJsonFilepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
-			if (Platform::fileExists(filepath.c_str()))
+				// Read version
+				uint32 versionMajor = 0;
+				uint32 versionMinor = 0;
+				if (sceneJson.contains("Version"))
+				{
+					if (sceneJson["Version"].contains("Major") && sceneJson["Version"].contains("Minor"))
+					{
+						versionMajor = sceneJson["Version"]["Major"];
+						versionMinor = sceneJson["Version"]["Minor"];
+					}
+				}
+
+				if (sceneJson.contains("AnimationManager"))
+				{
+					AnimationManager::deserialize(am, sceneJson["AnimationManager"], loadedProjectCurrentFrame, versionMajor, versionMinor);
+					// Flush any pending objects to be created for real
+					AnimationManager::endFrame(am);
+				}
+
+				deserializeCameras(sceneJson["EditorCameras"], versionMajor);
+			}
+			catch (const std::exception& ex)
 			{
-				try
-				{
-					std::ifstream inputFile(sceneJsonFilepath);
-					nlohmann::json sceneJson;
-					inputFile >> sceneJson;
-
-					// Read version
-					uint32 versionMajor = 0;
-					uint32 versionMinor = 0;
-					if (sceneJson.contains("Version"))
-					{
-						if (sceneJson["Version"].contains("Major") && sceneJson["Version"].contains("Minor"))
-						{
-							versionMajor = sceneJson["Version"]["Major"];
-							versionMinor = sceneJson["Version"]["Minor"];
-						}
-					}
-
-					if (sceneJson.contains("AnimationManager"))
-					{
-						AnimationManager::deserialize(am, sceneJson["AnimationManager"], loadedProjectCurrentFrame, versionMajor, versionMinor);
-						// Flush any pending objects to be created for real
-						AnimationManager::endFrame(am);
-					}
-
-					deserializeCameras(sceneJson["EditorCameras"], versionMajor);
-				}
-				catch (const std::exception& ex)
-				{
-					g_logger_error("Failed to load scene '%s' with error: '%s'", filepath.c_str(), ex.what());
-				}
+				g_logger_error("Failed to load scene '%s' with error: '%s'", filepath.c_str(), ex.what());
 			}
-
-			timelineData.free();
 		}
 
 		void deleteScene(const std::string& sceneName)
 		{
-			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".bin")).string();
+			
+			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
 			remove(filepath.c_str());
 		}
 
