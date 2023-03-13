@@ -184,6 +184,50 @@ namespace MathAnim
 		return {};
 	}
 
+	Axis Axis::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		switch (version)
+		{
+		case 1:
+		{
+			// axesLength    -> Vec3
+			// xRange        -> Vec2i
+			// yRange        -> Vec2i
+			// zRange        -> Vec2i
+			// xStep         -> float
+			// yStep         -> float
+			// zStep         -> float
+			// tickWidth     -> float 
+			// drawNumbers   -> u8
+			// fontSizePx    -> float
+			// labelPadding  -> float
+			// labelStrokeWidth -> float
+			Axis res;
+			res.axesLength = CMath::legacy_deserializeVec3(memory);
+			res.xRange = CMath::legacy_deserializeVec2i(memory);
+			res.yRange = CMath::legacy_deserializeVec2i(memory);
+			res.zRange = CMath::legacy_deserializeVec2i(memory);
+			memory.read<float>(&res.xStep);
+			memory.read<float>(&res.yStep);
+			memory.read<float>(&res.zStep);
+			memory.read<float>(&res.tickWidth);
+			uint8 drawNumbersU8;
+			memory.read<uint8>(&drawNumbersU8);
+			res.drawNumbers = drawNumbersU8 == 1;
+			memory.read<float>(&res.fontSizePixels);
+			memory.read<float>(&res.labelPadding);
+			memory.read<float>(&res.labelStrokeWidth);
+
+			return res;
+		}
+			break;
+		default:
+			g_logger_error("Tried to deserialize unknown version of axis %d. It looks like you have corrupted scene data.");
+			break;
+		}
+		return {};
+	}
+
 	// ------------------ Internal Functions ------------------
 	static Axis deserializeAxisV2(const nlohmann::json& j)
 	{

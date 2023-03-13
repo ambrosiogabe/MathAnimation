@@ -236,6 +236,23 @@ namespace MathAnim
 		Vec2i deserializeVec2i(const nlohmann::json& memory);
 
 		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec4 legacy_deserializeVec4(RawMemory& memory);
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec3 legacy_deserializeVec3(RawMemory& memory);
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec2 legacy_deserializeVec2(RawMemory& memory);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec4i legacy_deserializeVec4i(RawMemory& memory);
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec3i legacy_deserializeVec3i(RawMemory& memory);
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec2i legacy_deserializeVec2i(RawMemory& memory);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		glm::u8vec4 legacy_deserializeU8Vec4(RawMemory& memory);
 	}
 }
 

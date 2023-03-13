@@ -139,6 +139,37 @@ namespace MathAnim
 		return {};
 	}
 
+	SvgFileObject SvgFileObject::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			SvgFileObject res = {};
+
+			// filepathLength       -> u32
+			// filepath             -> u8[textLength]
+
+			memory.read<uint32>(&res.filepathLength);
+			if (res.filepathLength > 0)
+			{
+				res.filepath = (char*)g_memory_allocate(sizeof(char) * (res.filepathLength + 1));
+				memory.readDangerous((uint8*)res.filepath, res.filepathLength * sizeof(uint8));
+				memory.read<char>(&res.filepath[res.filepathLength]);
+			}
+			else
+			{
+				res.filepath = nullptr;
+			}
+
+			res.svgGroup = nullptr;
+			return res;
+		}
+
+		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		SvgFileObject res;
+		g_memory_zeroMem(&res, sizeof(SvgFileObject));
+		return res;
+	}
+
 	SvgFileObject SvgFileObject::createDefault()
 	{
 		SvgFileObject res;

@@ -56,9 +56,12 @@ namespace MathAnim
 		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId obj);
 		AnimObjId getNextSibling(const AnimationManagerData* am, AnimObjId obj);
 
-		void serialize(const AnimationManagerData* am, nlohmann::json& output);
+		void serialize(const AnimationManagerData* am, nlohmann::json& j);
 		void deserialize(AnimationManagerData* am, const nlohmann::json& j, int currentFrame, uint32 versionMajor, uint32 versionMinor);
 		void sortAnimations(AnimationManagerData* am);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		void legacy_deserialize(AnimationManagerData* am, RawMemory& memory, int currentFrame);
 
 		void retargetSvgScales(AnimationManagerData* am);
 

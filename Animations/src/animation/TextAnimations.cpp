@@ -153,6 +153,41 @@ namespace MathAnim
 		return {};
 	}
 
+	TextObject TextObject::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			TextObject res;
+
+			// textLength           -> int32
+			// text                 -> char[textLength]
+			// fontFilepathLength   -> int32
+			// fontFilepath         -> char[fontFilepathLength]
+
+			memory.read<int32>(&res.textLength);
+			res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
+			memory.readDangerous((uint8*)res.text, sizeof(uint8) * res.textLength);
+			res.text[res.textLength] = '\0';
+
+			// TODO: Error checking would be good here
+			int32 fontFilepathLength;
+			memory.read<int32>(&fontFilepathLength);
+			uint8* fontFilepath = (uint8*)g_memory_allocate(sizeof(uint8) * (fontFilepathLength + 1));
+			memory.readDangerous((uint8*)fontFilepath, sizeof(uint8) * fontFilepathLength);
+			fontFilepath[fontFilepathLength] = '\0';
+
+			res.font = Fonts::loadFont((const char*)fontFilepath);
+			g_memory_free(fontFilepath);
+
+			return res;
+		}
+
+		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		TextObject res;
+		g_memory_zeroMem(&res, sizeof(TextObject));
+		return res;
+	}
+
 	TextObject TextObject::createDefault()
 	{
 		TextObject res;
@@ -273,6 +308,35 @@ namespace MathAnim
 	{
 		SERIALIZE_NULLABLE_CSTRING(memory, this, text, "Undefined");
 		SERIALIZE_NON_NULL_PROP(memory, this, isEquation);
+	}
+
+	LaTexObject LaTexObject::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			LaTexObject res;
+
+			// textLength       -> i32
+			// text             -> char[textLength]
+			// isEquation       -> u8 (bool)
+
+			memory.read<int32>(&res.textLength);
+			res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
+			memory.readDangerous((uint8*)res.text, res.textLength * sizeof(uint8));
+			res.text[res.textLength] = '\0';
+
+			uint8 isEquationU8;
+			memory.read<uint8>(&isEquationU8);
+			res.isEquation = isEquationU8 == 1;
+			res.isParsingLaTex = false;
+
+			return res;
+		}
+
+		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		LaTexObject res;
+		g_memory_zeroMem(&res, sizeof(LaTexObject));
+		return res;
 	}
 
 	void LaTexObject::free()
@@ -450,6 +514,34 @@ namespace MathAnim
 		SERIALIZE_ENUM(memory, this, theme, _highlighterThemeNames);
 		SERIALIZE_ENUM(memory, this, language, _highlighterLanguageNames);
 		SERIALIZE_NULLABLE_CSTRING(memory, this, text, "Undefined");
+	}
+
+	CodeBlock CodeBlock::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			CodeBlock res;
+
+			// theme                -> uint8
+			// language             -> uint8
+			// textLength           -> int32
+			// text                 -> char[textLength]
+
+			memory.read<HighlighterTheme>(&res.theme);
+			memory.read<HighlighterLanguage>(&res.language);
+
+			memory.read<int32>(&res.textLength);
+			res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
+			memory.readDangerous((uint8*)res.text, sizeof(uint8) * res.textLength);
+			res.text[res.textLength] = '\0';
+
+			return res;
+		}
+
+		g_logger_error("Invalid version '%d' while deserializing code object.", version);
+		CodeBlock res;
+		g_memory_zeroMem(&res, sizeof(CodeBlock));
+		return res;
 	}
 
 	void CodeBlock::free()

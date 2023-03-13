@@ -17,8 +17,11 @@ namespace MathAnim
 		glm::mat4 calculateProjectionMatrix() const;
 		Vec2 reverseProject(const Vec2& normalizedInput) const;
 
-		void serialize(nlohmann::json& memory) const;
-		static OrthoCamera deserialize(const nlohmann::json& memory, uint32 version);
+		void serialize(nlohmann::json& j) const;
+		static OrthoCamera deserialize(const nlohmann::json& j, uint32 version);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static OrthoCamera legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 }
 

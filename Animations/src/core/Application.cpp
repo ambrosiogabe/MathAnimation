@@ -85,6 +85,9 @@ namespace MathAnim
 		static void initializeSceneSystems();
 		static void freeSceneSystems();
 
+		[[deprecated("This is for upgrading legacy projects created in beta")]]
+		static void legacy_loadScene(const std::string& sceneName);
+
 		void init(const char* projectFile)
 		{
 			// Initialize these just in case this is a new project
@@ -455,8 +458,19 @@ namespace MathAnim
 			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
 			if (!Platform::fileExists(filepath.c_str()))
 			{
-				// Load default scene template
-				filepath = "./assets/sceneTemplates/default.json";
+				// Check if a legacy project exists and try to load that, if loading fails
+				// then load an empty project
+				std::string legacyFilepath = (currentProjectRoot / sceneToFilename(sceneName, ".bin")).string();
+				if (Platform::fileExists(legacyFilepath.c_str()))
+				{
+					legacy_loadScene(sceneName);
+					return;
+				}
+				else
+				{
+					// Load default scene template
+					filepath = "./assets/sceneTemplates/default.json";
+				}
 			}
 
 			if (!Platform::fileExists(filepath.c_str()))
@@ -505,6 +519,70 @@ namespace MathAnim
 			{
 				g_logger_error("Failed to load scene '%s' with error: '%s'", filepath.c_str(), ex.what());
 			}
+		}
+
+		static void legacy_loadScene(const std::string& sceneName)
+		{
+			std::string filepath = (currentProjectRoot / sceneToFilename(sceneName, ".bin")).string();
+			if (!Platform::fileExists(filepath.c_str()))
+			{
+				g_logger_error("LEGACY: No legacy project, aborting legacy upgrade.");
+				return;
+			}
+
+			FILE* fp = fopen(filepath.c_str(), "rb");
+			if (!fp)
+			{
+				g_logger_warning("LEGACY: Could not load scene '%s', error opening file.", filepath.c_str());
+				resetToFrame(0);
+				return;
+			}
+
+			fseek(fp, 0, SEEK_END);
+			size_t fileSize = ftell(fp);
+			fseek(fp, 0, SEEK_SET);
+
+			RawMemory memory;
+			memory.init(fileSize);
+			fread(memory.data, fileSize, 1, fp);
+			fclose(fp);
+
+			TableOfContents toc = TableOfContents::deserialize(memory);
+			memory.free();
+
+			RawMemory animationData = toc.getEntry("Animation_Data");
+			RawMemory timelineData = toc.getEntry("Timeline_Data");
+			RawMemory cameraData = toc.getEntry("Camera_Data");
+			toc.free();
+
+			int loadedProjectCurrentFrame = 0;
+			if (timelineData.data)
+			{
+				TimelineData timeline = Timeline::legacy_deserialize(timelineData);
+				EditorGui::setTimelineData(timeline);
+				loadedProjectCurrentFrame = timeline.currentFrame;
+			}
+			if (animationData.data)
+			{
+				AnimationManager::legacy_deserialize(am, animationData, loadedProjectCurrentFrame);
+				// Flush any pending objects to be created for real
+				AnimationManager::endFrame(am);
+
+			}
+			if (cameraData.data)
+			{
+				// Version    -> u32
+				// camera2D   -> OrthoCamera
+				// camera3D   -> PerspCamera
+				uint32 version = 1;
+				cameraData.read<uint32>(&version);
+				editorCamera2D = OrthoCamera::legacy_deserialize(cameraData, version);
+				editorCamera3D = PerspectiveCamera::legacy_deserialize(cameraData, version);
+			}
+
+			animationData.free();
+			timelineData.free();
+			cameraData.free();
 		}
 
 		void deleteScene(const std::string& sceneName)

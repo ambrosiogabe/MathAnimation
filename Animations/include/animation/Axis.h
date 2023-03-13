@@ -24,9 +24,12 @@ namespace MathAnim
 		float labelStrokeWidth;
 
 		void init(AnimObject* parent);
-		void serialize(nlohmann::json& memory) const;
 
+		void serialize(nlohmann::json& j) const;
 		static Axis deserialize(const nlohmann::json& j, uint32 version);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static Axis legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 }
 

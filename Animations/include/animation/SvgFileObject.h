@@ -20,11 +20,15 @@ namespace MathAnim
 		void reInit(AnimationManagerData* am, AnimObject* obj);
 		bool setFilepath(const std::string& newFilepath);
 		bool setFilepath(const char* newFilepath);
-		void serialize(nlohmann::json& memory) const;
 		void free();
 
+		void serialize(nlohmann::json& j) const;
 		static SvgFileObject deserialize(const nlohmann::json& j, uint32 version);
+
 		static SvgFileObject createDefault();
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static SvgFileObject legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 }
 

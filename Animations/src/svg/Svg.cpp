@@ -1695,6 +1695,43 @@ namespace MathAnim
 		return nullptr;
 	}
 
+	SvgObject* SvgObject::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+
+			// fillType         -> u8
+			// fillColor        -> Vec4
+			// pathLength       -> u64
+			// path             -> u8[pathLength]
+			memory.read<FillType>(&res->fillType);
+			res->fillColor = CMath::legacy_deserializeVec4(memory);
+			uint64 stringLength;
+			memory.read<uint64>(&stringLength);
+			uint8* string = (uint8*)g_memory_allocate(sizeof(uint8) * (stringLength + 1));
+			memory.readDangerous(string, stringLength);
+			string[stringLength] = '\0';
+
+			if (stringLength > 0)
+			{
+				if (!SvgParser::parseSvgPath((const char*)string, stringLength, res))
+				{
+					g_logger_error("Error deserializing SVG. Bad path data: '%s'", string);
+				}
+			}
+			else
+			{
+				*res = Svg::createDefault();
+			}
+			g_memory_free(string);
+
+			return res;
+		}
+
+		return nullptr;
+	}
+
 	void SvgGroup::normalize()
 	{
 		calculateBBox();

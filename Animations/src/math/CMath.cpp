@@ -756,6 +756,101 @@ namespace MathAnim
 			return res;
 		}
 
+		// ------------------ DEPRECATED BEGIN ------------------
+		Vec4 legacy_deserializeVec4(RawMemory& memory)
+		{
+			// Target
+			//   X    -> float
+			//   Y    -> float
+			//   Z    -> float
+			//   W    -> float
+			Vec4 res;
+			memory.read<float>(&res.x);
+			memory.read<float>(&res.y);
+			memory.read<float>(&res.z);
+			memory.read<float>(&res.w);
+			return res;
+		}
+
+		Vec3 legacy_deserializeVec3(RawMemory& memory)
+		{
+			// Target
+			//   X    -> float
+			//   Y    -> float
+			//   Z    -> float
+			Vec3 res;
+			memory.read<float>(&res.x);
+			memory.read<float>(&res.y);
+			memory.read<float>(&res.z);
+			return res;
+		}
+
+		Vec2 legacy_deserializeVec2(RawMemory& memory)
+		{
+			// Target
+			//   X    -> float
+			//   Y    -> float
+			Vec2 res;
+			memory.read<float>(&res.x);
+			memory.read<float>(&res.y);
+			return res;
+		}
+
+		Vec4i legacy_deserializeVec4i(RawMemory& memory)
+		{
+			// Target
+			//   X    -> i32
+			//   Y    -> i32
+			//   Z    -> i32
+			//   W    -> i32
+			Vec4i res;
+			memory.read<int32>(&res.x);
+			memory.read<int32>(&res.y);
+			memory.read<int32>(&res.z);
+			memory.read<int32>(&res.w);
+			return res;
+		}
+
+		Vec3i legacy_deserializeVec3i(RawMemory& memory)
+		{
+			// Target
+			//   X    -> i32
+			//   Y    -> i32
+			//   Z    -> i32
+			Vec3i res;
+			memory.read<int32>(&res.x);
+			memory.read<int32>(&res.y);
+			memory.read<int32>(&res.z);
+			return res;
+		}
+
+		Vec2i legacy_deserializeVec2i(RawMemory& memory)
+		{
+			// Target
+			//   X    -> i32
+			//   Y    -> i32
+			Vec2i res;
+			memory.read<int32>(&res.x);
+			memory.read<int32>(&res.y);
+			return res;
+		}
+
+		glm::u8vec4 legacy_deserializeU8Vec4(RawMemory& memory)
+		{
+			// Target 
+			//  R -> u8
+			//  G -> u8
+			//  B -> u8
+			//  A -> u8
+			glm::u8vec4 res;
+			memory.read<uint8>(&res.r);
+			memory.read<uint8>(&res.g);
+			memory.read<uint8>(&res.b);
+			memory.read<uint8>(&res.a);
+			return res;
+		}
+		// ------------------ DEPRECATED END ------------------
+
 		// ------------------ Internal Functions ------------------
 		// These are all taken from here https://easings.net
 		static float easeInSine(float t)

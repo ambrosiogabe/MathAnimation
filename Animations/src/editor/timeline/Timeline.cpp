@@ -320,6 +320,35 @@ namespace MathAnim
 			return res;
 		}
 
+		TimelineData legacy_deserialize(RawMemory& memory)
+		{
+			TimelineData res = {};
+
+			// audioSourceFileLength     -> uint32
+			// audioSourceFile           -> uint8[audioSourceFileLength + 1]
+			// firstFrame                -> int32
+			// currentFrame              -> int32
+			// zoomLevel                 -> float
+
+			uint32 fileLengthU32;
+			if (!memory.read<uint32>(&fileLengthU32))
+			{
+				g_logger_error("Corrupted timeline data in project file.");
+				return res;
+			}
+
+			res.audioSourceFileLength = (size_t)fileLengthU32;
+			res.audioSourceFile = (uint8*)g_memory_allocate(sizeof(uint8) * (res.audioSourceFileLength + 1));
+			memory.readDangerous(res.audioSourceFile, res.audioSourceFileLength + 1);
+			memory.read<int32>(&res.firstFrame);
+			memory.read<int32>(&res.currentFrame);
+			memory.read<float>(&res.zoomLevel);
+
+			Application::setFrameIndex(res.currentFrame);
+
+			return res;
+		}
+
 		// ------- Internal Functions --------
 		static void loadAudioSource(const char* filepath)
 		{

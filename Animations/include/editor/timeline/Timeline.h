@@ -36,6 +36,9 @@ namespace MathAnim
 
 		void serialize(const TimelineData& data, nlohmann::json& j);
 		TimelineData deserialize(const nlohmann::json& j);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		TimelineData legacy_deserialize(RawMemory& memory);
 	}
 }
 

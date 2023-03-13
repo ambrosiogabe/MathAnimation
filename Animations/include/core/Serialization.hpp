@@ -1,5 +1,57 @@
 #ifndef MATH_ANIMATIONS_SERIALIZATION_HPP
 #define MATH_ANIMATIONS_SERIALIZATION_HPP
+#include "core.h"
+
+#include <nlohmann/json.hpp>
+
+inline void writeIdToJson(const char* propertyName, AnimObjId id, nlohmann::json& j)
+{
+	if (MathAnim::isNull(id))
+	{
+		j[propertyName] = nullptr;
+	}
+	else
+	{
+		j[propertyName] = id;
+	}
+}
+
+inline void convertIdToJson(AnimObjId id, nlohmann::json& j)
+{
+	if (MathAnim::isNull(id))
+	{
+		j = nullptr;
+	}
+	else
+	{
+		j = id;
+	}
+}
+
+[[nodiscard]]
+inline AnimId readIdFromJson(const nlohmann::json& j, const char* propertyName)
+{
+	if (j.contains(propertyName))
+	{
+		if (!j[propertyName].is_null())
+		{
+			return j[propertyName];
+		}
+	}
+
+	return MathAnim::NULL_ANIM;
+}
+
+[[nodiscard]]
+inline AnimId convertJsonToId(const nlohmann::json& j)
+{
+	if (j.is_null())
+	{
+		return MathAnim::NULL_ANIM;
+	}
+
+	return j;
+}
 
 // ------------------- Serialization helpers -------------------
 #define SERIALIZE_NULLABLE_CSTRING(j, obj, prop, defaultValue) \

@@ -10,6 +10,7 @@
 #include "math/CMath.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
+#include "core/Serialization.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -631,6 +632,81 @@ namespace MathAnim
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			std::sort(am->animations.begin(), am->animations.end(), compareAnimation);
+		}
+
+		void legacy_deserialize(AnimationManagerData* am, RawMemory& memory, int currentFrame)
+		{
+			// TODO: Deprecate me
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			// Read magic number and version then dispatch to appropraite
+			// deserializer
+			// magicNumber   -> uint32
+			// version       -> uint32
+			uint32 magicNumber;
+			memory.read<uint32>(&magicNumber);
+			uint32 serializerVersion;
+			memory.read<uint32>(&serializerVersion);
+
+			g_logger_assert(magicNumber == MAGIC_NUMBER, "Project file had invalid magic number '0x%8x'. File must have been corrupted.", magicNumber);
+			g_logger_assert((serializerVersion != 0 && serializerVersion <= 1), "Project file saved with invalid version '%d'. Looks like corrupted data.", serializerVersion);
+
+			if (serializerVersion == 1)
+			{
+				{
+					// We're in function V1 so this is a version 1 for sure
+					constexpr uint32 version = 1;
+
+					// startingActiveCamera -> AnimObjId
+					// numAnimations -> uint32
+					// animations    -> dynamic
+					memory.read<AnimObjId>(&am->startingActiveCamera);
+					am->activeCamera = am->startingActiveCamera;
+					uint32 numAnimations;
+					memory.read<uint32>(&numAnimations);
+
+					// Read each animation followed by 0xDEADBEEF
+					for (uint32 i = 0; i < numAnimations; i++)
+					{
+						Animation animation = Animation::legacy_deserialize(memory, version);
+						am->animations.push_back(animation);
+						memory.read<uint32>(&magicNumber);
+						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+
+						am->animationIdMap[animation.id] = i;
+					}
+
+					// numAnimObjects -> uint32
+					// animObjects    -> dynamic
+					uint32 numAnimObjects;
+					memory.read<uint32>(&numAnimObjects);
+
+					// Read each anim object followed by 0xDEADBEEF
+					for (uint32 i = 0; i < numAnimObjects; i++)
+					{
+						AnimObject animObject = AnimObject::legacy_deserialize(am, memory, version);
+						am->objects.push_back(animObject);
+						memory.read<uint32>(&magicNumber);
+						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+
+						am->objectIdMap[animObject.id] = i;
+					}
+				}
+
+				am->currentFrame = currentFrame;
+				// Calculate all key frame starting points and stuff
+				calculateAnimationKeyFrames(am);
+				// Apply all  animations appropriately
+				Application::resetToFrame(currentFrame);
+				resetToFrame(am, currentFrame);
+			}
+			else
+			{
+				g_logger_error("AnimationManagerEx serialized with unknown version '%d'.", serializerVersion);
+			}
+
+			// Need to sort animations they get applied in the correct order
+			sortAnimations(am);
 		}
 
 		void retargetSvgScales(AnimationManagerData* am)

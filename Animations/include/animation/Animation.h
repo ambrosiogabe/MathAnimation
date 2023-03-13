@@ -22,12 +22,6 @@ namespace MathAnim
 	constexpr uint32 SERIALIZER_VERSION_MINOR = 0;
 	constexpr uint32 MAGIC_NUMBER = 0xDEADBEEF;
 
-	inline bool isNull(AnimObjId animObj) { return animObj == NULL_ANIM_OBJECT; }
-	void writeIdToJson(const char* propertyName, AnimObjId id, nlohmann::json& j);
-	void convertIdToJson(AnimObjId id, nlohmann::json& j);
-	AnimId readIdFromJson(const nlohmann::json& j, const char* propertyName);
-	AnimId convertJsonToId(const nlohmann::json& j);
-
 	// Types
 	enum class AnimObjectTypeV1 : uint32
 	{
@@ -189,8 +183,11 @@ namespace MathAnim
 		AnimObjId srcAnimObjectId;
 		AnimObjId dstAnimObjectId;
 
-		void serialize(nlohmann::json& memory) const;
-		static ReplacementTransformData deserialize(const nlohmann::json& memory, uint32 version);
+		void serialize(nlohmann::json& j) const;
+		static ReplacementTransformData deserialize(const nlohmann::json& j, uint32 version);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static ReplacementTransformData legacy_deserialize(RawMemory& memory);
 	};
 
 	struct MoveToData
@@ -199,8 +196,11 @@ namespace MathAnim
 		Vec2 target;
 		AnimObjId object;
 
-		void serialize(nlohmann::json& memory) const;
-		static MoveToData deserialize(const nlohmann::json& memory, uint32 version);
+		void serialize(nlohmann::json& j) const;
+		static MoveToData deserialize(const nlohmann::json& j, uint32 version);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static MoveToData legacy_deserialize(RawMemory& memory);
 	};
 
 	struct AnimateScaleData
@@ -209,8 +209,11 @@ namespace MathAnim
 		Vec2 target;
 		AnimObjId object;
 
-		void serialize(nlohmann::json& memory) const;
-		static AnimateScaleData deserialize(const nlohmann::json& memory, uint32 version);
+		void serialize(nlohmann::json& j) const;
+		static AnimateScaleData deserialize(const nlohmann::json& j, uint32 version);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static AnimateScaleData legacy_deserialize(RawMemory& memory);
 	};
 
 	enum class CircumscribeShape : uint8
@@ -255,6 +258,9 @@ namespace MathAnim
 		void serialize(nlohmann::json& memory) const;
 		static Circumscribe deserialize(const nlohmann::json& j, uint32 version);
 		static Circumscribe createDefault();
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static Circumscribe legacy_deserialize(RawMemory& memory);
 	};
 
 	// Base Structs
@@ -299,9 +305,12 @@ namespace MathAnim
 		void onGizmo();
 
 		void free();
-		void serialize(nlohmann::json& memory) const;
+		void serialize(nlohmann::json& j) const;
 		static Animation deserialize(const nlohmann::json& j, uint32 version);
 		static Animation createDefault(AnimTypeV1 type, int32 frameStart, int32 duration);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static Animation legacy_deserialize(RawMemory& memory, uint32 version);
 
 		static inline bool appliesToChildren(AnimTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimTypeV1::Length, "Type name out of bounds."); return _appliesToChildrenData[(size_t)type]; }
 		static inline bool isAnimationGroup(AnimTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimTypeV1::Length, "Type name out of bounds."); return _isAnimationGroupData[(size_t)type]; }
@@ -338,11 +347,14 @@ namespace MathAnim
 		bool is2D;
 		bool isActiveCamera;
 
-		void serialize(nlohmann::json& memory) const;
+		void serialize(nlohmann::json& j) const;
 		void free();
 
 		static CameraObject deserialize(const nlohmann::json& j, uint32 version);
 		static CameraObject createDefault();
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static CameraObject legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 
 	struct ScriptObject
@@ -350,11 +362,14 @@ namespace MathAnim
 		char* scriptFilepath;
 		size_t scriptFilepathLength;
 
-		void serialize(nlohmann::json& memory) const;
+		void serialize(nlohmann::json& j) const;
 		void free();
 
 		static ScriptObject deserialize(const nlohmann::json& j, uint32 version);
 		static ScriptObject createDefault();
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static ScriptObject legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 
 	struct AnimObject
@@ -448,7 +463,7 @@ namespace MathAnim
 		inline AnimObjId end() const { return NULL_ANIM_OBJECT; }
 		
 		void free();
-		void serialize(nlohmann::json& memory) const;
+		void serialize(nlohmann::json& j) const;
 		static AnimObject deserialize(AnimationManagerData* am, const nlohmann::json& j, uint32 version);
 		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId, bool addChildAsGenerated = false);
 		static AnimObject createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj);
@@ -457,6 +472,9 @@ namespace MathAnim
 
 		static inline bool isInternalObjectOnly(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _isInternalObjectOnly[(size_t)type]; }
 		static inline const char* getAnimObjectName(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _animationObjectTypeNames[(size_t)type]; }
+	
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static AnimObject legacy_deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version);
 	};
 
 	// Helpers

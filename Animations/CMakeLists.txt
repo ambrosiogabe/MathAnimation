@@ -134,7 +134,9 @@ set_property(TARGET MathAnimations PROPERTY
     VS_DEBUGGER_WORKING_DIRECTORY ${MATH_ANIMATIONS_WORKING_DIR}
 )
 if(MSVC)
-  target_compile_options(MathAnimations PRIVATE /W4 /WX)
+  # NOTE: /wd4996 disables deprecation warnings, this should be removed
+  # when we remove all the legacy_ path upgrade functions for old projects
+  target_compile_options(MathAnimations PRIVATE /W4 /WX /wd4996)
 else()
   target_compile_options(MathAnimations PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()

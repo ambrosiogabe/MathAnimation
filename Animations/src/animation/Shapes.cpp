@@ -53,6 +53,26 @@ namespace MathAnim
 		return {};
 	}
 
+	Square Square::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		switch (version)
+		{
+		case 1:
+		{
+			// sideLength       -> float
+			Square res;
+			memory.read<float>(&res.sideLength);
+			return res;
+		}
+		break;
+		default:
+			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
+			break;
+		}
+
+		return {};
+	}
+
 	void Circle::init(AnimObject* parent)
 	{
 		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Circle object initialized twice.");
@@ -111,6 +131,26 @@ namespace MathAnim
 		return {};
 	}
 
+	Circle Circle::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		switch (version)
+		{
+		case 1:
+		{
+			// radius   -> float
+			Circle res;
+			memory.read<float>(&res.radius);
+			return res;
+		}
+		break;
+		default:
+			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
+			break;
+		}
+
+		return {};
+	}
+
 	void Arrow::init(AnimObject* parent)
 	{
 		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Arrow object initialized twice.");
@@ -163,6 +203,27 @@ namespace MathAnim
 
 		g_logger_warning("Arrow serialized with unknown version '%d'.", version);
 		return {};
+	}
+
+	Arrow Arrow::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			// stemWidth    -> f32
+			// stemLength   -> f32
+			// tipWidth	    -> f32
+			// tipLength    -> f32
+			Arrow res = {};
+			memory.read<float>(&res.stemWidth);
+			memory.read<float>(&res.stemLength);
+			memory.read<float>(&res.tipWidth);
+			memory.read<float>(&res.tipLength);
+
+			return res;
+		}
+
+		// Return dummy
+		return Arrow{};
 	}
 
 	void Cube::init(AnimObject* parent)
@@ -227,6 +288,26 @@ namespace MathAnim
 		}
 
 		g_logger_warning("Cube serialized with unknown version '%d'.", version);
+		return {};
+	}
+
+	Cube Cube::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		switch (version)
+		{
+		case 1:
+		{
+			// sideLength       -> float
+			Cube res;
+			memory.read<float>(&res.sideLength);
+			return res;
+		}
+		break;
+		default:
+			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
+			break;
+		}
+
 		return {};
 	}
 

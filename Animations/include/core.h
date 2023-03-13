@@ -226,6 +226,8 @@ namespace MathAnim
 {
 	constexpr AnimObjId NULL_ANIM_OBJECT = UINT64_MAX;
 	constexpr AnimId NULL_ANIM = UINT64_MAX;
+
+	inline bool isNull(AnimObjId animObj) { return animObj == NULL_ANIM_OBJECT; }
 }
 
 #endif

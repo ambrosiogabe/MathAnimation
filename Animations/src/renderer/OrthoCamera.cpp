@@ -59,6 +59,25 @@ namespace MathAnim
 		return {};
 	}
 
+	OrthoCamera OrthoCamera::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			// position        -> Vec2
+			// projectionSize  -> Vec2
+			// zoom            -> float
+			OrthoCamera res = {};
+			res.position = CMath::legacy_deserializeVec2(memory);
+			res.projectionSize = CMath::legacy_deserializeVec2(memory);
+			memory.read<float>(&res.zoom);
+
+			return res;
+		}
+
+		OrthoCamera res = {};
+		return res;
+	}
+
 	// -------------- Internal Functions --------------
 	static OrthoCamera deserializeCameraV2(const nlohmann::json& j)
 	{

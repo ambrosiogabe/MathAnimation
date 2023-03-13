@@ -21,12 +21,16 @@ namespace MathAnim
 
 		void init(AnimationManagerData* am, AnimObjId parentId);
 		void reInit(AnimationManagerData* am, AnimObject* obj);
-		void serialize(nlohmann::json& memory) const;
 		void free();
 
+		void serialize(nlohmann::json& j) const;
 		static TextObject deserialize(const nlohmann::json& j, uint32 version);
+
 		static TextObject createDefault();
 		static TextObject createCopy(const TextObject& from);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static TextObject legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 
 	// TODO: Create some sort of layout machine using MicroTex
@@ -49,11 +53,15 @@ namespace MathAnim
 		void setText(const std::string& str);
 		void setText(const char* str);
 		void parseLaTex();
-		void serialize(nlohmann::json& memory) const;
 		void free();
 
+		void serialize(nlohmann::json& j) const;
 		static LaTexObject deserialize(const nlohmann::json& j, uint32 version);
+
 		static LaTexObject createDefault();
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static LaTexObject legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 
 	struct CodeBlock
@@ -65,11 +73,15 @@ namespace MathAnim
 
 		void init(AnimationManagerData* am, AnimObjId parentId);
 		void reInit(AnimationManagerData* am, AnimObject* obj);
-		void serialize(nlohmann::json& memory) const;
 		void free();
 
+		void serialize(nlohmann::json& j) const;
 		static CodeBlock deserialize(const nlohmann::json& j, uint32 version);
+
 		static CodeBlock createDefault();
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static CodeBlock legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 }
 

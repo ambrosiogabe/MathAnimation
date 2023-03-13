@@ -59,6 +59,27 @@ namespace MathAnim
 		return {};
 	}
 
+	PerspectiveCamera PerspectiveCamera::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			// position        -> Vec3
+			// orientation     -> Vec3
+			// forward         -> Vec3
+			// fov             -> float
+			PerspectiveCamera res;
+			res.position = CMath::convert(CMath::legacy_deserializeVec3(memory));
+			res.orientation = CMath::convert(CMath::legacy_deserializeVec3(memory));
+			res.forward = CMath::convert(CMath::legacy_deserializeVec3(memory));
+			memory.read<float>(&res.fov);
+
+			return res;
+		}
+
+		PerspectiveCamera res = {};
+		return res;
+	}
+
 	// -------------- Internal Functions --------------
 	static PerspectiveCamera deserializeCameraV2(const nlohmann::json& j)
 	{
