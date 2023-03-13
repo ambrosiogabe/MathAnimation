@@ -9,6 +9,7 @@
 #include "renderer/PerspectiveCamera.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
+#include "core/Serialization.hpp"
 #include "multithreading/GlobalThreadPool.h"
 #include "math/CMath.h"
 #include "platform/Platform.h" 
@@ -1658,9 +1659,11 @@ namespace MathAnim
 
 	void SvgObject::serialize(nlohmann::json& memory) const
 	{
-		CMath::serialize(memory, "FillColor", fillColor);
-		memory["FillType"] = _fillTypeNames[(uint8)fillType];
-		memory["Path"] = getPathAsString();
+		SERIALIZE_VEC(memory, this, fillColor);
+		SERIALIZE_ENUM(memory, this, fillType, _fillTypeNames);
+		// TODO: This is not type-checked. Add 'path' as a property to SVGs or 
+		// a filepath or something to make this type-safe
+		SERIALIZE_VALUE_INLINE(memory, path, getPathAsString());
 	}
 
 	SvgObject* SvgObject::deserialize(const nlohmann::json& j, uint32 version)
@@ -1669,10 +1672,9 @@ namespace MathAnim
 		{
 			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 
-			const std::string& fillTypeStr = j.contains("FillType") ? j["FillType"] : "Undefined";
-			res->fillType = findMatchingEnum<FillType, (size_t)FillType::Length>(_fillTypeNames, fillTypeStr);
-			res->fillColor = CMath::deserializeVec4(j);
-			const std::string& pathStr = j.contains("Path") ? j["Path"] : "";
+			DESERIALIZE_ENUM(res, fillType, _fillTypeNames, FillType, j);
+			DESERIALIZE_VEC4(res, fillColor, j);
+			const std::string& pathStr = DESERIALIZE_VALUE_INLINE(j, path, "");
 
 			if (pathStr.size() > 0)
 			{
@@ -1689,6 +1691,7 @@ namespace MathAnim
 			return res;
 		}
 
+		g_logger_warning("Svg serialized with unknown version '%d'", version);
 		return nullptr;
 	}
 

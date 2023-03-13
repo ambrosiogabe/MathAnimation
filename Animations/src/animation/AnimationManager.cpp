@@ -731,7 +731,7 @@ namespace MathAnim
 			// Loop through each object and recursively update the bboxes by appending children to the queue
 			// Update child transform
 			AnimObject* nextObj = getMutableObject(am, obj);
-			if (obj)
+			if (nextObj)
 			{
 				glm::vec3 scaleFactor, skew, translation;
 				glm::quat orientation;

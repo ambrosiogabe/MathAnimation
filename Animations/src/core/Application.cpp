@@ -499,30 +499,37 @@ namespace MathAnim
 			std::string sceneJsonFilepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
 			if (Platform::fileExists(filepath.c_str()))
 			{
-				std::ifstream inputFile(sceneJsonFilepath);
-				nlohmann::json sceneJson;
-				inputFile >> sceneJson;
-
-				// Read version
-				uint32 versionMajor = 0;
-				uint32 versionMinor = 0;
-				if (sceneJson.contains("Version"))
+				try
 				{
-					if (sceneJson["Version"].contains("Major") && sceneJson["Version"].contains("Minor"))
+					std::ifstream inputFile(sceneJsonFilepath);
+					nlohmann::json sceneJson;
+					inputFile >> sceneJson;
+
+					// Read version
+					uint32 versionMajor = 0;
+					uint32 versionMinor = 0;
+					if (sceneJson.contains("Version"))
 					{
-						versionMajor = sceneJson["Version"]["Major"];
-						versionMinor = sceneJson["Version"]["Minor"];
+						if (sceneJson["Version"].contains("Major") && sceneJson["Version"].contains("Minor"))
+						{
+							versionMajor = sceneJson["Version"]["Major"];
+							versionMinor = sceneJson["Version"]["Minor"];
+						}
 					}
-				}
 
-				if (sceneJson.contains("AnimationManager"))
+					if (sceneJson.contains("AnimationManager"))
+					{
+						AnimationManager::deserialize(am, sceneJson["AnimationManager"], loadedProjectCurrentFrame, versionMajor, versionMinor);
+						// Flush any pending objects to be created for real
+						AnimationManager::endFrame(am);
+					}
+
+					deserializeCameras(sceneJson["EditorCameras"], versionMajor);
+				}
+				catch (const std::exception& ex)
 				{
-					AnimationManager::deserialize(am, sceneJson["AnimationManager"], loadedProjectCurrentFrame, versionMajor, versionMinor);
-					// Flush any pending objects to be created for real
-					AnimationManager::endFrame(am);
+					g_logger_error("Failed to load scene '%s' with error: '%s'", filepath.c_str(), ex.what());
 				}
-
-				deserializeCameras(sceneJson["EditorCameras"], versionMajor);
 			}
 
 			timelineData.free();

@@ -54,13 +54,9 @@ namespace MathAnim
 		{
 			return deserializeCameraV2(memory);
 		}
-		else
-		{
-			g_logger_warning("Unknown camera version: %d", version);
-		}
 
-		OrthoCamera res = {};
-		return res;
+		g_logger_warning("Unknown camera version: %d", version);
+		return {};
 	}
 
 	// -------------- Internal Functions --------------

@@ -1,6 +1,7 @@
 #include "animation/Axis.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
+#include "core/Serialization.hpp"
 #include "svg/Svg.h"
 #include "math/CMath.h"
 
@@ -154,18 +155,18 @@ namespace MathAnim
 
 	void Axis::serialize(nlohmann::json& memory) const
 	{
-		CMath::serialize(memory, "AxesLength", axesLength);
-		CMath::serialize(memory, "XRange",xRange);
-		CMath::serialize(memory, "YRange", yRange);
-		CMath::serialize(memory, "ZRange", zRange);
-		memory["XStep"] = xStep;
-		memory["YStep"] = yStep;
-		memory["ZStep"] = zStep;
-		memory["TickWidth"] = tickWidth;
-		memory["DrawNumbers"] = drawNumbers;
-		memory["FontSizePx"] = fontSizePixels;
-		memory["LabelPadding"] = labelPadding;
-		memory["LabelStrokeWidth"] = labelStrokeWidth;
+		SERIALIZE_VEC(memory, this, axesLength);
+		SERIALIZE_VEC(memory, this, xRange);
+		SERIALIZE_VEC(memory, this, yRange);
+		SERIALIZE_VEC(memory, this, zRange);
+		SERIALIZE_NON_NULL_PROP(memory, this, xStep);
+		SERIALIZE_NON_NULL_PROP(memory, this, yStep);
+		SERIALIZE_NON_NULL_PROP(memory, this, zStep);
+		SERIALIZE_NON_NULL_PROP(memory, this, tickWidth);
+		SERIALIZE_NON_NULL_PROP(memory, this, drawNumbers);
+		SERIALIZE_NON_NULL_PROP(memory, this, fontSizePixels);
+		SERIALIZE_NON_NULL_PROP(memory, this, labelPadding);
+		SERIALIZE_NON_NULL_PROP(memory, this, labelStrokeWidth);
 	}
 
 	Axis Axis::deserialize(const nlohmann::json& j, uint32 version)
@@ -186,19 +187,20 @@ namespace MathAnim
 	// ------------------ Internal Functions ------------------
 	static Axis deserializeAxisV2(const nlohmann::json& j)
 	{
-		Axis res;
-		res.axesLength = CMath::deserializeVec3(j);
-		res.xRange = CMath::deserializeVec2i(j);
-		res.yRange = CMath::deserializeVec2i(j);
-		res.zRange = CMath::deserializeVec2i(j);
-		res.xStep = j.contains("XStep") ? j["XStep"] : 0.0f;
-		res.xStep = j.contains("YStep") ? j["YStep"] : 0.0f;
-		res.xStep = j.contains("ZStep") ? j["ZStep"] : 0.0f;
-		res.tickWidth = j.contains("TickWidth") ? j["TickWidth"] : 0.0f;
-		res.drawNumbers = j.contains("DrawNumbers") ? j["DrawNumbers"] : false;
-		res.fontSizePixels = j.contains("FontSizePixels") ? j["FontSizePixels"] : 0.0f;
-		res.labelPadding = j.contains("LabelPadding") ? j["LabelPadding"] : 0.0f;
-		res.labelStrokeWidth = j.contains("LabelStrokeWidth") ? j["LabelStrokeWidth"] : 0.0f;
+		Axis res = {};
+
+		DESERIALIZE_VEC3(&res, axesLength, j);
+		DESERIALIZE_VEC2i(&res, xRange, j);
+		DESERIALIZE_VEC2i(&res, yRange, j);
+		DESERIALIZE_VEC2i(&res, zRange, j);
+		DESERIALIZE_PROP(&res, xStep, j, 0.0f);
+		DESERIALIZE_PROP(&res, yStep, j, 0.0f);
+		DESERIALIZE_PROP(&res, zStep, j, 0.0f);
+		DESERIALIZE_PROP(&res, tickWidth, j, 0.0f);
+		DESERIALIZE_PROP(&res, drawNumbers, j, false);
+		DESERIALIZE_PROP(&res, fontSizePixels, j, 0.0f);
+		DESERIALIZE_PROP(&res, labelPadding, j, 0.0f);
+		DESERIALIZE_PROP(&res, labelStrokeWidth, j, 0.0f);
 
 		return res;
 	}

@@ -27,7 +27,7 @@ namespace MathAnim
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV2(AnimationManagerData* am, const nlohmann::json& j);
 	static Animation deserializeAnimationV2(const nlohmann::json& memory);
-	static CameraObject deserializeCameraObjectV1(const nlohmann::json& j, uint32 version);
+	static CameraObject deserializeCameraObjectV2(const nlohmann::json& j, uint32 version);
 
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
 
@@ -487,26 +487,26 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::Shift:
 		case AnimTypeV1::RotateTo:
-			CMath::serialize(memory["RotateTo"], "Target", this->as.modifyVec3.target);
+			SERIALIZE_VEC(memory, this, as.modifyVec3.target);
 			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
-			CMath::serialize(memory["AnimateStrokeColor"], "Target", this->as.modifyU8Vec4.target);
+			SERIALIZE_VEC(memory, this, as.modifyU8Vec4.target);
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
 			break;
 		case AnimTypeV1::Transform:
-			this->as.replacementTransform.serialize(memory["ReplacementTransform"]);
+			SERIALIZE_OBJECT(memory, this, as.replacementTransform);
 			break;
 		case AnimTypeV1::MoveTo:
-			this->as.moveTo.serialize(memory["MoveTo"]);
+			SERIALIZE_OBJECT(memory, this, as.moveTo);
 			break;
 		case AnimTypeV1::AnimateScale:
-			this->as.animateScale.serialize(memory["AnimateScale"]);
+			SERIALIZE_OBJECT(memory, this, as.animateScale);
 			break;
 		case AnimTypeV1::Circumscribe:
-			this->as.circumscribe.serialize(memory["Circumscribe"]);
+			SERIALIZE_OBJECT(memory, this, as.circumscribe);
 			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
@@ -516,48 +516,66 @@ namespace MathAnim
 
 	void ReplacementTransformData::serialize(nlohmann::json& memory) const
 	{
-		writeIdToJson("SrcObjectId", srcAnimObjectId, memory);
-		writeIdToJson("DstObjectId", dstAnimObjectId, memory);
+		SERIALIZE_ID(memory, this, srcAnimObjectId);
+		SERIALIZE_ID(memory, this, dstAnimObjectId);
 	}
 
-	ReplacementTransformData ReplacementTransformData::deserialize(const nlohmann::json& memory)
+	ReplacementTransformData ReplacementTransformData::deserialize(const nlohmann::json& memory, uint32 version)
 	{
-		ReplacementTransformData res;
-		res.srcAnimObjectId = readIdFromJson(memory, "SrcObjectId");
-		res.dstAnimObjectId = readIdFromJson(memory, "DstObjectId");
-		return res;
+		if (version == 2)
+		{
+			ReplacementTransformData res = {};
+			DESERIALIZE_ID(&res, srcAnimObjectId, memory);
+			DESERIALIZE_ID(&res, dstAnimObjectId, memory);
+			return res;
+		}
+
+		g_logger_warning("ReplacementTransform serialized with unknown version '%d'", version);
+		return {};
 	}
 
 	void MoveToData::serialize(nlohmann::json& memory) const
 	{
-		CMath::serialize(memory, "Source", this->source);
-		CMath::serialize(memory, "Target", this->target);
-		writeIdToJson("Object", object, memory);
+		SERIALIZE_VEC(memory, this, source);
+		SERIALIZE_VEC(memory, this, target);
+		SERIALIZE_ID(memory, this, object);
 	}
 
-	MoveToData MoveToData::deserialize(const nlohmann::json& memory)
+	MoveToData MoveToData::deserialize(const nlohmann::json& memory, uint32 version)
 	{
-		MoveToData res;
-		res.source = CMath::deserializeVec2(memory);
-		res.target = CMath::deserializeVec2(memory);
-		res.object = readIdFromJson(memory, "Object");
-		return res;
+		if (version == 2)
+		{
+			MoveToData res = {};
+			DESERIALIZE_VEC2(&res, source, memory);
+			DESERIALIZE_VEC2(&res, target, memory);
+			DESERIALIZE_ID(&res, object, memory);
+			return res;
+		}
+
+		g_logger_warning("MoveToData serialized with unknown version '%d'", version);
+		return {};
 	}
 
 	void AnimateScaleData::serialize(nlohmann::json& memory) const
 	{
-		CMath::serialize(memory, "Source", this->source);
-		CMath::serialize(memory, "Target", this->target);
-		writeIdToJson("Object", object, memory);
+		SERIALIZE_VEC(memory, this, source);
+		SERIALIZE_VEC(memory, this, target);
+		SERIALIZE_ID(memory, this, object);
 	}
 
-	AnimateScaleData AnimateScaleData::deserialize(const nlohmann::json& memory)
+	AnimateScaleData AnimateScaleData::deserialize(const nlohmann::json& memory, uint32 version)
 	{
-		AnimateScaleData res;
-		res.source = CMath::deserializeVec2(memory);
-		res.target = CMath::deserializeVec2(memory);
-		res.object = readIdFromJson(memory, "Object");
-		return res;
+		if (version == 2)
+		{
+			AnimateScaleData res = {};
+			DESERIALIZE_VEC2(&res, source, memory);
+			DESERIALIZE_VEC2(&res, target, memory);
+			DESERIALIZE_ID(&res, object, memory);
+			return res;
+		}
+
+		g_logger_warning("AnimateScaleData serialized with unknown version '%d'", version);
+		return {};
 	}
 
 	void Circumscribe::render(const BBox& bbox) const
@@ -655,32 +673,36 @@ namespace MathAnim
 
 	void Circumscribe::serialize(nlohmann::json& memory) const
 	{
-		CMath::serialize(memory, "Color", this->color);
-		memory["Shape"] = _circumscribeShapeNames[(uint8)shape];
-		memory["FadeType"] = _circumscribeFadeNames[(uint8)fade];
-		memory["BufferSize"] = bufferSize;
-		memory["TimeWidth"] = timeWidth;
-		writeIdToJson("Object", obj, memory);
+		SERIALIZE_VEC(memory, this, color);
+		SERIALIZE_ENUM(memory, this, shape, _circumscribeShapeNames);
+		SERIALIZE_ENUM(memory, this, fade, _circumscribeFadeNames);
+		SERIALIZE_NON_NULL_PROP(memory, this, bufferSize);
+		SERIALIZE_NON_NULL_PROP(memory, this, timeWidth);
+		SERIALIZE_ID(memory, this, obj);
 	}
 
-	Circumscribe Circumscribe::deserialize(const nlohmann::json& j)
+	Circumscribe Circumscribe::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		Circumscribe res;
-		res.color = CMath::deserializeVec4(j["Color"]);
-		const std::string& shapeName = j["Shape"];
-		res.shape = findMatchingEnum<CircumscribeShape, (size_t)CircumscribeShape::Length>(_circumscribeShapeNames, shapeName);
-		const std::string& fadeName = j["FadeType"];
-		res.fade = findMatchingEnum<CircumscribeFade, (size_t)CircumscribeFade::Length>(_circumscribeFadeNames, fadeName);
-		res.bufferSize = j.contains("BufferSize") ? j["BufferSize"] : NAN;
-		res.timeWidth = j.contains("TimeWidth") ? j["TimeWidth"] : NAN;
-		res.obj = readIdFromJson(j, "Object");
+		if (version == 2)
+		{
+			Circumscribe res = {};
+			DESERIALIZE_VEC4(&res, color, j);
+			DESERIALIZE_ENUM(&res, shape, _circumscribeShapeNames, CircumscribeShape, j);
+			DESERIALIZE_ENUM(&res, fade, _circumscribeFadeNames, CircumscribeFade, j);
+			DESERIALIZE_PROP(&res, bufferSize, j, 0.0f);
+			DESERIALIZE_PROP(&res, timeWidth, j, 0.0f);
+			DESERIALIZE_ID(&res, obj, j);
+			return res;
+		}
 
-		return res;
+		g_logger_warning("Circumscribe serialized with unknown version '%d'", version);
+		return {};
 	}
 
 	Circumscribe Circumscribe::createDefault()
 	{
-		Circumscribe res;
+		Circumscribe res = {};
+
 		res.color = "#F9DB1BFF"_hex;
 		res.shape = CircumscribeShape::Rectangle;
 		res.fade = CircumscribeFade::FadeNone;
@@ -762,9 +784,9 @@ namespace MathAnim
 
 	void CameraObject::serialize(nlohmann::json& memory) const
 	{
-		camera2D.serialize(memory);
-		memory["Is2D"] = is2D;
-		memory["IsActiveCamera"] = isActiveCamera;
+		SERIALIZE_OBJECT(memory, this, camera2D);
+		SERIALIZE_NON_NULL_PROP(memory, this, is2D);
+		SERIALIZE_NON_NULL_PROP(memory, this, isActiveCamera);
 	}
 
 	void CameraObject::free()
@@ -776,7 +798,7 @@ namespace MathAnim
 	{
 		if (version == 2)
 		{
-			return deserializeCameraObjectV1(j, version);
+			return deserializeCameraObjectV2(j, version);
 		}
 
 		g_logger_warning("Camera serialized with unknown version: %d", version);
@@ -797,7 +819,7 @@ namespace MathAnim
 
 	void ScriptObject::serialize(nlohmann::json& memory) const
 	{
-		memory["ScriptFilepath"] = scriptFilepath;
+		SERIALIZE_NULLABLE_CSTRING(memory, this, scriptFilepath, "Undefined");
 	}
 
 	void ScriptObject::free()
@@ -813,19 +835,15 @@ namespace MathAnim
 
 	ScriptObject ScriptObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		if (version == 2)
 		{
-			ScriptObject res;
-
-			const std::string& filepathStr = j.contains("Filepath") ? j["Filepath"] : "Undefined";
-			res.scriptFilepathLength = filepathStr.length();
-			res.scriptFilepath = (char*)g_memory_allocate(sizeof(uint8) * (res.scriptFilepathLength + 1));
-			g_memory_copyMem(res.scriptFilepath, (void*)filepathStr.c_str(), sizeof(uint8) * (res.scriptFilepathLength + 1));
+			ScriptObject res = {};
+			DESERIALIZE_NULLABLE_CSTRING(&res, scriptFilepath, j);
 			return res;
 		}
 
-		static const ScriptObject dummy = { nullptr, 0 };
-		return dummy;
+		g_logger_warning("ScriptObject serialized with unknown version '%d'", version);
+		return {};
 	}
 
 	ScriptObject ScriptObject::createDefault()
@@ -1411,7 +1429,7 @@ namespace MathAnim
 		SERIALIZE_ID_ARRAY(memory, this, generatedChildrenIds);
 		SERIALIZE_ID_ARRAY(memory, this, referencedAnimations);
 
-		SERIALIZE_NULLABLE_U8_CSTRING(memory, this, name);
+		SERIALIZE_NULLABLE_U8_CSTRING(memory, this, name, "Undefined");
 
 		switch (objectType)
 		{
@@ -1814,34 +1832,28 @@ namespace MathAnim
 
 	Animation deserializeAnimationV2(const nlohmann::json& j)
 	{
-		Animation res;
+		Animation res = {};
 
-		const std::string& animationTypeStr = j.contains("AnimationType") ? j["AnimationType"] : "Undefined";
-		res.type = findMatchingEnum<AnimTypeV1, (size_t)AnimTypeV1::Length>(_animationTypeNames, animationTypeStr);
-		res.frameStart = j.contains("FrameStart") ? j["FrameStart"] : 0.0f;
-		res.duration = j.contains("Duration") ? j["Duration"] : 0.0f;
-		res.id = readIdFromJson(j, "ID");
+		DESERIALIZE_ENUM(&res, type, _animationTypeNames, AnimTypeV1, j);
+		DESERIALIZE_PROP(&res, frameStart, j, 0.0f);
+		DESERIALIZE_PROP(&res, duration, j, 0.0f);
+
+		DESERIALIZE_ID(&res, id, j);
 		if (!isNull(res.id))
 		{
 			animationUidCounter = glm::max(animationUidCounter, res.id + 1);
 		}
 
-		const std::string& easeTypeStr = j.contains("EaseType") ? j["EaseType"] : "Undefined";
-		res.easeType = findMatchingEnum<EaseType, (size_t)EaseType::Length>(easeTypeNames, easeTypeStr);
-		const std::string& easeDirectionStr = j.contains("EaseDirection") ? j["EaseDirection"] : "Undefined";
-		res.easeDirection = findMatchingEnum<EaseDirection, (size_t)EaseDirection::Length>(easeDirectionNames, easeDirectionStr);
+		DESERIALIZE_ENUM(&res, easeType, easeTypeNames, EaseType, j);
+		DESERIALIZE_ENUM(&res, easeDirection, easeDirectionNames, EaseDirection, j);
 
-		res.timelineTrack = j.contains("TimelineTrack") ? j["TimelineTrack"] : 0;
-		const std::string& playbackTypeStr = j.contains("PlaybackType") ? j["PlaybackType"] : "Undefined";
-		res.playbackType = findMatchingEnum<PlaybackType, (size_t)PlaybackType::Length>(_playbackTypeNames, playbackTypeStr);
-		res.lagRatio = j.contains("LagRatio") ? j["LagRatio"] : 0.0f;
+		DESERIALIZE_PROP(&res, timelineTrack, j, 0);
+		DESERIALIZE_ENUM(&res, playbackType, _playbackTypeNames, PlaybackType, j);
+		DESERIALIZE_PROP(&res, lagRatio, j, 0.0f);
 
-		for (size_t i = 0; i < j["Objects"].size(); i++)
-		{
-			AnimObjId id = convertJsonToId(j["Objects"][i]);
-			res.animObjectIds.insert(id);
-		}
+		DESERIALIZE_ID_SET(&res, animObjectIds, j);
 
+		constexpr int version = 2;
 		switch (res.type)
 		{
 		case AnimTypeV1::Create:
@@ -1852,24 +1864,26 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::RotateTo:
 		case AnimTypeV1::Shift:
+			DESERIALIZE_VEC3(&res, as.modifyVec3.target, j);
+			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
-			res.as.modifyU8Vec4.target = CMath::deserializeU8Vec4(j);
+			DESERIALIZE_U8VEC4(&res, as.modifyU8Vec4.target, j);
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
 			break;
 		case AnimTypeV1::Transform:
-			res.as.replacementTransform = ReplacementTransformData::deserialize(j);
+			DESERIALIZE_OBJECT(&res, as.replacementTransform, ReplacementTransformData, version, j);
 			break;
 		case AnimTypeV1::MoveTo:
-			res.as.moveTo = MoveToData::deserialize(j);
+			DESERIALIZE_OBJECT(&res, as.moveTo, MoveToData, version, j);
 			break;
 		case AnimTypeV1::AnimateScale:
-			res.as.animateScale = AnimateScaleData::deserialize(j);
+			DESERIALIZE_OBJECT(&res, as.animateScale, AnimateScaleData, version, j);
 			break;
 		case AnimTypeV1::Circumscribe:
-			res.as.circumscribe = Circumscribe::deserialize(j);
+			DESERIALIZE_OBJECT(&res, as.circumscribe, Circumscribe, version, j);
 			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
@@ -1879,13 +1893,13 @@ namespace MathAnim
 		return res;
 	}
 
-	static CameraObject deserializeCameraObjectV1(const nlohmann::json& j, uint32 version)
+	static CameraObject deserializeCameraObjectV2(const nlohmann::json& j, uint32 version)
 	{
-		CameraObject res;
+		CameraObject res = {};
 
-		res.camera2D = OrthoCamera::deserialize(j, version);
-		res.is2D = j.contains("Is2D") ? j["Is2D"] : false;
-		res.isActiveCamera = j.contains("IsActiveCamera") ? j["IsActiveCamera"] : false;
+		DESERIALIZE_OBJECT(&res, camera2D, OrthoCamera, version, j);
+		DESERIALIZE_PROP(&res, is2D, j, false);
+		DESERIALIZE_PROP(&res, isActiveCamera, j, false);
 
 		return res;
 	}

@@ -46,7 +46,7 @@ namespace MathAnim
 			return deserializeSquareV2(j);
 			break;
 		default:
-			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
+			g_logger_error("Square serialized with unknown version '%d'", version);
 			break;
 		}
 
@@ -104,10 +104,10 @@ namespace MathAnim
 			return deserializeCircleV2(j);
 			break;
 		default:
-			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
 			break;
 		}
 
+		g_logger_warning("Circle serialized with unknown version '%d'.", version);
 		return {};
 	}
 
@@ -161,8 +161,8 @@ namespace MathAnim
 			return res;
 		}
 
-		// Return dummy
-		return Arrow{};
+		g_logger_warning("Arrow serialized with unknown version '%d'.", version);
+		return {};
 	}
 
 	void Cube::init(AnimObject* parent)
@@ -223,10 +223,10 @@ namespace MathAnim
 			return deserializeCubeV2(j);
 			break;
 		default:
-			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
 			break;
 		}
 
+		g_logger_warning("Cube serialized with unknown version '%d'.", version);
 		return {};
 	}
 

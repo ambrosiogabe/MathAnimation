@@ -111,16 +111,18 @@ namespace MathAnim
 
 	void TextObject::serialize(nlohmann::json& memory) const
 	{
-		memory["Text"] = text;
+		// TODO: This serialization is a bit weird and has special cases
+		// See if you can standardize it by storing the font filepath directly or
+		// something
+		SERIALIZE_NULLABLE_CSTRING(memory, this, text, "Undefined");
 
-
-		if (font != nullptr)
+		if (font)
 		{
-			SERIALIZE_NULLABLE_CSTRING_PROPERTY(memory, font, fontFilepath);
+			SERIALIZE_NON_NULL_PROP(memory, font, fontFilepath);
 		}
 		else
 		{
-			memory["FontFilepath"] = "nullFont";
+			SERIALIZE_NON_NULL_PROP_BY_VALUE(memory, font, fontFilepath, "NullFont");
 		}
 	}
 
@@ -147,10 +149,8 @@ namespace MathAnim
 			return deserializeTextV2(memory);
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing text object.", version);
-		TextObject res;
-		g_memory_zeroMem(&res, sizeof(TextObject));
-		return res;
+		g_logger_warning("TextObject serialized with unknown version '%d'.", version);
+		return {};
 	}
 
 	TextObject TextObject::createDefault()
@@ -168,7 +168,7 @@ namespace MathAnim
 
 	TextObject TextObject::createCopy(const TextObject& from)
 	{
-		TextObject res;
+		TextObject res = {};
 		if (from.font)
 		{
 			// NOTE: We can pass nullptr for vg here because it shouldn't actually need it
@@ -271,8 +271,8 @@ namespace MathAnim
 
 	void LaTexObject::serialize(nlohmann::json& memory) const
 	{
-		memory["Text"] = text;
-		memory["IsEquation"] = isEquation;
+		SERIALIZE_NULLABLE_CSTRING(memory, this, text, "Undefined");
+		SERIALIZE_NON_NULL_PROP(memory, this, isEquation);
 	}
 
 	void LaTexObject::free()
@@ -291,10 +291,8 @@ namespace MathAnim
 			return deserializeLaTexV2(j);
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing text object.", version);
-		LaTexObject res;
-		g_memory_zeroMem(&res, sizeof(LaTexObject));
-		return res;
+		g_logger_warning("LaTexObject serialized with unknown version '%d'.", version);
+		return {};
 	}
 
 	LaTexObject LaTexObject::createDefault()
@@ -449,9 +447,9 @@ namespace MathAnim
 
 	void CodeBlock::serialize(nlohmann::json& memory) const
 	{
-		memory["Theme"] = _highlighterThemeNames[(uint8)theme];
-		memory["Language"] = _highlighterLanguageNames[(uint8)language];
-		memory["Text"] = text;
+		SERIALIZE_ENUM(memory, this, theme, _highlighterThemeNames);
+		SERIALIZE_ENUM(memory, this, language, _highlighterLanguageNames);
+		SERIALIZE_NULLABLE_CSTRING(memory, this, text, "Undefined");
 	}
 
 	void CodeBlock::free()
@@ -471,10 +469,8 @@ namespace MathAnim
 			return deserializeCodeBlockV2(j);
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing code object.", version);
-		CodeBlock res;
-		g_memory_zeroMem(&res, sizeof(CodeBlock));
-		return res;
+		g_logger_warning("CodeBlock serialized with unknown version '%d'.", version);
+		return {};
 	}
 
 	CodeBlock CodeBlock::createDefault()
@@ -500,16 +496,13 @@ int main()
 	// ------------- Internal Functions -------------
 	static TextObject deserializeTextV2(const nlohmann::json& j)
 	{
-		TextObject res;
+		TextObject res = {};
 
-		const std::string& textStr = j.contains("Text") ? j["Text"] : "Undefined";
-		res.textLength = (int32)textStr.length();
-		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
-		g_memory_copyMem(res.text, (void*)textStr.c_str(), sizeof(char) * (res.textLength + 1));
+		DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
 
-		// TODO: Error checking would be good here
-		const std::string& fontFilepathStr = j.contains("FontFilepath") ? j["FontFilepath"] : "nullFont";
-		if (fontFilepathStr != "nullFont")
+		// TODO: This is gross, see note in serialization above
+		const std::string& fontFilepathStr = DESERIALIZE_PROP_INLINE(res.font, fontFilepath, j, "NullFont");
+		if (fontFilepathStr != "NullFont")
 		{
 			res.font = Fonts::loadFont(fontFilepathStr.c_str());
 		}
@@ -523,31 +516,21 @@ int main()
 
 	static LaTexObject deserializeLaTexV2(const nlohmann::json& j)
 	{
-		LaTexObject res;
+		LaTexObject res = {};
 
-		const std::string& textStr = j.contains("Text") ? j["Text"] : "Undefined";
-		res.textLength = (int32)textStr.length();
-		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
-		g_memory_copyMem(res.text, (void*)textStr.c_str(), sizeof(char) * (res.textLength + 1));
-
-		res.isEquation = j.contains("IsEquation") ? j["IsEquation"] : false;
+		DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
+		DESERIALIZE_PROP(&res, isEquation, j, false);
 
 		return res;
 	}
 
 	static CodeBlock deserializeCodeBlockV2(const nlohmann::json& j)
 	{
-		CodeBlock res;
+		CodeBlock res = {};
 
-		const std::string& themeStr = j.contains("Theme") ? j["Theme"] : "Undefined";
-		res.theme = findMatchingEnum<HighlighterTheme, (size_t)HighlighterTheme::Length>(_highlighterThemeNames, themeStr);
-		const std::string languageStr = j.contains("Language") ? j["Language"] : "Undefined";
-		res.language = findMatchingEnum<HighlighterLanguage, (size_t)HighlighterLanguage::Length>(_highlighterLanguageNames, languageStr);
-
-		const std::string& textStr = j.contains("Text") ? j["Text"] : "Undefined";
-		res.textLength = (int32)textStr.length();
-		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
-		g_memory_copyMem(res.text, (void*)textStr.c_str(), sizeof(char) * (res.textLength + 1));
+		DESERIALIZE_ENUM(&res, theme, _highlighterThemeNames, HighlighterTheme, j);
+		DESERIALIZE_ENUM(&res, language, _highlighterLanguageNames, HighlighterLanguage, j);
+		DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
 
 		return res;
 	}

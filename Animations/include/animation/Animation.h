@@ -190,7 +190,7 @@ namespace MathAnim
 		AnimObjId dstAnimObjectId;
 
 		void serialize(nlohmann::json& memory) const;
-		static ReplacementTransformData deserialize(const nlohmann::json& memory);
+		static ReplacementTransformData deserialize(const nlohmann::json& memory, uint32 version);
 	};
 
 	struct MoveToData
@@ -200,7 +200,7 @@ namespace MathAnim
 		AnimObjId object;
 
 		void serialize(nlohmann::json& memory) const;
-		static MoveToData deserialize(const nlohmann::json& memory);
+		static MoveToData deserialize(const nlohmann::json& memory, uint32 version);
 	};
 
 	struct AnimateScaleData
@@ -210,7 +210,7 @@ namespace MathAnim
 		AnimObjId object;
 
 		void serialize(nlohmann::json& memory) const;
-		static AnimateScaleData deserialize(const nlohmann::json& memory);
+		static AnimateScaleData deserialize(const nlohmann::json& memory, uint32 version);
 	};
 
 	enum class CircumscribeShape : uint8
@@ -253,7 +253,7 @@ namespace MathAnim
 
 		void render(const BBox& bbox) const;
 		void serialize(nlohmann::json& memory) const;
-		static Circumscribe deserialize(const nlohmann::json& j);
+		static Circumscribe deserialize(const nlohmann::json& j, uint32 version);
 		static Circumscribe createDefault();
 	};
 

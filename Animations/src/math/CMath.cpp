@@ -628,7 +628,7 @@ namespace MathAnim
 
 		Vec4 deserializeVec4(const nlohmann::json& memory)
 		{
-			Vec4 res = {NAN, NAN, NAN, NAN};
+			Vec4 res = {};
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -650,7 +650,7 @@ namespace MathAnim
 
 		Vec3 deserializeVec3(const nlohmann::json& memory)
 		{
-			Vec3 res = { NAN, NAN, NAN };
+			Vec3 res = {};
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -668,7 +668,7 @@ namespace MathAnim
 
 		Vec2 deserializeVec2(const nlohmann::json& memory)
 		{
-			Vec2 res = { NAN, NAN };
+			Vec2 res = {};
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -682,7 +682,7 @@ namespace MathAnim
 
 		Vec4i deserializeVec4i(const nlohmann::json& memory)
 		{
-			Vec4i res = { INT32_MAX, INT32_MAX, INT32_MAX, INT32_MAX };
+			Vec4i res = {};
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -704,7 +704,7 @@ namespace MathAnim
 
 		Vec3i deserializeVec3i(const nlohmann::json& memory)
 		{
-			Vec3i res = { INT32_MAX, INT32_MAX, INT32_MAX };
+			Vec3i res = {};
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -722,7 +722,7 @@ namespace MathAnim
 
 		Vec2i deserializeVec2i(const nlohmann::json& memory)
 		{
-			Vec2i res = { INT32_MAX, INT32_MAX };
+			Vec2i res = {};
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -736,7 +736,7 @@ namespace MathAnim
 
 		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory)
 		{
-			glm::u8vec4 res = { UINT8_MAX, UINT8_MAX, UINT8_MAX, UINT8_MAX };
+			glm::u8vec4 res = {};
 			if (memory.contains("R"))
 			{
 				res.x = memory["R"];

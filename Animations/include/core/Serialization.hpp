@@ -2,11 +2,11 @@
 #define MATH_ANIMATIONS_SERIALIZATION_HPP
 
 // ------------------- Serialization helpers -------------------
-#define SERIALIZE_NULLABLE_CSTRING(j, obj, prop) \
-  j[#prop] = (obj)->prop
+#define SERIALIZE_NULLABLE_CSTRING(j, obj, prop, defaultValue) \
+  j[#prop] = (obj)->prop == nullptr ? defaultValue : (obj)->prop;
 
-#define SERIALIZE_NULLABLE_U8_CSTRING(j, obj, prop) \
-  j[#prop] = (char*)(obj)->prop
+#define SERIALIZE_NULLABLE_U8_CSTRING(j, obj, prop, defaultValue) \
+  j[#prop] = (obj)->prop == nullptr ? defaultValue : (char*)(obj)->prop
 
 #define SERIALIZE_OBJECT(j, obj, prop) \
   (obj)->prop.serialize(j[#prop])
@@ -17,6 +17,13 @@
 #define SERIALIZE_NON_NULL_PROP(j, obj, prop) \
   j[#prop] = (obj)->prop
 
+#define SERIALIZE_VALUE_INLINE(j, prop, value) \
+  j[#prop] = value
+
+#define SERIALIZE_NON_NULL_PROP_BY_VALUE(j, obj, prop, value) \
+  if (obj != nullptr) { (obj)->prop; } /* NOP; This will catch any typos at compile time */ \
+  j[#prop] = value;
+
 #define SERIALIZE_ENUM(j, obj, prop, enumNamesArray) \
   j[#prop] = enumNamesArray[(size_t)(obj)->prop]
 
@@ -26,10 +33,10 @@
 #define SERIALIZE_ID_ARRAY(j, obj, prop) \
 do { \
   j[#prop] = nlohmann::json::array(); \
-  for (auto id : (obj)->prop) { \
-  	  nlohmann::json jsonId{}; \
-  	  convertIdToJson(id, jsonId); \
-  	  j[#prop].emplace_back(jsonId); \
+  for (auto _internalId : (obj)->prop) { \
+  	  nlohmann::json _internalJsonId{}; \
+  	  convertIdToJson(_internalId, _internalJsonId); \
+  	  j[#prop].emplace_back(_internalJsonId); \
   } \
 } while(false)
 
@@ -51,6 +58,14 @@ do { \
   CMath::serialize(j, #prop, Vec4{(obj)->prop.r, (obj)->prop.g, (obj)->prop.b, (obj)->prop.a})
 
 // ------------------- Deserialization helpers -------------------
+#define DESERIALIZE_NULLABLE_CSTRING(obj, prop, j) \
+do { \
+  const std::string& str = j.contains(#prop) && !j[#prop].is_null() ? j[#prop] : "Undefined"; \
+  (obj)->##prop##Length = (uint32)str.length(); \
+  (obj)->prop = (char*)g_memory_allocate(sizeof(char) * ((obj)->##prop##Length + 1)); \
+  g_memory_copyMem((obj)->prop, (void*)str.c_str(), sizeof(char) * ((obj)->##prop##Length + 1)); \
+} while(false)
+
 #define DESERIALIZE_NULLABLE_U8_CSTRING(obj, prop, j) \
 do { \
   const std::string& str = j.contains(#prop) && !j[#prop].is_null() ? j[#prop] : "Undefined"; \
@@ -61,6 +76,13 @@ do { \
 
 #define DESERIALIZE_PROP(obj, prop, j, defaultValue) \
   (obj)->prop = j.contains(#prop) && !j[#prop].is_null() ? j[#prop] : defaultValue;
+
+#define DESERIALIZE_VALUE_INLINE(j, prop, defaultValue) \
+  j.contains(#prop) && !j[#prop].is_null() ? j[#prop] : defaultValue
+
+#define DESERIALIZE_PROP_INLINE(obj, prop, j, defaultValue) \
+  j.contains(#prop) && !j[#prop].is_null() ? j[#prop] : defaultValue; \
+  do { if (obj != nullptr) { (obj)->prop; } } while(false) /* NOP; This is used to check for typos at compile time */ 
 
 #define DESERIALIZE_ENUM(obj, prop, enumNamesArray, enumType, j) \
 do { \
@@ -76,8 +98,8 @@ do { \
   (obj)->prop = {}; \
   if (j.contains(#prop) && !j[#prop].is_null()) { \
     for (size_t i = 0; i < j[#prop].size(); i++) { \
-    	AnimObjId id = convertJsonToId(j[#prop][i]); \
-    	(obj)->prop.emplace_back(id); \
+    	AnimObjId _internalId = convertJsonToId(j[#prop][i]); \
+    	(obj)->prop.emplace_back(_internalId); \
     } \
   } \
 } while(false)
@@ -87,17 +109,21 @@ do { \
   (obj)->prop = {}; \
   if (j.contains(#prop) && !j[#prop].is_null()) { \
     for (size_t i = 0; i < j[#prop].size(); i++) { \
-    	AnimObjId id = convertJsonToId(j[#prop][i]); \
-    	(obj)->prop.insert(id); \
+    	AnimObjId _internalId = convertJsonToId(j[#prop][i]); \
+    	(obj)->prop.insert(_internalId); \
     } \
   } \
 } while(false)
 
 #define DESERIALIZE_OBJECT(obj, prop, Type, version, j) \
-  (obj)->prop = Type::deserialize(j[#prop], version)
+do { \
+  if (j.contains(#prop) && !j[#prop].is_null()) { \
+    (obj)->prop = Type::deserialize(j[#prop], version); \
+  } \
+} while (false)
 
 #define _DESERIALIZE_VEC_CALL(obj, prop, j, vecType, numComponents) \
-  CMath::deserialize##vecType##numComponents(j[#prop])
+  CMath::deserialize##vecType##numComponents(j.contains(#prop) ? j[#prop] : nlohmann::json())
 
 #define _DESERIALIZE_VEC(obj, prop, j, vecType, numComponents) \
   (obj)->prop = _DESERIALIZE_VEC_CALL(obj, prop, j, vecType, numComponents)

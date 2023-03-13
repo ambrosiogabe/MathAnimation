@@ -701,7 +701,10 @@ namespace MathAnim
 			while (children.size() > 0)
 			{
 				const AnimObject* child = AnimationManager::getObject(am, children.back());
-				addExistingAnimObject(am, *child, level + 1);
+				if (child)
+				{
+					addExistingAnimObject(am, *child, level + 1);
+				}
 				children.pop_back();
 			}
 		}

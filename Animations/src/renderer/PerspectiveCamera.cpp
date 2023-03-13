@@ -55,9 +55,8 @@ namespace MathAnim
 			return deserializeCameraV2(j);
 		}
 
-		g_logger_warning("Perspective camera serialized with unknown version: %d", version);
-		PerspectiveCamera res = {};
-		return res;
+		g_logger_warning("PerspectiveCamera serialized with unknown version: %d", version);
+		return {};
 	}
 
 	// -------------- Internal Functions --------------

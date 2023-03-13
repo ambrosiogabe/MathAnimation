@@ -1,5 +1,6 @@
 #include "animation/SvgFileObject.h"
 #include "animation/AnimationManager.h"
+#include "core/Serialization.hpp"
 #include "svg/Svg.h"
 #include "svg/SvgParser.h"
 #include "editor/panels/SceneHierarchyPanel.h"
@@ -107,7 +108,7 @@ namespace MathAnim
 
 	void SvgFileObject::serialize(nlohmann::json& memory) const
 	{
-		memory["Filepath"] = filepath ? filepath : nlohmann::json();
+		SERIALIZE_NULLABLE_CSTRING(memory, this, filepath, "Undefined");
 	}
 
 	void SvgFileObject::free()
@@ -134,10 +135,8 @@ namespace MathAnim
 			return deserializeSvgFileObjectV2(j);
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing text object.", version);
-		SvgFileObject res;
-		g_memory_zeroMem(&res, sizeof(SvgFileObject));
-		return res;
+		g_logger_error("SvgFileObject serialized with unknown version '%d'.", version);
+		return {};
 	}
 
 	SvgFileObject SvgFileObject::createDefault()
@@ -155,16 +154,12 @@ namespace MathAnim
 	{
 		SvgFileObject res = {};
 
-		const std::string& filepath = j.contains("Filepath") && !j["Filepath"].is_null() ? j["Filepath"] : "Undefined";
-		res.filepathLength = (uint32)filepath.length();
-		if (res.filepathLength > 0)
+		DESERIALIZE_NULLABLE_CSTRING(&res, filepath, j);
+		if (std::strcmp(res.filepath, "Undefined") == 0)
 		{
-			res.filepath = (char*)g_memory_allocate(sizeof(char) * (res.filepathLength + 1));
-			g_memory_copyMem(res.filepath, (void*)filepath.c_str(), sizeof(char) * (res.filepathLength + 1));
-		}
-		else
-		{
+			g_memory_free(res.filepath);
 			res.filepath = nullptr;
+			res.filepathLength = 0;
 		}
 
 		res.svgGroup = nullptr;
