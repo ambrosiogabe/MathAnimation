@@ -161,6 +161,11 @@ namespace MathAnim
 
 			memory.read<int32>(&res.currentScene);
 
+			if (res.currentScene >= res.sceneNames.size())
+			{
+				res.currentScene = (int)res.sceneNames.size() - 1;
+			}
+
 			return res;
 		}
 	}

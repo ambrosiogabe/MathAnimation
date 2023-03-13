@@ -380,19 +380,6 @@ namespace MathAnim
 
 		void saveCurrentScene()
 		{
-			RawMemory timelineData = Timeline::serialize(EditorGui::getTimelineData());
-
-			TableOfContents tableOfContents;
-			tableOfContents.init();
-
-			tableOfContents.addEntry(timelineData, "Timeline_Data");
-
-			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneData.sceneNames[sceneData.currentScene], ".bin")).string();
-			tableOfContents.serialize(filepath.c_str());
-
-			timelineData.free();
-			tableOfContents.free();
-
 			// Write data to json files
 			nlohmann::json sceneJson = nlohmann::json();
 
@@ -403,12 +390,19 @@ namespace MathAnim
 			sceneJson["Version"]["Full"] = std::to_string(SERIALIZER_VERSION_MAJOR) + "." + std::to_string(SERIALIZER_VERSION_MINOR);
 
 			AnimationManager::serialize(am, sceneJson["AnimationManager"]);
-			nlohmann::json cameraData = serializeCameras();
-			sceneJson["EditorCameras"] = cameraData;
+			Timeline::serialize(EditorGui::getTimelineData(), sceneJson["TimelineData"]);
+			sceneJson["EditorCameras"] = serializeCameras();
 
-			std::string jsonFilepath = (currentProjectSceneDir / sceneToFilename(sceneData.sceneNames[sceneData.currentScene], ".json")).string();
-			std::ofstream jsonFile(jsonFilepath);
-			jsonFile << std::setw(4) << sceneJson << std::endl;
+			try
+			{
+				std::string jsonFilepath = (currentProjectSceneDir / sceneToFilename(sceneData.sceneNames[sceneData.currentScene], ".json")).string();
+				std::ofstream jsonFile(jsonFilepath);
+				jsonFile << std::setw(4) << sceneJson << std::endl;
+			}
+			catch (const std::exception& ex)
+			{
+				g_logger_error("Failed to save current scene with error: '%s'", ex.what());
+			}
 		}
 
 		void loadProject(const std::filesystem::path& projectRoot)
@@ -458,39 +452,6 @@ namespace MathAnim
 
 		void loadScene(const std::string& sceneName)
 		{
-			// TODO: Save/Load timeline data
-			//FILE* fp = fopen(filepath.c_str(), "rb");
-			//if (!fp)
-			//{
-			//	g_logger_warning("Could not load scene '%s', error opening file.", filepath.c_str());
-			//	resetToFrame(0);
-			//	return;
-			//}
-
-			//fseek(fp, 0, SEEK_END);
-			//size_t fileSize = ftell(fp);
-			//fseek(fp, 0, SEEK_SET);
-
-			//RawMemory memory;
-			//memory.init(fileSize);
-			//fread(memory.data, fileSize, 1, fp);
-			//fclose(fp);
-
-			//TableOfContents toc = TableOfContents::deserialize(memory);
-			//memory.free();
-
-			//RawMemory timelineData = toc.getEntry("Timeline_Data");
-			//toc.free();
-
-			//if (timelineData.data)
-			//{
-			//	TimelineData timeline = Timeline::deserialize(timelineData);
-			//	EditorGui::setTimelineData(timeline);
-			//	loadedProjectCurrentFrame = timeline.currentFrame;
-			//}
-
-			int loadedProjectCurrentFrame = 0;
-
 			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
 			if (!Platform::fileExists(filepath.c_str()))
 			{
@@ -523,7 +484,15 @@ namespace MathAnim
 					}
 				}
 
-				if (sceneJson.contains("AnimationManager"))
+				int loadedProjectCurrentFrame = 0;
+				if (sceneJson.contains("TimelineData") && !sceneJson["TimelineData"].is_null())
+				{
+					TimelineData timeline = Timeline::deserialize(sceneJson["TimelineData"]);
+					EditorGui::setTimelineData(timeline);
+					loadedProjectCurrentFrame = timeline.currentFrame;
+				}
+
+				if (sceneJson.contains("AnimationManager") && !sceneJson["AnimationManager"].is_null())
 				{
 					AnimationManager::deserialize(am, sceneJson["AnimationManager"], loadedProjectCurrentFrame, versionMajor, versionMinor);
 					// Flush any pending objects to be created for real
@@ -540,7 +509,18 @@ namespace MathAnim
 
 		void deleteScene(const std::string& sceneName)
 		{
-			
+			for (int i = 0; i < sceneData.sceneNames.size(); i++)
+			{
+				if (sceneData.sceneNames[i] == sceneName)
+				{
+					if (i <= sceneToChangeTo)
+					{
+						sceneToChangeTo--;
+					}
+					break;
+				}
+			}
+
 			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
 			remove(filepath.c_str());
 		}

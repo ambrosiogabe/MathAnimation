@@ -2,6 +2,8 @@
 #define MATH_ANIM_TIMELINE_H
 #include "animation/Animation.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct AnimationManagerData;
@@ -32,8 +34,8 @@ namespace MathAnim
 		void freeInstance(TimelineData& data);
 		void free(AnimationManagerData* am);
 
-		RawMemory serialize(const TimelineData& data);
-		TimelineData deserialize(RawMemory& memory);
+		void serialize(const TimelineData& data, nlohmann::json& j);
+		TimelineData deserialize(const nlohmann::json& j);
 	}
 }
 
