@@ -398,9 +398,11 @@ namespace MathAnim
 
 			try
 			{
+				// TODO: bson should be faster, but it does increase size a bit. Consider switching to
+				// bson files and adding options to export projects as formatted JSON for debugging
 				std::string jsonFilepath = (currentProjectSceneDir / sceneToFilename(sceneData.sceneNames[sceneData.currentScene], ".json")).string();
 				std::ofstream jsonFile(jsonFilepath);
-				jsonFile << std::setw(4) << sceneJson << std::endl;
+				jsonFile << sceneJson << std::endl;
 			}
 			catch (const std::exception& ex)
 			{
