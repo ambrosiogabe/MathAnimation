@@ -1,9 +1,12 @@
 #include "editor/ProjectScreen.h"
 #include "core/ProjectApp.h"
+#include "core/Serialization.hpp"
 #include "core/Window.h"
 #include "renderer/Colors.h"
 #include "renderer/Texture.h"
 #include "platform/Platform.h"
+
+#include <nlohmann/json.hpp>
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
@@ -45,6 +48,9 @@ namespace MathAnim
 		static void serializeMetadata();
 		static void findAnyExtraProjects(const std::filesystem::path& appRoot);
 
+		[[deprecated("This is here to support old legacy projects that need to be upgraded.")]]
+		static void legacy_deserializeMetadata();
+
 		void init(const std::filesystem::path& appRoot)
 		{
 			createNewProject = false;
@@ -70,7 +76,7 @@ namespace MathAnim
 			iconPadding.x *= dpiScale;
 			iconPadding.y *= dpiScale;
 
-			ImGuiIO &io = ImGui::GetIO();
+			ImGuiIO& io = ImGui::GetIO();
 #if defined(_WIN32)
 			largeFont = io.Fonts->AddFontFromFileTTF("C:/Windows/FONTS/SegoeUI.ttf", 36.0f * dpiScale);
 			defaultFont = io.Fonts->AddFontFromFileTTF("C:/Windows/FONTS/SegoeUI.ttf", 20.0f * dpiScale);
@@ -89,8 +95,8 @@ namespace MathAnim
 				if (Platform::fileExists(projects[i].previewImageFilepath.c_str()))
 				{
 					projects[i].texture = TextureBuilder()
-                            .setFilepath(projects[i].previewImageFilepath.c_str())
-                            .generate(true);
+						.setFilepath(projects[i].previewImageFilepath.c_str())
+						.generate(true);
 				}
 				else
 				{
@@ -105,7 +111,7 @@ namespace MathAnim
 			bool res = false;
 
 			Window* window = ProjectApp::getWindow();
-			ImVec2 size = {(float)window->width, (float)window->height};
+			ImVec2 size = { (float)window->width, (float)window->height };
 			ImGui::SetNextWindowSize(size, ImGuiCond_Always);
 			ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
 
@@ -128,8 +134,8 @@ namespace MathAnim
 				drawList->AddRectFilled(cursorPos, cursorPos + ImVec2(availableSpace.x, titleBarHeight), ImColor(Colors::Neutral[8]));
 
 				ImGui::SetCursorScreenPos(cursorPos + ImVec2(
-				        availableSpace.x / 2.0f - textSize.x / 2.0f,
-				        titleBarHeight / 2.0f - textSize.y / 2.0f
+					availableSpace.x / 2.0f - textSize.x / 2.0f,
+					titleBarHeight / 2.0f - textSize.y / 2.0f
 				));
 				ImGui::Text("%s", appTitle.c_str());
 
@@ -176,17 +182,17 @@ namespace MathAnim
 				ImVec2 rectMax = ImGui::GetItemRectMax();
 				drawList->PushClipRect(ImGui::GetCurrentWindow()->ClipRect.Min, ImGui::GetCurrentWindow()->ClipRect.Max);
 				drawList->AddImageRounded(
-						(ImTextureID)(uint64)projects[i].texture.graphicsId,
-						rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1),
-						IM_COL32(255, 255, 255, 255), iconBorderRounding);
+					(ImTextureID)(uint64)projects[i].texture.graphicsId,
+					rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1),
+					IM_COL32(255, 255, 255, 255), iconBorderRounding);
 
 				// Draw highlight border
 				const ImVec4& borderColor =
-						i == selectedProjectIndex
-						? Colors::AccentGreen[2]
-						: ImGui::IsItemHovered()
-						? Colors::Neutral[2]
-						: Colors::Neutral[9];
+					i == selectedProjectIndex
+					? Colors::AccentGreen[2]
+					: ImGui::IsItemHovered()
+					? Colors::Neutral[2]
+					: Colors::Neutral[9];
 				drawList->AddRect(rectMin, rectMax, ImColor(borderColor), iconBorderRounding, 0, iconBorderThickness);
 				drawList->PopClipRect();
 
@@ -320,10 +326,10 @@ namespace MathAnim
 			drawList->AddRectFilled(cursorPos, cursorPos + ImVec2(availableSpace.x, createProjectTitleBarHeight), ImColor(Colors::Neutral[8]));
 
 			ImGui::SetCursorScreenPos(cursorPos + ImVec2(
-			        projectAreaPadding.x,
-			        createProjectTitleBarHeight / 2.0f - textSize.y / 2.0f
+				projectAreaPadding.x,
+				createProjectTitleBarHeight / 2.0f - textSize.y / 2.0f
 			));
-            ImGui::Text("%s", createProjectTitle.c_str());
+			ImGui::Text("%s", createProjectTitle.c_str());
 
 			ImGui::PopFont();
 
@@ -377,8 +383,8 @@ namespace MathAnim
 				for (int i = 0; i < cleanProjectName.length(); i++)
 				{
 					if (!(cleanProjectName[i] >= 'a' && cleanProjectName[i] <= 'z' ||
-							cleanProjectName[i] >= 'A' && cleanProjectName[i] <= 'Z' ||
-							cleanProjectName[i] >= '0' && cleanProjectName[i] <= '9'))
+						cleanProjectName[i] >= 'A' && cleanProjectName[i] <= 'Z' ||
+						cleanProjectName[i] >= '0' && cleanProjectName[i] <= '9'))
 					{
 						cleanProjectName[i] = '_';
 					}
@@ -417,6 +423,69 @@ namespace MathAnim
 		}
 
 		static void deserializeMetadata()
+		{
+			std::string metadataFilepath = (ProjectApp::getAppRoot() / "projects.json").string();
+			if (!Platform::fileExists(metadataFilepath.c_str()))
+			{
+				std::string legacyMetadataPath = (ProjectApp::getAppRoot() / "projects.bin").string();
+				if (Platform::fileExists(legacyMetadataPath.c_str()))
+				{
+					legacy_deserializeMetadata();
+					return;
+				}
+
+				g_logger_info("No project metadata found. Cannot recall last opened project on this machine because no file '%s' exists.", metadataFilepath.c_str());
+				return;
+			}
+
+			try
+			{
+				std::ifstream inputFile(metadataFilepath);
+				nlohmann::json projectJson;
+				inputFile >> projectJson;
+
+				uint32 versionMajor = 0;
+				uint32 versionMinor = 0;
+				if (projectJson.contains("Version") && !projectJson["Version"].is_null())
+				{
+					versionMajor = DESERIALIZE_VALUE_INLINE(projectJson["Version"], Major, 0);
+					versionMinor = DESERIALIZE_VALUE_INLINE(projectJson["Version"], Minor, 0);
+					const std::string& versionFull = DESERIALIZE_VALUE_INLINE(projectJson["Version"], Full, "0.0");
+					g_logger_info("Project app opened with metadata version %s", versionFull.c_str());
+				}
+
+				if (versionMajor == 1)
+				{
+					selectedProjectIndex = DESERIALIZE_VALUE_INLINE(projectJson, SelectedProjectIndex, 0);
+					if (projectJson.contains("Projects") && !projectJson["Projects"].is_null())
+					{
+						for (const auto& proj : projectJson["Projects"])
+						{
+							ProjectInfo res = {};
+							DESERIALIZE_PROP(&res, projectFilepath, proj, "Undefined");
+							DESERIALIZE_PROP(&res, previewImageFilepath, proj, "Undefined");
+							DESERIALIZE_PROP(&res, projectName, proj, "Undefined");
+							if (res.projectFilepath != "Undefined" &&
+								res.previewImageFilepath != "Undefined" &&
+								res.projectName != "Undefined")
+							{
+								projects.emplace_back(res);
+							}
+							else
+							{
+								g_logger_warning("Tried to load invalid project '%s'. Project filepath, image filepath, or name were possibly undefined.", res.projectName.c_str());
+							}
+						}
+					}
+				}
+			}
+			catch (const std::exception& ex)
+			{
+				g_logger_error("Failed to load projects metadata '%s' with error: '%s'", metadataFilepath.c_str(), ex.what());
+			}
+		}
+
+		static void legacy_deserializeMetadata()
 		{
 			std::string metadataFilepath = (ProjectApp::getAppRoot() / "projects.bin").string();
 			FILE* fp = fopen(metadataFilepath.c_str(), "rb");
@@ -463,14 +532,14 @@ namespace MathAnim
 				memory.readDangerous(scratchMemory, prjFilepathLength);
 
 				ProjectInfo projectInfo;
-				projectInfo.projectFilepath = std::string((char *)scratchMemory);
+				projectInfo.projectFilepath = std::string((char*)scratchMemory);
 
 				uint32 imageFilepathLength;
 				memory.read<uint32>(&imageFilepathLength);
 				scratchMemory = (uint8*)g_memory_realloc(scratchMemory, sizeof(uint8) * imageFilepathLength);
 				memory.readDangerous(scratchMemory, imageFilepathLength);
 
-				projectInfo.previewImageFilepath = std::string((char *)scratchMemory);
+				projectInfo.previewImageFilepath = std::string((char*)scratchMemory);
 
 				uint32 prjNameLength;
 				memory.read<uint32>(&prjNameLength);
@@ -490,53 +559,36 @@ namespace MathAnim
 
 		static void serializeMetadata()
 		{
-			RawMemory memory;
-			memory.init(sizeof(uint64));
+			nlohmann::json metadataJson = {};
 
-			// magicNumber         -> uint64 0xDEADBEEF
-			// selectedProject    -> int32
-			// numProjects         -> uint32
-			uint64 magicNumber = 0xDEADBEEF;
-			memory.write<uint64>(&magicNumber);
-			memory.write<int32>(&selectedProjectIndex);
+			constexpr uint32 majorVersion = 1;
+			constexpr uint32 minorVersion = 0;
+			metadataJson["Version"]["Major"] = majorVersion;
+			metadataJson["Version"]["Minor"] = minorVersion;
+			metadataJson["Version"]["Full"] = std::to_string(majorVersion) + "." + std::to_string(minorVersion);
 
-			uint32 numProjects = (uint32)projects.size();
-			memory.write<uint32>(&numProjects);
-			for (uint32 i = 0; i < numProjects; i++)
+			metadataJson["SelectedProjectIndex"] = selectedProjectIndex;
+			metadataJson["Projects"] = nlohmann::json::array();
+			for (const auto& proj : projects)
 			{
-				// prjFilepathLength   -> uint32
-				// prjFilepath         -> uint8[prjFilepathLength]
-				// imageFilepathLength -> uint32
-				// imageFilepath       -> uint8[imageFilepathLength]
-				// prjNameLength       -> uint32
-				// prjName             -> uint8[prjNameLength]
-				uint32 prjFilepathLength = (uint32)projects[i].projectFilepath.length() + 1;
-				memory.write<uint32>(&prjFilepathLength);
-				memory.writeDangerous((const uint8*)projects[i].projectFilepath.c_str(), prjFilepathLength);
+				nlohmann::json projJson = {};
+				SERIALIZE_NON_NULL_PROP(projJson, &proj, projectFilepath);
+				SERIALIZE_NON_NULL_PROP(projJson, &proj, previewImageFilepath);
+				SERIALIZE_NON_NULL_PROP(projJson, &proj, projectName);
 
-				uint32 imageFilepathLength = (uint32)projects[i].previewImageFilepath.length() + 1;
-				memory.write<uint32>(&imageFilepathLength);
-				memory.writeDangerous((const uint8*)projects[i].previewImageFilepath.c_str(), imageFilepathLength);
-
-				uint32 prjNameLength = (uint32)projects[i].projectName.length() + 1;
-				memory.write<uint32>(&prjNameLength);
-				memory.writeDangerous((const uint8*)projects[i].projectName.c_str(), prjNameLength);
+				metadataJson["Projects"].emplace_back(projJson);
 			}
 
-			std::string metadataFilepath = (ProjectApp::getAppRoot() / "projects.bin").string();
-			FILE* fp = fopen(metadataFilepath.c_str(), "wb");
-			if (!fp)
+			try
 			{
-				g_logger_error("Failed to open file for writing.");
-				memory.free();
-				return;
+				std::string metadataFilepath = (ProjectApp::getAppRoot() / "projects.json").string();
+				std::ofstream jsonFile(metadataFilepath);
+				jsonFile << metadataJson << std::endl;
 			}
-
-			fwrite(memory.data, memory.size, 1, fp);
-			fclose(fp);
-
-			memory.free();
-			return;
+			catch (const std::exception& ex)
+			{
+				g_logger_error("Failed to save current scene with error: '%s'", ex.what());
+			}
 		}
 
 		static void findAnyExtraProjects(const std::filesystem::path& appRoot)
@@ -551,7 +603,7 @@ namespace MathAnim
 				bool exists = false;
 				for (auto& project : projects)
 				{
-					if (std::filesystem::absolute(filepath.path()).make_preferred() == 
+					if (std::filesystem::absolute(filepath.path()).make_preferred() ==
 						std::filesystem::absolute(project.projectFilepath).parent_path().make_preferred())
 					{
 						exists = true;
@@ -568,13 +620,25 @@ namespace MathAnim
 				if (!exists)
 				{
 					ProjectInfo newProj = {};
-					newProj.projectFilepath = (filepath.path()/"project.bin").string();
+					newProj.projectFilepath = (filepath.path() / "project.json").string();
 					newProj.projectName = filepath.path().stem().string();
-					newProj.previewImageFilepath = (filepath.path()/"projectPreview.png").string();
-					if (Platform::fileExists(newProj.previewImageFilepath.c_str()) &&
-						Platform::fileExists(newProj.projectFilepath.c_str()))
+					newProj.previewImageFilepath = (filepath.path() / "projectPreview.png").string();
+					if (Platform::fileExists(newProj.previewImageFilepath.c_str()))
 					{
-						projects.emplace_back(newProj);
+						if (Platform::fileExists(newProj.projectFilepath.c_str()))
+						{
+							projects.emplace_back(newProj);
+						}
+						else
+						{
+							// TODO: Remove me after legacy upgrade paths are removed
+							// NOTE: Try to load the project if it's a legacy project still
+							newProj.projectFilepath = (filepath.path() / "project.bin").string();
+							if (Platform::fileExists(newProj.projectFilepath.c_str()))
+							{
+								projects.emplace_back(newProj);
+							}
+						}
 					}
 				}
 			}

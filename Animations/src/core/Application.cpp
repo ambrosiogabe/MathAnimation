@@ -442,8 +442,6 @@ namespace MathAnim
 				nlohmann::json projectJson;
 				inputFile >> projectJson;
 
-				//SceneManagementPanel::serialize(projectJson["sceneManager"], sceneData);
-
 				if (projectJson.contains("sceneManager") && !projectJson["sceneManager"].is_null())
 				{
 					sceneData = SceneManagementPanel::deserialize(projectJson["sceneManager"]);
