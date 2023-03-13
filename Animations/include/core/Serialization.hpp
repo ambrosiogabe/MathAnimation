@@ -92,6 +92,14 @@ do { \
   } \
 } while(false)
 
+#define SERIALIZE_SIMPLE_ARRAY(j, obj, prop) \
+do { \
+  j[#prop] = nlohmann::json::array(); \
+  for (const auto& _data : (obj)->prop) { \
+  	  j[#prop].emplace_back(_data); \
+  } \
+} while(false)
+
 // ------ My Vector Types ------
 #define SERIALIZE_VEC(j, obj, prop) \
   CMath::serialize(j, #prop, (obj)->prop)
@@ -152,6 +160,16 @@ do { \
     for (size_t i = 0; i < j[#prop].size(); i++) { \
     	AnimObjId _internalId = convertJsonToId(j[#prop][i]); \
     	(obj)->prop.emplace_back(_internalId); \
+    } \
+  } \
+} while(false)
+
+#define DESERIALIZE_SIMPLE_ARRAY(obj, prop, j) \
+do { \
+  (obj)->prop = {}; \
+  if (j.contains(#prop) && !j[#prop].is_null()) { \
+    for (size_t i = 0; i < j[#prop].size(); i++) { \
+    	(obj)->prop.emplace_back(j[#prop][i]); \
     } \
   } \
 } while(false)

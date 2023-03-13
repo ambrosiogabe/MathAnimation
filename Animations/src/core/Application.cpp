@@ -87,6 +87,8 @@ namespace MathAnim
 
 		[[deprecated("This is for upgrading legacy projects created in beta")]]
 		static void legacy_loadScene(const std::string& sceneName);
+		[[deprecated("This is for upgrading legacy projects created in beta")]]
+		static void legacy_loadProject(const std::filesystem::path& projectRoot);
 
 		void init(const char* projectFile)
 		{
@@ -366,17 +368,18 @@ namespace MathAnim
 
 		void saveProject()
 		{
-			RawMemory sceneDataMemory = SceneManagementPanel::serialize(sceneData);
-
-			TableOfContents tableOfContents;
-			tableOfContents.init();
-			tableOfContents.addEntry(sceneDataMemory, "Scene_Data");
-
-			std::string projectFilepath = (currentProjectRoot / "project.bin").string();
-			tableOfContents.serialize(projectFilepath.c_str());
-
-			sceneDataMemory.free();
-			tableOfContents.free();
+			nlohmann::json projectJson = {};
+			SceneManagementPanel::serialize(projectJson["sceneManager"], sceneData);
+			try
+			{
+				std::string projectFilepath = (currentProjectRoot / "project.json").string();
+				std::ofstream jsonFile(projectFilepath);
+				jsonFile << projectJson << std::endl;
+			}
+			catch (const std::exception& ex)
+			{
+				g_logger_error("Failed to save current scene with error: '%s'", ex.what());
+			}
 
 			saveCurrentScene();
 		}
@@ -412,15 +415,53 @@ namespace MathAnim
 
 		void loadProject(const std::filesystem::path& projectRoot)
 		{
-			std::string projectFilepath = (projectRoot / "project.bin").string();
+			std::string projectFilepath = (projectRoot / "project.json").string();
 			if (!Platform::fileExists(projectFilepath.c_str()))
 			{
+				// If a legacy project exists load that instead
+				std::string legacyProjectFilepath = (projectRoot / "project.bin").string();
+				if (Platform::fileExists(legacyProjectFilepath.c_str()))
+				{
+					legacy_loadProject(projectRoot);
+					return;
+				}
+
+				// Otherwise create an empty scene and initialize a new project
 				// Save empty project now
 				sceneData.sceneNames.push_back("New Scene");
 				sceneData.currentScene = 0;
 				// This should create a default scene since nothing exists
 				loadScene(sceneData.sceneNames[sceneData.currentScene]);
 				saveProject();
+				return;
+			}
+
+			try
+			{
+				std::ifstream inputFile(projectFilepath);
+				nlohmann::json projectJson;
+				inputFile >> projectJson;
+
+				//SceneManagementPanel::serialize(projectJson["sceneManager"], sceneData);
+
+				if (projectJson.contains("sceneManager") && !projectJson["sceneManager"].is_null())
+				{
+					sceneData = SceneManagementPanel::deserialize(projectJson["sceneManager"]);
+					loadScene(sceneData.sceneNames[sceneData.currentScene]);
+				}
+			}
+			catch (const std::exception& ex)
+			{
+				g_logger_error("Failed to load project '%s' with error: '%s'", projectFilepath.c_str(), ex.what());
+			}
+		}
+
+		static void legacy_loadProject(const std::filesystem::path& projectRoot)
+		{
+			std::string projectFilepath = (projectRoot / "project.bin").string();
+			if (!Platform::fileExists(projectFilepath.c_str()))
+			{
+				g_logger_error("LEGACY: Failed to upgrade legacy project.bin file to json.");
 				return;
 			}
 
@@ -448,7 +489,7 @@ namespace MathAnim
 
 			if (sceneDataMemory.data)
 			{
-				sceneData = SceneManagementPanel::deserialize(sceneDataMemory);
+				sceneData = SceneManagementPanel::legacy_deserialize(sceneDataMemory);
 				loadScene(sceneData.sceneNames[sceneData.currentScene]);
 			}
 
@@ -477,7 +518,7 @@ namespace MathAnim
 
 			if (!Platform::fileExists(filepath.c_str()))
 			{
-				g_logger_error("Missing default asset './assets/sceneTemplates/default.json'. Cannot load scene.");
+				g_logger_error("Missing scene file '%s'. Cannot load scene.", filepath.c_str());
 				resetToFrame(0);
 				return;
 			}

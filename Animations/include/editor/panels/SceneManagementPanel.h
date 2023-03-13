@@ -2,6 +2,8 @@
 #define MATH_ANIM_SCENE_MANAGEMENT_PANEL_H
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct SceneData
@@ -18,8 +20,11 @@ namespace MathAnim
 
 		void free();
 
-		RawMemory serialize(const SceneData& data);
-		SceneData deserialize(RawMemory& memory);
+		void serialize(nlohmann::json& j, const SceneData& data);
+		SceneData deserialize(const nlohmann::json& j);
+
+		[[deprecated("This is here to support upgrading old legacy projects")]]
+		SceneData legacy_deserialize(RawMemory& memory);
 	}
 }
 
