@@ -326,28 +326,6 @@ namespace MathAnim
 									   .build();
 
 			Texture activeObjectsOutlineMask = TextureBuilder()
-												   .setFormat(ByteFormat::RGBA16_F)
-												   .setMinFilter(FilterMode::Nearest)
-												   .setMagFilter(FilterMode::Nearest)
-												   // TODO: Should we have a smaller framebuffer for outlines?
-												   // We could potentially make it 2x or 3x smaller and then just
-												   // render to that instead of having it attached to the main framebuffer
-												   .setWidth(outputWidth)
-												   .setHeight(outputHeight)
-												   .build();
-
-			Texture activeObjectsOutlineMask2 = TextureBuilder()
-													.setFormat(ByteFormat::RGBA16_F)
-													.setMinFilter(FilterMode::Nearest)
-													.setMagFilter(FilterMode::Nearest)
-													// TODO: Should we have a smaller framebuffer for outlines?
-													// We could potentially make it 2x or 3x smaller and then just
-													// render to that instead of having it attached to the main framebuffer
-													.setWidth(outputWidth)
-													.setHeight(outputHeight)
-													.build();
-
-			Texture activeObjectsOutlineMask = TextureBuilder()
 				.setFormat(ByteFormat::RGBA16_F)
 				.setMinFilter(FilterMode::Nearest)
 				.setMagFilter(FilterMode::Nearest)
