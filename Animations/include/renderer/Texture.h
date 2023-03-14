@@ -22,9 +22,11 @@ namespace MathAnim
 		None = 0,
 		RGBA8_UI,
 		RGBA16_F,
+		RGBA32_F,
 
 		RGB8_UI,
 		RGB32_F,
+		RG32_F,
 
 		R32_UI,
 		RG32_UI,

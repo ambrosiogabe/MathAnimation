@@ -26,6 +26,7 @@ namespace MathAnim
 		// ------- Private variables --------
 		static AnimObjId activeAnimObjectId = NULL_ANIM_OBJECT;
 		static AnimId activeAnimationId = NULL_ANIM;
+		static std::vector<AnimObjId> allActiveObjects = {};
 
 		static constexpr float slowDragSpeed = 0.02f;
 		static constexpr float indentationDepth = 25.0f;
@@ -103,9 +104,21 @@ namespace MathAnim
 			activeAnimationId = animationId;
 		}
 
-		void setActiveAnimObject(AnimObjId animObjectId)
+		void setActiveAnimObject(const AnimationManagerData* am, AnimObjId animObjectId)
 		{
 			activeAnimObjectId = animObjectId;
+			allActiveObjects.clear();
+
+			const AnimObject* obj = AnimationManager::getObject(am, animObjectId);
+			if (obj)
+			{
+				// Push animObjectId and all children to vector
+				allActiveObjects.push_back(animObjectId);
+				for (auto iter = obj->beginBreadthFirst(am); iter != obj->end(); ++iter)
+				{
+					allActiveObjects.push_back(*iter);
+				}
+			}
 		}
 
 		AnimObjId getActiveAnimObject()
@@ -116,6 +129,11 @@ namespace MathAnim
 		AnimId getActiveAnimation()
 		{
 			return activeAnimationId;
+		}
+
+		const std::vector<AnimObjId>& getAllActiveAnimObjects()
+		{
+			return allActiveObjects;
 		}
 
 		const char* getAnimObjectPayloadId()

@@ -424,7 +424,7 @@ namespace MathAnim
 
 					if (animObjectId == currentActiveAnimObjId)
 					{
-						InspectorPanel::setActiveAnimObject(NULL_ANIM_OBJECT);
+						InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
 						currentActiveAnimObjId = NULL_ANIM_OBJECT;
 					}
 
@@ -661,7 +661,7 @@ namespace MathAnim
 			// Unset active object if needed
 			if (segment.userData.as.intData == InspectorPanel::getActiveAnimObject())
 			{
-				InspectorPanel::setActiveAnimObject(NULL_ANIM_OBJECT);
+				InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
 			}
 
 			// Then free the memory

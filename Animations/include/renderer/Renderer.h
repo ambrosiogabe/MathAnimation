@@ -41,12 +41,16 @@ namespace MathAnim
 		void free();
 
 		// ----------- Render calls ----------- 
-		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera, bool shouldRenderPickingOutline);
-		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, AnimationManagerData* am, bool shouldRenderPickingOutline);
+		void bindAndUpdateViewportForFramebuffer(Framebuffer& framebuffer);
+		void clearFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor);
+		void renderToFramebuffer(Framebuffer& framebuffer, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera);
+		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am);
+		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects);
+
 		void renderFramebuffer(const Framebuffer& framebuffer);
 		void renderTextureToFramebuffer(const Texture& texture, const Framebuffer& framebuffer);
 		void renderTextureToYuvFramebuffer(const Texture& texture, const Framebuffer& yFramebuffer, const Framebuffer& uvFramebuffer);
-		void endFrame();
+		void clearDrawCalls();
 
 		// ----------- Styles ----------- 
 		// TODO: Should this be push/pop calls, or more like nvgStroke calls with implicit pops?
@@ -78,7 +82,7 @@ namespace MathAnim
 		// ----------- 2D Line stuff ----------- 
 		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void free(Path2DContext* path);
-		void endPath(Path2DContext* path, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
+		bool endPath(Path2DContext* path, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
 		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
 
 		void lineTo(Path2DContext* path, const Vec2& point, bool applyTransform = true);

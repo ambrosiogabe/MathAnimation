@@ -211,7 +211,7 @@ namespace MathAnim
 					// the anim objects from the animation manager and the timeline
 					deleteAnimObject(*animObject);
 					AnimationManager::removeAnimObject(am, animObject->id);
-					InspectorPanel::setActiveAnimObject(NULL_ANIM_OBJECT);
+					InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
 				}
 			}
 
@@ -430,7 +430,7 @@ namespace MathAnim
 
 			if (clicked)
 			{
-				InspectorPanel::setActiveAnimObject(element.animObjectId);
+				InspectorPanel::setActiveAnimObject(am, element.animObjectId);
 			}
 
 			element.selected = InspectorPanel::getActiveAnimObject() == element.animObjectId;

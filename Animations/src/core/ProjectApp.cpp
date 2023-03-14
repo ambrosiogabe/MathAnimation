@@ -39,7 +39,7 @@ namespace MathAnim
 			g_logger_info("App root: '%s'", appRoot.string().c_str());
 			Platform::createDirIfNotExists(appRoot.string().c_str());
 
-			ProjectScreen::init();
+			ProjectScreen::init(appRoot);
 		}
 
 		std::string run()

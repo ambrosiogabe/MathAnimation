@@ -43,8 +43,9 @@ namespace MathAnim
 		static bool createNewProjectGui();
 		static void deserializeMetadata();
 		static void serializeMetadata();
+		static void findAnyExtraProjects(const std::filesystem::path& appRoot);
 
-		void init()
+		void init(const std::filesystem::path& appRoot)
 		{
 			createNewProject = false;
 
@@ -81,6 +82,7 @@ namespace MathAnim
 			selectedProjectIndex = -1;
 
 			deserializeMetadata();
+			findAnyExtraProjects(appRoot);
 
 			for (int i = 0; i < projects.size(); i++)
 			{
@@ -535,6 +537,47 @@ namespace MathAnim
 
 			memory.free();
 			return;
+		}
+
+		static void findAnyExtraProjects(const std::filesystem::path& appRoot)
+		{
+			for (auto& filepath : std::filesystem::directory_iterator(appRoot))
+			{
+				if (!Platform::dirExists(filepath.path().string().c_str()))
+				{
+					continue;
+				}
+
+				bool exists = false;
+				for (auto& project : projects)
+				{
+					if (std::filesystem::absolute(filepath.path()).make_preferred() == 
+						std::filesystem::absolute(project.projectFilepath).parent_path().make_preferred())
+					{
+						exists = true;
+						break;
+					}
+
+					if (filepath.path().stem().string() == "editorLayouts")
+					{
+						exists = true;
+						break;
+					}
+				}
+
+				if (!exists)
+				{
+					ProjectInfo newProj = {};
+					newProj.projectFilepath = (filepath.path()/"project.bin").string();
+					newProj.projectName = filepath.path().stem().string();
+					newProj.previewImageFilepath = (filepath.path()/"projectPreview.png").string();
+					if (Platform::fileExists(newProj.previewImageFilepath.c_str()) &&
+						Platform::fileExists(newProj.projectFilepath.c_str()))
+					{
+						projects.emplace_back(newProj);
+					}
+				}
+			}
 		}
 	}
 }

@@ -274,12 +274,14 @@ namespace MathAnim
 		static Shader shaderFont2D;
 		static Shader shader3DLine;
 		static Shader screenShader;
+		static Shader activeObjectMaskShader;
 		static Shader rgbToYuvShaderYChannel;
 		static Shader rgbToYuvShaderUvChannel;
 		static Shader shader3DOpaque;
 		static Shader shader3DTransparent;
 		static Shader shader3DComposite;
-		static Shader pickingOutlineShader;
+		static Shader jumpFloodShader;
+		static Shader outlineShader;
 
 		static constexpr int MAX_STACK_SIZE = 64;
 
@@ -321,7 +323,6 @@ namespace MathAnim
 		// ---------------------- Internal Functions ----------------------
 		static void setupDefaultWhiteTexture();
 		static void setupScreenVao();
-		static void renderPickingOutline(const Framebuffer& mainFramebuffer);
 		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth);
 		static void lineToInternal(Path2DContext* path, const Vec2& point, bool addToRawCurve);
 		static void lineToInternal(Path2DContext* path, const Path_Vertex2DLine& vert, bool addToRawCurve);
@@ -339,25 +340,29 @@ namespace MathAnim
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
+			activeObjectMaskShader.compile("assets/shaders/activeObjectMask.glsl");
 			rgbToYuvShaderYChannel.compile("assets/shaders/rgbToYuvYChannel.glsl");
 			rgbToYuvShaderUvChannel.compile("assets/shaders/rgbToYuvUvChannel.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
-			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
+			jumpFloodShader.compile("assets/shaders/jumpFlood.glsl");
+			outlineShader.compile("assets/shaders/outlineShader.glsl");
 #else
 			// TODO: Replace these with hardcoded strings
 			shader2D.compile("assets/shaders/default.glsl");
 			shaderFont2D.compile("assets/shaders/shaderFont2D.glsl");
 			screenShader.compile("assets/shaders/screen.glsl");
+			activeObjectMaskShader.compile("assets/shaders/activeObjectMask.glsl");
 			rgbToYuvShaderYChannel.compile("assets/shaders/rgbToYuvYChannel.glsl");
 			rgbToYuvShaderUvChannel.compile("assets/shaders/rgbToYuvUvChannel.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
-			pickingOutlineShader.compile("assets/shaders/pickingOutline.glsl");
+			jumpFloodShader.compile("assets/shaders/jumpFlood.glsl");
+			outlineShader.compile("assets/shaders/outlineShader.glsl");
 #endif
 
 			drawList2D.init();
@@ -370,12 +375,18 @@ namespace MathAnim
 
 		void free()
 		{
+			shader2D.destroy();
 			shaderFont2D.destroy();
 			screenShader.destroy();
+			activeObjectMaskShader.destroy();
+			rgbToYuvShaderYChannel.destroy();
+			rgbToYuvShaderUvChannel.destroy();
 			shader3DLine.destroy();
 			shader3DOpaque.destroy();
 			shader3DTransparent.destroy();
 			shader3DComposite.destroy();
+			jumpFloodShader.destroy();
+			outlineShader.destroy();
 
 			drawList2D.free();
 			drawListFont2D.free();
@@ -384,20 +395,29 @@ namespace MathAnim
 		}
 
 		// ----------- Render calls ----------- 
-		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera, bool shouldRenderPickingOutline)
+		void bindAndUpdateViewportForFramebuffer(Framebuffer& framebuffer)
 		{
-			g_logger_assert(framebuffer.colorAttachments.size() == 4, "Invalid framebuffer. Should have 3 color attachments.");
+			framebuffer.bind();
+			GL::viewport(0, 0, framebuffer.width, framebuffer.height);
+		}
+
+		void clearFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor)
+		{
+			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Clear_Framebuffer");
+			framebuffer.clearColorAttachmentRgba(0, clearColor);
+			framebuffer.clearColorAttachmentUint64(3, NULL_ANIM_OBJECT);
+			framebuffer.clearDepthStencil();
+			GL::popDebugGroup();
+		}
+
+		void renderToFramebuffer(Framebuffer& framebuffer, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera)
+		{
+			constexpr size_t numExpectedColorAttachments = 6;
+			g_logger_assert(framebuffer.colorAttachments.size() == numExpectedColorAttachments, "Invalid framebuffer. Should have %d color attachments.", numExpectedColorAttachments);
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
 
 			debugMsgId = 0;
 			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Main_Framebuffer_Pass");
-
-			// Clear the framebuffer attachments and set it up
-			framebuffer.bind();
-			GL::viewport(0, 0, framebuffer.width, framebuffer.height);
-			framebuffer.clearColorAttachmentRgba(0, clearColor);
-			framebuffer.clearColorAttachmentUint64(3, NULL_ANIM_OBJECT);
-			framebuffer.clearDepthStencil();
 
 			// Reset the draw buffers to draw to FB_attachment_0
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
@@ -420,16 +440,10 @@ namespace MathAnim
 			// These should be blended appropriately
 			drawList2D.render(shader2D, orthoCamera);
 
-			// Draw outline around active anim object
-			if (shouldRenderPickingOutline)
-			{
-				renderPickingOutline(framebuffer);
-			}
-
 			GL::popDebugGroup();
 		}
 
-		void renderToFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor, AnimationManagerData* am, bool shouldRenderPickingOutline)
+		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am)
 		{
 			OrthoCamera orthoCamera = {};
 			const AnimObject* orthoCameraObj = AnimationManager::getActiveOrthoCamera(am);
@@ -437,10 +451,124 @@ namespace MathAnim
 			{
 				orthoCamera = orthoCameraObj->as.camera.camera2D;
 			}
+			else
+			{
+				// Don't render anything if no camera is active
+				// TODO: Maybe render a texture in the future that says something like "No Active Camera in Scene"
+				// to help out the user
+				return;
+			}
 
 			PerspectiveCamera perspCamera = {};
 			// TODO: Get active perspective camera
-			renderToFramebuffer(framebuffer, clearColor, orthoCamera, perspCamera, shouldRenderPickingOutline);
+			renderToFramebuffer(framebuffer, orthoCamera, perspCamera);
+		}
+
+		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects)
+		{
+			if (activeObjects.size() == 0)
+			{
+				return;
+			}
+
+			// Algorithm instructions modified from
+			// Source[0]: https://bgolus.medium.com/the-quest-for-very-wide-outlines-ba82ed442cd9
+			// Source[1]: https://blog.demofox.org/2016/02/29/fast-voronoi-diagrams-and-distance-dield-textures-on-the-gpu-with-the-jump-flooding-algorithm/
+
+			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Main_Framebuffer_Pass_StencilOutline");
+
+			GL::disable(GL_DEPTH_TEST);
+			GL::disable(GL_BLEND);
+			GL::viewport(0, 0, framebuffer.width, framebuffer.height);
+
+			// All the draw calls following will use this VAO
+			GL::bindVertexArray(screenVao);
+
+			// Reset the draw draw buffers
+			const GLenum compositeDrawBuffers[] = { GL_NONE, GL_NONE, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5 };
+			GL::drawBuffers(6, compositeDrawBuffers);
+
+			// Clear the draw buffer to 0s
+			framebuffer.bind();
+			float maskClearColor[4] = { -1.0f, -1.0f, -1.0f, -1.0f };
+			GL::clearBufferfv(GL_COLOR, 4, maskClearColor);
+			GL::clearBufferfv(GL_COLOR, 5, maskClearColor);
+
+			// Do a screen pass for the active object and each one of its children
+			activeObjectMaskShader.bind();
+
+			const Texture& objectIdTexture = framebuffer.getColorAttachment(3);
+			GL::activeTexture(GL_TEXTURE0);
+			objectIdTexture.bind();
+			activeObjectMaskShader.uploadInt("uObjectIdTexture", 0);
+
+			for (auto activeObjId : activeObjects)
+			{
+				activeObjectMaskShader.uploadU64AsUVec2("uActiveObjectId", activeObjId);
+
+				GL::drawArrays(GL_TRIANGLES, 0, 6);
+			}
+
+			// Do Jump Flood Algorithm
+			jumpFloodShader.bind();
+			// We'll always read from texture slot 0 in the loop
+			jumpFloodShader.uploadInt("uJumpMask", 0);
+
+			const GLenum pingBuffer[] = { GL_COLOR_ATTACHMENT4, GL_NONE, GL_NONE, GL_NONE, GL_NONE };
+			const GLenum pongBuffer[] = { GL_COLOR_ATTACHMENT5, GL_NONE, GL_NONE, GL_NONE, GL_NONE };
+
+			int numPasses = (int)glm::log2((float)glm::max(framebuffer.width, framebuffer.height));
+			const GLenum* currentDrawBuffer = pongBuffer;
+			for (int pass = 0; pass < numPasses; pass++)
+			{
+				GL::drawBuffers(5, currentDrawBuffer);
+				int readBufferId = currentDrawBuffer == pingBuffer ? 5 : 4;
+				const Texture& currentReadBuffer = framebuffer.getColorAttachment(readBufferId);
+				GL::activeTexture(GL_TEXTURE0);
+				currentReadBuffer.bind();
+				// Switch where we draw to and read from every frame
+				currentDrawBuffer = currentDrawBuffer == pingBuffer ? pongBuffer : pingBuffer;
+
+				float sampleOffset = glm::exp2((float)numPasses - (float)pass - 1.0f);
+				glm::vec2 normalizedSampleOffset = glm::vec2(1.0f / framebuffer.width, 1.0f / framebuffer.height);
+				if (pass != numPasses - 1)
+				{
+					normalizedSampleOffset *= sampleOffset;
+				}
+				jumpFloodShader.uploadVec2("uSampleOffset", normalizedSampleOffset);
+
+				GL::drawArrays(GL_TRIANGLES, 0, 6);
+			}
+
+			// Reset drawBuffers
+			const GLenum regularDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE, GL_NONE };
+			GL::drawBuffers(5, regularDrawBuffers);
+			GL::enable(GL_BLEND);
+
+			// Finally use the generated texture to draw the outline. PROFIT!
+			{
+				outlineShader.bind();
+
+				int readBufferId = currentDrawBuffer == pingBuffer ? 5 : 4;
+				const Texture& currentReadBuffer = framebuffer.getColorAttachment(readBufferId);
+				GL::activeTexture(GL_TEXTURE0);
+				currentReadBuffer.bind();
+				outlineShader.uploadInt("uJumpMask", 0);
+
+				GL::activeTexture(GL_TEXTURE1);
+				framebuffer.getColorAttachment(3).bind();
+				outlineShader.uploadInt("uObjectIdTexture", 1);
+
+				const EditorSettingsData& editorSettings = EditorSettings::getSettings();
+				outlineShader.uploadFloat("uOutlineWidth", editorSettings.activeObjectOutlineWidth);
+				outlineShader.uploadVec4("uOutlineColor", editorSettings.activeObjectHighlightColor);
+				outlineShader.uploadVec2("uFramebufferSize", glm::vec2((float)framebuffer.width, (float)framebuffer.height));
+				outlineShader.uploadU64AsUVec2("uActiveObjectId", activeObjects[0]);
+
+				GL::drawArrays(GL_TRIANGLES, 0, 6);
+			}
+
+			GL::popDebugGroup();
 		}
 
 		void renderFramebuffer(const Framebuffer& framebuffer)
@@ -509,9 +637,9 @@ namespace MathAnim
 			GL::drawArrays(GL_TRIANGLES, 0, 6);
 		}
 
-		void endFrame()
+		void clearDrawCalls()
 		{
-			MP_PROFILE_EVENT("Renderer_EndFrame");
+			MP_PROFILE_EVENT("Renderer_ClearDrawCalls");
 
 			// Track metrics
 			list2DNumDrawCalls = drawList2D.drawCommands.size();
@@ -836,9 +964,17 @@ namespace MathAnim
 			g_memory_free(path);
 		}
 
-		void endPath(Path2DContext* path, bool closePath, AnimObjId objId)
+		bool endPath(Path2DContext* path, bool closePath, AnimObjId objId)
 		{
 			g_logger_assert(path != nullptr, "Null path.");
+
+			if (path->data.size() <= 1)
+			{
+#ifdef _DEBUG
+				g_logger_warning("Corrupted path data found for AnimObjId: %d", objId);
+#endif
+				return false;
+			}
 
 			// NOTE: This is some weird shenanigans in order to get the path
 			// to close correctly and join the last vertex to the first vertex
@@ -962,6 +1098,8 @@ namespace MathAnim
 				drawMultiColoredTri(vertex.frontP1, vertex.color, vertex.frontP2, vertex.color, nextVertex.backP1, nextVertex.color, objId);
 				drawMultiColoredTri(vertex.frontP2, vertex.color, nextVertex.backP2, nextVertex.color, nextVertex.backP1, nextVertex.color, objId);
 			}
+
+			return true;
 		}
 
 		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath, AnimObjId)
@@ -1608,37 +1746,6 @@ namespace MathAnim
 
 			GL::vertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(sizeof(float) * 2));
 			GL::enableVertexAttribArray(1);
-		}
-
-		static void renderPickingOutline(const Framebuffer&)
-		{
-			// TODO: This is broken and we need to rethink outlining active objects
-			//GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Active_Object_Outline_Pass");
-
-			//GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
-			//GL::drawBuffers(4, compositeDrawBuffers);
-			//pickingOutlineShader.bind();
-
-			//const Texture& objIdTexture = mainFramebuffer.getColorAttachment(3);
-			//GL::activeTexture(GL_TEXTURE0);
-			//objIdTexture.bind();
-			//pickingOutlineShader.uploadInt("uObjectIdTexture", 0);
-
-			//const Texture& colorTexture = mainFramebuffer.getColorAttachment(0);
-			//GL::activeTexture(GL_TEXTURE1);
-			//colorTexture.bind();
-			//pickingOutlineShader.uploadInt("uColorTexture", 1);
-
-			//pickingOutlineShader.uploadU64AsUVec2("uActiveObjectId", Timeline::getActiveAnimObject());
-			//glm::vec2 textureSize = glm::vec2((float)objIdTexture.width, (float)objIdTexture.height);
-			//pickingOutlineShader.uploadVec2("uResolution", textureSize);
-
-			////pickingOutlineShader.uploadFloat("uThreshold", EditorGui::getThreshold());
-
-			//GL::bindVertexArray(screenVao);
-			//GL::drawArrays(GL_TRIANGLES, 0, 6);
-
-			//GL::popDebugGroup();
 		}
 
 		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth)
@@ -2529,9 +2636,6 @@ namespace MathAnim
 
 	void DrawList3D::setupGraphicsBuffers()
 	{
-		// Vec3 position;
-		// Vec4 color;
-		// Vec2 textureCoords;
 		// Create the batched vao
 		GL::createVertexArray(&vao);
 		GL::bindVertexArray(vao);

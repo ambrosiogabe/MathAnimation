@@ -32,19 +32,28 @@ flat in uvec2 fObjId;
 uniform sampler2D uTexture;
 uniform int uWireframeOn;
 
+#define UINT32_MAX uint(0xFFFFFFFF)
+
 void main()
 {
     // Just early out for wireframe
     if (uWireframeOn != 0) {
         FragColor = vec4(1);
+        ObjId = uvec2(UINT32_MAX, UINT32_MAX);
         return;
     }
 
     vec4 texColor = texture(uTexture, fTexCoord);
+    // Do a different alpha threshold for object IDs
+    if (texColor.a < 0.8) {
+        ObjId = uvec2(UINT32_MAX, UINT32_MAX);
+    } else {
+        ObjId = fObjId;
+    }
+
     if (texColor.a < 0.05 || fColor.a < 0.05) {
         discard;
     }
 
     FragColor = fColor * texColor;
-    ObjId = fObjId;
 }

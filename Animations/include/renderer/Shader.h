@@ -21,6 +21,9 @@ namespace MathAnim
 		void uploadVec4(const char* varName, const glm::vec4& vec4) const;
 		void uploadVec3(const char* varName, const glm::vec3& vec3) const;
 		void uploadVec2(const char* varName, const glm::vec2& vec2) const;
+		inline void uploadVec4(const char* varName, const Vec4& vec4) const { uploadVec4(varName, glm::vec4(vec4.r, vec4.g, vec4.b, vec4.a)); }
+		inline void uploadVec3(const char* varName, const Vec3& vec3) const { uploadVec3(varName, glm::vec3(vec3.r, vec3.g, vec3.b)); }
+		inline void uploadVec2(const char* varName, const Vec2& vec2) const { uploadVec2(varName, glm::vec2(vec2.x, vec2.y)); }
 		void uploadFloat(const char* varName, float value) const;
 		void uploadInt(const char* varName, int value) const;
 		void uploadIntArray(const char* varName, int length, const int* array) const;

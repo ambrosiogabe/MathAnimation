@@ -48,6 +48,8 @@ namespace MathAnim
 		ViewMode viewMode;
 		PreviewSvgFidelity previewFidelity;
 		float svgTargetScale;
+		Vec4 activeObjectHighlightColor;
+		float activeObjectOutlineWidth;
 	};
 
 	namespace EditorSettings

@@ -27,7 +27,7 @@ namespace MathAnim
 		// ------------- Internal Functions -------------
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
 		static void checkHotKeys(AnimationManagerData* am);
-		static void checkForMousePicking(const Framebuffer& mainFramebuffer);
+		static void checkForMousePicking(const AnimationManagerData* am, const Framebuffer& mainFramebuffer);
 
 		static void showActiveObjectSelctionCtxMenu(AnimationManagerData* am);
 
@@ -69,7 +69,7 @@ namespace MathAnim
 
 			// TODO: Do this in a central file
 			checkHotKeys(am);
-			checkForMousePicking(editorFramebuffer);
+			checkForMousePicking(am, editorFramebuffer);
 
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
@@ -258,7 +258,7 @@ namespace MathAnim
 			showActiveObjectSelctionCtxMenu(am);
 		}
 
-		static void checkForMousePicking(const Framebuffer& mainFramebuffer)
+		static void checkForMousePicking(const AnimationManagerData* am, const Framebuffer& mainFramebuffer)
 		{
 			if (mouseHoveringViewport && !GizmoManager::anyGizmoActive())
 			{
@@ -274,11 +274,11 @@ namespace MathAnim
 					AnimObjId objId = mainFramebuffer.readPixelUint64(3, (int)mousePixelPos.x, (int)mousePixelPos.y);
 					if (objId != NULL_ANIM_OBJECT)
 					{
-						InspectorPanel::setActiveAnimObject(objId);
+						InspectorPanel::setActiveAnimObject(am, objId);
 					}
 					else
 					{
-						InspectorPanel::setActiveAnimObject(NULL_ANIM_OBJECT);
+						InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
 					}
 				}
 			}
@@ -355,14 +355,14 @@ namespace MathAnim
 						}
 					}
 
-					InspectorPanel::setActiveAnimObject(newActiveObj);
+					InspectorPanel::setActiveAnimObject(am, newActiveObj);
 				}
 				if (ImGui::Selectable("Parent"))
 				{
 					// Find the parent
 					if (obj && !isNull(obj->parentId))
 					{
-						InspectorPanel::setActiveAnimObject(obj->parentId);
+						InspectorPanel::setActiveAnimObject(am, obj->parentId);
 					}
 				}
 				if (ImGui::Selectable("First Child"))
@@ -370,13 +370,13 @@ namespace MathAnim
 					std::vector<AnimObjId> children = AnimationManager::getChildren(am, activeObject);
 					if (children.size() > 0)
 					{
-						InspectorPanel::setActiveAnimObject(children[0]);
+						InspectorPanel::setActiveAnimObject(am, children[0]);
 					}
 				}
 				if (ImGui::Selectable("Next Sibling"))
 				{
 					AnimObjId sibling = AnimationManager::getNextSibling(am, activeObject);
-					InspectorPanel::setActiveAnimObject(sibling);
+					InspectorPanel::setActiveAnimObject(am, sibling);
 				}
 				ImGui::EndPopup();
 			}
