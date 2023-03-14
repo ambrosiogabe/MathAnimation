@@ -1,14 +1,14 @@
 #include "animation/Axis.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
+#include "core/Serialization.hpp"
 #include "svg/Svg.h"
 #include "math/CMath.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
-	// ------------------ Internal Functions ------------------
-	static Axis deserializeAxisV1(RawMemory& memory);
-
 	void Axis::init(AnimObject*)
 	{
 		//g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Axis object initialized twice.");
@@ -150,42 +150,46 @@ namespace MathAnim
 		//}
 	}
 
-	void Axis::serialize(RawMemory& memory) const
+	void Axis::serialize(nlohmann::json& memory) const
 	{
-		// axesLength   -> Vec3
-		// xRange       -> Vec2i
-		// yRange       -> Vec2i
-		// zRange       -> Vec2i
-		// xStep        -> float
-		// yStep        -> float
-		// zStep        -> float
-		// tickWidth    -> float 
-		// drawNumbers  -> u8
-		// fontSizePx   -> float
-		// labelPadding -> float
-		// labelStrokeWidth -> float
-		CMath::serialize(memory, axesLength);
-		CMath::serialize(memory, xRange);
-		CMath::serialize(memory, yRange);
-		CMath::serialize(memory, zRange);
-		memory.write<float>(&xStep);
-		memory.write<float>(&yStep);
-		memory.write<float>(&zStep);
-		memory.write<float>(&tickWidth);
-		const uint8 drawNumbersU8 = drawNumbers ? 1 : 0;
-		memory.write<uint8>(&drawNumbersU8);
-		memory.write<float>(&fontSizePixels);
-		memory.write<float>(&labelPadding);
-		memory.write<float>(&labelStrokeWidth);
+		SERIALIZE_VEC(memory, this, axesLength);
+		SERIALIZE_VEC(memory, this, xRange);
+		SERIALIZE_VEC(memory, this, yRange);
+		SERIALIZE_VEC(memory, this, zRange);
+		SERIALIZE_NON_NULL_PROP(memory, this, xStep);
+		SERIALIZE_NON_NULL_PROP(memory, this, yStep);
+		SERIALIZE_NON_NULL_PROP(memory, this, zStep);
+		SERIALIZE_NON_NULL_PROP(memory, this, tickWidth);
+		SERIALIZE_NON_NULL_PROP(memory, this, drawNumbers);
+		SERIALIZE_NON_NULL_PROP(memory, this, fontSizePixels);
+		SERIALIZE_NON_NULL_PROP(memory, this, labelPadding);
+		SERIALIZE_NON_NULL_PROP(memory, this, labelStrokeWidth);
 	}
 
-	Axis Axis::deserialize(RawMemory& memory, uint32 version)
+	Axis Axis::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		switch (version)
 		{
-		case 1:
-			return deserializeAxisV1(memory);
-			break;
+		case 2:
+		{
+			Axis res = {};
+
+			DESERIALIZE_VEC3(&res, axesLength, j, (Vec3{10, 10, 10}));
+			DESERIALIZE_VEC2i(&res, xRange, j, (Vec2i{1, 1}));
+			DESERIALIZE_VEC2i(&res, yRange, j, (Vec2i{1, 1}));
+			DESERIALIZE_VEC2i(&res, zRange, j, (Vec2i{1, 1}));
+			DESERIALIZE_PROP(&res, xStep, j, 1.0f);
+			DESERIALIZE_PROP(&res, yStep, j, 1.0f);
+			DESERIALIZE_PROP(&res, zStep, j, 1.0f);
+			DESERIALIZE_PROP(&res, tickWidth, j, 60.0f);
+			DESERIALIZE_PROP(&res, drawNumbers, j, false);
+			DESERIALIZE_PROP(&res, fontSizePixels, j, 20.0f);
+			DESERIALIZE_PROP(&res, labelPadding, j, 10.0f);
+			DESERIALIZE_PROP(&res, labelStrokeWidth, j, 0.03f);
+
+			return res;
+		}
+		break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of axis %d. It looks like you have corrupted scene data.");
 			break;
@@ -194,37 +198,47 @@ namespace MathAnim
 		return {};
 	}
 
-	// ------------------ Internal Functions ------------------
-	static Axis deserializeAxisV1(RawMemory& memory)
+	Axis Axis::legacy_deserialize(RawMemory& memory, uint32 version)
 	{
-		// axesLength    -> Vec3
-		// xRange        -> Vec2i
-		// yRange        -> Vec2i
-		// zRange        -> Vec2i
-		// xStep         -> float
-		// yStep         -> float
-		// zStep         -> float
-		// tickWidth     -> float 
-		// drawNumbers   -> u8
-		// fontSizePx    -> float
-		// labelPadding  -> float
-		// labelStrokeWidth -> float
-		Axis res;
-		res.axesLength = CMath::deserializeVec3(memory);
-		res.xRange = CMath::deserializeVec2i(memory);
-		res.yRange = CMath::deserializeVec2i(memory);
-		res.zRange = CMath::deserializeVec2i(memory);
-		memory.read<float>(&res.xStep);
-		memory.read<float>(&res.yStep);
-		memory.read<float>(&res.zStep);
-		memory.read<float>(&res.tickWidth);
-		uint8 drawNumbersU8;
-		memory.read<uint8>(&drawNumbersU8);
-		res.drawNumbers = drawNumbersU8 == 1;
-		memory.read<float>(&res.fontSizePixels);
-		memory.read<float>(&res.labelPadding);
-		memory.read<float>(&res.labelStrokeWidth);
+		switch (version)
+		{
+		case 1:
+		{
+			// axesLength    -> Vec3
+			// xRange        -> Vec2i
+			// yRange        -> Vec2i
+			// zRange        -> Vec2i
+			// xStep         -> float
+			// yStep         -> float
+			// zStep         -> float
+			// tickWidth     -> float 
+			// drawNumbers   -> u8
+			// fontSizePx    -> float
+			// labelPadding  -> float
+			// labelStrokeWidth -> float
+			Axis res;
+			res.axesLength = CMath::legacy_deserializeVec3(memory);
+			res.xRange = CMath::legacy_deserializeVec2i(memory);
+			res.yRange = CMath::legacy_deserializeVec2i(memory);
+			res.zRange = CMath::legacy_deserializeVec2i(memory);
+			memory.read<float>(&res.xStep);
+			memory.read<float>(&res.yStep);
+			memory.read<float>(&res.zStep);
+			memory.read<float>(&res.tickWidth);
+			uint8 drawNumbersU8;
+			memory.read<uint8>(&drawNumbersU8);
+			res.drawNumbers = drawNumbersU8 == 1;
+			memory.read<float>(&res.fontSizePixels);
+			memory.read<float>(&res.labelPadding);
+			memory.read<float>(&res.labelStrokeWidth);
 
-		return res;
+			return res;
+		}
+		break;
+		default:
+			g_logger_error("Tried to deserialize unknown version of axis %d. It looks like you have corrupted scene data.");
+			break;
+		}
+		return {};
 	}
 }

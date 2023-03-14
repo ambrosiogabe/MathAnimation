@@ -1,8 +1,9 @@
 #include "animation/Animation.h"
 #include "core.h"
 #include "core/Application.h"
-#include "core/Profiling.h"
 #include "core/Input.h"
+#include "core/Profiling.h"
+#include "core/Serialization.hpp"
 #include "animation/AnimationManager.h"
 #include "svg/Svg.h"
 #include "svg/SvgCache.h"
@@ -15,6 +16,8 @@
 #include "editor/EditorSettings.h"
 #include "editor/EditorGui.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
 	// ------- Private variables --------
@@ -22,9 +25,8 @@ namespace MathAnim
 	static AnimObjId animationUidCounter = 0;
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV1(AnimationManagerData* am, RawMemory& memory);
-	static Animation deserializeAnimationExV1(RawMemory& memory);
-	static CameraObject deserializeCameraObjectV1(RawMemory& memory);
+	static AnimObject deserializeAnimObjectV2(AnimationManagerData* am, const nlohmann::json& j);
+	static Animation deserializeAnimationV2(const nlohmann::json& memory);
 
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
 
@@ -412,41 +414,20 @@ namespace MathAnim
 		// TODO: Place any animation freeing in here
 	}
 
-	void Animation::serialize(RawMemory& memory) const
+	void Animation::serialize(nlohmann::json& memory) const
 	{
-		// type           -> uint32
-		// frameStart     -> int32
-		// duration       -> int32
-		// id             -> int32
-		// easeType       -> uint8
-		// easeDirection  -> uint8
-		// timelineTrack  -> int32
-		// playbackType   -> uint8
-		// lagRatio       -> f32
-		// 
-		// numObjects     -> uint32
-		// objectIds      -> AnimObjId[numObjects]
-		uint32 animType = (uint32)this->type;
-		memory.write<uint32>(&animType);
-		memory.write<int32>(&frameStart);
-		memory.write<int32>(&duration);
-		memory.write<AnimId>(&id);
-		uint8 easeTypeInt = (uint8)easeType;
-		memory.write<uint8>(&easeTypeInt);
-		uint8 easeDirectionInt = (uint8)easeDirection;
-		memory.write<uint8>(&easeDirectionInt);
+		SERIALIZE_ENUM(memory, this, type, _animationTypeNames);
+		SERIALIZE_NON_NULL_PROP(memory, this, frameStart);
+		SERIALIZE_NON_NULL_PROP(memory, this, duration);
+		SERIALIZE_ID(memory, this, id);
+		SERIALIZE_ENUM(memory, this, easeType, easeTypeNames);
+		SERIALIZE_ENUM(memory, this, easeDirection, easeDirectionNames);
 
-		memory.write<int32>(&timelineTrack);
-		uint8 playbackTypeInt = (uint8)playbackType;
-		memory.write<uint8>(&playbackTypeInt);
-		memory.write<float>(&lagRatio);
+		SERIALIZE_NON_NULL_PROP(memory, this, timelineTrack);
+		SERIALIZE_ENUM(memory, this, playbackType, _playbackTypeNames);
+		SERIALIZE_NON_NULL_PROP(memory, this, lagRatio);
 
-		uint32 numObjects = (uint32)animObjectIds.size();
-		memory.write<uint32>(&numObjects);
-		for (auto animObjId : animObjectIds)
-		{
-			memory.write<AnimObjId>(&animObjId);
-		}
+		SERIALIZE_ID_ARRAY(memory, this, animObjectIds);
 
 		switch (this->type)
 		{
@@ -458,26 +439,26 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::Shift:
 		case AnimTypeV1::RotateTo:
-			CMath::serialize(memory, this->as.modifyVec3.target);
+			SERIALIZE_VEC(memory, this, as.modifyVec3.target);
 			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
-			CMath::serialize(memory, this->as.modifyU8Vec4.target);
+			SERIALIZE_VEC(memory, this, as.modifyU8Vec4.target);
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
 			break;
 		case AnimTypeV1::Transform:
-			this->as.replacementTransform.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.replacementTransform);
 			break;
 		case AnimTypeV1::MoveTo:
-			this->as.moveTo.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.moveTo);
 			break;
 		case AnimTypeV1::AnimateScale:
-			this->as.animateScale.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.animateScale);
 			break;
 		case AnimTypeV1::Circumscribe:
-			this->as.circumscribe.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.circumscribe);
 			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
@@ -485,15 +466,27 @@ namespace MathAnim
 		}
 	}
 
-	void ReplacementTransformData::serialize(RawMemory& memory) const
+	void ReplacementTransformData::serialize(nlohmann::json& memory) const
 	{
-		// srcObjectId -> AnimObjId
-		// dstObjectId -> AnimObjId
-		memory.write<AnimObjId>(&this->srcAnimObjectId);
-		memory.write<AnimObjId>(&this->dstAnimObjectId);
+		SERIALIZE_ID(memory, this, srcAnimObjectId);
+		SERIALIZE_ID(memory, this, dstAnimObjectId);
 	}
 
-	ReplacementTransformData ReplacementTransformData::deserialize(RawMemory& memory)
+	ReplacementTransformData ReplacementTransformData::deserialize(const nlohmann::json& memory, uint32 version)
+	{
+		if (version == 2)
+		{
+			ReplacementTransformData res = {};
+			DESERIALIZE_ID(&res, srcAnimObjectId, memory);
+			DESERIALIZE_ID(&res, dstAnimObjectId, memory);
+			return res;
+		}
+
+		g_logger_warning("ReplacementTransform serialized with unknown version '%d'", version);
+		return {};
+	}
+
+	ReplacementTransformData ReplacementTransformData::legacy_deserialize(RawMemory& memory)
 	{
 		// srcObjectId -> AnimObjId
 		// dstObjectId -> AnimObjId
@@ -504,46 +497,70 @@ namespace MathAnim
 		return res;
 	}
 
-	void MoveToData::serialize(RawMemory& memory) const
+	void MoveToData::serialize(nlohmann::json& memory) const
 	{
-		// source -> Vec2
-		// target -> Vec2
-		// object -> AnimObjId
-		CMath::serialize(memory, this->source);
-		CMath::serialize(memory, this->target);
-		memory.write<AnimObjId>(&this->object);
+		SERIALIZE_VEC(memory, this, source);
+		SERIALIZE_VEC(memory, this, target);
+		SERIALIZE_ID(memory, this, object);
 	}
 
-	MoveToData MoveToData::deserialize(RawMemory& memory)
+	MoveToData MoveToData::deserialize(const nlohmann::json& memory, uint32 version)
+	{
+		if (version == 2)
+		{
+			MoveToData res = {};
+			DESERIALIZE_VEC2(&res, source, memory, (Vec2{0, 0}));
+			DESERIALIZE_VEC2(&res, target, memory, (Vec2{0, 0}));
+			DESERIALIZE_ID(&res, object, memory);
+			return res;
+		}
+
+		g_logger_warning("MoveToData serialized with unknown version '%d'", version);
+		return {};
+	}
+
+	MoveToData MoveToData::legacy_deserialize(RawMemory& memory)
 	{
 		// source -> Vec2
 		// target -> Vec2
 		// object -> AnimObjId
 		MoveToData res;
-		res.source = CMath::deserializeVec2(memory);
-		res.target = CMath::deserializeVec2(memory);
+		res.source = CMath::legacy_deserializeVec2(memory);
+		res.target = CMath::legacy_deserializeVec2(memory);
 		memory.read<AnimObjId>(&res.object);
 		return res;
 	}
 
-	void AnimateScaleData::serialize(RawMemory& memory) const
+	void AnimateScaleData::serialize(nlohmann::json& memory) const
 	{
-		// source -> Vec2
-		// target -> Vec2
-		// object -> AnimObjId
-		CMath::serialize(memory, this->source);
-		CMath::serialize(memory, this->target);
-		memory.write<AnimObjId>(&this->object);
+		SERIALIZE_VEC(memory, this, source);
+		SERIALIZE_VEC(memory, this, target);
+		SERIALIZE_ID(memory, this, object);
 	}
 
-	AnimateScaleData AnimateScaleData::deserialize(RawMemory& memory)
+	AnimateScaleData AnimateScaleData::deserialize(const nlohmann::json& memory, uint32 version)
+	{
+		if (version == 2)
+		{
+			AnimateScaleData res = {};
+			DESERIALIZE_VEC2(&res, source, memory, (Vec2{0, 0}));
+			DESERIALIZE_VEC2(&res, target, memory, (Vec2{0, 0}));
+			DESERIALIZE_ID(&res, object, memory);
+			return res;
+		}
+
+		g_logger_warning("AnimateScaleData serialized with unknown version '%d'", version);
+		return {};
+	}
+
+	AnimateScaleData AnimateScaleData::legacy_deserialize(RawMemory& memory)
 	{
 		// source -> Vec2
 		// target -> Vec2
 		// object -> AnimObjId
 		AnimateScaleData res;
-		res.source = CMath::deserializeVec2(memory);
-		res.target = CMath::deserializeVec2(memory);
+		res.source = CMath::legacy_deserializeVec2(memory);
+		res.target = CMath::legacy_deserializeVec2(memory);
 		memory.read<AnimObjId>(&res.object);
 		return res;
 	}
@@ -641,23 +658,35 @@ namespace MathAnim
 		}
 	}
 
-	void Circumscribe::serialize(RawMemory& memory) const
+	void Circumscribe::serialize(nlohmann::json& memory) const
 	{
-		// color          -> Vec4
-		// shape          -> u8
-		// fade           -> u8
-		// bufferSize     -> f32
-		// timeWidth      -> f32
-		// obj            -> AnimObjId
-		CMath::serialize(memory, this->color);
-		memory.write<CircumscribeShape>(&this->shape);
-		memory.write<CircumscribeFade>(&this->fade);
-		memory.write<float>(&this->bufferSize);
-		memory.write<float>(&this->timeWidth);
-		memory.write<AnimObjId>(&this->obj);
+		SERIALIZE_VEC(memory, this, color);
+		SERIALIZE_ENUM(memory, this, shape, _circumscribeShapeNames);
+		SERIALIZE_ENUM(memory, this, fade, _circumscribeFadeNames);
+		SERIALIZE_NON_NULL_PROP(memory, this, bufferSize);
+		SERIALIZE_NON_NULL_PROP(memory, this, timeWidth);
+		SERIALIZE_ID(memory, this, obj);
 	}
 
-	Circumscribe Circumscribe::deserialize(RawMemory& memory)
+	Circumscribe Circumscribe::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		if (version == 2)
+		{
+			Circumscribe res = {};
+			DESERIALIZE_VEC4(&res, color, j, "#F9DB1BFF"_hex);
+			DESERIALIZE_ENUM(&res, shape, _circumscribeShapeNames, CircumscribeShape, j);
+			DESERIALIZE_ENUM(&res, fade, _circumscribeFadeNames, CircumscribeFade, j);
+			DESERIALIZE_PROP(&res, bufferSize, j, 0.0f);
+			DESERIALIZE_PROP(&res, timeWidth, j, 0.0f);
+			DESERIALIZE_ID(&res, obj, j);
+			return res;
+		}
+
+		g_logger_warning("Circumscribe serialized with unknown version '%d'", version);
+		return {};
+	}
+
+	Circumscribe Circumscribe::legacy_deserialize(RawMemory& memory)
 	{
 		// color          -> Vec4
 		// shape          -> u8
@@ -666,7 +695,7 @@ namespace MathAnim
 		// timeWidth      -> f32
 		// obj            -> AnimObjId
 		Circumscribe res;
-		res.color = CMath::deserializeVec4(memory);
+		res.color = CMath::legacy_deserializeVec4(memory);
 		memory.read<CircumscribeShape>(&res.shape);
 		memory.read<CircumscribeFade>(&res.fade);
 		memory.read<float>(&res.bufferSize);
@@ -678,7 +707,8 @@ namespace MathAnim
 
 	Circumscribe Circumscribe::createDefault()
 	{
-		Circumscribe res;
+		Circumscribe res = {};
+
 		res.color = "#F9DB1BFF"_hex;
 		res.shape = CircumscribeShape::Rectangle;
 		res.fade = CircumscribeFade::FadeNone;
@@ -689,11 +719,108 @@ namespace MathAnim
 		return res;
 	}
 
-	Animation Animation::deserialize(RawMemory& memory, uint32 version)
+	Animation Animation::deserialize(const nlohmann::json& memory, uint32 version)
 	{
+		if (version == 2)
+		{
+			return deserializeAnimationV2(memory);
+		}
+
+		g_logger_error("AnimationEx serialized with unknown version '%d'. Memory potentially corrupted.", version);
+		Animation res = {};
+		res.id = NULL_ANIM;
+		res.animObjectIds.clear();
+		return res;
+	}
+
+	Animation Animation::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		// TODO: Deprecate me
 		if (version == 1)
 		{
-			return deserializeAnimationExV1(memory);
+
+			// type           -> uint32
+			// frameStart     -> int32
+			// duration       -> int32
+			// id             -> int32
+			// easeType       -> uint8
+			// easeDirection  -> uint8
+			// timelineTrack  -> int32
+			// playbackType   -> uint8
+			// lagRatio       -> f32
+			// 
+			// numObjects     -> uint32
+			// objectIds      -> AnimObjId[numObjects]
+			// Custom animation data -> dynamic
+			Animation res;
+			uint32 animType;
+			memory.read<uint32>(&animType);
+			g_logger_assert(animType < (uint32)AnimTypeV1::Length, "Invalid animation type '%d' from memory. Must be corrupted memory.", animType);
+			res.type = (AnimTypeV1)animType;
+			memory.read<int32>(&res.frameStart);
+			memory.read<int32>(&res.duration);
+
+			memory.read<AnimId>(&res.id);
+			animationUidCounter = glm::max(animationUidCounter, res.id + 1);
+
+			uint8 easeTypeInt, easeDirectionInt;
+			memory.read<uint8>(&easeTypeInt);
+			memory.read<uint8>(&easeDirectionInt);
+			g_logger_assert(easeTypeInt < (uint8)EaseType::Length, "Corrupted memory. Ease type was %d which is out of bounds.", easeTypeInt);
+			res.easeType = (EaseType)easeTypeInt;
+			g_logger_assert(easeDirectionInt < (uint8)EaseDirection::Length, "Corrupted memory. Ease direction was %d which is out of bounds.", easeDirectionInt);
+			res.easeDirection = (EaseDirection)easeDirectionInt;
+
+			memory.read<int32>(&res.timelineTrack);
+			uint8 playbackType;
+			memory.read<uint8>(&playbackType);
+			g_logger_assert(playbackType < (uint8)PlaybackType::Length, "Corrupted memory. PlaybackType was %d which is out of bounds.", playbackType);
+			res.playbackType = (PlaybackType)playbackType;
+			memory.read<float>(&res.lagRatio);
+
+			uint32 numObjects;
+			memory.read<uint32>(&numObjects);
+			for (uint32 i = 0; i < numObjects; i++)
+			{
+				AnimObjId tmp;
+				memory.read<AnimObjId>(&tmp);
+				res.animObjectIds.insert(tmp);
+			}
+
+			switch (res.type)
+			{
+			case AnimTypeV1::Create:
+			case AnimTypeV1::UnCreate:
+			case AnimTypeV1::FadeIn:
+			case AnimTypeV1::FadeOut:
+				// NOP
+				break;
+			case AnimTypeV1::RotateTo:
+			case AnimTypeV1::Shift:
+			case AnimTypeV1::AnimateFillColor:
+			case AnimTypeV1::AnimateStrokeColor:
+				res.as.modifyU8Vec4.target = CMath::legacy_deserializeU8Vec4(memory);
+				break;
+			case AnimTypeV1::AnimateStrokeWidth:
+				g_logger_warning("TODO: implement me");
+				break;
+			case AnimTypeV1::Transform:
+				res.as.replacementTransform = ReplacementTransformData::legacy_deserialize(memory);
+				break;
+			case AnimTypeV1::MoveTo:
+				res.as.moveTo = MoveToData::legacy_deserialize(memory);
+				break;
+			case AnimTypeV1::AnimateScale:
+				res.as.animateScale = AnimateScaleData::legacy_deserialize(memory);
+				break;
+			case AnimTypeV1::Circumscribe:
+				res.as.circumscribe = Circumscribe::legacy_deserialize(memory);
+				break;
+			case AnimTypeV1::Length:
+			case AnimTypeV1::None:
+				break;
+			}
+			return res;
 		}
 
 		g_logger_error("AnimationEx serialized with unknown version '%d'. Memory potentially corrupted.", version);
@@ -761,14 +888,12 @@ namespace MathAnim
 		return res;
 	}
 
-	void CameraObject::serialize(RawMemory& memory) const
+	void CameraObject::serialize(nlohmann::json& memory) const
 	{
-		//OrthoCamera camera2D;
-		//bool is2D;
-		//bool isActiveCamera;
-		camera2D.serialize(memory);
-		uint8 is2DU8 = is2D ? 1 : 0;
-		memory.write<uint8>(&is2DU8);
+		SERIALIZE_OBJECT(memory, this, camera2D);
+		SERIALIZE_NON_NULL_PROP(memory, this, is2D);
+		SERIALIZE_NON_NULL_PROP(memory, this, isActiveCamera);
+		SERIALIZE_VEC(memory, this, fillColor);
 	}
 
 	void CameraObject::free()
@@ -776,11 +901,45 @@ namespace MathAnim
 
 	}
 
-	CameraObject CameraObject::deserialize(RawMemory& memory, uint32 version)
+	CameraObject CameraObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
+		if (version == 2)
+		{
+			CameraObject res = {};
+
+			DESERIALIZE_OBJECT(&res, camera2D, OrthoCamera, version, j);
+			DESERIALIZE_PROP(&res, is2D, j, false);
+			DESERIALIZE_PROP(&res, isActiveCamera, j, false);
+
+			const Vec4 greenBrown = "#272822FF"_hex;
+			DESERIALIZE_VEC4(&res, fillColor, j, greenBrown);
+
+			return res;
+		}
+
+		g_logger_warning("Camera serialized with unknown version: %d", version);
+		CameraObject res = {};
+		return res;
+	}
+
+	CameraObject CameraObject::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		// TODO: Deprecate me
 		if (version == 1)
 		{
-			return deserializeCameraObjectV1(memory);
+			//OrthoCamera camera2D;
+			//bool is2D;
+			//bool isActiveCamera;
+			CameraObject res;
+			res.camera2D = OrthoCamera::legacy_deserialize(memory, 1);
+			uint8 is2DU8;
+			memory.read<uint8>(&is2DU8);
+			res.is2D = is2DU8 == 1;
+
+			const Vec4 greenBrown = "#272822FF"_hex;
+			res.fillColor = greenBrown;
+
+			return res;
 		}
 
 		CameraObject res = {};
@@ -795,16 +954,14 @@ namespace MathAnim
 		res.camera2D.zoom = 1.0f;
 		res.is2D = true;
 		res.isActiveCamera = true;
+		const Vec4 greenBrown = "#272822FF"_hex;
+		res.fillColor = greenBrown;
 		return res;
 	}
 
-	void ScriptObject::serialize(RawMemory& memory) const
+	void ScriptObject::serialize(nlohmann::json& memory) const
 	{
-		// ScriptFilepathLength    -> u32
-		// ScriptFilepath          -> u8[ScriptFilepathLength]
-		uint32 scriptFilepathLengthU32 = (uint32)scriptFilepathLength;
-		memory.write<uint32>(&scriptFilepathLengthU32);
-		memory.writeDangerous((const uint8*)scriptFilepath, sizeof(uint8) * scriptFilepathLength);
+		SERIALIZE_NULLABLE_CSTRING(memory, this, scriptFilepath, "Undefined");
 	}
 
 	void ScriptObject::free()
@@ -818,11 +975,24 @@ namespace MathAnim
 		scriptFilepathLength = 0;
 	}
 
-	ScriptObject ScriptObject::deserialize(RawMemory& memory, uint32 version)
+	ScriptObject ScriptObject::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		if (version == 2)
+		{
+			ScriptObject res = {};
+			DESERIALIZE_NULLABLE_CSTRING(&res, scriptFilepath, j);
+			return res;
+		}
+
+		g_logger_warning("ScriptObject serialized with unknown version '%d'", version);
+		return {};
+	}
+
+	ScriptObject ScriptObject::legacy_deserialize(RawMemory& memory, uint32 version)
 	{
 		if (version == 1)
 		{
-			ScriptObject res;
+			ScriptObject res = {};
 
 			// ScriptFilepathLength    -> u32
 			// ScriptFilepath          -> u8[ScriptFilepathLength]
@@ -1399,115 +1569,69 @@ namespace MathAnim
 		this->id = NULL_ANIM_OBJECT;
 	}
 
-	void AnimObject::serialize(RawMemory& memory) const
+	void AnimObject::serialize(nlohmann::json& memory) const
 	{
-		// AnimObjectType     -> uint32
-		// _PositionStart     -> Vec3
-		// RotationStart      -> Vec3
-		// ScaleStart         -> Vec3
-		// _FillColorStart    -> Vec4U8
-		// _StrokeColorStart  -> Vec4U8
-		// 
-		// _StrokeWidthStart  -> f32
-		// svgScale           -> f32
-		// 
-		// isTransparent      -> u8
-		// is3D               -> u8
-		// drawDebugBoxes     -> u8
-		// drawCurveDebugBoxes -> u8
-		// 
-		// Id                   -> AnimObjId
-		// ParentId             -> AnimObjId
-		// NumGeneratedChildren -> uint32 
-		// GeneratedChildrenIds -> AnimObjId[numGeneratedChildren]
-		// 
-		// NumRefAnimations     -> uint32
-		// ReferencedAnimations -> AnimId[NumRefAnimations]
-		// 
-		// NameLength         -> uint32
-		// Name               -> uint8[NameLength + 1]
-		// AnimObject Specific Data
-		uint32 animObjectType = (uint32)objectType;
-		memory.write<uint32>(&animObjectType);
-		CMath::serialize(memory, _positionStart);
-		CMath::serialize(memory, _rotationStart);
-		CMath::serialize(memory, _scaleStart);
-		CMath::serialize(memory, _fillColorStart);
-		CMath::serialize(memory, _strokeColorStart);
+		SERIALIZE_ENUM(memory, this, objectType, _animationObjectTypeNames);
+		SERIALIZE_VEC(memory, this, _positionStart);
+		SERIALIZE_VEC(memory, this, _rotationStart);
+		SERIALIZE_VEC(memory, this, _scaleStart);
+		SERIALIZE_VEC(memory, this, _fillColorStart);
+		SERIALIZE_VEC(memory, this, _strokeColorStart);
 
-		memory.write<float>(&_strokeWidthStart);
-		memory.write<float>(&svgScale);
+		SERIALIZE_NON_NULL_PROP(memory, this, _strokeWidthStart);
+		SERIALIZE_NON_NULL_PROP(memory, this, svgScale);
 
-		uint8 isTransparentU8 = isTransparent ? 1 : 0;
-		memory.write<uint8>(&isTransparentU8);
+		SERIALIZE_NON_NULL_PROP(memory, this, isTransparent);
+		SERIALIZE_NON_NULL_PROP(memory, this, is3D);
+		SERIALIZE_NON_NULL_PROP(memory, this, drawDebugBoxes);
+		SERIALIZE_NON_NULL_PROP(memory, this, drawCurveDebugBoxes);
 
-		uint8 is3DU8 = is3D ? 1 : 0;
-		memory.write<uint8>(&is3DU8);
+		SERIALIZE_ID(memory, this, id);
+		SERIALIZE_ID(memory, this, parentId);
 
-		uint8 drawDebugBoxesU8 = drawDebugBoxes ? 1 : 0;
-		memory.write<uint8>(&drawDebugBoxesU8);
+		SERIALIZE_ID_ARRAY(memory, this, generatedChildrenIds);
+		SERIALIZE_ID_ARRAY(memory, this, referencedAnimations);
 
-		uint8 drawCurveDebugBoxesU8 = drawCurveDebugBoxes ? 1 : 0;
-		memory.write<uint8>(&drawCurveDebugBoxesU8);
-
-		memory.write<AnimObjId>(&id);
-		memory.write<AnimObjId>(&parentId);
-
-		uint32 numGeneratedChildren = (uint32)generatedChildrenIds.size();
-		memory.write<uint32>(&numGeneratedChildren);
-		for (uint32 i = 0; i < numGeneratedChildren; i++)
-		{
-			memory.write<AnimObjId>(&generatedChildrenIds[i]);
-		}
-
-		uint32 numRefAnimations = (uint32)referencedAnimations.size();
-		memory.write<uint32>(&numRefAnimations);
-		for (auto animId : referencedAnimations)
-		{
-			memory.write<AnimId>(&animId);
-		}
-
-		memory.write<uint32>(&nameLength);
-		memory.writeDangerous(name, (nameLength + 1));
+		SERIALIZE_NULLABLE_U8_CSTRING(memory, this, name, "Undefined");
 
 		switch (objectType)
 		{
 		case AnimObjectTypeV1::TextObject:
-			this->as.textObject.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.textObject);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
-			this->as.laTexObject.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.laTexObject);
 			break;
 		case AnimObjectTypeV1::SvgObject:
 			g_logger_assert(this->_svgObjectStart != nullptr, "Somehow SVGObject has no object allocated.");
-			this->_svgObjectStart->serialize(memory);
+			SERIALIZE_OBJECT_PTR(memory, this, _svgObjectStart);
 			break;
 		case AnimObjectTypeV1::Square:
-			this->as.square.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.square);
 			break;
 		case AnimObjectTypeV1::Circle:
-			this->as.circle.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.circle);
 			break;
 		case AnimObjectTypeV1::Cube:
-			this->as.cube.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.cube);
 			break;
 		case AnimObjectTypeV1::Axis:
-			this->as.axis.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.axis);
 			break;
 		case AnimObjectTypeV1::SvgFileObject:
-			this->as.svgFile.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.svgFile);
 			break;
 		case AnimObjectTypeV1::Camera:
-			this->as.camera.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.camera);
 			break;
 		case AnimObjectTypeV1::ScriptObject:
-			this->as.script.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.script);
 			break;
 		case AnimObjectTypeV1::CodeBlock:
-			this->as.codeBlock.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.codeBlock);
 			break;
 		case AnimObjectTypeV1::Arrow:
-			this->as.arrow.serialize(memory);
+			SERIALIZE_OBJECT(memory, this, as.arrow);
 			break;
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
@@ -1515,11 +1639,181 @@ namespace MathAnim
 		}
 	}
 
-	AnimObject AnimObject::deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version)
+	AnimObject AnimObject::deserialize(AnimationManagerData* am, const nlohmann::json& j, uint32 version)
 	{
+		if (version == 2)
+		{
+			return deserializeAnimObjectV2(am, j);
+		}
+
+		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
+		AnimObject res = {};
+		res.id = NULL_ANIM;
+		return res;
+	}
+
+	AnimObject AnimObject::legacy_deserialize(AnimationManagerData*, RawMemory& memory, uint32 version)
+	{
+		// TODO: Deprecate me in the future
 		if (version == 1)
 		{
-			return deserializeAnimObjectV1(am, memory);
+			AnimObject res;
+			// If the object is being read in from the file then it's not
+			// generated since all generated objects don't get saved
+			res.isGenerated = false;
+			res.drawCurves = false;
+			res.drawControlPoints = false;
+			res.percentCreated = 0.0f;
+
+			// AnimObjectType     -> uint32
+			// _PositionStart     -> Vec3
+			// RotationStart      -> Vec3
+			// ScaleStart         -> Vec3
+			// _FillColorStart    -> Vec4U8
+			// _StrokeColorStart  -> Vec4U8
+			// 
+			// _StrokeWidthStart  -> f32
+			// svgScale           -> f32
+			// 
+			// isTransparent      -> u8
+			// is3D               -> u8
+			// drawDebugBoxes     -> u8
+			// drawCurveDebugBoxes -> u8
+			// 
+			// Id                   -> AnimObjId
+			// ParentId             -> AnimObjId
+			// NumGeneratedChildren -> uint32
+			// GeneratedChildrenIds -> AnimObjId[numGeneratedChildren]
+			//
+			// numRefAnimations     -> uint32
+			// referencedAnimations -> AnimId[numObjects]
+			// 
+			// NameLength         -> uint32
+			// Name               -> uint8[NameLength + 1]
+			// AnimObject Specific Data
+			uint32 animObjectType;
+			memory.read<uint32>(&animObjectType);
+			g_logger_assert(animObjectType < (uint32)AnimObjectTypeV1::Length, "Invalid AnimObjectType '%d' from memory. Must be corrupted memory.", animObjectType);
+			res.objectType = (AnimObjectTypeV1)animObjectType;
+			res._positionStart = CMath::legacy_deserializeVec3(memory);
+			res._rotationStart = CMath::legacy_deserializeVec3(memory);
+			res._scaleStart = CMath::legacy_deserializeVec3(memory);
+			res._fillColorStart = CMath::legacy_deserializeU8Vec4(memory);
+			res._strokeColorStart = CMath::legacy_deserializeU8Vec4(memory);
+
+			memory.read<float>(&res._strokeWidthStart);
+			memory.read<float>(&res.svgScale);
+
+			uint8 isTransparent;
+			memory.read<uint8>(&isTransparent);
+			res.isTransparent = isTransparent != 0;
+
+			uint8 is3D;
+			memory.read<uint8>(&is3D);
+			res.is3D = is3D != 0;
+
+			uint8 drawDebugBoxes;
+			memory.read<uint8>(&drawDebugBoxes);
+			res.drawDebugBoxes = drawDebugBoxes != 0;
+
+			uint8 drawCurveDebugBoxes;
+			memory.read<uint8>(&drawCurveDebugBoxes);
+			res.drawCurveDebugBoxes = drawCurveDebugBoxes != 0;
+
+			memory.read<AnimObjId>(&res.id);
+			animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
+			memory.read<AnimObjId>(&res.parentId);
+
+			uint32 numGeneratedChildrenIds;
+			memory.read<uint32>(&numGeneratedChildrenIds);
+			res.generatedChildrenIds.reserve(numGeneratedChildrenIds);
+			for (uint32 i = 0; i < numGeneratedChildrenIds; i++)
+			{
+				AnimObjId childId;
+				memory.read<AnimObjId>(&childId);
+				res.generatedChildrenIds.push_back(childId);
+			}
+
+			uint32 numReferencedAnimations;
+			memory.read<uint32>(&numReferencedAnimations);
+			for (uint32 i = 0; i < numReferencedAnimations; i++)
+			{
+				AnimId refAnim;
+				memory.read<AnimId>(&refAnim);
+				res.referencedAnimations.insert(refAnim);
+			}
+
+			if (!memory.read<uint32>(&res.nameLength))
+			{
+				g_logger_assert(false, "Corrupted project data. Irrecoverable.");
+			}
+			res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
+			memory.readDangerous(res.name, res.nameLength + 1);
+
+			// Initialize other variables
+			res.position = res._positionStart;
+			res.rotation = res._rotationStart;
+			res.globalPosition = res.position;
+			res._globalPositionStart = res._positionStart;
+			res.scale = res._scaleStart;
+			res.strokeColor = res._strokeColorStart;
+			res.fillColor = res._fillColorStart;
+			res.strokeWidth = res._strokeWidthStart;
+			res.svgObject = nullptr;
+			res._svgObjectStart = nullptr;
+
+			switch (res.objectType)
+			{
+			case AnimObjectTypeV1::TextObject:
+				res.as.textObject = TextObject::legacy_deserialize(memory, version);
+				break;
+			case AnimObjectTypeV1::LaTexObject:
+				res.as.laTexObject = LaTexObject::legacy_deserialize(memory, version);
+				break;
+			case AnimObjectTypeV1::Square:
+				res.as.square = Square::legacy_deserialize(memory, version);
+				res.as.square.init(&res);
+				break;
+			case AnimObjectTypeV1::SvgObject:
+				res._svgObjectStart = SvgObject::legacy_deserialize(memory, version);
+				res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+				*res.svgObject = Svg::createDefault();
+				Svg::copy(res.svgObject, res._svgObjectStart);
+				break;
+			case AnimObjectTypeV1::Circle:
+				res.as.circle = Circle::legacy_deserialize(memory, version);
+				res.as.circle.init(&res);
+				break;
+			case AnimObjectTypeV1::Cube:
+				res.as.cube = Cube::legacy_deserialize(memory, version);
+				res.as.cube.init(&res);
+				break;
+			case AnimObjectTypeV1::Axis:
+				res.as.axis = Axis::legacy_deserialize(memory, version);
+				res.as.axis.init(&res);
+				break;
+			case AnimObjectTypeV1::SvgFileObject:
+				res.as.svgFile = SvgFileObject::legacy_deserialize(memory, version);
+				break;
+			case AnimObjectTypeV1::Camera:
+				res.as.camera = CameraObject::legacy_deserialize(memory, version);
+				break;
+			case AnimObjectTypeV1::ScriptObject:
+				res.as.script = ScriptObject::legacy_deserialize(memory, version);
+				break;
+			case AnimObjectTypeV1::CodeBlock:
+				res.as.codeBlock = CodeBlock::legacy_deserialize(memory, version);
+				break;
+			case AnimObjectTypeV1::Arrow:
+				res.as.arrow = Arrow::legacy_deserialize(memory, version);
+				res.as.arrow.init(&res);
+				break;
+			case AnimObjectTypeV1::Length:
+			case AnimObjectTypeV1::None:
+				break;
+			}
+
+			return res;
 		}
 
 		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
@@ -1764,13 +2058,9 @@ namespace MathAnim
 	}
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV1(AnimationManagerData*, RawMemory& memory)
+	static AnimObject deserializeAnimObjectV2(AnimationManagerData*, const nlohmann::json& j)
 	{
-		// TODO: Replace this with some sort of library where you register 
-		// an object layout and it automatically serializes/deserializes stuff
-		// for you
-
-		AnimObject res;
+		AnimObject res = {};
 		// If the object is being read in from the file then it's not
 		// generated since all generated objects don't get saved
 		res.isGenerated = false;
@@ -1778,90 +2068,32 @@ namespace MathAnim
 		res.drawControlPoints = false;
 		res.percentCreated = 0.0f;
 
-		// AnimObjectType     -> uint32
-		// _PositionStart     -> Vec3
-		// RotationStart      -> Vec3
-		// ScaleStart         -> Vec3
-		// _FillColorStart    -> Vec4U8
-		// _StrokeColorStart  -> Vec4U8
-		// 
-		// _StrokeWidthStart  -> f32
-		// svgScale           -> f32
-		// 
-		// isTransparent      -> u8
-		// is3D               -> u8
-		// drawDebugBoxes     -> u8
-		// drawCurveDebugBoxes -> u8
-		// 
-		// Id                   -> AnimObjId
-		// ParentId             -> AnimObjId
-		// NumGeneratedChildren -> uint32
-		// GeneratedChildrenIds -> AnimObjId[numGeneratedChildren]
-		//
-		// numRefAnimations     -> uint32
-		// referencedAnimations -> AnimId[numObjects]
-		// 
-		// NameLength         -> uint32
-		// Name               -> uint8[NameLength + 1]
 		// AnimObject Specific Data
-		uint32 animObjectType;
-		memory.read<uint32>(&animObjectType);
-		g_logger_assert(animObjectType < (uint32)AnimObjectTypeV1::Length, "Invalid AnimObjectType '%d' from memory. Must be corrupted memory.", animObjectType);
-		res.objectType = (AnimObjectTypeV1)animObjectType;
-		res._positionStart = CMath::deserializeVec3(memory);
-		res._rotationStart = CMath::deserializeVec3(memory);
-		res._scaleStart = CMath::deserializeVec3(memory);
-		res._fillColorStart = CMath::deserializeU8Vec4(memory);
-		res._strokeColorStart = CMath::deserializeU8Vec4(memory);
+		DESERIALIZE_ENUM(&res, objectType, _animationObjectTypeNames, AnimObjectTypeV1, j);
+		DESERIALIZE_VEC3(&res, _positionStart, j, (Vec3{0, 0, 0}));
+		DESERIALIZE_VEC3(&res, _rotationStart, j, (Vec3{0, 0, 0}));
+		DESERIALIZE_VEC3(&res, _scaleStart, j, (Vec3{1, 1, 1}));
+		DESERIALIZE_GLM_U8VEC4(&res, _fillColorStart, j, glm::u8vec4(255, 255, 255, 255));
+		DESERIALIZE_GLM_U8VEC4(&res, _strokeColorStart, j, glm::u8vec4(255, 255, 255, 255));
 
-		memory.read<float>(&res._strokeWidthStart);
-		memory.read<float>(&res.svgScale);
+		DESERIALIZE_PROP(&res, _strokeWidthStart, j, 0.0f);
+		DESERIALIZE_PROP(&res, svgScale, j, 0.0f);
+		DESERIALIZE_PROP(&res, isTransparent, j, false);
+		DESERIALIZE_PROP(&res, is3D, j, false);
+		DESERIALIZE_PROP(&res, drawDebugBoxes, j, false);
+		DESERIALIZE_PROP(&res, drawCurveDebugBoxes, j, false);
 
-		uint8 isTransparent;
-		memory.read<uint8>(&isTransparent);
-		res.isTransparent = isTransparent != 0;
-
-		uint8 is3D;
-		memory.read<uint8>(&is3D);
-		res.is3D = is3D != 0;
-
-		uint8 drawDebugBoxes;
-		memory.read<uint8>(&drawDebugBoxes);
-		res.drawDebugBoxes = drawDebugBoxes != 0;
-
-		uint8 drawCurveDebugBoxes;
-		memory.read<uint8>(&drawCurveDebugBoxes);
-		res.drawCurveDebugBoxes = drawCurveDebugBoxes != 0;
-
-		memory.read<AnimObjId>(&res.id);
-		animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
-		memory.read<AnimObjId>(&res.parentId);
-
-		uint32 numGeneratedChildrenIds;
-		memory.read<uint32>(&numGeneratedChildrenIds);
-		res.generatedChildrenIds.reserve(numGeneratedChildrenIds);
-		for (uint32 i = 0; i < numGeneratedChildrenIds; i++)
+		DESERIALIZE_ID(&res, parentId, j);
+		DESERIALIZE_ID(&res, id, j);
+		if (!isNull(res.id))
 		{
-			AnimObjId childId;
-			memory.read<AnimObjId>(&childId);
-			res.generatedChildrenIds.push_back(childId);
+			animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
 		}
 
-		uint32 numReferencedAnimations;
-		memory.read<uint32>(&numReferencedAnimations);
-		for (uint32 i = 0; i < numReferencedAnimations; i++)
-		{
-			AnimId refAnim;
-			memory.read<AnimId>(&refAnim);
-			res.referencedAnimations.insert(refAnim);
-		}
+		DESERIALIZE_ID_ARRAY(&res, generatedChildrenIds, j);
+		DESERIALIZE_ID_SET(&res, referencedAnimations, j);
 
-		if (!memory.read<uint32>(&res.nameLength))
-		{
-			g_logger_assert(false, "Corrupted project data. Irrecoverable.");
-		}
-		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
-		memory.readDangerous(res.name, res.nameLength + 1);
+		DESERIALIZE_NULLABLE_U8_CSTRING(&res, name, j);
 
 		// Initialize other variables
 		res.position = res._positionStart;
@@ -1875,52 +2107,52 @@ namespace MathAnim
 		res.svgObject = nullptr;
 		res._svgObjectStart = nullptr;
 
-		// We're in V1 so this is version 1
-		constexpr uint32 version = 1;
+		// We're in V2 so this is version 2
+		constexpr uint32 version = 2;
 		switch (res.objectType)
 		{
 		case AnimObjectTypeV1::TextObject:
-			res.as.textObject = TextObject::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.textObject, TextObject, version, j);
 			break;
 		case AnimObjectTypeV1::LaTexObject:
-			res.as.laTexObject = LaTexObject::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.laTexObject, LaTexObject, version, j);
 			break;
 		case AnimObjectTypeV1::Square:
-			res.as.square = Square::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.square, Square, version, j);
 			res.as.square.init(&res);
 			break;
 		case AnimObjectTypeV1::SvgObject:
-			res._svgObjectStart = SvgObject::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, _svgObjectStart, SvgObject, version, j);
 			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 			*res.svgObject = Svg::createDefault();
 			Svg::copy(res.svgObject, res._svgObjectStart);
 			break;
 		case AnimObjectTypeV1::Circle:
-			res.as.circle = Circle::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.circle, Circle, version, j);
 			res.as.circle.init(&res);
 			break;
 		case AnimObjectTypeV1::Cube:
-			res.as.cube = Cube::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.cube, Cube, version, j);
 			res.as.cube.init(&res);
 			break;
 		case AnimObjectTypeV1::Axis:
-			res.as.axis = Axis::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.axis, Axis, version, j);
 			res.as.axis.init(&res);
 			break;
 		case AnimObjectTypeV1::SvgFileObject:
-			res.as.svgFile = SvgFileObject::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.svgFile, SvgFileObject, version, j);
 			break;
 		case AnimObjectTypeV1::Camera:
-			res.as.camera = CameraObject::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.camera, CameraObject, version, j);
 			break;
 		case AnimObjectTypeV1::ScriptObject:
-			res.as.script = ScriptObject::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.script, ScriptObject, version, j);
 			break;
 		case AnimObjectTypeV1::CodeBlock:
-			res.as.codeBlock = CodeBlock::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.codeBlock, CodeBlock, version, j);
 			break;
 		case AnimObjectTypeV1::Arrow:
-			res.as.arrow = Arrow::deserialize(memory, version);
+			DESERIALIZE_OBJECT(&res, as.arrow, Arrow, version, j);
 			res.as.arrow.init(&res);
 			break;
 		case AnimObjectTypeV1::Length:
@@ -1931,56 +2163,30 @@ namespace MathAnim
 		return res;
 	}
 
-	Animation deserializeAnimationExV1(RawMemory& memory)
+	Animation deserializeAnimationV2(const nlohmann::json& j)
 	{
-		// type           -> uint32
-		// frameStart     -> int32
-		// duration       -> int32
-		// id             -> int32
-		// easeType       -> uint8
-		// easeDirection  -> uint8
-		// timelineTrack  -> int32
-		// playbackType   -> uint8
-		// lagRatio       -> f32
-		// 
-		// numObjects     -> uint32
-		// objectIds      -> AnimObjId[numObjects]
-		// Custom animation data -> dynamic
-		Animation res;
-		uint32 animType;
-		memory.read<uint32>(&animType);
-		g_logger_assert(animType < (uint32)AnimTypeV1::Length, "Invalid animation type '%d' from memory. Must be corrupted memory.", animType);
-		res.type = (AnimTypeV1)animType;
-		memory.read<int32>(&res.frameStart);
-		memory.read<int32>(&res.duration);
+		Animation res = {};
 
-		memory.read<AnimId>(&res.id);
-		animationUidCounter = glm::max(animationUidCounter, res.id + 1);
+		DESERIALIZE_ENUM(&res, type, _animationTypeNames, AnimTypeV1, j);
+		DESERIALIZE_PROP(&res, frameStart, j, 0.0f);
+		DESERIALIZE_PROP(&res, duration, j, 0.0f);
 
-		uint8 easeTypeInt, easeDirectionInt;
-		memory.read<uint8>(&easeTypeInt);
-		memory.read<uint8>(&easeDirectionInt);
-		g_logger_assert(easeTypeInt < (uint8)EaseType::Length, "Corrupted memory. Ease type was %d which is out of bounds.", easeTypeInt);
-		res.easeType = (EaseType)easeTypeInt;
-		g_logger_assert(easeDirectionInt < (uint8)EaseDirection::Length, "Corrupted memory. Ease direction was %d which is out of bounds.", easeDirectionInt);
-		res.easeDirection = (EaseDirection)easeDirectionInt;
-
-		memory.read<int32>(&res.timelineTrack);
-		uint8 playbackType;
-		memory.read<uint8>(&playbackType);
-		g_logger_assert(playbackType < (uint8)PlaybackType::Length, "Corrupted memory. PlaybackType was %d which is out of bounds.", playbackType);
-		res.playbackType = (PlaybackType)playbackType;
-		memory.read<float>(&res.lagRatio);
-
-		uint32 numObjects;
-		memory.read<uint32>(&numObjects);
-		for (uint32 i = 0; i < numObjects; i++)
+		DESERIALIZE_ID(&res, id, j);
+		if (!isNull(res.id))
 		{
-			AnimObjId tmp;
-			memory.read<AnimObjId>(&tmp);
-			res.animObjectIds.insert(tmp);
+			animationUidCounter = glm::max(animationUidCounter, res.id + 1);
 		}
 
+		DESERIALIZE_ENUM(&res, easeType, easeTypeNames, EaseType, j);
+		DESERIALIZE_ENUM(&res, easeDirection, easeDirectionNames, EaseDirection, j);
+
+		DESERIALIZE_PROP(&res, timelineTrack, j, 0);
+		DESERIALIZE_ENUM(&res, playbackType, _playbackTypeNames, PlaybackType, j);
+		DESERIALIZE_PROP(&res, lagRatio, j, 0.0f);
+
+		DESERIALIZE_ID_SET(&res, animObjectIds, j);
+
+		constexpr int version = 2;
 		switch (res.type)
 		{
 		case AnimTypeV1::Create:
@@ -1991,43 +2197,31 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::RotateTo:
 		case AnimTypeV1::Shift:
+			DESERIALIZE_VEC3(&res, as.modifyVec3.target, j, (Vec3{0, 0, 0}));
+			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
-			res.as.modifyU8Vec4.target = CMath::deserializeU8Vec4(memory);
+			DESERIALIZE_U8VEC4(&res, as.modifyU8Vec4.target, j, glm::u8vec4(227, 3, 252, 255));
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
 			break;
 		case AnimTypeV1::Transform:
-			res.as.replacementTransform = ReplacementTransformData::deserialize(memory);
+			DESERIALIZE_OBJECT(&res, as.replacementTransform, ReplacementTransformData, version, j);
 			break;
 		case AnimTypeV1::MoveTo:
-			res.as.moveTo = MoveToData::deserialize(memory);
+			DESERIALIZE_OBJECT(&res, as.moveTo, MoveToData, version, j);
 			break;
 		case AnimTypeV1::AnimateScale:
-			res.as.animateScale = AnimateScaleData::deserialize(memory);
+			DESERIALIZE_OBJECT(&res, as.animateScale, AnimateScaleData, version, j);
 			break;
 		case AnimTypeV1::Circumscribe:
-			res.as.circumscribe = Circumscribe::deserialize(memory);
+			DESERIALIZE_OBJECT(&res, as.circumscribe, Circumscribe, version, j);
 			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
 			break;
 		}
-
-		return res;
-	}
-
-	static CameraObject deserializeCameraObjectV1(RawMemory& memory)
-	{
-		//OrthoCamera camera2D;
-		//bool is2D;
-		//bool isActiveCamera;
-		CameraObject res;
-		res.camera2D = OrthoCamera::deserialize(memory, 1);
-		uint8 is2DU8;
-		memory.read<uint8>(&is2DU8);
-		res.is2D = is2DU8 == 1;
 
 		return res;
 	}

@@ -1,12 +1,12 @@
 #include "renderer/OrthoCamera.h"
 #include "core/Application.h"
+#include "core/Serialization.hpp"
 #include "math/CMath.h"
+
+#include <nlohmann/json.hpp>
 
 namespace MathAnim
 {
-	// -------------- Internal Functions --------------
-	static OrthoCamera deserializeCameraV1(RawMemory& memory);
-
 	glm::mat4 OrthoCamera::calculateViewMatrix() const
 	{
 		glm::vec3 forward = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -38,38 +38,44 @@ namespace MathAnim
 		return Vec2{ res.x, res.y };
 	}
 
-	void OrthoCamera::serialize(RawMemory& memory) const
+	void OrthoCamera::serialize(nlohmann::json& memory) const
 	{
-		// position        -> Vec2
-		// projectionSize  -> Vec2
-		// zoom            -> float
-		CMath::serialize(memory, position);
-		CMath::serialize(memory, projectionSize);
-		memory.write<float>(&zoom);
+		SERIALIZE_VEC(memory, this, position);
+		SERIALIZE_VEC(memory, this, projectionSize);
+		SERIALIZE_NON_NULL_PROP(memory, this, zoom);
 	}
 
-	OrthoCamera OrthoCamera::deserialize(RawMemory& memory, uint32 version)
+	OrthoCamera OrthoCamera::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		if (version == 2)
+		{
+			OrthoCamera res = {};
+			DESERIALIZE_VEC2(&res, position, j, (Vec2{ 0, 0 }));
+			DESERIALIZE_VEC2(&res, projectionSize, j, (Vec2{ 18, 9 }));
+			DESERIALIZE_PROP(&res, zoom, j, 1.0f);
+			return res;
+		}
+
+		g_logger_warning("Unknown camera version: %d", version);
+		return {};
+	}
+
+	OrthoCamera OrthoCamera::legacy_deserialize(RawMemory& memory, uint32 version)
 	{
 		if (version == 1)
 		{
-			return deserializeCameraV1(memory);
+			// position        -> Vec2
+			// projectionSize  -> Vec2
+			// zoom            -> float
+			OrthoCamera res = {};
+			res.position = CMath::legacy_deserializeVec2(memory);
+			res.projectionSize = CMath::legacy_deserializeVec2(memory);
+			memory.read<float>(&res.zoom);
+
+			return res;
 		}
 
 		OrthoCamera res = {};
-		return res;
-	}
-
-	// -------------- Internal Functions --------------
-	static OrthoCamera deserializeCameraV1(RawMemory& memory)
-	{
-		// position        -> Vec2
-		// projectionSize  -> Vec2
-		// zoom            -> float
-		OrthoCamera res = {};
-		res.position = CMath::deserializeVec2(memory);
-		res.projectionSize = CMath::deserializeVec2(memory);
-		memory.read<float>(&res.zoom);
-
 		return res;
 	}
 }

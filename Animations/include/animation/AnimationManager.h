@@ -3,6 +3,8 @@
 #include "core.h"
 #include "animation/Animation.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 namespace MathAnim
 {
 	struct AnimObject;
@@ -54,9 +56,12 @@ namespace MathAnim
 		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId obj);
 		AnimObjId getNextSibling(const AnimationManagerData* am, AnimObjId obj);
 
-		RawMemory serialize(const AnimationManagerData* am);
-		void deserialize(AnimationManagerData* am, RawMemory& memory, int currentFrame);
+		void serialize(const AnimationManagerData* am, nlohmann::json& j);
+		void deserialize(AnimationManagerData* am, const nlohmann::json& j, int currentFrame, uint32 versionMajor, uint32 versionMinor);
 		void sortAnimations(AnimationManagerData* am);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		void legacy_deserialize(AnimationManagerData* am, RawMemory& memory, int currentFrame);
 
 		void retargetSvgScales(AnimationManagerData* am);
 

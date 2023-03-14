@@ -10,6 +10,9 @@
 #include "math/CMath.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
+#include "core/Serialization.hpp"
+
+#include <nlohmann/json.hpp>
 
 namespace MathAnim
 {
@@ -43,23 +46,23 @@ namespace MathAnim
 	namespace AnimationManager
 	{
 		// -------- Internal Functions --------
-		static void deserializeAnimationManagerExV1(AnimationManagerData *am, RawMemory &memory);
-		static bool compareAnimation(const Animation &a1, const Animation &a2);
-		static void updateGlobalTransform(AnimObject &obj, const glm::mat4 &parentTransform, const glm::mat4 &parentTransformStart);
-		static void addQueuedAnimObject(AnimationManagerData *am, const AnimObject &obj);
-		static void addQueuedAnimation(AnimationManagerData *am, const Animation &anim);
-		static void removeQueuedAnimObject(AnimationManagerData *am, AnimObjId animObj);
-		static void removeQueuedAnimation(AnimationManagerData *am, AnimId animation);
-		static bool removeSingleAnimObject(AnimationManagerData *am, AnimObjId animObj);
-		static void applyDelta(AnimationManagerData *am, int deltaFrame);
-		static void applyAnimationsFrom(AnimationManagerData *am, int startIndex, int frame, bool calculateKeyframes = false);
+		static void deserializeAnimationManagerV2(AnimationManagerData* am, const nlohmann::json& j);
+		static bool compareAnimation(const Animation& a1, const Animation& a2);
+		static void updateGlobalTransform(AnimObject& obj, const glm::mat4& parentTransform, const glm::mat4& parentTransformStart);
+		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj);
+		static void addQueuedAnimation(AnimationManagerData* am, const Animation& anim);
+		static void removeQueuedAnimObject(AnimationManagerData* am, AnimObjId animObj);
+		static void removeQueuedAnimation(AnimationManagerData* am, AnimId animation);
+		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj);
+		static void applyDelta(AnimationManagerData* am, int deltaFrame);
+		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int frame, bool calculateKeyframes = false);
 
-		AnimationManagerData *create()
+		AnimationManagerData* create()
 		{
 			void *animManagerMemory = g_memory_allocate(sizeof(AnimationManagerData));
 			// Placement new to ensure the vectors and stuff are appropriately constructed
 			// but I can still use my memory tracker
-			AnimationManagerData *res = new (animManagerMemory) AnimationManagerData();
+			AnimationManagerData* res = new (animManagerMemory) AnimationManagerData();
 
 			res->startingActiveCamera = NULL_ANIM_OBJECT;
 			res->currentFrame = 0;
@@ -323,36 +326,36 @@ namespace MathAnim
 									   .build();
 
 			Texture activeObjectsOutlineMask = TextureBuilder()
-												   .setFormat(ByteFormat::RGBA16_F)
-												   .setMinFilter(FilterMode::Nearest)
-												   .setMagFilter(FilterMode::Nearest)
-												   // TODO: Should we have a smaller framebuffer for outlines?
-												   // We could potentially make it 2x or 3x smaller and then just
-												   // render to that instead of having it attached to the main framebuffer
-												   .setWidth(outputWidth)
-												   .setHeight(outputHeight)
-												   .build();
+				.setFormat(ByteFormat::RGBA16_F)
+				.setMinFilter(FilterMode::Nearest)
+				.setMagFilter(FilterMode::Nearest)
+				// TODO: Should we have a smaller framebuffer for outlines?
+				// We could potentially make it 2x or 3x smaller and then just
+				// render to that instead of having it attached to the main framebuffer
+				.setWidth(outputWidth)
+				.setHeight(outputHeight)
+				.build();
 
 			Texture activeObjectsOutlineMask2 = TextureBuilder()
-													.setFormat(ByteFormat::RGBA16_F)
-													.setMinFilter(FilterMode::Nearest)
-													.setMagFilter(FilterMode::Nearest)
-													// TODO: Should we have a smaller framebuffer for outlines?
-													// We could potentially make it 2x or 3x smaller and then just
-													// render to that instead of having it attached to the main framebuffer
-													.setWidth(outputWidth)
-													.setHeight(outputHeight)
-													.build();
+				.setFormat(ByteFormat::RGBA16_F)
+				.setMinFilter(FilterMode::Nearest)
+				.setMagFilter(FilterMode::Nearest)
+				// TODO: Should we have a smaller framebuffer for outlines?
+				// We could potentially make it 2x or 3x smaller and then just
+				// render to that instead of having it attached to the main framebuffer
+				.setWidth(outputWidth)
+				.setHeight(outputHeight)
+				.build();
 
 			Framebuffer res = FramebufferBuilder(outputWidth, outputHeight)
-								  .addColorAttachment(compositeTexture)
-								  .addColorAttachment(accumulationTexture)
-								  .addColorAttachment(revelageTexture)
-								  .addColorAttachment(objIdTexture)
-								  .addColorAttachment(activeObjectsOutlineMask)
-								  .addColorAttachment(activeObjectsOutlineMask2)
-								  .includeDepthStencil()
-								  .generate();
+				.addColorAttachment(compositeTexture)
+				.addColorAttachment(accumulationTexture)
+				.addColorAttachment(revelageTexture)
+				.addColorAttachment(objIdTexture)
+				.addColorAttachment(activeObjectsOutlineMask)
+				.addColorAttachment(activeObjectsOutlineMask2)
+				.includeDepthStencil()
+				.generate();
 
 			return res;
 		}
@@ -575,53 +578,65 @@ namespace MathAnim
 			return objId;
 		}
 
-		RawMemory serialize(const AnimationManagerData *am)
+		void serialize(const AnimationManagerData* am, nlohmann::json& output)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			// This data should always be present regardless of file version
-			// Container data layout
-			// magicNumber   -> uint32
-			// version       -> uint32
-			RawMemory memory;
-			memory.init(sizeof(uint32) + sizeof(uint32));
-			memory.write<uint32>(&MAGIC_NUMBER);
-			memory.write<uint32>(&SERIALIZER_VERSION);
-
 			// Custom data starts here. Subject to change from version to version
-			// startingActiveCamera -> AnimObjId
-			// numAnimations -> uint32
-			// animations    -> dynamic
-			memory.write<AnimObjId>(&am->startingActiveCamera);
-			uint32 numAnimations = (uint32)am->animations.size();
-			memory.write<uint32>(&numAnimations);
+			writeIdToJson("StartingActiveCamera", am->startingActiveCamera, output);
+			output["Animations"] = nlohmann::json::array();
 
-			// Write out each animation followed by 0xDEADBEEF
+			// Write out each animation
 			for (int i = 0; i < am->animations.size(); i++)
 			{
-				am->animations[i].serialize(memory);
-				memory.write<uint32>(&MAGIC_NUMBER);
+				nlohmann::json animJson = nlohmann::json();
+				am->animations[i].serialize(animJson);
+				output["Animations"].emplace_back(animJson);
 			}
 
-			// numAnimObjects -> uint32
-			// animObjects    -> dynamic
-			uint32 numAnimObjects = (uint32)am->objects.size();
-			memory.write<uint32>(&numAnimObjects);
-
-			// Write out each anim object followed by 0xDEADBEEF
+			// Write out each anim object
+			output["AnimationObjects"] = nlohmann::json::array();
 			for (int i = 0; i < am->objects.size(); i++)
 			{
-				am->objects[i].serialize(memory);
-				memory.write<uint32>(&MAGIC_NUMBER);
+				nlohmann::json animObjectJson = nlohmann::json();
+				am->objects[i].serialize(animObjectJson);
+				output["AnimationObjects"].emplace_back(animObjectJson);
 			}
-
-			memory.shrinkToFit();
-
-			return memory;
 		}
 
-		void deserialize(AnimationManagerData *am, RawMemory &memory, int currentFrame)
+		void deserialize(AnimationManagerData* am, const nlohmann::json& j, int currentFrame, uint32 versionMajor, uint32 versionMinor)
 		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+			
+			if (versionMajor == 2)
+			{
+				deserializeAnimationManagerV2(am, j);
+				am->currentFrame = currentFrame;
+				// Calculate all key frame starting points and stuff
+				calculateAnimationKeyFrames(am);
+				// Apply all  animations appropriately
+				Application::resetToFrame(currentFrame);
+				resetToFrame(am, currentFrame);
+			}
+			else
+			{
+				g_logger_error("AnimationManager tried to deserialize save file with unknown version '%d.%d'.", versionMajor, versionMinor);
+			}
+
+			// Need to sort animations they get applied in the correct order
+			sortAnimations(am);
+		}
+
+		void sortAnimations(AnimationManagerData* am)
+		{
+			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
+
+			std::sort(am->animations.begin(), am->animations.end(), compareAnimation);
+		}
+
+		void legacy_deserialize(AnimationManagerData* am, RawMemory& memory, int currentFrame)
+		{
+			// TODO: Deprecate me
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			// Read magic number and version then dispatch to appropraite
@@ -634,11 +649,50 @@ namespace MathAnim
 			memory.read<uint32>(&serializerVersion);
 
 			g_logger_assert(magicNumber == MAGIC_NUMBER, "Project file had invalid magic number '0x%8x'. File must have been corrupted.", magicNumber);
-			g_logger_assert((serializerVersion != 0 && serializerVersion <= SERIALIZER_VERSION), "Project file saved with invalid version '%d'. Looks like corrupted data.", serializerVersion);
+			g_logger_assert((serializerVersion != 0 && serializerVersion <= 1), "Project file saved with invalid version '%d'. Looks like corrupted data.", serializerVersion);
 
 			if (serializerVersion == 1)
 			{
-				deserializeAnimationManagerExV1(am, memory);
+				{
+					// We're in function V1 so this is a version 1 for sure
+					constexpr uint32 version = 1;
+
+					// startingActiveCamera -> AnimObjId
+					// numAnimations -> uint32
+					// animations    -> dynamic
+					memory.read<AnimObjId>(&am->startingActiveCamera);
+					am->activeCamera = am->startingActiveCamera;
+					uint32 numAnimations;
+					memory.read<uint32>(&numAnimations);
+
+					// Read each animation followed by 0xDEADBEEF
+					for (uint32 i = 0; i < numAnimations; i++)
+					{
+						Animation animation = Animation::legacy_deserialize(memory, version);
+						am->animations.push_back(animation);
+						memory.read<uint32>(&magicNumber);
+						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+
+						am->animationIdMap[animation.id] = i;
+					}
+
+					// numAnimObjects -> uint32
+					// animObjects    -> dynamic
+					uint32 numAnimObjects;
+					memory.read<uint32>(&numAnimObjects);
+
+					// Read each anim object followed by 0xDEADBEEF
+					for (uint32 i = 0; i < numAnimObjects; i++)
+					{
+						AnimObject animObject = AnimObject::legacy_deserialize(am, memory, version);
+						am->objects.push_back(animObject);
+						memory.read<uint32>(&magicNumber);
+						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+
+						am->objectIdMap[animObject.id] = i;
+					}
+				}
+
 				am->currentFrame = currentFrame;
 				// Calculate all key frame starting points and stuff
 				calculateAnimationKeyFrames(am);
@@ -655,14 +709,7 @@ namespace MathAnim
 			sortAnimations(am);
 		}
 
-		void sortAnimations(AnimationManagerData *am)
-		{
-			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
-
-			std::sort(am->animations.begin(), am->animations.end(), compareAnimation);
-		}
-
-		void retargetSvgScales(AnimationManagerData *am)
+		void retargetSvgScales(AnimationManagerData* am)
 		{
 			for (int i = 0; i < am->objects.size(); i++)
 			{
@@ -759,8 +806,8 @@ namespace MathAnim
 			// Update all children
 			// Loop through each object and recursively update the bboxes by appending children to the queue
 			// Update child transform
-			AnimObject *nextObj = getMutableObject(am, obj);
-			if (obj)
+			AnimObject* nextObj = getMutableObject(am, obj);
+			if (nextObj)
 			{
 				glm::vec3 scaleFactor, skew, translation;
 				glm::quat orientation;
@@ -868,47 +915,32 @@ namespace MathAnim
 		}
 
 		// -------- Internal Functions --------
-		static void deserializeAnimationManagerExV1(AnimationManagerData *am, RawMemory &memory)
+		static void deserializeAnimationManagerV2(AnimationManagerData* am, const nlohmann::json& j)
 		{
-			// We're in function V1 so this is a version 1 for sure
-			constexpr uint32 version = 1;
+			// We're in function V2 so this is a version 2 for sure
+			constexpr uint32 version = 2;
 
-			// startingActiveCamera -> AnimObjId
-			// numAnimations -> uint32
-			// animations    -> dynamic
-			memory.read<AnimObjId>(&am->startingActiveCamera);
+			am->startingActiveCamera = readIdFromJson(j, "StartingActiveCamera");
 			am->activeCamera = am->startingActiveCamera;
-			uint32 numAnimations;
-			memory.read<uint32>(&numAnimations);
 
 			// Read each animation followed by 0xDEADBEEF
-			for (uint32 i = 0; i < numAnimations; i++)
+			for (size_t i = 0; i < j["Animations"].size(); i++)
 			{
-				Animation animation = Animation::deserialize(memory, version);
-				am->animations.push_back(animation);
-				uint32 magicNumber;
-				memory.read<uint32>(&magicNumber);
-				g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
-
+				Animation animation = Animation::deserialize(j["Animations"][i], version);
 				am->animationIdMap[animation.id] = i;
+				am->animations.emplace_back(animation);
 			}
-
-			// numAnimObjects -> uint32
-			// animObjects    -> dynamic
-			uint32 numAnimObjects;
-			memory.read<uint32>(&numAnimObjects);
 
 			// Read each anim object followed by 0xDEADBEEF
-			for (uint32 i = 0; i < numAnimObjects; i++)
+			for (size_t i = 0; i < j["AnimationObjects"].size(); i++)
 			{
-				AnimObject animObject = AnimObject::deserialize(am, memory, version);
-				am->objects.push_back(animObject);
-				uint32 magicNumber;
-				memory.read<uint32>(&magicNumber);
-				g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
-
+				AnimObject animObject = AnimObject::deserialize(am, j["AnimationObjects"][i], version);
 				am->objectIdMap[animObject.id] = i;
+				am->objects.emplace_back(animObject);
 			}
+
+			// Sort the animations afterwards since they could be inserted in random order
+			sortAnimations(am);
 		}
 
 		static bool compareAnimation(const Animation &a1, const Animation &a2)

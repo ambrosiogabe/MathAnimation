@@ -2,6 +2,8 @@
 #define MATH_ANIM_SHAPES_H
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 struct RawMemory;
 
 namespace MathAnim
@@ -13,9 +15,12 @@ namespace MathAnim
 		float sideLength;
 
 		void init(AnimObject* parent);
-		void serialize(RawMemory& memory) const;
 
-		static Square deserialize(RawMemory& memory, uint32 version);
+		void serialize(nlohmann::json& j) const;
+		static Square deserialize(const nlohmann::json& j, uint32 version);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static Square legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 
 	struct Circle
@@ -23,9 +28,12 @@ namespace MathAnim
 		float radius;
 
 		void init(AnimObject* parent);
-		void serialize(RawMemory& memory) const;
 
-		static Circle deserialize(RawMemory& memory, uint32 version);
+		void serialize(nlohmann::json& j) const;
+		static Circle deserialize(const nlohmann::json& j, uint32 version);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static Circle legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 
 	struct Arrow
@@ -36,9 +44,12 @@ namespace MathAnim
 		float tipLength;
 
 		void init(AnimObject* parent);
-		void serialize(RawMemory& memory) const;
 
-		static Arrow deserialize(RawMemory& memory, uint32 version);
+		void serialize(nlohmann::json& j) const;
+		static Arrow deserialize(const nlohmann::json& j, uint32 version);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static Arrow legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 
 	struct Cube
@@ -46,9 +57,12 @@ namespace MathAnim
 		float sideLength;
 
 		void init(AnimObject* parent);
-		void serialize(RawMemory& memory) const;
 
-		static Cube deserialize(RawMemory& memory, uint32 version);
+		void serialize(nlohmann::json& j) const;
+		static Cube deserialize(const nlohmann::json& j, uint32 version);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static Cube legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 }
 

@@ -762,6 +762,8 @@ namespace MathAnim
 					AnimationManager::setActiveOrthoCamera(am, object->id);
 				}
 			}
+
+			ImGui::ColorEdit4(": Background Color", &object->as.camera.fillColor.r);
 		}
 
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation)

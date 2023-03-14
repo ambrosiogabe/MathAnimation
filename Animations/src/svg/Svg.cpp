@@ -9,11 +9,13 @@
 #include "renderer/PerspectiveCamera.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
+#include "core/Serialization.hpp"
 #include "multithreading/GlobalThreadPool.h"
 #include "math/CMath.h"
-#include "platform/Platform.h"
+#include "platform/Platform.h" 
 
 #include <plutovg.h>
+#include <nlohmann/json.hpp>
 
 #ifndef isnan
 #include "math.h"
@@ -1655,23 +1657,45 @@ namespace MathAnim
 		approximatePerimeter = 0.0f;
 	}
 
-	void SvgObject::serialize(RawMemory& memory) const
+	void SvgObject::serialize(nlohmann::json& memory) const
 	{
-		std::string pathAsString = getPathAsString();
-		size_t pathLength = pathAsString.size();
-
-		// fillType         -> u8
-		// fillColor        -> Vec4
-		// pathLength       -> u64
-		// path             -> u8[pathLength]
-
-		memory.write<FillType>(&fillType);
-		CMath::serialize(memory, fillColor);
-		memory.write<uint64>(&pathLength);
-		memory.writeDangerous((const uint8*)pathAsString.c_str(), pathLength);
+		SERIALIZE_VEC(memory, this, fillColor);
+		SERIALIZE_ENUM(memory, this, fillType, _fillTypeNames);
+		// TODO: This is not type-checked. Add 'path' as a property to SVGs or 
+		// a filepath or something to make this type-safe
+		SERIALIZE_VALUE_INLINE(memory, path, getPathAsString());
 	}
 
-	SvgObject* SvgObject::deserialize(RawMemory& memory, uint32 version)
+	SvgObject* SvgObject::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		if (version == 2)
+		{
+			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+
+			DESERIALIZE_ENUM(res, fillType, _fillTypeNames, FillType, j);
+			DESERIALIZE_VEC4(res, fillColor, j, "#e303fc"_hex);
+			const std::string& pathStr = DESERIALIZE_VALUE_INLINE(j, path, "");
+
+			if (pathStr.size() > 0)
+			{
+				if (!SvgParser::parseSvgPath((const char*)pathStr.c_str(), pathStr.length(), res))
+				{
+					g_logger_error("Error deserializing SVG. Bad path data: '%s'", pathStr.c_str());
+				}
+			}
+			else
+			{
+				*res = Svg::createDefault();
+			}
+
+			return res;
+		}
+
+		g_logger_warning("Svg serialized with unknown version '%d'", version);
+		return nullptr;
+	}
+
+	SvgObject* SvgObject::legacy_deserialize(RawMemory& memory, uint32 version)
 	{
 		if (version == 1)
 		{
@@ -1682,7 +1706,7 @@ namespace MathAnim
 			// pathLength       -> u64
 			// path             -> u8[pathLength]
 			memory.read<FillType>(&res->fillType);
-			res->fillColor = CMath::deserializeVec4(memory);
+			res->fillColor = CMath::legacy_deserializeVec4(memory);
 			uint64 stringLength;
 			memory.read<uint64>(&stringLength);
 			uint8* string = (uint8*)g_memory_allocate(sizeof(uint8) * (stringLength + 1));

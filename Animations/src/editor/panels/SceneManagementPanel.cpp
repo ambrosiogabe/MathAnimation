@@ -2,8 +2,11 @@
 #include "editor/imgui/ImGuiExtended.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
+#include "core/Serialization.hpp"
 #include "renderer/Colors.h"
 #include "utils/FontAwesome.h"
+
+#include <nlohmann/json.hpp>
 
 namespace MathAnim
 {
@@ -71,14 +74,14 @@ namespace MathAnim
 					ImGui::BeginDisabled(isDisabled);
 					if (ImGui::MenuItem("Delete"))
 					{
-						// Delete the current scene
-						Application::deleteScene(sd.sceneNames[i]);
 						if (i == sd.currentScene)
 						{
 							// Change to the next scene if we deleted the current scene
 							sd.currentScene = (sd.currentScene + 1) % sd.sceneNames.size();
 							Application::changeSceneTo(sd.sceneNames[sd.currentScene], false);
 						}
+						// Delete the current scene
+						Application::deleteScene(sd.sceneNames[i]);
 						sd.sceneNames.erase(sd.sceneNames.begin() + i);
 						i--;
 					}
@@ -112,32 +115,21 @@ namespace MathAnim
 
 		}
 
-		RawMemory serialize(const SceneData& data)
+		void serialize(nlohmann::json& j, const SceneData& data)
 		{
-			// numScenes      -> i32
-			// sceneNames     -> strings[numScenes]
-			//    strLength   -> i32
-			//    string      -> u8[strLength]
-			// currentScene   -> i32
-			RawMemory res;
-			res.init(sizeof(SceneData));
+			SERIALIZE_SIMPLE_ARRAY(j, &data, sceneNames);
+			SERIALIZE_NON_NULL_PROP(j, &data, currentScene);
+		}
 
-			int32 numScenes = (int32)data.sceneNames.size();
-			res.write<int32>(&numScenes);
-			for (int i = 0; i < numScenes; i++)
-			{
-				int32 strLength = (int32)data.sceneNames[i].length();
-				res.write<int32>(&strLength);
-				res.writeDangerous((uint8*)data.sceneNames[i].c_str(), strLength * sizeof(uint8));
-			}
-
-			res.write<int32>(&data.currentScene);
-
-			res.shrinkToFit();
+		SceneData deserialize(const nlohmann::json& j)
+		{
+			SceneData res = {};
+			DESERIALIZE_SIMPLE_ARRAY(&res, sceneNames, j);
+			DESERIALIZE_PROP(&res, currentScene, j, 0);
 			return res;
 		}
 
-		SceneData deserialize(RawMemory& memory)
+		SceneData legacy_deserialize(RawMemory& memory)
 		{
 			// numScenes      -> i32
 			// sceneNames     -> strings[numScenes]
@@ -160,6 +152,11 @@ namespace MathAnim
 			}
 
 			memory.read<int32>(&res.currentScene);
+
+			if (res.currentScene >= res.sceneNames.size())
+			{
+				res.currentScene = (int)res.sceneNames.size() - 1;
+			}
 
 			return res;
 		}

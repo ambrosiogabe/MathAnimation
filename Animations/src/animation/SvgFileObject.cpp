@@ -1,15 +1,15 @@
 #include "animation/SvgFileObject.h"
 #include "animation/AnimationManager.h"
+#include "core/Serialization.hpp"
 #include "svg/Svg.h"
 #include "svg/SvgParser.h"
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/EditorSettings.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
-	// Internal Functions
-	static SvgFileObject deserializeSvgFileObjectV1(RawMemory& memory);
-
 	void SvgFileObject::init(AnimationManagerData* am, AnimObjId parentId)
 	{
 		if (!svgGroup)
@@ -103,15 +103,9 @@ namespace MathAnim
 		return setFilepath(std::string(newFilepath));
 	}
 
-	void SvgFileObject::serialize(RawMemory& memory) const
+	void SvgFileObject::serialize(nlohmann::json& memory) const
 	{
-		// filepathLength       -> u32
-		// filepath             -> u8[textLength]
-		memory.write<uint32>(&filepathLength);
-		if (filepathLength)
-		{
-			memory.writeDangerous((const uint8*)filepath, sizeof(uint8) * (filepathLength + 1));
-		}
+		SERIALIZE_NULLABLE_CSTRING(memory, this, filepath, "Undefined");
 	}
 
 	void SvgFileObject::free()
@@ -131,11 +125,58 @@ namespace MathAnim
 		}
 	}
 
-	SvgFileObject SvgFileObject::deserialize(RawMemory& memory, uint32 version)
+	SvgFileObject SvgFileObject::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		switch (version)
+		{
+		case 2:
+		{
+			SvgFileObject res = {};
+
+			DESERIALIZE_NULLABLE_CSTRING(&res, filepath, j);
+			if (std::strcmp(res.filepath, "Undefined") == 0)
+			{
+				g_memory_free(res.filepath);
+				res.filepath = nullptr;
+				res.filepathLength = 0;
+			}
+
+			res.svgGroup = nullptr;
+
+			return res;
+		}
+		break;
+		default:
+			break;
+		}
+
+		g_logger_error("SvgFileObject serialized with unknown version '%d'.", version);
+		return {};
+	}
+
+	SvgFileObject SvgFileObject::legacy_deserialize(RawMemory& memory, uint32 version)
 	{
 		if (version == 1)
 		{
-			return deserializeSvgFileObjectV1(memory);
+			SvgFileObject res = {};
+
+			// filepathLength       -> u32
+			// filepath             -> u8[textLength]
+
+			memory.read<uint32>(&res.filepathLength);
+			if (res.filepathLength > 0)
+			{
+				res.filepath = (char*)g_memory_allocate(sizeof(char) * (res.filepathLength + 1));
+				memory.readDangerous((uint8*)res.filepath, res.filepathLength * sizeof(uint8));
+				memory.read<char>(&res.filepath[res.filepathLength]);
+			}
+			else
+			{
+				res.filepath = nullptr;
+			}
+
+			res.svgGroup = nullptr;
+			return res;
 		}
 
 		g_logger_error("Invalid version '%d' while deserializing text object.", version);
@@ -149,31 +190,6 @@ namespace MathAnim
 		SvgFileObject res;
 		res.filepath = nullptr;
 		res.filepathLength = 0;
-		res.svgGroup = nullptr;
-
-		return res;
-	}
-
-	// -------------------- Internal Functions --------------------
-	static SvgFileObject deserializeSvgFileObjectV1(RawMemory& memory)
-	{
-		SvgFileObject res = {};
-
-		// filepathLength       -> u32
-		// filepath             -> u8[textLength]
-
-		memory.read<uint32>(&res.filepathLength);
-		if (res.filepathLength > 0)
-		{
-			res.filepath = (char*)g_memory_allocate(sizeof(char) * (res.filepathLength + 1));
-			memory.readDangerous((uint8*)res.filepath, res.filepathLength * sizeof(uint8));
-			memory.read<char>(&res.filepath[res.filepathLength]);
-		}
-		else
-		{
-			res.filepath = nullptr;
-		}
-
 		res.svgGroup = nullptr;
 
 		return res;

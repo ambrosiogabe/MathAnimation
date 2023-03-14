@@ -42,6 +42,7 @@
 #include <imgui.h>
 #include <oniguruma.h>
 #include <errno.h>
+#include <nlohmann/json.hpp>
 
 namespace MathAnim
 {
@@ -66,6 +67,7 @@ namespace MathAnim
 		static float accumulatedTime = 0.0f;
 		static std::filesystem::path currentProjectRoot;
 		static std::filesystem::path currentProjectTmpDir;
+		static std::filesystem::path currentProjectSceneDir;
 		static SceneData sceneData = {};
 		static bool reloadCurrentScene = false;
 		static bool saveCurrentSceneOnReload = true;
@@ -76,12 +78,17 @@ namespace MathAnim
 		static const char* winTitle = "Math Animations";
 
 		// ------- Internal Functions -------
-		static RawMemory serializeCameras();
-		static void deserializeCameras(RawMemory& cameraData);
-		static std::string sceneToFilename(const std::string& stringName);
+		static nlohmann::json serializeCameras();
+		static void deserializeCameras(const nlohmann::json& cameraData, uint32 version);
+		static std::string sceneToFilename(const std::string& stringName, const char* ext);
 		static void reloadCurrentSceneInternal();
 		static void initializeSceneSystems();
 		static void freeSceneSystems();
+
+		[[deprecated("This is for upgrading legacy projects created in beta")]]
+		static void legacy_loadScene(const std::string& sceneName);
+		[[deprecated("This is for upgrading legacy projects created in beta")]]
+		static void legacy_loadProject(const std::filesystem::path& projectRoot);
 
 		void init(const char* projectFile)
 		{
@@ -126,6 +133,8 @@ namespace MathAnim
 			currentProjectRoot = std::filesystem::path(projectFile).parent_path();
 			currentProjectTmpDir = currentProjectRoot / "tmp";
 			Platform::createDirIfNotExists(currentProjectTmpDir.string().c_str());
+			currentProjectSceneDir = currentProjectRoot / "scenes";
+			Platform::createDirIfNotExists(currentProjectSceneDir.string().c_str());
 
 			initializeSceneSystems();
 			loadProject(currentProjectRoot);
@@ -149,9 +158,6 @@ namespace MathAnim
 			int deltaFrame = 0;
 
 			svgCache->clearAll();
-
-			// TODO: Make this customizable through the project settings
-			const Vec4 greenBrown = "#272822FF"_hex;
 
 			while (isRunning && !window->shouldClose())
 			{
@@ -202,7 +208,6 @@ namespace MathAnim
 				{
 					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
 					Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
-					Renderer::clearFramebuffer(mainFramebuffer, greenBrown);
 					Renderer::renderToFramebuffer(mainFramebuffer, am);
 
 					Renderer::clearDrawCalls();
@@ -218,7 +223,7 @@ namespace MathAnim
 						// Then render the rest of the stuff
 						MP_PROFILE_EVENT("MainLoop_RenderToEditorViewport");
 						editorFramebuffer.clearDepthStencil();
-						AnimationManager::render(am, deltaFrame);
+						AnimationManager::render(am, 0);
 						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera2D, editorCamera3D);
 
 						Renderer::clearDrawCalls();
@@ -279,9 +284,8 @@ namespace MathAnim
 			// If the window is closing, save the last rendered frame to a preview image
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
-			AnimationManager::render(am, deltaFrame);
+			AnimationManager::render(am, 0);
 			Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
-			Renderer::clearFramebuffer(mainFramebuffer, greenBrown);
 			Renderer::renderToFramebuffer(mainFramebuffer, am);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path outputFile = (currentProjectRoot / "projectPreview.png");
@@ -359,54 +363,98 @@ namespace MathAnim
 
 		void saveProject()
 		{
-			RawMemory sceneDataMemory = SceneManagementPanel::serialize(sceneData);
-
-			TableOfContents tableOfContents;
-			tableOfContents.init();
-			tableOfContents.addEntry(sceneDataMemory, "Scene_Data");
-
-			std::string projectFilepath = (currentProjectRoot / "project.bin").string();
-			tableOfContents.serialize(projectFilepath.c_str());
-
-			sceneDataMemory.free();
-			tableOfContents.free();
+			nlohmann::json projectJson = {};
+			SceneManagementPanel::serialize(projectJson["sceneManager"], sceneData);
+			try
+			{
+				std::string projectFilepath = (currentProjectRoot / "project.json").string();
+				std::ofstream jsonFile(projectFilepath);
+				jsonFile << projectJson << std::endl;
+			}
+			catch (const std::exception& ex)
+			{
+				g_logger_error("Failed to save current scene with error: '%s'", ex.what());
+			}
 
 			saveCurrentScene();
 		}
 
 		void saveCurrentScene()
 		{
-			RawMemory animationData = AnimationManager::serialize(am);
-			RawMemory timelineData = Timeline::serialize(EditorGui::getTimelineData());
-			RawMemory cameraData = serializeCameras();
+			// Write data to json files
+			nlohmann::json sceneJson = nlohmann::json();
 
-			TableOfContents tableOfContents;
-			tableOfContents.init();
+			// This data should always be present regardless of file version
+			// Container data layout
+			sceneJson["Version"]["Major"] = SERIALIZER_VERSION_MAJOR;
+			sceneJson["Version"]["Minor"] = SERIALIZER_VERSION_MINOR;
+			sceneJson["Version"]["Full"] = std::to_string(SERIALIZER_VERSION_MAJOR) + "." + std::to_string(SERIALIZER_VERSION_MINOR);
 
-			tableOfContents.addEntry(animationData, "Animation_Data");
-			tableOfContents.addEntry(timelineData, "Timeline_Data");
-			tableOfContents.addEntry(cameraData, "Camera_Data");
+			AnimationManager::serialize(am, sceneJson["AnimationManager"]);
+			Timeline::serialize(EditorGui::getTimelineData(), sceneJson["TimelineData"]);
+			sceneJson["EditorCameras"] = serializeCameras();
 
-			std::string filepath = (currentProjectRoot / sceneToFilename(sceneData.sceneNames[sceneData.currentScene])).string();
-			tableOfContents.serialize(filepath.c_str());
-
-			animationData.free();
-			timelineData.free();
-			cameraData.free();
-			tableOfContents.free();
+			try
+			{
+				// TODO: bson should be faster, but it does increase size a bit. Consider switching to
+				// bson files and adding options to export projects as formatted JSON for debugging
+				std::string jsonFilepath = (currentProjectSceneDir / sceneToFilename(sceneData.sceneNames[sceneData.currentScene], ".json")).string();
+				std::ofstream jsonFile(jsonFilepath);
+				jsonFile << sceneJson << std::endl;
+			}
+			catch (const std::exception& ex)
+			{
+				g_logger_error("Failed to save current scene with error: '%s'", ex.what());
+			}
 		}
 
 		void loadProject(const std::filesystem::path& projectRoot)
 		{
-			std::string projectFilepath = (projectRoot / "project.bin").string();
+			std::string projectFilepath = (projectRoot / "project.json").string();
 			if (!Platform::fileExists(projectFilepath.c_str()))
 			{
+				// If a legacy project exists load that instead
+				std::string legacyProjectFilepath = (projectRoot / "project.bin").string();
+				if (Platform::fileExists(legacyProjectFilepath.c_str()))
+				{
+					legacy_loadProject(projectRoot);
+					return;
+				}
+
+				// Otherwise create an empty scene and initialize a new project
 				// Save empty project now
 				sceneData.sceneNames.push_back("New Scene");
 				sceneData.currentScene = 0;
 				// This should create a default scene since nothing exists
 				loadScene(sceneData.sceneNames[sceneData.currentScene]);
 				saveProject();
+				return;
+			}
+
+			try
+			{
+				std::ifstream inputFile(projectFilepath);
+				nlohmann::json projectJson;
+				inputFile >> projectJson;
+
+				if (projectJson.contains("sceneManager") && !projectJson["sceneManager"].is_null())
+				{
+					sceneData = SceneManagementPanel::deserialize(projectJson["sceneManager"]);
+					loadScene(sceneData.sceneNames[sceneData.currentScene]);
+				}
+			}
+			catch (const std::exception& ex)
+			{
+				g_logger_error("Failed to load project '%s' with error: '%s'", projectFilepath.c_str(), ex.what());
+			}
+		}
+
+		static void legacy_loadProject(const std::filesystem::path& projectRoot)
+		{
+			std::string projectFilepath = (projectRoot / "project.bin").string();
+			if (!Platform::fileExists(projectFilepath.c_str()))
+			{
+				g_logger_error("LEGACY: Failed to upgrade legacy project.bin file to json.");
 				return;
 			}
 
@@ -434,7 +482,7 @@ namespace MathAnim
 
 			if (sceneDataMemory.data)
 			{
-				sceneData = SceneManagementPanel::deserialize(sceneDataMemory);
+				sceneData = SceneManagementPanel::legacy_deserialize(sceneDataMemory);
 				loadScene(sceneData.sceneNames[sceneData.currentScene]);
 			}
 
@@ -443,17 +491,85 @@ namespace MathAnim
 
 		void loadScene(const std::string& sceneName)
 		{
-			std::string filepath = (currentProjectRoot / sceneToFilename(sceneName)).string();
+			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
 			if (!Platform::fileExists(filepath.c_str()))
 			{
-				// Load default scene template
-				filepath = "./assets/sceneTemplates/default.bin";
+				// Check if a legacy project exists and try to load that, if loading fails
+				// then load an empty project
+				std::string legacyFilepath = (currentProjectRoot / sceneToFilename(sceneName, ".bin")).string();
+				if (Platform::fileExists(legacyFilepath.c_str()))
+				{
+					legacy_loadScene(sceneName);
+					return;
+				}
+				else
+				{
+					// Load default scene template
+					filepath = "./assets/sceneTemplates/default.json";
+				}
+			}
+
+			if (!Platform::fileExists(filepath.c_str()))
+			{
+				g_logger_error("Missing scene file '%s'. Cannot load scene.", filepath.c_str());
+				resetToFrame(0);
+				return;
+			}
+
+			try
+			{
+				std::ifstream inputFile(filepath);
+				nlohmann::json sceneJson;
+				inputFile >> sceneJson;
+
+				// Read version
+				uint32 versionMajor = 0;
+				uint32 versionMinor = 0;
+				if (sceneJson.contains("Version"))
+				{
+					if (sceneJson["Version"].contains("Major") && sceneJson["Version"].contains("Minor"))
+					{
+						versionMajor = sceneJson["Version"]["Major"];
+						versionMinor = sceneJson["Version"]["Minor"];
+					}
+				}
+
+				int loadedProjectCurrentFrame = 0;
+				if (sceneJson.contains("TimelineData") && !sceneJson["TimelineData"].is_null())
+				{
+					TimelineData timeline = Timeline::deserialize(sceneJson["TimelineData"]);
+					EditorGui::setTimelineData(timeline);
+					loadedProjectCurrentFrame = timeline.currentFrame;
+				}
+
+				if (sceneJson.contains("AnimationManager") && !sceneJson["AnimationManager"].is_null())
+				{
+					AnimationManager::deserialize(am, sceneJson["AnimationManager"], loadedProjectCurrentFrame, versionMajor, versionMinor);
+					// Flush any pending objects to be created for real
+					AnimationManager::endFrame(am);
+				}
+
+				deserializeCameras(sceneJson["EditorCameras"], versionMajor);
+			}
+			catch (const std::exception& ex)
+			{
+				g_logger_error("Failed to load scene '%s' with error: '%s'", filepath.c_str(), ex.what());
+			}
+		}
+
+		static void legacy_loadScene(const std::string& sceneName)
+		{
+			std::string filepath = (currentProjectRoot / sceneToFilename(sceneName, ".bin")).string();
+			if (!Platform::fileExists(filepath.c_str()))
+			{
+				g_logger_error("LEGACY: No legacy project, aborting legacy upgrade.");
+				return;
 			}
 
 			FILE* fp = fopen(filepath.c_str(), "rb");
 			if (!fp)
 			{
-				g_logger_warning("Could not load scene '%s', error opening file.", filepath.c_str());
+				g_logger_warning("LEGACY: Could not load scene '%s', error opening file.", filepath.c_str());
 				resetToFrame(0);
 				return;
 			}
@@ -478,20 +594,26 @@ namespace MathAnim
 			int loadedProjectCurrentFrame = 0;
 			if (timelineData.data)
 			{
-				TimelineData timeline = Timeline::deserialize(timelineData);
+				TimelineData timeline = Timeline::legacy_deserialize(timelineData);
 				EditorGui::setTimelineData(timeline);
 				loadedProjectCurrentFrame = timeline.currentFrame;
 			}
 			if (animationData.data)
 			{
-				AnimationManager::deserialize(am, animationData, loadedProjectCurrentFrame);
+				AnimationManager::legacy_deserialize(am, animationData, loadedProjectCurrentFrame);
 				// Flush any pending objects to be created for real
 				AnimationManager::endFrame(am);
 
 			}
 			if (cameraData.data)
 			{
-				deserializeCameras(cameraData);
+				// Version    -> u32
+				// camera2D   -> OrthoCamera
+				// camera3D   -> PerspCamera
+				uint32 version = 1;
+				cameraData.read<uint32>(&version);
+				editorCamera2D = OrthoCamera::legacy_deserialize(cameraData, version);
+				editorCamera3D = PerspectiveCamera::legacy_deserialize(cameraData, version);
 			}
 
 			animationData.free();
@@ -501,7 +623,19 @@ namespace MathAnim
 
 		void deleteScene(const std::string& sceneName)
 		{
-			std::string filepath = (currentProjectRoot / sceneToFilename(sceneName)).string();
+			for (int i = 0; i < sceneData.sceneNames.size(); i++)
+			{
+				if (sceneData.sceneNames[i] == sceneName)
+				{
+					if (i <= sceneToChangeTo)
+					{
+						sceneToChangeTo--;
+					}
+					break;
+				}
+			}
+
+			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
 			remove(filepath.c_str());
 		}
 
@@ -612,38 +746,42 @@ namespace MathAnim
 			return globalThreadPool;
 		}
 
-		static RawMemory serializeCameras()
+		static nlohmann::json serializeCameras()
 		{
-			RawMemory cameraData;
-			cameraData.init(sizeof(OrthoCamera) + sizeof(PerspectiveCamera));
+			nlohmann::json cameraData = nlohmann::json();
 
-			// Version    -> u32
-			// camera2D   -> OrthoCamera
-			// camera3D   -> PerspCamera
-			const uint32 version = 1;
-			cameraData.write<uint32>(&version);
+			editorCamera2D.serialize(cameraData["EditorCamera2D"]);
+			editorCamera3D.serialize(cameraData["EditorCamera3D"]);
 
-			editorCamera2D.serialize(cameraData);
-			editorCamera3D.serialize(cameraData);
-
-			cameraData.shrinkToFit();
 			return cameraData;
 		}
 
-		static void deserializeCameras(RawMemory& cameraData)
+		static void deserializeCameras(const nlohmann::json& cameraData, uint32 version)
 		{
-			// Version    -> u32
-			// camera2D   -> OrthoCamera
-			// camera3D   -> PerspCamera
-			uint32 version = 1;
-			cameraData.read<uint32>(&version);
-			editorCamera2D = OrthoCamera::deserialize(cameraData, version);
-			editorCamera3D = PerspectiveCamera::deserialize(cameraData, version);
+			switch (version)
+			{
+			case 2:
+			{
+				if (cameraData.contains("EditorCamera2D"))
+				{
+					editorCamera2D = OrthoCamera::deserialize(cameraData["EditorCamera2D"], version);
+				}
+				if (cameraData.contains("EditorCamera3D"))
+				{
+					editorCamera3D = PerspectiveCamera::deserialize(cameraData["EditorCamera3D"], version);
+				}
+			}
+			break;
+			default:
+			{
+				g_logger_warning("Editor data serialized with unknown version: %d", version);
+			}
+			}
 		}
 
-		static std::string sceneToFilename(const std::string& stringName)
+		static std::string sceneToFilename(const std::string& stringName, const char* ext)
 		{
-			return "Scene_" + stringName + ".bin";
+			return "Scene_" + stringName + ext;
 		}
 
 		static void reloadCurrentSceneInternal()

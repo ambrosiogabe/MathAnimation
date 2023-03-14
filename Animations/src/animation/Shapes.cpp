@@ -1,15 +1,13 @@
 #include "animation/Shapes.h"
 #include "animation/Animation.h"
+#include "core/Serialization.hpp"
 #include "svg/Svg.h"
 #include "math/CMath.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
-	// ------------------ Internal Functions ------------------
-	static Square deserializeSquareV1(RawMemory& memory);
-	static Circle deserializeCircleV1(RawMemory& memory);
-	static Cube deserializeCubeV1(RawMemory& memory);
-
 	void Square::init(AnimObject* parent)
 	{
 		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Square object initialized twice.");
@@ -30,19 +28,42 @@ namespace MathAnim
 		parent->retargetSvgScale();
 	}
 
-	void Square::serialize(RawMemory& memory) const
+	void Square::serialize(nlohmann::json& memory) const
 	{
-		// sideLength       -> float
-		memory.write<float>(&sideLength);
+		SERIALIZE_NON_NULL_PROP(memory, this, sideLength);
 	}
 
-	Square Square::deserialize(RawMemory& memory, uint32 version)
+	Square Square::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		switch (version)
+		{
+		case 2:
+		{
+			Square res = {};
+			DESERIALIZE_PROP(&res, sideLength, j, 0.0f);
+			return res;
+		}
+		break;
+		default:
+			g_logger_error("Square serialized with unknown version '%d'", version);
+			break;
+		}
+
+		return {};
+	}
+
+	Square Square::legacy_deserialize(RawMemory& memory, uint32 version)
 	{
 		switch (version)
 		{
 		case 1:
-			return deserializeSquareV1(memory);
-			break;
+		{
+			// sideLength       -> float
+			Square res;
+			memory.read<float>(&res.sideLength);
+			return res;
+		}
+		break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
 			break;
@@ -89,19 +110,42 @@ namespace MathAnim
 		parent->retargetSvgScale();
 	}
 
-	void Circle::serialize(RawMemory& memory) const
+	void Circle::serialize(nlohmann::json& memory) const
 	{
-		// radius   -> float
-		memory.write<float>(&radius);
+		SERIALIZE_NON_NULL_PROP(memory, this, radius);
 	}
 
-	Circle Circle::deserialize(RawMemory& memory, uint32 version)
+	Circle Circle::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		switch (version)
+		{
+		case 2:
+		{
+			Circle res = {};
+			DESERIALIZE_PROP(&res, radius, j, 0.0f);
+			return res;
+		}
+		break;
+		default:
+			break;
+		}
+
+		g_logger_warning("Circle serialized with unknown version '%d'.", version);
+		return {};
+	}
+
+	Circle Circle::legacy_deserialize(RawMemory& memory, uint32 version)
 	{
 		switch (version)
 		{
 		case 1:
-			return deserializeCircleV1(memory);
-			break;
+		{
+			// radius   -> float
+			Circle res;
+			memory.read<float>(&res.radius);
+			return res;
+		}
+		break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
 			break;
@@ -139,19 +183,32 @@ namespace MathAnim
 		parent->retargetSvgScale();
 	}
 
-	void Arrow::serialize(RawMemory& memory) const
+	void Arrow::serialize(nlohmann::json& memory) const
 	{
-		// stemWidth    -> f32
-		// stemLength   -> f32
-		// tipWidth	    -> f32
-		// tipLength    -> f32
-		memory.write<float>(&stemWidth);
-		memory.write<float>(&stemLength);
-		memory.write<float>(&tipWidth);
-		memory.write<float>(&tipLength);
+		SERIALIZE_NON_NULL_PROP(memory, this, stemWidth);
+		SERIALIZE_NON_NULL_PROP(memory, this, stemLength);
+		SERIALIZE_NON_NULL_PROP(memory, this, tipWidth);
+		SERIALIZE_NON_NULL_PROP(memory, this, tipLength);
 	}
 
-	Arrow Arrow::deserialize(RawMemory& memory, uint32 version)
+	Arrow Arrow::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		if (version == 2)
+		{
+			Arrow res = {};
+			DESERIALIZE_PROP(&res, stemWidth, j, 0.0f);
+			DESERIALIZE_PROP(&res, stemLength, j, 0.0f);
+			DESERIALIZE_PROP(&res, tipLength, j, 0.0f);
+			DESERIALIZE_PROP(&res, tipWidth, j, 0.0f);
+
+			return res;
+		}
+
+		g_logger_warning("Arrow serialized with unknown version '%d'.", version);
+		return {};
+	}
+
+	Arrow Arrow::legacy_deserialize(RawMemory& memory, uint32 version)
 	{
 		if (version == 1)
 		{
@@ -217,49 +274,47 @@ namespace MathAnim
 		//}
 	}
 
-	void Cube::serialize(RawMemory& memory) const
+	void Cube::serialize(nlohmann::json& memory) const
 	{
-		// sideLength       -> float
-		memory.write<float>(&sideLength);
+		SERIALIZE_NON_NULL_PROP(memory, this, sideLength);
 	}
 
-	Cube Cube::deserialize(RawMemory& memory, uint32 version)
+	Cube Cube::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		switch (version)
+		{
+		case 2:
+		{
+			Cube res = {};
+			DESERIALIZE_PROP(&res, sideLength, j, 0.0f);
+			return res;
+		}
+		break;
+		default:
+			break;
+		}
+
+		g_logger_warning("Cube serialized with unknown version '%d'.", version);
+		return {};
+	}
+
+	Cube Cube::legacy_deserialize(RawMemory& memory, uint32 version)
 	{
 		switch (version)
 		{
 		case 1:
-			return deserializeCubeV1(memory);
-			break;
+		{
+			// sideLength       -> float
+			Cube res;
+			memory.read<float>(&res.sideLength);
+			return res;
+		}
+		break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
 			break;
 		}
 
 		return {};
-	}
-
-	// ------------------ Internal Functions ------------------
-	static Square deserializeSquareV1(RawMemory& memory)
-	{
-		// sideLength       -> float
-		Square res;
-		memory.read<float>(&res.sideLength);
-		return res;
-	}
-
-	static Circle deserializeCircleV1(RawMemory& memory)
-	{
-		// radius   -> float
-		Circle res;
-		memory.read<float>(&res.radius);
-		return res;
-	}
-
-	static Cube deserializeCubeV1(RawMemory& memory)
-	{
-		// sideLength       -> float
-		Cube res;
-		memory.read<float>(&res.sideLength);
-		return res;
 	}
 }

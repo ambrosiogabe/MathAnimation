@@ -3,6 +3,7 @@
 #include "editor/panels/InspectorPanel.h"
 #include "core.h"
 #include "core/Application.h"
+#include "core/Serialization.hpp"
 #include "animation/AnimationManager.h"
 #include "audio/Audio.h"
 #include "audio/WavLoader.h"
@@ -10,7 +11,7 @@
 #include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui_internal.h>
-
+#include <nlohmann/json.hpp>
 #include <nfd.h>
 
 namespace MathAnim
@@ -39,9 +40,8 @@ namespace MathAnim
 
 		TimelineData initInstance()
 		{
-			TimelineData res;
-			// Workaround for my dumb memory tracker
-			res.audioSourceFile = (uint8*)g_memory_allocate(sizeof(char));
+			TimelineData res = {};
+			res.audioSourceFile = nullptr;
 			res.audioSourceFileLength = 0;
 			res.currentFrame = 0;
 			res.firstFrame = 0;
@@ -291,32 +291,36 @@ namespace MathAnim
 			ImGuiTimeline_free();
 		}
 
-		RawMemory serialize(const TimelineData& timelineData)
+		void serialize(const TimelineData& timelineData, nlohmann::json& j)
 		{
-			// audioSourceFileLength     -> uint32
-			// audioSourceFile           -> uint8[audioSourceFileLength + 1]
-			// firstFrame                -> int32
-			// currentFrame              -> int32
-			// zoomLevel                 -> float
-			RawMemory res;
-			res.init(sizeof(TimelineData));
-
 			g_logger_assert(timelineData.audioSourceFileLength < UINT32_MAX, "Corrupted timeline data. Somehow audio source file length > UINT32_MAX '%d'", timelineData.audioSourceFileLength);
-			uint32 fileLengthU32 = (uint32)timelineData.audioSourceFileLength;
-			res.write<uint32>(&fileLengthU32);
-			res.writeDangerous(timelineData.audioSourceFile, fileLengthU32);
-			uint8 nullByte = '\0';
-			res.write<uint8>(&nullByte);
-			res.write<int32>(&timelineData.firstFrame);
-			res.write<int32>(&timelineData.currentFrame);
-			res.write<float>(&timelineData.zoomLevel);
+			SERIALIZE_NULLABLE_U8_CSTRING(j, &timelineData, audioSourceFile, "Undefined");
+			SERIALIZE_NON_NULL_PROP(j, &timelineData, firstFrame);
+			SERIALIZE_NON_NULL_PROP(j, &timelineData, currentFrame);
+			SERIALIZE_NON_NULL_PROP(j, &timelineData, zoomLevel);
+		}
 
-			res.shrinkToFit();
+		TimelineData deserialize(const nlohmann::json& j)
+		{
+			TimelineData res = {};
+
+			DESERIALIZE_NULLABLE_U8_CSTRING(&res, audioSourceFile, j);
+			if (res.audioSourceFile && std::strcmp((char*)res.audioSourceFile, "Undefined") == 0) 
+			{
+				g_memory_free(res.audioSourceFile);
+				res.audioSourceFile = nullptr;
+				res.audioSourceFileLength = 0;
+			} 
+
+			DESERIALIZE_PROP(&res, firstFrame, j, 0);
+			DESERIALIZE_PROP(&res, currentFrame, j, 0);
+			DESERIALIZE_PROP(&res, zoomLevel, j, 1.0f);
+			Application::setFrameIndex(res.currentFrame);
 
 			return res;
 		}
 
-		TimelineData deserialize(RawMemory& memory)
+		TimelineData legacy_deserialize(RawMemory& memory)
 		{
 			TimelineData res = {};
 

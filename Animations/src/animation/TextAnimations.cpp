@@ -8,17 +8,15 @@
 #include "renderer/PerspectiveCamera.h"
 #include "renderer/OrthoCamera.h"
 #include "core/Application.h"
+#include "core/Serialization.hpp"
 #include "latex/LaTexLayer.h"
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "parsers/SyntaxTheme.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
-	// ------------- Internal Functions -------------
-	static TextObject deserializeTextV1(RawMemory& memory);
-	static LaTexObject deserializeLaTexV1(RawMemory& memory);
-	static CodeBlock deserializeCodeBlockV1(RawMemory& memory);
-
 	// Number of spaces for tabs. Make this configurable
 	constexpr int tabDepth = 2;
 
@@ -106,30 +104,20 @@ namespace MathAnim
 		init(am, obj->id);
 	}
 
-	void TextObject::serialize(RawMemory& memory) const
+	void TextObject::serialize(nlohmann::json& memory) const
 	{
-		// textLength           -> int32
-		// text                 -> char[textLength]
-		// fontFilepathLength   -> int32
-		// fontFilepath         -> char[fontFilepathLength]
-		memory.write<int32>(&textLength);
-		memory.writeDangerous((uint8*)text, sizeof(uint8) * textLength);
+		// TODO: This serialization is a bit weird and has special cases
+		// See if you can standardize it by storing the font filepath directly or
+		// something
+		SERIALIZE_NULLABLE_CSTRING(memory, this, text, "Undefined");
 
-		// TODO: Overflow error checking would be good here
-		if (font != nullptr)
+		if (font)
 		{
-			int32 fontFilepathLength = (int32)font->fontFilepath.size();
-			memory.write<int32>(&fontFilepathLength);
-			memory.writeDangerous((uint8*)font->fontFilepath.c_str(), sizeof(uint8) * fontFilepathLength);
+			SERIALIZE_NON_NULL_PROP(memory, font, fontFilepath);
 		}
 		else
 		{
-			const char stringToWrite[] = "nullFont";
-			int32 fontFilepathLength = (sizeof(stringToWrite) / sizeof(char));
-			// Subtract null byte
-			fontFilepathLength -= 1;
-			memory.write<int32>(&fontFilepathLength);
-			memory.writeDangerous((uint8*)stringToWrite, sizeof(uint8) * fontFilepathLength);
+			SERIALIZE_NON_NULL_PROP_BY_VALUE(memory, font, fontFilepath, "NullFont");
 		}
 	}
 
@@ -149,11 +137,65 @@ namespace MathAnim
 		}
 	}
 
-	TextObject TextObject::deserialize(RawMemory& memory, uint32 version)
+	TextObject TextObject::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		switch (version)
+		{
+		case 2:
+		{
+			TextObject res = {};
+
+			DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
+
+			// TODO: This is gross, see note in serialization above
+			const std::string& fontFilepathStr = DESERIALIZE_PROP_INLINE(res.font, fontFilepath, j, "NullFont");
+			if (fontFilepathStr != "NullFont")
+			{
+				res.font = Fonts::loadFont(fontFilepathStr.c_str());
+			}
+			else
+			{
+				res.font = nullptr;
+			}
+
+			return res;
+		}
+		break;
+		default:
+			break;
+		}
+
+		g_logger_warning("TextObject serialized with unknown version '%d'.", version);
+		return {};
+	}
+
+	TextObject TextObject::legacy_deserialize(RawMemory& memory, uint32 version)
 	{
 		if (version == 1)
 		{
-			return deserializeTextV1(memory);
+			TextObject res;
+
+			// textLength           -> int32
+			// text                 -> char[textLength]
+			// fontFilepathLength   -> int32
+			// fontFilepath         -> char[fontFilepathLength]
+
+			memory.read<int32>(&res.textLength);
+			res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
+			memory.readDangerous((uint8*)res.text, sizeof(uint8) * res.textLength);
+			res.text[res.textLength] = '\0';
+
+			// TODO: Error checking would be good here
+			int32 fontFilepathLength;
+			memory.read<int32>(&fontFilepathLength);
+			uint8* fontFilepath = (uint8*)g_memory_allocate(sizeof(uint8) * (fontFilepathLength + 1));
+			memory.readDangerous((uint8*)fontFilepath, sizeof(uint8) * fontFilepathLength);
+			fontFilepath[fontFilepathLength] = '\0';
+
+			res.font = Fonts::loadFont((const char*)fontFilepath);
+			g_memory_free(fontFilepath);
+
+			return res;
 		}
 
 		g_logger_error("Invalid version '%d' while deserializing text object.", version);
@@ -177,7 +219,7 @@ namespace MathAnim
 
 	TextObject TextObject::createCopy(const TextObject& from)
 	{
-		TextObject res;
+		TextObject res = {};
 		if (from.font)
 		{
 			// NOTE: We can pass nullptr for vg here because it shouldn't actually need it
@@ -230,7 +272,7 @@ namespace MathAnim
 		childObj.as.svgFile.setFilepath(filepath);
 		childObj.as.svgFile.init(am, childObj.id);
 	}
-		
+
 	void LaTexObject::reInit(AnimationManagerData* am, AnimObject* obj)
 	{
 		// First remove all generated children, which were generated as a result
@@ -278,16 +320,39 @@ namespace MathAnim
 		isParsingLaTex = true;
 	}
 
-	void LaTexObject::serialize(RawMemory& memory) const
+	void LaTexObject::serialize(nlohmann::json& memory) const
 	{
-		// textLength       -> i32
-		// text             -> char[textLength]
-		// isEquation       -> u8 (bool)
-		memory.write<int32>(&textLength);
-		memory.writeDangerous((const uint8*)text, sizeof(uint8) * textLength);
+		SERIALIZE_NULLABLE_CSTRING(memory, this, text, "Undefined");
+		SERIALIZE_NON_NULL_PROP(memory, this, isEquation);
+	}
 
-		uint8 isEquationU8 = isEquation ? 1 : 0;
-		memory.write<uint8>(&isEquationU8);
+	LaTexObject LaTexObject::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			LaTexObject res;
+
+			// textLength       -> i32
+			// text             -> char[textLength]
+			// isEquation       -> u8 (bool)
+
+			memory.read<int32>(&res.textLength);
+			res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
+			memory.readDangerous((uint8*)res.text, res.textLength * sizeof(uint8));
+			res.text[res.textLength] = '\0';
+
+			uint8 isEquationU8;
+			memory.read<uint8>(&isEquationU8);
+			res.isEquation = isEquationU8 == 1;
+			res.isParsingLaTex = false;
+
+			return res;
+		}
+
+		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		LaTexObject res;
+		g_memory_zeroMem(&res, sizeof(LaTexObject));
+		return res;
 	}
 
 	void LaTexObject::free()
@@ -299,17 +364,26 @@ namespace MathAnim
 		}
 	}
 
-	LaTexObject LaTexObject::deserialize(RawMemory& memory, uint32 version)
+	LaTexObject LaTexObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		switch (version)
 		{
-			return deserializeLaTexV1(memory);
+		case 2:
+		{
+			LaTexObject res = {};
+
+			DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
+			DESERIALIZE_PROP(&res, isEquation, j, false);
+
+			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing text object.", version);
-		LaTexObject res;
-		g_memory_zeroMem(&res, sizeof(LaTexObject));
-		return res;
+		g_logger_warning("LaTexObject serialized with unknown version '%d'.", version);
+		return {};
 	}
 
 	LaTexObject LaTexObject::createDefault()
@@ -462,17 +536,39 @@ namespace MathAnim
 		init(am, obj->id);
 	}
 
-	void CodeBlock::serialize(RawMemory& memory) const
+	void CodeBlock::serialize(nlohmann::json& memory) const
 	{
-		// theme                -> uint8
-		// language             -> uint8
-		// textLength           -> int32
-		// text                 -> char[textLength]
-		memory.write<HighlighterTheme>(&theme);
-		memory.write<HighlighterLanguage>(&language);
+		SERIALIZE_ENUM(memory, this, theme, _highlighterThemeNames);
+		SERIALIZE_ENUM(memory, this, language, _highlighterLanguageNames);
+		SERIALIZE_NULLABLE_CSTRING(memory, this, text, "Undefined");
+	}
 
-		memory.write<int32>(&textLength);
-		memory.writeDangerous((uint8*)text, sizeof(uint8) * textLength);
+	CodeBlock CodeBlock::legacy_deserialize(RawMemory& memory, uint32 version)
+	{
+		if (version == 1)
+		{
+			CodeBlock res;
+
+			// theme                -> uint8
+			// language             -> uint8
+			// textLength           -> int32
+			// text                 -> char[textLength]
+
+			memory.read<HighlighterTheme>(&res.theme);
+			memory.read<HighlighterLanguage>(&res.language);
+
+			memory.read<int32>(&res.textLength);
+			res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
+			memory.readDangerous((uint8*)res.text, sizeof(uint8) * res.textLength);
+			res.text[res.textLength] = '\0';
+
+			return res;
+		}
+
+		g_logger_error("Invalid version '%d' while deserializing code object.", version);
+		CodeBlock res;
+		g_memory_zeroMem(&res, sizeof(CodeBlock));
+		return res;
 	}
 
 	void CodeBlock::free()
@@ -485,17 +581,27 @@ namespace MathAnim
 		}
 	}
 
-	CodeBlock CodeBlock::deserialize(RawMemory& memory, uint32 version)
+	CodeBlock CodeBlock::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 1)
+		switch (version)
 		{
-			return deserializeCodeBlockV1(memory);
+		case 2:
+		{
+			CodeBlock res = {};
+
+			DESERIALIZE_ENUM(&res, theme, _highlighterThemeNames, HighlighterTheme, j);
+			DESERIALIZE_ENUM(&res, language, _highlighterLanguageNames, HighlighterLanguage, j);
+			DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
+
+			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing code object.", version);
-		CodeBlock res;
-		g_memory_zeroMem(&res, sizeof(CodeBlock));
-		return res;
+		g_logger_warning("CodeBlock serialized with unknown version '%d'.", version);
+		return {};
 	}
 
 	CodeBlock CodeBlock::createDefault()
@@ -515,75 +621,6 @@ int main()
 		g_memory_copyMem(res.text, (void*)defaultText, sizeof(defaultText) / sizeof(char));
 		res.textLength = (sizeof(defaultText) / sizeof(char)) - 1;
 		res.text[res.textLength] = '\0';
-		return res;
-	}
-
-	// ------------- Internal Functions -------------
-	static TextObject deserializeTextV1(RawMemory& memory)
-	{
-		TextObject res;
-
-		// textLength           -> int32
-		// text                 -> char[textLength]
-		// fontFilepathLength   -> int32
-		// fontFilepath         -> char[fontFilepathLength]
-
-		memory.read<int32>(&res.textLength);
-		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
-		memory.readDangerous((uint8*)res.text, sizeof(uint8) * res.textLength);
-		res.text[res.textLength] = '\0';
-
-		// TODO: Error checking would be good here
-		int32 fontFilepathLength;
-		memory.read<int32>(&fontFilepathLength);
-		uint8* fontFilepath = (uint8*)g_memory_allocate(sizeof(uint8) * (fontFilepathLength + 1));
-		memory.readDangerous((uint8*)fontFilepath, sizeof(uint8) * fontFilepathLength);
-		fontFilepath[fontFilepathLength] = '\0';
-
-		res.font = Fonts::loadFont((const char*)fontFilepath);
-		g_memory_free(fontFilepath);
-
-		return res;
-	}
-
-	static LaTexObject deserializeLaTexV1(RawMemory& memory)
-	{
-		LaTexObject res;
-
-		// textLength       -> i32
-		// text             -> char[textLength]
-		// isEquation       -> u8 (bool)
-
-		memory.read<int32>(&res.textLength);
-		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
-		memory.readDangerous((uint8*)res.text, res.textLength * sizeof(uint8));
-		res.text[res.textLength] = '\0';
-
-		uint8 isEquationU8;
-		memory.read<uint8>(&isEquationU8);
-		res.isEquation = isEquationU8 == 1;
-		res.isParsingLaTex = false;
-
-		return res;
-	}
-
-	static CodeBlock deserializeCodeBlockV1(RawMemory& memory)
-	{
-		CodeBlock res;
-
-		// theme                -> uint8
-		// language             -> uint8
-		// textLength           -> int32
-		// text                 -> char[textLength]
-
-		memory.read<HighlighterTheme>(&res.theme);
-		memory.read<HighlighterLanguage>(&res.language);
-
-		memory.read<int32>(&res.textLength);
-		res.text = (char*)g_memory_allocate(sizeof(char) * (res.textLength + 1));
-		memory.readDangerous((uint8*)res.text, sizeof(uint8) * res.textLength);
-		res.text[res.textLength] = '\0';
-
 		return res;
 	}
 }

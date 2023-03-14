@@ -8,6 +8,7 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <nlohmann/json.hpp>
 
 namespace MathAnim
 {
@@ -256,22 +257,22 @@ namespace MathAnim
 			}
 		}
 
-		void serialize(RawMemory&)
+		void serialize(nlohmann::json& j)
 		{
-			//json orderedEntitiesJson = {};
-			//for (int i = 0; i < orderedEntities.size(); i++)
-			//{
-			//	SceneTreeMetadata metadata = orderedEntities[i];
-			//	json entityId = {
-			//		{ "Id", NEntity::getId(metadata.entity) },
-			//		{ "Level", metadata.level },
-			//		{ "Index", metadata.index },
-			//		{ "Selected", metadata.selected },
-			//		{ "IsOpen", metadata.isOpen }
-			//	};
-			//	orderedEntitiesJson.push_back(entityId);
-			//}
-			//j["SceneHeirarchyOrder"] = orderedEntitiesJson;
+			nlohmann::json orderedEntitiesJson = {};
+			for (int i = 0; i < orderedEntities.size(); i++)
+			{
+				SceneTreeMetadata metadata = orderedEntities[i];
+				nlohmann::json entityId = {
+					{ "Id", metadata.animObjectId },
+					{ "Level", metadata.level },
+					{ "Index", metadata.index },
+					{ "Selected", metadata.selected },
+					{ "IsOpen", metadata.isOpen }
+				};
+				orderedEntitiesJson.push_back(entityId);
+			}
+			j["SceneHeirarchyOrder"] = orderedEntitiesJson;
 		}
 
 		void deserialize(RawMemory&)
@@ -700,7 +701,10 @@ namespace MathAnim
 			while (children.size() > 0)
 			{
 				const AnimObject* child = AnimationManager::getObject(am, children.back());
-				addExistingAnimObject(am, *child, level + 1);
+				if (child)
+				{
+					addExistingAnimObject(am, *child, level + 1);
+				}
 				children.pop_back();
 			}
 		}

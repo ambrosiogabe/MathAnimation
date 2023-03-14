@@ -3,6 +3,8 @@
 
 #include "core.h"
 
+#include <nlohmann/json_fwd.hpp>
+
 // TODO: Find who's leaking min, max macros...
 #ifdef min 
 #undef min
@@ -30,7 +32,7 @@ namespace MathAnim
 		Length
 	};
 
-	constexpr const char* easeTypeNames[(uint8)EaseType::Length] = {
+	constexpr auto easeTypeNames = fixedSizeArray<const char*, (size_t)EaseType::Length>(
 		"None",
 		"Linear",
 		"Sine",
@@ -43,7 +45,7 @@ namespace MathAnim
 		"Back",
 		"Elastic",
 		"Bounce"
-	};
+	);
 
 	enum class EaseDirection : uint8
 	{
@@ -54,12 +56,12 @@ namespace MathAnim
 		Length
 	};
 
-	constexpr const char* easeDirectionNames[(uint8)EaseDirection::Length] = {
+	constexpr auto easeDirectionNames = fixedSizeArray<const char*, (size_t)EaseDirection::Length>(
 		"None",
 		"In",
 		"Out",
 		"In-Out"
-	};
+	);
 
 	namespace CMath
 	{
@@ -215,25 +217,42 @@ namespace MathAnim
 		Vec3 extractPosition(const glm::mat4& transformation);
 
 		// (de)Serialization functions
-		void serialize(RawMemory& memory, const Vec4& vec);
-		void serialize(RawMemory& memory, const Vec3& vec);
-		void serialize(RawMemory& memory, const Vec2& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2& vec);
 
-		void serialize(RawMemory& memory, const Vec4i& vec);
-		void serialize(RawMemory& memory, const Vec3i& vec);
-		void serialize(RawMemory& memory, const Vec2i& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4i& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3i& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2i& vec);
 
-		void serialize(RawMemory& memory, const glm::u8vec4& vec);
+		void serialize(nlohmann::json& memory, const char* propertyName, const glm::u8vec4& vec);
 
-		Vec4 deserializeVec4(RawMemory& memory);
-		Vec3 deserializeVec3(RawMemory& memory);
-		Vec2 deserializeVec2(RawMemory& memory);
+		Vec4 deserializeVec4(const nlohmann::json& memory, const Vec4& defaultValue);
+		Vec3 deserializeVec3(const nlohmann::json& memory, const Vec3& defaultValue);
+		Vec2 deserializeVec2(const nlohmann::json& memory, const Vec2& defaultValue);
 
-		Vec4i deserializeVec4i(RawMemory& memory);
-		Vec3i deserializeVec3i(RawMemory& memory);
-		Vec2i deserializeVec2i(RawMemory& memory);
+		Vec4i deserializeVec4i(const nlohmann::json& memory, const Vec4i& defaultValue);
+		Vec3i deserializeVec3i(const nlohmann::json& memory, const Vec3i& defaultValue);
+		Vec2i deserializeVec2i(const nlohmann::json& memory, const Vec2i& defaultValue);
 
-		glm::u8vec4 deserializeU8Vec4(RawMemory& memory);
+		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory, const glm::u8vec4& defaultValue);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec4 legacy_deserializeVec4(RawMemory& memory);
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec3 legacy_deserializeVec3(RawMemory& memory);
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec2 legacy_deserializeVec2(RawMemory& memory);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec4i legacy_deserializeVec4i(RawMemory& memory);
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec3i legacy_deserializeVec3i(RawMemory& memory);
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		Vec2i legacy_deserializeVec2i(RawMemory& memory);
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		glm::u8vec4 legacy_deserializeU8Vec4(RawMemory& memory);
 	}
 }
 
