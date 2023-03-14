@@ -938,6 +938,9 @@ namespace MathAnim
 				am->objectIdMap[animObject.id] = i;
 				am->objects.emplace_back(animObject);
 			}
+
+			// Sort the animations afterwards since they could be inserted in random order
+			sortAnimations(am);
 		}
 
 		static bool compareAnimation(const Animation& a1, const Animation& a2)

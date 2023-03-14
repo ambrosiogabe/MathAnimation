@@ -227,7 +227,7 @@ namespace MathAnim
 						// Then render the rest of the stuff
 						MP_PROFILE_EVENT("MainLoop_RenderToEditorViewport");
 						editorFramebuffer.clearDepthStencil();
-						AnimationManager::render(am, deltaFrame);
+						AnimationManager::render(am, 0);
 						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera2D, editorCamera3D);
 
 						Renderer::clearDrawCalls();
@@ -288,7 +288,7 @@ namespace MathAnim
 			// If the window is closing, save the last rendered frame to a preview image
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
-			AnimationManager::render(am, deltaFrame);
+			AnimationManager::render(am, 0);
 			Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
 			Renderer::clearFramebuffer(mainFramebuffer, greenBrown);
 			Renderer::renderToFramebuffer(mainFramebuffer, am);
