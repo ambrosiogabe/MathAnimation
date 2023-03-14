@@ -461,6 +461,7 @@ namespace MathAnim
 
 			PerspectiveCamera perspCamera = {};
 			// TODO: Get active perspective camera
+			Renderer::clearColor(orthoCameraObj->as.camera.fillColor);
 			renderToFramebuffer(framebuffer, orthoCamera, perspCamera);
 		}
 

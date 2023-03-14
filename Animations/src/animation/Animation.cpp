@@ -936,6 +936,9 @@ namespace MathAnim
 			memory.read<uint8>(&is2DU8);
 			res.is2D = is2DU8 == 1;
 
+			const Vec4 greenBrown = "#272822FF"_hex;
+			res.fillColor = greenBrown;
+
 			return res;
 		}
 
@@ -951,6 +954,8 @@ namespace MathAnim
 		res.camera2D.zoom = 1.0f;
 		res.is2D = true;
 		res.isActiveCamera = true;
+		const Vec4 greenBrown = "#272822FF"_hex;
+		res.fillColor = greenBrown;
 		return res;
 	}
 

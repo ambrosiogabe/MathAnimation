@@ -159,9 +159,6 @@ namespace MathAnim
 
 			svgCache->clearAll();
 
-			// TODO: Make this customizable through the project settings
-			const Vec4 greenBrown = "#272822FF"_hex;
-
 			while (isRunning && !window->shouldClose())
 			{
 				MP_PROFILE_FRAME("MainLoop");
@@ -211,7 +208,6 @@ namespace MathAnim
 				{
 					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
 					Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
-					Renderer::clearFramebuffer(mainFramebuffer, greenBrown);
 					Renderer::renderToFramebuffer(mainFramebuffer, am);
 
 					Renderer::clearDrawCalls();
@@ -290,7 +286,6 @@ namespace MathAnim
 			// Like no hard coded image path here and hard coded number of components
 			AnimationManager::render(am, 0);
 			Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
-			Renderer::clearFramebuffer(mainFramebuffer, greenBrown);
 			Renderer::renderToFramebuffer(mainFramebuffer, am);
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path outputFile = (currentProjectRoot / "projectPreview.png");
