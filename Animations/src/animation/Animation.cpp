@@ -27,7 +27,6 @@ namespace MathAnim
 	// ----------------------------- Internal Functions -----------------------------
 	static AnimObject deserializeAnimObjectV2(AnimationManagerData* am, const nlohmann::json& j);
 	static Animation deserializeAnimationV2(const nlohmann::json& memory);
-	static CameraObject deserializeCameraObjectV2(const nlohmann::json& j, uint32 version);
 
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
 
@@ -510,8 +509,8 @@ namespace MathAnim
 		if (version == 2)
 		{
 			MoveToData res = {};
-			DESERIALIZE_VEC2(&res, source, memory);
-			DESERIALIZE_VEC2(&res, target, memory);
+			DESERIALIZE_VEC2(&res, source, memory, (Vec2{0, 0}));
+			DESERIALIZE_VEC2(&res, target, memory, (Vec2{0, 0}));
 			DESERIALIZE_ID(&res, object, memory);
 			return res;
 		}
@@ -544,8 +543,8 @@ namespace MathAnim
 		if (version == 2)
 		{
 			AnimateScaleData res = {};
-			DESERIALIZE_VEC2(&res, source, memory);
-			DESERIALIZE_VEC2(&res, target, memory);
+			DESERIALIZE_VEC2(&res, source, memory, (Vec2{0, 0}));
+			DESERIALIZE_VEC2(&res, target, memory, (Vec2{0, 0}));
 			DESERIALIZE_ID(&res, object, memory);
 			return res;
 		}
@@ -674,7 +673,7 @@ namespace MathAnim
 		if (version == 2)
 		{
 			Circumscribe res = {};
-			DESERIALIZE_VEC4(&res, color, j);
+			DESERIALIZE_VEC4(&res, color, j, "#F9DB1BFF"_hex);
 			DESERIALIZE_ENUM(&res, shape, _circumscribeShapeNames, CircumscribeShape, j);
 			DESERIALIZE_ENUM(&res, fade, _circumscribeFadeNames, CircumscribeFade, j);
 			DESERIALIZE_PROP(&res, bufferSize, j, 0.0f);
@@ -894,6 +893,7 @@ namespace MathAnim
 		SERIALIZE_OBJECT(memory, this, camera2D);
 		SERIALIZE_NON_NULL_PROP(memory, this, is2D);
 		SERIALIZE_NON_NULL_PROP(memory, this, isActiveCamera);
+		SERIALIZE_VEC(memory, this, fillColor);
 	}
 
 	void CameraObject::free()
@@ -905,7 +905,16 @@ namespace MathAnim
 	{
 		if (version == 2)
 		{
-			return deserializeCameraObjectV2(j, version);
+			CameraObject res = {};
+
+			DESERIALIZE_OBJECT(&res, camera2D, OrthoCamera, version, j);
+			DESERIALIZE_PROP(&res, is2D, j, false);
+			DESERIALIZE_PROP(&res, isActiveCamera, j, false);
+
+			const Vec4 greenBrown = "#272822FF"_hex;
+			DESERIALIZE_VEC4(&res, fillColor, j, greenBrown);
+
+			return res;
 		}
 
 		g_logger_warning("Camera serialized with unknown version: %d", version);
@@ -2056,11 +2065,11 @@ namespace MathAnim
 
 		// AnimObject Specific Data
 		DESERIALIZE_ENUM(&res, objectType, _animationObjectTypeNames, AnimObjectTypeV1, j);
-		DESERIALIZE_VEC3(&res, _positionStart, j);
-		DESERIALIZE_VEC3(&res, _rotationStart, j);
-		DESERIALIZE_VEC3(&res, _scaleStart, j);
-		DESERIALIZE_GLM_U8VEC4(&res, _fillColorStart, j);
-		DESERIALIZE_GLM_U8VEC4(&res, _strokeColorStart, j);
+		DESERIALIZE_VEC3(&res, _positionStart, j, (Vec3{0, 0, 0}));
+		DESERIALIZE_VEC3(&res, _rotationStart, j, (Vec3{0, 0, 0}));
+		DESERIALIZE_VEC3(&res, _scaleStart, j, (Vec3{1, 1, 1}));
+		DESERIALIZE_GLM_U8VEC4(&res, _fillColorStart, j, glm::u8vec4(255, 255, 255, 255));
+		DESERIALIZE_GLM_U8VEC4(&res, _strokeColorStart, j, glm::u8vec4(255, 255, 255, 255));
 
 		DESERIALIZE_PROP(&res, _strokeWidthStart, j, 0.0f);
 		DESERIALIZE_PROP(&res, svgScale, j, 0.0f);
@@ -2183,11 +2192,11 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::RotateTo:
 		case AnimTypeV1::Shift:
-			DESERIALIZE_VEC3(&res, as.modifyVec3.target, j);
+			DESERIALIZE_VEC3(&res, as.modifyVec3.target, j, (Vec3{0, 0, 0}));
 			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:
-			DESERIALIZE_U8VEC4(&res, as.modifyU8Vec4.target, j);
+			DESERIALIZE_U8VEC4(&res, as.modifyU8Vec4.target, j, glm::u8vec4(227, 3, 252, 255));
 			break;
 		case AnimTypeV1::AnimateStrokeWidth:
 			g_logger_warning("TODO: implement me");
@@ -2208,17 +2217,6 @@ namespace MathAnim
 		case AnimTypeV1::None:
 			break;
 		}
-
-		return res;
-	}
-
-	static CameraObject deserializeCameraObjectV2(const nlohmann::json& j, uint32 version)
-	{
-		CameraObject res = {};
-
-		DESERIALIZE_OBJECT(&res, camera2D, OrthoCamera, version, j);
-		DESERIALIZE_PROP(&res, is2D, j, false);
-		DESERIALIZE_PROP(&res, isActiveCamera, j, false);
 
 		return res;
 	}

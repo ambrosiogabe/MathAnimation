@@ -9,9 +9,6 @@
 
 namespace MathAnim
 {
-	// ------------------ Internal Functions ------------------
-	static Axis deserializeAxisV2(const nlohmann::json& j);
-
 	void Axis::init(AnimObject*)
 	{
 		//g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Axis object initialized twice.");
@@ -174,8 +171,25 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
-			return deserializeAxisV2(j);
-			break;
+		{
+			Axis res = {};
+
+			DESERIALIZE_VEC3(&res, axesLength, j, (Vec3{10, 10, 10}));
+			DESERIALIZE_VEC2i(&res, xRange, j, (Vec2i{1, 1}));
+			DESERIALIZE_VEC2i(&res, yRange, j, (Vec2i{1, 1}));
+			DESERIALIZE_VEC2i(&res, zRange, j, (Vec2i{1, 1}));
+			DESERIALIZE_PROP(&res, xStep, j, 1.0f);
+			DESERIALIZE_PROP(&res, yStep, j, 1.0f);
+			DESERIALIZE_PROP(&res, zStep, j, 1.0f);
+			DESERIALIZE_PROP(&res, tickWidth, j, 60.0f);
+			DESERIALIZE_PROP(&res, drawNumbers, j, false);
+			DESERIALIZE_PROP(&res, fontSizePixels, j, 20.0f);
+			DESERIALIZE_PROP(&res, labelPadding, j, 10.0f);
+			DESERIALIZE_PROP(&res, labelStrokeWidth, j, 0.03f);
+
+			return res;
+		}
+		break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of axis %d. It looks like you have corrupted scene data.");
 			break;
@@ -220,32 +234,11 @@ namespace MathAnim
 
 			return res;
 		}
-			break;
+		break;
 		default:
 			g_logger_error("Tried to deserialize unknown version of axis %d. It looks like you have corrupted scene data.");
 			break;
 		}
 		return {};
-	}
-
-	// ------------------ Internal Functions ------------------
-	static Axis deserializeAxisV2(const nlohmann::json& j)
-	{
-		Axis res = {};
-
-		DESERIALIZE_VEC3(&res, axesLength, j);
-		DESERIALIZE_VEC2i(&res, xRange, j);
-		DESERIALIZE_VEC2i(&res, yRange, j);
-		DESERIALIZE_VEC2i(&res, zRange, j);
-		DESERIALIZE_PROP(&res, xStep, j, 0.0f);
-		DESERIALIZE_PROP(&res, yStep, j, 0.0f);
-		DESERIALIZE_PROP(&res, zStep, j, 0.0f);
-		DESERIALIZE_PROP(&res, tickWidth, j, 0.0f);
-		DESERIALIZE_PROP(&res, drawNumbers, j, false);
-		DESERIALIZE_PROP(&res, fontSizePixels, j, 0.0f);
-		DESERIALIZE_PROP(&res, labelPadding, j, 0.0f);
-		DESERIALIZE_PROP(&res, labelStrokeWidth, j, 0.0f);
-
-		return res;
 	}
 }

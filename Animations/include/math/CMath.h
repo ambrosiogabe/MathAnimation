@@ -227,15 +227,15 @@ namespace MathAnim
 
 		void serialize(nlohmann::json& memory, const char* propertyName, const glm::u8vec4& vec);
 
-		Vec4 deserializeVec4(const nlohmann::json& memory);
-		Vec3 deserializeVec3(const nlohmann::json& memory);
-		Vec2 deserializeVec2(const nlohmann::json& memory);
+		Vec4 deserializeVec4(const nlohmann::json& memory, const Vec4& defaultValue);
+		Vec3 deserializeVec3(const nlohmann::json& memory, const Vec3& defaultValue);
+		Vec2 deserializeVec2(const nlohmann::json& memory, const Vec2& defaultValue);
 
-		Vec4i deserializeVec4i(const nlohmann::json& memory);
-		Vec3i deserializeVec3i(const nlohmann::json& memory);
-		Vec2i deserializeVec2i(const nlohmann::json& memory);
+		Vec4i deserializeVec4i(const nlohmann::json& memory, const Vec4i& defaultValue);
+		Vec3i deserializeVec3i(const nlohmann::json& memory, const Vec3i& defaultValue);
+		Vec2i deserializeVec2i(const nlohmann::json& memory, const Vec2i& defaultValue);
 
-		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory);
+		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory, const glm::u8vec4& defaultValue);
 
 		[[deprecated("This is for upgrading legacy projects developed in beta")]]
 		Vec4 legacy_deserializeVec4(RawMemory& memory);

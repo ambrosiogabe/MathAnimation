@@ -626,9 +626,9 @@ namespace MathAnim
 			memory[propertyName]["A"] = vec.a;
 		}
 
-		Vec4 deserializeVec4(const nlohmann::json& memory)
+		Vec4 deserializeVec4(const nlohmann::json& memory, const Vec4& defaultValue)
 		{
-			Vec4 res = {};
+			Vec4 res = defaultValue;
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -648,9 +648,9 @@ namespace MathAnim
 			return res;
 		}
 
-		Vec3 deserializeVec3(const nlohmann::json& memory)
+		Vec3 deserializeVec3(const nlohmann::json& memory, const Vec3& defaultValue)
 		{
-			Vec3 res = {};
+			Vec3 res = defaultValue;
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -666,9 +666,9 @@ namespace MathAnim
 			return res;
 		}
 
-		Vec2 deserializeVec2(const nlohmann::json& memory)
+		Vec2 deserializeVec2(const nlohmann::json& memory, const Vec2& defaultValue)
 		{
-			Vec2 res = {};
+			Vec2 res = defaultValue;
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -680,9 +680,9 @@ namespace MathAnim
 			return res;
 		}
 
-		Vec4i deserializeVec4i(const nlohmann::json& memory)
+		Vec4i deserializeVec4i(const nlohmann::json& memory, const Vec4i& defaultValue)
 		{
-			Vec4i res = {};
+			Vec4i res = defaultValue;
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -702,9 +702,9 @@ namespace MathAnim
 			return res;
 		}
 
-		Vec3i deserializeVec3i(const nlohmann::json& memory)
+		Vec3i deserializeVec3i(const nlohmann::json& memory, const Vec3i& defaultValue)
 		{
-			Vec3i res = {};
+			Vec3i res = defaultValue;
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -720,9 +720,9 @@ namespace MathAnim
 			return res;
 		}
 
-		Vec2i deserializeVec2i(const nlohmann::json& memory)
+		Vec2i deserializeVec2i(const nlohmann::json& memory, const Vec2i& defaultValue)
 		{
-			Vec2i res = {};
+			Vec2i res = defaultValue;
 			if (memory.contains("X"))
 			{
 				res.x = memory["X"];
@@ -734,9 +734,9 @@ namespace MathAnim
 			return res;
 		}
 
-		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory)
+		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory, const glm::u8vec4& defaultValue)
 		{
-			glm::u8vec4 res = {};
+			glm::u8vec4 res = defaultValue;
 			if (memory.contains("R"))
 			{
 				res.x = memory["R"];

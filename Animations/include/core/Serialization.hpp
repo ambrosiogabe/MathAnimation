@@ -192,35 +192,35 @@ do { \
   } \
 } while (false)
 
-#define _DESERIALIZE_VEC_CALL(obj, prop, j, vecType, numComponents) \
-  CMath::deserialize##vecType##numComponents(j.contains(#prop) ? j[#prop] : nlohmann::json())
+#define _DESERIALIZE_VEC_CALL(obj, prop, j, vecType, numComponents, defaultValue) \
+  CMath::deserialize##vecType##numComponents(j.contains(#prop) ? j[#prop] : nlohmann::json(), defaultValue)
 
-#define _DESERIALIZE_VEC(obj, prop, j, vecType, numComponents) \
-  (obj)->prop = _DESERIALIZE_VEC_CALL(obj, prop, j, vecType, numComponents)
+#define _DESERIALIZE_VEC(obj, prop, j, vecType, numComponents, defaultValue) \
+  (obj)->prop = _DESERIALIZE_VEC_CALL(obj, prop, j, vecType, numComponents, defaultValue)
 
-#define _DESERIALIZE_GLM_VEC(obj, prop, j, vecType, numComponents) \
-  (obj)->prop = CMath::convert(_DESERIALIZE_VEC_CALL(obj, prop, j, vecType, numComponents))
+#define _DESERIALIZE_GLM_VEC(obj, prop, j, vecType, numComponents, defaultValue) \
+  (obj)->prop = CMath::convert(_DESERIALIZE_VEC_CALL(obj, prop, j, vecType, numComponents, defaultValue))
 
 // ------ My Vector types ------
-#define DESERIALIZE_VEC2(obj, prop, j) _DESERIALIZE_VEC(obj, prop, j, Vec, 2)
-#define DESERIALIZE_VEC3(obj, prop, j) _DESERIALIZE_VEC(obj, prop, j, Vec, 3)
-#define DESERIALIZE_VEC4(obj, prop, j) _DESERIALIZE_VEC(obj, prop, j, Vec, 4)
+#define DESERIALIZE_VEC2(obj, prop, j, defaultValue) _DESERIALIZE_VEC(obj, prop, j, Vec, 2, defaultValue)
+#define DESERIALIZE_VEC3(obj, prop, j, defaultValue) _DESERIALIZE_VEC(obj, prop, j, Vec, 3, defaultValue)
+#define DESERIALIZE_VEC4(obj, prop, j, defaultValue) _DESERIALIZE_VEC(obj, prop, j, Vec, 4, defaultValue)
 
-#define DESERIALIZE_VEC2i(obj, prop, j) _DESERIALIZE_VEC(obj, prop, j, Vec, 2i)
-#define DESERIALIZE_VEC3i(obj, prop, j) _DESERIALIZE_VEC(obj, prop, j, Vec, 3i)
-#define DESERIALIZE_VEC4i(obj, prop, j) _DESERIALIZE_VEC(obj, prop, j, Vec, 4i)
+#define DESERIALIZE_VEC2i(obj, prop, j, defaultValue) _DESERIALIZE_VEC(obj, prop, j, Vec, 2i, defaultValue)
+#define DESERIALIZE_VEC3i(obj, prop, j, defaultValue) _DESERIALIZE_VEC(obj, prop, j, Vec, 3i, defaultValue)
+#define DESERIALIZE_VEC4i(obj, prop, j, defaultValue) _DESERIALIZE_VEC(obj, prop, j, Vec, 4i, defaultValue)
 
-#define DESERIALIZE_U8VEC4(obj, prop, j) _DESERIALIZE_VEC(obj, prop, j, U8Vec, 4)
+#define DESERIALIZE_U8VEC4(obj, prop, j, defaultValue) _DESERIALIZE_VEC(obj, prop, j, U8Vec, 4, defaultValue)
 
 // ------ GLM Vector types ------
-#define DESERIALIZE_GLM_VEC2(obj, prop, j) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 2)
-#define DESERIALIZE_GLM_VEC3(obj, prop, j) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 3)
-#define DESERIALIZE_GLM_VEC4(obj, prop, j) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 4)
+#define DESERIALIZE_GLM_VEC2(obj, prop, j, defaultValue) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 2, defaultValue)
+#define DESERIALIZE_GLM_VEC3(obj, prop, j, defaultValue) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 3, defaultValue)
+#define DESERIALIZE_GLM_VEC4(obj, prop, j, defaultValue) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 4, defaultValue)
 
-#define DESERIALIZE_GLM_VEC2i(obj, prop, j) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 2i)
-#define DESERIALIZE_GLM_VEC3i(obj, prop, j) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 3i)
-#define DESERIALIZE_GLM_VEC4i(obj, prop, j) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 4i)
+#define DESERIALIZE_GLM_VEC2i(obj, prop, j, defaultValue) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 2i, defaultValue)
+#define DESERIALIZE_GLM_VEC3i(obj, prop, j, defaultValue) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 3i, defaultValue)
+#define DESERIALIZE_GLM_VEC4i(obj, prop, j, defaultValue) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 4i, defaultValue)
 
-#define DESERIALIZE_GLM_U8VEC4(obj, prop, j) _DESERIALIZE_VEC(obj, prop, j, U8Vec, 4)
+#define DESERIALIZE_GLM_U8VEC4(obj, prop, j, defaultValue) _DESERIALIZE_VEC(obj, prop, j, U8Vec, 4, defaultValue)
 
 #endif

@@ -1673,7 +1673,7 @@ namespace MathAnim
 			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 
 			DESERIALIZE_ENUM(res, fillType, _fillTypeNames, FillType, j);
-			DESERIALIZE_VEC4(res, fillColor, j);
+			DESERIALIZE_VEC4(res, fillColor, j, "#e303fc"_hex);
 			const std::string& pathStr = DESERIALIZE_VALUE_INLINE(j, path, "");
 
 			if (pathStr.size() > 0)

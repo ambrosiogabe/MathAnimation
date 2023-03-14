@@ -10,9 +10,6 @@
 
 namespace MathAnim
 {
-	// Internal Functions
-	static SvgFileObject deserializeSvgFileObjectV2(const nlohmann::json& j);
-
 	void SvgFileObject::init(AnimationManagerData* am, AnimObjId parentId)
 	{
 		if (!svgGroup)
@@ -130,9 +127,27 @@ namespace MathAnim
 
 	SvgFileObject SvgFileObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
 		{
-			return deserializeSvgFileObjectV2(j);
+		case 2:
+		{
+			SvgFileObject res = {};
+
+			DESERIALIZE_NULLABLE_CSTRING(&res, filepath, j);
+			if (std::strcmp(res.filepath, "Undefined") == 0)
+			{
+				g_memory_free(res.filepath);
+				res.filepath = nullptr;
+				res.filepathLength = 0;
+			}
+
+			res.svgGroup = nullptr;
+
+			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_error("SvgFileObject serialized with unknown version '%d'.", version);
@@ -175,24 +190,6 @@ namespace MathAnim
 		SvgFileObject res;
 		res.filepath = nullptr;
 		res.filepathLength = 0;
-		res.svgGroup = nullptr;
-
-		return res;
-	}
-
-	// -------------------- Internal Functions --------------------
-	static SvgFileObject deserializeSvgFileObjectV2(const nlohmann::json& j)
-	{
-		SvgFileObject res = {};
-
-		DESERIALIZE_NULLABLE_CSTRING(&res, filepath, j);
-		if (std::strcmp(res.filepath, "Undefined") == 0)
-		{
-			g_memory_free(res.filepath);
-			res.filepath = nullptr;
-			res.filepathLength = 0;
-		}
-
 		res.svgGroup = nullptr;
 
 		return res;

@@ -17,11 +17,6 @@
 
 namespace MathAnim
 {
-	// ------------- Internal Functions -------------
-	static TextObject deserializeTextV2(const nlohmann::json& j);
-	static LaTexObject deserializeLaTexV2(const nlohmann::json& j);
-	static CodeBlock deserializeCodeBlockV2(const nlohmann::json& j);
-
 	// Number of spaces for tabs. Make this configurable
 	constexpr int tabDepth = 2;
 
@@ -142,11 +137,32 @@ namespace MathAnim
 		}
 	}
 
-	TextObject TextObject::deserialize(const nlohmann::json& memory, uint32 version)
+	TextObject TextObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
 		{
-			return deserializeTextV2(memory);
+		case 2:
+		{
+			TextObject res = {};
+
+			DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
+
+			// TODO: This is gross, see note in serialization above
+			const std::string& fontFilepathStr = DESERIALIZE_PROP_INLINE(res.font, fontFilepath, j, "NullFont");
+			if (fontFilepathStr != "NullFont")
+			{
+				res.font = Fonts::loadFont(fontFilepathStr.c_str());
+			}
+			else
+			{
+				res.font = nullptr;
+			}
+
+			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("TextObject serialized with unknown version '%d'.", version);
@@ -350,9 +366,20 @@ namespace MathAnim
 
 	LaTexObject LaTexObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
 		{
-			return deserializeLaTexV2(j);
+		case 2:
+		{
+			LaTexObject res = {};
+
+			DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
+			DESERIALIZE_PROP(&res, isEquation, j, false);
+
+			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("LaTexObject serialized with unknown version '%d'.", version);
@@ -556,9 +583,21 @@ namespace MathAnim
 
 	CodeBlock CodeBlock::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
 		{
-			return deserializeCodeBlockV2(j);
+		case 2:
+		{
+			CodeBlock res = {};
+
+			DESERIALIZE_ENUM(&res, theme, _highlighterThemeNames, HighlighterTheme, j);
+			DESERIALIZE_ENUM(&res, language, _highlighterLanguageNames, HighlighterLanguage, j);
+			DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
+
+			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("CodeBlock serialized with unknown version '%d'.", version);
@@ -582,48 +621,6 @@ int main()
 		g_memory_copyMem(res.text, (void*)defaultText, sizeof(defaultText) / sizeof(char));
 		res.textLength = (sizeof(defaultText) / sizeof(char)) - 1;
 		res.text[res.textLength] = '\0';
-		return res;
-	}
-
-	// ------------- Internal Functions -------------
-	static TextObject deserializeTextV2(const nlohmann::json& j)
-	{
-		TextObject res = {};
-
-		DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
-
-		// TODO: This is gross, see note in serialization above
-		const std::string& fontFilepathStr = DESERIALIZE_PROP_INLINE(res.font, fontFilepath, j, "NullFont");
-		if (fontFilepathStr != "NullFont")
-		{
-			res.font = Fonts::loadFont(fontFilepathStr.c_str());
-		}
-		else
-		{
-			res.font = nullptr;
-		}
-
-		return res;
-	}
-
-	static LaTexObject deserializeLaTexV2(const nlohmann::json& j)
-	{
-		LaTexObject res = {};
-
-		DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
-		DESERIALIZE_PROP(&res, isEquation, j, false);
-
-		return res;
-	}
-
-	static CodeBlock deserializeCodeBlockV2(const nlohmann::json& j)
-	{
-		CodeBlock res = {};
-
-		DESERIALIZE_ENUM(&res, theme, _highlighterThemeNames, HighlighterTheme, j);
-		DESERIALIZE_ENUM(&res, language, _highlighterLanguageNames, HighlighterLanguage, j);
-		DESERIALIZE_NULLABLE_CSTRING(&res, text, j);
-
 		return res;
 	}
 }

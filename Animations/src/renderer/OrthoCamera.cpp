@@ -7,9 +7,6 @@
 
 namespace MathAnim
 {
-	// -------------- Internal Functions --------------
-	static OrthoCamera deserializeCameraV2(const nlohmann::json& memory);
-
 	glm::mat4 OrthoCamera::calculateViewMatrix() const
 	{
 		glm::vec3 forward = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -48,11 +45,15 @@ namespace MathAnim
 		SERIALIZE_NON_NULL_PROP(memory, this, zoom);
 	}
 
-	OrthoCamera OrthoCamera::deserialize(const nlohmann::json& memory, uint32 version)
+	OrthoCamera OrthoCamera::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		if (version == 2)
 		{
-			return deserializeCameraV2(memory);
+			OrthoCamera res = {};
+			DESERIALIZE_VEC2(&res, position, j, (Vec2{ 0, 0 }));
+			DESERIALIZE_VEC2(&res, projectionSize, j, (Vec2{ 18, 9 }));
+			DESERIALIZE_PROP(&res, zoom, j, 1.0f);
+			return res;
 		}
 
 		g_logger_warning("Unknown camera version: %d", version);
@@ -75,16 +76,6 @@ namespace MathAnim
 		}
 
 		OrthoCamera res = {};
-		return res;
-	}
-
-	// -------------- Internal Functions --------------
-	static OrthoCamera deserializeCameraV2(const nlohmann::json& j)
-	{
-		OrthoCamera res = {};
-		DESERIALIZE_VEC2(&res, position, j);
-		DESERIALIZE_VEC2(&res, projectionSize, j);
-		DESERIALIZE_PROP(&res, zoom, j, 1.0f);
 		return res;
 	}
 }

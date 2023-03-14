@@ -344,6 +344,7 @@ namespace MathAnim
 	struct CameraObject
 	{
 		OrthoCamera camera2D;
+		Vec4 fillColor;
 		bool is2D;
 		bool isActiveCamera;
 

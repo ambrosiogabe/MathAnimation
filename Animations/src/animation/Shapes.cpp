@@ -8,11 +8,6 @@
 
 namespace MathAnim
 {
-	// ------------------ Internal Functions ------------------
-	static Square deserializeSquareV2(const nlohmann::json& j);
-	static Circle deserializeCircleV2(const nlohmann::json& j);
-	static Cube deserializeCubeV2(const nlohmann::json& j);
-
 	void Square::init(AnimObject* parent)
 	{
 		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Square object initialized twice.");
@@ -43,8 +38,12 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
-			return deserializeSquareV2(j);
-			break;
+		{
+			Square res = {};
+			DESERIALIZE_PROP(&res, sideLength, j, 0.0f);
+			return res;
+		}
+		break;
 		default:
 			g_logger_error("Square serialized with unknown version '%d'", version);
 			break;
@@ -121,8 +120,12 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
-			return deserializeCircleV2(j);
-			break;
+		{
+			Circle res = {};
+			DESERIALIZE_PROP(&res, radius, j, 0.0f);
+			return res;
+		}
+		break;
 		default:
 			break;
 		}
@@ -281,8 +284,12 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
-			return deserializeCubeV2(j);
-			break;
+		{
+			Cube res = {};
+			DESERIALIZE_PROP(&res, sideLength, j, 0.0f);
+			return res;
+		}
+		break;
 		default:
 			break;
 		}
@@ -309,27 +316,5 @@ namespace MathAnim
 		}
 
 		return {};
-	}
-
-	// ------------------ Internal Functions ------------------
-	static Square deserializeSquareV2(const nlohmann::json& j)
-	{
-		Square res = {};
-		DESERIALIZE_PROP(&res, sideLength, j, 0.0f);
-		return res;
-	}
-
-	static Circle deserializeCircleV2(const nlohmann::json& j)
-	{
-		Circle res = {};
-		DESERIALIZE_PROP(&res, radius, j, 0.0f);
-		return res;
-	}
-
-	static Cube deserializeCubeV2(const nlohmann::json& j)
-	{
-		Cube res = {};
-		DESERIALIZE_PROP(&res, sideLength, j, 0.0f);
-		return res;
 	}
 }

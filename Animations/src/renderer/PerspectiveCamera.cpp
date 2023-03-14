@@ -7,9 +7,6 @@
 
 namespace MathAnim
 {
-	// -------------- Internal Functions --------------
-	static PerspectiveCamera deserializeCameraV2(const nlohmann::json& j);
-
 	// TODO: Cache these values and make this const by separating
 	// calculations from getting the matrices
 	glm::mat4 PerspectiveCamera::calculateViewMatrix()
@@ -22,7 +19,7 @@ namespace MathAnim
 		// 0 1 0
 		glm::vec3 localRight = glm::cross(forward, glm::vec3(0, 1, 0));
 		glm::vec3 localUp = glm::cross(localRight, forward);
-		
+
 		return glm::lookAt(
 			position,
 			position + forward,
@@ -47,12 +44,23 @@ namespace MathAnim
 		SERIALIZE_GLM_VEC3(memory, this, forward);
 		SERIALIZE_NON_NULL_PROP(memory, this, fov);
 	}
-	
+
 	PerspectiveCamera PerspectiveCamera::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
 		{
-			return deserializeCameraV2(j);
+		case 2:
+		{
+			PerspectiveCamera res;
+			DESERIALIZE_GLM_VEC3(&res, position, j, (Vec3{0, 0, -2}));
+			DESERIALIZE_GLM_VEC3(&res, orientation, j, (Vec3{0, 0, 0}));
+			DESERIALIZE_GLM_VEC3(&res, forward, j, (Vec3{0, 0, 1}));
+			DESERIALIZE_PROP(&res, fov, j, 75.0f);
+			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("PerspectiveCamera serialized with unknown version: %d", version);
@@ -77,17 +85,6 @@ namespace MathAnim
 		}
 
 		PerspectiveCamera res = {};
-		return res;
-	}
-
-	// -------------- Internal Functions --------------
-	static PerspectiveCamera deserializeCameraV2(const nlohmann::json& j)
-	{
-		PerspectiveCamera res;
-		DESERIALIZE_GLM_VEC3(&res, position, j);
-		DESERIALIZE_GLM_VEC3(&res, orientation, j);
-		DESERIALIZE_GLM_VEC3(&res, forward, j);
-		DESERIALIZE_PROP(&res, fov, j, 75.0f);
 		return res;
 	}
 }
