@@ -59,7 +59,7 @@ namespace MathAnim
 
 		AnimationManagerData* create()
 		{
-			void* animManagerMemory = g_memory_allocate(sizeof(AnimationManagerData));
+			void *animManagerMemory = g_memory_allocate(sizeof(AnimationManagerData));
 			// Placement new to ensure the vectors and stuff are appropriately constructed
 			// but I can still use my memory tracker
 			AnimationManagerData* res = new (animManagerMemory) AnimationManagerData();
@@ -88,7 +88,7 @@ namespace MathAnim
 			return res;
 		}
 
-		void free(AnimationManagerData* am)
+		void free(AnimationManagerData *am)
 		{
 			if (am)
 			{
@@ -110,7 +110,7 @@ namespace MathAnim
 			}
 		}
 
-		void endFrame(AnimationManagerData* am)
+		void endFrame(AnimationManagerData *am)
 		{
 			MP_PROFILE_EVENT("AnimationManager_EndFrame");
 
@@ -131,7 +131,7 @@ namespace MathAnim
 			am->queuedRemoveAnimations.clear();
 
 			// Add all queued objects
-			for (const auto& obj : am->queuedAddObjects)
+			for (const auto &obj : am->queuedAddObjects)
 			{
 				addQueuedAnimObject(am, obj);
 			}
@@ -139,7 +139,7 @@ namespace MathAnim
 			am->queuedAddObjects.clear();
 
 			// Add all queued animations
-			for (const auto& animation : am->queuedAddAnimations)
+			for (const auto &animation : am->queuedAddAnimations)
 			{
 				addQueuedAnimation(am, animation);
 			}
@@ -147,7 +147,7 @@ namespace MathAnim
 			am->queuedAddAnimations.clear();
 		}
 
-		void resetToFrame(AnimationManagerData* am, uint32 absoluteFrame)
+		void resetToFrame(AnimationManagerData *am, uint32 absoluteFrame)
 		{
 			MP_PROFILE_EVENT("AnimationManager_ResetToFrame");
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
@@ -173,7 +173,7 @@ namespace MathAnim
 			am->currentFrame = absoluteFrame;
 		}
 
-		void calculateAnimationKeyFrames(AnimationManagerData* am)
+		void calculateAnimationKeyFrames(AnimationManagerData *am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -193,7 +193,7 @@ namespace MathAnim
 			calculateBBoxes(am);
 		}
 
-		void addAnimObject(AnimationManagerData* am, const AnimObject& object)
+		void addAnimObject(AnimationManagerData *am, const AnimObject &object)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -202,7 +202,7 @@ namespace MathAnim
 			am->queuedAddObjects.push_back(object);
 		}
 
-		void addAnimation(AnimationManagerData* am, const Animation& animation)
+		void addAnimation(AnimationManagerData *am, const Animation &animation)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -211,7 +211,7 @@ namespace MathAnim
 			am->queuedAddAnimations.push_back(animation);
 		}
 
-		void removeAnimObject(AnimationManagerData* am, AnimObjId animObj)
+		void removeAnimObject(AnimationManagerData *am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -220,7 +220,7 @@ namespace MathAnim
 			am->queuedRemoveObjects.push_back(animObj);
 		}
 
-		void removeAnimation(AnimationManagerData* am, AnimId anim)
+		void removeAnimation(AnimationManagerData *am, AnimId anim)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -229,10 +229,10 @@ namespace MathAnim
 			am->queuedRemoveAnimations.push_back(anim);
 		}
 
-		void addObjectToAnim(AnimationManagerData* am, AnimObjId animObjId, AnimId animationId)
+		void addObjectToAnim(AnimationManagerData *am, AnimObjId animObjId, AnimId animationId)
 		{
-			Animation* anim = getMutableAnimation(am, animationId);
-			AnimObject* obj = getMutableObject(am, animObjId);
+			Animation *anim = getMutableAnimation(am, animationId);
+			AnimObject *obj = getMutableObject(am, animObjId);
 			if (anim && obj)
 			{
 				anim->animObjectIds.insert(animObjId);
@@ -240,10 +240,10 @@ namespace MathAnim
 			}
 		}
 
-		void removeObjectFromAnim(AnimationManagerData* am, AnimObjId animObjId, AnimId animationId)
+		void removeObjectFromAnim(AnimationManagerData *am, AnimObjId animObjId, AnimId animationId)
 		{
-			Animation* anim = getMutableAnimation(am, animationId);
-			AnimObject* obj = getMutableObject(am, animObjId);
+			Animation *anim = getMutableAnimation(am, animationId);
+			AnimObject *obj = getMutableObject(am, animObjId);
 			if (anim && obj)
 			{
 				anim->animObjectIds.erase(animObjId);
@@ -251,7 +251,7 @@ namespace MathAnim
 			}
 		}
 
-		bool setAnimationTime(AnimationManagerData* am, AnimId anim, int frameStart, int duration)
+		bool setAnimationTime(AnimationManagerData *am, AnimId anim, int frameStart, int duration)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -280,11 +280,11 @@ namespace MathAnim
 			return false;
 		}
 
-		void setAnimationTrack(AnimationManagerData* am, AnimId anim, int track)
+		void setAnimationTrack(AnimationManagerData *am, AnimId anim, int track)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			Animation* animation = getMutableAnimation(am, anim);
+			Animation *animation = getMutableAnimation(am, anim);
 			if (animation)
 			{
 				animation->timelineTrack = track;
@@ -294,36 +294,58 @@ namespace MathAnim
 		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight)
 		{
 			Texture compositeTexture = TextureBuilder()
-				.setFormat(ByteFormat::RGBA8_UI)
-				.setMinFilter(FilterMode::Linear)
-				.setMagFilter(FilterMode::Linear)
-				.setWidth(outputWidth)
-				.setHeight(outputHeight)
-				.build();
+										   .setFormat(ByteFormat::RGBA8_UI)
+										   .setMinFilter(FilterMode::Linear)
+										   .setMagFilter(FilterMode::Linear)
+										   .setWidth(outputWidth)
+										   .setHeight(outputHeight)
+										   .build();
 
 			Texture accumulationTexture = TextureBuilder()
-				.setFormat(ByteFormat::RGBA16_F)
-				.setMinFilter(FilterMode::Linear)
-				.setMagFilter(FilterMode::Linear)
-				.setWidth(outputWidth)
-				.setHeight(outputHeight)
-				.build();
+											  .setFormat(ByteFormat::RGBA16_F)
+											  .setMinFilter(FilterMode::Linear)
+											  .setMagFilter(FilterMode::Linear)
+											  .setWidth(outputWidth)
+											  .setHeight(outputHeight)
+											  .build();
 
 			Texture revelageTexture = TextureBuilder()
-				.setFormat(ByteFormat::R8_F)
-				.setMinFilter(FilterMode::Linear)
-				.setMagFilter(FilterMode::Linear)
-				.setWidth(outputWidth)
-				.setHeight(outputHeight)
-				.build();
+										  .setFormat(ByteFormat::R8_F)
+										  .setMinFilter(FilterMode::Linear)
+										  .setMagFilter(FilterMode::Linear)
+										  .setWidth(outputWidth)
+										  .setHeight(outputHeight)
+										  .build();
 
 			Texture objIdTexture = TextureBuilder()
-				.setFormat(ByteFormat::RG32_UI)
-				.setMinFilter(FilterMode::Nearest)
-				.setMagFilter(FilterMode::Nearest)
-				.setWidth(outputWidth)
-				.setHeight(outputHeight)
-				.build();
+									   .setFormat(ByteFormat::RG32_UI)
+									   .setMinFilter(FilterMode::Nearest)
+									   .setMagFilter(FilterMode::Nearest)
+									   .setWidth(outputWidth)
+									   .setHeight(outputHeight)
+									   .build();
+
+			Texture activeObjectsOutlineMask = TextureBuilder()
+												   .setFormat(ByteFormat::RGBA16_F)
+												   .setMinFilter(FilterMode::Nearest)
+												   .setMagFilter(FilterMode::Nearest)
+												   // TODO: Should we have a smaller framebuffer for outlines?
+												   // We could potentially make it 2x or 3x smaller and then just
+												   // render to that instead of having it attached to the main framebuffer
+												   .setWidth(outputWidth)
+												   .setHeight(outputHeight)
+												   .build();
+
+			Texture activeObjectsOutlineMask2 = TextureBuilder()
+													.setFormat(ByteFormat::RGBA16_F)
+													.setMinFilter(FilterMode::Nearest)
+													.setMagFilter(FilterMode::Nearest)
+													// TODO: Should we have a smaller framebuffer for outlines?
+													// We could potentially make it 2x or 3x smaller and then just
+													// render to that instead of having it attached to the main framebuffer
+													.setWidth(outputWidth)
+													.setHeight(outputHeight)
+													.build();
 
 			Texture activeObjectsOutlineMask = TextureBuilder()
 				.setFormat(ByteFormat::RGBA16_F)
@@ -360,7 +382,7 @@ namespace MathAnim
 			return res;
 		}
 
-		void render(AnimationManagerData* am, int deltaFrame)
+		void render(AnimationManagerData *am, int deltaFrame)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 			MP_PROFILE_EVENT("AnimationManager_Render");
@@ -399,7 +421,7 @@ namespace MathAnim
 			}
 		}
 
-		int lastAnimatedFrame(const AnimationManagerData* am)
+		int lastAnimatedFrame(const AnimationManagerData *am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -414,23 +436,23 @@ namespace MathAnim
 			return lastFrame + 60;
 		}
 
-		bool isPastLastFrame(const AnimationManagerData* am)
+		bool isPastLastFrame(const AnimationManagerData *am)
 		{
 			return am->currentFrame >= AnimationManager::lastAnimatedFrame(am);
 		}
 
-		const AnimObject* getActiveOrthoCamera(const AnimationManagerData* am)
+		const AnimObject *getActiveOrthoCamera(const AnimationManagerData *am)
 		{
 			return getObject(am, am->activeCamera);
 		}
 
-		void setActiveOrthoCamera(AnimationManagerData* am, AnimObjId id)
+		void setActiveOrthoCamera(AnimationManagerData *am, AnimObjId id)
 		{
 			am->startingActiveCamera = id;
 			am->activeCamera = id;
 		}
 
-		const AnimObject* getPendingObject(const AnimationManagerData* am, AnimObjId animObj)
+		const AnimObject *getPendingObject(const AnimationManagerData *am, AnimObjId animObj)
 		{
 			for (int i = 0; i < am->queuedAddObjects.size(); i++)
 			{
@@ -443,12 +465,12 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		const AnimObject* getObject(const AnimationManagerData* am, AnimObjId animObj)
+		const AnimObject *getObject(const AnimationManagerData *am, AnimObjId animObj)
 		{
-			return getMutableObject((AnimationManagerData*)am, animObj);
+			return getMutableObject((AnimationManagerData *)am, animObj);
 		}
 
-		AnimObject* getMutableObject(AnimationManagerData* am, AnimObjId animObj)
+		AnimObject *getMutableObject(AnimationManagerData *am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -486,12 +508,12 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		const Animation* getAnimation(const AnimationManagerData* am, AnimId anim)
+		const Animation *getAnimation(const AnimationManagerData *am, AnimId anim)
 		{
-			return getMutableAnimation((AnimationManagerData*)am, anim);
+			return getMutableAnimation((AnimationManagerData *)am, anim);
 		}
 
-		Animation* getMutableAnimation(AnimationManagerData* am, AnimId anim)
+		Animation *getMutableAnimation(AnimationManagerData *am, AnimId anim)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -513,19 +535,19 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		const std::vector<AnimObject>& getAnimObjects(const AnimationManagerData* am)
+		const std::vector<AnimObject> &getAnimObjects(const AnimationManagerData *am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 			return am->objects;
 		}
 
-		const std::vector<Animation>& getAnimations(const AnimationManagerData* am)
+		const std::vector<Animation> &getAnimations(const AnimationManagerData *am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 			return am->animations;
 		}
 
-		std::vector<AnimId> getAssociatedAnimations(const AnimationManagerData* am, AnimObjId animObj)
+		std::vector<AnimId> getAssociatedAnimations(const AnimationManagerData *am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -542,7 +564,7 @@ namespace MathAnim
 			return res;
 		}
 
-		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId animObj)
+		std::vector<AnimObjId> getChildren(const AnimationManagerData *am, AnimObjId animObj)
 		{
 			std::vector<AnimObjId> res;
 			for (int i = 0; i < am->objects.size(); i++)
@@ -556,9 +578,9 @@ namespace MathAnim
 			return res;
 		}
 
-		AnimObjId getNextSibling(const AnimationManagerData* am, AnimObjId objId)
+		AnimObjId getNextSibling(const AnimationManagerData *am, AnimObjId objId)
 		{
-			const AnimObject* obj = getObject(am, objId);
+			const AnimObject *obj = getObject(am, objId);
 			if (obj)
 			{
 				bool passedMyself = false;
@@ -717,7 +739,7 @@ namespace MathAnim
 			}
 		}
 
-		void applyGlobalTransforms(AnimationManagerData* am)
+		void applyGlobalTransforms(AnimationManagerData *am)
 		{
 			MP_PROFILE_EVENT("AnimationManager_ApplyGlobalTransforms");
 			// ----- Apply the parent->child transformations -----
@@ -734,7 +756,7 @@ namespace MathAnim
 			}
 		}
 
-		void applyGlobalTransformsTo(AnimationManagerData* am, AnimObjId obj)
+		void applyGlobalTransformsTo(AnimationManagerData *am, AnimObjId obj)
 		{
 			// Initialize the queue with the object to update
 			std::queue<AnimObjId> objects = {};
@@ -748,12 +770,12 @@ namespace MathAnim
 				objects.pop();
 
 				// Update child transform
-				AnimObject* nextObj = getMutableObject(am, nextObjId);
+				AnimObject *nextObj = getMutableObject(am, nextObjId);
 				if (nextObj)
 				{
 					glm::mat4 parentTransform = glm::mat4(1.0f);
 					glm::mat4 parentTransformStart = glm::mat4(1.0f);
-					const AnimObject* parent = getObject(am, nextObj->parentId);
+					const AnimObject *parent = getObject(am, nextObj->parentId);
 					if (parent)
 					{
 						parentTransform = parent->globalTransform;
@@ -774,7 +796,7 @@ namespace MathAnim
 			}
 		}
 
-		void calculateBBoxes(AnimationManagerData* am)
+		void calculateBBoxes(AnimationManagerData *am)
 		{
 			MP_PROFILE_EVENT("AnimationManager_CalculateBBoxes");
 			// ----- Calculate child bbox first then parent -----
@@ -791,7 +813,7 @@ namespace MathAnim
 			}
 		}
 
-		void calculateBBoxFor(AnimationManagerData* am, AnimObjId obj)
+		void calculateBBoxFor(AnimationManagerData *am, AnimObjId obj)
 		{
 			// Parent
 			//   -> Child1
@@ -832,8 +854,8 @@ namespace MathAnim
 				}
 				else
 				{
-					finalBoundingBox.min = Vec2{ FLT_MAX, FLT_MAX };
-					finalBoundingBox.max = Vec2{ -FLT_MAX, -FLT_MAX };
+					finalBoundingBox.min = Vec2{FLT_MAX, FLT_MAX};
+					finalBoundingBox.max = Vec2{-FLT_MAX, -FLT_MAX};
 				}
 
 				// Then append all direct children to the queue so they are
@@ -852,9 +874,9 @@ namespace MathAnim
 			}
 		}
 
-		void updateObjectState(AnimationManagerData* am, AnimObjId animObjId)
+		void updateObjectState(AnimationManagerData *am, AnimObjId animObjId)
 		{
-			AnimObject* obj = getMutableObject(am, animObjId);
+			AnimObject *obj = getMutableObject(am, animObjId);
 			if (!obj)
 			{
 				g_logger_warning("Cannot update state of object that does not exist for AnimObjID: '%d'", animObjId);
@@ -867,7 +889,7 @@ namespace MathAnim
 
 			if (!isNull(obj->parentId))
 			{
-				AnimObject* parent;
+				AnimObject *parent;
 				while ((parent = getMutableObject(am, obj->parentId)) != nullptr)
 				{
 					obj = parent;
@@ -879,7 +901,7 @@ namespace MathAnim
 			for (auto childIter = obj->beginBreadthFirst(am); childIter != obj->end(); ++childIter)
 			{
 				AnimObjId childId = *childIter;
-				AnimObject* child = getMutableObject(am, childId);
+				AnimObject *child = getMutableObject(am, childId);
 				if (child)
 				{
 					child->resetAllState();
@@ -892,7 +914,7 @@ namespace MathAnim
 			// Apply any changes from animations in order
 			for (auto animIter = obj->referencedAnimations.begin(); animIter != obj->referencedAnimations.end(); animIter++)
 			{
-				Animation* anim = AnimationManager::getMutableAnimation(am, *animIter);
+				Animation *anim = AnimationManager::getMutableAnimation(am, *animIter);
 				if (anim)
 				{
 					float frameStart = (float)anim->frameStart;
@@ -943,7 +965,7 @@ namespace MathAnim
 			sortAnimations(am);
 		}
 
-		static bool compareAnimation(const Animation& a1, const Animation& a2)
+		static bool compareAnimation(const Animation &a1, const Animation &a2)
 		{
 			// Sort by timeline track secondarily
 			if (a1.frameStart == a2.frameStart)
@@ -954,7 +976,7 @@ namespace MathAnim
 			return a1.frameStart < a2.frameStart;
 		}
 
-		static void updateGlobalTransform(AnimObject& obj, const glm::mat4& parentTransform, const glm::mat4& parentTransformStart)
+		static void updateGlobalTransform(AnimObject &obj, const glm::mat4 &parentTransform, const glm::mat4 &parentTransformStart)
 		{
 			// Calculate global transformation
 			obj.globalTransform = parentTransform * CMath::calculateTransform(obj.rotation, obj.scale, obj.position);
@@ -965,13 +987,13 @@ namespace MathAnim
 			obj._globalPositionStart = CMath::extractPosition(obj._globalTransformStart);
 		}
 
-		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj)
+		static void addQueuedAnimObject(AnimationManagerData *am, const AnimObject &obj)
 		{
 			am->objects.push_back(obj);
 			am->objectIdMap[obj.id] = am->objects.size() - 1;
 		}
 
-		static void addQueuedAnimation(AnimationManagerData* am, const Animation& animation)
+		static void addQueuedAnimation(AnimationManagerData *am, const Animation &animation)
 		{
 			for (auto iter = am->animations.begin(); iter != am->animations.end(); iter++)
 			{
@@ -996,7 +1018,7 @@ namespace MathAnim
 			am->animationIdMap[animation.id] = am->animations.size() - 1;
 		}
 
-		static void removeQueuedAnimObject(AnimationManagerData* am, AnimObjId animObj)
+		static void removeQueuedAnimObject(AnimationManagerData *am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -1014,7 +1036,7 @@ namespace MathAnim
 			}
 		}
 
-		static void removeQueuedAnimation(AnimationManagerData* am, AnimId anim)
+		static void removeQueuedAnimation(AnimationManagerData *am, AnimId anim)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -1038,7 +1060,7 @@ namespace MathAnim
 			}
 		}
 
-		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj)
+		static bool removeSingleAnimObject(AnimationManagerData *am, AnimObjId animObj)
 		{
 			// Remove the anim object
 			auto iter = am->objectIdMap.find(animObj);
@@ -1088,7 +1110,7 @@ namespace MathAnim
 			return true;
 		}
 
-		static void applyDelta(AnimationManagerData* am, int deltaFrame)
+		static void applyDelta(AnimationManagerData *am, int deltaFrame)
 		{
 			MP_PROFILE_EVENT("AnimationManager_ApplyDelta");
 			// int previousFrame = am->currentFrame;
@@ -1181,7 +1203,7 @@ namespace MathAnim
 			// applyGlobalTransforms(am);
 		}
 
-		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int currentFrame, bool calculateKeyframes)
+		static void applyAnimationsFrom(AnimationManagerData *am, int startIndex, int currentFrame, bool calculateKeyframes)
 		{
 			MP_PROFILE_EVENT("AnimationManager_ApplyAnimationsFrom");
 
