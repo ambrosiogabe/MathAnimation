@@ -317,6 +317,8 @@ namespace MathAnim
 		// --------- Internal functions ---------
 		static void imGuiRightClickPopup(AnimationManagerData* am)
 		{
+			const Vec4& grayedTextColor = Colors::Neutral[3];
+
 			if (ImGui::BeginPopupContextWindow())
 			{
 				if (ImGui::BeginMenu("Cameras")) 
@@ -336,7 +338,7 @@ namespace MathAnim
 
 				if (ImGui::BeginMenu("Shapes"))
 				{
-					ImGui::Text("2D Shapes");
+					ImGui::TextColored(grayedTextColor, "2D Shapes");
 					ImGui::Separator();
 
 					if (ImGui::MenuItem("Square"))
@@ -359,7 +361,7 @@ namespace MathAnim
 						createAndAddAnimObject(am, AnimObjectTypeV1::Axis);
 					}
 
-					ImGui::Text("3D Shapes");
+					ImGui::TextColored(grayedTextColor, "3D Shapes");
 					ImGui::Separator();
 
 					if (ImGui::MenuItem("Cube"))
