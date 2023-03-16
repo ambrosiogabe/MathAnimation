@@ -60,6 +60,7 @@ namespace MathAnim
 		static void handleCubeInspector(AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
 		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static void handleImageObjectInspector(AnimationManagerData* am,AnimObject* object);
 
 		void update(AnimationManagerData* am)
 		{
@@ -331,6 +332,9 @@ namespace MathAnim
 					break;
 				case AnimObjectTypeV1::ScriptObject:
 					handleScriptObjectInspector(am, animObject);
+					break;
+				case AnimObjectTypeV1::Image:
+					handleImageObjectInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::Arrow:
 					handleArrowInspector(animObject);
@@ -857,16 +861,7 @@ namespace MathAnim
 		{
 			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength, slowDragSpeed))
 			{
-				// TODO: Do something better than this
-				object->svgObject->free();
-				g_memory_free(object->svgObject);
-				object->svgObject = nullptr;
-
-				object->_svgObjectStart->free();
-				g_memory_free(object->_svgObjectStart);
-				object->_svgObjectStart = nullptr;
-
-				object->as.square.init(object);
+				object->as.square.reInit(object);
 			}
 		}
 
@@ -874,15 +869,7 @@ namespace MathAnim
 		{
 			if (ImGui::DragFloat(": Radius", &object->as.circle.radius, slowDragSpeed))
 			{
-				object->svgObject->free();
-				g_memory_free(object->svgObject);
-				object->svgObject = nullptr;
-
-				object->_svgObjectStart->free();
-				g_memory_free(object->_svgObjectStart);
-				object->_svgObjectStart = nullptr;
-
-				object->as.circle.init(object);
+				object->as.circle.reInit(object);
 			}
 		}
 
@@ -911,15 +898,7 @@ namespace MathAnim
 
 			if (shouldRegenerate)
 			{
-				object->svgObject->free();
-				g_memory_free(object->svgObject);
-				object->svgObject = nullptr;
-
-				object->_svgObjectStart->free();
-				g_memory_free(object->_svgObjectStart);
-				object->_svgObjectStart = nullptr;
-
-				object->as.arrow.init(object);
+				object->as.arrow.reInit(object);
 			}
 		}
 
@@ -934,7 +913,7 @@ namespace MathAnim
 				//object->children.clear();
 				g_logger_warning("TODO: Fix me");
 
-				object->as.cube.init(object);
+				object->as.cube.reInit(object);
 			}
 		}
 
@@ -1105,5 +1084,70 @@ namespace MathAnim
 			}
 		}
 
+		static void handleImageObjectInspector(AnimationManagerData* am, AnimObject* object)
+		{
+			ImGui::BeginDisabled();
+			char* filepathStr = object->as.image.imageFilepath;
+			size_t filepathStrLength = object->as.image.imageFilepathLength * sizeof(char);
+			if (!filepathStr)
+			{
+				// This string will never be changed so no need to worry about this... Hopefully :sweat_smile:
+				filepathStr = (char*)"Select a File";
+				filepathStrLength = sizeof("Select a File");
+			}
+			ImGui::InputText(
+				": Filepath",
+				filepathStr,
+				filepathStrLength,
+				ImGuiInputTextFlags_ReadOnly
+			);
+			ImGui::EndDisabled();
+			ImGui::SameLine();
+
+			bool shouldRegenerate = false;
+
+			if (ImGui::Button(ICON_FA_FILE_UPLOAD))
+			{
+				nfdchar_t* outPath = NULL;
+				nfdresult_t result = NFD_OpenDialog("png", NULL, &outPath);
+
+				if (result == NFD_OKAY)
+				{
+					size_t strLength = std::strlen(outPath);
+					object->as.image.setFilepath(outPath, strLength);
+					shouldRegenerate = true;
+					std::free(outPath);
+				}
+				else if (result == NFD_CANCEL)
+				{
+					// NOP;
+				}
+				else
+				{
+					g_logger_error("Error opening Image:\n\t%s", NFD_GetError());
+				}
+			}
+
+			int currentFilterMode = (int)object->as.image.filterMode;
+			if (ImGui::Combo(": Sample Mode", &currentFilterMode, _imageFilterModeNames.data(), (int)ImageFilterMode::Length))
+			{
+				g_logger_assert(currentFilterMode >= 0 && currentFilterMode < (int)ImageFilterMode::Length, "How did this happen?");
+				object->as.image.filterMode = (ImageFilterMode)currentFilterMode;
+				shouldRegenerate = true;
+			}
+
+			int currentRepeatMode = (int)object->as.image.repeatMode;
+			if (ImGui::Combo(": Repeat", &currentRepeatMode, _imageRepeatModeNames.data(), (int)ImageRepeatMode::Length))
+			{
+				g_logger_assert(currentRepeatMode >= 0 && currentRepeatMode < (int)ImageRepeatMode::Length, "How did this happen?");
+				object->as.image.repeatMode = (ImageRepeatMode)currentFilterMode;
+				shouldRegenerate = true;
+			}
+
+			if (shouldRegenerate)
+			{
+				object->as.image.reInit(am, object, true);
+			}
+		}
 	}
 }

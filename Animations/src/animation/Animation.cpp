@@ -10,11 +10,14 @@
 #include "svg/Paths.h"
 #include "renderer/Colors.h"
 #include "renderer/Renderer.h"
+#include "renderer/Texture.h"
+#include "renderer/TextureCache.h"
 #include "renderer/Fonts.h"
 #include "math/CMath.h"
 #include "editor/Gizmos.h"
 #include "editor/EditorSettings.h"
 #include "editor/EditorGui.h"
+#include "editor/panels/SceneHierarchyPanel.h"
 
 #include <nlohmann/json.hpp>
 
@@ -509,8 +512,8 @@ namespace MathAnim
 		if (version == 2)
 		{
 			MoveToData res = {};
-			DESERIALIZE_VEC2(&res, source, memory, (Vec2{0, 0}));
-			DESERIALIZE_VEC2(&res, target, memory, (Vec2{0, 0}));
+			DESERIALIZE_VEC2(&res, source, memory, (Vec2{ 0, 0 }));
+			DESERIALIZE_VEC2(&res, target, memory, (Vec2{ 0, 0 }));
 			DESERIALIZE_ID(&res, object, memory);
 			return res;
 		}
@@ -543,8 +546,8 @@ namespace MathAnim
 		if (version == 2)
 		{
 			AnimateScaleData res = {};
-			DESERIALIZE_VEC2(&res, source, memory, (Vec2{0, 0}));
-			DESERIALIZE_VEC2(&res, target, memory, (Vec2{0, 0}));
+			DESERIALIZE_VEC2(&res, source, memory, (Vec2{ 0, 0 }));
+			DESERIALIZE_VEC2(&res, target, memory, (Vec2{ 0, 0 }));
 			DESERIALIZE_ID(&res, object, memory);
 			return res;
 		}
@@ -1011,9 +1014,183 @@ namespace MathAnim
 
 	ScriptObject ScriptObject::createDefault()
 	{
-		ScriptObject res;
-		res.scriptFilepath = (char*)g_memory_allocate(sizeof(char) * 1);
+		ScriptObject res = {};
+		res.scriptFilepath = nullptr;
 		res.scriptFilepathLength = 0;
+
+		return res;
+	}
+
+	void ImageObject::setFilepath(const char* str, size_t strLength)
+	{
+		if (strLength != this->imageFilepathLength)
+		{
+			this->imageFilepath = (char*)g_memory_realloc(this->imageFilepath, sizeof(char) * (strLength + 1));
+			g_logger_assert(this->imageFilepath != nullptr, "Allocation failed. Out of memory.");
+		}
+
+		g_memory_copyMem((void*)this->imageFilepath, (void*)str, sizeof(char) * strLength);
+		this->imageFilepath[strLength] = '\0';
+	}
+
+	void ImageObject::serialize(nlohmann::json& j) const
+	{
+		SERIALIZE_NULLABLE_CSTRING(j, this, imageFilepath, "Undefined");
+		SERIALIZE_VEC(j, this, size);
+		SERIALIZE_ENUM(j, this, filterMode, _imageFilterModeNames);
+		SERIALIZE_ENUM(j, this, repeatMode, _imageRepeatModeNames);
+	}
+
+	void ImageObject::free()
+	{
+		if (!isNull(textureHandle))
+		{
+			TextureCache::unloadTexture(textureHandle);
+		}
+
+		if (imageFilepath)
+		{
+			g_memory_free((void*)imageFilepath);
+		}
+
+		imageFilepath = nullptr;
+		imageFilepathLength = 0;
+	}
+
+	void ImageObject::init(AnimationManagerData* am, AnimObjId parentId)
+	{
+		if (imageFilepath == nullptr || imageFilepathLength == 0)
+		{
+			return;
+		}
+
+		TextureHandle handle = TextureCache::loadTexture(imageFilepath, getLoadOptions());
+		const Texture& texture = TextureCache::getTexture(handle);
+
+		size.x = size.x == 0.0f ?  (float)texture.width / Application::getOutputSize().x * Application::getViewportSize().x : size.x;
+		size.y = size.y == 0.0f ? (float)texture.height / Application::getOutputSize().y * Application::getViewportSize().y : size.y;
+		textureHandle = handle;
+
+		// Generate child for the actual image
+		AnimObject imageChildObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::_ImageObject, parentId, true);
+		imageChildObj._positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
+		imageChildObj.setName("Image");
+
+		// Generate child for the square/border that will be drawn in around the image
+		AnimObject squareChildObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::Square, parentId, true);
+		squareChildObj.as.square.sideLength = 1.0f;
+		squareChildObj._positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
+		squareChildObj._scaleStart.x = (float)size.x;
+		squareChildObj._scaleStart.y = (float)size.y;
+		squareChildObj._fillColorStart.a = 0;
+		squareChildObj.setName("Square Border");
+		squareChildObj.as.square.reInit(&squareChildObj);
+
+		AnimationManager::addAnimObject(am, squareChildObj);
+		// TODO: Ugly what do I do???
+		SceneHierarchyPanel::addNewAnimObject(squareChildObj);
+
+		AnimationManager::addAnimObject(am, imageChildObj);
+		// TODO: Ugly what do I do???
+		SceneHierarchyPanel::addNewAnimObject(imageChildObj);
+	}
+
+	void ImageObject::reInit(AnimationManagerData* am, AnimObject* obj, bool resetSize)
+	{
+		// First remove all generated children, which were generated as a result
+		// of this object (presumably)
+		// NOTE: This is direct descendants, no recursive children here
+		for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
+			if (child)
+			{
+				SceneHierarchyPanel::deleteAnimObject(*child);
+				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
+			}
+		}
+		obj->generatedChildrenIds.clear();
+
+		if (!isNull(obj->as.image.textureHandle))
+		{
+			TextureCache::unloadTexture(obj->as.image.textureHandle);
+		}
+
+		if (resetSize)
+		{
+			obj->as.image.size = Vec2{ 0, 0 };
+		}
+
+		// Next init again which should regenerate the children
+		init(am, obj->id);
+	}
+
+	TextureLoadOptions ImageObject::getLoadOptions() const
+	{
+		TextureLoadOptions loadOptions = {};
+		switch (filterMode)
+		{
+		case ImageFilterMode::Smooth:
+			loadOptions.magFilter = FilterMode::Linear;
+			loadOptions.minFilter = FilterMode::Linear;
+			break;
+		case ImageFilterMode::Pixelated:
+			loadOptions.magFilter = FilterMode::Nearest;
+			loadOptions.minFilter = FilterMode::Nearest;
+			break;
+		case ImageFilterMode::Length:
+			break;
+		}
+
+		switch (repeatMode)
+		{
+		case ImageRepeatMode::Repeat:
+			loadOptions.wrapS = WrapMode::Repeat;
+			loadOptions.wrapT = WrapMode::Repeat;
+			break;
+		case ImageRepeatMode::NoRepeat:
+			loadOptions.wrapS = WrapMode::None;
+			loadOptions.wrapT = WrapMode::None;
+			break;
+		case ImageRepeatMode::Length:
+			break;
+		}
+
+		return loadOptions;
+	}
+
+	ImageObject ImageObject::deserialize(const nlohmann::json& j, uint32 version)
+	{
+		if (version == 2)
+		{
+			ImageObject res = {};
+			DESERIALIZE_NULLABLE_CSTRING(&res, imageFilepath, j);
+			DESERIALIZE_VEC2(&res, size, j, (Vec2{ 0.0f, 0.0f }));
+			DESERIALIZE_ENUM(&res, filterMode, _imageFilterModeNames, ImageFilterMode, j);
+			DESERIALIZE_ENUM(&res, repeatMode, _imageRepeatModeNames, ImageRepeatMode, j);
+			res.textureHandle = NULL_TEXTURE_HANDLE;
+
+			if (res.imageFilepath > 0)
+			{
+				res.textureHandle = TextureCache::loadTexture(res.imageFilepath, res.getLoadOptions());
+			}
+
+			return res;
+		}
+
+		g_logger_warning("ImageObject serialized with unknown version '%d'", version);
+		ImageObject dummy = {};
+		dummy.textureHandle = NULL_TEXTURE_HANDLE;
+		return dummy;
+	}
+
+	ImageObject ImageObject::createDefault()
+	{
+		ImageObject res = {};
+		res.imageFilepath = nullptr;
+		res.imageFilepathLength = 0;
+		res.textureHandle = NULL_TEXTURE_HANDLE;
+		res.size = Vec2{ 0.0f, 0.0f };
 
 		return res;
 	}
@@ -1079,6 +1256,8 @@ namespace MathAnim
 		case AnimObjectTypeV1::ScriptObject:
 		case AnimObjectTypeV1::CodeBlock:
 		case AnimObjectTypeV1::Arrow:
+		case AnimObjectTypeV1::Image:
+		case AnimObjectTypeV1::_ImageObject:
 			// NOP: No Special logic, but I'll leave this just in case I think
 			// of something
 			break;
@@ -1163,6 +1342,29 @@ namespace MathAnim
 		}
 		// NOP: Cube just has a bunch of children anim objects that get rendered
 		break;
+		case AnimObjectTypeV1::_ImageObject:
+		{
+			const AnimObject* parent = AnimationManager::getObject(am, this->parentId);
+			if (parent)
+			{
+				const Texture& texture = TextureCache::getTexture(parent->as.image.textureHandle);
+				Renderer::drawTexturedQuad(
+					texture,
+					Vec2{ (float)parent->as.image.size.x, (float)parent->as.image.size.y },
+					Vec2{ 0, 1 },
+					Vec2{ 1, 0 },
+					Vec4{
+						(float)this->fillColor.r / 255.0f, 
+						(float)this->fillColor.g / 255.0f, 
+						(float)this->fillColor.b / 255.0f, 
+						(float)this->fillColor.a / 255.0f
+					},
+					this->id,
+					this->globalTransform
+				);
+			}
+		}
+		break;
 		case AnimObjectTypeV1::Axis:
 		case AnimObjectTypeV1::TextObject:
 		case AnimObjectTypeV1::LaTexObject:
@@ -1170,6 +1372,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 		case AnimObjectTypeV1::ScriptObject:
 		case AnimObjectTypeV1::CodeBlock:
+		case AnimObjectTypeV1::Image:
 			// NOP: These just have a bunch of children anim objects that get rendered
 			break;
 		case AnimObjectTypeV1::Length:
@@ -1536,6 +1739,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Cube:
 		case AnimObjectTypeV1::SvgObject:
 		case AnimObjectTypeV1::Arrow:
+		case AnimObjectTypeV1::_ImageObject:
 			// NOP
 			break;
 		case AnimObjectTypeV1::Axis:
@@ -1556,6 +1760,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::ScriptObject:
 			this->as.script.free();
+			break;
+		case AnimObjectTypeV1::Image:
+			this->as.image.free();
 			break;
 		case AnimObjectTypeV1::CodeBlock:
 			this->as.codeBlock.free();
@@ -1626,6 +1833,9 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::ScriptObject:
 			SERIALIZE_OBJECT(memory, this, as.script);
+			break;
+		case AnimObjectTypeV1::Image:
+			SERIALIZE_OBJECT(memory, this, as.image);
 			break;
 		case AnimObjectTypeV1::CodeBlock:
 			SERIALIZE_OBJECT(memory, this, as.codeBlock);
@@ -1808,6 +2018,8 @@ namespace MathAnim
 				res.as.arrow = Arrow::legacy_deserialize(memory, version);
 				res.as.arrow.init(&res);
 				break;
+			case AnimObjectTypeV1::Image:
+			case AnimObjectTypeV1::_ImageObject:
 			case AnimObjectTypeV1::Length:
 			case AnimObjectTypeV1::None:
 				break;
@@ -1953,6 +2165,10 @@ namespace MathAnim
 		case AnimObjectTypeV1::ScriptObject:
 			res.as.script = ScriptObject::createDefault();
 			break;
+		case AnimObjectTypeV1::Image:
+			res.as.image = ImageObject::createDefault();
+			res.as.image.init(am, res.id);
+			break;
 		case AnimObjectTypeV1::CodeBlock:
 			res.as.codeBlock = CodeBlock::createDefault();
 			break;
@@ -2047,6 +2263,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::ScriptObject:
 		case AnimObjectTypeV1::CodeBlock:
 		case AnimObjectTypeV1::Arrow:
+		case AnimObjectTypeV1::Image:
 			// TODO: Implement Copy for these
 			break;
 		case AnimObjectTypeV1::Length:
@@ -2070,9 +2287,9 @@ namespace MathAnim
 
 		// AnimObject Specific Data
 		DESERIALIZE_ENUM(&res, objectType, _animationObjectTypeNames, AnimObjectTypeV1, j);
-		DESERIALIZE_VEC3(&res, _positionStart, j, (Vec3{0, 0, 0}));
-		DESERIALIZE_VEC3(&res, _rotationStart, j, (Vec3{0, 0, 0}));
-		DESERIALIZE_VEC3(&res, _scaleStart, j, (Vec3{1, 1, 1}));
+		DESERIALIZE_VEC3(&res, _positionStart, j, (Vec3{ 0, 0, 0 }));
+		DESERIALIZE_VEC3(&res, _rotationStart, j, (Vec3{ 0, 0, 0 }));
+		DESERIALIZE_VEC3(&res, _scaleStart, j, (Vec3{ 1, 1, 1 }));
 		DESERIALIZE_GLM_U8VEC4(&res, _fillColorStart, j, glm::u8vec4(255, 255, 255, 255));
 		DESERIALIZE_GLM_U8VEC4(&res, _strokeColorStart, j, glm::u8vec4(255, 255, 255, 255));
 
@@ -2148,6 +2365,9 @@ namespace MathAnim
 		case AnimObjectTypeV1::ScriptObject:
 			DESERIALIZE_OBJECT(&res, as.script, ScriptObject, version, j);
 			break;
+		case AnimObjectTypeV1::Image:
+			DESERIALIZE_OBJECT(&res, as.image, ImageObject, version, j);
+			break;
 		case AnimObjectTypeV1::CodeBlock:
 			DESERIALIZE_OBJECT(&res, as.codeBlock, CodeBlock, version, j);
 			break;
@@ -2155,6 +2375,7 @@ namespace MathAnim
 			DESERIALIZE_OBJECT(&res, as.arrow, Arrow, version, j);
 			res.as.arrow.init(&res);
 			break;
+		case AnimObjectTypeV1::_ImageObject:
 		case AnimObjectTypeV1::Length:
 		case AnimObjectTypeV1::None:
 			break;
@@ -2197,7 +2418,7 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::RotateTo:
 		case AnimTypeV1::Shift:
-			DESERIALIZE_VEC3(&res, as.modifyVec3.target, j, (Vec3{0, 0, 0}));
+			DESERIALIZE_VEC3(&res, as.modifyVec3.target, j, (Vec3{ 0, 0, 0 }));
 			break;
 		case AnimTypeV1::AnimateFillColor:
 		case AnimTypeV1::AnimateStrokeColor:

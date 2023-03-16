@@ -447,6 +447,7 @@ namespace MathAnim
 			int channels;
 
 			unsigned char* pixels = stbi_load(texture.path.string().c_str(), &texture.width, &texture.height, &channels, 0);
+			// TODO: Do some sort of graceful error propagating here instead
 			g_logger_assert((pixels != nullptr), "STB failed to load image: %s\n-> STB Failure Reason: %s", texture.path.string().c_str(), stbi_failure_reason());
 
 			int bytesPerPixel = channels;

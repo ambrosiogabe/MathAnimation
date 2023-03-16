@@ -8,24 +8,38 @@
 
 namespace MathAnim
 {
-	void Square::init(AnimObject* parent)
+	void Square::init(AnimObject* self)
 	{
-		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Square object initialized twice.");
+		g_logger_assert(self->_svgObjectStart == nullptr && self->svgObject == nullptr, "Square object initialized twice.");
 
-		parent->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		*parent->_svgObjectStart = Svg::createDefault();
-		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		*parent->svgObject = Svg::createDefault();
+		self->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		*self->_svgObjectStart = Svg::createDefault();
+		self->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		*self->svgObject = Svg::createDefault();
 
-		Svg::beginPath(parent->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
-		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
-		Svg::lineTo(parent->_svgObjectStart, { sideLength / 2.0f, sideLength / 2.0f });
-		Svg::lineTo(parent->_svgObjectStart, { sideLength / 2.0f, -sideLength / 2.0f });
-		Svg::lineTo(parent->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
-		Svg::closePath(parent->_svgObjectStart);
+		Svg::beginPath(self->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
+		Svg::lineTo(self->_svgObjectStart, { -sideLength / 2.0f, sideLength / 2.0f });
+		Svg::lineTo(self->_svgObjectStart, { sideLength / 2.0f, sideLength / 2.0f });
+		Svg::lineTo(self->_svgObjectStart, { sideLength / 2.0f, -sideLength / 2.0f });
+		Svg::lineTo(self->_svgObjectStart, { -sideLength / 2.0f, -sideLength / 2.0f });
+		Svg::closePath(self->_svgObjectStart);
 
-		parent->_svgObjectStart->finalize();
-		parent->retargetSvgScale();
+		self->_svgObjectStart->finalize();
+		self->retargetSvgScale();
+	}
+
+	void Square::reInit(AnimObject* self)
+	{
+		// TODO: Do something better than this
+		self->svgObject->free();
+		g_memory_free(self->svgObject);
+		self->svgObject = nullptr;
+
+		self->_svgObjectStart->free();
+		g_memory_free(self->_svgObjectStart);
+		self->_svgObjectStart = nullptr;
+
+		self->as.square.init(self);
 	}
 
 	void Square::serialize(nlohmann::json& memory) const
@@ -72,42 +86,55 @@ namespace MathAnim
 		return {};
 	}
 
-	void Circle::init(AnimObject* parent)
+	void Circle::init(AnimObject* self)
 	{
-		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Circle object initialized twice.");
+		g_logger_assert(self->_svgObjectStart == nullptr && self->svgObject == nullptr, "Circle object initialized twice.");
 
-		parent->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		*parent->_svgObjectStart = Svg::createDefault();
-		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		*parent->svgObject = Svg::createDefault();
+		self->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		*self->_svgObjectStart = Svg::createDefault();
+		self->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		*self->svgObject = Svg::createDefault();
 
 		// See here for how to construct circle with beziers 
 		// https://stackoverflow.com/questions/1734745/how-to-create-circle-with-bézier-curves
 		double equidistantControls = (4.0 / 3.0) * glm::tan(glm::pi<double>() / 8.0) * (double)radius;
 		Vec2 translation = Vec2{ radius, radius };
-		Svg::beginPath(parent->_svgObjectStart, Vec2{ -radius, 0.0f } + translation);
+		Svg::beginPath(self->_svgObjectStart, Vec2{ -radius, 0.0f } + translation);
 
-		Svg::bezier3To(parent->_svgObjectStart,
+		Svg::bezier3To(self->_svgObjectStart,
 			Vec2{ -radius, (float)equidistantControls } + translation,
 			Vec2{ -(float)equidistantControls, radius } + translation,
 			Vec2{ 0.0f, radius } + translation);
-		Svg::bezier3To(parent->_svgObjectStart,
+		Svg::bezier3To(self->_svgObjectStart,
 			Vec2{ (float)equidistantControls, radius } + translation,
 			Vec2{ radius, (float)equidistantControls } + translation,
 			Vec2{ radius, 0.0f } + translation);
-		Svg::bezier3To(parent->_svgObjectStart,
+		Svg::bezier3To(self->_svgObjectStart,
 			Vec2{ radius, -(float)equidistantControls } + translation,
 			Vec2{ (float)equidistantControls, -radius } + translation,
 			Vec2{ 0.0f, -radius } + translation);
-		Svg::bezier3To(parent->_svgObjectStart,
+		Svg::bezier3To(self->_svgObjectStart,
 			Vec2{ -(float)equidistantControls, -radius } + translation,
 			Vec2{ -radius, -(float)equidistantControls } + translation,
 			Vec2{ -radius, 0.0f } + translation);
 
-		Svg::closePath(parent->_svgObjectStart);
+		Svg::closePath(self->_svgObjectStart);
 
-		parent->_svgObjectStart->finalize();
-		parent->retargetSvgScale();
+		self->_svgObjectStart->finalize();
+		self->retargetSvgScale();
+	}
+
+	void Circle::reInit(AnimObject* self)
+	{
+		self->svgObject->free();
+		g_memory_free(self->svgObject);
+		self->svgObject = nullptr;
+
+		self->_svgObjectStart->free();
+		g_memory_free(self->_svgObjectStart);
+		self->_svgObjectStart = nullptr;
+
+		self->as.circle.init(self);
 	}
 
 	void Circle::serialize(nlohmann::json& memory) const
@@ -154,14 +181,14 @@ namespace MathAnim
 		return {};
 	}
 
-	void Arrow::init(AnimObject* parent)
+	void Arrow::init(AnimObject* self)
 	{
-		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Arrow object initialized twice.");
+		g_logger_assert(self->_svgObjectStart == nullptr && self->svgObject == nullptr, "Arrow object initialized twice.");
 
-		parent->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		*parent->_svgObjectStart = Svg::createDefault();
-		parent->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		*parent->svgObject = Svg::createDefault();
+		self->_svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		*self->_svgObjectStart = Svg::createDefault();
+		self->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+		*self->svgObject = Svg::createDefault();
 
 		const float halfLength = stemLength / 2.0f;
 		const float halfWidth = stemWidth / 2.0f;
@@ -169,18 +196,31 @@ namespace MathAnim
 		const float halfTipOffset = tipOffset / 2.0f;
 		const float halfTipWidth = tipWidth / 2.0f;
 
-		Svg::beginPath(parent->_svgObjectStart, Vec2{ -halfLength, -halfWidth });
-		Svg::lineTo(parent->_svgObjectStart, Vec2{ 0.0f, stemWidth }, false);
-		Svg::lineTo(parent->_svgObjectStart, Vec2{ stemLength, 0.0f }, false);
-		Svg::lineTo(parent->_svgObjectStart, Vec2{ 0.0f, halfTipOffset }, false);
-		Svg::lineTo(parent->_svgObjectStart, Vec2{ tipLength, -halfTipWidth }, false);
-		Svg::lineTo(parent->_svgObjectStart, Vec2{ -tipLength, -halfTipWidth }, false);
-		Svg::lineTo(parent->_svgObjectStart, Vec2{ 0.0f, halfTipOffset }, false);
-		Svg::lineTo(parent->_svgObjectStart, Vec2{ -stemLength, 0.0f }, false);
-		Svg::closePath(parent->_svgObjectStart);
+		Svg::beginPath(self->_svgObjectStart, Vec2{ -halfLength, -halfWidth });
+		Svg::lineTo(self->_svgObjectStart, Vec2{ 0.0f, stemWidth }, false);
+		Svg::lineTo(self->_svgObjectStart, Vec2{ stemLength, 0.0f }, false);
+		Svg::lineTo(self->_svgObjectStart, Vec2{ 0.0f, halfTipOffset }, false);
+		Svg::lineTo(self->_svgObjectStart, Vec2{ tipLength, -halfTipWidth }, false);
+		Svg::lineTo(self->_svgObjectStart, Vec2{ -tipLength, -halfTipWidth }, false);
+		Svg::lineTo(self->_svgObjectStart, Vec2{ 0.0f, halfTipOffset }, false);
+		Svg::lineTo(self->_svgObjectStart, Vec2{ -stemLength, 0.0f }, false);
+		Svg::closePath(self->_svgObjectStart);
 
-		parent->_svgObjectStart->finalize();
-		parent->retargetSvgScale();
+		self->_svgObjectStart->finalize();
+		self->retargetSvgScale();
+	}
+
+	void Arrow::reInit(AnimObject* self)
+	{
+		self->svgObject->free();
+		g_memory_free(self->svgObject);
+		self->svgObject = nullptr;
+
+		self->_svgObjectStart->free();
+		g_memory_free(self->_svgObjectStart);
+		self->_svgObjectStart = nullptr;
+
+		self->as.arrow.init(self);
 	}
 
 	void Arrow::serialize(nlohmann::json& memory) const
@@ -229,9 +269,9 @@ namespace MathAnim
 		return Arrow{};
 	}
 
-	void Cube::init(AnimObject* parent)
+	void Cube::init(AnimObject* self)
 	{
-		g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Square object initialized twice.");
+		g_logger_assert(self->_svgObjectStart == nullptr && self->svgObject == nullptr, "Square object initialized twice.");
 
 		float halfLength = sideLength / 2.0f;
 
@@ -254,7 +294,7 @@ namespace MathAnim
 
 		//for (int i = 0; i < 6; i++)
 		//{
-		//	AnimObject cubeFace = AnimObject::createDefaultFromParent(AnimObjectTypeV1::SvgObject, parent);
+		//	AnimObject cubeFace = AnimObject::createDefaultFromself(AnimObjectTypeV1::SvgObject, self);
 		//	cubeFace._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 		//	*cubeFace._svgObjectStart = Svg::createDefault();
 		//	cubeFace.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
@@ -270,8 +310,21 @@ namespace MathAnim
 		//	cubeFace._rotationStart = rotations[i];
 		//	cubeFace._scaleStart = Vec3{ 1.0f, 1.0f, 1.0f };
 		//	cubeFace.is3D = true;
-		//	parent->children.push_back(cubeFace);
+		//	self->children.push_back(cubeFace);
 		//}
+	}
+
+	void Cube::reInit(AnimObject* self)
+	{
+		self->svgObject->free();
+		g_memory_free(self->svgObject);
+		self->svgObject = nullptr;
+
+		self->_svgObjectStart->free();
+		g_memory_free(self->_svgObjectStart);
+		self->_svgObjectStart = nullptr;
+
+		self->as.cube.init(self);
 	}
 
 	void Cube::serialize(nlohmann::json& memory) const

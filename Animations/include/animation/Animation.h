@@ -7,6 +7,7 @@
 #include "animation/Shapes.h"
 #include "animation/Axis.h"
 #include "renderer/OrthoCamera.h"
+#include "renderer/TextureCache.h"
 #include "math/CMath.h"
 
 #include <nlohmann/json_fwd.hpp>
@@ -16,7 +17,7 @@ namespace MathAnim
 	struct Font;
 	struct SvgObject;
 	struct AnimationManagerData;
-	
+
 	// Constants
 	constexpr uint32 SERIALIZER_VERSION_MAJOR = 2;
 	constexpr uint32 SERIALIZER_VERSION_MINOR = 0;
@@ -38,6 +39,8 @@ namespace MathAnim
 		ScriptObject,
 		CodeBlock,
 		Arrow,
+		Image,
+		_ImageObject,
 		Length
 	};
 
@@ -49,29 +52,33 @@ namespace MathAnim
 		"Circle",
 		"Cube",
 		"Axis",
-		"SVG Object",
+		"INTERNAL SVG Object",
 		"SVG File Object",
 		"Camera",
 		"Script Object",
 		"Code Block",
-		"Arrow"
-	);
+		"Arrow",
+		"Image",
+		"INTERNAL Image Object"
+		);
 
 	constexpr auto _isInternalObjectOnly = fixedSizeArray<bool, (size_t)AnimObjectTypeV1::Length>(
-		false, // "None",
-		false, // "Text Object",
-		false, // "LaTex Object",
-		false, // "Square",
-		false, // "Circle",
-		false, // "Cube",
-		false, // "Axis",
-		true,  // "SVG Object",
-		false, // "SVG File Object",
+		false, // "None"
+		false, // "Text Object"
+		false, // "LaTex Object"
+		false, // "Square"
+		false, // "Circle"
+		false, // "Cube"
+		false, // "Axis"
+		true,  // "SVG Object"
+		false, // "SVG File Object"
 		false, // "Camera"
 		false, // "Script Object"
 		false, // "Code Block"
-		false  // "Arrow"
-	);
+		false, // "Arrow"
+		false, // "ImageObject"
+		true   // "SVG Object"
+		);
 
 	enum class AnimTypeV1 : uint32
 	{
@@ -107,7 +114,7 @@ namespace MathAnim
 		"Shift",
 		"Circumscribe",
 		"Animate Scale"
-	);
+		);
 
 	enum class PlaybackType : uint8
 	{
@@ -121,7 +128,7 @@ namespace MathAnim
 		"None",
 		"Synchronous",
 		"Lagged Start"
-	);
+		);
 
 	constexpr auto _appliesToChildrenData = fixedSizeArray<bool, (size_t)AnimTypeV1::Length>(
 		false, // None = 0,
@@ -138,7 +145,7 @@ namespace MathAnim
 		false, // Shift,
 		false, // Circumscribe
 		false  // AnimateScale
-	);
+		);
 
 	constexpr auto _isAnimationGroupData = fixedSizeArray<bool, (size_t)AnimTypeV1::Length>(
 		false, // None = 0,
@@ -155,7 +162,7 @@ namespace MathAnim
 		true,  // Shift,
 		false, // Circumscribe
 		false  // AnimateScale
-	);
+		);
 
 	// Animation Structs
 	struct ModifyVec4AnimData
@@ -226,7 +233,7 @@ namespace MathAnim
 	constexpr auto _circumscribeShapeNames = fixedSizeArray<const char*, (size_t)CircumscribeShape::Length>(
 		"Rectangle",
 		"Circle"
-	);
+		);
 
 	enum class CircumscribeFade : uint8
 	{
@@ -242,7 +249,7 @@ namespace MathAnim
 		"Fade In",
 		"Fade Out",
 		"No Fade"
-	);
+		);
 
 	struct Circumscribe
 	{
@@ -335,7 +342,7 @@ namespace MathAnim
 		inline bool operator!=(AnimObjId other) const { return currentId != other; }
 		inline AnimObjId operator*() const { return currentId; }
 
-	private: 
+	private:
 		const AnimationManagerData* am;
 		std::deque<AnimObjId> childrenLeft;
 		AnimObjId currentId;
@@ -371,6 +378,52 @@ namespace MathAnim
 
 		[[deprecated("This is for upgrading legacy projects developed in beta")]]
 		static ScriptObject legacy_deserialize(RawMemory& memory, uint32 version);
+	};
+
+	enum class ImageFilterMode : uint8
+	{
+		Smooth,
+		Pixelated,
+		Length
+	};
+
+	constexpr auto _imageFilterModeNames = fixedSizeArray<const char*, (size_t)ImageFilterMode::Length>(
+		"Smooth",
+		"Pixelated"
+	);
+
+	enum class ImageRepeatMode : uint8
+	{
+		NoRepeat,
+		Repeat,
+		Length
+	};
+
+	constexpr auto _imageRepeatModeNames = fixedSizeArray<const char*, (size_t)ImageRepeatMode::Length>(
+		"No Repeat",
+		"Repeat"
+	);
+
+	struct ImageObject
+	{
+		char* imageFilepath;
+		size_t imageFilepathLength;
+		uint64 textureHandle;
+		Vec2 size;
+		ImageFilterMode filterMode;
+		ImageRepeatMode repeatMode;
+
+		void setFilepath(const char* str, size_t strLength);
+		void serialize(nlohmann::json& j) const;
+		void free();
+
+		void init(AnimationManagerData* am, AnimObjId parentId);
+		void reInit(AnimationManagerData* am, AnimObject* obj, bool resetSize = false);
+
+		TextureLoadOptions getLoadOptions() const;
+
+		static ImageObject deserialize(const nlohmann::json& j, uint32 version);
+		static ImageObject createDefault();
 	};
 
 	struct AnimObject
@@ -440,6 +493,7 @@ namespace MathAnim
 			ScriptObject script;
 			CodeBlock codeBlock;
 			Arrow arrow;
+			ImageObject image;
 		} as;
 
 		void setName(const char* newName, size_t newNameLength = 0);
@@ -462,7 +516,7 @@ namespace MathAnim
 
 		AnimObjectBreadthFirstIter beginBreadthFirst(const AnimationManagerData* am) const;
 		inline AnimObjId end() const { return NULL_ANIM_OBJECT; }
-		
+
 		void free();
 		void serialize(nlohmann::json& j) const;
 		static AnimObject deserialize(AnimationManagerData* am, const nlohmann::json& j, uint32 version);
@@ -473,7 +527,7 @@ namespace MathAnim
 
 		static inline bool isInternalObjectOnly(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _isInternalObjectOnly[(size_t)type]; }
 		static inline const char* getAnimObjectName(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _animationObjectTypeNames[(size_t)type]; }
-	
+
 		[[deprecated("This is for upgrading legacy projects developed in beta")]]
 		static AnimObject legacy_deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version);
 	};

@@ -14,7 +14,8 @@ namespace MathAnim
 	{
 		float sideLength;
 
-		void init(AnimObject* parent);
+		void init(AnimObject* self);
+		void reInit(AnimObject* self);
 
 		void serialize(nlohmann::json& j) const;
 		static Square deserialize(const nlohmann::json& j, uint32 version);
@@ -27,7 +28,8 @@ namespace MathAnim
 	{
 		float radius;
 
-		void init(AnimObject* parent);
+		void init(AnimObject* self);
+		void reInit(AnimObject* self);
 
 		void serialize(nlohmann::json& j) const;
 		static Circle deserialize(const nlohmann::json& j, uint32 version);
@@ -43,7 +45,8 @@ namespace MathAnim
 		float tipWidth;
 		float tipLength;
 
-		void init(AnimObject* parent);
+		void init(AnimObject* self);
+		void reInit(AnimObject* self);
 
 		void serialize(nlohmann::json& j) const;
 		static Arrow deserialize(const nlohmann::json& j, uint32 version);
@@ -56,7 +59,8 @@ namespace MathAnim
 	{
 		float sideLength;
 
-		void init(AnimObject* parent);
+		void init(AnimObject* self);
+		void reInit(AnimObject* self);
 
 		void serialize(nlohmann::json& j) const;
 		static Cube deserialize(const nlohmann::json& j, uint32 version);

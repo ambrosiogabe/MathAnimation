@@ -5,6 +5,7 @@
 #include "renderer/Shader.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
+#include "renderer/TextureCache.h"
 #include "renderer/Fonts.h"
 #include "renderer/Colors.h"
 #include "renderer/Fonts.h"
@@ -371,6 +372,8 @@ namespace MathAnim
 			drawList3D.init();
 			setupScreenVao();
 			setupDefaultWhiteTexture();
+
+			TextureCache::init();
 		}
 
 		void free()
@@ -392,6 +395,8 @@ namespace MathAnim
 			drawListFont2D.free();
 			drawList3DLine.free();
 			drawList3D.free();
+
+			TextureCache::free();
 		}
 
 		// ----------- Render calls ----------- 

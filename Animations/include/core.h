@@ -221,13 +221,15 @@ T findMatchingEnum(const std::array<const char*, N> enumNamesAsStr, const std::s
 
 typedef uint64 AnimObjId;
 typedef uint64 AnimId;
+typedef uint64 TextureHandle;
 
 namespace MathAnim
 {
 	constexpr AnimObjId NULL_ANIM_OBJECT = UINT64_MAX;
 	constexpr AnimId NULL_ANIM = UINT64_MAX;
+	constexpr TextureHandle NULL_TEXTURE_HANDLE = UINT64_MAX;
 
-	inline bool isNull(AnimObjId animObj) { return animObj == NULL_ANIM_OBJECT; }
+	inline bool isNull(uint64 handle) { return handle == UINT64_MAX; }
 }
 
 #endif
