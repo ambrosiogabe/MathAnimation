@@ -447,6 +447,7 @@ namespace MathAnim
 			int channels;
 
 			unsigned char* pixels = stbi_load(texture.path.string().c_str(), &texture.width, &texture.height, &channels, 0);
+			// TODO: Do some sort of graceful error propagating here instead
 			g_logger_assert((pixels != nullptr), "STB failed to load image: %s\n-> STB Failure Reason: %s", texture.path.string().c_str(), stbi_failure_reason());
 
 			int bytesPerPixel = channels;
@@ -472,6 +473,7 @@ namespace MathAnim
 			uint32 internalFormat = TextureUtil::toGlSizedInternalFormat(texture.format);
 			uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 			g_logger_assert(internalFormat != GL_NONE && externalFormat != GL_NONE, "Tried to load image from file, but failed to identify internal format for image '%s'", texture.path.string().c_str());
+			GL::pixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			GL::texImage2D(GL_TEXTURE_2D, 0, internalFormat, texture.width, texture.height, 0, externalFormat, GL_UNSIGNED_BYTE, pixels);
 
 			stbi_image_free(pixels);

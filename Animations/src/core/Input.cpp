@@ -64,6 +64,11 @@ namespace MathAnim
 
 		void mouseButtonCallback(GLFWwindow*, int button, int action, int)
 		{
+			if (button < 0 || button >= (uint8)MouseButton::Length)
+			{
+				return;
+			}
+
 			mouseButtonDown[button] = action == GLFW_PRESS;
 			mouseButtonUp[button] = action == GLFW_RELEASE;
 		}
@@ -102,6 +107,11 @@ namespace MathAnim
 
 		void keyCallback(GLFWwindow*, int key, int, int action, int mods)
 		{
+			if (key < 0 || key > GLFW_KEY_LAST)
+			{
+				return;
+			}
+
 			if (mods & GLFW_MOD_SHIFT)
 			{
 				shiftKeyDownData[key] = action == GLFW_PRESS || action == GLFW_REPEAT;
@@ -225,17 +235,35 @@ namespace MathAnim
 
 		bool mouseClicked(MouseButton button)
 		{
+			if ((uint8)button < 0 || (uint8)button >= (uint8)MouseButton::Length)
+			{
+				g_logger_error("Cannot check if mouse button '%d' is clicked. Button is out of range of known mouse buttons.", (uint8)button);
+				return false;
+			}
+
 			// If the mouse was down last frame then up this frame, that counts as a "click"
 			return mouseButtonDownLastFrame[(uint8)button] && !mouseButtonDown[(uint8)button];
 		}
 
 		bool mouseDown(MouseButton button)
 		{
+			if ((uint8)button < 0 || (uint8)button >= (uint8)MouseButton::Length)
+			{
+				g_logger_error("Cannot check if mouse button '%d' is down. Button is out of range of known mouse buttons.", (uint8)button);
+				return false;
+			}
+
 			return mouseButtonDown[(uint8)button];
 		}
 
 		bool mouseUp(MouseButton button)
 		{
+			if ((uint8)button < 0 || (uint8)button >= (uint8)MouseButton::Length)
+			{
+				g_logger_error("Cannot check if mouse button '%d' is up. Button is out of range of known mouse buttons.", (uint8)button);
+				return false;
+			}
+
 			return mouseButtonUp[(uint8)button];
 		}
 	}

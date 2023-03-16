@@ -57,10 +57,10 @@ namespace MathAnim
 			{
 				// Add this character as a child
 				AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, parentId, true);
-				childObj.parentId = parentId;
+
 				Vec2 finalOffset = offset + cursorPos;
 				childObj._positionStart = Vec3{ finalOffset.x, finalOffset.y, 0.0f };
-				childObj.isGenerated = true;
+
 				// Copy the glyph as the svg object here
 				childObj._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 				childObj.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
@@ -261,9 +261,7 @@ namespace MathAnim
 
 		// Add this character as a child
 		AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgFileObject, parentId, true);
-		childObj.parentId = parentId;
 		childObj._positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
-		childObj.isGenerated = true;
 
 		AnimationManager::addAnimObject(am, childObj);
 		// TODO: Ugly what do I do???
@@ -474,10 +472,10 @@ namespace MathAnim
 			{
 				// Add this character as a child
 				AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, parentId, true);
-				childObj.parentId = parentId;
+
 				Vec2 finalOffset = offset + cursorPos;
 				childObj._positionStart = Vec3{ finalOffset.x, finalOffset.y, 0.0f };
-				childObj.isGenerated = true;
+
 				// Copy the glyph as the svg object here
 				childObj._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 				childObj.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
