@@ -1171,6 +1171,13 @@ namespace MathAnim
 			DESERIALIZE_ENUM(&res, repeatMode, _imageRepeatModeNames, ImageRepeatMode, j);
 			res.textureHandle = NULL_TEXTURE_HANDLE;
 
+			if (std::strcmp(res.imageFilepath, "Undefined") == 0)
+			{
+				g_memory_free(res.imageFilepath);
+				res.imageFilepath = nullptr;
+				res.imageFilepathLength = 0;
+			}
+
 			if (res.imageFilepath > 0)
 			{
 				res.textureHandle = TextureCache::loadTexture(res.imageFilepath, res.getLoadOptions());

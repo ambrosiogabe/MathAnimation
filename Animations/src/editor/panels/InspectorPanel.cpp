@@ -1109,7 +1109,7 @@ namespace MathAnim
 			if (ImGui::Button(ICON_FA_FILE_UPLOAD))
 			{
 				nfdchar_t* outPath = NULL;
-				nfdresult_t result = NFD_OpenDialog("png", NULL, &outPath);
+				nfdresult_t result = NFD_OpenDialog("png,jpeg,jpg,tga,bmp,psd,gif,hdr,pic,pnm", NULL, &outPath);
 
 				if (result == NFD_OKAY)
 				{

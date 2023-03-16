@@ -473,6 +473,7 @@ namespace MathAnim
 			uint32 internalFormat = TextureUtil::toGlSizedInternalFormat(texture.format);
 			uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
 			g_logger_assert(internalFormat != GL_NONE && externalFormat != GL_NONE, "Tried to load image from file, but failed to identify internal format for image '%s'", texture.path.string().c_str());
+			GL::pixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			GL::texImage2D(GL_TEXTURE_2D, 0, internalFormat, texture.width, texture.height, 0, externalFormat, GL_UNSIGNED_BYTE, pixels);
 
 			stbi_image_free(pixels);
