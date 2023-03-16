@@ -405,6 +405,12 @@ namespace MathAnim
 		Font* font = Fonts::getDefaultMonoFont();
 		if (font == nullptr)
 		{
+			static bool loggedWarning = false;
+			if (!loggedWarning)
+			{
+				g_logger_warning("No Default Mono Font found. Cannot generate code block.");
+				loggedWarning = true;
+			}
 			return;
 		}
 
@@ -531,7 +537,7 @@ namespace MathAnim
 		obj->generatedChildrenIds.clear();
 
 		// Next init again which should regenerate the children
-		init(am, obj->id);
+		this->init(am, obj->id);
 	}
 
 	void CodeBlock::serialize(nlohmann::json& memory) const
