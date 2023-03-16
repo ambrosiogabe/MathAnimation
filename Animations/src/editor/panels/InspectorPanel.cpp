@@ -12,6 +12,7 @@
 #include "scripting/LuauLayer.h"
 #include "utils/IconsFontAwesome5.h"
 #include "platform/Platform.h"
+#include "core/Application.h"
 
 #include <imgui.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -60,7 +61,7 @@ namespace MathAnim
 		static void handleCubeInspector(AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
 		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
-		static void handleImageObjectInspector(AnimationManagerData* am,AnimObject* object);
+		static void handleImageObjectInspector(AnimationManagerData* am, AnimObject* object);
 
 		void update(AnimationManagerData* am)
 		{
@@ -71,8 +72,14 @@ namespace MathAnim
 				if (!isNull(activeAnimObjectId))
 				{
 					handleAnimObjectInspector(am, activeAnimObjectId);
-					// TODO: This slows stuff down a lot. Optimize the heck out of it
-					AnimationManager::updateObjectState(am, activeAnimObjectId);
+					// NOTE: Don't update object state while the animation is playing because
+					//       it messes up the playback
+					// TODO: Investigate the root cause of this issue and fix that instead (why don't ya?)
+					if (Application::getEditorPlayState() == AnimState::Pause)
+					{
+						// TODO: This slows stuff down a lot. Optimize the heck out of it
+						AnimationManager::updateObjectState(am, activeAnimObjectId);
+					}
 				}
 				ImGui::Unindent(indentationDepth);
 			}

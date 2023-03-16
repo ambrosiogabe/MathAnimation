@@ -1084,6 +1084,7 @@ namespace MathAnim
 		squareChildObj._scaleStart.x = (float)size.x;
 		squareChildObj._scaleStart.y = (float)size.y;
 		squareChildObj._fillColorStart.a = 0;
+		squareChildObj.fillColor.a = 0;
 		squareChildObj.setName("Square Border");
 		squareChildObj.as.square.reInit(&squareChildObj);
 
