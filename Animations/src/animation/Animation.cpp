@@ -1031,6 +1031,7 @@ namespace MathAnim
 
 		g_memory_copyMem((void*)this->imageFilepath, (void*)str, sizeof(char) * strLength);
 		this->imageFilepath[strLength] = '\0';
+		this->imageFilepathLength = strLength;
 	}
 
 	void ImageObject::serialize(nlohmann::json& j) const
@@ -2018,7 +2019,6 @@ namespace MathAnim
 				res.as.arrow = Arrow::legacy_deserialize(memory, version);
 				res.as.arrow.init(&res);
 				break;
-			case AnimObjectTypeV1::Image:
 			case AnimObjectTypeV1::_ImageObject:
 			case AnimObjectTypeV1::Length:
 			case AnimObjectTypeV1::None:
