@@ -100,8 +100,7 @@ namespace MathAnim
 	{
 		uint32 textureId;
 		uint32 vertexOffset;
-		uint32 indexOffset;
-		uint32 elementCounter;
+		uint16 indexOffset;
 		uint32 numVerts;
 		uint32 numElements;
 	};
@@ -281,9 +280,11 @@ namespace MathAnim
 		static Shader activeObjectMaskShader;
 		static Shader rgbToYuvShaderYChannel;
 		static Shader rgbToYuvShaderUvChannel;
+
 		static Shader shader3DOpaque;
 		static Shader shader3DTransparent;
 		static Shader shader3DComposite;
+
 		static Shader jumpFloodShader;
 		static Shader outlineShader;
 
@@ -438,7 +439,13 @@ namespace MathAnim
 
 			// Draw 3D objects after the lines so that we can do appropriate blending
 			// using OIT
-			drawList3D.render(shader3DOpaque, shader3DTransparent, shader3DComposite, framebuffer, perspectiveCamera);
+			drawList3D.render(
+				shader3DOpaque, 
+				shader3DTransparent, 
+				shader3DComposite, 
+				framebuffer, 
+				perspectiveCamera
+			);
 
 			// Reset the draw buffers to draw to FB_attachment_0
 			GL::drawBuffers(4, compositeDrawBuffers);
@@ -1930,8 +1937,7 @@ namespace MathAnim
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != texture.graphicsId)
 		{
 			DrawCmd newCommand;
-			newCommand.elementCounter = 0;
-			newCommand.indexOffset = indices.size();
+			newCommand.indexOffset = (uint16)indices.size();
 			newCommand.vertexOffset = vertices.size();
 			newCommand.textureId = texture.graphicsId;
 			newCommand.numElements = 0;
@@ -1946,15 +1952,15 @@ namespace MathAnim
 		glm::vec4 topRight = transform * glm::vec4(max.x, max.y, 0.0f, 1.0f);
 		glm::vec4 bottomRight = transform * glm::vec4(max.x, min.y, 0.0f, 1.0f);
 
-		uint16 rectStartIndex = (uint16)cmd.elementCounter;
+		uint16 rectStartIndex = (uint16)cmd.numVerts;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
-		cmd.elementCounter += 4;
 		cmd.numElements += 6;
 
 		Vertex2D vert;
 		vert.color = color;
 		vert.objId = objId;
+
 		vert.position = Vec2{ bottomLeft.x, bottomLeft.y };
 		vert.textureCoords = uvMin;
 		vertices.push(vert);
@@ -1979,8 +1985,7 @@ namespace MathAnim
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != UINT32_MAX)
 		{
 			DrawCmd newCommand;
-			newCommand.elementCounter = 0;
-			newCommand.indexOffset = indices.size();
+			newCommand.indexOffset = (uint16)indices.size();
 			newCommand.vertexOffset = vertices.size();
 			newCommand.textureId = UINT32_MAX;
 			newCommand.numElements = 0;
@@ -1990,15 +1995,15 @@ namespace MathAnim
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		uint16 rectStartIndex = (uint16)cmd.elementCounter;
+		uint16 rectStartIndex = (uint16)cmd.numVerts;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
-		cmd.elementCounter += 4;
 		cmd.numElements += 6;
 
 		Vertex2D vert;
 		vert.color = color;
 		vert.objId = objId;
+
 		vert.position = min;
 		vert.textureCoords = Vec2{ 0, 0 };
 		vertices.push(vert);
@@ -2014,6 +2019,7 @@ namespace MathAnim
 		vert.position = Vec2{ max.x, min.y };
 		vert.textureCoords = Vec2{ 1, 0 };
 		vertices.push(vert);
+
 		cmd.numVerts += 4;
 	}
 
@@ -2023,8 +2029,7 @@ namespace MathAnim
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != UINT32_MAX)
 		{
 			DrawCmd newCommand;
-			newCommand.elementCounter = 0;
-			newCommand.indexOffset = indices.size();
+			newCommand.indexOffset = (uint16)indices.size();
 			newCommand.vertexOffset = vertices.size();
 			newCommand.numElements = 0;
 			newCommand.numVerts = 0;
@@ -2034,14 +2039,14 @@ namespace MathAnim
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		uint16 rectStartIndex = (uint16)cmd.elementCounter;
+		uint16 rectStartIndex = (uint16)cmd.numVerts;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
-		cmd.elementCounter += 3;
 		cmd.numElements += 3;
 
 		Vertex2D vert;
 		vert.color = color;
 		vert.objId = objId;
+
 		vert.position = p0;
 		vert.textureCoords = Vec2{ 0, 0 };
 		vertices.push(vert);
@@ -2063,8 +2068,7 @@ namespace MathAnim
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != UINT32_MAX)
 		{
 			DrawCmd newCommand;
-			newCommand.elementCounter = 0;
-			newCommand.indexOffset = indices.size();
+			newCommand.indexOffset = (uint16)indices.size();
 			newCommand.vertexOffset = vertices.size();
 			newCommand.numElements = 0;
 			newCommand.numVerts = 0;
@@ -2074,14 +2078,14 @@ namespace MathAnim
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		uint16 rectStartIndex = (uint16)cmd.elementCounter;
+		uint16 rectStartIndex = (uint16)cmd.numVerts;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
-		cmd.elementCounter += 3;
 		cmd.numElements += 3;
 
 		Vertex2D vert;
 		vert.color = c0;
 		vert.objId = objId;
+
 		vert.position = p0;
 		vert.textureCoords = Vec2{ 0, 0 };
 		vertices.push(vert);
@@ -2113,7 +2117,7 @@ namespace MathAnim
 
 		GL::genBuffers(1, &ebo);
 		GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
 		// Set up the batched vao attributes
 		GL::vertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, position)));
@@ -2162,10 +2166,9 @@ namespace MathAnim
 			}
 
 			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
-			int numVerts = drawCommands.data[i].numVerts;
 			GL::bufferData(
 				GL_ARRAY_BUFFER,
-				sizeof(Vertex2D) * numVerts,
+				sizeof(Vertex2D) * drawCommands.data[i].numVerts,
 				vertices.data + drawCommands.data[i].vertexOffset,
 				GL_DYNAMIC_DRAW
 			);
@@ -2186,7 +2189,7 @@ namespace MathAnim
 				GL_TRIANGLES,
 				drawCommands.data[i].numElements,
 				GL_UNSIGNED_SHORT,
-				nullptr
+				NULL
 			);
 		}
 
@@ -2249,8 +2252,7 @@ namespace MathAnim
 		if (drawCommands.size() == 0 || drawCommands.data[drawCommands.size() - 1].textureId != textureId)
 		{
 			DrawCmd newCommand;
-			newCommand.elementCounter = 0;
-			newCommand.indexOffset = indices.size();
+			newCommand.indexOffset = (uint16)indices.size();
 			newCommand.vertexOffset = vertices.size();
 			newCommand.textureId = textureId;
 			newCommand.numElements = 0;
@@ -2260,12 +2262,9 @@ namespace MathAnim
 
 		DrawCmd& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		uint16 rectStartIndex = (uint16)cmd.elementCounter;
-		// Tri 1 indices
+		uint16 rectStartIndex = (uint16)cmd.numVerts;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
-		// Tri 2 indices
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
-		cmd.elementCounter += 4;
 		cmd.numElements += 6;
 
 		Vertex2D vert;
@@ -2288,6 +2287,7 @@ namespace MathAnim
 		vert.position = Vec2{ posMax.x, posMin.y };
 		vert.textureCoords = Vec2{ uvMax.x, uvMin.y };
 		vertices.push(vert);
+
 		cmd.numVerts += 4;
 	}
 
@@ -2307,7 +2307,7 @@ namespace MathAnim
 
 		GL::genBuffers(1, &ebo);
 		GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
 		// Set up the batched vao attributes
 		GL::vertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, position)));
@@ -2347,10 +2347,9 @@ namespace MathAnim
 			// TODO: Figure out how to correctly do this stuff
 			// I think this is crashing the GPU right now
 			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
-			int numVerts = drawCommands.data[i].numVerts;
 			GL::bufferData(
 				GL_ARRAY_BUFFER,
-				sizeof(Vertex2D) * numVerts,
+				sizeof(Vertex2D) * drawCommands.data[i].numVerts,
 				vertices.data + drawCommands.data[i].vertexOffset,
 				GL_DYNAMIC_DRAW
 			);
@@ -2693,14 +2692,13 @@ namespace MathAnim
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
 		cmd.elementCount += 6;
-		cmd.vertCount += 4;
 
 		Vertex3D vert;
 		vert.color = color;
+		vert.normal = faceNormal;
 
 		vert.position = bottomLeft;
 		vert.textureCoords = uvMin;
-		vert.normal = faceNormal;
 		vertices.push(vert);
 
 		vert.position = topLeft;
@@ -2714,6 +2712,7 @@ namespace MathAnim
 		vert.position = bottomRight;
 		vert.textureCoords = Vec2{ uvMax.x, uvMin.y };
 		vertices.push(vert);
+		cmd.vertCount += 4;
 	}
 
 	void DrawList3D::addColoredTri(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec4& color, AnimObjId)
@@ -2721,6 +2720,7 @@ namespace MathAnim
 		// Check if we need to switch to a new batch
 		bool isTransparent = color.a < 1.0f; // TODO: Might not want to do this, because OIT makes some stuff look kinda weird
 		if (drawCommands.size() == 0 ||
+			drawCommands.data[drawCommands.size() - 1].textureId != UINT32_MAX ||
 			drawCommands.data[drawCommands.size() - 1].isTransparent != isTransparent)
 		{
 			DrawCmd3D newCommand;
@@ -2728,9 +2728,7 @@ namespace MathAnim
 			newCommand.vertCount = 0;
 			newCommand.indexOffset = indices.size();
 			newCommand.vertexOffset = vertices.size();
-			// TODO: This should be set to NULL_TEXTURE_HANDLE or something similar
-			//       and we should render no texture with a proper shader
-			newCommand.textureId = 0;
+			newCommand.textureId = UINT32_MAX;
 			newCommand.isTransparent = isTransparent;
 			drawCommands.push(newCommand);
 		}
@@ -2740,20 +2738,26 @@ namespace MathAnim
 		uint16 triStartIndex = (uint16)cmd.vertCount;
 		indices.push(triStartIndex + 0); indices.push(triStartIndex + 1); indices.push(triStartIndex + 2);
 		cmd.elementCount += 3;
-		cmd.vertCount += 3;
 
 		Vertex3D vert;
 		vert.textureCoords = Vec2{ 0, 0 };
+
 		vert.color = color;
+		vert.normal = Vec3{ 0, 1, 0 };
 
 		vert.position = p0;
+		vert.textureCoords = Vec2{ 0, 0 };
 		vertices.push(vert);
 
 		vert.position = p1;
+		vert.textureCoords = Vec2{ 0, 1 };
 		vertices.push(vert);
 
 		vert.position = p2;
+		vert.textureCoords = Vec2{ 1, 1 };
 		vertices.push(vert);
+
+		cmd.vertCount += 3;
 	}
 
 	void DrawList3D::addMultiColoredTri(const Vec3& p0, const Vec4& c0, const Vec3& p1, const Vec4& c1, const Vec3& p2, const Vec4& c2, AnimObjId)
@@ -2761,6 +2765,7 @@ namespace MathAnim
 		// Check if we need to switch to a new batch
 		bool isTransparent = c0.a < 1.0f || c1.a < 1.0f || c2.a < 1.0f; // TODO: Might not want to do this, because OIT makes some stuff look kinda weird
 		if (drawCommands.size() == 0 ||
+			drawCommands.data[drawCommands.size() - 1].textureId != UINT32_MAX ||
 			drawCommands.data[drawCommands.size() - 1].isTransparent != isTransparent)
 		{
 			DrawCmd3D newCommand;
@@ -2768,7 +2773,7 @@ namespace MathAnim
 			newCommand.vertCount = 0;
 			newCommand.indexOffset = indices.size();
 			newCommand.vertexOffset = vertices.size();
-			newCommand.textureId = 0;
+			newCommand.textureId = UINT32_MAX;
 			newCommand.isTransparent = isTransparent;
 			drawCommands.push(newCommand);
 		}
@@ -2778,22 +2783,25 @@ namespace MathAnim
 		uint16 triStartIndex = (uint16)cmd.vertCount;
 		indices.push(triStartIndex + 0); indices.push(triStartIndex + 1); indices.push(triStartIndex + 2);
 		cmd.elementCount += 3;
-		cmd.vertCount += 3;
 
 		Vertex3D vert;
-		vert.textureCoords = Vec2{ 0, 0 };
+		vert.normal = Vec3{ 0, 1, 0 };
 
 		vert.color = c0;
 		vert.position = p0;
+		vert.textureCoords = Vec2{ 0, 0 };
 		vertices.push(vert);
 
 		vert.color = c1;
 		vert.position = p1;
+		vert.textureCoords = Vec2{ 0, 1 };
 		vertices.push(vert);
 
 		vert.color = c2;
 		vert.position = p2;
+		vert.textureCoords = Vec2{ 1, 1 };
 		vertices.push(vert);
+		cmd.vertCount += 3;
 	}
 
 	void DrawList3D::setupGraphicsBuffers()
@@ -2826,8 +2834,13 @@ namespace MathAnim
 		GL::enableVertexAttribArray(3);
 	}
 
-	void DrawList3D::render(const Shader& opaqueShader, const Shader& transparentShader,
-		const Shader& compositeShader, const Framebuffer& framebuffer, PerspectiveCamera& camera) const
+	void DrawList3D::render(
+		const Shader& opaqueShader, 
+		const Shader& transparentShader,
+		const Shader& compositeShader, 
+		const Framebuffer& framebuffer, 
+		PerspectiveCamera& camera
+	) const
 	{
 		if (vertices.size() == 0)
 		{
@@ -2860,6 +2873,20 @@ namespace MathAnim
 				continue;
 			}
 
+			if (drawCommands.data[i].textureId != UINT32_MAX)
+			{
+				// Bind the texture
+				GL::activeTexture(GL_TEXTURE0);
+				GL::bindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
+				opaqueShader.uploadInt("uTexture", 0);
+			}
+			else
+			{
+				GL::activeTexture(GL_TEXTURE0);
+				GL::bindTexture(GL_TEXTURE_2D, Renderer::defaultWhiteTexture.graphicsId);
+				opaqueShader.uploadInt("uTexture", 0);
+			}
+
 			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 			GL::bufferData(
 				GL_ARRAY_BUFFER,
@@ -2875,10 +2902,6 @@ namespace MathAnim
 				indices.data + drawCommands.data[i].indexOffset,
 				GL_DYNAMIC_DRAW
 			);
-
-			GL::activeTexture(GL_TEXTURE0);
-			GL::bindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
-			transparentShader.uploadInt("uTexture", 0);
 
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
@@ -2933,11 +2956,24 @@ namespace MathAnim
 				continue;
 			}
 
+			if (drawCommands.data[i].textureId != UINT32_MAX)
+			{
+				// Bind the texture
+				GL::activeTexture(GL_TEXTURE0);
+				GL::bindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
+				transparentShader.uploadInt("uTexture", 0);
+			}
+			else
+			{
+				GL::activeTexture(GL_TEXTURE0);
+				GL::bindTexture(GL_TEXTURE_2D, Renderer::defaultWhiteTexture.graphicsId);
+				transparentShader.uploadInt("uTexture", 0);
+			}
+
 			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
-			int numVerts = drawCommands.data[i].elementCount / 6 * 4;
 			GL::bufferData(
 				GL_ARRAY_BUFFER,
-				sizeof(Vertex3D) * numVerts,
+				sizeof(Vertex3D) * drawCommands.data[i].vertCount,
 				vertices.data + drawCommands.data[i].vertexOffset,
 				GL_DYNAMIC_DRAW
 			);
@@ -2949,10 +2985,6 @@ namespace MathAnim
 				indices.data + drawCommands.data[i].indexOffset,
 				GL_DYNAMIC_DRAW
 			);
-
-			GL::activeTexture(GL_TEXTURE0);
-			GL::bindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
-			transparentShader.uploadInt("uTexture", 0);
 
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
