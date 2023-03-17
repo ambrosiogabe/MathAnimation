@@ -209,8 +209,6 @@ namespace MathAnim
 					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
 					Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
 					Renderer::renderToFramebuffer(mainFramebuffer, am);
-
-					Renderer::clearDrawCalls();
 				}
 
 				// Render active objects with outlines around them
@@ -223,7 +221,6 @@ namespace MathAnim
 						// Then render the rest of the stuff
 						MP_PROFILE_EVENT("MainLoop_RenderToEditorViewport");
 						editorFramebuffer.clearDepthStencil();
-						AnimationManager::render(am, 0);
 						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera2D, editorCamera3D);
 
 						Renderer::clearDrawCalls();
