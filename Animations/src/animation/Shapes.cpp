@@ -1,6 +1,8 @@
 #include "animation/Shapes.h"
 #include "animation/Animation.h"
+#include "animation/AnimationManager.h"
 #include "core/Serialization.hpp"
+#include "editor/panels/SceneHierarchyPanel.h"
 #include "svg/Svg.h"
 #include "math/CMath.h"
 
@@ -269,7 +271,7 @@ namespace MathAnim
 		return Arrow{};
 	}
 
-	void Cube::init(AnimObject* self)
+	void Cube::init(AnimationManagerData* am, AnimObject* self)
 	{
 		g_logger_assert(self->_svgObjectStart == nullptr && self->svgObject == nullptr, "Square object initialized twice.");
 
@@ -278,53 +280,57 @@ namespace MathAnim
 		Vec3 offsets[6] = {
 			Vec3{0, 0, -halfLength}, // Back
 			Vec3{0, 0, halfLength},  // Front
-			Vec3{0, -halfLength, 0}, // Bottom
-			Vec3{0, halfLength, 0},  // Top
 			Vec3{-halfLength, 0, 0}, // Left
-			Vec3{halfLength, 0, 0}   // Right
+			Vec3{halfLength, 0, 0},  // Right
+			Vec3{0, -halfLength, 0}, // Bottom
+			Vec3{0, halfLength, 0}   // Top
 		};
 		Vec3 rotations[6] = {
-			Vec3{90, 0, 0},  // Back
-			Vec3{90, 0, 0},  // Front
-			Vec3{0, 0, 0},   // Bottom
-			Vec3{0, 0, 0},   // Top
-			Vec3{90, 90, 0}, // Left
-			Vec3{90, 90, 0}  // Right
+			Vec3{0, 0, 90},  // Back
+			Vec3{0, 0, 90},  // Front
+			Vec3{0, 90, 0},  // Left
+			Vec3{0, 90, 0},  // Right
+			Vec3{90, 0, 0},  // Bottom
+			Vec3{90, 0, 0}   // Top
 		};
 
-		//for (int i = 0; i < 6; i++)
-		//{
-		//	AnimObject cubeFace = AnimObject::createDefaultFromself(AnimObjectTypeV1::SvgObject, self);
-		//	cubeFace._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		//	*cubeFace._svgObjectStart = Svg::createDefault();
-		//	cubeFace.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-		//	*cubeFace.svgObject = Svg::createDefault();
-		//	Svg::beginContour(cubeFace._svgObjectStart, Vec2{ -halfLength, -halfLength });
-		//	Svg::lineTo(cubeFace._svgObjectStart, Vec2{ -halfLength, halfLength });
-		//	Svg::lineTo(cubeFace._svgObjectStart, Vec2{ halfLength, halfLength });
-		//	Svg::lineTo(cubeFace._svgObjectStart, Vec2{ halfLength, -halfLength });
-		//	Svg::lineTo(cubeFace._svgObjectStart, Vec2{ -halfLength, -halfLength });
-		//	Svg::closeContour(cubeFace._svgObjectStart);
+		for (int i = 0; i < 6; i++)
+		{
+			AnimObject cubeFace = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::Square, self->id, true);
+			cubeFace.as.square.sideLength = sideLength;
+			cubeFace._positionStart = offsets[i];
+			cubeFace._rotationStart = rotations[i];
+			cubeFace.setName(("Face " + std::to_string(i)).c_str());
+			cubeFace.is3D = true;
+			cubeFace.as.square.reInit(&cubeFace);
 
-		//	cubeFace._positionStart = offsets[i];
-		//	cubeFace._rotationStart = rotations[i];
-		//	cubeFace._scaleStart = Vec3{ 1.0f, 1.0f, 1.0f };
-		//	cubeFace.is3D = true;
-		//	self->children.push_back(cubeFace);
-		//}
+			AnimationManager::addAnimObject(am, cubeFace);
+			// TODO: Ugly what do I do???
+			SceneHierarchyPanel::addNewAnimObject(cubeFace);
+		}
 	}
 
-	void Cube::reInit(AnimObject* self)
+	void Cube::reInit(AnimationManagerData* am, AnimObject* self)
 	{
-		self->svgObject->free();
-		g_memory_free(self->svgObject);
-		self->svgObject = nullptr;
+		// TODO: This stuff is duplicated everywhere, create a common function helper for it
+		
+		// First remove all generated children, which were generated as a result
+		// of this object (presumably)
+		// NOTE: This is direct descendants, no recursive children here
 
-		self->_svgObjectStart->free();
-		g_memory_free(self->_svgObjectStart);
-		self->_svgObjectStart = nullptr;
+		for (int i = 0; i < self->generatedChildrenIds.size(); i++)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, self->generatedChildrenIds[i]);
+			if (child)
+			{
+				SceneHierarchyPanel::deleteAnimObject(*child);
+				AnimationManager::removeAnimObject(am, self->generatedChildrenIds[i]);
+			}
+		}
+		self->generatedChildrenIds.clear();
 
-		self->as.cube.init(self);
+		// Next init again which should regenerate the children
+		init(am, self);
 	}
 
 	void Cube::serialize(nlohmann::json& memory) const

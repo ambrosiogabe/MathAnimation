@@ -2011,7 +2011,6 @@ namespace MathAnim
 				break;
 			case AnimObjectTypeV1::Cube:
 				res.as.cube = Cube::legacy_deserialize(memory, version);
-				res.as.cube.init(&res);
 				break;
 			case AnimObjectTypeV1::Axis:
 				res.as.axis = Axis::legacy_deserialize(memory, version);
@@ -2152,7 +2151,6 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Cube:
 			res.as.cube.sideLength = defaultCubeLength;
-			res.as.cube.init(&res);
 			break;
 		case AnimObjectTypeV1::Axis:
 			res.as.axis.axesLength = Vec3{ 3'000.0f, 1'700.0f, 1.0f };
@@ -2364,7 +2362,6 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Cube:
 			DESERIALIZE_OBJECT(&res, as.cube, Cube, version, j);
-			res.as.cube.init(&res);
 			break;
 		case AnimObjectTypeV1::Axis:
 			DESERIALIZE_OBJECT(&res, as.axis, Axis, version, j);

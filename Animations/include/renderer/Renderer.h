@@ -82,7 +82,7 @@ namespace MathAnim
 		// ----------- 2D Line stuff ----------- 
 		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void free(Path2DContext* path);
-		bool endPath(Path2DContext* path, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
+		bool endPath(Path2DContext* path, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT, bool is3D = false);
 		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
 
 		void lineTo(Path2DContext* path, const Vec2& point, bool applyTransform = true);
@@ -106,7 +106,9 @@ namespace MathAnim
 
 		// ----------- 3D stuff ----------- 
 		void drawFilledCube(const Vec3& center, const Vec3& size);
-		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isTransparent = false);
+		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isTransparent = false);
+		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawMultiColoredTri3D(const Vec3& p0, const Vec4& color0, const Vec3& p1, const Vec4& color1, const Vec3& p2, const Vec4& color2, AnimObjId objId = NULL_ANIM_OBJECT);
 
 		// ----------- Miscellaneous ----------- 
 		void clearColor(const Vec4& color);

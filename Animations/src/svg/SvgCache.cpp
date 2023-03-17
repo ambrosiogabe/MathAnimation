@@ -250,6 +250,12 @@ namespace MathAnim
 					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
 					metadata.texCoordsMin,
 					metadata.texCoordsMax,
+					Vec4{
+						(float)parent->fillColor.r / 255.0f,
+						(float)parent->fillColor.g / 255.0f,
+						(float)parent->fillColor.b / 255.0f,
+						(float)parent->fillColor.a / 255.0f
+					},
 					parent->globalTransform,
 					parent->isTransparent
 				);

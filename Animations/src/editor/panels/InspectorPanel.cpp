@@ -58,7 +58,7 @@ namespace MathAnim
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
 		static void handleArrowInspector(AnimObject* object);
-		static void handleCubeInspector(AnimObject* object);
+		static void handleCubeInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
 		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleImageObjectInspector(AnimationManagerData* am, AnimObject* object);
@@ -323,7 +323,7 @@ namespace MathAnim
 					handleCircleInspector(animObject);
 					break;
 				case AnimObjectTypeV1::Cube:
-					handleCubeInspector(animObject);
+					handleCubeInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::Axis:
 					handleAxisInspector(animObject);
@@ -902,18 +902,11 @@ namespace MathAnim
 			}
 		}
 
-		static void handleCubeInspector(AnimObject* object)
+		static void handleCubeInspector(AnimationManagerData* am, AnimObject* object)
 		{
 			if (ImGui::DragFloat(": Side Length", &object->as.cube.sideLength, slowDragSpeed))
 			{
-				//for (int i = 0; i < object->children.size(); i++)
-				//{
-				//	object->children[i].free();
-				//}
-				//object->children.clear();
-				g_logger_warning("TODO: Fix me");
-
-				object->as.cube.reInit(object);
+				object->as.cube.reInit(am, object);
 			}
 		}
 

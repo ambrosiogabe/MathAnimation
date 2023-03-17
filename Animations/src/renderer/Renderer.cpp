@@ -112,6 +112,7 @@ namespace MathAnim
 		uint32 vertexOffset;
 		uint32 indexOffset;
 		uint32 elementCount;
+		uint32 vertCount;
 		bool isTransparent;
 	};
 
@@ -247,7 +248,9 @@ namespace MathAnim
 		void addCubeFilled(const Vec3& position, const Vec3& size, const Vec4& color);
 		// void addCubeFilledMulticolor(const Vec3& position, const Vec3& size, const Vec4* colors, int numColors);
 		// void addCubeFilledMulticolor(const Vec3& position, const Vec3& size, Vec4 colors[6]);
-		void addTexturedQuad3D(const Texture& texture, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec3& faceNormal, bool isTransparent);
+		void addTexturedQuad3D(const Texture& texture, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const Vec3& faceNormal, bool isTransparent);
+		void addColoredTri(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec4& color, AnimObjId objId);
+		void addMultiColoredTri(const Vec3& p0, const Vec4& c0, const Vec3& p1, const Vec4& c1, const Vec3& p2, const Vec4& c2, AnimObjId objId);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& opaqueShader, const Shader& transparentShader, const Shader& compositeShader, const Framebuffer& framebuffer, PerspectiveCamera& perspectiveCamera) const;
@@ -451,22 +454,30 @@ namespace MathAnim
 		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am)
 		{
 			OrthoCamera orthoCamera = {};
+			PerspectiveCamera perspCamera = {};
 			const AnimObject* orthoCameraObj = AnimationManager::getActiveOrthoCamera(am);
-			if (orthoCameraObj)
-			{
-				orthoCamera = orthoCameraObj->as.camera.camera2D;
-			}
-			else
+			const AnimObject* perspCameraObj = AnimationManager::getActivePerspCamera(am);
+			Vec4 fillColor = Vec4{};
+			if (!orthoCameraObj && !perspCameraObj)
 			{
 				// Don't render anything if no camera is active
 				// TODO: Maybe render a texture in the future that says something like "No Active Camera in Scene"
-				// to help out the user
+				//       to help out the user
 				return;
 			}
 
-			PerspectiveCamera perspCamera = {};
-			// TODO: Get active perspective camera
-			Renderer::clearColor(orthoCameraObj->as.camera.fillColor);
+			if (orthoCameraObj)
+			{
+				orthoCamera = orthoCameraObj->as.camera.camera2D;
+				fillColor = orthoCameraObj->as.camera.fillColor;
+			}
+
+			if (perspCameraObj)
+			{
+				perspCamera = perspCameraObj->as.camera.camera3D;
+			}
+
+			Renderer::clearColor(fillColor);
 			renderToFramebuffer(framebuffer, orthoCamera, perspCamera);
 		}
 
@@ -946,11 +957,11 @@ namespace MathAnim
 				: defaultColor;
 
 			context->transform = transform;
-			glm::vec4 translatedPos = glm::vec4(start.x, start.y, 0.0f, 1.0f);
-			translatedPos = context->transform * translatedPos;
+			//glm::vec4 translatedPos = glm::vec4(start.x, start.y, 0.0f, 1.0f);
+			//translatedPos = context->transform * translatedPos;
 
-			Path_Vertex2DLine vert;
-			vert.position = Vec2{ translatedPos.x, translatedPos.y };
+			Path_Vertex2DLine vert = {};
+			vert.position = start;
 			vert.color = Vec4{
 				color.r,
 				color.g,
@@ -970,7 +981,21 @@ namespace MathAnim
 			g_memory_free(path);
 		}
 
-		bool endPath(Path2DContext* path, bool closePath, AnimObjId objId)
+		static Vec3 transformVertVec3(const Vec2& vert, const glm::mat4& transform)
+		{
+			glm::vec4 translated = glm::vec4(vert.x, vert.y, 0.0f, 1.0f);
+			translated = transform * translated;
+			return Vec3{ translated.x, translated.y, translated.z };
+		}
+
+		static Vec2 transformVertVec2(const Vec2& vert, const glm::mat4& transform)
+		{
+			glm::vec4 translated = glm::vec4(vert.x, vert.y, 0.0f, 1.0f);
+			translated = transform * translated;
+			return Vec2{ translated.x, translated.y };
+		}
+
+		bool endPath(Path2DContext* path, bool closePath, AnimObjId objId, bool is3D)
 		{
 			g_logger_assert(path != nullptr, "Null path.");
 
@@ -1096,13 +1121,49 @@ namespace MathAnim
 				endPoint--;
 			}
 
+			// TODO: Stroke width scales with the object and it probably shouldn't
+			//glm::vec3 scale, translation, skew;
+			//glm::quat orientation;
+			//glm::vec4 perspective;
+			//glm::decompose(path->transform, scale, orientation, translation, skew, perspective);
+			//glm::vec3 eulerAngles = glm::eulerAngles(orientation);
+			//glm::mat4 unscaledMatrix = CMath::calculateTransform(
+			//	Vec3{eulerAngles.x, eulerAngles.y, eulerAngles.z},
+			//	Vec3{ 1, 1, 1 }, 
+			//	Vec3{translation.x, translation.y, translation.z}
+			//);
+
 			for (int vertIndex = 0; vertIndex < endPoint; vertIndex++)
 			{
 				const Path_Vertex2DLine& vertex = path->data[vertIndex % path->data.size()];
 				const Path_Vertex2DLine& nextVertex = path->data[(vertIndex + 1) % path->data.size()];
 
-				drawMultiColoredTri(vertex.frontP1, vertex.color, vertex.frontP2, vertex.color, nextVertex.backP1, nextVertex.color, objId);
-				drawMultiColoredTri(vertex.frontP2, vertex.color, nextVertex.backP2, nextVertex.color, nextVertex.backP1, nextVertex.color, objId);
+				if (!is3D)
+				{
+					drawMultiColoredTri(
+						transformVertVec2(vertex.frontP1, path->transform), vertex.color,
+						transformVertVec2(vertex.frontP2, path->transform), vertex.color,
+						transformVertVec2(nextVertex.backP1, path->transform), nextVertex.color,
+						objId);
+					drawMultiColoredTri(
+						transformVertVec2(vertex.frontP2, path->transform), vertex.color,
+						transformVertVec2(nextVertex.backP2, path->transform), nextVertex.color,
+						transformVertVec2(nextVertex.backP1, path->transform), nextVertex.color,
+						objId);
+				}
+				else
+				{
+					drawMultiColoredTri3D(
+						transformVertVec3(vertex.frontP1, path->transform), vertex.color,
+						transformVertVec3(vertex.frontP2, path->transform), vertex.color,
+						transformVertVec3(nextVertex.backP1, path->transform), nextVertex.color,
+						objId);
+					drawMultiColoredTri3D(
+						transformVertVec3(vertex.frontP2, path->transform), vertex.color,
+						transformVertVec3(nextVertex.backP2, path->transform), nextVertex.color,
+						transformVertVec3(nextVertex.backP1, path->transform), nextVertex.color,
+						objId);
+				}
 			}
 
 			return true;
@@ -1277,7 +1338,7 @@ namespace MathAnim
 			glm::vec4 translatedPos = glm::vec4(point.x, point.y, 0.0f, 1.0f);
 			if (applyTransform)
 			{
-				translatedPos = path->transform * translatedPos;
+				//translatedPos = path->transform * translatedPos;
 			}
 
 			Path_Vertex2DLine vert;
@@ -1298,15 +1359,17 @@ namespace MathAnim
 			g_logger_assert(path != nullptr, "Null path.");
 			g_logger_assert(path->data.size() > 0, "Cannot do a quadTo on an empty path.");
 
-			glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, 0.0f, 1.0f);
-			glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, 0.0f, 1.0f);
-
-			tmpP1 = path->transform * tmpP1;
-			tmpP2 = path->transform * tmpP2;
+			//glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, 0.0f, 1.0f);
+			//glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, 0.0f, 1.0f);
+			//
+			//tmpP1 = path->transform * tmpP1;
+			//tmpP2 = path->transform * tmpP2;
 
 			Vec2 transformedP0 = path->data[path->data.size() - 1].position;
-			Vec2 transformedP1 = Vec2{ tmpP1.x, tmpP1.y };
-			Vec2 transformedP2 = Vec2{ tmpP2.x, tmpP2.y };
+			//Vec2 transformedP1 = Vec2{ tmpP1.x, tmpP1.y };
+			//Vec2 transformedP2 = Vec2{ tmpP2.x, tmpP2.y };
+			Vec2 transformedP1 = p1;
+			Vec2 transformedP2 = p2;
 
 			{
 				// Add raw curve data
@@ -1348,18 +1411,18 @@ namespace MathAnim
 			g_logger_assert(path != nullptr, "Null path.");
 			g_logger_assert(path->data.size() > 0, "Cannot do a cubicTo on an empty path.");
 
-			glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, 0.0f, 1.0f);
-			glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, 0.0f, 1.0f);
-			glm::vec4 tmpP3 = glm::vec4(p3.x, p3.y, 0.0f, 1.0f);
-
-			tmpP1 = path->transform * tmpP1;
-			tmpP2 = path->transform * tmpP2;
-			tmpP3 = path->transform * tmpP3;
+			//glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, 0.0f, 1.0f);
+			//glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, 0.0f, 1.0f);
+			//glm::vec4 tmpP3 = glm::vec4(p3.x, p3.y, 0.0f, 1.0f);
+			//
+			//tmpP1 = path->transform * tmpP1;
+			//tmpP2 = path->transform * tmpP2;
+			//tmpP3 = path->transform * tmpP3;
 
 			Vec2 transformedP0 = path->data[path->data.size() - 1].position;
-			Vec2 transformedP1 = Vec2{ tmpP1.x, tmpP1.y };
-			Vec2 transformedP2 = Vec2{ tmpP2.x, tmpP2.y };
-			Vec2 transformedP3 = Vec2{ tmpP3.x, tmpP3.y };
+			Vec2 transformedP1 = p1;//Vec2{ tmpP1.x, tmpP1.y };
+			Vec2 transformedP2 = p2;//Vec2{ tmpP2.x, tmpP2.y };
+			Vec2 transformedP3 = p3;//Vec2{ tmpP3.x, tmpP3.y };
 
 			{
 				// Add raw curve data
@@ -1650,7 +1713,7 @@ namespace MathAnim
 			drawList3D.addCubeFilled(center, size, getColor());
 		}
 
-		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const glm::mat4& transform, bool isTransparent)
+		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform, bool isTransparent)
 		{
 			glm::vec4 tmpBottomLeft = transform * glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
 			glm::vec4 tmpTopLeft = transform * glm::vec4(-size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
@@ -1663,7 +1726,17 @@ namespace MathAnim
 			Vec3 bottomRight = { tmpBottomRight.x, tmpBottomRight.y, tmpBottomRight.z };
 			Vec3 faceNormal = Vec3{ tmpFaceNormal.x, tmpFaceNormal.y, tmpFaceNormal.z };
 
-			drawList3D.addTexturedQuad3D(texture, bottomLeft, topLeft, topRight, bottomRight, uvMin, uvMax, faceNormal, isTransparent);
+			drawList3D.addTexturedQuad3D(texture, bottomLeft, topLeft, topRight, bottomRight, uvMin, uvMax, color, faceNormal, isTransparent);
+		}
+
+		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId)
+		{
+			drawList3D.addColoredTri(p0, p1, p2, getColor(), objId);
+		}
+
+		void drawMultiColoredTri3D(const Vec3& p0, const Vec4& color0, const Vec3& p1, const Vec4& color1, const Vec3& p2, const Vec4& color2, AnimObjId objId)
+		{
+			drawList3D.addMultiColoredTri(p0, color0, p1, color1, p2, color2, objId);
 		}
 
 		// ----------- Miscellaneous ----------- 
@@ -2598,7 +2671,7 @@ namespace MathAnim
 		}
 	}
 
-	void DrawList3D::addTexturedQuad3D(const Texture& texture, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec3& faceNormal, bool isTransparent)
+	void DrawList3D::addTexturedQuad3D(const Texture& texture, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const Vec3& faceNormal, bool isTransparent)
 	{
 		if (drawCommands.size() == 0 ||
 			drawCommands.data[drawCommands.size() - 1].textureId != texture.graphicsId ||
@@ -2606,6 +2679,7 @@ namespace MathAnim
 		{
 			DrawCmd3D newCommand;
 			newCommand.elementCount = 0;
+			newCommand.vertCount = 0;
 			newCommand.indexOffset = indices.size();
 			newCommand.vertexOffset = vertices.size();
 			newCommand.textureId = texture.graphicsId;
@@ -2615,13 +2689,15 @@ namespace MathAnim
 
 		DrawCmd3D& cmd = drawCommands.data[drawCommands.size() - 1];
 
-		uint16 rectStartIndex = (uint16)(cmd.elementCount / 6 * 4);
+		uint16 rectStartIndex = (uint16)cmd.vertCount;
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 1); indices.push(rectStartIndex + 2);
 		indices.push(rectStartIndex + 0); indices.push(rectStartIndex + 2); indices.push(rectStartIndex + 3);
 		cmd.elementCount += 6;
+		cmd.vertCount += 4;
 
 		Vertex3D vert;
-		vert.color = Vec4{ 1, 1, 1, 1 };
+		vert.color = color;
+
 		vert.position = bottomLeft;
 		vert.textureCoords = uvMin;
 		vert.normal = faceNormal;
@@ -2640,6 +2716,86 @@ namespace MathAnim
 		vertices.push(vert);
 	}
 
+	void DrawList3D::addColoredTri(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec4& color, AnimObjId)
+	{
+		// Check if we need to switch to a new batch
+		bool isTransparent = color.a < 1.0f; // TODO: Might not want to do this, because OIT makes some stuff look kinda weird
+		if (drawCommands.size() == 0 ||
+			drawCommands.data[drawCommands.size() - 1].isTransparent != isTransparent)
+		{
+			DrawCmd3D newCommand;
+			newCommand.elementCount = 0;
+			newCommand.vertCount = 0;
+			newCommand.indexOffset = indices.size();
+			newCommand.vertexOffset = vertices.size();
+			// TODO: This should be set to NULL_TEXTURE_HANDLE or something similar
+			//       and we should render no texture with a proper shader
+			newCommand.textureId = 0;
+			newCommand.isTransparent = isTransparent;
+			drawCommands.push(newCommand);
+		}
+
+		DrawCmd3D& cmd = drawCommands.data[drawCommands.size() - 1];
+
+		uint16 triStartIndex = (uint16)cmd.vertCount;
+		indices.push(triStartIndex + 0); indices.push(triStartIndex + 1); indices.push(triStartIndex + 2);
+		cmd.elementCount += 3;
+		cmd.vertCount += 3;
+
+		Vertex3D vert;
+		vert.textureCoords = Vec2{ 0, 0 };
+		vert.color = color;
+
+		vert.position = p0;
+		vertices.push(vert);
+
+		vert.position = p1;
+		vertices.push(vert);
+
+		vert.position = p2;
+		vertices.push(vert);
+	}
+
+	void DrawList3D::addMultiColoredTri(const Vec3& p0, const Vec4& c0, const Vec3& p1, const Vec4& c1, const Vec3& p2, const Vec4& c2, AnimObjId)
+	{
+		// Check if we need to switch to a new batch
+		bool isTransparent = c0.a < 1.0f || c1.a < 1.0f || c2.a < 1.0f; // TODO: Might not want to do this, because OIT makes some stuff look kinda weird
+		if (drawCommands.size() == 0 ||
+			drawCommands.data[drawCommands.size() - 1].isTransparent != isTransparent)
+		{
+			DrawCmd3D newCommand;
+			newCommand.elementCount = 0;
+			newCommand.vertCount = 0;
+			newCommand.indexOffset = indices.size();
+			newCommand.vertexOffset = vertices.size();
+			newCommand.textureId = 0;
+			newCommand.isTransparent = isTransparent;
+			drawCommands.push(newCommand);
+		}
+
+		DrawCmd3D& cmd = drawCommands.data[drawCommands.size() - 1];
+
+		uint16 triStartIndex = (uint16)cmd.vertCount;
+		indices.push(triStartIndex + 0); indices.push(triStartIndex + 1); indices.push(triStartIndex + 2);
+		cmd.elementCount += 3;
+		cmd.vertCount += 3;
+
+		Vertex3D vert;
+		vert.textureCoords = Vec2{ 0, 0 };
+
+		vert.color = c0;
+		vert.position = p0;
+		vertices.push(vert);
+
+		vert.color = c1;
+		vert.position = p1;
+		vertices.push(vert);
+
+		vert.color = c2;
+		vert.position = p2;
+		vertices.push(vert);
+	}
+
 	void DrawList3D::setupGraphicsBuffers()
 	{
 		// Create the batched vao
@@ -2653,7 +2809,7 @@ namespace MathAnim
 
 		GL::genBuffers(1, &ebo);
 		GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
+		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16) * indices.maxCapacity, NULL, GL_DYNAMIC_DRAW);
 
 		// Set up the batched vao attributes
 		GL::vertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, position)));
@@ -2682,6 +2838,10 @@ namespace MathAnim
 
 		Vec4 sunColor = "#ffffffff"_hex;
 
+		// Set up the opaque draw buffers
+		GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
+		GL::drawBuffers(4, drawBuffers);
+
 		// Enable depth testing and depth buffer writes
 		GL::depthMask(GL_TRUE);
 		GL::enable(GL_DEPTH_TEST);
@@ -2701,10 +2861,9 @@ namespace MathAnim
 			}
 
 			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
-			int numVerts = drawCommands.data[i].elementCount / 6 * 4;
 			GL::bufferData(
 				GL_ARRAY_BUFFER,
-				sizeof(Vertex3D) * numVerts,
+				sizeof(Vertex3D) * drawCommands.data[i].vertCount,
 				vertices.data + drawCommands.data[i].vertexOffset,
 				GL_DYNAMIC_DRAW
 			);
@@ -2721,9 +2880,6 @@ namespace MathAnim
 			GL::bindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
 			transparentShader.uploadInt("uTexture", 0);
 
-			GL::bindVertexArray(vao);
-			GL::drawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, NULL);
-
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
 			GL::bindVertexArray(vao);
@@ -2738,7 +2894,10 @@ namespace MathAnim
 		framebuffer.bind();
 
 		// Set up the transparent draw buffers
-		GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
+		drawBuffers[0] = GL_NONE;
+		drawBuffers[1] = GL_COLOR_ATTACHMENT1;
+		drawBuffers[2] = GL_COLOR_ATTACHMENT2;
+		drawBuffers[3] = GL_COLOR_ATTACHMENT3;
 		GL::drawBuffers(4, drawBuffers);
 
 		// Set up GL state for transparent pass
@@ -2795,9 +2954,6 @@ namespace MathAnim
 			GL::bindTexture(GL_TEXTURE_2D, drawCommands.data[i].textureId);
 			transparentShader.uploadInt("uTexture", 0);
 
-			GL::bindVertexArray(vao);
-			GL::drawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, NULL);
-
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
 			GL::bindVertexArray(vao);
@@ -2808,6 +2964,12 @@ namespace MathAnim
 				nullptr
 			);
 		}
+
+		// Set up the composite draw buffers
+		drawBuffers[0] = GL_COLOR_ATTACHMENT0;
+		drawBuffers[1] = GL_NONE;
+		drawBuffers[2] = GL_NONE;
+		drawBuffers[3] = GL_NONE;
 
 		// Composite the accumulation and revealage textures together
 		// Render to the composite framebuffer attachment

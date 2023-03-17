@@ -2291,7 +2291,7 @@ namespace MathAnim
 				if (lengthDrawn >= lengthToDraw && t < 1.0f)
 				{
 					MP_PROFILE_EVENT("Svg_RenderOutline2D_EndPath");
-					if (!Renderer::endPath(context, false, parent->id))
+					if (!Renderer::endPath(context, false, parent->id, parent->is3D))
 					{
 #ifdef _DEBUG
 						g_logger_warning("Failed to end path for object: %d<%s>", parent->id, parent->name);
@@ -2303,7 +2303,7 @@ namespace MathAnim
 				else
 				{
 					MP_PROFILE_EVENT("Svg_RenderOutline2D_EndPath");
-					if (!Renderer::endPath(context, true, parent->id))
+					if (!Renderer::endPath(context, true, parent->id, parent->is3D))
 					{
 #ifdef _DEBUG
 						g_logger_warning("Failed to end path for object: %d<%s>", parent->id, parent->name);
