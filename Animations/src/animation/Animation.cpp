@@ -895,7 +895,6 @@ namespace MathAnim
 	{
 		SERIALIZE_OBJECT(memory, this, camera2D);
 		SERIALIZE_NON_NULL_PROP(memory, this, is2D);
-		SERIALIZE_NON_NULL_PROP(memory, this, isActiveCamera);
 		SERIALIZE_VEC(memory, this, fillColor);
 	}
 
@@ -912,7 +911,6 @@ namespace MathAnim
 
 			DESERIALIZE_OBJECT(&res, camera2D, OrthoCamera, version, j);
 			DESERIALIZE_PROP(&res, is2D, j, false);
-			DESERIALIZE_PROP(&res, isActiveCamera, j, false);
 
 			const Vec4 greenBrown = "#272822FF"_hex;
 			DESERIALIZE_VEC4(&res, fillColor, j, greenBrown);
@@ -930,9 +928,6 @@ namespace MathAnim
 		// TODO: Deprecate me
 		if (version == 1)
 		{
-			//OrthoCamera camera2D;
-			//bool is2D;
-			//bool isActiveCamera;
 			CameraObject res;
 			res.camera2D = OrthoCamera::legacy_deserialize(memory, 1);
 			uint8 is2DU8;
@@ -956,7 +951,6 @@ namespace MathAnim
 		res.camera2D.position = res.camera2D.projectionSize / 2.0f;
 		res.camera2D.zoom = 1.0f;
 		res.is2D = true;
-		res.isActiveCamera = true;
 		const Vec4 greenBrown = "#272822FF"_hex;
 		res.fillColor = greenBrown;
 		return res;
@@ -1613,11 +1607,9 @@ namespace MathAnim
 		status = AnimObjectStatus::Inactive;
 		circumscribeId = NULL_ANIM;
 
-		if (objectType == AnimObjectTypeV1::Camera && as.camera.isActiveCamera)
+		if (objectType == AnimObjectTypeV1::Camera)
 		{
-			status = as.camera.isActiveCamera
-				? AnimObjectStatus::Active
-				: AnimObjectStatus::Inactive;
+			status = AnimObjectStatus::Active;
 		}
 	}
 

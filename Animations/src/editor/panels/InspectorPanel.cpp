@@ -753,25 +753,16 @@ namespace MathAnim
 			}
 		}
 
-		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object)
+		static void handleCameraObjectInspector(AnimationManagerData*, AnimObject* object)
 		{
 			if (object->as.camera.is2D)
 			{
 				ImGui::DragFloat2(": Projection Size", (float*)&object->as.camera.camera2D.projectionSize.x, slowDragSpeed);
 				ImGui::DragFloat(": Zoom", &object->as.camera.camera2D.zoom, slowDragSpeed);
 			}
-
-			if (ImGui::Checkbox(": Is 2D", &object->as.camera.is2D))
+			else
 			{
-				// TODO: Do something to set the camera appropriately to 3D or whatever
-			}
-
-			if (ImGui::Checkbox(": Is Active Camera", &object->as.camera.isActiveCamera))
-			{
-				if (object->as.camera.isActiveCamera)
-				{
-					AnimationManager::setActiveOrthoCamera(am, object->id);
-				}
+				ImGui::Text("This is a 3D Camera.");
 			}
 
 			ImGui::ColorEdit4(": Background Color", &object->as.camera.fillColor.r);

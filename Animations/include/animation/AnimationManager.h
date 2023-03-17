@@ -40,7 +40,7 @@ namespace MathAnim
 		int lastAnimatedFrame(const AnimationManagerData* am);
 		bool isPastLastFrame(const AnimationManagerData* am);
 		const AnimObject* getActiveOrthoCamera(const AnimationManagerData* am);
-		void setActiveOrthoCamera(AnimationManagerData* am, AnimObjId id);
+		const AnimObject* getActivePerspCamera(const AnimationManagerData* am);
 
 		// NOTE: This function is slow, only use this as a backup if getObject fails
 		const AnimObject* getPendingObject(const AnimationManagerData* am, AnimObjId animObj);

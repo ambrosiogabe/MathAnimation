@@ -321,16 +321,36 @@ namespace MathAnim
 
 			if (ImGui::BeginPopupContextWindow())
 			{
-				if (ImGui::BeginMenu("Cameras")) 
+				if (ImGui::BeginMenu("Cameras"))
 				{
 					if (ImGui::MenuItem("2D Camera"))
 					{
-						createAndAddAnimObject(am, AnimObjectTypeV1::Camera);
+						if (AnimationManager::getActiveOrthoCamera(am))
+						{
+							g_logger_error("Already an active 2D camera in the scene, cannot add another.");
+						}
+						else
+						{
+							AnimObject animObject = AnimObject::createDefault(am, AnimObjectTypeV1::Camera);
+							animObject.as.camera.is2D = true;
+							AnimationManager::addAnimObject(am, animObject);
+							addNewAnimObject(animObject);
+						}
 					}
 
 					if (ImGui::MenuItem("3D Camera"))
 					{
-						g_logger_error("TODO: Implement me");
+						if (AnimationManager::getActivePerspCamera(am))
+						{
+							g_logger_error("Already an active 3D camera in the scene, cannot add another.");
+						}
+						else
+						{
+							AnimObject animObject = AnimObject::createDefault(am, AnimObjectTypeV1::Camera);
+							animObject.as.camera.is2D = false;
+							AnimationManager::addAnimObject(am, animObject);
+							addNewAnimObject(animObject);
+						}
 					}
 
 					ImGui::EndMenu();

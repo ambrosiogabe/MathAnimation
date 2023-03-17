@@ -7,6 +7,7 @@
 #include "animation/Shapes.h"
 #include "animation/Axis.h"
 #include "renderer/OrthoCamera.h"
+#include "renderer/PerspectiveCamera.h"
 #include "renderer/TextureCache.h"
 #include "math/CMath.h"
 
@@ -351,9 +352,9 @@ namespace MathAnim
 	struct CameraObject
 	{
 		OrthoCamera camera2D;
+		PerspectiveCamera camera3D;
 		Vec4 fillColor;
 		bool is2D;
-		bool isActiveCamera;
 
 		void serialize(nlohmann::json& j) const;
 		void free();

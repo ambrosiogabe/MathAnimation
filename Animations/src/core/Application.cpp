@@ -211,7 +211,7 @@ namespace MathAnim
 					Renderer::renderToFramebuffer(mainFramebuffer, am);
 				}
 
-				// Render active objects with outlines around them
+				// Render editor viewport and active objects with outlines around them
 				if (EditorGui::editorViewportActive())
 				{
 					Renderer::bindAndUpdateViewportForFramebuffer(editorFramebuffer);
