@@ -757,12 +757,14 @@ namespace MathAnim
 		{
 			if (object->as.camera.is2D)
 			{
-				ImGui::DragFloat2(": Projection Size", (float*)&object->as.camera.camera2D.projectionSize.x, slowDragSpeed);
+				ImGui::DragFloat2(": Projection Size", &object->as.camera.camera2D.projectionSize.x, slowDragSpeed);
 				ImGui::DragFloat(": Zoom", &object->as.camera.camera2D.zoom, slowDragSpeed);
 			}
 			else
 			{
-				ImGui::Text("This is a 3D Camera.");
+				ImGui::DragFloat(": Field Of View", &object->as.camera.camera3D.fov, 1.0f, 180.0f);
+				ImGui::DragFloat3(": Position", &object->as.camera.camera3D.position.x);
+				ImGui::DragFloat3(": Rotation (Euler Angles)", &object->as.camera.camera3D.orientation.x);
 			}
 
 			ImGui::ColorEdit4(": Background Color", &object->as.camera.fillColor.r);

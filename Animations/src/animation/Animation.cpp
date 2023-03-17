@@ -893,7 +893,14 @@ namespace MathAnim
 
 	void CameraObject::serialize(nlohmann::json& memory) const
 	{
-		SERIALIZE_OBJECT(memory, this, camera2D);
+		if (is2D)
+		{
+			SERIALIZE_OBJECT(memory, this, camera2D);
+		}
+		else
+		{
+			SERIALIZE_OBJECT(memory, this, camera3D);
+		}
 		SERIALIZE_NON_NULL_PROP(memory, this, is2D);
 		SERIALIZE_VEC(memory, this, fillColor);
 	}
@@ -909,8 +916,15 @@ namespace MathAnim
 		{
 			CameraObject res = {};
 
-			DESERIALIZE_OBJECT(&res, camera2D, OrthoCamera, version, j);
 			DESERIALIZE_PROP(&res, is2D, j, false);
+			if (res.is2D)
+			{
+				DESERIALIZE_OBJECT(&res, camera2D, OrthoCamera, version, j);
+			}
+			else
+			{
+				DESERIALIZE_OBJECT(&res, camera3D, PerspectiveCamera, version, j);
+			}
 
 			const Vec4 greenBrown = "#272822FF"_hex;
 			DESERIALIZE_VEC4(&res, fillColor, j, greenBrown);
@@ -1062,7 +1076,7 @@ namespace MathAnim
 		TextureHandle handle = TextureCache::loadTexture(imageFilepath, getLoadOptions());
 		const Texture& texture = TextureCache::getTexture(handle);
 
-		size.x = size.x == 0.0f ?  (float)texture.width / Application::getOutputSize().x * Application::getViewportSize().x : size.x;
+		size.x = size.x == 0.0f ? (float)texture.width / Application::getOutputSize().x * Application::getViewportSize().x : size.x;
 		size.y = size.y == 0.0f ? (float)texture.height / Application::getOutputSize().y * Application::getViewportSize().y : size.y;
 		textureHandle = handle;
 
@@ -1357,9 +1371,9 @@ namespace MathAnim
 					Vec2{ 0, 1 },
 					Vec2{ 1, 0 },
 					Vec4{
-						(float)this->fillColor.r / 255.0f, 
-						(float)this->fillColor.g / 255.0f, 
-						(float)this->fillColor.b / 255.0f, 
+						(float)this->fillColor.r / 255.0f,
+						(float)this->fillColor.g / 255.0f,
+						(float)this->fillColor.b / 255.0f,
 						(float)this->fillColor.a / 255.0f
 					},
 					this->id,
