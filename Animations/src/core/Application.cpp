@@ -6,8 +6,9 @@
 #include "renderer/Colors.h"
 #include "renderer/GladLayer.h"
 #include "renderer/Renderer.h"
-#include "renderer/OrthoCamera.h"
-#include "renderer/PerspectiveCamera.h"
+#include "renderer/Camera.h"
+#include "renderer/Deprecated_OrthoCamera.h"
+#include "renderer/Deprecated_PerspectiveCamera.h"
 #include "renderer/Shader.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
@@ -60,8 +61,7 @@ namespace MathAnim
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
 		static Framebuffer editorFramebuffer;
-		static OrthoCamera editorCamera2D;
-		static PerspectiveCamera editorCamera3D;
+		static Camera editorCamera;
 		static int absoluteCurrentFrame = -1;
 		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
@@ -93,13 +93,7 @@ namespace MathAnim
 		void init(const char* projectFile)
 		{
 			// Initialize these just in case this is a new project
-			editorCamera2D.position = Vec2{ viewportWidth / 2.0f, viewportHeight / 2.0f };
-			editorCamera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
-			editorCamera2D.zoom = 1.0f;
-
-			editorCamera3D.position = glm::vec3(0.0f);
-			editorCamera3D.fov = 70.0f;
-			editorCamera3D.forward = glm::vec3(1.0f, 0.0f, 0.0f);
+			editorCamera = Camera::createDefault();
 
 			// Initialize other global systems
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
@@ -197,7 +191,7 @@ namespace MathAnim
 
 				// Update systems all systems/collect systems draw calls
 				GizmoManager::update(am);
-				EditorCameraController::updateOrtho(editorCamera2D);
+				EditorCameraController::update(editorCamera);
 				// Update Animation logic and collect draw calls
 				AnimationManager::render(am, deltaFrame);
 				LaTexLayer::update();
@@ -221,7 +215,11 @@ namespace MathAnim
 						// Then render the rest of the stuff
 						MP_PROFILE_EVENT("MainLoop_RenderToEditorViewport");
 						editorFramebuffer.clearDepthStencil();
-						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera2D, editorCamera3D);
+
+						// NOTE: We use the editor camera for 2D and 3D cameras since there's only
+						//       one editor camera, but the potential for a separate 2D/3D camera in
+						//       the scene's final output
+						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera, editorCamera);
 
 						Renderer::clearDrawCalls();
 					}
@@ -239,7 +237,7 @@ namespace MathAnim
 						MP_PROFILE_EVENT("MainLoop_RenderGizmos");
 						editorFramebuffer.clearDepthStencil();
 						GizmoManager::render(am);
-						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera2D, editorCamera3D);
+						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera, editorCamera);
 
 						Renderer::clearDrawCalls();
 					}
@@ -604,13 +602,9 @@ namespace MathAnim
 			}
 			if (cameraData.data)
 			{
-				// Version    -> u32
-				// camera2D   -> OrthoCamera
-				// camera3D   -> PerspCamera
-				uint32 version = 1;
-				cameraData.read<uint32>(&version);
-				editorCamera2D = OrthoCamera::legacy_deserialize(cameraData, version);
-				editorCamera3D = PerspectiveCamera::legacy_deserialize(cameraData, version);
+				// NOTE: Legacy projects will have the editor camera automatically upgraded
+				//       to the new camera type. That means that the data will be lost
+				//       but it should be fine
 			}
 
 			animationData.free();
@@ -728,9 +722,9 @@ namespace MathAnim
 			return currentProjectTmpDir;
 		}
 
-		OrthoCamera* getEditorCamera()
+		Camera* getEditorCamera()
 		{
-			return &editorCamera2D;
+			return &editorCamera;
 		}
 
 		SvgCache* getSvgCache()
@@ -747,8 +741,7 @@ namespace MathAnim
 		{
 			nlohmann::json cameraData = nlohmann::json();
 
-			editorCamera2D.serialize(cameraData["EditorCamera2D"]);
-			editorCamera3D.serialize(cameraData["EditorCamera3D"]);
+			editorCamera.serialize(cameraData["EditorCamera"]);
 
 			return cameraData;
 		}
@@ -757,16 +750,35 @@ namespace MathAnim
 		{
 			switch (version)
 			{
+			case 3:
+			{
+				if (cameraData.contains("EditorCamera"))
+				{
+					editorCamera = Camera::deserialize(cameraData["EditorCamera"], version);
+				}
+			}
+			break;
 			case 2:
 			{
+				// Upgrading legacy projects will default to the 2D camera
 				if (cameraData.contains("EditorCamera2D"))
 				{
-					editorCamera2D = OrthoCamera::deserialize(cameraData["EditorCamera2D"], version);
+					OrthoCamera oldCamera2D = OrthoCamera::deserialize(cameraData["EditorCamera2D"], version);
+					editorCamera.position = CMath::vector3From2(oldCamera2D.position);
+					editorCamera.position.z = -2;
+					editorCamera.aspectRatioFraction.x = (int)oldCamera2D.projectionSize.x;
+					editorCamera.aspectRatioFraction.y = (int)oldCamera2D.projectionSize.y;
 				}
-				if (cameraData.contains("EditorCamera3D"))
+				else if (cameraData.contains("EditorCamera3D"))
 				{
-					editorCamera3D = PerspectiveCamera::deserialize(cameraData["EditorCamera3D"], version);
+					PerspectiveCamera oldCamera3D = PerspectiveCamera::deserialize(cameraData["EditorCamera3D"], version);
+					editorCamera.position = CMath::convert(oldCamera3D.position);
+					editorCamera.fov = oldCamera3D.fov;
+					editorCamera.orientation = glm::quat(oldCamera3D.orientation);
 				}
+
+				editorCamera.matricesAreCached = false;
+				editorCamera.calculateMatrices();
 			}
 			break;
 			default:

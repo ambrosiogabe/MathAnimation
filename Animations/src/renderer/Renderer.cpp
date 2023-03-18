@@ -1,7 +1,6 @@
 #include "core.h"
 #include "renderer/Renderer.h"
-#include "renderer/OrthoCamera.h"
-#include "renderer/PerspectiveCamera.h"
+#include "renderer/Camera.h"
 #include "renderer/Shader.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
@@ -74,7 +73,7 @@ namespace MathAnim
 		void addMultiColoredTri(const Vec2& p0, const Vec4& c0, const Vec2& p1, const Vec4& c1, const Vec2& p2, const Vec4& c2, AnimObjId objId);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& shader, const OrthoCamera& orthoCamera) const;
+		void render(const Shader& shader, const Camera& camera) const;
 		void reset();
 		void free();
 	};
@@ -95,7 +94,7 @@ namespace MathAnim
 		void addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, uint32 textureId, AnimObjId objId);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& shader, const OrthoCamera& orthoCamera);
+		void render(const Shader& shader, const Camera& camera);
 		void reset();
 		void free();
 	};
@@ -149,7 +148,7 @@ namespace MathAnim
 		void addLine(const Vec3& previousPos, const Vec3& currentPos, const Vec3& nextPos, const Vec3& nextNextPos, uint32 packedColor, float thickness);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& shader, PerspectiveCamera& perspectiveCamera) const;
+		void render(const Shader& shader, const Camera& camera) const;
 		void reset();
 		void free();
 	};
@@ -180,7 +179,7 @@ namespace MathAnim
 		void addMultiColoredTri(const Vec3& p0, const Vec4& c0, const Vec3& p1, const Vec4& c1, const Vec3& p2, const Vec4& c2, AnimObjId objId);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& opaqueShader, const Shader& transparentShader, const Shader& compositeShader, const Framebuffer& framebuffer, PerspectiveCamera& perspectiveCamera) const;
+		void render(const Shader& opaqueShader, const Shader& transparentShader, const Shader& compositeShader, const Framebuffer& framebuffer, const Camera& camera) const;
 		void reset();
 		void free();
 	};
@@ -347,7 +346,7 @@ namespace MathAnim
 			GL::popDebugGroup();
 		}
 
-		void renderToFramebuffer(Framebuffer& framebuffer, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera)
+		void renderToFramebuffer(Framebuffer& framebuffer, const Camera& camera2D, const Camera& camera3D)
 		{
 			constexpr size_t numExpectedColorAttachments = 6;
 			g_logger_assert(framebuffer.colorAttachments.size() == numExpectedColorAttachments, "Invalid framebuffer. Should have %d color attachments.", numExpectedColorAttachments);
@@ -362,8 +361,8 @@ namespace MathAnim
 
 			// Do all the draw calls
 			// Draw lines and strings
-			drawList3DLine.render(shader3DLine, perspectiveCamera);
-			drawListFont2D.render(shaderFont2D, orthoCamera);
+			drawList3DLine.render(shader3DLine, camera3D);
+			drawListFont2D.render(shaderFont2D, camera2D);
 
 			// Draw 3D objects after the lines so that we can do appropriate blending
 			// using OIT
@@ -372,7 +371,7 @@ namespace MathAnim
 				shader3DTransparent,
 				shader3DComposite,
 				framebuffer,
-				perspectiveCamera
+				camera3D
 			);
 
 			// Reset the draw buffers to draw to FB_attachment_0
@@ -381,19 +380,18 @@ namespace MathAnim
 			// Draw 2D stuff over 3D stuff so that 3D stuff is always "behind" the
 			// 2D stuff like a HUD
 			// These should be blended appropriately
-			drawList2D.render(shader2D, orthoCamera);
+			drawList2D.render(shader2D, camera2D);
 
 			GL::popDebugGroup();
 		}
 
 		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am)
 		{
-			OrthoCamera orthoCamera = {};
-			PerspectiveCamera perspCamera = {};
-			const AnimObject* orthoCameraObj = AnimationManager::getActiveOrthoCamera(am);
-			const AnimObject* perspCameraObj = AnimationManager::getActivePerspCamera(am);
-			Vec4 fillColor = Vec4{};
-			if (!orthoCameraObj && !perspCameraObj)
+			Camera camera2D = Camera::createDefault();
+			Camera camera3D = camera2D;
+			const AnimObject* camera2DObj = AnimationManager::getActiveCamera2D(am);
+			const AnimObject* camera3DObj = AnimationManager::getActiveCamera3D(am);
+			if (!camera2DObj && !camera3DObj)
 			{
 				// Don't render anything if no camera is active
 				// TODO: Maybe render a texture in the future that says something like "No Active Camera in Scene"
@@ -401,19 +399,18 @@ namespace MathAnim
 				return;
 			}
 
-			if (orthoCameraObj)
+			if (camera2DObj)
 			{
-				orthoCamera = orthoCameraObj->as.camera.camera2D;
-				fillColor = orthoCameraObj->as.camera.fillColor;
+				camera2D = camera2DObj->as.camera;
 			}
 
-			if (perspCameraObj)
+			if (camera3DObj)
 			{
-				perspCamera = perspCameraObj->as.camera.camera3D;
+				camera3D = camera3DObj->as.camera;
 			}
 
-			Renderer::clearColor(fillColor);
-			renderToFramebuffer(framebuffer, orthoCamera, perspCamera);
+			Renderer::clearColor(camera2D.fillColor);
+			renderToFramebuffer(framebuffer, camera2D, camera3D);
 		}
 
 		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects)
@@ -940,7 +937,7 @@ namespace MathAnim
 				g_logger_warning("Corrupted path data found for AnimObjId: %d", objId);
 #endif
 				return false;
-			}
+		}
 
 			// NOTE: This is some weird shenanigans in order to get the path
 			// to close correctly and join the last vertex to the first vertex
@@ -1102,7 +1099,7 @@ namespace MathAnim
 			}
 
 			return true;
-		}
+	}
 
 		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath, AnimObjId)
 		{
@@ -1837,7 +1834,7 @@ namespace MathAnim
 			}
 		}
 		// ---------------------- End Internal Functions ----------------------
-	}
+}
 
 	// ---------------------- Begin DrawList2D Functions ----------------------
 	void DrawList2D::init()
@@ -2057,7 +2054,7 @@ namespace MathAnim
 		GL::enableVertexAttribArray(3);
 	}
 
-	void DrawList2D::render(const Shader& shader, const OrthoCamera& camera) const
+	void DrawList2D::render(const Shader& shader, const Camera& camera) const
 	{
 		if (vertices.size() == 0)
 		{
@@ -2069,8 +2066,8 @@ namespace MathAnim
 		GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		shader.bind();
-		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
-		shader.uploadMat4("uView", camera.calculateViewMatrix());
+		shader.uploadMat4("uProjection", camera.getProjectionMatrix());
+		shader.uploadMat4("uView", camera.viewMatrix);
 		shader.uploadInt("uWireframeOn", EditorSettings::getSettings().viewMode == ViewMode::WireMesh);
 
 		for (int i = 0; i < drawCommands.size(); i++)
@@ -2246,7 +2243,7 @@ namespace MathAnim
 		GL::enableVertexAttribArray(3);
 	}
 
-	void DrawListFont2D::render(const Shader& shader, const OrthoCamera& camera)
+	void DrawListFont2D::render(const Shader& shader, const Camera& camera)
 	{
 		if (drawCommands.size() == 0)
 		{
@@ -2256,8 +2253,8 @@ namespace MathAnim
 		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_Font_Pass");
 
 		shader.bind();
-		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
-		shader.uploadMat4("uView", camera.calculateViewMatrix());
+		shader.uploadMat4("uProjection", camera.getProjectionMatrix());
+		shader.uploadMat4("uView", camera.viewMatrix);
 
 		for (int i = 0; i < drawCommands.size(); i++)
 		{
@@ -2427,7 +2424,7 @@ namespace MathAnim
 		GL::enableVertexAttribArray(4);
 	}
 
-	void DrawList3DLine::render(const Shader& shader, PerspectiveCamera& camera) const
+	void DrawList3DLine::render(const Shader& shader, const Camera& camera) const
 	{
 		if (vertices.size() == 0)
 		{
@@ -2445,8 +2442,8 @@ namespace MathAnim
 		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
 
 		shader.bind();
-		shader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
-		shader.uploadMat4("uView", camera.calculateViewMatrix());
+		shader.uploadMat4("uProjection", camera.getProjectionMatrix());
+		shader.uploadMat4("uView", camera.viewMatrix);
 		shader.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
 
 		GL::drawArrays(GL_TRIANGLES, 0, (GLsizei)vertices.size());
@@ -2663,7 +2660,7 @@ namespace MathAnim
 		const Shader& transparentShader,
 		const Shader& compositeShader,
 		const Framebuffer& framebuffer,
-		PerspectiveCamera& camera
+		const Camera& camera
 	) const
 	{
 		if (vertices.size() == 0)
@@ -2686,8 +2683,8 @@ namespace MathAnim
 
 		// First render opaque objects
 		opaqueShader.bind();
-		opaqueShader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
-		opaqueShader.uploadMat4("uView", camera.calculateViewMatrix());
+		opaqueShader.uploadMat4("uProjection", camera.getProjectionMatrix());
+		opaqueShader.uploadMat4("uView", camera.viewMatrix);
 		//opaqueShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
 		//opaqueShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
 
@@ -2765,8 +2762,8 @@ namespace MathAnim
 
 		// Then render the transparent surfaces
 		transparentShader.bind();
-		transparentShader.uploadMat4("uProjection", camera.calculateProjectionMatrix());
-		transparentShader.uploadMat4("uView", camera.calculateViewMatrix());
+		transparentShader.uploadMat4("uProjection", camera.getProjectionMatrix());
+		transparentShader.uploadMat4("uView", camera.viewMatrix);
 		//transparentShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
 		//transparentShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
 

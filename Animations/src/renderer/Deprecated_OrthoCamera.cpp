@@ -1,4 +1,4 @@
-#include "renderer/OrthoCamera.h"
+#include "renderer/Deprecated_OrthoCamera.h"
 #include "core/Application.h"
 #include "core/Serialization.hpp"
 #include "math/CMath.h"

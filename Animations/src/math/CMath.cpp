@@ -576,182 +576,212 @@ namespace MathAnim
 		}
 
 		// (de)Serialization functions
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec4& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
-			memory[propertyName]["Z"] = vec.z;
-			memory[propertyName]["W"] = vec.w;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
+			j[propertyName]["Z"] = vec.z;
+			j[propertyName]["W"] = vec.w;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec3& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
-			memory[propertyName]["Z"] = vec.z;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
+			j[propertyName]["Z"] = vec.z;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec2& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4i& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec4i& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
-			memory[propertyName]["Z"] = vec.z;
-			memory[propertyName]["W"] = vec.w;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
+			j[propertyName]["Z"] = vec.z;
+			j[propertyName]["W"] = vec.w;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3i& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec3i& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
-			memory[propertyName]["Z"] = vec.z;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
+			j[propertyName]["Z"] = vec.z;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2i& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec2i& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const glm::u8vec4& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const glm::u8vec4& vec)
 		{
-			memory[propertyName]["R"] = vec.r;
-			memory[propertyName]["G"] = vec.g;
-			memory[propertyName]["B"] = vec.b;
-			memory[propertyName]["A"] = vec.a;
+			j[propertyName]["R"] = vec.r;
+			j[propertyName]["G"] = vec.g;
+			j[propertyName]["B"] = vec.b;
+			j[propertyName]["A"] = vec.a;
 		}
 
-		Vec4 deserializeVec4(const nlohmann::json& memory, const Vec4& defaultValue)
+		void serialize(nlohmann::json& j, const char* propertyName, const glm::quat& quat)
+		{
+			j[propertyName]["W"] = quat.w;
+			j[propertyName]["X"] = quat.x;
+			j[propertyName]["Y"] = quat.y;
+			j[propertyName]["Z"] = quat.z;
+		}
+
+		Vec4 deserializeVec4(const nlohmann::json& j, const Vec4& defaultValue)
 		{
 			Vec4 res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
-			if (memory.contains("Z"))
+			if (j.contains("Z"))
 			{
-				res.z = memory["Z"];
+				res.z = j["Z"];
 			}
-			if (memory.contains("W"))
+			if (j.contains("W"))
 			{
-				res.w = memory["W"];
+				res.w = j["W"];
 			}
 			return res;
 		}
 
-		Vec3 deserializeVec3(const nlohmann::json& memory, const Vec3& defaultValue)
+		Vec3 deserializeVec3(const nlohmann::json& j, const Vec3& defaultValue)
 		{
 			Vec3 res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
-			if (memory.contains("Z"))
+			if (j.contains("Z"))
 			{
-				res.z = memory["Z"];
+				res.z = j["Z"];
 			}
 			return res;
 		}
 
-		Vec2 deserializeVec2(const nlohmann::json& memory, const Vec2& defaultValue)
+		Vec2 deserializeVec2(const nlohmann::json& j, const Vec2& defaultValue)
 		{
 			Vec2 res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
 			return res;
 		}
 
-		Vec4i deserializeVec4i(const nlohmann::json& memory, const Vec4i& defaultValue)
+		Vec4i deserializeVec4i(const nlohmann::json& j, const Vec4i& defaultValue)
 		{
 			Vec4i res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
-			if (memory.contains("Z"))
+			if (j.contains("Z"))
 			{
-				res.z = memory["Z"];
+				res.z = j["Z"];
 			}
-			if (memory.contains("W"))
+			if (j.contains("W"))
 			{
-				res.w = memory["W"];
+				res.w = j["W"];
 			}
 			return res;
 		}
 
-		Vec3i deserializeVec3i(const nlohmann::json& memory, const Vec3i& defaultValue)
+		Vec3i deserializeVec3i(const nlohmann::json& j, const Vec3i& defaultValue)
 		{
 			Vec3i res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
-			if (memory.contains("Z"))
+			if (j.contains("Z"))
 			{
-				res.z = memory["Z"];
+				res.z = j["Z"];
 			}
 			return res;
 		}
 
-		Vec2i deserializeVec2i(const nlohmann::json& memory, const Vec2i& defaultValue)
+		Vec2i deserializeVec2i(const nlohmann::json& j, const Vec2i& defaultValue)
 		{
 			Vec2i res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
 			return res;
 		}
 
-		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory, const glm::u8vec4& defaultValue)
+		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& j, const glm::u8vec4& defaultValue)
 		{
 			glm::u8vec4 res = defaultValue;
-			if (memory.contains("R"))
+			if (j.contains("R"))
 			{
-				res.x = memory["R"];
+				res.x = j["R"];
 			}
-			if (memory.contains("G"))
+			if (j.contains("G"))
 			{
-				res.y = memory["G"];
+				res.y = j["G"];
 			}
-			if (memory.contains("B"))
+			if (j.contains("B"))
 			{
-				res.z = memory["B"];
+				res.z = j["B"];
 			}
-			if (memory.contains("A"))
+			if (j.contains("A"))
 			{
-				res.w = memory["A"];
+				res.w = j["A"];
+			}
+			return res;
+		}
+
+		glm::quat deserializeQuat(const nlohmann::json& j, const glm::quat& defaultValue)
+		{
+			glm::quat res = defaultValue;
+			if (j.contains("W"))
+			{
+				res.w = j["W"];
+			}
+			if (j.contains("X"))
+			{
+				res.x = j["X"];
+			}
+			if (j.contains("Y"))
+			{
+				res.y = j["Y"];
+			}
+			if (j.contains("Z"))
+			{
+				res.z = j["Z"];
 			}
 			return res;
 		}

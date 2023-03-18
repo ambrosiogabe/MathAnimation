@@ -755,18 +755,12 @@ namespace MathAnim
 
 		static void handleCameraObjectInspector(AnimationManagerData*, AnimObject* object)
 		{
-			if (object->as.camera.is2D)
-			{
-				ImGui::DragFloat2(": Projection Size", &object->as.camera.camera2D.projectionSize.x, slowDragSpeed);
-				ImGui::DragFloat(": Zoom", &object->as.camera.camera2D.zoom, slowDragSpeed);
-			}
-			else
-			{
-				ImGui::DragFloat(": Field Of View", &object->as.camera.camera3D.fov, 1.0f, 180.0f);
-				ImGui::DragFloat3(": Position", &object->as.camera.camera3D.position.x);
-				ImGui::DragFloat3(": Rotation (Euler Angles)", &object->as.camera.camera3D.orientation.x);
-			}
-
+			ImGui::DragFloat(": Field Of View", &object->as.camera.fov, 1.0f, 180.0f);
+			ImGui::DragFloat3(": Position", &object->as.camera.position.x);
+			ImGui::DragFloat3(": Orientation", &object->as.camera.orientation.x);
+			ImGui::DragInt2(": Aspect Ratio", &object->as.camera.aspectRatioFraction.x);
+			ImGui::DragFloat(": Near", &object->as.camera.nearFarRange.min);
+			ImGui::DragFloat(": Far", &object->as.camera.nearFarRange.max);
 			ImGui::ColorEdit4(": Background Color", &object->as.camera.fillColor.r);
 		}
 

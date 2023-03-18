@@ -91,6 +91,22 @@ namespace MathAnim
 			return glm::vec4(vec.x, vec.y, vec.z, vec.w);
 		}
 
+		// Implicit conversions from glm::vec to Vec
+		inline Vec2 convert(const glm::vec2& vec)
+		{
+			return Vec2{vec.x, vec.y};
+		}
+
+		inline Vec3 convert(const glm::vec3& vec)
+		{
+			return Vec3{vec.x, vec.y, vec.z};
+		}
+
+		inline Vec4 convert(const glm::vec4& vec)
+		{
+			return Vec4{vec.x, vec.y, vec.z, vec.w};
+		}
+
 		// Winding order stuff
 		bool isClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 		inline bool isCounterClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2) { return !isClockwise(p0, p1, p2); }
@@ -217,25 +233,27 @@ namespace MathAnim
 		Vec3 extractPosition(const glm::mat4& transformation);
 
 		// (de)Serialization functions
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4& vec);
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3& vec);
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2& vec);
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec4& vec);
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec3& vec);
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec2& vec);
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4i& vec);
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3i& vec);
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2i& vec);
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec4i& vec);
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec3i& vec);
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec2i& vec);
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const glm::u8vec4& vec);
+		void serialize(nlohmann::json& j, const char* propertyName, const glm::u8vec4& vec);
+		void serialize(nlohmann::json& j, const char* propertyName, const glm::quat& quat);
 
-		Vec4 deserializeVec4(const nlohmann::json& memory, const Vec4& defaultValue);
-		Vec3 deserializeVec3(const nlohmann::json& memory, const Vec3& defaultValue);
-		Vec2 deserializeVec2(const nlohmann::json& memory, const Vec2& defaultValue);
+		Vec4 deserializeVec4(const nlohmann::json& j, const Vec4& defaultValue);
+		Vec3 deserializeVec3(const nlohmann::json& j, const Vec3& defaultValue);
+		Vec2 deserializeVec2(const nlohmann::json& j, const Vec2& defaultValue);
 
-		Vec4i deserializeVec4i(const nlohmann::json& memory, const Vec4i& defaultValue);
-		Vec3i deserializeVec3i(const nlohmann::json& memory, const Vec3i& defaultValue);
-		Vec2i deserializeVec2i(const nlohmann::json& memory, const Vec2i& defaultValue);
+		Vec4i deserializeVec4i(const nlohmann::json& j, const Vec4i& defaultValue);
+		Vec3i deserializeVec3i(const nlohmann::json& j, const Vec3i& defaultValue);
+		Vec2i deserializeVec2i(const nlohmann::json& j, const Vec2i& defaultValue);
 
 		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory, const glm::u8vec4& defaultValue);
+		glm::quat deserializeQuat(const nlohmann::json& j, const glm::quat& defaultValue);
 
 		[[deprecated("This is for upgrading legacy projects developed in beta")]]
 		Vec4 legacy_deserializeVec4(RawMemory& memory);

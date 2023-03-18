@@ -6,8 +6,9 @@
 #include "animation/SvgFileObject.h"
 #include "animation/Shapes.h"
 #include "animation/Axis.h"
-#include "renderer/OrthoCamera.h"
-#include "renderer/PerspectiveCamera.h"
+#include "renderer/Camera.h"
+#include "renderer/Deprecated_OrthoCamera.h"
+#include "renderer/Deprecated_PerspectiveCamera.h"
 #include "renderer/TextureCache.h"
 #include "math/CMath.h"
 
@@ -20,7 +21,7 @@ namespace MathAnim
 	struct AnimationManagerData;
 
 	// Constants
-	constexpr uint32 SERIALIZER_VERSION_MAJOR = 2;
+	constexpr uint32 SERIALIZER_VERSION_MAJOR = 3;
 	constexpr uint32 SERIALIZER_VERSION_MINOR = 0;
 	constexpr uint32 MAGIC_NUMBER = 0xDEADBEEF;
 
@@ -349,7 +350,8 @@ namespace MathAnim
 		AnimObjId currentId;
 	};
 
-	struct CameraObject
+	struct [[deprecated("This is necessary to upgrade old projects, but should not be used anymore")]]
+	CameraObject
 	{
 		OrthoCamera camera2D;
 		PerspectiveCamera camera3D;
@@ -490,7 +492,8 @@ namespace MathAnim
 			Cube cube;
 			Axis axis;
 			SvgFileObject svgFile;
-			CameraObject camera;
+			Camera camera;
+			CameraObject legacy_camera;
 			ScriptObject script;
 			CodeBlock codeBlock;
 			Arrow arrow;

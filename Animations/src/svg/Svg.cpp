@@ -6,7 +6,6 @@
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
 #include "renderer/Colors.h"
-#include "renderer/PerspectiveCamera.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
 #include "core/Serialization.hpp"

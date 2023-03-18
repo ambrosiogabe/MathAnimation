@@ -1,10 +1,10 @@
 #include "editor/EditorCameraController.h"
 #include "editor/EditorGui.h"
 #include "editor/EditorSettings.h"
-#include "renderer/OrthoCamera.h"
-#include "renderer/PerspectiveCamera.h"
+#include "renderer/Camera.h"
 #include "core/Input.h"
 #include "core/Profiling.h"
+#include "math/CMath.h"
 
 namespace MathAnim
 {
@@ -15,7 +15,7 @@ namespace MathAnim
 		static float mouseScrollSensitivity = 0.035f;
 		static Vec2 lastMouseWorldPos = Vec2{ 0, 0 };
 
-		void updateOrtho(OrthoCamera& camera)
+		void update(Camera& camera)
 		{
 			MP_PROFILE_EVENT("EditorCameraController_UpdateOrtho");
 
@@ -49,16 +49,11 @@ namespace MathAnim
 				if (Input::scrollY != 0.0f)
 				{
 					// Increase camera zoom logarithmically
-					float cameraXStep = glm::log(camera.zoom);
+					float cameraXStep = glm::log(glm::distance(CMath::convert(camera.position), glm::vec3(0.0f)));
 					cameraXStep -= Input::scrollY * mouseScrollSensitivity * data.scrollSensitvity;
-					camera.zoom = glm::clamp(glm::exp(cameraXStep), 0.01f, 100.0f);
+					camera.position += camera.forward * -1.0f * glm::clamp(glm::exp(cameraXStep), 0.01f, 100.0f);
 				}
 			}
-		}
-
-		void updatePerspective(PerspectiveCamera&)
-		{
-
 		}
 	}
 }

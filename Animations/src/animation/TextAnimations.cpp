@@ -5,8 +5,6 @@
 #include "renderer/Renderer.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Fonts.h"
-#include "renderer/PerspectiveCamera.h"
-#include "renderer/OrthoCamera.h"
 #include "core/Application.h"
 #include "core/Serialization.hpp"
 #include "latex/LaTexLayer.h"

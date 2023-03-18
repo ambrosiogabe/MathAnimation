@@ -117,6 +117,9 @@ do { \
 #define SERIALIZE_GLM_U8VEC4(j, obj, prop) \
   CMath::serialize(j, #prop, Vec4{(obj)->prop.r, (obj)->prop.g, (obj)->prop.b, (obj)->prop.a})
 
+#define SERIALIZE_GLM_QUAT(j, obj, prop) \
+  CMath::serialize(j, #prop, (obj)->prop)
+
 // ------------------- Deserialization helpers -------------------
 #define DESERIALIZE_NULLABLE_CSTRING(obj, prop, j) \
 do { \
@@ -222,5 +225,8 @@ do { \
 #define DESERIALIZE_GLM_VEC4i(obj, prop, j, defaultValue) _DESERIALIZE_GLM_VEC(obj, prop, j, Vec, 4i, defaultValue)
 
 #define DESERIALIZE_GLM_U8VEC4(obj, prop, j, defaultValue) _DESERIALIZE_VEC(obj, prop, j, U8Vec, 4, defaultValue)
+
+#define DESERIALIZE_GLM_QUAT(obj, prop, j, defaultValue) \
+  (obj)->prop = CMath::deserializeQuat(j.contains(#prop) ? j[#prop] : nlohmann::json(), defaultValue)
 
 #endif

@@ -4,8 +4,7 @@
 
 namespace MathAnim
 {
-	struct OrthoCamera;
-	struct PerspectiveCamera;
+	struct Camera;
 	struct Shader;
 	struct Framebuffer;
 	struct Texture;
@@ -43,7 +42,7 @@ namespace MathAnim
 		// ----------- Render calls ----------- 
 		void bindAndUpdateViewportForFramebuffer(Framebuffer& framebuffer);
 		void clearFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor);
-		void renderToFramebuffer(Framebuffer& framebuffer, const OrthoCamera& orthoCamera, PerspectiveCamera& perspectiveCamera);
+		void renderToFramebuffer(Framebuffer& framebuffer, const Camera& camera2D, const Camera& camera3D);
 		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am);
 		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects);
 

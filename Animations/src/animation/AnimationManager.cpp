@@ -3,7 +3,7 @@
 #include "renderer/Renderer.h"
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
-#include "renderer/OrthoCamera.h"
+#include "renderer/Camera.h"
 #include "editor/EditorSettings.h"
 #include "editor/panels/InspectorPanel.h"
 #include "svg/Svg.h"
@@ -46,7 +46,6 @@ namespace MathAnim
 	namespace AnimationManager
 	{
 		// -------- Internal Functions --------
-		static void deserializeAnimationManagerV2(AnimationManagerData* am, const nlohmann::json& j);
 		static bool compareAnimation(const Animation& a1, const Animation& a2);
 		static void updateGlobalTransform(AnimObject& obj, const glm::mat4& parentTransform, const glm::mat4& parentTransformStart);
 		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj);
@@ -183,17 +182,6 @@ namespace MathAnim
 			// These adds get queued until the end of the frame so that
 			// pointers are stable for at least the duration of one frame
 			am->queuedAddObjects.push_back(object);
-			if (object.objectType == AnimObjectTypeV1::Camera)
-			{
-				if (object.as.camera.is2D)
-				{
-					am->activeCamera = object.id;
-				}
-				else
-				{
-					am->activeCamera3D = object.id;
-				}
-			}
 		}
 
 		void addAnimation(AnimationManagerData* am, const Animation& animation)
@@ -392,10 +380,7 @@ namespace MathAnim
 					}
 					else if (objectIter->objectType == AnimObjectTypeV1::Camera)
 					{
-						if (objectIter->as.camera.is2D)
-						{
-							objectIter->as.camera.camera2D.position = CMath::vector2From3(objectIter->globalPosition);
-						}
+						objectIter->as.camera.position = objectIter->globalPosition;
 					}
 				}
 			}
@@ -421,14 +406,24 @@ namespace MathAnim
 			return am->currentFrame >= AnimationManager::lastAnimatedFrame(am);
 		}
 
-		const AnimObject* getActiveOrthoCamera(const AnimationManagerData* am)
+		const AnimObject* getActiveCamera2D(const AnimationManagerData* am)
 		{
 			return getObject(am, am->activeCamera);
 		}
 
-		const AnimObject* getActivePerspCamera(const AnimationManagerData* am)
+		const AnimObject* getActiveCamera3D(const AnimationManagerData* am)
 		{
 			return getObject(am, am->activeCamera3D);
+		}
+
+		void setActiveCamera2D(AnimationManagerData* am, AnimObjId cameraObj)
+		{
+			am->activeCamera = cameraObj;
+		}
+
+		void setActiveCamera3D(AnimationManagerData* am, AnimObjId cameraObj)
+		{
+			am->activeCamera3D = cameraObj;
 		}
 
 		const AnimObject* getPendingObject(const AnimationManagerData* am, AnimObjId animObj)
@@ -610,23 +605,45 @@ namespace MathAnim
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			if (versionMajor == 2)
-			{
-				deserializeAnimationManagerV2(am, j);
-				am->currentFrame = currentFrame;
-				// Calculate all key frame starting points and stuff
-				calculateAnimationKeyFrames(am);
-				// Apply all  animations appropriately
-				Application::resetToFrame(currentFrame);
-				resetToFrame(am, currentFrame);
-			}
-			else
+			if (versionMajor < 2 || versionMajor > 3)
 			{
 				g_logger_error("AnimationManager tried to deserialize save file with unknown version '%d.%d'.", versionMajor, versionMinor);
 			}
 
-			// Need to sort animations they get applied in the correct order
+			am->activeCamera = readIdFromJson(j, "StartingActiveCamera");
+			// NOTE: This is for legacy projects. It would be better to bump the serialized file version
+			//       but that's too much work. And this hack works fine.
+			if (isNull(am->activeCamera))
+			{
+				am->activeCamera = readIdFromJson(j, "ActiveCamera");
+			}
+			am->activeCamera3D = readIdFromJson(j, "ActiveCamera3D");
+
+			// Read each animation followed by 0xDEADBEEF
+			for (size_t i = 0; i < j["Animations"].size(); i++)
+			{
+				Animation animation = Animation::deserialize(j["Animations"][i], versionMajor);
+				am->animationIdMap[animation.id] = i;
+				am->animations.emplace_back(animation);
+			}
+
+			// Read each anim object followed by 0xDEADBEEF
+			for (size_t i = 0; i < j["AnimationObjects"].size(); i++)
+			{
+				AnimObject animObject = AnimObject::deserialize(am, j["AnimationObjects"][i], versionMajor);
+				am->objectIdMap[animObject.id] = i;
+				am->objects.emplace_back(animObject);
+			}
+
+			// Sort the animations afterwards since they could be inserted in random order
 			sortAnimations(am);
+
+			am->currentFrame = currentFrame;
+			// Calculate all key frame starting points and stuff
+			calculateAnimationKeyFrames(am);
+			// Apply all  animations appropriately
+			Application::resetToFrame(currentFrame);
+			resetToFrame(am, currentFrame);
 		}
 
 		void sortAnimations(AnimationManagerData* am)
@@ -916,40 +933,6 @@ namespace MathAnim
 		}
 
 		// -------- Internal Functions --------
-		static void deserializeAnimationManagerV2(AnimationManagerData* am, const nlohmann::json& j)
-		{
-			// We're in function V2 so this is a version 2 for sure
-			constexpr uint32 version = 2;
-
-			am->activeCamera = readIdFromJson(j, "StartingActiveCamera");
-			// NOTE: This is for legacy projects. It would be better to bump the serialized file version
-			//       but that's too much work. And this hack works fine.
-			if (isNull(am->activeCamera))
-			{
-				am->activeCamera = readIdFromJson(j, "ActiveCamera");
-			}
-			am->activeCamera3D = readIdFromJson(j, "ActiveCamera3D");
-
-			// Read each animation followed by 0xDEADBEEF
-			for (size_t i = 0; i < j["Animations"].size(); i++)
-			{
-				Animation animation = Animation::deserialize(j["Animations"][i], version);
-				am->animationIdMap[animation.id] = i;
-				am->animations.emplace_back(animation);
-			}
-
-			// Read each anim object followed by 0xDEADBEEF
-			for (size_t i = 0; i < j["AnimationObjects"].size(); i++)
-			{
-				AnimObject animObject = AnimObject::deserialize(am, j["AnimationObjects"][i], version);
-				am->objectIdMap[animObject.id] = i;
-				am->objects.emplace_back(animObject);
-			}
-
-			// Sort the animations afterwards since they could be inserted in random order
-			sortAnimations(am);
-		}
-
 		static bool compareAnimation(const Animation& a1, const Animation& a2)
 		{
 			// Sort by timeline track secondarily

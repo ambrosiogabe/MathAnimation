@@ -7,7 +7,8 @@
 
 namespace MathAnim
 {
-	struct PerspectiveCamera
+	struct [[deprecated("This is kept for legacy purposes. Use the Camera class instead for future work.")]]
+    PerspectiveCamera
 	{
 		glm::vec3 position;
 		glm::vec3 orientation;

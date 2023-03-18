@@ -6,8 +6,6 @@ namespace MathAnim
 {
 	struct Framebuffer;
 	struct AnimationManagerData;
-	struct OrthoCamera;
-	struct PerspectiveCamera;
 
 	enum class GizmoVariant : uint8
 	{

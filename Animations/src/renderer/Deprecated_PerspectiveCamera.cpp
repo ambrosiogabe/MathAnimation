@@ -1,4 +1,4 @@
-#include "renderer/PerspectiveCamera.h"
+#include "renderer/Deprecated_PerspectiveCamera.h"
 #include "core/Application.h"
 #include "core/Serialization.hpp"
 #include "math/CMath.h"

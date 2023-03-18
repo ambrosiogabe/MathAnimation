@@ -7,8 +7,6 @@
 namespace MathAnim
 {
 	struct AnimObject;
-	struct OrthoCamera;
-	struct PerspectiveCamera;
 	struct Texture;
 	struct Framebuffer;
 

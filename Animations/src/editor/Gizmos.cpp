@@ -3,8 +3,7 @@
 #include "animation/AnimationManager.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Renderer.h"
-#include "renderer/OrthoCamera.h"
-#include "renderer/PerspectiveCamera.h"
+#include "renderer/Camera.h"
 #include "renderer/Colors.h"
 #include "core/Input.h"
 #include "core/Application.h"
@@ -123,19 +122,22 @@ namespace MathAnim
 				iter->shouldDraw = false;
 			}
 
-			const AnimObject* orthoCameraObj = AnimationManager::getActiveOrthoCamera(am);
+			const AnimObject* orthoCameraObj = AnimationManager::getActiveCamera2D(am);
 			if (orthoCameraObj)
 			{
-				if (orthoCameraObj->as.camera.is2D)
-				{
-					const OrthoCamera& orthoCamera = orthoCameraObj->as.camera.camera2D;
-					// Draw camera outlines
-					Renderer::pushStrokeWidth(0.05f);
-					Renderer::pushColor(Colors::Neutral[0]);
-					Renderer::drawSquare(orthoCamera.position - orthoCamera.projectionSize / 2.0f, orthoCamera.projectionSize);
-					Renderer::popColor();
-					Renderer::popStrokeWidth();
-				}
+				const Camera& orthoCamera = orthoCameraObj->as.camera;
+				// TODO: This will probably have to be converted to a 3D square
+				// Draw camera outlines
+				Renderer::pushStrokeWidth(0.05f);
+				Renderer::pushColor(Colors::Neutral[0]);
+				Vec4 leftRightBottomTop = orthoCamera.getLeftRightBottomTop();
+				Vec2 projectionSize = Vec2{ 
+					leftRightBottomTop.values[1] - leftRightBottomTop.values[0],
+					leftRightBottomTop.values[3] - leftRightBottomTop.values[2]
+				};
+				Renderer::drawSquare(CMath::vector2From3(orthoCamera.position) - projectionSize / 2.0f, projectionSize);
+				Renderer::popColor();
+				Renderer::popStrokeWidth();
 			}
 		}
 
@@ -233,7 +235,7 @@ namespace MathAnim
 				}
 			}
 
-			const OrthoCamera* camera = Application::getEditorCamera();
+			const Camera* camera = Application::getEditorCamera();
 			if (gizmo->moveMode != FollowMouseMoveMode::None)
 			{
 				Vec2 mousePos = EditorGui::mouseToNormalizedViewport();
@@ -274,17 +276,17 @@ namespace MathAnim
 			if (g->hoveredGizmo == NullGizmo && g->activeGizmo == NullGizmo)
 			{
 				// Check if free move variant is hovered
-				if (isMouseHovered(CMath::vector2From3(gizmo->position), defaultFreeMoveSize * camera->zoom))
+				if (isMouseHovered(CMath::vector2From3(gizmo->position), defaultFreeMoveSize))
 				{
 					g->hoveredGizmo = gizmo->idHash;
 					g->hotGizmoVariant = GizmoVariant::Free;
 				}
-				else if (isMouseHovered(getGizmoPos(gizmo->position, defaultVerticalMoveOffset, camera->zoom), defaultVerticalMoveSize * camera->zoom))
+				else if (isMouseHovered(getGizmoPos(gizmo->position, defaultVerticalMoveOffset, 1.0f), defaultVerticalMoveSize * 1.0f))
 				{
 					g->hoveredGizmo = gizmo->idHash;
 					g->hotGizmoVariant = GizmoVariant::Vertical;
 				}
-				else if (isMouseHovered(getGizmoPos(gizmo->position, defaultHorizontalMoveOffset, camera->zoom), defaultHorizontalMoveSize * camera->zoom))
+				else if (isMouseHovered(getGizmoPos(gizmo->position, defaultHorizontalMoveOffset, 1.0f), defaultHorizontalMoveSize * 1.0f))
 				{
 					g->hoveredGizmo = gizmo->idHash;
 					g->hotGizmoVariant = GizmoVariant::Horizontal;
@@ -297,17 +299,17 @@ namespace MathAnim
 				// Check if free move variant is changed to active
 				if (g->hotGizmoVariant == GizmoVariant::Free)
 				{
-					handleActiveCheck(gizmo, Vec2{ 0, 0 }, defaultFreeMoveSize, camera->zoom);
+					handleActiveCheck(gizmo, Vec2{ 0, 0 }, defaultFreeMoveSize, 1.0f);
 				}
 				// Check if vertical move is changed to active
 				else if (g->hotGizmoVariant == GizmoVariant::Vertical)
 				{
-					handleActiveCheck(gizmo, defaultVerticalMoveOffset, defaultVerticalMoveSize, camera->zoom);
+					handleActiveCheck(gizmo, defaultVerticalMoveOffset, defaultVerticalMoveSize, 1.0f);
 				}
 				// Check if horizontal move is changed to active
 				if (g->hotGizmoVariant == GizmoVariant::Horizontal)
 				{
-					handleActiveCheck(gizmo, defaultHorizontalMoveOffset, defaultHorizontalMoveSize, camera->zoom);
+					handleActiveCheck(gizmo, defaultHorizontalMoveOffset, defaultHorizontalMoveSize, 1.0f);
 				}
 			}
 
@@ -447,7 +449,7 @@ namespace MathAnim
 		static Vec2 getMouseWorldPos2f()
 		{
 			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
-			OrthoCamera* camera = Application::getEditorCamera();
+			Camera* camera = Application::getEditorCamera();
 			Vec2 worldCoords = camera->reverseProject(normalizedMousePos);
 			return worldCoords;
 		}
@@ -459,12 +461,18 @@ namespace MathAnim
 	void GizmoState::render()
 	{
 		GlobalContext* g = GizmoManager::gGizmoManager;
-		const OrthoCamera* camera = Application::getEditorCamera();
+		const Camera* camera = Application::getEditorCamera();
+		const float zoom = 1.0f;
+		Vec4 leftRightBottomTop = camera->getLeftRightBottomTop();
+		Vec2 projectionSize = Vec2{
+			leftRightBottomTop.values[1] - leftRightBottomTop.values[0],
+			leftRightBottomTop.values[3] - leftRightBottomTop.values[2]
+		};
 
 		// If it's in free move mode, render guidelines
 		if (moveMode != FollowMouseMoveMode::None)
 		{
-			const Vec2& cameraProjectionSize = camera->projectionSize * camera->zoom;
+			const Vec2& cameraProjectionSize = projectionSize * zoom;
 			Vec3 leftGuideline = this->positionMoveStart - Vec3{ cameraProjectionSize.x, 0.0f, 0.0f };
 			Vec3 rightGuideline = this->positionMoveStart + Vec3{ cameraProjectionSize.x, 0.0f, 0.0f };
 			Vec3 bottomGuideline = this->positionMoveStart - Vec3{ 0.0f, cameraProjectionSize.y, 0.0f };
@@ -501,26 +509,26 @@ namespace MathAnim
 			if ((idHash != g->hoveredGizmo && idHash != g->activeGizmo) || g->hotGizmoVariant != GizmoVariant::Free)
 			{
 				Renderer::pushColor(Colors::Primary[4]);
-				Renderer::drawFilledQuad(CMath::vector2From3(this->position), GizmoManager::defaultFreeMoveSize * camera->zoom);
+				Renderer::drawFilledQuad(CMath::vector2From3(this->position), GizmoManager::defaultFreeMoveSize * zoom);
 				Renderer::popColor();
 			}
 			else if (idHash == g->hoveredGizmo)
 			{
 				Renderer::pushColor(Colors::Primary[5]);
-				Renderer::drawFilledQuad(CMath::vector2From3(this->position), GizmoManager::defaultFreeMoveSize * camera->zoom);
+				Renderer::drawFilledQuad(CMath::vector2From3(this->position), GizmoManager::defaultFreeMoveSize * zoom);
 				Renderer::popColor();
 			}
 			else if (idHash == g->activeGizmo)
 			{
 				Renderer::pushColor(Colors::Primary[6]);
-				Renderer::drawFilledQuad(CMath::vector2From3(this->position), GizmoManager::defaultFreeMoveSize * camera->zoom);
+				Renderer::drawFilledQuad(CMath::vector2From3(this->position), GizmoManager::defaultFreeMoveSize * zoom);
 				Renderer::popColor();
 			}
 		}
 
 		if ((uint8)variant & (uint8)GizmoVariant::Horizontal)
 		{
-			Vec2 pos = getGizmoPos(this->position, GizmoManager::defaultHorizontalMoveOffset, camera->zoom);
+			Vec2 pos = getGizmoPos(this->position, GizmoManager::defaultHorizontalMoveOffset, zoom);
 			const Vec4* color = nullptr;
 			if ((idHash != g->hoveredGizmo && idHash != g->activeGizmo) || g->hotGizmoVariant != GizmoVariant::Horizontal)
 			{
@@ -538,11 +546,11 @@ namespace MathAnim
 			if (color != nullptr)
 			{
 				Renderer::pushColor(*color);
-				Renderer::drawFilledQuad(pos, GizmoManager::defaultHorizontalMoveSize * camera->zoom);
+				Renderer::drawFilledQuad(pos, GizmoManager::defaultHorizontalMoveSize * zoom);
 				float stemHalfSize = GizmoManager::defaultHorizontalMoveSize.x / 2.0f;
-				Vec2 triP0 = pos + Vec2{ stemHalfSize, GizmoManager::defaultArrowTipHalfWidth } *camera->zoom;
-				Vec2 triP1 = pos + Vec2{ stemHalfSize + GizmoManager::defaultArrowTipHeight, 0.0f } *camera->zoom;
-				Vec2 triP2 = pos + Vec2{ stemHalfSize, -GizmoManager::defaultArrowTipHalfWidth } *camera->zoom;
+				Vec2 triP0 = pos + Vec2{ stemHalfSize, GizmoManager::defaultArrowTipHalfWidth } * zoom;
+				Vec2 triP1 = pos + Vec2{ stemHalfSize + GizmoManager::defaultArrowTipHeight, 0.0f } * zoom;
+				Vec2 triP2 = pos + Vec2{ stemHalfSize, -GizmoManager::defaultArrowTipHalfWidth } * zoom;
 				Renderer::drawFilledTri(triP0, triP1, triP2);
 				Renderer::popColor();
 			}
@@ -550,7 +558,7 @@ namespace MathAnim
 
 		if ((uint8)variant & (uint8)GizmoVariant::Vertical)
 		{
-			Vec2 pos = getGizmoPos(this->position, GizmoManager::defaultVerticalMoveOffset, camera->zoom);
+			Vec2 pos = getGizmoPos(this->position, GizmoManager::defaultVerticalMoveOffset, zoom);
 			const Vec4* color = nullptr;
 			if ((idHash != g->hoveredGizmo && idHash != g->activeGizmo) || g->hotGizmoVariant != GizmoVariant::Vertical)
 			{
@@ -568,11 +576,11 @@ namespace MathAnim
 			if (color != nullptr)
 			{
 				Renderer::pushColor(*color);
-				Renderer::drawFilledQuad(pos, GizmoManager::defaultVerticalMoveSize * camera->zoom);
+				Renderer::drawFilledQuad(pos, GizmoManager::defaultVerticalMoveSize * zoom);
 				float stemHalfSize = GizmoManager::defaultVerticalMoveSize.y / 2.0f;
-				Vec2 triP0 = pos + Vec2{ -GizmoManager::defaultArrowTipHalfWidth, stemHalfSize } *camera->zoom;
-				Vec2 triP1 = pos + Vec2{ 0.0f, stemHalfSize + GizmoManager::defaultArrowTipHeight } *camera->zoom;
-				Vec2 triP2 = pos + Vec2{ GizmoManager::defaultArrowTipHalfWidth, stemHalfSize } *camera->zoom;
+				Vec2 triP0 = pos + Vec2{ -GizmoManager::defaultArrowTipHalfWidth, stemHalfSize } * zoom;
+				Vec2 triP1 = pos + Vec2{ 0.0f, stemHalfSize + GizmoManager::defaultArrowTipHeight } * zoom;
+				Vec2 triP2 = pos + Vec2{ GizmoManager::defaultArrowTipHalfWidth, stemHalfSize } * zoom;
 				Renderer::drawFilledTri(triP0, triP1, triP2);
 				Renderer::popColor();
 			}

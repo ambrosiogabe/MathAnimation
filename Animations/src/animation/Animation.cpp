@@ -28,9 +28,6 @@ namespace MathAnim
 	static AnimObjId animationUidCounter = 0;
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV2(AnimationManagerData* am, const nlohmann::json& j);
-	static Animation deserializeAnimationV2(const nlohmann::json& memory);
-
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
 
 	// ----------------------------- Animation Functions -----------------------------
@@ -722,17 +719,74 @@ namespace MathAnim
 		return res;
 	}
 
-	Animation Animation::deserialize(const nlohmann::json& memory, uint32 version)
+	Animation Animation::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		if (version < 2 || version > 3)
 		{
-			return deserializeAnimationV2(memory);
+			g_logger_error("Animation serialized with unknown version '%d'. Memory potentially corrupted.", version);
+			Animation res = {};
+			res.id = NULL_ANIM;
+			res.animObjectIds.clear();
+			return res;
 		}
 
-		g_logger_error("AnimationEx serialized with unknown version '%d'. Memory potentially corrupted.", version);
 		Animation res = {};
-		res.id = NULL_ANIM;
-		res.animObjectIds.clear();
+
+		DESERIALIZE_ENUM(&res, type, _animationTypeNames, AnimTypeV1, j);
+		DESERIALIZE_PROP(&res, frameStart, j, 0.0f);
+		DESERIALIZE_PROP(&res, duration, j, 0.0f);
+
+		DESERIALIZE_ID(&res, id, j);
+		if (!isNull(res.id))
+		{
+			animationUidCounter = glm::max(animationUidCounter, res.id + 1);
+		}
+
+		DESERIALIZE_ENUM(&res, easeType, easeTypeNames, EaseType, j);
+		DESERIALIZE_ENUM(&res, easeDirection, easeDirectionNames, EaseDirection, j);
+
+		DESERIALIZE_PROP(&res, timelineTrack, j, 0);
+		DESERIALIZE_ENUM(&res, playbackType, _playbackTypeNames, PlaybackType, j);
+		DESERIALIZE_PROP(&res, lagRatio, j, 0.0f);
+
+		DESERIALIZE_ID_SET(&res, animObjectIds, j);
+
+		switch (res.type)
+		{
+		case AnimTypeV1::Create:
+		case AnimTypeV1::UnCreate:
+		case AnimTypeV1::FadeIn:
+		case AnimTypeV1::FadeOut:
+			// NOP
+			break;
+		case AnimTypeV1::RotateTo:
+		case AnimTypeV1::Shift:
+			DESERIALIZE_VEC3(&res, as.modifyVec3.target, j, (Vec3{ 0, 0, 0 }));
+			break;
+		case AnimTypeV1::AnimateFillColor:
+		case AnimTypeV1::AnimateStrokeColor:
+			DESERIALIZE_U8VEC4(&res, as.modifyU8Vec4.target, j, glm::u8vec4(227, 3, 252, 255));
+			break;
+		case AnimTypeV1::AnimateStrokeWidth:
+			g_logger_warning("TODO: implement me");
+			break;
+		case AnimTypeV1::Transform:
+			DESERIALIZE_OBJECT(&res, as.replacementTransform, ReplacementTransformData, version, j);
+			break;
+		case AnimTypeV1::MoveTo:
+			DESERIALIZE_OBJECT(&res, as.moveTo, MoveToData, version, j);
+			break;
+		case AnimTypeV1::AnimateScale:
+			DESERIALIZE_OBJECT(&res, as.animateScale, AnimateScaleData, version, j);
+			break;
+		case AnimTypeV1::Circumscribe:
+			DESERIALIZE_OBJECT(&res, as.circumscribe, Circumscribe, version, j);
+			break;
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
+			break;
+		}
+
 		return res;
 	}
 
@@ -1280,14 +1334,7 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Camera:
 		{
-			if (this->as.camera.is2D)
-			{
-				this->as.camera.camera2D.position = CMath::vector2From3(this->_globalPositionStart);
-			}
-			else
-			{
-				// TODO: Implement 3D camera logic stuff...
-			}
+			this->as.camera.position = this->_globalPositionStart;
 		}
 		break;
 		case AnimObjectTypeV1::Length:
@@ -1345,20 +1392,6 @@ namespace MathAnim
 			}
 		}
 		break;
-		case AnimObjectTypeV1::Cube:
-		{
-			// if (!this->isAnimating)
-			// {
-			// 	g_logger_assert(this->svgObject != nullptr, "Cannot render SVG object that is nullptr.");
-			// 	this->svgObject->render(this);
-			// }
-			// float sideLength = this->as.cube.sideLength - 0.01f;
-			// Renderer::pushColor(this->fillColor);
-			// Renderer::drawFilledCube(this->position, Vec3{sideLength, sideLength, sideLength});
-			// Renderer::popColor();
-		}
-		// NOP: Cube just has a bunch of children anim objects that get rendered
-		break;
 		case AnimObjectTypeV1::_ImageObject:
 		{
 			const AnimObject* parent = AnimationManager::getObject(am, this->parentId);
@@ -1390,6 +1423,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::ScriptObject:
 		case AnimObjectTypeV1::CodeBlock:
 		case AnimObjectTypeV1::Image:
+		case AnimObjectTypeV1::Cube:
 			// NOP: These just have a bunch of children anim objects that get rendered
 			break;
 		case AnimObjectTypeV1::Length:
@@ -1755,6 +1789,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::SvgObject:
 		case AnimObjectTypeV1::Arrow:
 		case AnimObjectTypeV1::_ImageObject:
+		case AnimObjectTypeV1::Camera:
 			// NOP
 			break;
 		case AnimObjectTypeV1::Axis:
@@ -1769,9 +1804,6 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::SvgFileObject:
 			this->as.svgFile.free();
-			break;
-		case AnimObjectTypeV1::Camera:
-			this->as.camera.free();
 			break;
 		case AnimObjectTypeV1::ScriptObject:
 			this->as.script.free();
@@ -1864,16 +1896,127 @@ namespace MathAnim
 		}
 	}
 
-	AnimObject AnimObject::deserialize(AnimationManagerData* am, const nlohmann::json& j, uint32 version)
+	AnimObject AnimObject::deserialize(AnimationManagerData*, const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		if (version < 2 || version > 3)
 		{
-			return deserializeAnimObjectV2(am, j);
+			g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
+			AnimObject res = {};
+			res.id = NULL_ANIM;
+			return res;
 		}
 
-		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
 		AnimObject res = {};
-		res.id = NULL_ANIM;
+		// If the object is being read in from the file then it's not
+		// generated since all generated objects don't get saved
+		res.isGenerated = false;
+		res.drawCurves = false;
+		res.drawControlPoints = false;
+		res.percentCreated = 0.0f;
+
+		// AnimObject Specific Data
+		DESERIALIZE_ENUM(&res, objectType, _animationObjectTypeNames, AnimObjectTypeV1, j);
+		DESERIALIZE_VEC3(&res, _positionStart, j, (Vec3{ 0, 0, 0 }));
+		DESERIALIZE_VEC3(&res, _rotationStart, j, (Vec3{ 0, 0, 0 }));
+		DESERIALIZE_VEC3(&res, _scaleStart, j, (Vec3{ 1, 1, 1 }));
+		DESERIALIZE_GLM_U8VEC4(&res, _fillColorStart, j, glm::u8vec4(255, 255, 255, 255));
+		DESERIALIZE_GLM_U8VEC4(&res, _strokeColorStart, j, glm::u8vec4(255, 255, 255, 255));
+
+		DESERIALIZE_PROP(&res, _strokeWidthStart, j, 0.0f);
+		DESERIALIZE_PROP(&res, svgScale, j, 0.0f);
+		DESERIALIZE_PROP(&res, isTransparent, j, false);
+		DESERIALIZE_PROP(&res, is3D, j, false);
+		DESERIALIZE_PROP(&res, drawDebugBoxes, j, false);
+		DESERIALIZE_PROP(&res, drawCurveDebugBoxes, j, false);
+
+		DESERIALIZE_ID(&res, parentId, j);
+		DESERIALIZE_ID(&res, id, j);
+		if (!isNull(res.id))
+		{
+			animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
+		}
+
+		DESERIALIZE_ID_ARRAY(&res, generatedChildrenIds, j);
+		DESERIALIZE_ID_SET(&res, referencedAnimations, j);
+
+		DESERIALIZE_NULLABLE_U8_CSTRING(&res, name, j);
+
+		// Initialize other variables
+		res.position = res._positionStart;
+		res.rotation = res._rotationStart;
+		res.globalPosition = res.position;
+		res._globalPositionStart = res._positionStart;
+		res.scale = res._scaleStart;
+		res.strokeColor = res._strokeColorStart;
+		res.fillColor = res._fillColorStart;
+		res.strokeWidth = res._strokeWidthStart;
+		res.svgObject = nullptr;
+		res._svgObjectStart = nullptr;
+
+		switch (res.objectType)
+		{
+		case AnimObjectTypeV1::TextObject:
+			DESERIALIZE_OBJECT(&res, as.textObject, TextObject, version, j);
+			break;
+		case AnimObjectTypeV1::LaTexObject:
+			DESERIALIZE_OBJECT(&res, as.laTexObject, LaTexObject, version, j);
+			break;
+		case AnimObjectTypeV1::Square:
+			DESERIALIZE_OBJECT(&res, as.square, Square, version, j);
+			res.as.square.init(&res);
+			break;
+		case AnimObjectTypeV1::SvgObject:
+			DESERIALIZE_OBJECT(&res, _svgObjectStart, SvgObject, version, j);
+			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res.svgObject = Svg::createDefault();
+			Svg::copy(res.svgObject, res._svgObjectStart);
+			break;
+		case AnimObjectTypeV1::Circle:
+			DESERIALIZE_OBJECT(&res, as.circle, Circle, version, j);
+			res.as.circle.init(&res);
+			break;
+		case AnimObjectTypeV1::Cube:
+			DESERIALIZE_OBJECT(&res, as.cube, Cube, version, j);
+			break;
+		case AnimObjectTypeV1::Axis:
+			DESERIALIZE_OBJECT(&res, as.axis, Axis, version, j);
+			res.as.axis.init(&res);
+			break;
+		case AnimObjectTypeV1::SvgFileObject:
+			DESERIALIZE_OBJECT(&res, as.svgFile, SvgFileObject, version, j);
+			break;
+		case AnimObjectTypeV1::Camera:
+			if (version == 2)
+			{
+				if (j.contains("as.camera") && !j["as.camera"].is_null())
+				{
+					res.as.camera = Camera::upgrade(CameraObject::deserialize(j["as.camera"], version));
+				}
+			}
+			else
+			{
+				DESERIALIZE_OBJECT(&res, as.camera, Camera, version, j);
+			}
+			break;
+		case AnimObjectTypeV1::ScriptObject:
+			DESERIALIZE_OBJECT(&res, as.script, ScriptObject, version, j);
+			break;
+		case AnimObjectTypeV1::Image:
+			DESERIALIZE_OBJECT(&res, as.image, ImageObject, version, j);
+			break;
+		case AnimObjectTypeV1::CodeBlock:
+			DESERIALIZE_OBJECT(&res, as.codeBlock, CodeBlock, version, j);
+			break;
+		case AnimObjectTypeV1::Arrow:
+			DESERIALIZE_OBJECT(&res, as.arrow, Arrow, version, j);
+			res.as.arrow.init(&res);
+			break;
+		case AnimObjectTypeV1::_ImageObject:
+		case AnimObjectTypeV1::Length:
+		case AnimObjectTypeV1::None:
+			break;
+		}
+
 		return res;
 	}
 
@@ -2020,7 +2163,7 @@ namespace MathAnim
 				res.as.svgFile = SvgFileObject::legacy_deserialize(memory, version);
 				break;
 			case AnimObjectTypeV1::Camera:
-				res.as.camera = CameraObject::legacy_deserialize(memory, version);
+				res.as.camera = Camera::upgrade(CameraObject::legacy_deserialize(memory, version));
 				break;
 			case AnimObjectTypeV1::ScriptObject:
 				res.as.script = ScriptObject::legacy_deserialize(memory, version);
@@ -2172,7 +2315,7 @@ namespace MathAnim
 			res.as.svgFile = SvgFileObject::createDefault();
 			break;
 		case AnimObjectTypeV1::Camera:
-			res.as.camera = CameraObject::createDefault();
+			res.as.camera = Camera::upgrade(CameraObject::createDefault());
 			break;
 		case AnimObjectTypeV1::ScriptObject:
 			res.as.script = ScriptObject::createDefault();
@@ -2287,177 +2430,6 @@ namespace MathAnim
 	}
 
 	// ----------------------------- Internal Functions -----------------------------
-	static AnimObject deserializeAnimObjectV2(AnimationManagerData*, const nlohmann::json& j)
-	{
-		AnimObject res = {};
-		// If the object is being read in from the file then it's not
-		// generated since all generated objects don't get saved
-		res.isGenerated = false;
-		res.drawCurves = false;
-		res.drawControlPoints = false;
-		res.percentCreated = 0.0f;
-
-		// AnimObject Specific Data
-		DESERIALIZE_ENUM(&res, objectType, _animationObjectTypeNames, AnimObjectTypeV1, j);
-		DESERIALIZE_VEC3(&res, _positionStart, j, (Vec3{ 0, 0, 0 }));
-		DESERIALIZE_VEC3(&res, _rotationStart, j, (Vec3{ 0, 0, 0 }));
-		DESERIALIZE_VEC3(&res, _scaleStart, j, (Vec3{ 1, 1, 1 }));
-		DESERIALIZE_GLM_U8VEC4(&res, _fillColorStart, j, glm::u8vec4(255, 255, 255, 255));
-		DESERIALIZE_GLM_U8VEC4(&res, _strokeColorStart, j, glm::u8vec4(255, 255, 255, 255));
-
-		DESERIALIZE_PROP(&res, _strokeWidthStart, j, 0.0f);
-		DESERIALIZE_PROP(&res, svgScale, j, 0.0f);
-		DESERIALIZE_PROP(&res, isTransparent, j, false);
-		DESERIALIZE_PROP(&res, is3D, j, false);
-		DESERIALIZE_PROP(&res, drawDebugBoxes, j, false);
-		DESERIALIZE_PROP(&res, drawCurveDebugBoxes, j, false);
-
-		DESERIALIZE_ID(&res, parentId, j);
-		DESERIALIZE_ID(&res, id, j);
-		if (!isNull(res.id))
-		{
-			animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
-		}
-
-		DESERIALIZE_ID_ARRAY(&res, generatedChildrenIds, j);
-		DESERIALIZE_ID_SET(&res, referencedAnimations, j);
-
-		DESERIALIZE_NULLABLE_U8_CSTRING(&res, name, j);
-
-		// Initialize other variables
-		res.position = res._positionStart;
-		res.rotation = res._rotationStart;
-		res.globalPosition = res.position;
-		res._globalPositionStart = res._positionStart;
-		res.scale = res._scaleStart;
-		res.strokeColor = res._strokeColorStart;
-		res.fillColor = res._fillColorStart;
-		res.strokeWidth = res._strokeWidthStart;
-		res.svgObject = nullptr;
-		res._svgObjectStart = nullptr;
-
-		// We're in V2 so this is version 2
-		constexpr uint32 version = 2;
-		switch (res.objectType)
-		{
-		case AnimObjectTypeV1::TextObject:
-			DESERIALIZE_OBJECT(&res, as.textObject, TextObject, version, j);
-			break;
-		case AnimObjectTypeV1::LaTexObject:
-			DESERIALIZE_OBJECT(&res, as.laTexObject, LaTexObject, version, j);
-			break;
-		case AnimObjectTypeV1::Square:
-			DESERIALIZE_OBJECT(&res, as.square, Square, version, j);
-			res.as.square.init(&res);
-			break;
-		case AnimObjectTypeV1::SvgObject:
-			DESERIALIZE_OBJECT(&res, _svgObjectStart, SvgObject, version, j);
-			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-			*res.svgObject = Svg::createDefault();
-			Svg::copy(res.svgObject, res._svgObjectStart);
-			break;
-		case AnimObjectTypeV1::Circle:
-			DESERIALIZE_OBJECT(&res, as.circle, Circle, version, j);
-			res.as.circle.init(&res);
-			break;
-		case AnimObjectTypeV1::Cube:
-			DESERIALIZE_OBJECT(&res, as.cube, Cube, version, j);
-			break;
-		case AnimObjectTypeV1::Axis:
-			DESERIALIZE_OBJECT(&res, as.axis, Axis, version, j);
-			res.as.axis.init(&res);
-			break;
-		case AnimObjectTypeV1::SvgFileObject:
-			DESERIALIZE_OBJECT(&res, as.svgFile, SvgFileObject, version, j);
-			break;
-		case AnimObjectTypeV1::Camera:
-			DESERIALIZE_OBJECT(&res, as.camera, CameraObject, version, j);
-			break;
-		case AnimObjectTypeV1::ScriptObject:
-			DESERIALIZE_OBJECT(&res, as.script, ScriptObject, version, j);
-			break;
-		case AnimObjectTypeV1::Image:
-			DESERIALIZE_OBJECT(&res, as.image, ImageObject, version, j);
-			break;
-		case AnimObjectTypeV1::CodeBlock:
-			DESERIALIZE_OBJECT(&res, as.codeBlock, CodeBlock, version, j);
-			break;
-		case AnimObjectTypeV1::Arrow:
-			DESERIALIZE_OBJECT(&res, as.arrow, Arrow, version, j);
-			res.as.arrow.init(&res);
-			break;
-		case AnimObjectTypeV1::_ImageObject:
-		case AnimObjectTypeV1::Length:
-		case AnimObjectTypeV1::None:
-			break;
-		}
-
-		return res;
-	}
-
-	Animation deserializeAnimationV2(const nlohmann::json& j)
-	{
-		Animation res = {};
-
-		DESERIALIZE_ENUM(&res, type, _animationTypeNames, AnimTypeV1, j);
-		DESERIALIZE_PROP(&res, frameStart, j, 0.0f);
-		DESERIALIZE_PROP(&res, duration, j, 0.0f);
-
-		DESERIALIZE_ID(&res, id, j);
-		if (!isNull(res.id))
-		{
-			animationUidCounter = glm::max(animationUidCounter, res.id + 1);
-		}
-
-		DESERIALIZE_ENUM(&res, easeType, easeTypeNames, EaseType, j);
-		DESERIALIZE_ENUM(&res, easeDirection, easeDirectionNames, EaseDirection, j);
-
-		DESERIALIZE_PROP(&res, timelineTrack, j, 0);
-		DESERIALIZE_ENUM(&res, playbackType, _playbackTypeNames, PlaybackType, j);
-		DESERIALIZE_PROP(&res, lagRatio, j, 0.0f);
-
-		DESERIALIZE_ID_SET(&res, animObjectIds, j);
-
-		constexpr int version = 2;
-		switch (res.type)
-		{
-		case AnimTypeV1::Create:
-		case AnimTypeV1::UnCreate:
-		case AnimTypeV1::FadeIn:
-		case AnimTypeV1::FadeOut:
-			// NOP
-			break;
-		case AnimTypeV1::RotateTo:
-		case AnimTypeV1::Shift:
-			DESERIALIZE_VEC3(&res, as.modifyVec3.target, j, (Vec3{ 0, 0, 0 }));
-			break;
-		case AnimTypeV1::AnimateFillColor:
-		case AnimTypeV1::AnimateStrokeColor:
-			DESERIALIZE_U8VEC4(&res, as.modifyU8Vec4.target, j, glm::u8vec4(227, 3, 252, 255));
-			break;
-		case AnimTypeV1::AnimateStrokeWidth:
-			g_logger_warning("TODO: implement me");
-			break;
-		case AnimTypeV1::Transform:
-			DESERIALIZE_OBJECT(&res, as.replacementTransform, ReplacementTransformData, version, j);
-			break;
-		case AnimTypeV1::MoveTo:
-			DESERIALIZE_OBJECT(&res, as.moveTo, MoveToData, version, j);
-			break;
-		case AnimTypeV1::AnimateScale:
-			DESERIALIZE_OBJECT(&res, as.animateScale, AnimateScaleData, version, j);
-			break;
-		case AnimTypeV1::Circumscribe:
-			DESERIALIZE_OBJECT(&res, as.circumscribe, Circumscribe, version, j);
-			break;
-		case AnimTypeV1::Length:
-		case AnimTypeV1::None:
-			break;
-		}
-
-		return res;
-	}
-
 	static void onMoveToGizmo(AnimationManagerData*, Animation* anim)
 	{
 		// TODO: Render and handle 2D gizmo logic based on edit mode

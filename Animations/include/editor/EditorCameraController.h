@@ -3,13 +3,11 @@
 
 namespace MathAnim
 {
-	struct OrthoCamera;
-	struct PerspectiveCamera;
+	struct Camera;
 
 	namespace EditorCameraController
 	{
-		void updateOrtho(OrthoCamera& camera);
-		void updatePerspective(PerspectiveCamera& camera);
+		void update(Camera& camera);
 	}
 }
 
