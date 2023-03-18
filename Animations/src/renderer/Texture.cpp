@@ -110,14 +110,14 @@ namespace MathAnim
 	// ========================================================
 	// 	   Texture Member Functions
 	// ========================================================
-	void Texture::bind() const
+	void Texture::bind(int textureSlot) const
 	{
-		GL::bindTexture(GL_TEXTURE_2D, graphicsId);
+		GL::bindTexSlot(GL_TEXTURE_2D, graphicsId, textureSlot);
 	}
 
 	void Texture::unbind() const
 	{
-		GL::bindTexture(GL_TEXTURE_2D, 0);
+		GL::unbindTexture(GL_TEXTURE_2D);
 	}
 
 	void Texture::destroy()
@@ -153,7 +153,7 @@ namespace MathAnim
 			buffer = newBuffer;
 		}
 
-		this->bind();
+		GL::bindTexture(GL_TEXTURE_2D, this->graphicsId);
 		GL::texSubImage2D(GL_TEXTURE_2D, 0, offsetX, offsetY, subWidth, subHeight, externalFormat, dataType, buffer);
 
 		if (flipVertically)

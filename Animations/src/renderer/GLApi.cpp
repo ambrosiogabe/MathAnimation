@@ -14,9 +14,12 @@ namespace MathAnim
 		static constexpr int minSupportedVersionMajor = 3;
 		static constexpr int minSupportedVersionMinor = 1;
 
+		// Guaranteed to be at least 16 units
+		static int32 maxTextureImageUnits = 16;
+
 		void init(int versionMajor, int versionMinor)
 		{
-			if (versionMajor < minSupportedVersionMajor || 
+			if (versionMajor < minSupportedVersionMajor ||
 				(versionMajor >= minSupportedVersionMajor && versionMinor < minSupportedVersionMinor))
 			{
 				g_logger_error("You are running OpenGL version less than %d.%d. This app does not support GL versions less than %d.%d, you can try to update your graphics drivers to see if that helps.",
@@ -48,13 +51,41 @@ namespace MathAnim
 					gl43Support = false;
 					gl44Support = false;
 				}
-				g_logger_warning("You are using an OpenGL version <= 4.6. This means it will run in compatibility mode. This means the app may render inappropriately in certain cases, and performance may be degraded. Please update your drivers if possible to the latest GL version.");
+
+				static bool warningLogged = false;
+				if (!warningLogged)
+				{
+					g_logger_warning("You are using an OpenGL version <= 4.6. This means it will run in compatibility mode. This means the app may render inappropriately in certain cases, and performance may be degraded. Please update your drivers if possible to the latest GL version.");
+					warningLogged = true;
+				}
 			}
 
-			g_logger_info("Initialized GL wrapper with version %d.%d", versionMajor, versionMinor);
+			GL::getIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &maxTextureImageUnits);
+
+			static bool loggedSystemInfo = false;
+			if (!loggedSystemInfo)
+			{
+				g_logger_info(R"Raw(
+System Info:
+============
+GL Version: %d.%d
+Max Texture Image Units: %d
+)Raw",
+					versionMajor,
+					versionMinor,
+					maxTextureImageUnits
+				);
+				loggedSystemInfo = true;
+			}
 		}
 
-		// Blending
+		// ----------------------- System-specific settings (retrieved at initialization) -----------------------
+		int32 getMaxTextureImageUnits()
+		{
+			return maxTextureImageUnits;
+		}
+
+		// ----------------------- Blending -----------------------
 		void blendFunc(GLenum sfactor, GLenum dfactor)
 		{
 			glBlendFunc(sfactor, dfactor);
@@ -84,7 +115,7 @@ namespace MathAnim
 			glBlendFuncSeparate(sfactorRGB, dfactorRGB, sfactorAlpha, dfactorAlpha);
 		}
 
-		// Framebuffers
+		// ----------------------- Framebuffers -----------------------
 		void bindFramebuffer(GLenum target, GLuint framebuffer)
 		{
 			glBindFramebuffer(target, framebuffer);
@@ -165,7 +196,7 @@ namespace MathAnim
 			return glCheckFramebufferStatus(target);
 		}
 
-		// Vaos
+		// ----------------------- Vaos -----------------------
 		void bindVertexArray(GLuint array)
 		{
 			glBindVertexArray(array);
@@ -196,7 +227,7 @@ namespace MathAnim
 			glDeleteVertexArrays(n, arrays);
 		}
 
-		// Buffer objects
+		// ----------------------- Buffer objects -----------------------
 		void bindBuffer(GLenum target, GLuint buffer)
 		{
 			glBindBuffer(target, buffer);
@@ -232,6 +263,7 @@ namespace MathAnim
 			return glUnmapBuffer(target);
 		}
 
+		// ----------------------- Stencil/Scissor stuff -----------------------
 		void scissor(GLint x, GLint y, GLsizei width, GLsizei height)
 		{
 			glScissor(x, y, width, height);
@@ -252,7 +284,7 @@ namespace MathAnim
 			glStencilFunc(func, ref, mask);
 		}
 
-		// Render functions
+		// ----------------------- Render functions -----------------------
 		void drawArrays(GLenum mode, GLint first, GLsizei count)
 		{
 			glDrawArrays(mode, first, count);
@@ -268,7 +300,7 @@ namespace MathAnim
 			glDrawElementsBaseVertex(mode, count, type, indices, basevertex);
 		}
 
-		// Textures
+		// ----------------------- Textures -----------------------
 		void readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels)
 		{
 			glReadPixels(x, y, width, height, format, type, pixels);
@@ -279,14 +311,21 @@ namespace MathAnim
 			glGenTextures(n, textures);
 		}
 
-		void activeTexture(GLenum texture)
-		{
-			glActiveTexture(texture);
-		}
-
 		void bindTexture(GLenum target, GLuint texture)
 		{
 			glBindTexture(target, texture);
+		}
+
+		void bindTexSlot(GLenum target, GLuint texture, GLint textureSlot)
+		{
+			g_logger_assert(textureSlot < maxTextureImageUnits, "Invalid texture slot: '%d'. System only supports up to '%d' texture slots.", textureSlot, maxTextureImageUnits);
+			glActiveTexture(GL_TEXTURE0 + textureSlot);
+			GL::bindTexture(target, texture);
+		}
+
+		void unbindTexture(GLenum target)
+		{
+			GL::bindTexture(target, 0);
 		}
 
 		void deleteTextures(GLsizei n, const GLuint* textures)
@@ -319,7 +358,7 @@ namespace MathAnim
 			glPixelStorei(pname, param);
 		}
 
-		// Shaders
+		// ----------------------- Shaders -----------------------
 		GLuint createProgram(void)
 		{
 			return glCreateProgram();
@@ -455,7 +494,7 @@ namespace MathAnim
 			glUniformMatrix3fv(location, count, transpose, value);
 		}
 
-		// Basic functions
+		// ----------------------- Basic functions -----------------------
 		void enable(GLenum cap)
 		{
 			glEnable(cap);
@@ -506,7 +545,7 @@ namespace MathAnim
 			return glGetStringi(name, index);
 		}
 
-		// Debug callback stuffs
+		// ----------------------- Debug callback stuff -----------------------
 		void debugMessageCallback(GLDEBUGPROC callback, const void* userParam)
 		{
 			if (gl43Support)

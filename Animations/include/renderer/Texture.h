@@ -61,7 +61,7 @@ namespace MathAnim
 
 		std::filesystem::path path;
 
-		void bind() const;
+		void bind(int textureSlot) const;
 		void unbind() const;
 		void destroy();
 
