@@ -368,10 +368,10 @@ namespace MathAnim
 			// Draw 3D objects after the lines so that we can do appropriate blending
 			// using OIT
 			drawList3D.render(
-				shader3DOpaque, 
-				shader3DTransparent, 
-				shader3DComposite, 
-				framebuffer, 
+				shader3DOpaque,
+				shader3DTransparent,
+				shader3DComposite,
+				framebuffer,
 				perspectiveCamera
 			);
 
@@ -2038,7 +2038,7 @@ namespace MathAnim
 		// Allocate space for the batched vao
 		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D), NULL, GL_DYNAMIC_DRAW);
-		
+
 		GL::genBuffers(1, &ebo);
 		GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16), NULL, GL_DYNAMIC_DRAW);
@@ -2087,6 +2087,7 @@ namespace MathAnim
 				shader.uploadInt("uTexture", 0);
 			}
 
+			GL::bindVertexArray(vao);
 			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 			GL::bufferData(
 				GL_ARRAY_BUFFER,
@@ -2106,7 +2107,6 @@ namespace MathAnim
 
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
-			GL::bindVertexArray(vao);
 			GL::drawElements(
 				GL_TRIANGLES,
 				drawCommands[i].numElements,
@@ -2227,7 +2227,7 @@ namespace MathAnim
 		// Allocate space for the batched vao
 		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D), NULL, GL_DYNAMIC_DRAW);
-		
+
 		GL::genBuffers(1, &ebo);
 		GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16), NULL, GL_DYNAMIC_DRAW);
@@ -2266,8 +2266,7 @@ namespace MathAnim
 			shader.uploadInt("uTexture", 0);
 
 			// Upload the verts
-			// TODO: Figure out how to correctly do this stuff
-			// I think this is crashing the GPU right now
+			GL::bindVertexArray(vao);
 			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 			GL::bufferData(
 				GL_ARRAY_BUFFER,
@@ -2287,7 +2286,6 @@ namespace MathAnim
 
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
-			GL::bindVertexArray(vao);
 			GL::drawElements(
 				GL_TRIANGLES,
 				drawCommands[i].numElements,
@@ -2441,6 +2439,8 @@ namespace MathAnim
 		GL::enable(GL_DEPTH_TEST);
 		GL::disable(GL_CULL_FACE);
 
+		GL::bindVertexArray(vao);
+
 		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
 
@@ -2449,7 +2449,6 @@ namespace MathAnim
 		shader.uploadMat4("uView", camera.calculateViewMatrix());
 		shader.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
 
-		GL::bindVertexArray(vao);
 		GL::drawArrays(GL_TRIANGLES, 0, (GLsizei)vertices.size());
 
 		GL::disable(GL_DEPTH_TEST);
@@ -2660,10 +2659,10 @@ namespace MathAnim
 	}
 
 	void DrawList3D::render(
-		const Shader& opaqueShader, 
+		const Shader& opaqueShader,
 		const Shader& transparentShader,
-		const Shader& compositeShader, 
-		const Framebuffer& framebuffer, 
+		const Shader& compositeShader,
+		const Framebuffer& framebuffer,
 		PerspectiveCamera& camera
 	) const
 	{
@@ -2673,6 +2672,7 @@ namespace MathAnim
 		}
 
 		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_OIT_Pass");
+		framebuffer.bind();
 
 		Vec4 sunColor = "#ffffffff"_hex;
 
@@ -2710,6 +2710,7 @@ namespace MathAnim
 				opaqueShader.uploadInt("uTexture", 0);
 			}
 
+			GL::bindVertexArray(vao);
 			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 			GL::bufferData(
 				GL_ARRAY_BUFFER,
@@ -2728,7 +2729,6 @@ namespace MathAnim
 
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
-			GL::bindVertexArray(vao);
 			GL::drawElements(
 				GL_TRIANGLES,
 				drawCommands[i].elementCount,
@@ -2736,8 +2736,6 @@ namespace MathAnim
 				nullptr
 			);
 		}
-
-		framebuffer.bind();
 
 		// Set up the transparent draw buffers
 		drawBuffers[0] = GL_NONE;
@@ -2791,6 +2789,7 @@ namespace MathAnim
 				transparentShader.uploadInt("uTexture", 0);
 			}
 
+			GL::bindVertexArray(vao);
 			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
 			GL::bufferData(
 				GL_ARRAY_BUFFER,
@@ -2800,16 +2799,20 @@ namespace MathAnim
 			);
 
 			GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+			uint32 offset = drawCommands[i].indexOffset - 3;
+			if (offset == UINT32_MAX)
+			{
+				offset = 0;
+			}
 			GL::bufferData(
 				GL_ELEMENT_ARRAY_BUFFER,
 				sizeof(uint16) * drawCommands[i].elementCount,
-				indices.data() + drawCommands[i].indexOffset,
+				indices.data() + offset,
 				GL_DYNAMIC_DRAW
 			);
 
 			// TODO: Swap this with glMultiDraw...
 			// Make the draw call
-			GL::bindVertexArray(vao);
 			GL::drawElements(
 				GL_TRIANGLES,
 				drawCommands[i].elementCount,
@@ -2823,6 +2826,7 @@ namespace MathAnim
 		drawBuffers[1] = GL_NONE;
 		drawBuffers[2] = GL_NONE;
 		drawBuffers[3] = GL_NONE;
+		GL::drawBuffers(4, drawBuffers);
 
 		// Composite the accumulation and revealage textures together
 		// Render to the composite framebuffer attachment
@@ -2840,10 +2844,6 @@ namespace MathAnim
 		constexpr int revealageTexSlot = 1;
 		revealageTexture.bind(revealageTexSlot);
 		compositeShader.uploadInt("uRevealageTexture", revealageTexSlot);
-
-		// Set up the composite draw buffers
-		GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_NONE };
-		GL::drawBuffers(4, compositeDrawBuffers);
 
 		GL::bindVertexArray(Renderer::screenVao);
 		GL::drawArrays(GL_TRIANGLES, 0, 6);
