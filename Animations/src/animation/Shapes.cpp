@@ -54,6 +54,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			Square res = {};
 			DESERIALIZE_PROP(&res, sideLength, j, 0.0f);
@@ -149,6 +150,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			Circle res = {};
 			DESERIALIZE_PROP(&res, radius, j, 0.0f);
@@ -235,7 +237,10 @@ namespace MathAnim
 
 	Arrow Arrow::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
+		{
+		case 2:
+		case 3:
 		{
 			Arrow res = {};
 			DESERIALIZE_PROP(&res, stemWidth, j, 0.0f);
@@ -244,6 +249,10 @@ namespace MathAnim
 			DESERIALIZE_PROP(&res, tipWidth, j, 0.0f);
 
 			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("Arrow serialized with unknown version '%d'.", version);
@@ -313,7 +322,7 @@ namespace MathAnim
 	void Cube::reInit(AnimationManagerData* am, AnimObject* self)
 	{
 		// TODO: This stuff is duplicated everywhere, create a common function helper for it
-		
+
 		// First remove all generated children, which were generated as a result
 		// of this object (presumably)
 		// NOTE: This is direct descendants, no recursive children here
@@ -343,6 +352,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			Cube res = {};
 			DESERIALIZE_PROP(&res, sideLength, j, 0.0f);

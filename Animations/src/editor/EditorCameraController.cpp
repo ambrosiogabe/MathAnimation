@@ -49,9 +49,9 @@ namespace MathAnim
 				if (Input::scrollY != 0.0f)
 				{
 					// Increase camera zoom logarithmically
-					float cameraXStep = glm::log(glm::distance(CMath::convert(camera.position), glm::vec3(0.0f)));
+					float cameraXStep = glm::log(camera.focusPlane);
 					cameraXStep -= Input::scrollY * mouseScrollSensitivity * data.scrollSensitvity;
-					camera.position += camera.forward * -1.0f * glm::clamp(glm::exp(cameraXStep), 0.01f, 100.0f);
+					camera.focusPlane = glm::clamp(glm::exp(cameraXStep), camera.nearFarRange.min / 2.0f, camera.nearFarRange.max * 2.0f);
 				}
 			}
 		}

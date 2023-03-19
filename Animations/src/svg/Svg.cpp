@@ -1667,7 +1667,10 @@ namespace MathAnim
 
 	SvgObject* SvgObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
+		{
+		case 2:
+		case 3:
 		{
 			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 
@@ -1688,6 +1691,10 @@ namespace MathAnim
 			}
 
 			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("Svg serialized with unknown version '%d'", version);
@@ -2298,7 +2305,7 @@ namespace MathAnim
 					}
 					Renderer::free(context);
 					break;
-				}
+			}
 				else
 				{
 					MP_PROFILE_EVENT("Svg_RenderOutline2D_EndPath");
@@ -2309,9 +2316,9 @@ namespace MathAnim
 #endif
 					}
 					Renderer::free(context);
-				}
-			}
 		}
+	}
+}
 	}
 
 	static void growBufferIfNeeded(uint8** buffer, size_t* capacity, size_t numElements, size_t numElementsToAdd)

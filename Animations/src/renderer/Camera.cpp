@@ -71,17 +71,14 @@ namespace MathAnim
 
 	Vec4 Camera::getLeftRightBottomTop() const
 	{
-		// Adapted from https://stackoverflow.com/a/12926655
-		// float near = m34 / (m33 - 1);
-		// float far = m34 / (m33 + 1);
-		float bottomPlane = (float)nearFarRange.max * (perspProjectionMatrix[2][1] - 1) / perspProjectionMatrix[1][1];
-		float topPlane = (float)nearFarRange.max * (perspProjectionMatrix[2][1] + 1) / perspProjectionMatrix[1][1];
-		float leftPlane = (float)nearFarRange.max * (perspProjectionMatrix[2][0] - 1) / perspProjectionMatrix[0][0];
-		float rightPlane = (float)nearFarRange.max * (perspProjectionMatrix[2][0] + 1) / perspProjectionMatrix[0][0];
+		// Adapted from https://stackoverflow.com/a/23720633
+		float halfY = fov / 2.0f;
+		float topPlane = focusPlane * glm::tan(halfY);
+		float rightPlane = topPlane * aspectRatio;
 		return Vec4{
-			leftPlane,
+			-rightPlane,
 			rightPlane,
-			bottomPlane,
+			-topPlane,
 			topPlane
 		};
 	}
@@ -95,6 +92,7 @@ namespace MathAnim
 		SERIALIZE_VEC(j, this, aspectRatioFraction);
 		SERIALIZE_VEC(j, this, nearFarRange);
 		SERIALIZE_VEC(j, this, fillColor);
+		SERIALIZE_NON_NULL_PROP(j, this, focusPlane);
 	}
 
 	Camera Camera::deserialize(const nlohmann::json& j, uint32 version)
@@ -111,6 +109,7 @@ namespace MathAnim
 			DESERIALIZE_VEC2i(&res, aspectRatioFraction, j, res.aspectRatioFraction);
 			DESERIALIZE_VEC2(&res, nearFarRange, j, res.nearFarRange);
 			DESERIALIZE_VEC4(&res, fillColor, j, res.fillColor);
+			DESERIALIZE_PROP(&res, focusPlane, j, res.focusPlane);
 
 			res.matricesAreCached = false;
 			res.calculateMatrices();
@@ -137,9 +136,10 @@ namespace MathAnim
 		res.fov = 75.0f;
 		res.aspectRatioFraction.x = 1920;
 		res.aspectRatioFraction.y = 1080;
-		res.nearFarRange = Vec2{ 0.5f, 100.0f };
+		res.nearFarRange = Vec2{ 1.0f, 100.0f };
 		const Vec4 greenBrown = "#272822FF"_hex;
 		res.fillColor = greenBrown;
+		res.focusPlane = (res.nearFarRange.max - res.nearFarRange.min) / 4.0f;
 
 		res.calculateMatrices();
 

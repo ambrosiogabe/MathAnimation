@@ -39,6 +39,7 @@ namespace MathAnim
 		float fov;
 		Vec2i aspectRatioFraction;
 		Vec2 nearFarRange;
+		float focusPlane;
 		Vec4 fillColor;
 
 		void calculateMatrices();
@@ -55,6 +56,8 @@ namespace MathAnim
 				? perspProjectionMatrix
 				: dummy;
 		}
+
+		inline float getZoom() const { return focusPlane / ((nearFarRange.max - nearFarRange.min) / 4.0f); }
 
 		void serialize(nlohmann::json& j) const;
 		static Camera deserialize(const nlohmann::json& j, uint32 version);

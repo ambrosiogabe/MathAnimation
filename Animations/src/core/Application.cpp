@@ -197,6 +197,10 @@ namespace MathAnim
 				LaTexLayer::update();
 				LuauLayer::update();
 
+				// Update camera matrices
+				editorCamera.calculateMatrices();
+				AnimationManager::calculateCameraMatrices(am);
+
 				// Render all animation draw calls to main framebuffer
 				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
 				{
@@ -259,7 +263,9 @@ namespace MathAnim
 				ImGuiLayer::endFrame();
 				GL::popDebugGroup();
 
+				// End frame stuff
 				AnimationManager::endFrame(am);
+				editorCamera.endFrame();
 
 				// Miscellaneous
 				globalThreadPool->processFinishedTasks();

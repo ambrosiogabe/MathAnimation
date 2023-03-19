@@ -43,6 +43,7 @@ namespace MathAnim
 		const AnimObject* getActiveCamera3D(const AnimationManagerData* am);
 		void setActiveCamera2D(AnimationManagerData* am, AnimObjId cameraObj);
 		void setActiveCamera3D(AnimationManagerData* am, AnimObjId cameraObj);
+		void calculateCameraMatrices(AnimationManagerData* am);
 
 		// NOTE: This function is slow, only use this as a backup if getObject fails
 		const AnimObject* getPendingObject(const AnimationManagerData* am, AnimObjId animObj);

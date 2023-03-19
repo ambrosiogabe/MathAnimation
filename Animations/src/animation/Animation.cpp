@@ -474,12 +474,19 @@ namespace MathAnim
 
 	ReplacementTransformData ReplacementTransformData::deserialize(const nlohmann::json& memory, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
+		{
+		case 2:
+		case 3:
 		{
 			ReplacementTransformData res = {};
 			DESERIALIZE_ID(&res, srcAnimObjectId, memory);
 			DESERIALIZE_ID(&res, dstAnimObjectId, memory);
 			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("ReplacementTransform serialized with unknown version '%d'", version);
@@ -506,13 +513,20 @@ namespace MathAnim
 
 	MoveToData MoveToData::deserialize(const nlohmann::json& memory, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
+		{
+		case 2:
+		case 3:
 		{
 			MoveToData res = {};
 			DESERIALIZE_VEC2(&res, source, memory, (Vec2{ 0, 0 }));
 			DESERIALIZE_VEC2(&res, target, memory, (Vec2{ 0, 0 }));
 			DESERIALIZE_ID(&res, object, memory);
 			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("MoveToData serialized with unknown version '%d'", version);
@@ -540,13 +554,20 @@ namespace MathAnim
 
 	AnimateScaleData AnimateScaleData::deserialize(const nlohmann::json& memory, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
+		{
+		case 2:
+		case 3:
 		{
 			AnimateScaleData res = {};
 			DESERIALIZE_VEC2(&res, source, memory, (Vec2{ 0, 0 }));
 			DESERIALIZE_VEC2(&res, target, memory, (Vec2{ 0, 0 }));
 			DESERIALIZE_ID(&res, object, memory);
 			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("AnimateScaleData serialized with unknown version '%d'", version);
@@ -670,7 +691,10 @@ namespace MathAnim
 
 	Circumscribe Circumscribe::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
+		{
+		case 2:
+		case 3:
 		{
 			Circumscribe res = {};
 			DESERIALIZE_VEC4(&res, color, j, "#F9DB1BFF"_hex);
@@ -680,6 +704,10 @@ namespace MathAnim
 			DESERIALIZE_PROP(&res, timeWidth, j, 0.0f);
 			DESERIALIZE_ID(&res, obj, j);
 			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("Circumscribe serialized with unknown version '%d'", version);
@@ -1042,11 +1070,18 @@ namespace MathAnim
 
 	ScriptObject ScriptObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
+		{
+		case 2:
+		case 3:
 		{
 			ScriptObject res = {};
 			DESERIALIZE_NULLABLE_CSTRING(&res, scriptFilepath, j);
 			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("ScriptObject serialized with unknown version '%d'", version);
@@ -1225,7 +1260,10 @@ namespace MathAnim
 
 	ImageObject ImageObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
+		{
+		case 2:
+		case 3:
 		{
 			ImageObject res = {};
 			DESERIALIZE_NULLABLE_CSTRING(&res, imageFilepath, j);
@@ -1247,6 +1285,10 @@ namespace MathAnim
 			}
 
 			return res;
+		}
+		break;
+		default:
+			break;
 		}
 
 		g_logger_warning("ImageObject serialized with unknown version '%d'", version);

@@ -127,6 +127,19 @@ namespace MathAnim
 			}
 			// Clear queue
 			am->queuedAddAnimations.clear();
+
+			// End camera frames
+			AnimObject* activeCamera = getMutableObject(am, am->activeCamera);
+			if (activeCamera)
+			{
+				activeCamera->as.camera.endFrame();
+			}
+
+			AnimObject* activeCamera3D = getMutableObject(am, am->activeCamera3D);
+			if (activeCamera3D)
+			{
+				activeCamera3D->as.camera.endFrame();
+			}
 		}
 
 		void resetToFrame(AnimationManagerData* am, uint32 absoluteFrame)
@@ -424,6 +437,21 @@ namespace MathAnim
 		void setActiveCamera3D(AnimationManagerData* am, AnimObjId cameraObj)
 		{
 			am->activeCamera3D = cameraObj;
+		}
+
+		void calculateCameraMatrices(AnimationManagerData* am)
+		{
+			AnimObject* camera2D = getMutableObject(am, am->activeCamera);
+			if (camera2D)
+			{
+				camera2D->as.camera.calculateMatrices();
+			}
+
+			AnimObject* camera3D = getMutableObject(am, am->activeCamera3D);
+			if (camera3D)
+			{
+				camera3D->as.camera.calculateMatrices();
+			}
 		}
 
 		const AnimObject* getPendingObject(const AnimationManagerData* am, AnimObjId animObj)

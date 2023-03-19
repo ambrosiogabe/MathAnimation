@@ -140,6 +140,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			TextObject res = {};
 
@@ -365,6 +366,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			LaTexObject res = {};
 
@@ -588,6 +590,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			CodeBlock res = {};
 

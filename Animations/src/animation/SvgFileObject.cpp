@@ -130,6 +130,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			SvgFileObject res = {};
 

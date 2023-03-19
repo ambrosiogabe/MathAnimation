@@ -131,10 +131,10 @@ namespace MathAnim
 				Renderer::pushStrokeWidth(0.05f);
 				Renderer::pushColor(Colors::Neutral[0]);
 				Vec4 leftRightBottomTop = orthoCamera.getLeftRightBottomTop();
-				Vec2 projectionSize = Vec2{ 
+				Vec2 projectionSize = CMath::abs(Vec2{ 
 					leftRightBottomTop.values[1] - leftRightBottomTop.values[0],
 					leftRightBottomTop.values[3] - leftRightBottomTop.values[2]
-				};
+				});
 				Renderer::drawSquare(CMath::vector2From3(orthoCamera.position) - projectionSize / 2.0f, projectionSize);
 				Renderer::popColor();
 				Renderer::popStrokeWidth();
@@ -236,6 +236,7 @@ namespace MathAnim
 			}
 
 			const Camera* camera = Application::getEditorCamera();
+			float zoom = camera->getZoom();
 			if (gizmo->moveMode != FollowMouseMoveMode::None)
 			{
 				Vec2 mousePos = EditorGui::mouseToNormalizedViewport();
@@ -276,17 +277,17 @@ namespace MathAnim
 			if (g->hoveredGizmo == NullGizmo && g->activeGizmo == NullGizmo)
 			{
 				// Check if free move variant is hovered
-				if (isMouseHovered(CMath::vector2From3(gizmo->position), defaultFreeMoveSize))
+				if (isMouseHovered(CMath::vector2From3(gizmo->position), defaultFreeMoveSize * zoom))
 				{
 					g->hoveredGizmo = gizmo->idHash;
 					g->hotGizmoVariant = GizmoVariant::Free;
 				}
-				else if (isMouseHovered(getGizmoPos(gizmo->position, defaultVerticalMoveOffset, 1.0f), defaultVerticalMoveSize * 1.0f))
+				else if (isMouseHovered(getGizmoPos(gizmo->position, defaultVerticalMoveOffset, zoom), defaultVerticalMoveSize * zoom))
 				{
 					g->hoveredGizmo = gizmo->idHash;
 					g->hotGizmoVariant = GizmoVariant::Vertical;
 				}
-				else if (isMouseHovered(getGizmoPos(gizmo->position, defaultHorizontalMoveOffset, 1.0f), defaultHorizontalMoveSize * 1.0f))
+				else if (isMouseHovered(getGizmoPos(gizmo->position, defaultHorizontalMoveOffset, zoom), defaultHorizontalMoveSize * zoom))
 				{
 					g->hoveredGizmo = gizmo->idHash;
 					g->hotGizmoVariant = GizmoVariant::Horizontal;
@@ -299,17 +300,17 @@ namespace MathAnim
 				// Check if free move variant is changed to active
 				if (g->hotGizmoVariant == GizmoVariant::Free)
 				{
-					handleActiveCheck(gizmo, Vec2{ 0, 0 }, defaultFreeMoveSize, 1.0f);
+					handleActiveCheck(gizmo, Vec2{ 0, 0 }, defaultFreeMoveSize, zoom);
 				}
 				// Check if vertical move is changed to active
 				else if (g->hotGizmoVariant == GizmoVariant::Vertical)
 				{
-					handleActiveCheck(gizmo, defaultVerticalMoveOffset, defaultVerticalMoveSize, 1.0f);
+					handleActiveCheck(gizmo, defaultVerticalMoveOffset, defaultVerticalMoveSize, zoom);
 				}
 				// Check if horizontal move is changed to active
 				if (g->hotGizmoVariant == GizmoVariant::Horizontal)
 				{
-					handleActiveCheck(gizmo, defaultHorizontalMoveOffset, defaultHorizontalMoveSize, 1.0f);
+					handleActiveCheck(gizmo, defaultHorizontalMoveOffset, defaultHorizontalMoveSize, zoom);
 				}
 			}
 
@@ -462,7 +463,7 @@ namespace MathAnim
 	{
 		GlobalContext* g = GizmoManager::gGizmoManager;
 		const Camera* camera = Application::getEditorCamera();
-		const float zoom = 1.0f;
+		const float zoom = camera->getZoom();
 		Vec4 leftRightBottomTop = camera->getLeftRightBottomTop();
 		Vec2 projectionSize = Vec2{
 			leftRightBottomTop.values[1] - leftRightBottomTop.values[0],
