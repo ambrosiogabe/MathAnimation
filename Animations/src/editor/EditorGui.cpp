@@ -83,7 +83,8 @@ namespace MathAnim
 
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-			ImGui::Begin("Animation View", nullptr, ImGuiWindowFlags_MenuBar);
+			// NOTE: Begin will return whether the window is visible
+			mainViewportIsActive = ImGui::Begin("Animation View", nullptr, ImGuiWindowFlags_MenuBar);
 			if (ImGui::BeginMenuBar())
 			{
 				ImVec2 contentRegion = ImGui::GetContentRegionAvail();
@@ -116,7 +117,6 @@ namespace MathAnim
 			const Texture& mainColorTexture = mainFramebuffer.getColorAttachment(0);
 			ImTextureID textureId = (void*)(uintptr_t)mainColorTexture.graphicsId;
 			ImGui::Image(textureId, mainViewportSize, ImVec2(0, 0), ImVec2(1, 1));
-			mainViewportIsActive = ImGui::IsItemVisible();
 			ImGui::End();
 
 			drawEditorViewport(editorFramebuffer, deltaTime);
@@ -224,7 +224,7 @@ namespace MathAnim
 		// ------------- Internal Functions -------------
 		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime)
 		{
-			ImGui::Begin("Animation Editor View", nullptr);
+			editorViewportIsActive = ImGui::Begin("Animation Editor View", nullptr);
 
 			ImVec2 editorViewportRelativeOffset;
 			getLargestSizeForViewport(&viewportSize, &editorViewportRelativeOffset);
@@ -235,7 +235,6 @@ namespace MathAnim
 			ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
 			ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
 			mouseHoveringViewport = ImGui::IsItemHovered();
-			editorViewportIsActive = ImGui::IsItemVisible();
 
 			// Draw action text displayed in the bottom left corner of the viewport
 			ImGui::PushFont(ImGuiLayer::getMediumFont());

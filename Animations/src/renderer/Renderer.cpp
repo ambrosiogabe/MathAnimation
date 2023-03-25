@@ -28,6 +28,7 @@ namespace MathAnim
 {
 	struct DrawCmd
 	{
+		const Camera* camera;
 		uint32 textureId;
 		uint32 vertexOffset;
 		uint16 indexOffset;
@@ -37,6 +38,7 @@ namespace MathAnim
 
 	struct DrawCmd3D
 	{
+		const Camera* camera;
 		uint32 textureId;
 		uint32 vertexOffset;
 		uint32 indexOffset;
@@ -67,34 +69,14 @@ namespace MathAnim
 		void init();
 
 		// TODO: Add a bunch of methods like this...
+		void changeBatchIfNeeded(uint32 textureId);
 		void addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId, const glm::mat4& transform);
 		void addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color, AnimObjId objId);
 		void addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color, AnimObjId objId);
 		void addMultiColoredTri(const Vec2& p0, const Vec4& c0, const Vec2& p1, const Vec4& c1, const Vec2& p2, const Vec4& c2, AnimObjId objId);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& shader, const Camera& camera) const;
-		void reset();
-		void free();
-	};
-
-	struct DrawListFont2D
-	{
-		std::vector<Vertex2D> vertices;
-		std::vector<uint16> indices;
-		std::vector<DrawCmd> drawCommands;
-		std::vector<uint32> textureIdStack;
-
-		uint32 vao;
-		uint32 vbo;
-		uint32 ebo;
-
-		void init();
-
-		void addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, uint32 textureId, AnimObjId objId);
-
-		void setupGraphicsBuffers();
-		void render(const Shader& shader, const Camera& camera);
+		void render(const Shader& shader) const;
 		void reset();
 		void free();
 	};
@@ -145,6 +127,7 @@ namespace MathAnim
 
 		void init();
 
+		void changeBatchIfNeeded();
 		void addLine(const Vec3& previousPos, const Vec3& currentPos, const Vec3& nextPos, const Vec3& nextNextPos, uint32 packedColor, float thickness);
 
 		void setupGraphicsBuffers();
@@ -174,12 +157,13 @@ namespace MathAnim
 
 		void init();
 
+		void changeBatchIfNeeded(uint32 textureId, bool isTransparent);
 		void addTexturedQuad3D(const Texture& texture, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const Vec3& faceNormal, bool isTransparent);
 		void addColoredTri(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec4& color, AnimObjId objId);
 		void addMultiColoredTri(const Vec3& p0, const Vec4& c0, const Vec3& p1, const Vec4& c1, const Vec3& p2, const Vec4& c2, AnimObjId objId);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& opaqueShader, const Shader& transparentShader, const Shader& compositeShader, const Framebuffer& framebuffer, const Camera& camera) const;
+		void render(const Shader& opaqueShader, const Shader& transparentShader, const Shader& compositeShader, const Framebuffer& framebuffer) const;
 		void reset();
 		void free();
 	};
@@ -188,7 +172,6 @@ namespace MathAnim
 	{
 		// Internal variables
 		static DrawList2D drawList2D;
-		static DrawListFont2D drawListFont2D;
 		static DrawList3DLine drawList3DLine;
 		static DrawList3D drawList3D;
 
@@ -221,11 +204,15 @@ namespace MathAnim
 		static float strokeWidthStack[MAX_STACK_SIZE];
 		static CapType lineEndingStack[MAX_STACK_SIZE];
 		static const SizedFont* fontStack[MAX_STACK_SIZE];
+		static const Camera* camera2DStack[MAX_STACK_SIZE];
+		static const Camera* camera3DStack[MAX_STACK_SIZE];
 
 		static int colorStackPtr;
 		static int strokeWidthStackPtr;
 		static int lineEndingStackPtr;
 		static int fontStackPtr;
+		static int camera2DStackPtr;
+		static int camera3DStackPtr;
 
 		static constexpr glm::vec4 defaultColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 		static constexpr float defaultStrokeWidth = 0.02f;
@@ -258,6 +245,8 @@ namespace MathAnim
 		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth);
 		static void lineToInternal(Path2DContext* path, const Vec2& point, bool addToRawCurve);
 		static void lineToInternal(Path2DContext* path, const Path_Vertex2DLine& vert, bool addToRawCurve);
+		static const Camera* getCurrentCamera2D();
+		static const Camera* getCurrentCamera3D();
 
 		void init()
 		{
@@ -298,7 +287,6 @@ namespace MathAnim
 #endif
 
 			drawList2D.init();
-			drawListFont2D.init();
 			drawList3DLine.init();
 			drawList3D.init();
 			setupScreenVao();
@@ -323,11 +311,26 @@ namespace MathAnim
 			outlineShader.destroy();
 
 			drawList2D.free();
-			drawListFont2D.free();
 			drawList3DLine.free();
 			drawList3D.free();
 
 			TextureCache::free();
+		}
+
+		void endFrame()
+		{
+			list2DNumDrawCalls = 0;
+			list3DNumDrawCalls = 0;
+
+			list2DNumTris = 0;
+			list3DNumTris = 0;
+
+			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding(%d) call.", lineEndingStackPtr);
+			g_logger_assert(colorStackPtr == 0, "Missing popColor(%d) call.", colorStackPtr);
+			g_logger_assert(strokeWidthStackPtr == 0, "Missing popStrokeWidth(%d) call.", strokeWidthStackPtr);
+			g_logger_assert(fontStackPtr == 0, "Missing popFont(%d) call.", fontStackPtr);
+			g_logger_assert(camera2DStackPtr == 0, "Missing popCamera2D(%d) call.", camera2DStackPtr);
+			g_logger_assert(camera3DStackPtr == 0, "Missing popCamera3D(%d) call.", camera3DStackPtr);
 		}
 
 		// ----------- Render calls ----------- 
@@ -346,7 +349,7 @@ namespace MathAnim
 			GL::popDebugGroup();
 		}
 
-		void renderToFramebuffer(Framebuffer& framebuffer, const Camera& camera2D, const Camera& camera3D)
+		void renderToFramebuffer(Framebuffer& framebuffer)
 		{
 			constexpr size_t numExpectedColorAttachments = 6;
 			g_logger_assert(framebuffer.colorAttachments.size() == numExpectedColorAttachments, "Invalid framebuffer. Should have %d color attachments.", numExpectedColorAttachments);
@@ -361,8 +364,7 @@ namespace MathAnim
 
 			// Do all the draw calls
 			// Draw lines and strings
-			drawList3DLine.render(shader3DLine, camera3D);
-			drawListFont2D.render(shaderFont2D, camera2D);
+			// drawList3DLine.render(shader3DLine); // TODO: Add support for on demand camera batching
 
 			// Draw 3D objects after the lines so that we can do appropriate blending
 			// using OIT
@@ -370,8 +372,7 @@ namespace MathAnim
 				shader3DOpaque,
 				shader3DTransparent,
 				shader3DComposite,
-				framebuffer,
-				camera3D
+				framebuffer
 			);
 
 			// Reset the draw buffers to draw to FB_attachment_0
@@ -380,18 +381,15 @@ namespace MathAnim
 			// Draw 2D stuff over 3D stuff so that 3D stuff is always "behind" the
 			// 2D stuff like a HUD
 			// These should be blended appropriately
-			drawList2D.render(shader2D, camera2D);
+			drawList2D.render(shader2D);
 
 			GL::popDebugGroup();
 		}
 
 		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am)
 		{
-			Camera camera2D = Camera::createDefault();
-			Camera camera3D = camera2D;
 			const AnimObject* camera2DObj = AnimationManager::getActiveCamera2D(am);
-			const AnimObject* camera3DObj = AnimationManager::getActiveCamera3D(am);
-			if (!camera2DObj && !camera3DObj)
+			if (!camera2DObj)
 			{
 				// Don't render anything if no camera is active
 				// TODO: Maybe render a texture in the future that says something like "No Active Camera in Scene"
@@ -399,18 +397,8 @@ namespace MathAnim
 				return;
 			}
 
-			if (camera2DObj)
-			{
-				camera2D = camera2DObj->as.camera;
-			}
-
-			if (camera3DObj)
-			{
-				camera3D = camera3DObj->as.camera;
-			}
-
-			Renderer::clearColor(camera2D.fillColor);
-			renderToFramebuffer(framebuffer, camera2D, camera3D);
+			Renderer::clearColor(camera2DObj->as.camera.fillColor);
+			renderToFramebuffer(framebuffer);
 		}
 
 		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects)
@@ -591,24 +579,16 @@ namespace MathAnim
 			MP_PROFILE_EVENT("Renderer_ClearDrawCalls");
 
 			// Track metrics
-			list2DNumDrawCalls = (int)drawList2D.drawCommands.size();
-			listFont2DNumDrawCalls = (int)drawListFont2D.drawCommands.size();
-			list3DNumDrawCalls = (int)drawList3D.drawCommands.size();
+			list2DNumDrawCalls += (int)drawList2D.drawCommands.size();
+			list3DNumDrawCalls += (int)drawList3D.drawCommands.size();
 
-			list2DNumTris = (int)drawList2D.indices.size() / 3;
-			listFont2DNumTris = (int)drawListFont2D.indices.size() / 3;
-			list3DNumTris = (int)drawList3D.indices.size() / 3;
+			list2DNumTris += (int)drawList2D.indices.size() / 3;
+			list3DNumTris += (int)drawList3D.indices.size() / 3;
 
 			// Do all the draw calls
 			drawList3DLine.reset();
-			drawListFont2D.reset();
 			drawList3D.reset();
 			drawList2D.reset();
-
-			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding() call.");
-			g_logger_assert(colorStackPtr == 0, "Missing popColor() call.");
-			g_logger_assert(strokeWidthStackPtr == 0, "Missing popStrokeWidth() call.");
-			g_logger_assert(fontStackPtr == 0, "Missing popFont() call.");
 		}
 
 		// ----------- Styles ----------- 
@@ -662,6 +642,20 @@ namespace MathAnim
 			fontStackPtr++;
 		}
 
+		void pushCamera2D(const Camera* camera)
+		{
+			g_logger_assert(camera2DStackPtr < MAX_STACK_SIZE, "Ran out of room on the camera2D stack.");
+			camera2DStack[camera2DStackPtr] = camera;
+			camera2DStackPtr++;
+		}
+
+		void pushCamera3D(const Camera* camera)
+		{
+			g_logger_assert(camera3DStackPtr < MAX_STACK_SIZE, "Ran out of room on the camera3D stack.");
+			camera3DStack[camera3DStackPtr] = camera;
+			camera3DStackPtr++;
+		}
+
 		Vec4 getColor()
 		{
 			const glm::vec4& color = colorStackPtr > 0
@@ -692,6 +686,18 @@ namespace MathAnim
 		{
 			fontStackPtr -= numToPop;
 			g_logger_assert(fontStackPtr >= 0, "Popped to many values off of font stack: %d", fontStackPtr);
+		}
+
+		void popCamera2D(int numToPop)
+		{
+			camera2DStackPtr -= numToPop;
+			g_logger_assert(camera2DStackPtr >= 0, "Popped to many values off of camera2D stack: %d", camera2DStackPtr);
+		}
+
+		void popCamera3D(int numToPop)
+		{
+			camera3DStackPtr -= numToPop;
+			g_logger_assert(camera3DStackPtr >= 0, "Popped to many values off of camera3D stack: %d", camera3DStackPtr);
 		}
 
 		// ----------- 2D stuff ----------- 
@@ -837,14 +843,15 @@ namespace MathAnim
 				float descentY = glyphOutline.descentY * (float)font->fontSizePixels;
 				float bearingY = glyphOutline.bearingY * (float)font->fontSizePixels;
 
-				drawListFont2D.addGlyph(
+				drawList2D.addTexturedQuad(
+					font->texture,
 					cursorPos + Vec2{ bearingX, -bearingY },
 					cursorPos + Vec2{ bearingX + charWidth, descentY },
 					glyphTexture.uvMin,
 					glyphTexture.uvMax,
 					color,
-					font->texture.graphicsId,
-					objId
+					objId,
+					glm::mat4(1.0f) // TODO: Replace me with actual transform
 				);
 
 				float kerning = 0.0f;
@@ -1833,6 +1840,18 @@ namespace MathAnim
 				path->data.emplace_back(vert);
 			}
 		}
+
+		static const Camera* getCurrentCamera2D()
+		{
+			g_logger_assert(camera2DStackPtr > 0, "Camera2D stack is empty. No current camera.");
+			return camera2DStack[camera2DStackPtr - 1];
+		}
+
+		static const Camera* getCurrentCamera3D()
+		{
+			g_logger_assert(camera3DStackPtr > 0, "Camera3D stack is empty. No current camera.");
+			return camera3DStack[camera3DStackPtr - 1];
+		}
 		// ---------------------- End Internal Functions ----------------------
 }
 
@@ -1850,21 +1869,28 @@ namespace MathAnim
 		setupGraphicsBuffers();
 	}
 
-	// TODO: Add a bunch of methods like this...
-	void DrawList2D::addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId, const glm::mat4& transform)
+	void DrawList2D::changeBatchIfNeeded(uint32 textureId)
 	{
-		// Check if we need to switch to a new batch
-		if (drawCommands.size() == 0 || drawCommands[drawCommands.size() - 1].textureId != texture.graphicsId)
+		const Camera* currentCamera = Renderer::getCurrentCamera2D();
+		if (drawCommands.size() == 0 ||
+			drawCommands[drawCommands.size() - 1].textureId != textureId ||
+			drawCommands[drawCommands.size() - 1].camera != currentCamera)
 		{
 			DrawCmd newCommand;
+			newCommand.camera = currentCamera;
 			newCommand.indexOffset = (uint16)indices.size();
 			newCommand.vertexOffset = (uint32)vertices.size();
-			newCommand.textureId = texture.graphicsId;
+			newCommand.textureId = textureId;
 			newCommand.numElements = 0;
 			newCommand.numVerts = 0;
 			drawCommands.emplace_back(newCommand);
 		}
+	}
 
+	// TODO: Add a bunch of methods like this...
+	void DrawList2D::addTexturedQuad(const Texture& texture, const Vec2& min, const Vec2& max, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId, const glm::mat4& transform)
+	{
+		changeBatchIfNeeded(texture.graphicsId);
 		DrawCmd& cmd = drawCommands[drawCommands.size() - 1];
 
 		glm::vec4 bottomLeft = transform * glm::vec4(min.x, min.y, 0.0f, 1.0f);
@@ -1902,18 +1928,7 @@ namespace MathAnim
 
 	void DrawList2D::addColoredQuad(const Vec2& min, const Vec2& max, const Vec4& color, AnimObjId objId)
 	{
-		// Check if we need to switch to a new batch
-		if (drawCommands.size() == 0 || drawCommands[drawCommands.size() - 1].textureId != UINT32_MAX)
-		{
-			DrawCmd newCommand;
-			newCommand.indexOffset = (uint16)indices.size();
-			newCommand.vertexOffset = (uint32)vertices.size();
-			newCommand.textureId = UINT32_MAX;
-			newCommand.numElements = 0;
-			newCommand.numVerts = 0;
-			drawCommands.emplace_back(newCommand);
-		}
-
+		changeBatchIfNeeded(UINT32_MAX);
 		DrawCmd& cmd = drawCommands[drawCommands.size() - 1];
 
 		uint16 rectStartIndex = (uint16)cmd.numVerts;
@@ -1946,18 +1961,7 @@ namespace MathAnim
 
 	void DrawList2D::addColoredTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec4& color, AnimObjId objId)
 	{
-		// Check if we need to switch to a new batch
-		if (drawCommands.size() == 0 || drawCommands[drawCommands.size() - 1].textureId != UINT32_MAX)
-		{
-			DrawCmd newCommand;
-			newCommand.indexOffset = (uint16)indices.size();
-			newCommand.vertexOffset = (uint32)vertices.size();
-			newCommand.numElements = 0;
-			newCommand.numVerts = 0;
-			newCommand.textureId = UINT32_MAX;
-			drawCommands.emplace_back(newCommand);
-		}
-
+		changeBatchIfNeeded(UINT32_MAX);
 		DrawCmd& cmd = drawCommands[drawCommands.size() - 1];
 
 		uint16 rectStartIndex = (uint16)cmd.numVerts;
@@ -1985,18 +1989,7 @@ namespace MathAnim
 
 	void DrawList2D::addMultiColoredTri(const Vec2& p0, const Vec4& c0, const Vec2& p1, const Vec4& c1, const Vec2& p2, const Vec4& c2, AnimObjId objId)
 	{
-		// Check if we need to switch to a new batch
-		if (drawCommands.size() == 0 || drawCommands[drawCommands.size() - 1].textureId != UINT32_MAX)
-		{
-			DrawCmd newCommand;
-			newCommand.indexOffset = (uint16)indices.size();
-			newCommand.vertexOffset = (uint32)vertices.size();
-			newCommand.numElements = 0;
-			newCommand.numVerts = 0;
-			newCommand.textureId = UINT32_MAX;
-			drawCommands.emplace_back(newCommand);
-		}
-
+		changeBatchIfNeeded(UINT32_MAX);
 		DrawCmd& cmd = drawCommands[drawCommands.size() - 1];
 
 		uint16 rectStartIndex = (uint16)cmd.numVerts;
@@ -2054,7 +2047,7 @@ namespace MathAnim
 		GL::enableVertexAttribArray(3);
 	}
 
-	void DrawList2D::render(const Shader& shader, const Camera& camera) const
+	void DrawList2D::render(const Shader& shader) const
 	{
 		if (vertices.size() == 0)
 		{
@@ -2066,12 +2059,13 @@ namespace MathAnim
 		GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		shader.bind();
-		shader.uploadMat4("uProjection", camera.projectionMatrix);
-		shader.uploadMat4("uView", camera.viewMatrix);
 		shader.uploadInt("uWireframeOn", EditorSettings::getSettings().viewMode == ViewMode::WireMesh);
 
 		for (int i = 0; i < drawCommands.size(); i++)
 		{
+			shader.uploadMat4("uProjection", drawCommands[i].camera->projectionMatrix);
+			shader.uploadMat4("uView", drawCommands[i].camera->viewMatrix);
+
 			if (drawCommands[i].textureId != UINT32_MAX)
 			{
 				// Bind the texture
@@ -2144,191 +2138,8 @@ namespace MathAnim
 		vbo = UINT32_MAX;
 		ebo = UINT32_MAX;
 		vao = UINT32_MAX;
-
-		//vertices.hardClear();
-		//indices.hardClear();
-		//drawCommands.hardClear();
-		//textureIdStack.hardClear();
 	}
 	// ---------------------- End DrawList2D Functions ----------------------
-
-	// ---------------------- Begin DrawListFont2D Functions ----------------------
-	void DrawListFont2D::init()
-	{
-		vao = UINT32_MAX;
-		ebo = UINT32_MAX;
-		vbo = UINT32_MAX;
-
-		vertices = {};
-		indices = {};
-		drawCommands = {};
-		textureIdStack = {};
-		setupGraphicsBuffers();
-	}
-
-	void DrawListFont2D::addGlyph(const Vec2& posMin, const Vec2& posMax, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, uint32 textureId, AnimObjId objId)
-	{
-		// Check if we need to switch to a new batch
-		if (drawCommands.size() == 0 || drawCommands[drawCommands.size() - 1].textureId != textureId)
-		{
-			DrawCmd newCommand;
-			newCommand.indexOffset = (uint16)indices.size();
-			newCommand.vertexOffset = (uint32)vertices.size();
-			newCommand.textureId = textureId;
-			newCommand.numElements = 0;
-			newCommand.numVerts = 0;
-			drawCommands.emplace_back(newCommand);
-		}
-
-		DrawCmd& cmd = drawCommands[drawCommands.size() - 1];
-
-		uint16 rectStartIndex = (uint16)cmd.numVerts;
-		indices.push_back(rectStartIndex + 0); indices.push_back(rectStartIndex + 1); indices.push_back(rectStartIndex + 2);
-		indices.push_back(rectStartIndex + 0); indices.push_back(rectStartIndex + 2); indices.push_back(rectStartIndex + 3);
-		cmd.numElements += 6;
-
-		Vertex2D vert;
-		vert.color = color;
-		vert.objId = objId;
-
-		// Verts
-		vert.position = posMin;
-		vert.textureCoords = uvMin;
-		vertices.push_back(vert);
-
-		vert.position = Vec2{ posMin.x, posMax.y };
-		vert.textureCoords = Vec2{ uvMin.x, uvMax.y };
-		vertices.push_back(vert);
-
-		vert.position = posMax;
-		vert.textureCoords = uvMax;
-		vertices.push_back(vert);
-
-		vert.position = Vec2{ posMax.x, posMin.y };
-		vert.textureCoords = Vec2{ uvMax.x, uvMin.y };
-		vertices.push_back(vert);
-
-		cmd.numVerts += 4;
-	}
-
-	// TODO: This is literally the exact same thing as the DrawList2D::setupGraphicsBuffers() function
-	// maybe I should come up with some sort of CreateVao abstraction?
-	void DrawListFont2D::setupGraphicsBuffers()
-	{
-		// Create the batched vao
-		GL::createVertexArray(&vao);
-		GL::bindVertexArray(vao);
-
-		GL::genBuffers(1, &vbo);
-
-		// Allocate space for the batched vao
-		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
-		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex2D), NULL, GL_DYNAMIC_DRAW);
-
-		GL::genBuffers(1, &ebo);
-		GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-		GL::bufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16), NULL, GL_DYNAMIC_DRAW);
-
-		// Set up the batched vao attributes
-		GL::vertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, position)));
-		GL::enableVertexAttribArray(0);
-
-		GL::vertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, color)));
-		GL::enableVertexAttribArray(1);
-
-		GL::vertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, textureCoords)));
-		GL::enableVertexAttribArray(2);
-
-		GL::vertexAttribIPointer(3, 1, GL_UNSIGNED_INT, sizeof(Vertex2D), (void*)(offsetof(Vertex2D, objId)));
-		GL::enableVertexAttribArray(3);
-	}
-
-	void DrawListFont2D::render(const Shader& shader, const Camera& camera)
-	{
-		if (drawCommands.size() == 0)
-		{
-			return;
-		}
-
-		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_Font_Pass");
-
-		shader.bind();
-		shader.uploadMat4("uProjection", camera.projectionMatrix);
-		shader.uploadMat4("uView", camera.viewMatrix);
-
-		for (int i = 0; i < drawCommands.size(); i++)
-		{
-			// Bind the texture
-			GL::bindTexSlot(GL_TEXTURE_2D, drawCommands[i].textureId, 0);
-			shader.uploadInt("uTexture", 0);
-
-			// Upload the verts
-			GL::bindVertexArray(vao);
-			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
-			GL::bufferData(
-				GL_ARRAY_BUFFER,
-				sizeof(Vertex2D) * drawCommands[i].numVerts,
-				vertices.data() + drawCommands[i].vertexOffset,
-				GL_DYNAMIC_DRAW
-			);
-
-			// Buffer the elements
-			GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-			GL::bufferData(
-				GL_ELEMENT_ARRAY_BUFFER,
-				sizeof(uint16) * drawCommands[i].numElements,
-				indices.data() + drawCommands[i].indexOffset,
-				GL_DYNAMIC_DRAW
-			);
-
-			// TODO: Swap this with glMultiDraw...
-			// Make the draw call
-			GL::drawElements(
-				GL_TRIANGLES,
-				drawCommands[i].numElements,
-				GL_UNSIGNED_SHORT,
-				nullptr
-			);
-		}
-
-		GL::popDebugGroup();
-	}
-
-	void DrawListFont2D::reset()
-	{
-		vertices.clear();
-		indices.clear();
-		drawCommands.clear();
-		g_logger_assert(textureIdStack.size() == 0, "Mismatched texture ID stack. Are you missing a drawListFont2D.popTexture()?");
-	}
-
-	void DrawListFont2D::free()
-	{
-		if (vbo != UINT32_MAX)
-		{
-			GL::deleteBuffers(1, &vbo);
-		}
-
-		if (ebo != UINT32_MAX)
-		{
-			GL::deleteBuffers(1, &ebo);
-		}
-
-		if (vao != UINT32_MAX)
-		{
-			GL::deleteVertexArrays(1, &vao);
-		}
-
-		vbo = UINT32_MAX;
-		ebo = UINT32_MAX;
-		vao = UINT32_MAX;
-
-		//vertices.hardClear();
-		//indices.hardClear();
-		//drawCommands.hardClear();
-		//textureIdStack.hardClear();
-	}
-	// ---------------------- End DrawListFont2D Functions ----------------------
 
 	// ---------------------- Begin DrawList3DLine Functions ----------------------
 	void DrawList3DLine::init()
@@ -2338,6 +2149,11 @@ namespace MathAnim
 
 		vertices = {};
 		setupGraphicsBuffers();
+	}
+
+	void DrawList3DLine::changeBatchIfNeeded()
+	{
+
 	}
 
 	void DrawList3DLine::addLine(const Vec3& previousPos, const Vec3& currentPos, const Vec3& nextPos, const Vec3& nextNextPos, uint32 packedColor, float thickness)
@@ -2472,8 +2288,6 @@ namespace MathAnim
 
 		vbo = UINT32_MAX;
 		vao = UINT32_MAX;
-
-		//vertices.hardClear();
 	}
 	// ---------------------- End DrawList3DLine Functions ----------------------
 
@@ -2491,22 +2305,29 @@ namespace MathAnim
 		setupGraphicsBuffers();
 	}
 
-	void DrawList3D::addTexturedQuad3D(const Texture& texture, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const Vec3& faceNormal, bool isTransparent)
+	void DrawList3D::changeBatchIfNeeded(uint32 textureId, bool isTransparent)
 	{
+		const Camera* currentCamera = Renderer::getCurrentCamera3D();
 		if (drawCommands.size() == 0 ||
-			drawCommands[drawCommands.size() - 1].textureId != texture.graphicsId ||
-			drawCommands[drawCommands.size() - 1].isTransparent != isTransparent)
+			drawCommands[drawCommands.size() - 1].textureId != textureId ||
+			drawCommands[drawCommands.size() - 1].isTransparent != isTransparent ||
+			drawCommands[drawCommands.size() - 1].camera != currentCamera)
 		{
 			DrawCmd3D newCommand;
 			newCommand.elementCount = 0;
 			newCommand.vertCount = 0;
 			newCommand.indexOffset = (uint32)indices.size();
 			newCommand.vertexOffset = (uint32)vertices.size();
-			newCommand.textureId = texture.graphicsId;
+			newCommand.textureId = textureId;
 			newCommand.isTransparent = isTransparent;
+			newCommand.camera = currentCamera;
 			drawCommands.emplace_back(newCommand);
 		}
+	}
 
+	void DrawList3D::addTexturedQuad3D(const Texture& texture, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const Vec3& faceNormal, bool isTransparent)
+	{
+		changeBatchIfNeeded(texture.graphicsId, isTransparent);
 		DrawCmd3D& cmd = drawCommands[drawCommands.size() - 1];
 
 		uint16 rectStartIndex = (uint16)cmd.vertCount;
@@ -2538,22 +2359,8 @@ namespace MathAnim
 
 	void DrawList3D::addColoredTri(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec4& color, AnimObjId)
 	{
-		// Check if we need to switch to a new batch
 		bool isTransparent = color.a < 1.0f; // TODO: Might not want to do this, because OIT makes some stuff look kinda weird
-		if (drawCommands.size() == 0 ||
-			drawCommands[drawCommands.size() - 1].textureId != UINT32_MAX ||
-			drawCommands[drawCommands.size() - 1].isTransparent != isTransparent)
-		{
-			DrawCmd3D newCommand;
-			newCommand.elementCount = 0;
-			newCommand.vertCount = 0;
-			newCommand.indexOffset = (uint32)indices.size();
-			newCommand.vertexOffset = (uint32)vertices.size();
-			newCommand.textureId = UINT32_MAX;
-			newCommand.isTransparent = isTransparent;
-			drawCommands.emplace_back(newCommand);
-		}
-
+		changeBatchIfNeeded(UINT32_MAX, isTransparent);
 		DrawCmd3D& cmd = drawCommands[drawCommands.size() - 1];
 
 		uint16 triStartIndex = (uint16)cmd.vertCount;
@@ -2583,22 +2390,8 @@ namespace MathAnim
 
 	void DrawList3D::addMultiColoredTri(const Vec3& p0, const Vec4& c0, const Vec3& p1, const Vec4& c1, const Vec3& p2, const Vec4& c2, AnimObjId)
 	{
-		// Check if we need to switch to a new batch
 		bool isTransparent = c0.a < 1.0f || c1.a < 1.0f || c2.a < 1.0f; // TODO: Might not want to do this, because OIT makes some stuff look kinda weird
-		if (drawCommands.size() == 0 ||
-			drawCommands[drawCommands.size() - 1].textureId != UINT32_MAX ||
-			drawCommands[drawCommands.size() - 1].isTransparent != isTransparent)
-		{
-			DrawCmd3D newCommand;
-			newCommand.elementCount = 0;
-			newCommand.vertCount = 0;
-			newCommand.indexOffset = (uint32)indices.size();
-			newCommand.vertexOffset = (uint32)vertices.size();
-			newCommand.textureId = UINT32_MAX;
-			newCommand.isTransparent = isTransparent;
-			drawCommands.emplace_back(newCommand);
-		}
-
+		changeBatchIfNeeded(UINT32_MAX, isTransparent);
 		DrawCmd3D& cmd = drawCommands[drawCommands.size() - 1];
 
 		uint16 triStartIndex = (uint16)cmd.vertCount;
@@ -2659,8 +2452,7 @@ namespace MathAnim
 		const Shader& opaqueShader,
 		const Shader& transparentShader,
 		const Shader& compositeShader,
-		const Framebuffer& framebuffer,
-		const Camera& camera
+		const Framebuffer& framebuffer
 	) const
 	{
 		if (vertices.size() == 0)
@@ -2683,8 +2475,6 @@ namespace MathAnim
 
 		// First render opaque objects
 		opaqueShader.bind();
-		opaqueShader.uploadMat4("uProjection", camera.projectionMatrix);
-		opaqueShader.uploadMat4("uView", camera.viewMatrix);
 		//opaqueShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
 		//opaqueShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
 
@@ -2694,6 +2484,9 @@ namespace MathAnim
 			{
 				continue;
 			}
+
+			opaqueShader.uploadMat4("uProjection", drawCommands[i].camera->projectionMatrix);
+			opaqueShader.uploadMat4("uView", drawCommands[i].camera->viewMatrix);
 
 			if (drawCommands[i].textureId != UINT32_MAX)
 			{
@@ -2762,8 +2555,6 @@ namespace MathAnim
 
 		// Then render the transparent surfaces
 		transparentShader.bind();
-		transparentShader.uploadMat4("uProjection", camera.projectionMatrix);
-		transparentShader.uploadMat4("uView", camera.viewMatrix);
 		//transparentShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
 		//transparentShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
 
@@ -2773,6 +2564,9 @@ namespace MathAnim
 			{
 				continue;
 			}
+
+			transparentShader.uploadMat4("uProjection", drawCommands[i].camera->projectionMatrix);
+			transparentShader.uploadMat4("uView", drawCommands[i].camera->viewMatrix);
 
 			if (drawCommands[i].textureId != UINT32_MAX)
 			{

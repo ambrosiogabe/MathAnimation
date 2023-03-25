@@ -189,11 +189,9 @@ namespace MathAnim
 				deltaFrame = absoluteCurrentFrame - absolutePrevFrame;
 				absolutePrevFrame = absoluteCurrentFrame;
 
-				// Update systems all systems/collect systems draw calls
+				// Update systems all systems
 				GizmoManager::update(am);
 				EditorCameraController::update(deltaTime, editorCamera);
-				// Update Animation logic and collect draw calls
-				AnimationManager::render(am, deltaFrame);
 				LaTexLayer::update();
 				LuauLayer::update();
 
@@ -205,8 +203,16 @@ namespace MathAnim
 				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
 				{
 					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
+					Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am)->as.camera);
+					Renderer::pushCamera3D(&AnimationManager::getActiveCamera3D(am)->as.camera);
+					AnimationManager::render(am, deltaFrame);
+					Renderer::popCamera2D();
+					Renderer::popCamera3D();
+
 					Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
 					Renderer::renderToFramebuffer(mainFramebuffer, am);
+
+					Renderer::clearDrawCalls();
 				}
 
 				// Render editor viewport and active objects with outlines around them
@@ -215,15 +221,18 @@ namespace MathAnim
 					Renderer::bindAndUpdateViewportForFramebuffer(editorFramebuffer);
 					Renderer::clearFramebuffer(editorFramebuffer, "#3a3a39"_hex);
 
+					Renderer::pushCamera2D(&editorCamera);
+					Renderer::pushCamera3D(&editorCamera);
+
 					{
 						// Then render the rest of the stuff
 						MP_PROFILE_EVENT("MainLoop_RenderToEditorViewport");
 						editorFramebuffer.clearDepthStencil();
 
-						// NOTE: We use the editor camera for 2D and 3D cameras since there's only
-						//       one editor camera, but the potential for a separate 2D/3D camera in
-						//       the scene's final output
-						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera, editorCamera);
+						// Collect draw calls
+						AnimationManager::render(am, deltaFrame);
+
+						Renderer::renderToFramebuffer(editorFramebuffer);
 
 						Renderer::clearDrawCalls();
 					}
@@ -241,10 +250,13 @@ namespace MathAnim
 						MP_PROFILE_EVENT("MainLoop_RenderGizmos");
 						editorFramebuffer.clearDepthStencil();
 						GizmoManager::render(am);
-						Renderer::renderToFramebuffer(editorFramebuffer, editorCamera, editorCamera);
+						Renderer::renderToFramebuffer(editorFramebuffer);
 
 						Renderer::clearDrawCalls();
 					}
+
+					Renderer::popCamera2D();
+					Renderer::popCamera3D();
 				}
 
 				// Bind the window framebuffer and render ImGui results
@@ -266,6 +278,7 @@ namespace MathAnim
 				// End frame stuff
 				AnimationManager::endFrame(am);
 				editorCamera.endFrame();
+				Renderer::endFrame();
 
 				// Miscellaneous
 				globalThreadPool->processFinishedTasks();
@@ -285,9 +298,15 @@ namespace MathAnim
 			// If the window is closing, save the last rendered frame to a preview image
 			// TODO: Do this a better way
 			// Like no hard coded image path here and hard coded number of components
+			Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am)->as.camera);
+			Renderer::pushCamera3D(&AnimationManager::getActiveCamera3D(am)->as.camera);
 			AnimationManager::render(am, 0);
+			Renderer::popCamera2D();
+			Renderer::popCamera3D();
+
 			Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
 			Renderer::renderToFramebuffer(mainFramebuffer, am);
+
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path outputFile = (currentProjectRoot / "projectPreview.png");
 			if (mainFramebuffer.width > 1280 || mainFramebuffer.height > 720)

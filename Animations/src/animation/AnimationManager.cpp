@@ -373,9 +373,7 @@ namespace MathAnim
 				applyDelta(am, deltaFrame);
 			}
 
-			// Render any active/animating objects
-			// Make sure to initialize the NanoVG cache and then flush it after all the
-			// draw calls are complete
+			// NOTE: Render any active/animating objects
 			{
 				MP_PROFILE_EVENT("AnimationManager_UpdateActiveObjects");
 

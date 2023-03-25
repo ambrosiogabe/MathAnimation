@@ -38,11 +38,12 @@ namespace MathAnim
 	{
 		void init();
 		void free();
+		void endFrame();
 
 		// ----------- Render calls ----------- 
 		void bindAndUpdateViewportForFramebuffer(Framebuffer& framebuffer);
 		void clearFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor);
-		void renderToFramebuffer(Framebuffer& framebuffer, const Camera& camera2D, const Camera& camera3D);
+		void renderToFramebuffer(Framebuffer& framebuffer);
 		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am);
 		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects);
 
@@ -59,12 +60,16 @@ namespace MathAnim
 		void pushColor(const Vec4& color);
 		void pushLineEnding(CapType lineEnding);
 		void pushFont(const SizedFont* sizedFont);
+		void pushCamera2D(const Camera* camera);
+		void pushCamera3D(const Camera* camera);
 		Vec4 getColor();
 
 		void popStrokeWidth(int numToPop = 1);
 		void popColor(int numToPop = 1);
 		void popLineEnding(int numToPop = 1);
 		void popFont(int numToPop = 1);
+		void popCamera2D(int numToPop = 1);
+		void popCamera3D(int numToPop = 1);
 
 		// ----------- 2D stuff ----------- 
 		// TODO: Switch to using this when drawing completed objects to potentially
