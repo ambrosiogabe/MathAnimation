@@ -121,8 +121,8 @@ namespace MathAnim
 
 			LaTexLayer::init();
 
-			mainFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
-			editorFramebuffer = AnimationManager::prepareFramebuffer(outputWidth, outputHeight);
+			mainFramebuffer = Renderer::prepareFramebuffer(outputWidth, outputHeight);
+			editorFramebuffer = Renderer::prepareFramebuffer(outputWidth, outputHeight);
 
 			currentProjectRoot = std::filesystem::path(projectFile).parent_path();
 			currentProjectTmpDir = currentProjectRoot / "tmp";
@@ -251,7 +251,10 @@ namespace MathAnim
 						editorFramebuffer.clearDepthStencil();
 						GizmoManager::render(am);
 						Renderer::renderToFramebuffer(editorFramebuffer);
+						Renderer::clearDrawCalls();
 
+						// Draw the gizmo manager miscellaneous stuff
+						GizmoManager::renderOrientationGizmo(editorCamera);
 						Renderer::clearDrawCalls();
 					}
 

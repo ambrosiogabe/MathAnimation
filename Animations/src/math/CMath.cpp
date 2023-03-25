@@ -93,16 +93,6 @@ namespace MathAnim
 			return compare(vec1.x, vec2.x, epsilon) && compare(vec1.y, vec2.y, epsilon) && compare(vec1.z, vec2.z, epsilon) && compare(vec1.w, vec2.w, epsilon);
 		}
 
-		Vec2 vector2From3(const Vec3& vec)
-		{
-			return Vec2{ vec.x, vec.y };
-		}
-
-		Vec3 vector3From2(const Vec2& vec)
-		{
-			return Vec3{ vec.x, vec.y, 0.0f };
-		}
-
 		float toRadians(float degrees)
 		{
 			return degrees * PI / 180.0f;

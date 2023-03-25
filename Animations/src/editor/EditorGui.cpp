@@ -237,37 +237,53 @@ namespace MathAnim
 			mouseHoveringViewport = ImGui::IsItemHovered();
 
 			// Draw action text displayed in the bottom left corner of the viewport
-			ImGui::PushFont(ImGuiLayer::getMediumFont());
-
-			ImDrawList* drawList = ImGui::GetWindowDrawList();
-			float fontHeight = ImGui::GetFontSize();
-			ImVec2 position = ImGui::GetWindowPos() + ImVec2(0.0f, ImGui::GetWindowSize().y);
-			position.y -= fontHeight * (float)actionTextQueue.size();
-			for (auto iter = actionTextQueue.begin(); iter != actionTextQueue.end(); iter++)
 			{
-				constexpr float fadeTime = 0.5f;
-				float opacity = 1.0f;
-				if (iter->displayTimeLeft <= fadeTime)
+				ImGui::PushFont(ImGuiLayer::getMediumFont());
+
+				ImDrawList* drawList = ImGui::GetWindowDrawList();
+				float fontHeight = ImGui::GetFontSize();
+				ImVec2 position = ImGui::GetWindowPos() + ImVec2(0.0f, ImGui::GetWindowSize().y);
+				position.y -= fontHeight * (float)actionTextQueue.size();
+				for (auto iter = actionTextQueue.begin(); iter != actionTextQueue.end(); iter++)
 				{
-					opacity = 1.0f - ((fadeTime - iter->displayTimeLeft) / fadeTime);
-				}
-
-				drawList->AddText(position, ImColor(1.0f, 1.0f, 1.0f, opacity), iter->text.c_str());
-				position.y += fontHeight;
-
-				iter->displayTimeLeft -= deltaTime;
-
-				if (iter->displayTimeLeft <= 0.0f)
-				{
-					iter = actionTextQueue.erase(iter);
-					if (actionTextQueue.size() == 0)
+					constexpr float fadeTime = 0.5f;
+					float opacity = 1.0f;
+					if (iter->displayTimeLeft <= fadeTime)
 					{
-						break;
+						opacity = 1.0f - ((fadeTime - iter->displayTimeLeft) / fadeTime);
+					}
+
+					drawList->AddText(position, ImColor(1.0f, 1.0f, 1.0f, opacity), iter->text.c_str());
+					position.y += fontHeight;
+
+					iter->displayTimeLeft -= deltaTime;
+
+					if (iter->displayTimeLeft <= 0.0f)
+					{
+						iter = actionTextQueue.erase(iter);
+						if (actionTextQueue.size() == 0)
+						{
+							break;
+						}
 					}
 				}
+
+				ImGui::PopFont();
 			}
 
-			ImGui::PopFont();
+			// Composite camera orientation texture in top right corner of the window
+			{
+				const Texture& cameraOrientationTexture = GizmoManager::getCameraOrientationTexture();
+				ImGui::SetCursorPos(editorViewportRelativeOffset);
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + viewportSize.x - cameraOrientationTexture.width);
+				ImTextureID cameraOrientationTextureId = (void*)(uintptr_t)cameraOrientationTexture.graphicsId;
+				ImGui::Image(
+					cameraOrientationTextureId, 
+					ImVec2((float)cameraOrientationTexture.width, (float)cameraOrientationTexture.height),
+					ImVec2(0, 0), 
+					ImVec2(1, 1)
+				);
+			}
 
 			ImGui::End();
 		}

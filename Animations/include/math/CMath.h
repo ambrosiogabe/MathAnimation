@@ -149,8 +149,9 @@ namespace MathAnim
 		}
 
 		// Vector conversions
-		Vec2 vector2From3(const Vec3& vec);
-		Vec3 vector3From2(const Vec2& vec);
+		inline Vec2 vector2From3(const Vec3& vec) { return Vec2{ vec.x, vec.y }; }
+		inline Vec3 vector3From2(const Vec2& vec) { return Vec3{ vec.x, vec.y, 0.0f }; }
+		inline Vec3 vector3From4(const Vec4& vec) { return Vec3{ vec.x, vec.y, vec.z }; }
 
 		// Math functions
 		void rotate(Vec2& vec, float angleDeg, const Vec2& origin);

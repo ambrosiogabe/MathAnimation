@@ -33,7 +33,6 @@ namespace MathAnim
 		bool setAnimationTime(AnimationManagerData* am, AnimId anim, int frameStart, int duration);
 		void setAnimationTrack(AnimationManagerData* am, AnimId anim, int track);
 
-		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight);
 		void render(AnimationManagerData* am, int deltaFrame);
 
 		int lastAnimatedFrame(const AnimationManagerData* am);

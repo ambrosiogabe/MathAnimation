@@ -68,6 +68,9 @@ namespace MathAnim
 		static constexpr float defaultArrowTipHeight = 0.25f;
 		static constexpr float defaultArrowTipHalfWidth = 0.1f;
 
+		static constexpr int cameraOrientationFramebufferSize = 180;
+		static Framebuffer cameraOrientationFramebuffer;
+
 		static constexpr uint64 NullGizmo = UINT64_MAX;
 
 		// -------------- Internal Functions --------------
@@ -88,6 +91,8 @@ namespace MathAnim
 			gGizmoManager->activeGizmo = NullGizmo;
 			gGizmoManager->mouseWorldPos3f = Vec3{ NAN, NAN, NAN };
 			gGizmoManager->mouseWorldPos2f = Vec2{ 0.0f, 0.0f };
+
+			cameraOrientationFramebuffer = Renderer::prepareFramebuffer(cameraOrientationFramebufferSize, cameraOrientationFramebufferSize);
 		}
 
 		void update(AnimationManagerData* am)
@@ -106,39 +111,113 @@ namespace MathAnim
 			MP_PROFILE_EVENT("Gizmo_Render");
 
 			// Render call stuff
-			GlobalContext* g = gGizmoManager;
-			for (auto iter : g->gizmos)
 			{
-				if (iter->shouldDraw)
+				GlobalContext* g = gGizmoManager;
+				for (auto iter : g->gizmos)
 				{
-					// Draw the gizmo
-					iter->render();
+					if (iter->shouldDraw)
+					{
+						// Draw the gizmo
+						iter->render();
+					}
+				}
+
+				// End Frame stuff
+				for (auto iter : g->gizmos)
+				{
+					iter->shouldDraw = false;
 				}
 			}
 
-			// End Frame stuff
-			for (auto iter : g->gizmos)
+			// Draw animation manager camera frustum/billboards
 			{
-				iter->shouldDraw = false;
+				const AnimObject* orthoCameraObj = AnimationManager::getActiveCamera2D(am);
+				if (orthoCameraObj)
+				{
+					const Camera& orthoCamera = orthoCameraObj->as.camera;
+
+					Renderer::pushStrokeWidth(0.05f);
+					Renderer::pushColor(Colors::Neutral[0]);
+					Vec4 leftRightBottomTop = orthoCamera.getLeftRightBottomTop();
+					Vec2 projectionSize = CMath::abs(Vec2{
+						leftRightBottomTop.values[1] - leftRightBottomTop.values[0],
+						leftRightBottomTop.values[3] - leftRightBottomTop.values[2]
+						});
+					Renderer::drawSquare(CMath::vector2From3(orthoCamera.position) - projectionSize / 2.0f, projectionSize);
+					Renderer::popColor();
+					Renderer::popStrokeWidth();
+				}
+			}
+		}
+
+		void renderOrientationGizmo(const Camera& editorCamera)
+		{
+			// Collect draw calls
+			{
+				static Camera dummyCamera = Camera::createDefault();
+				dummyCamera.mode = CameraMode::Perspective;
+				dummyCamera.aspectRatioFraction.x = 1;
+				dummyCamera.aspectRatioFraction.y = 1;
+				dummyCamera.orientation = editorCamera.orientation;
+				dummyCamera.focalDistance = editorCamera.focalDistance;
+				dummyCamera.orthoZoomLevel = editorCamera.orthoZoomLevel;
+				dummyCamera.calculateMatrices(true);
+
+				dummyCamera.position = -6.0f * dummyCamera.forward;
+				dummyCamera.calculateMatrices(true);
+
+				Renderer::pushCamera3D(&dummyCamera);
+
+				constexpr float size = 0.15f;
+				constexpr float radius = 0.8f;
+				constexpr float lineHeight = 0.1f;
+
+				glm::mat4 xPositiveCircleTransform = glm::mat4(1.0f);
+				xPositiveCircleTransform = glm::translate(xPositiveCircleTransform, glm::vec3(radius, 0.0f, 0.0f));
+				Renderer::drawFilledCircle3D(Vec3{0, 0, 0}, size, 12, Colors::AccentRed[4], xPositiveCircleTransform, true);
+
+				glm::mat4 xNegativeCircleTransform = glm::mat4(1.0f);
+				xNegativeCircleTransform = glm::translate(xNegativeCircleTransform, glm::vec3(-radius, 0.0f, 0.0f));
+				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::AccentRed[6], xNegativeCircleTransform);
+
+
+				glm::mat4 yPositiveCircleTransform = glm::mat4(1.0f);
+				yPositiveCircleTransform = glm::translate(yPositiveCircleTransform, glm::vec3(0.0f, radius, 0.0f));
+				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::Primary[4], yPositiveCircleTransform);
+
+				glm::mat4 yNegativeCircleTransform = glm::mat4(1.0f);
+				yNegativeCircleTransform = glm::translate(yNegativeCircleTransform, glm::vec3(0.0f, -radius, 0.0f));
+				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::Primary[7], yNegativeCircleTransform);
+
+
+				glm::mat4 zPositiveCircleTransform = glm::mat4(1.0f);
+				zPositiveCircleTransform = glm::translate(zPositiveCircleTransform, glm::vec3(0.0f, 0.0f, radius));
+				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::AccentGreen[4], zPositiveCircleTransform);
+
+				glm::mat4 zNegativeCircleTransform = glm::mat4(1.0f);
+				zNegativeCircleTransform = glm::translate(zNegativeCircleTransform, glm::vec3(0.0f, 0.0f, -radius));
+				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::AccentGreen[6], zNegativeCircleTransform);
+
+				glm::mat4 xLineTransform = glm::mat4(1.0f);
+				xLineTransform = glm::translate(xLineTransform, glm::vec3(radius / 2.0f, 0.0f, 0.0f));
+				Renderer::drawFilledQuad3D(Vec3{ radius, lineHeight, 0 }, Colors::AccentRed[4], NULL_ANIM_OBJECT, xLineTransform);
+
+				glm::mat4 yLineTransform = glm::mat4(1.0f);
+				yLineTransform = glm::translate(yLineTransform, glm::vec3(0.0f, radius / 2.0f, 0.0f));
+				Renderer::drawFilledQuad3D(Vec3{ lineHeight, radius, 0 }, Colors::Primary[4], NULL_ANIM_OBJECT, yLineTransform);
+
+				glm::mat4 zLineTransform = glm::mat4(1.0f);
+				zLineTransform = glm::rotate(zLineTransform, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+				zLineTransform = glm::translate(zLineTransform, glm::vec3(radius / 2.0f, 0.0f, 0.0f));
+				Renderer::drawFilledQuad3D(Vec3{ radius, lineHeight, 0.0f }, Colors::AccentGreen[4], NULL_ANIM_OBJECT, zLineTransform);
+
+				Renderer::popCamera3D();
 			}
 
-			const AnimObject* orthoCameraObj = AnimationManager::getActiveCamera2D(am);
-			if (orthoCameraObj)
-			{
-				const Camera& orthoCamera = orthoCameraObj->as.camera;
-				// TODO: This will probably have to be converted to a 3D square
-				// Draw camera outlines
-				Renderer::pushStrokeWidth(0.05f);
-				Renderer::pushColor(Colors::Neutral[0]);
-				Vec4 leftRightBottomTop = orthoCamera.getLeftRightBottomTop();
-				Vec2 projectionSize = CMath::abs(Vec2{ 
-					leftRightBottomTop.values[1] - leftRightBottomTop.values[0],
-					leftRightBottomTop.values[3] - leftRightBottomTop.values[2]
-				});
-				Renderer::drawSquare(CMath::vector2From3(orthoCamera.position) - projectionSize / 2.0f, projectionSize);
-				Renderer::popColor();
-				Renderer::popStrokeWidth();
-			}
+			// Draw the output to the framebuffer
+			Renderer::bindAndUpdateViewportForFramebuffer(cameraOrientationFramebuffer);
+			Renderer::clearFramebuffer(cameraOrientationFramebuffer, Vec4{ 0, 0, 0, 0 });
+			Renderer::renderToFramebuffer(cameraOrientationFramebuffer);
 		}
 
 		void free()
@@ -156,6 +235,13 @@ namespace MathAnim
 				g_memory_free(gGizmoManager);
 				gGizmoManager = nullptr;
 			}
+
+			cameraOrientationFramebuffer.destroy();
+		}
+
+		const Texture& getCameraOrientationTexture()
+		{
+			return cameraOrientationFramebuffer.getColorAttachment(0);
 		}
 
 		bool anyGizmoActive()
@@ -549,9 +635,9 @@ namespace MathAnim
 				Renderer::pushColor(*color);
 				Renderer::drawFilledQuad(pos, GizmoManager::defaultHorizontalMoveSize * zoom);
 				float stemHalfSize = GizmoManager::defaultHorizontalMoveSize.x / 2.0f;
-				Vec2 triP0 = pos + Vec2{ stemHalfSize, GizmoManager::defaultArrowTipHalfWidth } * zoom;
-				Vec2 triP1 = pos + Vec2{ stemHalfSize + GizmoManager::defaultArrowTipHeight, 0.0f } * zoom;
-				Vec2 triP2 = pos + Vec2{ stemHalfSize, -GizmoManager::defaultArrowTipHalfWidth } * zoom;
+				Vec2 triP0 = pos + Vec2{ stemHalfSize, GizmoManager::defaultArrowTipHalfWidth } *zoom;
+				Vec2 triP1 = pos + Vec2{ stemHalfSize + GizmoManager::defaultArrowTipHeight, 0.0f } *zoom;
+				Vec2 triP2 = pos + Vec2{ stemHalfSize, -GizmoManager::defaultArrowTipHalfWidth } *zoom;
 				Renderer::drawFilledTri(triP0, triP1, triP2);
 				Renderer::popColor();
 			}
@@ -579,9 +665,9 @@ namespace MathAnim
 				Renderer::pushColor(*color);
 				Renderer::drawFilledQuad(pos, GizmoManager::defaultVerticalMoveSize * zoom);
 				float stemHalfSize = GizmoManager::defaultVerticalMoveSize.y / 2.0f;
-				Vec2 triP0 = pos + Vec2{ -GizmoManager::defaultArrowTipHalfWidth, stemHalfSize } * zoom;
-				Vec2 triP1 = pos + Vec2{ 0.0f, stemHalfSize + GizmoManager::defaultArrowTipHeight } * zoom;
-				Vec2 triP2 = pos + Vec2{ GizmoManager::defaultArrowTipHalfWidth, stemHalfSize } * zoom;
+				Vec2 triP0 = pos + Vec2{ -GizmoManager::defaultArrowTipHalfWidth, stemHalfSize } *zoom;
+				Vec2 triP1 = pos + Vec2{ 0.0f, stemHalfSize + GizmoManager::defaultArrowTipHeight } *zoom;
+				Vec2 triP2 = pos + Vec2{ GizmoManager::defaultArrowTipHalfWidth, stemHalfSize } *zoom;
 				Renderer::drawFilledTri(triP0, triP1, triP2);
 				Renderer::popColor();
 			}
