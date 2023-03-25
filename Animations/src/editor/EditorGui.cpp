@@ -7,6 +7,7 @@
 #include "editor/panels/InspectorPanel.h"
 #include "editor/panels/ConsoleLog.h"
 #include "editor/timeline/Timeline.h"
+#include "editor/imgui/ImGuiLayer.h"
 #include "editor/Gizmos.h"
 #include "editor/EditorSettings.h"
 #include "editor/EditorLayout.h"
@@ -22,9 +23,16 @@
 
 namespace MathAnim
 {
+	struct ActionText
+	{
+		std::string text;
+		float displayTimeLeft;
+	};
+
 	namespace EditorGui
 	{
 		// ------------- Internal Functions -------------
+		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime);
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
 		static void checkHotKeys(AnimationManagerData* am);
 		static void checkForMousePicking(const AnimationManagerData* am, const Framebuffer& mainFramebuffer);
@@ -39,12 +47,14 @@ namespace MathAnim
 		static bool mouseHoveringViewport;
 		static bool mainViewportIsActive;
 		static bool editorViewportIsActive;
+		static std::vector<ActionText> actionTextQueue;
 
 		static bool openActiveObjectSelectionContextMenu = false;
 		static const char* openActiveObjectSelectionContextMenuId = "##ACTIVE_OBJECT_SELECTION_CTX_MENU";
 
 		void init(AnimationManagerData* am, const std::filesystem::path& projectRoot, uint32 outputWidth, uint32 outputHeight)
 		{
+			actionTextQueue = {};
 			viewportOffset = { 0, 0 };
 			viewportSize = { 0, 0 };
 
@@ -63,7 +73,7 @@ namespace MathAnim
 			timelineLoaded = true;
 		}
 
-		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am)
+		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am, float deltaTime)
 		{
 			MP_PROFILE_EVENT("EditorGui_Update");
 
@@ -109,23 +119,7 @@ namespace MathAnim
 			mainViewportIsActive = ImGui::IsItemVisible();
 			ImGui::End();
 
-			// Draw the editor framebuffer viewport
-			{
-				ImGui::Begin("Animation Editor View", nullptr);
-
-				ImVec2 editorViewportRelativeOffset;
-				getLargestSizeForViewport(&viewportSize, &editorViewportRelativeOffset);
-				ImGui::SetCursorPos(editorViewportRelativeOffset);
-				viewportOffset = ImGui::GetCursorScreenPos() - ImGui::GetMainViewport()->Pos;
-
-				const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
-				ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
-				ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
-				mouseHoveringViewport = ImGui::IsItemHovered();
-				editorViewportIsActive = ImGui::IsItemVisible();
-
-				ImGui::End();
-			}
+			drawEditorViewport(editorFramebuffer, deltaTime);
 
 			ImGui::PopStyleVar();
 
@@ -206,6 +200,12 @@ namespace MathAnim
 			timelineLoaded = true;
 		}
 
+		void displayActionText(const std::string& actionText)
+		{
+			constexpr float timeToDisplaySeconds = 3.0f;
+			actionTextQueue.emplace_back(ActionText{ actionText, timeToDisplaySeconds });
+		}
+
 		bool mainViewportActive()
 		{
 			return mainViewportIsActive;
@@ -222,6 +222,57 @@ namespace MathAnim
 		}
 
 		// ------------- Internal Functions -------------
+		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime)
+		{
+			ImGui::Begin("Animation Editor View", nullptr);
+
+			ImVec2 editorViewportRelativeOffset;
+			getLargestSizeForViewport(&viewportSize, &editorViewportRelativeOffset);
+			ImGui::SetCursorPos(editorViewportRelativeOffset);
+			viewportOffset = ImGui::GetCursorScreenPos() - ImGui::GetMainViewport()->Pos;
+
+			const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
+			ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
+			ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
+			mouseHoveringViewport = ImGui::IsItemHovered();
+			editorViewportIsActive = ImGui::IsItemVisible();
+
+			// Draw action text displayed in the bottom left corner of the viewport
+			ImGui::PushFont(ImGuiLayer::getMediumFont());
+
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			float fontHeight = ImGui::GetFontSize();
+			ImVec2 position = ImGui::GetWindowPos() + ImVec2(0.0f, ImGui::GetWindowSize().y);
+			position.y -= fontHeight * (float)actionTextQueue.size();
+			for (auto iter = actionTextQueue.begin(); iter != actionTextQueue.end(); iter++)
+			{
+				constexpr float fadeTime = 0.5f;
+				float opacity = 1.0f;
+				if (iter->displayTimeLeft <= fadeTime)
+				{
+					opacity = 1.0f - ((fadeTime - iter->displayTimeLeft) / fadeTime);
+				}
+
+				drawList->AddText(position, ImColor(1.0f, 1.0f, 1.0f, opacity), iter->text.c_str());
+				position.y += fontHeight;
+
+				iter->displayTimeLeft -= deltaTime;
+
+				if (iter->displayTimeLeft <= 0.0f)
+				{
+					iter = actionTextQueue.erase(iter);
+					if (actionTextQueue.size() == 0)
+					{
+						break;
+					}
+				}
+			}
+
+			ImGui::PopFont();
+
+			ImGui::End();
+		}
+
 		static void checkHotKeys(AnimationManagerData* am)
 		{
 			AnimObjId activeAnimObj = InspectorPanel::getActiveAnimObject();

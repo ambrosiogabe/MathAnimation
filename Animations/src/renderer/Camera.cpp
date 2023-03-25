@@ -15,35 +15,36 @@ namespace MathAnim
 	static constexpr glm::vec3 GLOBAL_RIGHT = glm::vec3(1, 0, 0);
 	static constexpr glm::vec3 GLOBAL_FORWARD = glm::vec3(0, 0, 1);
 
-	void Camera::calculateMatrices()
+	void Camera::calculateMatrices(bool ignoreCache)
 	{
-		if (matricesAreCached)
+		if (matricesAreCached && !ignoreCache)
 		{
 			return;
 		}
 
 		aspectRatio = (float)aspectRatioFraction.x / (float)aspectRatioFraction.y;
 
-		forward = CMath::convert(orientation * GLOBAL_FORWARD);
-		right = CMath::convert(orientation * GLOBAL_RIGHT);
-		up = CMath::convert(orientation * GLOBAL_UP);
-		
-		perspProjectionMatrix = glm::perspective(
-			fov,
-			aspectRatio,
-			nearFarRange.min,
-			nearFarRange.max
-		);
+		forward = CMath::normalize(CMath::convert(orientation * GLOBAL_FORWARD));
+		right = CMath::normalize(CMath::convert(orientation * GLOBAL_RIGHT));
+		up = CMath::normalize(CMath::convert(orientation * GLOBAL_UP));
 
-		Vec4 orthoLeftRightBottomTop = getLeftRightBottomTop();
-		orthoProjectionMatrix = glm::ortho(
-			orthoLeftRightBottomTop.values[0],
-			orthoLeftRightBottomTop.values[1],
-			orthoLeftRightBottomTop.values[2],
-			orthoLeftRightBottomTop.values[3],
-			nearFarRange.min,
-			nearFarRange.max
-		);
+		fov = glm::clamp(fov, 1.0f, 270.0f);
+		if (mode == CameraMode::Perspective)
+		{
+			projectionMatrix = glm::perspective(fov, aspectRatio, nearFarRange.min, nearFarRange.max);
+		}
+		else
+		{
+			Vec4 orthoLeftRightBottomTop = getLeftRightBottomTop();
+			projectionMatrix = glm::ortho(
+				orthoLeftRightBottomTop.values[0],
+				orthoLeftRightBottomTop.values[1],
+				orthoLeftRightBottomTop.values[2],
+				orthoLeftRightBottomTop.values[3],
+				nearFarRange.min,
+				nearFarRange.max
+			);
+		}
 
 		viewMatrix = glm::lookAt(
 			CMath::convert(position),
@@ -59,27 +60,30 @@ namespace MathAnim
 		matricesAreCached = false;
 	}
 
-	Vec2 Camera::reverseProject(const Vec2& normalizedInput) const
+	Vec3 Camera::reverseProject(const Vec2& normalizedInput) const
 	{
 		Vec2 ndcCoords = normalizedInput * 2.0f - Vec2{ 1.0f, 1.0f };
 		glm::mat4 inverseView = glm::inverse(viewMatrix);
-		glm::mat4 inverseProj = glm::inverse(getProjectionMatrix());
-		glm::vec4 res = glm::vec4(ndcCoords.x, ndcCoords.y, 0.0f, 1.0f);
+		glm::mat4 inverseProj = glm::inverse(projectionMatrix);
+		float zDepth = CMath::mapRange(nearFarRange, Vec2{ 0.0f, 1.0f }, focalDistance);
+		glm::vec4 res = glm::vec4(ndcCoords.x, ndcCoords.y, zDepth, 1.0f);
 		res = inverseView * inverseProj * res;
-		return Vec2{ res.x, res.y };
+		return Vec3{ res.x, res.y, res.z };
 	}
 
 	Vec4 Camera::getLeftRightBottomTop() const
 	{
-		// Adapted from https://stackoverflow.com/a/23720633
-		float halfY = fov / 2.0f;
-		float topPlane = focusPlane * glm::tan(halfY);
-		float rightPlane = topPlane * aspectRatio;
+		float sizeX = focalDistance * glm::tan(glm::radians(fov / 2.0f));
+		float sizeY = sizeX / aspectRatio;
+
+		float halfSizeX = -sizeX * 0.5f;
+		float halfSizeY = -sizeY * 0.5f;
+
 		return Vec4{
-			-rightPlane,
-			rightPlane,
-			-topPlane,
-			topPlane
+			-halfSizeX * orthoZoomLevel,
+			halfSizeX * orthoZoomLevel,
+			-halfSizeY * orthoZoomLevel,
+			halfSizeY * orthoZoomLevel
 		};
 	}
 
@@ -92,7 +96,8 @@ namespace MathAnim
 		SERIALIZE_VEC(j, this, aspectRatioFraction);
 		SERIALIZE_VEC(j, this, nearFarRange);
 		SERIALIZE_VEC(j, this, fillColor);
-		SERIALIZE_NON_NULL_PROP(j, this, focusPlane);
+		SERIALIZE_NON_NULL_PROP(j, this, orthoZoomLevel);
+		SERIALIZE_NON_NULL_PROP(j, this, focalDistance);
 	}
 
 	Camera Camera::deserialize(const nlohmann::json& j, uint32 version)
@@ -109,7 +114,8 @@ namespace MathAnim
 			DESERIALIZE_VEC2i(&res, aspectRatioFraction, j, res.aspectRatioFraction);
 			DESERIALIZE_VEC2(&res, nearFarRange, j, res.nearFarRange);
 			DESERIALIZE_VEC4(&res, fillColor, j, res.fillColor);
-			DESERIALIZE_PROP(&res, focusPlane, j, res.focusPlane);
+			DESERIALIZE_PROP(&res, orthoZoomLevel, j, res.orthoZoomLevel);
+			DESERIALIZE_PROP(&res, focalDistance, j, res.focalDistance);
 
 			res.matricesAreCached = false;
 			res.calculateMatrices();
@@ -131,7 +137,7 @@ namespace MathAnim
 
 		// Quaternion from euler angles
 		res.orientation = glm::quat(glm::vec3(0.0f, 0.0f, 0.0f));
-		res.position = Vec3{0, 0, 0};
+		res.position = Vec3{ 0, 0, -7 };
 		res.mode = CameraMode::Orthographic;
 		res.fov = 75.0f;
 		res.aspectRatioFraction.x = 1920;
@@ -139,7 +145,8 @@ namespace MathAnim
 		res.nearFarRange = Vec2{ 1.0f, 100.0f };
 		const Vec4 greenBrown = "#272822FF"_hex;
 		res.fillColor = greenBrown;
-		res.focusPlane = (res.nearFarRange.max - res.nearFarRange.min) / 4.0f;
+		res.orthoZoomLevel = 11.0f;
+		res.focalDistance = 1.0f;
 
 		res.calculateMatrices();
 

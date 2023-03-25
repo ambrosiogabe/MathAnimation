@@ -43,7 +43,8 @@ namespace MathAnim
 
 	struct EditorSettingsData
 	{
-		float mouseSensitivity;
+		float cameraPanSensitivity;
+		float cameraRotateSensitivity;
 		float scrollSensitvity;
 		ViewMode viewMode;
 		PreviewSvgFidelity previewFidelity;

@@ -23,8 +23,7 @@ namespace MathAnim
 	struct Camera
 	{
 		// Cached variables
-		glm::mat4 perspProjectionMatrix;
-		glm::mat4 orthoProjectionMatrix;
+		glm::mat4 projectionMatrix;
 		glm::mat4 viewMatrix;
 		Vec3 forward;
 		Vec3 right;
@@ -36,28 +35,17 @@ namespace MathAnim
 		glm::quat orientation;
 		Vec3 position;
 		CameraMode mode;
-		float fov;
 		Vec2i aspectRatioFraction;
 		Vec2 nearFarRange;
-		float focusPlane;
+		float fov;
+		float orthoZoomLevel;
+		float focalDistance;
 		Vec4 fillColor;
 
-		void calculateMatrices();
+		void calculateMatrices(bool ignoreCache = false);
 		void endFrame();
-		Vec2 reverseProject(const Vec2& normalizedInput) const;
+		Vec3 reverseProject(const Vec2& normalizedInput) const;
 		Vec4 getLeftRightBottomTop() const;
-
-		inline const glm::mat4& getProjectionMatrix() const
-		{
-			static glm::mat4 dummy(1.0f);
-			return mode == CameraMode::Orthographic
-				? orthoProjectionMatrix
-				: mode == CameraMode::Perspective
-				? perspProjectionMatrix
-				: dummy;
-		}
-
-		inline float getZoom() const { return focusPlane / ((nearFarRange.max - nearFarRange.min) / 4.0f); }
 
 		void serialize(nlohmann::json& j) const;
 		static Camera deserialize(const nlohmann::json& j, uint32 version);

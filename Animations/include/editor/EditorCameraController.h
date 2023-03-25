@@ -7,7 +7,7 @@ namespace MathAnim
 
 	namespace EditorCameraController
 	{
-		void update(Camera& camera);
+		void update(float deltaTime, Camera& camera);
 	}
 }
 

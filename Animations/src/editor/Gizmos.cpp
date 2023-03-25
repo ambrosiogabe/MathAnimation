@@ -236,11 +236,11 @@ namespace MathAnim
 			}
 
 			const Camera* camera = Application::getEditorCamera();
-			float zoom = camera->getZoom();
+			float zoom = camera->orthoZoomLevel;
 			if (gizmo->moveMode != FollowMouseMoveMode::None)
 			{
 				Vec2 mousePos = EditorGui::mouseToNormalizedViewport();
-				Vec2 unprojectedMousePos = camera->reverseProject(mousePos);
+				Vec3 unprojectedMousePos = camera->reverseProject(mousePos);
 				switch (gizmo->moveMode)
 				{
 				case FollowMouseMoveMode::VtOnly:
@@ -451,7 +451,7 @@ namespace MathAnim
 		{
 			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
 			Camera* camera = Application::getEditorCamera();
-			Vec2 worldCoords = camera->reverseProject(normalizedMousePos);
+			Vec2 worldCoords = CMath::vector2From3(camera->reverseProject(normalizedMousePos));
 			return worldCoords;
 		}
 	}
@@ -463,7 +463,7 @@ namespace MathAnim
 	{
 		GlobalContext* g = GizmoManager::gGizmoManager;
 		const Camera* camera = Application::getEditorCamera();
-		const float zoom = camera->getZoom();
+		const float zoom = camera->orthoZoomLevel;
 		Vec4 leftRightBottomTop = camera->getLeftRightBottomTop();
 		Vec2 projectionSize = Vec2{
 			leftRightBottomTop.values[1] - leftRightBottomTop.values[0],

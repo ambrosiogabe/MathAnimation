@@ -191,7 +191,7 @@ namespace MathAnim
 
 				// Update systems all systems/collect systems draw calls
 				GizmoManager::update(am);
-				EditorCameraController::update(editorCamera);
+				EditorCameraController::update(deltaTime, editorCamera);
 				// Update Animation logic and collect draw calls
 				AnimationManager::render(am, deltaFrame);
 				LaTexLayer::update();
@@ -259,7 +259,7 @@ namespace MathAnim
 				MenuBar::update();
 				ImGui::ShowDemoWindow();
 				SceneManagementPanel::update(sceneData);
-				EditorGui::update(mainFramebuffer, editorFramebuffer, am);
+				EditorGui::update(mainFramebuffer, editorFramebuffer, am, deltaTime);
 				ImGuiLayer::endFrame();
 				GL::popDebugGroup();
 

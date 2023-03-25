@@ -12,7 +12,7 @@ namespace MathAnim
 	{
 		void init(AnimationManagerData* am, const std::filesystem::path& projectRoot, uint32 outputWidth, uint32 outputHeight);
 
-		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am);
+		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am, float deltaTime);
 		void onGizmo(AnimationManagerData* am);
 		Vec2 mouseToNormalizedViewport();
 		Vec2 mouseToViewportCoords();
@@ -21,6 +21,8 @@ namespace MathAnim
 
 		const TimelineData& getTimelineData();
 		void setTimelineData(const TimelineData& data);
+
+		void displayActionText(const std::string& actionText);
 
 		bool mainViewportActive();
 		bool editorViewportActive();

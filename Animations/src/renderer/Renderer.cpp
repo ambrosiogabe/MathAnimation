@@ -2066,7 +2066,7 @@ namespace MathAnim
 		GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		shader.bind();
-		shader.uploadMat4("uProjection", camera.getProjectionMatrix());
+		shader.uploadMat4("uProjection", camera.projectionMatrix);
 		shader.uploadMat4("uView", camera.viewMatrix);
 		shader.uploadInt("uWireframeOn", EditorSettings::getSettings().viewMode == ViewMode::WireMesh);
 
@@ -2253,7 +2253,7 @@ namespace MathAnim
 		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "2D_Font_Pass");
 
 		shader.bind();
-		shader.uploadMat4("uProjection", camera.getProjectionMatrix());
+		shader.uploadMat4("uProjection", camera.projectionMatrix);
 		shader.uploadMat4("uView", camera.viewMatrix);
 
 		for (int i = 0; i < drawCommands.size(); i++)
@@ -2442,7 +2442,7 @@ namespace MathAnim
 		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
 
 		shader.bind();
-		shader.uploadMat4("uProjection", camera.getProjectionMatrix());
+		shader.uploadMat4("uProjection", camera.projectionMatrix);
 		shader.uploadMat4("uView", camera.viewMatrix);
 		shader.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
 
@@ -2683,7 +2683,7 @@ namespace MathAnim
 
 		// First render opaque objects
 		opaqueShader.bind();
-		opaqueShader.uploadMat4("uProjection", camera.getProjectionMatrix());
+		opaqueShader.uploadMat4("uProjection", camera.projectionMatrix);
 		opaqueShader.uploadMat4("uView", camera.viewMatrix);
 		//opaqueShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
 		//opaqueShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));
@@ -2762,7 +2762,7 @@ namespace MathAnim
 
 		// Then render the transparent surfaces
 		transparentShader.bind();
-		transparentShader.uploadMat4("uProjection", camera.getProjectionMatrix());
+		transparentShader.uploadMat4("uProjection", camera.projectionMatrix);
 		transparentShader.uploadMat4("uView", camera.viewMatrix);
 		//transparentShader.uploadVec3("sunDirection", glm::vec3(0.3f, -0.2f, -0.8f));
 		//transparentShader.uploadVec3("sunColor", glm::vec3(sunColor.r, sunColor.g, sunColor.b));

@@ -761,11 +761,10 @@ namespace MathAnim
 			ImGui::DragInt2(": Aspect Ratio", &object->as.camera.aspectRatioFraction.x);
 			ImGui::DragFloat(": Near", &object->as.camera.nearFarRange.min);
 			ImGui::DragFloat(": Far", &object->as.camera.nearFarRange.max);
-
-			float defaultFocusPlane = (object->as.camera.nearFarRange.max - object->as.camera.nearFarRange.min) / 4.0f;
-			float zoomLevel = object->as.camera.focusPlane / defaultFocusPlane;
-			ImGui::DragFloat(": Zoom", &zoomLevel, 0.1f, 0.1f, 10.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
-			object->as.camera.focusPlane = zoomLevel * defaultFocusPlane;
+			ImGui::DragFloat(": Focal Distance", &object->as.camera.focalDistance);
+			ImGui::BeginDisabled(object->as.camera.mode != CameraMode::Orthographic);
+			ImGui::DragFloat(": Ortho Zoom Level", &object->as.camera.orthoZoomLevel);
+			ImGui::EndDisabled();
 
 			ImGui::ColorEdit4(": Background Color", &object->as.camera.fillColor.r);
 		}
