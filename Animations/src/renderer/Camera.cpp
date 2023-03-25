@@ -137,7 +137,7 @@ namespace MathAnim
 
 		// Quaternion from euler angles
 		res.orientation = glm::quat(glm::vec3(0.0f, 0.0f, 0.0f));
-		res.position = Vec3{ 0, 0, -7 };
+		res.position = Vec3{ 9.0f, 4.5f, -20.0f };
 		res.mode = CameraMode::Orthographic;
 		res.fov = 75.0f;
 		res.aspectRatioFraction.x = 1920;
@@ -145,8 +145,8 @@ namespace MathAnim
 		res.nearFarRange = Vec2{ 1.0f, 100.0f };
 		const Vec4 greenBrown = "#272822FF"_hex;
 		res.fillColor = greenBrown;
-		res.orthoZoomLevel = 11.0f;
-		res.focalDistance = 1.0f;
+		res.orthoZoomLevel = 1.0f;
+		res.focalDistance = 20.0f;
 
 		res.calculateMatrices();
 

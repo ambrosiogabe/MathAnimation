@@ -18,8 +18,10 @@ namespace MathAnim
 		static Vec3 lastMouseWorldPos = Vec3{ 0, 0, 0 };
 		static Vec2 lastMouseScreenPos = Vec2{ 0, 0 };
 
-		static bool orthoToPerspectiveTransition = false;
-		static float lastFov = 0.0f;
+		static bool resettingToDefault = false;
+		static constexpr float resetTimeLength = 0.5f;
+		static float resetTimeCounter = 0.0f;
+		static Camera targetCamera;
 
 		void update(float deltaTime, Camera& camera)
 		{
@@ -36,7 +38,27 @@ namespace MathAnim
 			// Reset to default settings
 			if (EditorGui::mouseHoveredEditorViewport() && Input::keyPressed(GLFW_KEY_KP_DECIMAL))
 			{
-				camera = Camera::createDefault();
+				resettingToDefault = true;
+				targetCamera = Camera::createDefault();
+				EditorGui::displayActionText("Editor Camera: Reset to Default '.'");
+				resetTimeCounter = 0.0f;
+			}
+
+			if (resettingToDefault)
+			{
+				camera.orientation = glm::slerp(camera.orientation, targetCamera.orientation, resetTimeCounter / resetTimeLength);
+				camera.position = CMath::convert(glm::lerp(CMath::convert(camera.position), CMath::convert(targetCamera.position), resetTimeCounter / resetTimeLength));
+				camera.focalDistance = glm::lerp(camera.focalDistance, targetCamera.focalDistance, resetTimeCounter / resetTimeLength);
+				camera.orthoZoomLevel = glm::lerp(camera.orthoZoomLevel, targetCamera.orthoZoomLevel, resetTimeCounter / resetTimeLength);
+				if (resetTimeCounter >= resetTimeLength)
+				{
+					CameraMode oldMode = camera.mode;
+					camera = targetCamera;
+					camera.mode = oldMode;
+					resettingToDefault = false;
+				}
+				resetTimeCounter += deltaTime;
+				return;
 			}
 
 			if (EditorGui::mouseHoveredEditorViewport() && Input::keyPressed(GLFW_KEY_KP_5))
@@ -44,22 +66,12 @@ namespace MathAnim
 				if (camera.mode == CameraMode::Perspective)
 				{
 					camera.mode = CameraMode::Orthographic;
-					EditorGui::displayActionText("Camera Mode: Orthographic");
+					EditorGui::displayActionText("Editor Camera: Orthographic Mode '5'");
 				}
 				else
 				{
 					camera.mode = CameraMode::Perspective;
-					EditorGui::displayActionText("Camera Mode: Perspective");
-				}
-			}
-
-			if (orthoToPerspectiveTransition)
-			{
-				camera.fov = glm::lerp(camera.fov, 0.0f, deltaTime);
-				if (camera.fov < 0.5f)
-				{
-					camera.fov = 0.0f;
-					orthoToPerspectiveTransition = false;
+					EditorGui::displayActionText("Editor Camera: Perspective Mode '5'");
 				}
 			}
 
@@ -75,9 +87,12 @@ namespace MathAnim
 						Vec3 worldDelta = mouseWorldPos - lastMouseWorldPos;
 						if (!CMath::compare(worldDelta, Vec3{ 0, 0, 0 }, 0.01f))
 						{
-							camera.position -= worldDelta * data.cameraPanSensitivity;
+							if (camera.mode == CameraMode::Perspective)
+							{
+								worldDelta *= 10.0f;
+							}
+							camera.position -= worldDelta;
 						}
-						g_logger_info("Delta: %2.3f %2.3f %2.3f", worldDelta.x, worldDelta.y, worldDelta.z);
 					}
 
 					camera.calculateMatrices(true);
@@ -99,21 +114,20 @@ namespace MathAnim
 						Vec2 worldDelta = mouseScreenPos - lastMouseScreenPos;
 						constexpr float epsilon = 0.001f;
 
-						float focalDistance = (camera.nearFarRange.max - camera.nearFarRange.min) / 2.0f;
-						Vec3 focalPoint = camera.position + camera.forward * focalDistance;
-
-						if (!CMath::compare(worldDelta.x, 0.0f, epsilon))
-						{
-							camera.orientation = glm::angleAxis(worldDelta.x * data.cameraRotateSensitivity, glm::vec3(0.0f, 1.0f, 0.0f)) * camera.orientation;
-						}
+						Vec3 focalPoint = camera.position + camera.forward * camera.focalDistance;
 
 						if (!CMath::compare(worldDelta.y, 0.0f, epsilon))
 						{
 							camera.orientation = glm::angleAxis(worldDelta.y * data.cameraRotateSensitivity, CMath::convert(camera.right)) * camera.orientation;
 						}
 
+						if (!CMath::compare(worldDelta.x, 0.0f, epsilon))
+						{
+							camera.orientation = glm::angleAxis(worldDelta.x * data.cameraRotateSensitivity, glm::vec3(0.0f, 1.0f, 0.0f)) * camera.orientation;
+						}
+
 						Vec3 newForward = CMath::normalize(CMath::convert(camera.orientation * glm::vec3(0, 0, 1)));
-						camera.position = focalPoint - (newForward * focalDistance);
+						camera.position = focalPoint - (newForward * camera.focalDistance);
 					}
 
 					lastMouseScreenPos = mouseScreenPos;
@@ -134,7 +148,10 @@ namespace MathAnim
 
 					// Change the camera position for 3D zoom effect
 					// Move camera forwards/backwards
-					camera.position -= camera.forward * zoomDelta;
+					camera.position -= camera.forward * zoomDelta * 20.0f;
+					// Change the focal distance as well to compensate for the
+					// camera position change
+					camera.focalDistance += zoomDelta * 20.0f;
 				}
 			}
 		}
