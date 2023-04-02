@@ -44,8 +44,8 @@ namespace MathAnim
 		// ----------- Render calls ----------- 
 		void bindAndUpdateViewportForFramebuffer(Framebuffer& framebuffer);
 		void clearFramebuffer(Framebuffer& framebuffer, const Vec4& clearColor);
-		void renderToFramebuffer(Framebuffer& framebuffer);
-		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am);
+		void renderToFramebuffer(Framebuffer& framebuffer, const char* debugName);
+		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am, const char* debugName);
 		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects);
 
 		void renderFramebuffer(const Framebuffer& framebuffer);
@@ -96,20 +96,8 @@ namespace MathAnim
 
 		void setTransform(Path2DContext* path, const glm::mat4& transform);
 
-		// ----------- 3D Line stuff ----------- 
-		void beginPath3D(const Vec3& start, const Vec3& normal = Vec3{FLT_MAX, FLT_MAX, FLT_MAX});
-		void endPath3D(bool closePath = true);
-
-		void lineTo3D(const Vec3& point, bool applyTransform = true, const Vec3& normal = Vec3{FLT_MAX, FLT_MAX, FLT_MAX});
-		void bezier2To3D(const Vec3& p1, const Vec3& p2);
-		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3);
-
-		void translate3D(const Vec3& translation);
-		void rotate3D(const Vec3& eulerAngles);
-		void setTransform(const glm::mat4& transform);
-		void resetTransform3D();
-
 		// ----------- 3D stuff ----------- 
+		void drawLine3D(const Vec3& start, const Vec3& end, float thickness, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isBillboard = false);
 		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isTransparent = false, bool isBillboard = false);
 		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId = NULL_ANIM_OBJECT, bool isBillboard = false);
@@ -124,11 +112,13 @@ namespace MathAnim
 		int getDrawList2DNumDrawCalls();
 		int getDrawListFont2DNumDrawCalls();
 		int getDrawList3DNumDrawCalls();
+		int getDrawList3DLineNumDrawCalls();
 
 		int getTotalNumTris();
 		int getDrawList2DNumTris();
 		int getDrawListFont2DNumTris();
 		int getDrawList3DNumTris();
+		int getDrawList3DLineNumTris();
 	}
 }
 

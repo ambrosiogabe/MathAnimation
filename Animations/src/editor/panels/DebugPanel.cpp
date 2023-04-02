@@ -134,6 +134,11 @@ namespace MathAnim
 					ImGui::TableNextColumn();
 					ImGui::Text("%d", Renderer::getDrawList3DNumDrawCalls());
 
+					ImGui::TableNextColumn();
+					ImGui::Text("Draw List 3D Lines:");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", Renderer::getDrawList3DLineNumDrawCalls());
+
 					ImGui::EndTable();
 				}
 				ImGui::TreePop();
@@ -164,6 +169,11 @@ namespace MathAnim
 					ImGui::Text("Draw List 3D:");
 					ImGui::TableNextColumn();
 					ImGui::Text("%d", Renderer::getDrawList3DNumTris());
+
+					ImGui::TableNextColumn();
+					ImGui::Text("Draw List 3D Lines:");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", Renderer::getDrawList3DLineNumTris());
 
 					ImGui::EndTable();
 				}

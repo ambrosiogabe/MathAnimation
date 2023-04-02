@@ -210,7 +210,7 @@ namespace MathAnim
 					Renderer::popCamera3D();
 
 					Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
-					Renderer::renderToFramebuffer(mainFramebuffer, am);
+					Renderer::renderToFramebuffer(mainFramebuffer, am, "OutputVP_Main_Framebuffer_Pass");
 
 					Renderer::clearDrawCalls();
 				}
@@ -232,7 +232,7 @@ namespace MathAnim
 						// Collect draw calls
 						AnimationManager::render(am, deltaFrame);
 
-						Renderer::renderToFramebuffer(editorFramebuffer);
+						Renderer::renderToFramebuffer(editorFramebuffer, "EditorVP_Main_Framebuffer_Pass");
 
 						Renderer::clearDrawCalls();
 					}
@@ -250,7 +250,7 @@ namespace MathAnim
 						MP_PROFILE_EVENT("MainLoop_RenderGizmos");
 						editorFramebuffer.clearDepthStencil();
 						GizmoManager::render(am);
-						Renderer::renderToFramebuffer(editorFramebuffer);
+						Renderer::renderToFramebuffer(editorFramebuffer, "Gizmos");
 						Renderer::clearDrawCalls();
 
 						// Draw the gizmo manager miscellaneous stuff
@@ -308,7 +308,7 @@ namespace MathAnim
 			Renderer::popCamera3D();
 
 			Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
-			Renderer::renderToFramebuffer(mainFramebuffer, am);
+			Renderer::renderToFramebuffer(mainFramebuffer, am, "AppClosing_Screenshot");
 
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path outputFile = (currentProjectRoot / "projectPreview.png");

@@ -170,11 +170,10 @@ namespace MathAnim
 
 				constexpr float size = 0.15f;
 				constexpr float radius = 0.8f;
-				constexpr float lineHeight = 0.1f;
 
 				glm::mat4 xPositiveCircleTransform = glm::mat4(1.0f);
 				xPositiveCircleTransform = glm::translate(xPositiveCircleTransform, glm::vec3(radius, 0.0f, 0.0f));
-				Renderer::drawFilledCircle3D(Vec3{0, 0, 0}, size, 12, Colors::AccentRed[4], xPositiveCircleTransform, true);
+				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::AccentRed[4], xPositiveCircleTransform, true);
 
 				glm::mat4 xNegativeCircleTransform = glm::mat4(1.0f);
 				xNegativeCircleTransform = glm::translate(xNegativeCircleTransform, glm::vec3(-radius, 0.0f, 0.0f));
@@ -198,18 +197,10 @@ namespace MathAnim
 				zNegativeCircleTransform = glm::translate(zNegativeCircleTransform, glm::vec3(0.0f, 0.0f, -radius));
 				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::AccentGreen[6], zNegativeCircleTransform);
 
-				glm::mat4 xLineTransform = glm::mat4(1.0f);
-				xLineTransform = glm::translate(xLineTransform, glm::vec3(radius / 2.0f, 0.0f, 0.0f));
-				Renderer::drawFilledQuad3D(Vec3{ radius, lineHeight, 0 }, Colors::AccentRed[4], NULL_ANIM_OBJECT, xLineTransform);
-
-				glm::mat4 yLineTransform = glm::mat4(1.0f);
-				yLineTransform = glm::translate(yLineTransform, glm::vec3(0.0f, radius / 2.0f, 0.0f));
-				Renderer::drawFilledQuad3D(Vec3{ lineHeight, radius, 0 }, Colors::Primary[4], NULL_ANIM_OBJECT, yLineTransform);
-
-				glm::mat4 zLineTransform = glm::mat4(1.0f);
-				zLineTransform = glm::rotate(zLineTransform, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-				zLineTransform = glm::translate(zLineTransform, glm::vec3(radius / 2.0f, 0.0f, 0.0f));
-				Renderer::drawFilledQuad3D(Vec3{ radius, lineHeight, 0.0f }, Colors::AccentGreen[4], NULL_ANIM_OBJECT, zLineTransform);
+				constexpr float lineWidth = 0.4f;
+				Renderer::drawLine3D(Vec3{ 0.0f, 0.0f, 0.0f }, Vec3{ radius, 0.0f, 0.0f }, lineWidth, Colors::AccentRed[4], NULL_ANIM_OBJECT);
+				Renderer::drawLine3D(Vec3{ 0.0f, 0.0f, 0.0f }, Vec3{ 0.0f, radius, 0.0f }, lineWidth, Colors::Primary[4], NULL_ANIM_OBJECT);
+				Renderer::drawLine3D(Vec3{ 0.0f, 0.0f, 0.0f }, Vec3{ 0.0f, 0.0f, radius }, lineWidth, Colors::AccentGreen[4], NULL_ANIM_OBJECT);
 
 				Renderer::popCamera3D();
 			}
@@ -217,7 +208,7 @@ namespace MathAnim
 			// Draw the output to the framebuffer
 			Renderer::bindAndUpdateViewportForFramebuffer(cameraOrientationFramebuffer);
 			Renderer::clearFramebuffer(cameraOrientationFramebuffer, Vec4{ 0, 0, 0, 0 });
-			Renderer::renderToFramebuffer(cameraOrientationFramebuffer);
+			Renderer::renderToFramebuffer(cameraOrientationFramebuffer, "Gizmos_CameraOrientationGizmo");
 		}
 
 		void free()

@@ -48,6 +48,13 @@ namespace MathAnim
 		bool isBillboard;
 	};
 
+	struct DrawCmd3DLine
+	{
+		const Camera* camera;
+		uint32 vertexOffset;
+		uint32 vertCount;
+	};
+
 	struct Vertex2D
 	{
 		Vec2 position;
@@ -84,12 +91,10 @@ namespace MathAnim
 
 	struct Vertex3DLine
 	{
-		Vec3 currentPos;
-		Vec3 previousPos;
-		Vec3 nextPos;
+		Vec3 p0;
 		float thickness;
+		Vec3 p1;
 		uint32 color;
-		Vec3 normal;
 	};
 
 	struct Path_Vertex2DLine
@@ -111,16 +116,9 @@ namespace MathAnim
 		float approximateLength;
 	};
 
-	struct Path_Vertex3DLine
-	{
-		Vec3 position;
-		Vec3 normal;
-		float thickness;
-		uint32 color;
-	};
-
 	struct DrawList3DLine
 	{
+		std::vector<DrawCmd3DLine> drawCommands;
 		std::vector<Vertex3DLine> vertices;
 
 		uint32 vao;
@@ -129,10 +127,10 @@ namespace MathAnim
 		void init();
 
 		void changeBatchIfNeeded();
-		void addLine(const Vec3& previousPos, const Vec3& currentPos, const Vec3& nextPos, const Vec3& nextNextPos, uint32 packedColor, float thickness);
+		void addLine(const Vec3& p0, const Vec3& p1, uint32 packedColor, float thickness);
 
 		void setupGraphicsBuffers();
-		void render(const Shader& shader, const Camera& camera) const;
+		void render(const Shader& shader) const;
 		void reset();
 		void free();
 	};
@@ -180,10 +178,12 @@ namespace MathAnim
 		static int list2DNumDrawCalls = 0;
 		static int listFont2DNumDrawCalls = 0;
 		static int list3DNumDrawCalls = 0;
+		static int list3DLineNumDrawCalls = 0;
 
 		static int list2DNumTris = 0;
 		static int listFont2DNumTris = 0;
 		static int list3DNumTris = 0;
+		static int list3DLineNumTris = 0;
 
 		static Shader shader2D;
 		static Shader shaderFont2D;
@@ -223,7 +223,6 @@ namespace MathAnim
 		static glm::mat4 transform3D;
 		static constexpr int max3DPathSize = 1'000;
 		static bool isDrawing3DPath;
-		static Path_Vertex3DLine current3DPath[max3DPathSize];
 		static int numVertsIn3DPath;
 		static Texture defaultWhiteTexture;
 		static int debugMsgId = 0;
@@ -249,6 +248,7 @@ namespace MathAnim
 		static void lineToInternal(Path2DContext* path, const Path_Vertex2DLine& vert, bool addToRawCurve);
 		static const Camera* getCurrentCamera2D();
 		static const Camera* getCurrentCamera3D();
+		static uint32 packColor(const Vec4& color);
 
 		void init()
 		{
@@ -323,9 +323,11 @@ namespace MathAnim
 		{
 			list2DNumDrawCalls = 0;
 			list3DNumDrawCalls = 0;
+			list3DLineNumDrawCalls = 0;
 
 			list2DNumTris = 0;
 			list3DNumTris = 0;
+			list3DLineNumTris = 0;
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding(%d) call.", lineEndingStackPtr);
 			g_logger_assert(colorStackPtr == 0, "Missing popColor(%d) call.", colorStackPtr);
@@ -420,14 +422,14 @@ namespace MathAnim
 			GL::popDebugGroup();
 		}
 
-		void renderToFramebuffer(Framebuffer& framebuffer)
+		void renderToFramebuffer(Framebuffer& framebuffer, const char* debugName)
 		{
 			constexpr size_t numExpectedColorAttachments = 6;
 			g_logger_assert(framebuffer.colorAttachments.size() == numExpectedColorAttachments, "Invalid framebuffer. Should have %d color attachments.", numExpectedColorAttachments);
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
 
 			debugMsgId = 0;
-			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, "Main_Framebuffer_Pass");
+			GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, debugMsgId++, -1, debugName);
 
 			// Reset the draw buffers to draw to FB_attachment_0
 			GLenum compositeDrawBuffers[] = { GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3 };
@@ -435,7 +437,7 @@ namespace MathAnim
 
 			// Do all the draw calls
 			// Draw lines and strings
-			// drawList3DLine.render(shader3DLine); // TODO: Add support for on demand camera batching
+			drawList3DLine.render(shader3DLine);
 
 			// Draw 3D objects after the lines so that we can do appropriate blending
 			// using OIT
@@ -457,7 +459,7 @@ namespace MathAnim
 			GL::popDebugGroup();
 		}
 
-		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am)
+		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am, const char* debugName)
 		{
 			const AnimObject* camera2DObj = AnimationManager::getActiveCamera2D(am);
 			if (!camera2DObj)
@@ -469,7 +471,7 @@ namespace MathAnim
 			}
 
 			Renderer::clearColor(camera2DObj->as.camera.fillColor);
-			renderToFramebuffer(framebuffer);
+			renderToFramebuffer(framebuffer, debugName);
 		}
 
 		void renderStencilOutlineToFramebuffer(Framebuffer& framebuffer, const std::vector<AnimObjId>& activeObjects)
@@ -652,9 +654,11 @@ namespace MathAnim
 			// Track metrics
 			list2DNumDrawCalls += (int)drawList2D.drawCommands.size();
 			list3DNumDrawCalls += (int)drawList3D.drawCommands.size();
+			list3DLineNumDrawCalls += (int)drawList3DLine.drawCommands.size();
 
 			list2DNumTris += (int)drawList2D.indices.size() / 3;
 			list3DNumTris += (int)drawList3D.indices.size() / 3;
+			list3DLineNumTris += (int)drawList3DLine.vertices.size() / 3;
 
 			// Do all the draw calls
 			drawList3DLine.reset();
@@ -1015,28 +1019,20 @@ namespace MathAnim
 				g_logger_warning("Corrupted path data found for AnimObjId: %d", objId);
 #endif
 				return false;
-		}
-
-			// NOTE: This is some weird shenanigans in order to get the path
-			// to close correctly and join the last vertex to the first vertex
-			// This hack is followed up in the second loop by a similar hack
-			int endPoint = (int)path->data.size();
-			if (closePath && current3DPath[0].position == current3DPath[numVertsIn3DPath - 1].position)
-			{
-				endPoint--;
 			}
 
-			// Do two loops:
-			// 
-			// The first loop extrudes all the vertices
-			// and forms the tesselated path. It also creates 
-			// any bevels/miters/rounded corners and adds
-			// them immediately and just saves the connection
-			// points for the second loop.
-			// 
-			// The second loop
-			// connects the verts into quads to form the stroke
+			// NOTE: Do two loops:
+			//
+			//       The first loop extrudes all the vertices
+			//       and forms the tesselated path. It also creates 
+			//       any bevels/miters/rounded corners and adds
+			//       them immediately and just saves the connection
+			//       points for the second loop.
+			//
+			//       The second loop
+			//       connects the verts into quads to form the stroke
 
+			int endPoint = (int)path->data.size();
 			for (int vertIndex = 0; vertIndex < path->data.size(); vertIndex++)
 			{
 				Path_Vertex2DLine& vertex = path->data[vertIndex];
@@ -1125,7 +1121,7 @@ namespace MathAnim
 			}
 
 			// NOTE: This is some weird shenanigans in order to get the path
-			// to close correctly and join the last vertex to the first vertex
+			//       to close correctly and join the last vertex to the first vertex
 			if (!closePath)
 			{
 				endPoint--;
@@ -1177,7 +1173,7 @@ namespace MathAnim
 			}
 
 			return true;
-	}
+		}
 
 		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath, AnimObjId)
 		{
@@ -1478,246 +1474,11 @@ namespace MathAnim
 		}
 
 		// ----------- 3D stuff ----------- 
-		// TODO: Consider just making these glm::vec3's. I'm not sure what kind
-		// of impact, if any that will have
-		void beginPath3D(const Vec3& start, const Vec3& normal)
+		void drawLine3D(const Vec3& start, const Vec3& end, float thickness, const Vec4& color, AnimObjId)
 		{
-			g_logger_assert(!isDrawing3DPath, "beginPath3D() cannot be called while a path is being drawn. Did you miss a call to endPath3D()?");
-			g_logger_assert(numVertsIn3DPath == 0, "Invalid 3D path. Path began with non-zero number of vertices. Did you forget to call endPath3D()?");
-			isDrawing3DPath = true;
-
-			float strokeWidth = strokeWidthStackPtr > 0
-				? strokeWidthStack[strokeWidthStackPtr - 1]
-				: defaultStrokeWidth;
-
-			glm::vec4 color = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-			uint32 packedColor =
-				((uint32)(color.r * 255.0f) << 24) |
-				((uint32)(color.g * 255.0f) << 16) |
-				((uint32)(color.b * 255.0f) << 8) |
-				((uint32)(color.a * 255.0f));
-
-			glm::vec4 translatedPos = glm::vec4(start.x, start.y, start.z, 1.0f);
-			translatedPos = transform3D * translatedPos;
-
-			current3DPath[numVertsIn3DPath].position = Vec3{ translatedPos.x, translatedPos.y, translatedPos.z };
-			current3DPath[numVertsIn3DPath].color = packedColor;
-			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
-			current3DPath[numVertsIn3DPath].normal = normal;
-			numVertsIn3DPath++;
+			drawList3DLine.addLine(start, end, packColor(color), thickness);
 		}
 
-		void endPath3D(bool closePath)
-		{
-			if (closePath && current3DPath[0].position == current3DPath[numVertsIn3DPath - 1].position)
-			{
-				numVertsIn3DPath--;
-			}
-
-			for (int vert = 0; vert < numVertsIn3DPath; vert++)
-			{
-				Vec3 currentPos = current3DPath[vert].position;
-				Vec3 nextPos = vert + 1 < numVertsIn3DPath
-					? current3DPath[vert + 1].position
-					: closePath
-					? current3DPath[(vert + 1) % numVertsIn3DPath].position
-					: current3DPath[numVertsIn3DPath - 1].position;
-				Vec3 nextNextPos = vert + 2 < numVertsIn3DPath
-					? current3DPath[vert + 2].position
-					: closePath
-					? current3DPath[(vert + 2) % numVertsIn3DPath].position
-					: current3DPath[numVertsIn3DPath - 1].position;
-				Vec3 previousPos = vert > 0
-					? current3DPath[vert - 1].position
-					: closePath
-					? current3DPath[numVertsIn3DPath - 1].position
-					: current3DPath[0].position;
-				uint32 packedColor = current3DPath[vert].color;
-				float thickness = current3DPath[vert].thickness;
-
-				Vec4 unpackedColor = {
-					(float)(packedColor >> 24 & 0xFF) / 255.0f,
-					(float)(packedColor >> 16 & 0xFF) / 255.0f,
-					(float)(packedColor >> 8 & 0xFF) / 255.0f,
-					(float)(packedColor & 0xFF) / 255.0f
-				};
-
-				Renderer::pushStrokeWidth(thickness);
-				Renderer::pushColor(unpackedColor);
-
-				Vec3 currentNormal = current3DPath[vert].normal;
-				Vec3 nextNormal = current3DPath[(vert + 1) % numVertsIn3DPath].normal;
-
-				// NOTE: Previous method all the following code should be
-				// used for 2D contexts only most likely...
-				//drawList3DLine.addLine(previousPos, currentPos, nextPos, nextNextPos, packedColor, thickness);
-
-				Vec2 firstNormal = CMath::vector2From3(currentNormal);
-				Vec2 secondNormal = CMath::vector2From3(nextNormal);
-				float firstThickness = 0.0f;
-				float secondThickness = 0.0f;
-				if (firstNormal == Vec2{ FLT_MAX, FLT_MAX })
-				{
-					generateMiter3D(previousPos, currentPos, nextPos, thickness, &firstNormal, &firstThickness);
-				}
-				if (secondNormal == Vec2{ FLT_MAX, FLT_MAX })
-				{
-					generateMiter3D(currentPos, nextPos, nextNextPos, thickness, &secondNormal, &secondThickness);
-				}
-
-				if (currentPos == previousPos)
-				{
-					// If we're drawing the beginning of the path, just
-					// do a straight cap on the line segment
-					firstNormal = CMath::normalize(CMath::vector2From3(nextPos - currentPos));
-					firstThickness = thickness;
-				}
-				if (nextPos == nextNextPos)
-				{
-					// If we're drawing the end of the path, just
-					// do a straight cap on the line segment
-					secondNormal = CMath::normalize(CMath::vector2From3(nextPos - currentPos));
-					secondThickness = thickness;
-				}
-
-				drawLine(CMath::vector2From3(currentPos), CMath::vector2From3(nextPos));
-
-				Renderer::popStrokeWidth();
-				Renderer::popColor();
-			}
-
-			isDrawing3DPath = false;
-			numVertsIn3DPath = 0;
-		}
-
-		void lineTo3D(const Vec3& point, bool applyTransform, const Vec3& normal)
-		{
-			g_logger_assert(isDrawing3DPath, "lineTo3D() cannot be called without calling beginPath3D(...) first.");
-			if (numVertsIn3DPath >= max3DPathSize)
-			{
-				//g_logger_assert(numVertsIn3DPath < max3DPathSize, "Max path size exceeded. A 3D Path can only have up to %d points.", max3DPathSize);
-				return;
-			}
-
-			float strokeWidth = strokeWidthStackPtr > 0
-				? strokeWidthStack[strokeWidthStackPtr - 1]
-				: defaultStrokeWidth;
-
-			glm::vec4 color = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-			uint32 packedColor =
-				((uint32)(color.r * 255.0f) << 24) |
-				((uint32)(color.g * 255.0f) << 16) |
-				((uint32)(color.b * 255.0f) << 8) |
-				((uint32)(color.a * 255.0f));
-
-			glm::vec4 translatedPos = glm::vec4(point.x, point.y, point.z, 1.0f);
-			if (applyTransform)
-			{
-				translatedPos = transform3D * translatedPos;
-			}
-
-			current3DPath[numVertsIn3DPath].position = Vec3{ translatedPos.x, translatedPos.y, translatedPos.z };
-			current3DPath[numVertsIn3DPath].color = packedColor;
-			current3DPath[numVertsIn3DPath].thickness = strokeWidth;
-			current3DPath[numVertsIn3DPath].normal = normal;
-			numVertsIn3DPath++;
-		}
-
-		void bezier2To3D(const Vec3& p1, const Vec3& p2)
-		{
-			g_logger_assert(numVertsIn3DPath > 0, "Cannot use bezier2To3D without beginning a path.");
-
-			glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, p1.z, 1.0f);
-			glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, p2.z, 1.0f);
-
-			tmpP1 = transform3D * tmpP1;
-			tmpP2 = transform3D * tmpP2;
-
-			const Vec3& translatedP0 = current3DPath[numVertsIn3DPath - 1].position;
-			Vec3 translatedP1 = Vec3{ tmpP1.x, tmpP1.y, tmpP1.z };
-			Vec3 translatedP2 = Vec3{ tmpP2.x, tmpP2.y, tmpP2.z };
-
-			// Estimate the length of the bezier curve to get an approximate for the
-			// number of line segments to use
-			Vec3 chord1 = translatedP1 - translatedP0;
-			Vec3 chord2 = translatedP2 - translatedP1;
-			float chordLengthSq = CMath::lengthSquared(chord1) + CMath::lengthSquared(chord2);
-			float lineLengthSq = CMath::lengthSquared(translatedP2 - translatedP0);
-			float approxLength = glm::sqrt(lineLengthSq + chordLengthSq) / 2.0f;
-			int numSegments = (int)(approxLength * 40.0f);
-			for (int i = 0; i < numSegments; i++)
-			{
-				float t = (float)i / (float)numSegments;
-				Vec3 interpPoint = CMath::bezier2(translatedP0, translatedP1, translatedP2, t);
-				Vec3 normal = CMath::bezier2Normal(translatedP0, translatedP1, translatedP2, t);
-				lineTo3D(interpPoint, false, normal);
-			}
-
-			lineTo3D(translatedP2, false);
-		}
-
-		void bezier3To3D(const Vec3& p1, const Vec3& p2, const Vec3& p3)
-		{
-			g_logger_assert(numVertsIn3DPath > 0, "Cannot use bezier2To3D without beginning a path.");
-
-			glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, p1.z, 1.0f);
-			glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, p2.z, 1.0f);
-			glm::vec4 tmpP3 = glm::vec4(p3.x, p3.y, p3.z, 1.0f);
-
-			tmpP1 = transform3D * tmpP1;
-			tmpP2 = transform3D * tmpP2;
-			tmpP3 = transform3D * tmpP3;
-
-			const Vec3& translatedP0 = current3DPath[numVertsIn3DPath - 1].position;
-			Vec3 translatedP1 = Vec3{ tmpP1.x, tmpP1.y, tmpP1.z };
-			Vec3 translatedP2 = Vec3{ tmpP2.x, tmpP2.y, tmpP2.z };
-			Vec3 translatedP3 = Vec3{ tmpP3.x, tmpP3.y, tmpP3.z };
-
-			// Estimate the length of the bezier curve to get an approximate for the
-			// number of line segments to use
-			Vec3 chord1 = translatedP1 - translatedP0;
-			Vec3 chord2 = translatedP2 - translatedP1;
-			Vec3 chord3 = translatedP3 - translatedP2;
-			float chordLengthSq = CMath::lengthSquared(chord1) + CMath::lengthSquared(chord2) + CMath::lengthSquared(chord3);
-			float lineLengthSq = CMath::lengthSquared(translatedP3 - translatedP0);
-			float approxLength = glm::sqrt(lineLengthSq + chordLengthSq) / 2.0f;
-			int numSegments = (int)(approxLength * 40.0f);
-			for (int i = 1; i < numSegments; i++)
-			{
-				float t = (float)i / (float)numSegments;
-				Vec3 interpPoint = CMath::bezier3(translatedP0, translatedP1, translatedP2, translatedP3, t);
-				Vec3 normal = CMath::bezier3Normal(translatedP0, translatedP1, translatedP2, translatedP3, t);
-				lineTo3D(interpPoint, false, normal);
-			}
-
-			lineTo3D(translatedP3, false);
-		}
-
-		void translate3D(const Vec3& translation)
-		{
-			transform3D = glm::translate(transform3D, glm::vec3(translation.x, translation.y, translation.z));
-		}
-
-		void rotate3D(const Vec3& eulerAngles)
-		{
-			transform3D *= glm::orientate4(glm::radians(glm::vec3(eulerAngles.x, eulerAngles.y, eulerAngles.z)));
-		}
-
-		void setTransform(const glm::mat4& transform)
-		{
-			transform3D = transform;
-		}
-
-		void resetTransform3D()
-		{
-			transform3D = glm::identity<glm::mat4>();
-		}
-
-		// ----------- 3D stuff ----------- 
 		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId, const glm::mat4& transform, bool isBillboard)
 		{
 			glm::vec4 tmpBottomLeft = glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
@@ -1736,13 +1497,15 @@ namespace MathAnim
 			else
 			{
 				// TODO: Fixme for billboard stuff... Who knows how the heck to do it...
-				glm::vec4 cameraRight = glm::vec4(CMath::convert(getCurrentCamera3D()->right), 1.0f);
-				glm::vec4 cameraUp = glm::vec4(CMath::convert(getCurrentCamera3D()->up), 1.0f);
-				glm::vec4 translation = glm::vec4(CMath::convert(CMath::extractPosition(transform)), 0.0f);
-				tmpBottomLeft = (-cameraRight * 0.5f * size.x) - (cameraUp * 0.5f * size.y) + translation;
-				tmpTopLeft = (-cameraRight * 0.5f * size.x) + (cameraUp * 0.5f * size.y) + translation;
-				tmpTopRight = (cameraRight * 0.5f * size.x) + (cameraUp * 0.5f * size.y) + translation;
-				tmpBottomRight = (cameraRight * 0.5f * size.x) - (cameraUp * 0.5f * size.y) + translation;
+				const Camera* currentCamera = getCurrentCamera3D();
+				glm::vec3 translation = CMath::convert(CMath::extractPosition(transform));
+				glm::mat4 lookAtCamera = lookAtCamera = glm::translate(lookAtCamera, translation);
+				lookAtCamera = glm::lookAt(translation, -CMath::convert(currentCamera->position), CMath::convert(currentCamera->up));
+
+				tmpBottomLeft = lookAtCamera * tmpBottomLeft;
+				tmpTopLeft = lookAtCamera * tmpTopLeft;
+				tmpTopRight = lookAtCamera * tmpTopRight;
+				tmpBottomRight = lookAtCamera * tmpBottomRight;
 			}
 
 			Vec3 bottomLeft = { tmpBottomLeft.x, tmpBottomLeft.y, tmpBottomLeft.z };
@@ -1751,7 +1514,7 @@ namespace MathAnim
 			Vec3 bottomRight = { tmpBottomRight.x, tmpBottomRight.y, tmpBottomRight.z };
 			Vec3 faceNormal = Vec3{ tmpFaceNormal.x, tmpFaceNormal.y, tmpFaceNormal.z };
 
-			drawList3D.addTexturedQuad3D(UINT32_MAX, bottomLeft, topLeft, topRight, bottomRight, Vec2{0, 0}, Vec2{1, 1}, color, faceNormal, color.a < 1.0f);
+			drawList3D.addTexturedQuad3D(UINT32_MAX, bottomLeft, topLeft, topRight, bottomRight, Vec2{ 0, 0 }, Vec2{ 1, 1 }, color, faceNormal, color.a < 1.0f);
 		}
 
 		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform, bool isTransparent, bool isBillboard)
@@ -1815,7 +1578,8 @@ namespace MathAnim
 		{
 			return getDrawList2DNumDrawCalls() +
 				getDrawListFont2DNumDrawCalls() +
-				getDrawList3DNumDrawCalls();
+				getDrawList3DNumDrawCalls() +
+				getDrawList3DLineNumDrawCalls();
 		}
 
 		int getDrawList2DNumDrawCalls()
@@ -1833,11 +1597,17 @@ namespace MathAnim
 			return list3DNumDrawCalls;
 		}
 
+		int getDrawList3DLineNumDrawCalls()
+		{
+			return list3DLineNumDrawCalls;
+		}
+
 		int getTotalNumTris()
 		{
 			return getDrawList2DNumTris() +
 				getDrawListFont2DNumTris() +
-				getDrawList3DNumTris();
+				getDrawList3DNumTris() +
+				getDrawList3DLineNumTris();
 		}
 
 		int getDrawList2DNumTris()
@@ -1853,6 +1623,11 @@ namespace MathAnim
 		int getDrawList3DNumTris()
 		{
 			return list3DNumTris;
+		}
+
+		int getDrawList3DLineNumTris()
+		{
+			return list3DLineNumTris;
 		}
 
 		// ---------------------- Begin Internal Functions ----------------------
@@ -1889,19 +1664,6 @@ namespace MathAnim
 
 			GL::vertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(sizeof(float) * 2));
 			GL::enableVertexAttribArray(1);
-		}
-
-		static void generateMiter3D(const Vec3& previousPoint, const Vec3& currentPoint, const Vec3& nextPoint, float strokeWidth, Vec2* outNormal, float* outStrokeWidth)
-		{
-			Vec2 dirA = CMath::normalize(CMath::vector2From3(currentPoint - previousPoint));
-			Vec2 dirB = CMath::normalize(CMath::vector2From3(nextPoint - currentPoint));
-			Vec2 bisection = CMath::normalize(dirA + dirB);
-			Vec2 secondLinePerp = Vec2{ -dirB.y, dirB.x };
-			// This is the miter
-			Vec2 bisectionPerp = Vec2{ -bisection.y, bisection.x };
-			*outNormal = bisection;
-			*outStrokeWidth = strokeWidth / CMath::dot(bisectionPerp, secondLinePerp);
-			//*outStrokeWidth = CMath::max(CMath::min(CMath::abs(*outStrokeWidth), strokeWidth), -CMath::abs(strokeWidth));
 		}
 
 		static void lineToInternal(Path2DContext* path, const Vec2& point, bool addRawCurve)
@@ -1982,8 +1744,17 @@ namespace MathAnim
 			g_logger_assert(camera3DStackPtr > 0, "Camera3D stack is empty. No current camera.");
 			return camera3DStack[camera3DStackPtr - 1];
 		}
+
+		static uint32 packColor(const Vec4& color)
+		{
+			return ((uint32)(color.r * 255.0f) << 24) |
+				((uint32)(color.g * 255.0f) << 16) |
+				((uint32)(color.b * 255.0f) << 8) |
+				((uint32)(color.a * 255.0f) << 0);
+
+		}
 		// ---------------------- End Internal Functions ----------------------
-}
+	}
 
 	// ---------------------- Begin DrawList2D Functions ----------------------
 	void DrawList2D::init()
@@ -2283,62 +2054,70 @@ namespace MathAnim
 
 	void DrawList3DLine::changeBatchIfNeeded()
 	{
-
+		const Camera* currentCamera = Renderer::getCurrentCamera3D();
+		if (drawCommands.size() == 0 ||
+			drawCommands[drawCommands.size() - 1].camera != currentCamera)
+		{
+			DrawCmd3DLine newCmd;
+			newCmd.camera = currentCamera;
+			newCmd.vertCount = 0;
+			newCmd.vertexOffset = (uint32)vertices.size();
+			drawCommands.emplace_back(newCmd);
+		}
 	}
 
-	void DrawList3DLine::addLine(const Vec3& previousPos, const Vec3& currentPos, const Vec3& nextPos, const Vec3& nextNextPos, uint32 packedColor, float thickness)
+	void DrawList3DLine::addLine(const Vec3& p0, const Vec3& p1, uint32 packedColor, float thickness)
 	{
+		changeBatchIfNeeded();
+
+		// NOTE: Reversing p0, p1 should make sure we get the second half of the line segment
+
+		// Triangle 1
 		vertices.emplace_back(Vertex3DLine{
-			currentPos,
-			previousPos,
-			nextPos,
+			p0,
 			-thickness,
+			p1,
 			packedColor
 			});
 
 		vertices.emplace_back(Vertex3DLine{
-			currentPos,
-			previousPos,
-			nextPos,
+			p0,
 			thickness,
+			p1,
 			packedColor
 			});
 
-		// NOTE: This uses nextNextPos to get the second half of the line segment
 		vertices.emplace_back(Vertex3DLine{
-			nextPos,
-			currentPos,
-			nextNextPos,
+			p1,
 			thickness,
+			p0,
 			packedColor
 			});
 
 		// Triangle 2
 		vertices.emplace_back(Vertex3DLine{
-			currentPos,
-			previousPos,
-			nextPos,
-			-thickness,
-			packedColor
-			});
-
-		// NOTE: This uses nextNextPos to get the second half of the line segment
-		vertices.emplace_back(Vertex3DLine{
-			nextPos,
-			currentPos,
-			nextNextPos,
+			p0,
 			thickness,
+			p1,
 			packedColor
 			});
 
-		// NOTE: This uses nextNextPos to get the second half of the line segment
 		vertices.emplace_back(Vertex3DLine{
-			nextPos,
-			currentPos,
-			nextNextPos,
-			-thickness,
+			p1,
+			thickness,
+			p0,
 			packedColor
 			});
+
+		vertices.emplace_back(Vertex3DLine{
+			p1,
+			-thickness,
+			p0,
+			packedColor
+			});
+
+		DrawCmd3DLine& currentCmd = drawCommands[drawCommands.size() - 1];
+		currentCmd.vertCount += 6;
 	}
 
 	void DrawList3DLine::setupGraphicsBuffers()
@@ -2354,23 +2133,20 @@ namespace MathAnim
 		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine), NULL, GL_DYNAMIC_DRAW);
 
 		// Set up the batched vao attributes
-		GL::vertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, currentPos)));
+		GL::vertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, p0)));
 		GL::enableVertexAttribArray(0);
 
-		GL::vertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, previousPos)));
+		GL::vertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, thickness)));
 		GL::enableVertexAttribArray(1);
 
-		GL::vertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, nextPos)));
+		GL::vertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, p1)));
 		GL::enableVertexAttribArray(2);
 
-		GL::vertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, thickness)));
+		GL::vertexAttribIPointer(3, 1, GL_UNSIGNED_INT, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, color)));
 		GL::enableVertexAttribArray(3);
-
-		GL::vertexAttribIPointer(4, 1, GL_UNSIGNED_INT, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, color)));
-		GL::enableVertexAttribArray(4);
 	}
 
-	void DrawList3DLine::render(const Shader& shader, const Camera& camera) const
+	void DrawList3DLine::render(const Shader& shader) const
 	{
 		if (vertices.size() == 0)
 		{
@@ -2384,15 +2160,23 @@ namespace MathAnim
 
 		GL::bindVertexArray(vao);
 
-		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
-		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
-
 		shader.bind();
-		shader.uploadMat4("uProjection", camera.projectionMatrix);
-		shader.uploadMat4("uView", camera.viewMatrix);
 		shader.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
 
-		GL::drawArrays(GL_TRIANGLES, 0, (GLsizei)vertices.size());
+		for (size_t i = 0; i < drawCommands.size(); i++)
+		{
+			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
+			GL::bufferData(
+				GL_ARRAY_BUFFER, 
+				sizeof(Vertex3DLine) * drawCommands[i].vertCount,
+				vertices.data() + drawCommands[i].vertexOffset,
+				GL_DYNAMIC_DRAW);
+
+			shader.uploadMat4("uProjection", drawCommands[i].camera->projectionMatrix);
+			shader.uploadMat4("uView", drawCommands[i].camera->viewMatrix);
+
+			GL::drawArrays(GL_TRIANGLES, 0, (GLsizei)vertices.size());
+		}
 
 		GL::disable(GL_DEPTH_TEST);
 
@@ -2505,7 +2289,7 @@ namespace MathAnim
 
 		Vertex3D centerVert;
 		centerVert.color = color;
-		centerVert.normal = Vec3{0, 0, 0};
+		centerVert.normal = Vec3{ 0, 0, 0 };
 		centerVert.position = CMath::vector3From4(CMath::convert(center));
 		centerVert.textureCoords = Vec2{ 0.5f, 0.5f };
 
@@ -2532,7 +2316,7 @@ namespace MathAnim
 			vertices.push_back(vert);
 			cmd.vertCount++;
 
-			indices.push_back(circleStartIndex + 0); 
+			indices.push_back(circleStartIndex + 0);
 			indices.push_back(circleStartIndex + i + 1);
 			if (i == numSegments - 1)
 			{
