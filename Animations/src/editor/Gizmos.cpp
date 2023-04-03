@@ -70,6 +70,7 @@ namespace MathAnim
 
 		static constexpr int cameraOrientationFramebufferSize = 180;
 		static Framebuffer cameraOrientationFramebuffer;
+		static Texture cameraOrientationGizmoTexture;
 
 		static constexpr uint64 NullGizmo = UINT64_MAX;
 
@@ -93,6 +94,9 @@ namespace MathAnim
 			gGizmoManager->mouseWorldPos2f = Vec2{ 0.0f, 0.0f };
 
 			cameraOrientationFramebuffer = Renderer::prepareFramebuffer(cameraOrientationFramebufferSize, cameraOrientationFramebufferSize);
+			cameraOrientationGizmoTexture = TextureBuilder()
+				.setFilepath("./assets/images/cameraOrientationGizmos.png")
+				.generate(true);
 		}
 
 		void update(AnimationManagerData* am)
@@ -168,22 +172,71 @@ namespace MathAnim
 
 				Renderer::pushCamera3D(&dummyCamera);
 
-				constexpr Vec2 size = Vec2{2.0f, 2.0f};
+				constexpr Vec2 size = Vec2{ 2.0f, 2.0f };
 				constexpr float radius = 0.8f;
 
-				Renderer::drawBillboard3D(Vec3{ radius, 0.0f, 0.0f }, size, Colors::AccentRed[4]);
-				Renderer::drawBillboard3D(Vec3{ -radius, 0, 0 }, size, Colors::AccentRed[6]);
+				constexpr const Vec3 xPos = Vec3{ radius, 0.0f, 0.0f };
+				float orientationXDp = CMath::dot(xPos, dummyCamera.forward);
+				bool orientationIsXPositive = orientationXDp >= -1.0f && orientationXDp < 0.0f;
+				Renderer::drawTexturedBillboard3D(
+					cameraOrientationGizmoTexture,
+					xPos, size,
+					Vec2{ 0, 0 }, Vec2{ 0.5f, 0.5f },
+					orientationIsXPositive ? Colors::AccentRed[4] : Colors::AccentRed[6]
+				);
+				Renderer::drawTexturedBillboard3D(
+					cameraOrientationGizmoTexture,
+					-1.0f * xPos, size,
+					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 },
+					orientationIsXPositive ? Colors::AccentRed[6] : Colors::AccentRed[4]
+				);
 
-				Renderer::drawBillboard3D(Vec3{ 0, radius, 0 }, size, Colors::Primary[4]);
-				Renderer::drawBillboard3D(Vec3{ 0, -radius, 0 }, size, Colors::Primary[7]);
+				constexpr const Vec3 yPos = Vec3{ 0.0f, radius, 0.0f };
+				float orientationYDp = CMath::dot(yPos, dummyCamera.forward);
+				bool orientationIsYPositive = orientationYDp >= -1.0f && orientationYDp < 0.0f;
+				Renderer::drawTexturedBillboard3D(
+					cameraOrientationGizmoTexture,
+					yPos, size,
+					Vec2{ 0.5f, 0.0f }, Vec2{ 1.0f, 0.5f },
+					orientationIsYPositive ? Colors::Primary[4] : Colors::Primary[7]
+				);
+				Renderer::drawTexturedBillboard3D(
+					cameraOrientationGizmoTexture,
+					-1.0f * yPos, size,
+					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 },
+					orientationIsYPositive ? Colors::Primary[7] : Colors::Primary[4]
+				);
 
-				Renderer::drawBillboard3D(Vec3{ 0, 0, radius }, size, Colors::AccentGreen[4]);
-				Renderer::drawBillboard3D(Vec3{ 0, 0, -radius }, size, Colors::AccentGreen[6]);
+				constexpr const Vec3 zPos = Vec3{ 0, 0, radius };
+				float orientationZDp = CMath::dot(zPos, dummyCamera.forward);
+				bool orientationIsZPositive = orientationZDp >= -1.0f && orientationZDp < 0.0f;
+				Renderer::drawTexturedBillboard3D(
+					cameraOrientationGizmoTexture,
+					zPos, size,
+					Vec2{ 0.0f, 0.5f }, Vec2{ 0.5f, 1.0f },
+					orientationIsZPositive ? Colors::AccentGreen[4] : Colors::AccentGreen[6]
+				);
+				Renderer::drawTexturedBillboard3D(
+					cameraOrientationGizmoTexture,
+					-1.0f * zPos, size,
+					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 },
+					orientationIsZPositive ? Colors::AccentGreen[6] : Colors::AccentGreen[4]
+				);
 
+				constexpr const Vec3 center = Vec3{ 0, 0, 0 };
 				constexpr float lineWidth = 0.4f;
-				Renderer::drawLine3D(Vec3{ 0.0f, 0.0f, 0.0f }, Vec3{ radius, 0.0f, 0.0f }, lineWidth, Colors::AccentRed[4], NULL_ANIM_OBJECT);
-				Renderer::drawLine3D(Vec3{ 0.0f, 0.0f, 0.0f }, Vec3{ 0.0f, radius, 0.0f }, lineWidth, Colors::Primary[4], NULL_ANIM_OBJECT);
-				Renderer::drawLine3D(Vec3{ 0.0f, 0.0f, 0.0f }, Vec3{ 0.0f, 0.0f, radius }, lineWidth, Colors::AccentGreen[4], NULL_ANIM_OBJECT);
+				Renderer::drawLine3D(
+					center, xPos, lineWidth,
+					orientationIsXPositive ? Colors::AccentRed[4] : Colors::AccentRed[6]
+				);
+				Renderer::drawLine3D(
+					center, yPos, lineWidth,
+					orientationIsYPositive ? Colors::Primary[4] : Colors::Primary[7]
+				);
+				Renderer::drawLine3D(
+					center, zPos, lineWidth,
+					orientationIsZPositive ? Colors::AccentGreen[4] : Colors::AccentGreen[6]
+				);
 
 				Renderer::popCamera3D();
 			}
@@ -211,6 +264,7 @@ namespace MathAnim
 			}
 
 			cameraOrientationFramebuffer.destroy();
+			cameraOrientationGizmoTexture.destroy();
 		}
 
 		const Texture& getCameraOrientationTexture()

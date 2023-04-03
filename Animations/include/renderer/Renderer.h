@@ -98,7 +98,8 @@ namespace MathAnim
 
 		// ----------- 3D stuff ----------- 
 		void drawLine3D(const Vec3& start, const Vec3& end, float thickness, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
-		void drawBillboard3D(const Vec3& position, const Vec2& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawTexturedBillboard3D(const Texture& texture, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawColoredBillboard3D(const Vec3& position, const Vec2& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isTransparent = false, bool isBillboard = false);
 		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId = NULL_ANIM_OBJECT, bool isBillboard = false);

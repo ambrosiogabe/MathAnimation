@@ -3,6 +3,7 @@
 layout (location = 0) in vec3 center;
 layout (location = 1) in uint aColor;
 layout (location = 2) in vec2 halfSize;
+layout (location = 3) in vec2 aTexCoords;
 
 out vec4 fColor;
 out vec2 fTexCoord;
@@ -27,7 +28,7 @@ void main()
     vec2 offset = halfSize;
     offset.x /= uAspectRatio;
 
-    fTexCoord = (sign(halfSize) + vec2(1.0f)) / vec2(2.0f);
+    fTexCoord = aTexCoords;
 
     // Calculate the final vertex position
     gl_Position = centerProjected + vec4(offset, 0.0, 0.0);
