@@ -45,10 +45,9 @@ namespace MathAnim
 		uint32 elementCount;
 		uint32 vertCount;
 		bool isTransparent;
-		bool isBillboard;
 	};
 
-	struct DrawCmd3DLine
+	struct DrawCmdSimple3D
 	{
 		const Camera* camera;
 		uint32 vertexOffset;
@@ -89,14 +88,6 @@ namespace MathAnim
 		void free();
 	};
 
-	struct Vertex3DLine
-	{
-		Vec3 p0;
-		float thickness;
-		Vec3 p1;
-		uint32 color;
-	};
-
 	struct Path_Vertex2DLine
 	{
 		Vec2 position;
@@ -116,9 +107,17 @@ namespace MathAnim
 		float approximateLength;
 	};
 
+	struct Vertex3DLine
+	{
+		Vec3 p0;
+		float thickness;
+		Vec3 p1;
+		uint32 color;
+	};
+
 	struct DrawList3DLine
 	{
-		std::vector<DrawCmd3DLine> drawCommands;
+		std::vector<DrawCmdSimple3D> drawCommands;
 		std::vector<Vertex3DLine> vertices;
 
 		uint32 vao;
@@ -128,6 +127,32 @@ namespace MathAnim
 
 		void changeBatchIfNeeded();
 		void addLine(const Vec3& p0, const Vec3& p1, uint32 packedColor, float thickness);
+
+		void setupGraphicsBuffers();
+		void render(const Shader& shader) const;
+		void reset();
+		void free();
+	};
+
+	struct Vertex3DBillboard
+	{
+		Vec3 position;
+		uint32 color;
+		Vec2 halfSize;
+	};
+
+	struct DrawList3DBillboard
+	{
+		std::vector<DrawCmdSimple3D> drawCommands;
+		std::vector<Vertex3DBillboard> vertices;
+
+		uint32 vao;
+		uint32 vbo;
+
+		void init();
+
+		void changeBatchIfNeeded();
+		void addBillboard(const Vec3& position, const Vec2& size, uint32 packedColor);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& shader) const;
@@ -174,24 +199,29 @@ namespace MathAnim
 		static DrawList2D drawList2D;
 		static DrawList3DLine drawList3DLine;
 		static DrawList3D drawList3D;
+		static DrawList3DBillboard drawList3DBillboard;
 
 		static int list2DNumDrawCalls = 0;
 		static int listFont2DNumDrawCalls = 0;
 		static int list3DNumDrawCalls = 0;
 		static int list3DLineNumDrawCalls = 0;
+		static int list3DBillboardNumDrawCalls = 0;
 
 		static int list2DNumTris = 0;
 		static int listFont2DNumTris = 0;
 		static int list3DNumTris = 0;
 		static int list3DLineNumTris = 0;
+		static int list3DBillboardNumTris = 0;
 
 		static Shader shader2D;
 		static Shader shaderFont2D;
-		static Shader shader3DLine;
 		static Shader screenShader;
 		static Shader activeObjectMaskShader;
 		static Shader rgbToYuvShaderYChannel;
 		static Shader rgbToYuvShaderUvChannel;
+
+		static Shader shader3DLine;
+		static Shader shader3DScreenAlignedBillboard;
 
 		static Shader shader3DOpaque;
 		static Shader shader3DTransparent;
@@ -267,6 +297,7 @@ namespace MathAnim
 			rgbToYuvShaderYChannel.compile("assets/shaders/rgbToYuvYChannel.glsl");
 			rgbToYuvShaderUvChannel.compile("assets/shaders/rgbToYuvUvChannel.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
+			shader3DScreenAlignedBillboard.compile("assets/shaders/screenAlignedBillboard.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
@@ -281,6 +312,7 @@ namespace MathAnim
 			rgbToYuvShaderYChannel.compile("assets/shaders/rgbToYuvYChannel.glsl");
 			rgbToYuvShaderUvChannel.compile("assets/shaders/rgbToYuvUvChannel.glsl");
 			shader3DLine.compile("assets/shaders/shader3DLine.glsl");
+			shader3DScreenAlignedBillboard.compile("assets/shaders/screenAlignedBillboard.glsl");
 			shader3DOpaque.compile("assets/shaders/shader3DOpaque.glsl");
 			shader3DTransparent.compile("assets/shaders/shader3DTransparent.glsl");
 			shader3DComposite.compile("assets/shaders/shader3DComposite.glsl");
@@ -291,6 +323,7 @@ namespace MathAnim
 			drawList2D.init();
 			drawList3DLine.init();
 			drawList3D.init();
+			drawList3DBillboard.init();
 			setupScreenVao();
 			setupDefaultWhiteTexture();
 
@@ -306,6 +339,7 @@ namespace MathAnim
 			rgbToYuvShaderYChannel.destroy();
 			rgbToYuvShaderUvChannel.destroy();
 			shader3DLine.destroy();
+			shader3DScreenAlignedBillboard.destroy();
 			shader3DOpaque.destroy();
 			shader3DTransparent.destroy();
 			shader3DComposite.destroy();
@@ -315,6 +349,7 @@ namespace MathAnim
 			drawList2D.free();
 			drawList3DLine.free();
 			drawList3D.free();
+			drawList3DBillboard.free();
 
 			TextureCache::free();
 		}
@@ -324,10 +359,12 @@ namespace MathAnim
 			list2DNumDrawCalls = 0;
 			list3DNumDrawCalls = 0;
 			list3DLineNumDrawCalls = 0;
+			list3DBillboardNumDrawCalls = 0;
 
 			list2DNumTris = 0;
 			list3DNumTris = 0;
 			list3DLineNumTris = 0;
+			list3DBillboardNumTris = 0;
 
 			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding(%d) call.", lineEndingStackPtr);
 			g_logger_assert(colorStackPtr == 0, "Missing popColor(%d) call.", colorStackPtr);
@@ -438,6 +475,7 @@ namespace MathAnim
 			// Do all the draw calls
 			// Draw lines and strings
 			drawList3DLine.render(shader3DLine);
+			drawList3DBillboard.render(shader3DScreenAlignedBillboard);
 
 			// Draw 3D objects after the lines so that we can do appropriate blending
 			// using OIT
@@ -655,15 +693,18 @@ namespace MathAnim
 			list2DNumDrawCalls += (int)drawList2D.drawCommands.size();
 			list3DNumDrawCalls += (int)drawList3D.drawCommands.size();
 			list3DLineNumDrawCalls += (int)drawList3DLine.drawCommands.size();
+			list3DBillboardNumDrawCalls += (int)drawList3DBillboard.drawCommands.size();
 
 			list2DNumTris += (int)drawList2D.indices.size() / 3;
 			list3DNumTris += (int)drawList3D.indices.size() / 3;
 			list3DLineNumTris += (int)drawList3DLine.vertices.size() / 3;
+			list3DBillboardNumTris += (int)drawList3DBillboard.vertices.size() / 3;
 
 			// Do all the draw calls
 			drawList3DLine.reset();
 			drawList3D.reset();
 			drawList2D.reset();
+			drawList3DBillboard.reset();
 		}
 
 		// ----------- Styles ----------- 
@@ -1479,7 +1520,12 @@ namespace MathAnim
 			drawList3DLine.addLine(start, end, packColor(color), thickness);
 		}
 
-		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId, const glm::mat4& transform, bool isBillboard)
+		void drawBillboard3D(const Vec3& position, const Vec2& size, const Vec4& color, AnimObjId)
+		{
+			drawList3DBillboard.addBillboard(position, size, packColor(color));
+		}
+
+		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId, const glm::mat4& transform)
 		{
 			glm::vec4 tmpBottomLeft = glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
 			glm::vec4 tmpTopLeft = glm::vec4(-size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
@@ -1487,26 +1533,10 @@ namespace MathAnim
 			glm::vec4 tmpBottomRight = glm::vec4(size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
 			glm::vec4 tmpFaceNormal = transform * glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
 
-			if (!isBillboard)
-			{
-				tmpBottomLeft = transform * tmpBottomLeft;
-				tmpTopLeft = transform * tmpTopLeft;
-				tmpTopRight = transform * tmpTopRight;
-				tmpBottomRight = transform * tmpBottomRight;
-			}
-			else
-			{
-				// TODO: Fixme for billboard stuff... Who knows how the heck to do it...
-				const Camera* currentCamera = getCurrentCamera3D();
-				glm::vec3 translation = CMath::convert(CMath::extractPosition(transform));
-				glm::mat4 lookAtCamera = lookAtCamera = glm::translate(lookAtCamera, translation);
-				lookAtCamera = glm::lookAt(translation, -CMath::convert(currentCamera->position), CMath::convert(currentCamera->up));
-
-				tmpBottomLeft = lookAtCamera * tmpBottomLeft;
-				tmpTopLeft = lookAtCamera * tmpTopLeft;
-				tmpTopRight = lookAtCamera * tmpTopRight;
-				tmpBottomRight = lookAtCamera * tmpBottomRight;
-			}
+			tmpBottomLeft = transform * tmpBottomLeft;
+			tmpTopLeft = transform * tmpTopLeft;
+			tmpTopRight = transform * tmpTopRight;
+			tmpBottomRight = transform * tmpBottomRight;
 
 			Vec3 bottomLeft = { tmpBottomLeft.x, tmpBottomLeft.y, tmpBottomLeft.z };
 			Vec3 topLeft = { tmpTopLeft.x, tmpTopLeft.y, tmpTopLeft.z };
@@ -1579,7 +1609,8 @@ namespace MathAnim
 			return getDrawList2DNumDrawCalls() +
 				getDrawListFont2DNumDrawCalls() +
 				getDrawList3DNumDrawCalls() +
-				getDrawList3DLineNumDrawCalls();
+				getDrawList3DLineNumDrawCalls() +
+				getDrawList3DBillboardNumDrawCalls();
 		}
 
 		int getDrawList2DNumDrawCalls()
@@ -1602,12 +1633,18 @@ namespace MathAnim
 			return list3DLineNumDrawCalls;
 		}
 
+		int getDrawList3DBillboardNumDrawCalls()
+		{
+			return list3DBillboardNumDrawCalls;
+		}
+
 		int getTotalNumTris()
 		{
 			return getDrawList2DNumTris() +
 				getDrawListFont2DNumTris() +
 				getDrawList3DNumTris() +
-				getDrawList3DLineNumTris();
+				getDrawList3DLineNumTris() +
+				getDrawList3DBillboardNumTris();
 		}
 
 		int getDrawList2DNumTris()
@@ -1628,6 +1665,11 @@ namespace MathAnim
 		int getDrawList3DLineNumTris()
 		{
 			return list3DLineNumTris;
+		}
+
+		int getDrawList3DBillboardNumTris()
+		{
+			return list3DBillboardNumTris;
 		}
 
 		// ---------------------- Begin Internal Functions ----------------------
@@ -2058,7 +2100,7 @@ namespace MathAnim
 		if (drawCommands.size() == 0 ||
 			drawCommands[drawCommands.size() - 1].camera != currentCamera)
 		{
-			DrawCmd3DLine newCmd;
+			DrawCmdSimple3D newCmd;
 			newCmd.camera = currentCamera;
 			newCmd.vertCount = 0;
 			newCmd.vertexOffset = (uint32)vertices.size();
@@ -2116,7 +2158,7 @@ namespace MathAnim
 			packedColor
 			});
 
-		DrawCmd3DLine& currentCmd = drawCommands[drawCommands.size() - 1];
+		DrawCmdSimple3D& currentCmd = drawCommands[drawCommands.size() - 1];
 		currentCmd.vertCount += 6;
 	}
 
@@ -2161,7 +2203,6 @@ namespace MathAnim
 		GL::bindVertexArray(vao);
 
 		shader.bind();
-		shader.uploadFloat("uAspectRatio", Application::getOutputTargetAspectRatio());
 
 		for (size_t i = 0; i < drawCommands.size(); i++)
 		{
@@ -2172,6 +2213,7 @@ namespace MathAnim
 				vertices.data() + drawCommands[i].vertexOffset,
 				GL_DYNAMIC_DRAW);
 
+			shader.uploadFloat("uAspectRatio", drawCommands[i].camera->aspectRatio);
 			shader.uploadMat4("uProjection", drawCommands[i].camera->projectionMatrix);
 			shader.uploadMat4("uView", drawCommands[i].camera->viewMatrix);
 
@@ -2186,6 +2228,7 @@ namespace MathAnim
 	void DrawList3DLine::reset()
 	{
 		vertices.clear();
+		drawCommands.clear();
 	}
 
 	void DrawList3DLine::free()
@@ -2204,6 +2247,163 @@ namespace MathAnim
 		vao = UINT32_MAX;
 	}
 	// ---------------------- End DrawList3DLine Functions ----------------------
+
+	// ---------------------- Begin DrawList3DBillboard Functions ----------------------
+	void DrawList3DBillboard::init()
+	{
+		vao = UINT32_MAX;
+		vbo = UINT32_MAX;
+
+		vertices = {};
+		setupGraphicsBuffers();
+	}
+
+	void DrawList3DBillboard::changeBatchIfNeeded()
+	{
+		const Camera* currentCamera = Renderer::getCurrentCamera3D();
+		if (drawCommands.size() == 0 ||
+			drawCommands[drawCommands.size() - 1].camera != currentCamera)
+		{
+			DrawCmdSimple3D newCmd;
+			newCmd.camera = currentCamera;
+			newCmd.vertCount = 0;
+			newCmd.vertexOffset = (uint32)vertices.size();
+			drawCommands.emplace_back(newCmd);
+		}
+	}
+
+	void DrawList3DBillboard::addBillboard(const Vec3& position, const Vec2& size, uint32 packedColor)
+	{
+		changeBatchIfNeeded();
+
+		// NOTE: Reversing p0, p1 should make sure we get the second half of the line segment
+
+		Vec2 halfSize = size / 2.0f;
+
+		// Triangle 1
+		vertices.emplace_back(Vertex3DBillboard{
+			position,
+			packedColor,
+			{ -halfSize.x, -halfSize.y }
+			});
+
+		vertices.emplace_back(Vertex3DBillboard{
+			position,
+			packedColor,
+			{ -halfSize.x, halfSize.y }
+			});
+
+		vertices.emplace_back(Vertex3DBillboard{
+			position,
+			packedColor,
+			{ halfSize.x, halfSize.y }
+			});
+
+		// Triangle 2
+		vertices.emplace_back(Vertex3DBillboard{
+			position,
+			packedColor,
+			{ -halfSize.x, -halfSize.y }
+			});
+
+		vertices.emplace_back(Vertex3DBillboard{
+			position,
+			packedColor,
+			{ halfSize.x, halfSize.y }
+			});
+
+		vertices.emplace_back(Vertex3DBillboard{
+			position,
+			packedColor,
+			{ halfSize.x, -halfSize.y }
+			});
+
+		DrawCmdSimple3D& currentCmd = drawCommands[drawCommands.size() - 1];
+		currentCmd.vertCount += 6;
+	}
+
+	void DrawList3DBillboard::setupGraphicsBuffers() 
+	{
+		// Create the batched vao
+		GL::createVertexArray(&vao);
+		GL::bindVertexArray(vao);
+
+		GL::genBuffers(1, &vbo);
+
+		// Allocate space for the batched vao
+		GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
+		GL::bufferData(GL_ARRAY_BUFFER, sizeof(Vertex3DLine), NULL, GL_DYNAMIC_DRAW);
+
+		// Set up the batched vao attributes
+		GL::vertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3DBillboard), (void*)(offsetof(Vertex3DBillboard, position)));
+		GL::enableVertexAttribArray(0);
+
+		GL::vertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(Vertex3DBillboard), (void*)(offsetof(Vertex3DBillboard, color)));
+		GL::enableVertexAttribArray(1);
+
+		GL::vertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex3DBillboard), (void*)(offsetof(Vertex3DBillboard, halfSize)));
+		GL::enableVertexAttribArray(2);
+	}
+
+	void DrawList3DBillboard::render(const Shader& shader) const 
+	{
+		if (vertices.size() == 0)
+		{
+			return;
+		}
+
+		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_Billboard_Pass");
+
+		GL::enable(GL_DEPTH_TEST);
+		GL::disable(GL_CULL_FACE);
+
+		GL::bindVertexArray(vao);
+
+		shader.bind();
+
+		for (size_t i = 0; i < drawCommands.size(); i++)
+		{
+			GL::bindBuffer(GL_ARRAY_BUFFER, vbo);
+			GL::bufferData(
+				GL_ARRAY_BUFFER,
+				sizeof(Vertex3DBillboard) * drawCommands[i].vertCount,
+				vertices.data() + drawCommands[i].vertexOffset,
+				GL_DYNAMIC_DRAW);
+
+			shader.uploadFloat("uAspectRatio", drawCommands[i].camera->aspectRatio);
+			shader.uploadMat4("uProjection", drawCommands[i].camera->projectionMatrix);
+			shader.uploadMat4("uView", drawCommands[i].camera->viewMatrix);
+
+			GL::drawArrays(GL_TRIANGLES, 0, (GLsizei)vertices.size());
+		}
+
+		GL::disable(GL_DEPTH_TEST);
+
+		GL::popDebugGroup();
+	}
+
+	void DrawList3DBillboard::reset() 
+	{
+		vertices.clear();
+		drawCommands.clear();
+	}
+
+	void DrawList3DBillboard::free() 
+	{
+		if (vbo != UINT32_MAX)
+		{
+			GL::deleteBuffers(1, &vbo);
+		}
+
+		if (vao != UINT32_MAX)
+		{
+			GL::deleteVertexArrays(1, &vao);
+		}
+
+		vbo = UINT32_MAX;
+		vao = UINT32_MAX;
+	}
+	// ---------------------- End DrawList3DBillboard Functions ----------------------
 
 	// ---------------------- Begin DrawList3D Functions ----------------------
 	void DrawList3D::init()

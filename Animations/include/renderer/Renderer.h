@@ -98,7 +98,8 @@ namespace MathAnim
 
 		// ----------- 3D stuff ----------- 
 		void drawLine3D(const Vec3& start, const Vec3& end, float thickness, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
-		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isBillboard = false);
+		void drawBillboard3D(const Vec3& position, const Vec2& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isTransparent = false, bool isBillboard = false);
 		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId = NULL_ANIM_OBJECT, bool isBillboard = false);
 		void drawFilledCircle3D(const Vec3& center, float radius, int numSegments, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isBillboard = false);
@@ -113,12 +114,14 @@ namespace MathAnim
 		int getDrawListFont2DNumDrawCalls();
 		int getDrawList3DNumDrawCalls();
 		int getDrawList3DLineNumDrawCalls();
+		int getDrawList3DBillboardNumDrawCalls();
 
 		int getTotalNumTris();
 		int getDrawList2DNumTris();
 		int getDrawListFont2DNumTris();
 		int getDrawList3DNumTris();
 		int getDrawList3DLineNumTris();
+		int getDrawList3DBillboardNumTris();
 	}
 }
 

@@ -1,8 +1,8 @@
 #type vertex
 #version 330 core
 layout (location = 0) in vec3 center;
-layout (location = 1) in vec2 halfSize;
-layout (location = 2) in uint aColor;
+layout (location = 1) in uint aColor;
+layout (location = 2) in vec2 halfSize;
 
 out vec4 fColor;
 out vec2 fTexCoord;
@@ -30,7 +30,7 @@ void main()
     fTexCoord = (sign(halfSize) + vec2(1.0f)) / vec2(2.0f);
 
     // Calculate the final vertex position
-    gl_Position = p0Projected + vec4(offset, 0.0, 0.0);
+    gl_Position = centerProjected + vec4(offset, 0.0, 0.0);
 }
 
 #type fragment

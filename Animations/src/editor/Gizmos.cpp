@@ -168,34 +168,17 @@ namespace MathAnim
 
 				Renderer::pushCamera3D(&dummyCamera);
 
-				constexpr float size = 0.15f;
+				constexpr Vec2 size = Vec2{2.0f, 2.0f};
 				constexpr float radius = 0.8f;
 
-				glm::mat4 xPositiveCircleTransform = glm::mat4(1.0f);
-				xPositiveCircleTransform = glm::translate(xPositiveCircleTransform, glm::vec3(radius, 0.0f, 0.0f));
-				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::AccentRed[4], xPositiveCircleTransform, true);
+				Renderer::drawBillboard3D(Vec3{ radius, 0.0f, 0.0f }, size, Colors::AccentRed[4]);
+				Renderer::drawBillboard3D(Vec3{ -radius, 0, 0 }, size, Colors::AccentRed[6]);
 
-				glm::mat4 xNegativeCircleTransform = glm::mat4(1.0f);
-				xNegativeCircleTransform = glm::translate(xNegativeCircleTransform, glm::vec3(-radius, 0.0f, 0.0f));
-				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::AccentRed[6], xNegativeCircleTransform);
+				Renderer::drawBillboard3D(Vec3{ 0, radius, 0 }, size, Colors::Primary[4]);
+				Renderer::drawBillboard3D(Vec3{ 0, -radius, 0 }, size, Colors::Primary[7]);
 
-
-				glm::mat4 yPositiveCircleTransform = glm::mat4(1.0f);
-				yPositiveCircleTransform = glm::translate(yPositiveCircleTransform, glm::vec3(0.0f, radius, 0.0f));
-				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::Primary[4], yPositiveCircleTransform);
-
-				glm::mat4 yNegativeCircleTransform = glm::mat4(1.0f);
-				yNegativeCircleTransform = glm::translate(yNegativeCircleTransform, glm::vec3(0.0f, -radius, 0.0f));
-				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::Primary[7], yNegativeCircleTransform);
-
-
-				glm::mat4 zPositiveCircleTransform = glm::mat4(1.0f);
-				zPositiveCircleTransform = glm::translate(zPositiveCircleTransform, glm::vec3(0.0f, 0.0f, radius));
-				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::AccentGreen[4], zPositiveCircleTransform);
-
-				glm::mat4 zNegativeCircleTransform = glm::mat4(1.0f);
-				zNegativeCircleTransform = glm::translate(zNegativeCircleTransform, glm::vec3(0.0f, 0.0f, -radius));
-				Renderer::drawFilledCircle3D(Vec3{ 0, 0, 0 }, size, 12, Colors::AccentGreen[6], zNegativeCircleTransform);
+				Renderer::drawBillboard3D(Vec3{ 0, 0, radius }, size, Colors::AccentGreen[4]);
+				Renderer::drawBillboard3D(Vec3{ 0, 0, -radius }, size, Colors::AccentGreen[6]);
 
 				constexpr float lineWidth = 0.4f;
 				Renderer::drawLine3D(Vec3{ 0.0f, 0.0f, 0.0f }, Vec3{ radius, 0.0f, 0.0f }, lineWidth, Colors::AccentRed[4], NULL_ANIM_OBJECT);
