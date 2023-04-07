@@ -79,7 +79,7 @@ namespace MathAnim
 			else
 			{
 				// Compare the strings
-				int strCompare = g_memory_compareMem(&tocEntries.data[tocEntries.offset], (void*)entryName, sizeof(uint8) * currentEntryNameLength);
+				int strCompare = g_memory_compareMem(&tocEntries.data[tocEntries.offset], tocEntries.size - tocEntries.offset, (void*)entryName, sizeof(uint8) * currentEntryNameLength);
 				if (strCompare == 0)
 				{
 					// Return this entry data
