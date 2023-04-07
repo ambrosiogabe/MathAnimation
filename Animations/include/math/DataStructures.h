@@ -1,7 +1,9 @@
 #ifndef MATH_ANIM_DATA_STRUCTURES_H
 #define MATH_ANIM_DATA_STRUCTURES_H
 
+#define USE_GABE_CPP_PRINT
 #include <cppUtils/cppUtils.hpp>
+#include <ostream>
 
 #pragma warning( push )
 #pragma warning( disable : 4201 )
@@ -200,6 +202,18 @@ namespace MathAnim
 	bool operator!=(const Vec4i& a, const Vec4i& b);
 	bool operator!=(const Vec3i& a, const Vec3i& b);
 	bool operator!=(const Vec2i& a, const Vec2i& b);
+
+	// Print functions
+	std::ostream& operator<<(std::ostream& ostream, const Vec2& vec2);
+	std::ostream& operator<<(std::ostream& ostream, const Vec3& vec3);
+	std::ostream& operator<<(std::ostream& ostream, const Vec4& vec4);
+
+	std::ostream& operator<<(std::ostream& ostream, const Vec2i& vec2);
+	std::ostream& operator<<(std::ostream& ostream, const Vec3i& vec3);
+	std::ostream& operator<<(std::ostream& ostream, const Vec4i& vec4);
+
+	std::ostream& operator<<(std::ostream& ostream, const BBox& bbox);
+	std::ostream& operator<<(std::ostream& ostream, const BBoxi& bbox);
 
 	namespace CMath
 	{

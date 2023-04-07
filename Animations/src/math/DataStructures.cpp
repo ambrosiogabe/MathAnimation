@@ -35,12 +35,12 @@ namespace MathAnim
 		};
 	}
 
-	Vec2 operator*(float scale, const Vec2& a) 
+	Vec2 operator*(float scale, const Vec2& a)
 	{
 		return a * scale;
 	}
 
-	Vec2 operator/(float scale, const Vec2& a) 
+	Vec2 operator/(float scale, const Vec2& a)
 	{
 		return a / scale;
 	}
@@ -85,13 +85,13 @@ namespace MathAnim
 		return a;
 	}
 
-	Vec2& operator+=(Vec2& a, const Vec2& b) 
+	Vec2& operator+=(Vec2& a, const Vec2& b)
 	{
 		a = a + b;
 		return a;
 	}
 
-	Vec2& operator-=(Vec2& a, const Vec2& b) 
+	Vec2& operator-=(Vec2& a, const Vec2& b)
 	{
 		a = a - b;
 		return a;
@@ -146,14 +146,14 @@ namespace MathAnim
 
 	Vec3 operator*(const Vec3& a, const Vec3& scale)
 	{
-		return Vec3 {
+		return Vec3{
 			a.x * scale.x,
 			a.y * scale.y,
 			a.z * scale.z
 		};
 	}
 
-	Vec3 operator/(const Vec3& a, const Vec3& scale) 
+	Vec3 operator/(const Vec3& a, const Vec3& scale)
 	{
 		return Vec3{
 			a.x / scale.x,
@@ -186,13 +186,13 @@ namespace MathAnim
 		return a;
 	}
 
-	Vec3& operator+=(Vec3& a, const Vec3& b) 
+	Vec3& operator+=(Vec3& a, const Vec3& b)
 	{
 		a = a + b;
 		return a;
 	}
 
-	Vec3& operator-=(Vec3& a, const Vec3& b) 
+	Vec3& operator-=(Vec3& a, const Vec3& b)
 	{
 		a = a - b;
 		return a;
@@ -293,13 +293,13 @@ namespace MathAnim
 		return a;
 	}
 
-	Vec4& operator+=(Vec4& a, const Vec4& b) 
+	Vec4& operator+=(Vec4& a, const Vec4& b)
 	{
 		a = a + b;
 		return a;
 	}
 
-	Vec4& operator-=(Vec4& a, const Vec4& b) 
+	Vec4& operator-=(Vec4& a, const Vec4& b)
 	{
 		a = a - b;
 		return a;
@@ -355,12 +355,12 @@ namespace MathAnim
 		return Vec2i{ a.x / scale, a.y / scale };
 	}
 
-	Vec2i operator*(int32 scale, const Vec2i& a) 
+	Vec2i operator*(int32 scale, const Vec2i& a)
 	{
 		return Vec2i{ a.x * scale , a.y * scale };
 	}
 
-	Vec2i operator/(int32 scale, const Vec2i& a) 
+	Vec2i operator/(int32 scale, const Vec2i& a)
 	{
 		return Vec2i{ a.x / scale, a.y / scale };
 	}
@@ -437,7 +437,7 @@ namespace MathAnim
 		return a;
 	}
 
-	Vec3i& operator-=(Vec3i& a, const Vec3i& b) 
+	Vec3i& operator-=(Vec3i& a, const Vec3i& b)
 	{
 		a = a - b;
 		return a;
@@ -527,19 +527,68 @@ namespace MathAnim
 		return !(a == b);
 	}
 
+	// Print functions
+	std::ostream& operator<<(std::ostream& ostream, const Vec2& vec2)
+	{
+		ostream << "<" << vec2.x << ", " << vec2.y << ">";
+		return ostream;
+	}
+
+	std::ostream& operator<<(std::ostream& ostream, const Vec3& vec3)
+	{
+		ostream << "<" << vec3.x << ", " << vec3.y << ", " << vec3.z << ">";
+		return ostream;
+	}
+
+	std::ostream& operator<<(std::ostream& ostream, const Vec4& vec4)
+	{
+		ostream << "<" << vec4.r << ", " << vec4.g << ", " << vec4.b << ", " << vec4.a << ">";
+		return ostream;
+	}
+
+	std::ostream& operator<<(std::ostream& ostream, const Vec2i& vec2)
+	{
+		ostream << "<" << vec2.x << ", " << vec2.y << ">";
+		return ostream;
+	}
+
+	std::ostream& operator<<(std::ostream& ostream, const Vec3i& vec3)
+	{
+		ostream << "<" << vec3.x << ", " << vec3.y << ", " << vec3.z << ">";
+		return ostream;
+	}
+
+	std::ostream& operator<<(std::ostream& ostream, const Vec4i& vec4)
+	{
+		ostream << "<" << vec4.w << ", " << vec4.x << ", " << vec4.y << ", " << vec4.z << ">";
+		return ostream;
+	}
+
+	std::ostream& operator<<(std::ostream& ostream, const BBox& bbox)
+	{
+		ostream << "Max: " << bbox.max << ", Min: " << bbox.min;
+		return ostream;
+	}
+
+	std::ostream& operator<<(std::ostream& ostream, const BBoxi& bbox)
+	{
+		ostream << "Max: " << bbox.max << ", Min: " << bbox.min;
+		return ostream;
+	}
+
 	namespace CMath
 	{
-		float lengthSquared(const Vec2& vec) 
+		float lengthSquared(const Vec2& vec)
 		{
 			return vec.x * vec.x + vec.y * vec.y;
 		}
 
-		float lengthSquared(const Vec3& vec) 
+		float lengthSquared(const Vec3& vec)
 		{
 			return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
 		}
 
-		float lengthSquared(const Vec4& vec) 
+		float lengthSquared(const Vec4& vec)
 		{
 			return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w;
 		}
@@ -559,17 +608,17 @@ namespace MathAnim
 			return vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w;
 		}
 
-		float length(const Vec2& vec) 
+		float length(const Vec2& vec)
 		{
 			return glm::sqrt(vec.x * vec.x + vec.y * vec.y);
 		}
 
-		float length(const Vec3& vec) 
+		float length(const Vec3& vec)
 		{
 			return glm::sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
 		}
 
-		float length(const Vec4& vec) 
+		float length(const Vec4& vec)
 		{
 			return glm::sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w);
 		}
@@ -589,17 +638,17 @@ namespace MathAnim
 			return glm::sqrt((float)(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z + vec.w * vec.w));
 		}
 
-		Vec2 normalize(const Vec2& vec) 
+		Vec2 normalize(const Vec2& vec)
 		{
 			return vec * glm::inversesqrt(lengthSquared(vec));
 		}
 
-		Vec3 normalize(const Vec3& vec) 
+		Vec3 normalize(const Vec3& vec)
 		{
 			return vec * glm::inversesqrt(lengthSquared(vec));
 		}
 
-		Vec4 normalize(const Vec4& vec) 
+		Vec4 normalize(const Vec4& vec)
 		{
 			return vec * glm::inversesqrt(lengthSquared(vec));
 		}

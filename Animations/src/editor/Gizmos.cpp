@@ -177,6 +177,7 @@ namespace MathAnim
 
 				constexpr const Vec3 xPos = Vec3{ radius, 0.0f, 0.0f };
 				float orientationXDp = CMath::dot(xPos, dummyCamera.forward);
+				g_logger_info("XPos: {}", xPos);
 				bool orientationIsXPositive = orientationXDp >= -1.0f && orientationXDp < 0.0f;
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
