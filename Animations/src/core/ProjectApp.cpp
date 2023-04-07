@@ -34,9 +34,9 @@ namespace MathAnim
 			GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			std::string specialAppDirectory = Platform::getSpecialAppDir();
-			g_logger_info("Special app directory: '%s'", specialAppDirectory.c_str());
+			g_logger_info("Special app directory: '{}'", specialAppDirectory);
 			appRoot = std::filesystem::path(specialAppDirectory) / "MathAnimationEditor";
-			g_logger_info("App root: '%s'", appRoot.string().c_str());
+			g_logger_info("App root: '{}'", appRoot);
 			Platform::createDirIfNotExists(appRoot.string().c_str());
 
 			ProjectScreen::init(appRoot);

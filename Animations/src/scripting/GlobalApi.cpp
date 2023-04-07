@@ -763,7 +763,7 @@ extern "C"
 			return global_loadMathAnimLib(L);
 		}
 
-		g_logger_warning("Requiring random files not supported yet for file: %s", file.c_str());
+		g_logger_warning("Requiring user created files not supported yet for file: '{}'", file);
 		return 0;
 	}
 

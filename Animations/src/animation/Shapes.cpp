@@ -62,7 +62,7 @@ namespace MathAnim
 		}
 		break;
 		default:
-			g_logger_error("Square serialized with unknown version '%d'", version);
+			g_logger_error("Square serialized with unknown version '{}'", version);
 			break;
 		}
 
@@ -82,7 +82,7 @@ namespace MathAnim
 		}
 		break;
 		default:
-			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
+			g_logger_error("Tried to deserialize unknown version of square '{}'. It looks like you have corrupted scene data.", version);
 			break;
 		}
 
@@ -161,7 +161,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("Circle serialized with unknown version '%d'.", version);
+		g_logger_warning("Circle serialized with unknown version '{}'.", version);
 		return {};
 	}
 
@@ -178,7 +178,7 @@ namespace MathAnim
 		}
 		break;
 		default:
-			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
+			g_logger_error("Tried to deserialize unknown version of square '{}'. It looks like you have corrupted scene data.", version);
 			break;
 		}
 
@@ -255,7 +255,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("Arrow serialized with unknown version '%d'.", version);
+		g_logger_warning("Arrow serialized with unknown version '{}'.", version);
 		return {};
 	}
 
@@ -363,7 +363,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("Cube serialized with unknown version '%d'.", version);
+		g_logger_warning("Cube serialized with unknown version '{}'.", version);
 		return {};
 	}
 
@@ -380,7 +380,7 @@ namespace MathAnim
 		}
 		break;
 		default:
-			g_logger_error("Tried to deserialize unknown version of square %d. It looks like you have corrupted scene data.");
+			g_logger_error("Tried to deserialize unknown version of square '{}'. It looks like you have corrupted scene data.", version);
 			break;
 		}
 

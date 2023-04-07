@@ -139,7 +139,7 @@ namespace MathAnim
 
 							if (!this->cachedSvgs.evict(oldest->key))
 							{
-								g_logger_error("SVG cache eviction failed: 0x%8x", oldest->key);
+								g_logger_error("SVG cache eviction failed: 0x{:8x}", oldest->key);
 								oldest = nullptr;
 							}
 
@@ -340,7 +340,7 @@ namespace MathAnim
 					LRUCacheEntry<uint64, _SvgCacheEntryInternal>* next = oldest->next;
 					if (!cachedSvgs.evict(oldest->key))
 					{
-						g_logger_error("Failed to evict cache entry %u", oldest->key);
+						g_logger_error("Failed to evict cache entry {}", oldest->key);
 					}
 					oldest = next;
 				}

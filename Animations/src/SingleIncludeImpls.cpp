@@ -1,3 +1,7 @@
+#define GABE_CPP_PRINT_IMPL
+#include <cppUtils/cppPrint.hpp>
+#undef GABE_CPP_PRINT_IMPL
+
 #define GABE_CPP_UTILS_IMPL
 #include <cppUtils/cppUtils.hpp>
 

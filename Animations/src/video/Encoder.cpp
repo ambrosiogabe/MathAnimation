@@ -379,7 +379,7 @@ namespace MathAnim
 
 			if (logProgress && ((frameCounter % framerate) == 0))
 			{
-				g_logger_info("%d second(s) encoded.", (frameCounter / 60));
+				g_logger_info("{} second(s) encoded.", (frameCounter / 60));
 			}
 
 			size_t usedRamExpected = approxRamUsed.load();

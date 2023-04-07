@@ -87,14 +87,14 @@ namespace MathAnim
 		{
 			if (type == GL_DEBUG_TYPE_ERROR)
 			{
-				g_logger_error("GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s",
+				g_logger_error("GL CALLBACK: {} type = 0x{}, severity = 0x{}, message = {}",
 					(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
 					type, severity, message);
 
 				GLenum err;
 				while ((err = GL::getError()) != GL_NO_ERROR)
 				{
-					g_logger_error("Error Code: 0x%8x", err);
+					g_logger_error("Error Code: 0x{:8x}", err);
 				}
 			}
 		}

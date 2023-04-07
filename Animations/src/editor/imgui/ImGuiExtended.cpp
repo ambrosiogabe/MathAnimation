@@ -293,7 +293,7 @@ namespace MathAnim
 				}
 				else
 				{
-					g_logger_error("File drag drop target got filepath of length '%d' that was too long to fit into buffer of length '%d'.", (uint32)objPayload->filepathLength, (uint32)outBufferSize);
+					g_logger_error("File drag drop target got filepath of length '{}' that was too long to fit into buffer of length '{}'.", objPayload->filepathLength, outBufferSize);
 					return false;
 				}
 

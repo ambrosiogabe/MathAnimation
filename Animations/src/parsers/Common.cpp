@@ -85,7 +85,7 @@ namespace MathAnim
 			FILE* fp = fopen(filepath, "rb");
 			if (!fp)
 			{
-				g_logger_warning("Could not load file '%s' while trying to open parser. Error: '%s'.", filepath, strerror(errno));
+				g_logger_warning("Could not load file '{}' while trying to open parser. Error: '{}'.", filepath, strerror(errno));
 				return {};
 			}
 
@@ -143,7 +143,7 @@ namespace MathAnim
 			{
 				constexpr int maxSmallBufferSize = 32;
 				char smallBuffer[maxSmallBufferSize];
-				g_logger_assert(numberEnd - numberStart <= maxSmallBufferSize, "Cannot parse number greater than %d characters big.", maxSmallBufferSize);
+				g_logger_assert(numberEnd - numberStart <= maxSmallBufferSize, "Cannot parse number greater than '{}' characters big.", maxSmallBufferSize);
 				g_memory_copyMem(smallBuffer, (void*)(parserInfo.text + numberStart), sizeof(char) * (numberEnd - numberStart));
 				smallBuffer[numberEnd - numberStart] = '\0';
 				// TODO: atof is not safe use a safer modern alternative

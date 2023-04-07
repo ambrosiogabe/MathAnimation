@@ -135,7 +135,7 @@ namespace MathAnim
 				if (!animObject)
 				{
 					animObject = AnimationManager::getPendingObject(am, element.animObjectId);
-					g_logger_assert(animObject != nullptr, "Scene hierarchy tried to access anim object with id '%d' that does not exist and is not pending addition.", element.animObjectId);
+					g_logger_assert(animObject != nullptr, "Scene hierarchy tried to access anim object with id '{}' that does not exist and is not pending addition.", element.animObjectId);
 				}
 
 				if (element.selected)

@@ -107,7 +107,7 @@ namespace MathAnim
     // Adapted from https://stackoverflow.com/questions/2467429/c-check-installed-programms
     bool isProgramInstalled(const char* displayName)
     {
-		g_logger_warning("UNIMPLEMENTED: Failing check if %s is installed", displayName);
+		g_logger_warning("UNIMPLEMENTED: Failing check if {} is installed", displayName);
       // TODO: Placeholder, but also this function seems unused?
       return false;
     }
@@ -227,7 +227,7 @@ namespace MathAnim
 
     std::string md5FromString(char const* const str, size_t length, int md5Length) {
       unsigned int md5_digest_len = EVP_MD_size(EVP_md5());
-			g_logger_assert(length == md5_digest_len, "Cannot generate md5 of size %d. Must be %d", md5Length, md5_digest_len);
+			g_logger_assert(length == md5_digest_len, "Cannot generate md5 of size {}. Must be {}", md5Length, md5_digest_len);
       
       // MD5_Init
       EVP_MD_CTX * mdctx = EVP_MD_CTX_new();

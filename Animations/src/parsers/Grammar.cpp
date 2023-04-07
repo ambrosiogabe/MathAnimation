@@ -28,12 +28,12 @@ namespace MathAnim
 			}
 			catch (std::invalid_argument const& ex)
 			{
-				g_logger_warning("Invalid capture list. Key '%s' is not a number.\n%s", key.c_str(), ex.what());
+				g_logger_warning("Invalid capture list. Key '{}' is not a number.\n'{}'", key, ex.what());
 				continue;
 			}
 			catch (std::out_of_range const& ex)
 			{
-				g_logger_warning("Invalid capture list. Key '%s' is too large.\n%s", key.c_str(), ex.what());
+				g_logger_warning("Invalid capture list. Key '{}' is too large.\n'{}'", key, ex.what());
 				continue;
 			}
 
@@ -47,7 +47,7 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_warning("Invalid capture list. Capture '%s' does not contain a 'name' key.", key.c_str());
+				g_logger_warning("Invalid capture list. Capture '{}' does not contain a 'name' key.", key);
 			}
 		}
 
@@ -206,7 +206,7 @@ namespace MathAnim
 				{
 					return iter->second.match(str, start, end, repo, region, outMatches);
 				}
-				g_logger_warning("Unable to resolve pattern reference '%s'.", patternInclude.value().c_str());
+				g_logger_warning("Unable to resolve pattern reference '{}'.", patternInclude.value());
 			}
 		}
 		break;
@@ -311,7 +311,7 @@ namespace MathAnim
 	{
 		if (!Platform::fileExists(filepath))
 		{
-			g_logger_warning("Tried to parse grammar at filepath that does not exist: '%s'", filepath);
+			g_logger_warning("Tried to parse grammar at filepath that does not exist: '{}'", filepath);
 			return nullptr;
 		}
 
@@ -324,7 +324,7 @@ namespace MathAnim
 		}
 		catch (json::exception& ex)
 		{
-			g_logger_error("Error importing language grammar: '%s'\n\t%s", filepath, ex.what());
+			g_logger_error("Error importing language grammar: '{}'\n\t'{}'", filepath, ex.what());
 		}
 
 		return nullptr;
@@ -453,7 +453,7 @@ namespace MathAnim
 
 			if (!json.contains("end"))
 			{
-				g_logger_error("Pattern '%s' has invalid complex pattern. Pattern has begin, but no end.");
+				g_logger_error("Pattern '{}' has invalid complex pattern. Pattern has begin, but no end.", "UNKNOWN");
 				return dummy;
 			}
 
@@ -560,7 +560,7 @@ namespace MathAnim
 		{
 			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
 			onig_error_code_to_str((UChar*)s, parseRes, &error);
-			g_logger_error("Oniguruma Error: %s", s);
+			g_logger_error("Oniguruma Error: '{}'", s);
 			return nullptr;
 		}
 
@@ -605,7 +605,7 @@ namespace MathAnim
 			// Error
 			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
 			onig_error_code_to_str((UChar*)s, searchRes);
-			g_logger_error("Oniguruma Error: %s", s);
+			g_logger_error("Oniguruma Error: '{}'", s);
 			onig_region_free(region, 1 /* 1:free self, 0:free contents only */);
 		}
 
@@ -656,7 +656,7 @@ namespace MathAnim
 			// Error
 			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
 			onig_error_code_to_str((UChar*)s, searchRes);
-			g_logger_error("Oniguruma Error: %s", s);
+			g_logger_error("Oniguruma Error: '{}'", s);
 			onig_region_free(region, 1 /* 1:free self, 0:free contents only */);
 		}
 

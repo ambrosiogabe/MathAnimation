@@ -83,8 +83,8 @@ namespace MathAnim
 				g_logger_error("The ScriptAnalyzer failed to load math-anim builtin definitions. Errors:");
 				for (int i = 0; i < loadResult.parseResult.errors.size(); i++)
 				{
-					g_logger_error("%s at line:column %d:%d",
-						loadResult.parseResult.errors[i].getMessage().c_str(),
+					g_logger_error("{} at line : column {}:{}",
+						loadResult.parseResult.errors[i].getMessage(),
 						loadResult.parseResult.errors[i].getLocation().begin.line,
 						loadResult.parseResult.errors[i].getLocation().begin.column);
 				}
@@ -108,8 +108,8 @@ namespace MathAnim
 				g_logger_error("The ScriptAnalyzer failed to load math-anim builtin definitions. Errors:");
 				for (int i = 0; i < loadResult.parseResult.errors.size(); i++)
 				{
-					g_logger_error("%s at line:column %d:%d",
-						loadResult.parseResult.errors[i].getMessage().c_str(),
+					g_logger_error("{} at line:column {}:{}",
+						loadResult.parseResult.errors[i].getMessage(),
 						loadResult.parseResult.errors[i].getLocation().begin.line,
 						loadResult.parseResult.errors[i].getLocation().begin.column);
 				}
@@ -138,7 +138,7 @@ namespace MathAnim
 
 		if (!frontend->getSourceModule(filename))
 		{
-			g_logger_error("Error opening %s", filename.c_str());
+			g_logger_error("Error opening '{}'", filename);
 		}
 
 		std::string scriptFilepath = (m_scriptDirectory / filename).make_preferred().lexically_normal().string();
@@ -174,7 +174,7 @@ namespace MathAnim
 
 		if (!frontend->getSourceModule(scriptName))
 		{
-			g_logger_error("Error opening %s", scriptName.c_str());
+			g_logger_error("Error opening {}", scriptName);
 		}
 
 		for (auto& error : cr.errors)
@@ -251,7 +251,7 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 	FILE* fp = fopen(scriptPath.c_str(), "rb");
 	if (!fp)
 	{
-		g_logger_warning("Could not open file '%s', error opening file.", scriptPath.c_str());
+		g_logger_warning("Could not open file '{}', error opening file.", scriptPath);
 		return std::nullopt;
 	}
 
@@ -266,7 +266,7 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 
 	if (amtRead != 1)
 	{
-		g_logger_error("Error reading file '%s'.", scriptPath.c_str());
+		g_logger_error("Error reading file '{}'.", scriptPath);
 		memory.free();
 		return std::nullopt;
 	}

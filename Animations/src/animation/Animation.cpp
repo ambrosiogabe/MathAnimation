@@ -489,7 +489,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("ReplacementTransform serialized with unknown version '%d'", version);
+		g_logger_warning("ReplacementTransform serialized with unknown version '{}'", version);
 		return {};
 	}
 
@@ -529,7 +529,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("MoveToData serialized with unknown version '%d'", version);
+		g_logger_warning("MoveToData serialized with unknown version '{}'", version);
 		return {};
 	}
 
@@ -570,7 +570,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("AnimateScaleData serialized with unknown version '%d'", version);
+		g_logger_warning("AnimateScaleData serialized with unknown version '{}'", version);
 		return {};
 	}
 
@@ -710,7 +710,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("Circumscribe serialized with unknown version '%d'", version);
+		g_logger_warning("Circumscribe serialized with unknown version '{}'", version);
 		return {};
 	}
 
@@ -751,7 +751,7 @@ namespace MathAnim
 	{
 		if (version < 2 || version > 3)
 		{
-			g_logger_error("Animation serialized with unknown version '%d'. Memory potentially corrupted.", version);
+			g_logger_error("Animation serialized with unknown version '{}'. Memory potentially corrupted.", version);
 			Animation res = {};
 			res.id = NULL_ANIM;
 			res.animObjectIds.clear();
@@ -840,7 +840,7 @@ namespace MathAnim
 			Animation res;
 			uint32 animType;
 			memory.read<uint32>(&animType);
-			g_logger_assert(animType < (uint32)AnimTypeV1::Length, "Invalid animation type '%d' from memory. Must be corrupted memory.", animType);
+			g_logger_assert(animType < (uint32)AnimTypeV1::Length, "Invalid animation type '{}' from memory. Must be corrupted memory.", animType);
 			res.type = (AnimTypeV1)animType;
 			memory.read<int32>(&res.frameStart);
 			memory.read<int32>(&res.duration);
@@ -851,15 +851,15 @@ namespace MathAnim
 			uint8 easeTypeInt, easeDirectionInt;
 			memory.read<uint8>(&easeTypeInt);
 			memory.read<uint8>(&easeDirectionInt);
-			g_logger_assert(easeTypeInt < (uint8)EaseType::Length, "Corrupted memory. Ease type was %d which is out of bounds.", easeTypeInt);
+			g_logger_assert(easeTypeInt < (uint8)EaseType::Length, "Corrupted memory. Ease type was '{}' which is out of bounds.", easeTypeInt);
 			res.easeType = (EaseType)easeTypeInt;
-			g_logger_assert(easeDirectionInt < (uint8)EaseDirection::Length, "Corrupted memory. Ease direction was %d which is out of bounds.", easeDirectionInt);
+			g_logger_assert(easeDirectionInt < (uint8)EaseDirection::Length, "Corrupted memory. Ease direction was '{}' which is out of bounds.", easeDirectionInt);
 			res.easeDirection = (EaseDirection)easeDirectionInt;
 
 			memory.read<int32>(&res.timelineTrack);
 			uint8 playbackType;
 			memory.read<uint8>(&playbackType);
-			g_logger_assert(playbackType < (uint8)PlaybackType::Length, "Corrupted memory. PlaybackType was %d which is out of bounds.", playbackType);
+			g_logger_assert(playbackType < (uint8)PlaybackType::Length, "Corrupted memory. PlaybackType was '{}' which is out of bounds.", playbackType);
 			res.playbackType = (PlaybackType)playbackType;
 			memory.read<float>(&res.lagRatio);
 
@@ -908,7 +908,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_error("AnimationEx serialized with unknown version '%d'. Memory potentially corrupted.", version);
+		g_logger_error("AnimationEx serialized with unknown version '{}'. Memory potentially corrupted.", version);
 		Animation res;
 		res.id = NULL_ANIM;
 		res.animObjectIds.clear();
@@ -922,7 +922,7 @@ namespace MathAnim
 	{
 		Animation res;
 		res.id = animationUidCounter++;
-		g_logger_assert(animationUidCounter < INT32_MAX, "Somehow our UID counter reached 65'536. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 65'000 animations in the scene.");
+		g_logger_assert(animationUidCounter < UINT64_MAX, "Somehow our UID counter reached {}. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 65'000 animations in the scene.", UINT64_MAX);
 		res.frameStart = frameStart;
 		res.duration = duration;
 		res.animObjectIds.clear();
@@ -1014,7 +1014,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_warning("Camera serialized with unknown version: %d", version);
+		g_logger_warning("Camera serialized with unknown version: '{}'", version);
 		CameraObject res = {};
 		return res;
 	}
@@ -1084,7 +1084,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("ScriptObject serialized with unknown version '%d'", version);
+		g_logger_warning("ScriptObject serialized with unknown version '{}'", version);
 		return {};
 	}
 
@@ -1291,7 +1291,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("ImageObject serialized with unknown version '%d'", version);
+		g_logger_warning("ImageObject serialized with unknown version '{}'", version);
 		ImageObject dummy = {};
 		dummy.textureHandle = NULL_TEXTURE_HANDLE;
 		return dummy;
@@ -1942,7 +1942,7 @@ namespace MathAnim
 	{
 		if (version < 2 || version > 3)
 		{
-			g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
+			g_logger_error("AnimObject serialized with unknown version '{}'. Potentially corrupted memory.", version);
 			AnimObject res = {};
 			res.id = NULL_ANIM;
 			return res;
@@ -2103,7 +2103,7 @@ namespace MathAnim
 			// AnimObject Specific Data
 			uint32 animObjectType;
 			memory.read<uint32>(&animObjectType);
-			g_logger_assert(animObjectType < (uint32)AnimObjectTypeV1::Length, "Invalid AnimObjectType '%d' from memory. Must be corrupted memory.", animObjectType);
+			g_logger_assert(animObjectType < (uint32)AnimObjectTypeV1::Length, "Invalid AnimObjectType '{}' from memory. Must be corrupted memory.", animObjectType);
 			res.objectType = (AnimObjectTypeV1)animObjectType;
 			res._positionStart = CMath::legacy_deserializeVec3(memory);
 			res._rotationStart = CMath::legacy_deserializeVec3(memory);
@@ -2226,7 +2226,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_error("AnimObject serialized with unknown version '%d'. Potentially corrupted memory.", version);
+		g_logger_error("AnimObject serialized with unknown version '{}'. Potentially corrupted memory.", version);
 		AnimObject res = {};
 		res.id = NULL_ANIM;
 		return res;
@@ -2259,7 +2259,7 @@ namespace MathAnim
 	{
 		AnimObject res;
 		res.id = animObjectUidCounter++;
-		g_logger_assert(animObjectUidCounter < INT32_MAX, "Somehow our UID counter reached '%d'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", INT32_MAX);
+		g_logger_assert(animObjectUidCounter < UINT64_MAX, "Somehow our UID counter reached '{}'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", UINT64_MAX);
 		res.parentId = NULL_ANIM_OBJECT;
 		res.percentCreated = 0.0f;
 		res.circumscribeId = NULL_ANIM;

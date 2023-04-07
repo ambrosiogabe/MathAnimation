@@ -48,7 +48,7 @@ namespace MathAnim
 				}
 			}
 
-			g_logger_info("Matches:\n%s", buffer);
+			g_logger_info("Matches:\n{}", buffer);
 		}
 
 		CodeHighlights res = {};

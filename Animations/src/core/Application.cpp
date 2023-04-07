@@ -396,7 +396,7 @@ namespace MathAnim
 			}
 			catch (const std::exception& ex)
 			{
-				g_logger_error("Failed to save current scene with error: '%s'", ex.what());
+				g_logger_error("Failed to save current scene with error: '{}'", ex.what());
 			}
 
 			saveCurrentScene();
@@ -427,7 +427,7 @@ namespace MathAnim
 			}
 			catch (const std::exception& ex)
 			{
-				g_logger_error("Failed to save current scene with error: '%s'", ex.what());
+				g_logger_error("Failed to save current scene with error: '{}'", ex.what());
 			}
 		}
 
@@ -468,7 +468,7 @@ namespace MathAnim
 			}
 			catch (const std::exception& ex)
 			{
-				g_logger_error("Failed to load project '%s' with error: '%s'", projectFilepath.c_str(), ex.what());
+				g_logger_error("Failed to load project '{}' with error: '{}'", projectFilepath, ex.what());
 			}
 		}
 
@@ -484,7 +484,7 @@ namespace MathAnim
 			FILE* fp = fopen(projectFilepath.c_str(), "rb");
 			if (!fp)
 			{
-				g_logger_warning("Could not load project '%s', error opening file: %s.", projectFilepath.c_str(), strerror(errno));
+				g_logger_warning("Could not load project '{}', error opening file: '{}'.", projectFilepath, strerror(errno));
 				return;
 			}
 
@@ -534,7 +534,7 @@ namespace MathAnim
 
 			if (!Platform::fileExists(filepath.c_str()))
 			{
-				g_logger_error("Missing scene file '%s'. Cannot load scene.", filepath.c_str());
+				g_logger_error("Missing scene file '{}'. Cannot load scene.", filepath);
 				resetToFrame(0);
 				return;
 			}
@@ -576,7 +576,7 @@ namespace MathAnim
 			}
 			catch (const std::exception& ex)
 			{
-				g_logger_error("Failed to load scene '%s' with error: '%s'", filepath.c_str(), ex.what());
+				g_logger_error("Failed to load scene '{}' with error: '{}'", filepath, ex.what());
 			}
 		}
 
@@ -592,7 +592,7 @@ namespace MathAnim
 			FILE* fp = fopen(filepath.c_str(), "rb");
 			if (!fp)
 			{
-				g_logger_warning("LEGACY: Could not load scene '%s', error opening file.", filepath.c_str());
+				g_logger_warning("LEGACY: Could not load scene '{}', error opening file.", filepath);
 				resetToFrame(0);
 				return;
 			}
@@ -671,7 +671,7 @@ namespace MathAnim
 				}
 			}
 
-			g_logger_warning("Cannot change to unknown scene name '%s'", sceneName.c_str());
+			g_logger_warning("Cannot change to unknown scene name '{}'", sceneName);
 		}
 
 		void setEditorPlayState(AnimState state)
@@ -811,7 +811,7 @@ namespace MathAnim
 			break;
 			default:
 			{
-				g_logger_warning("Editor data serialized with unknown version: %d", version);
+				g_logger_warning("Editor data serialized with unknown version: '{}'", version);
 			}
 			}
 		}

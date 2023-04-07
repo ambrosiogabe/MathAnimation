@@ -54,7 +54,7 @@ namespace MathAnim
 	{
 		if (!Platform::fileExists(filepathStr))
 		{
-			g_logger_warning("Tried to parse syntax theme at filepath that does not exist: '%s'", filepathStr);
+			g_logger_warning("Tried to parse syntax theme at filepath that does not exist: '{}'", filepathStr);
 			return nullptr;
 		}
 
@@ -70,7 +70,7 @@ namespace MathAnim
 			}
 			catch (json::parse_error& ex)
 			{
-				g_logger_error("Could not load TextMate theme in file '%s' as Json.\n\tJson Error: %s.", filepathStr, ex.what());
+				g_logger_error("Could not load TextMate theme in file '{}' as Json.\n\tJson Error: '{}'", filepathStr, ex.what());
 			}
 		}
 		else if (filepath.extension() == "tmTheme" || filepath.extension() == "xml")
@@ -81,14 +81,14 @@ namespace MathAnim
 			{
 				// If XML fails print both errors and return nullptr
 				const char* xmlError = doc.ErrorStr();
-				g_logger_error("Could not load TextMate theme in file '%s' as XML.\n\tXML Error: %s", filepathStr, xmlError);
+				g_logger_error("Could not load TextMate theme in file '{}' as XML.\n\tXML Error: '{}'", filepathStr, xmlError);
 				return nullptr;
 			}
 
 			return importThemeFromXml(doc, filepathStr);
 		}
 
-		g_logger_warning("Unsupported theme file: '%s'", filepathStr);
+		g_logger_warning("Unsupported theme file: '{}'", filepathStr);
 		return nullptr;
 	}
 
@@ -106,14 +106,14 @@ namespace MathAnim
 	{
 		if (!j.contains("tokenColors"))
 		{
-			g_logger_warning("Cannot import syntax theme that has no 'tokenColors' property in file: '%s'", filepath);
+			g_logger_warning("Cannot import syntax theme that has no 'tokenColors' property in file: '{}'", filepath);
 			return nullptr;
 		}
 
 		const json& tokenColors = j["tokenColors"];
 		if (!tokenColors.is_array())
 		{
-			g_logger_warning("Syntax theme is malformed. The property 'tokenColors' is not an array in file: '%s'", filepath);
+			g_logger_warning("Syntax theme is malformed. The property 'tokenColors' is not an array in file: '{}'", filepath);
 		}
 
 		SyntaxTheme* theme = (SyntaxTheme*)g_memory_allocate(sizeof(SyntaxTheme));
@@ -186,7 +186,7 @@ namespace MathAnim
 				}
 				else
 				{
-					g_logger_warning("TokenColor '%s' has no 'scope' property in syntax theme '%s'.", name.c_str(), filepath);
+					g_logger_warning("TokenColor '{}' has no 'scope' property in syntax theme '{}'.", name, filepath);
 				}
 
 				continue;
@@ -194,13 +194,13 @@ namespace MathAnim
 
 			if (!color["scope"].is_array() && !color["scope"].is_string())
 			{
-				g_logger_warning("TokenColor '%s' has malformed 'scope' property. Expected array or string but got something else.", name.c_str());
+				g_logger_warning("TokenColor '{}' has malformed 'scope' property. Expected array or string but got something else.", name);
 				continue;
 			}
 
 			if (!color.contains("settings"))
 			{
-				g_logger_warning("TokenColor '%s' has no 'settings' property. Skipping this rule since it can't style anything without settings.", name.c_str());
+				g_logger_warning("TokenColor '{}' has no 'settings' property. Skipping this rule since it can't style anything without settings.", name);
 				continue;
 			}
 
@@ -209,7 +209,7 @@ namespace MathAnim
 			{
 				if (!settingsJson["foreground"].is_string())
 				{
-					g_logger_warning("TokenColor '%s' 'settings.foreground' key is malformed. Expected a string and got something else.", name.c_str());
+					g_logger_warning("TokenColor '{}' 'settings.foreground' key is malformed. Expected a string and got something else.", name);
 					continue;
 				}
 			}
@@ -248,7 +248,7 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_warning("TokenColor '%s' is malformed. No scopes were successfully parsed.", name.c_str());
+				g_logger_warning("TokenColor '{}' is malformed. No scopes were successfully parsed.", name);
 			}
 		}
 
@@ -260,14 +260,14 @@ namespace MathAnim
 		const XMLElement* overallDict = xml.FirstChildElement("dict");
 		if (!overallDict)
 		{
-			g_logger_warning("Cannot import syntax theme that has no 'dict' XML group in file: '%s'", filepath);
+			g_logger_warning("Cannot import syntax theme that has no 'dict' XML group in file: '{}'", filepath);
 			return nullptr;
 		}
 
 		const XMLElement* firstKey = overallDict->FirstChildElement("key");
 		if (!firstKey)
 		{
-			g_logger_warning("Expected syntax theme in file '%s' to have structure <dict> <key></key> </dict> but no GlobalKey found.", filepath);
+			g_logger_warning("Expected syntax theme in file '{}' to have structure <dict> <key></key> </dict> but no GlobalKey found.", filepath);
 			return nullptr;
 		}
 
@@ -278,20 +278,20 @@ namespace MathAnim
 
 		if (!firstKey)
 		{
-			g_logger_warning("Could not import syntax theme in file '%s'. Could not find GlobalKey 'settings'.", filepath);
+			g_logger_warning("Could not import syntax theme in file '{}'. Could not find GlobalKey 'settings'.", filepath);
 			return nullptr;
 		}
 
 		const XMLElement* arrayElement = firstKey->NextSiblingElement();
 		if (!arrayElement)
 		{
-			g_logger_warning("Could not import syntax theme in file '%s'. GlobalKey 'settings' had no value.", filepath);
+			g_logger_warning("Could not import syntax theme in file '{}'. GlobalKey 'settings' had no value.", filepath);
 			return nullptr;
 		}
 
 		if (arrayElement->Name() != std::string("array"))
 		{
-			g_logger_warning("Could not import syntax theme in file '%s'. Expected GlobalKey 'settings' to have value of type <array> instead got <%s>.", filepath, arrayElement->Name());
+			g_logger_warning("Could not import syntax theme in file '{}'. Expected GlobalKey 'settings' to have value of type <array> instead got <{}>.", filepath, arrayElement->Name());
 			return nullptr;
 		}
 
@@ -354,20 +354,20 @@ namespace MathAnim
 				const XMLElement* scopeValue = getValue(settingDict, "scope");
 				if (!scopeValue)
 				{
-					g_logger_warning("TokenColor '%s' has no 'scope' key in syntax theme '%s'.", name.c_str(), filepath);
+					g_logger_warning("TokenColor '{}' has no 'scope' key in syntax theme '{}'.", name, filepath);
 					continue;
 				}
 
 				if (scopeValue->Name() != std::string("string"))
 				{
-					g_logger_warning("TokenColor '%s' has malformed 'scope' value. Expected array or string but got something else.", name.c_str());
+					g_logger_warning("TokenColor '{}' has malformed 'scope' value. Expected array or string but got something else.", name);
 					continue;
 				}
 
 				const XMLElement* themeSettings = getValue(settingDict, "settings");
 				if (themeSettings)
 				{
-					g_logger_warning("TokenColor '%s' has no 'settings' value. Skipping this rule since it can't style anything without settings.", name.c_str());
+					g_logger_warning("TokenColor '{}' has no 'settings' value. Skipping this rule since it can't style anything without settings.", name);
 					continue;
 				}
 
@@ -376,7 +376,7 @@ namespace MathAnim
 				{
 					if (foregroundSetting->Name() != std::string("string"))
 					{
-						g_logger_warning("TokenColor '%s' 'settings.foreground' key is malformed. Expected a string and got something else.", name.c_str());
+						g_logger_warning("TokenColor '{}' 'settings.foreground' key is malformed. Expected a string and got something else.", name);
 						continue;
 					}
 				}

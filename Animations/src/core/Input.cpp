@@ -153,7 +153,7 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_error("Cannot check if key '%d' is pressed. Key is out of range of known key codes.", key);
+				g_logger_error("Cannot check if key '{}' is pressed. Key is out of range of known key codes.", key);
 			}
 
 			return false;
@@ -193,7 +193,7 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_error("Cannot check if key '%d' is down. Key is out of range of known key codes.", key);
+				g_logger_error("Cannot check if key '{}' is down. Key is out of range of known key codes.", key);
 			}
 
 			return false;
@@ -208,7 +208,7 @@ namespace MathAnim
 		{
 			if ((uint8)button < 0 || (uint8)button >= (uint8)MouseButton::Length)
 			{
-				g_logger_error("Cannot check if mouse button '%d' is clicked. Button is out of range of known mouse buttons.", (uint8)button);
+				g_logger_error("Cannot check if mouse button '{}' is clicked. Button is out of range of known mouse buttons.", (uint8)button);
 				return false;
 			}
 
@@ -220,7 +220,7 @@ namespace MathAnim
 		{
 			if ((uint8)button < 0 || (uint8)button >= (uint8)MouseButton::Length)
 			{
-				g_logger_error("Cannot check if mouse button '%d' is down. Button is out of range of known mouse buttons.", (uint8)button);
+				g_logger_error("Cannot check if mouse button '{}' is down. Button is out of range of known mouse buttons.", (uint8)button);
 				return false;
 			}
 
@@ -231,7 +231,7 @@ namespace MathAnim
 		{
 			if ((uint8)button < 0 || (uint8)button >= (uint8)MouseButton::Length)
 			{
-				g_logger_error("Cannot check if mouse button '%d' is up. Button is out of range of known mouse buttons.", (uint8)button);
+				g_logger_error("Cannot check if mouse button '{}' is up. Button is out of range of known mouse buttons.", (uint8)button);
 				return false;
 			}
 

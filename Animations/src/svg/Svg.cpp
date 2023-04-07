@@ -1682,7 +1682,7 @@ namespace MathAnim
 			{
 				if (!SvgParser::parseSvgPath((const char*)pathStr.c_str(), pathStr.length(), res))
 				{
-					g_logger_error("Error deserializing SVG. Bad path data: '%s'", pathStr.c_str());
+					g_logger_error("Error deserializing SVG. Bad path data: '{}'", pathStr);
 				}
 			}
 			else
@@ -1697,7 +1697,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("Svg serialized with unknown version '%d'", version);
+		g_logger_warning("Svg serialized with unknown version '{}'", version);
 		return nullptr;
 	}
 
@@ -1723,7 +1723,7 @@ namespace MathAnim
 			{
 				if (!SvgParser::parseSvgPath((const char*)string, stringLength, res))
 				{
-					g_logger_error("Error deserializing SVG. Bad path data: '%s'", string);
+					g_logger_error("Error deserializing SVG. Bad path data: '{}'", string);
 				}
 			}
 			else
@@ -2300,7 +2300,7 @@ namespace MathAnim
 					if (!Renderer::endPath(context, false, parent->id, parent->is3D))
 					{
 #ifdef _DEBUG
-						g_logger_warning("Failed to end path for object: %d<%s>", parent->id, parent->name);
+						g_logger_warning("Failed to end path for object: {}<{}>", parent->id, parent->name);
 #endif
 					}
 					Renderer::free(context);
@@ -2312,7 +2312,7 @@ namespace MathAnim
 					if (!Renderer::endPath(context, true, parent->id, parent->is3D))
 					{
 #ifdef _DEBUG
-						g_logger_warning("Failed to end path for object: %d<%s>", parent->id, parent->name);
+						g_logger_warning("Failed to end path for object: {}<{}>", parent->id, parent->name);
 #endif
 					}
 					Renderer::free(context);

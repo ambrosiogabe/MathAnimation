@@ -85,12 +85,12 @@ namespace MathAnim
 			{
 				// TODO: Check alternative installation names
 				// latexIsInstalled = Platform::getProgramInstallDir("latex", latexInstallLocation, _MAX_PATH);
-				g_logger_warning("LaTeX was not found on the command line. TODO: Check the registry to see if it is installed but just not added to the %%path%%");
+				g_logger_warning("LaTeX was not found on the command line. TODO: Check the registry to see if it is installed but just not added to the %path%");
 			}
 
 			if (latexIsInstalled)
 			{
-				g_logger_info("LaTeX install location is '%s'.", latexInstallLocation);
+				g_logger_info("LaTeX install location is '{}'.", latexInstallLocation);
 
 				// Setup latex install location
 				size_t latexInstallLocationLength = std::strlen(latexInstallLocation);
@@ -103,11 +103,11 @@ namespace MathAnim
 
 					if (Platform::fileExists(latexProgram))
 					{
-						g_logger_info("LaTeX program path: '%s'.", latexProgram);
+						g_logger_info("LaTeX program path: '{}'.", latexProgram);
 					}
 					else
 					{
-						g_logger_error("'%s' is not a valid program. You need to install LaTeX.", latexProgram);
+						g_logger_error("'{}' is not a valid program. You need to install LaTeX.", latexProgram);
 						latexProgram[0] = '\0';
 					}
 				}
@@ -127,11 +127,11 @@ namespace MathAnim
 
 					if (Platform::fileExists(dvisvgmProgram))
 					{
-						g_logger_info("dvisvgm program path: '%s'.", dvisvgmProgram);
+						g_logger_info("dvisvgm program path: '{}'.", dvisvgmProgram);
 					}
 					else
 					{
-						g_logger_error("'%s' is not a valid program. You need to install dvisvgm.", dvisvgmProgram);
+						g_logger_error("'{}' is not a valid program. You need to install dvisvgm.", dvisvgmProgram);
 						dvisvgmProgram[0] = '\0';
 					}
 				}
@@ -232,7 +232,7 @@ namespace MathAnim
 					}
 
 					// Free the task and pop it from our queue
-					g_logger_info("Finished processing LaTex: '%s'", latexInProgress->laTex);
+					g_logger_info("Finished processing LaTex: '{}'", latexInProgress->laTex);
 					g_memory_free(queuedLatex.front()->laTex);
 					g_memory_free(queuedLatex.front());
 					queuedLatex.pop();
@@ -297,7 +297,7 @@ namespace MathAnim
 						if (i == 0)
 						{
 							// If the newline is at the beginning return a custom error message
-							g_logger_error("No new lines allowed in MathTex. Newline was found at the beginning of your math equation:\n\t'%s'", latex.c_str());
+							g_logger_error("No new lines allowed in MathTex. Newline was found at the beginning of your math equation:\n\t'{}'", latex);
 						}
 						else
 						{
@@ -305,7 +305,7 @@ namespace MathAnim
 							errorMessage += latex.substr(0, i) + std::string(" '\n\t");
 							errorMessage += std::string(i + 1, ' ');
 							errorMessage += std::string("^--- Here");
-							g_logger_error("%s", errorMessage.c_str());
+							g_logger_error("{}", errorMessage);
 						}
 
 						return false;
@@ -320,7 +320,7 @@ namespace MathAnim
 				FILE* fp = fopen(latexFullpath.c_str(), "wb");
 				if (!fp)
 				{
-					g_logger_error("Failed to create file: '%s'", latexFullpath.c_str());
+					g_logger_error("Failed to create file: '{}'", latexFullpath);
 					return false;
 				}
 

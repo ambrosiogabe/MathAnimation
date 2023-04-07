@@ -151,7 +151,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_error("SvgFileObject serialized with unknown version '%d'.", version);
+		g_logger_error("SvgFileObject serialized with unknown version '{}'.", version);
 		return {};
 	}
 
@@ -180,7 +180,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		g_logger_error("Invalid version '{}' while deserializing text object.", version);
 		SvgFileObject res;
 		g_memory_zeroMem(&res, sizeof(SvgFileObject));
 		return res;

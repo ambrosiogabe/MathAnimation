@@ -182,7 +182,7 @@ constexpr int hexToInt(char hexCode)
 		return hexCode - 'a' + 10;
 	}
 
-	g_logger_error("Invalid hex character '%c'", hexCode);
+	g_logger_error("Invalid hex character '{}'", hexCode);
 	return -1;
 }
 
@@ -209,7 +209,7 @@ MathAnim::Vec4 toHex(const char* rawHexColor, size_t)
 		rawHexColor + 1 :
 		rawHexColor;
 	size_t length = strlen(hexColor);
-	g_logger_assert(length >= 6, "Invalid hex color '%s', hex color must have at least 6 digits.");
+	g_logger_assert(length >= 6, "Invalid hex color '{}', hex color must have at least 6 digits.", rawHexColor);
 	float color1 = (hexToFloat(hexColor[0]) * 16 + hexToFloat(hexColor[1])) / 255.0f;
 	float color2 = (hexToFloat(hexColor[2]) * 16 + hexToFloat(hexColor[3])) / 255.0f;
 	float color3 = (hexToFloat(hexColor[4]) * 16 + hexToFloat(hexColor[5])) / 255.0f;
@@ -321,7 +321,7 @@ bool RawMemory::readDangerous(uint8* inData, size_t inDataSize)
 {
 	if (this->offset + inDataSize > this->size)
 	{
-		g_logger_error("Deserialized bad data. Read boundary out of bounds, cannot access '%zu' bytes in memory of size '%zu' bytes",
+		g_logger_error("Deserialized bad data. Read boundary out of bounds, cannot access '{}' bytes in memory of size '{}' bytes",
 			this->offset + inDataSize,
 			this->size);
 		return false;

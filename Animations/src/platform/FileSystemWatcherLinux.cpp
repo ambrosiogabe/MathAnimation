@@ -23,7 +23,7 @@ namespace MathAnim
   {
     if (path.empty())
     {
-      g_logger_error("Path empty. Could not create FileSystemWatcher for '%s'", path.string().c_str());
+      g_logger_error("Path empty. Could not create FileSystemWatcher for '{}'", path);
       return;
     }
 
@@ -32,7 +32,7 @@ namespace MathAnim
     inotify_descriptor = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
     if (inotify_descriptor == -1)
     {
-      g_logger_error("Failed to create FileSystemWatcher for '%s': %s", path.string().c_str(), strerror(errno));
+      g_logger_error("Failed to create FileSystemWatcher for '{}': {}", path, strerror(errno));
       return;
     }
 
@@ -41,7 +41,7 @@ namespace MathAnim
     {
       close(inotify_descriptor);
       inotify_descriptor = -1;
-      g_logger_error("Failed to create FileSystemWatcher for '%s': %s", path.string().c_str(), strerror(errno));
+      g_logger_error("Failed to create FileSystemWatcher for '{}': {}", path, strerror(errno));
       return;
     }
   }
@@ -69,7 +69,7 @@ namespace MathAnim
       len = read(inotify_descriptor, buf, sizeof(buf));
       if (len == -1 && errno != EAGAIN)
       {
-        g_logger_error("Failed to poll from FileSystemWatcher for '%s': %s", path.string().c_str(), strerror(errno));
+        g_logger_error("Failed to poll from FileSystemWatcher for '{}': {}", path, strerror(errno));
         return;
       }
 

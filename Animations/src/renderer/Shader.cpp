@@ -39,7 +39,7 @@ namespace MathAnim
 	void Shader::compile(const std::filesystem::path& shaderFilepath)
 	{
 		filepath = shaderFilepath;
-		g_logger_info("Compiling shader: %s", filepath.string().c_str());
+		g_logger_info("Compiling shader: '{}'", filepath);
 		std::string fileSource = ReadFile(filepath.string().c_str());
 
 		if (fileSource.length() <= 0)
@@ -108,7 +108,7 @@ namespace MathAnim
 				// We don't need the shader anymore.
 				GL::deleteShader(shader);
 
-				g_logger_error("%s", infoLog.data());
+				g_logger_error("{}", (const char*)infoLog.data());
 
 				programId = UINT32_MAX;
 				return;
@@ -139,7 +139,7 @@ namespace MathAnim
 			for (auto id : glShaderIDs)
 				GL::deleteShader(id);
 
-			g_logger_error("%s", infoLog.data());
+			g_logger_error("{}", (const char*)infoLog.data());
 			programId = UINT32_MAX;
 			return;
 		}
@@ -350,7 +350,7 @@ namespace MathAnim
 		}
 		else
 		{
-			g_logger_error("Could not open file: '%s'", filepath);
+			g_logger_error("Could not open file: '{}'", filepath);
 		}
 
 		return result;

@@ -56,7 +56,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_warning("Unknown camera version: %d", version);
+		g_logger_warning("Unknown camera version: '{}'", version);
 		return {};
 	}
 

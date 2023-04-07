@@ -164,7 +164,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("TextObject serialized with unknown version '%d'.", version);
+		g_logger_warning("TextObject serialized with unknown version '{}'.", version);
 		return {};
 	}
 
@@ -197,7 +197,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		g_logger_error("Invalid version '{}' while deserializing text object.", version);
 		TextObject res;
 		g_memory_zeroMem(&res, sizeof(TextObject));
 		return res;
@@ -346,7 +346,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		g_logger_error("Invalid version '{}' while deserializing text object.", version);
 		LaTexObject res;
 		g_memory_zeroMem(&res, sizeof(LaTexObject));
 		return res;
@@ -380,7 +380,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("LaTexObject serialized with unknown version '%d'.", version);
+		g_logger_warning("LaTexObject serialized with unknown version '{}'.", version);
 		return {};
 	}
 
@@ -569,7 +569,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing code object.", version);
+		g_logger_error("Invalid version '{}' while deserializing code object.", version);
 		CodeBlock res;
 		g_memory_zeroMem(&res, sizeof(CodeBlock));
 		return res;
@@ -605,7 +605,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("CodeBlock serialized with unknown version '%d'.", version);
+		g_logger_warning("CodeBlock serialized with unknown version '{}'.", version);
 		return {};
 	}
 

@@ -129,12 +129,12 @@ namespace MathAnim
 	void Texture::uploadSubImage(int offsetX, int offsetY, int subWidth, int subHeight, uint8* buffer, size_t bufferLength, bool flipVertically) const
 	{
 		g_logger_assert(format != ByteFormat::None, "Cannot generate texture without color format.");
-		g_logger_assert(offsetX + subWidth <= this->width, "Sub-image out of range. OffsetX + width = %d which is greater than the texture width: %d", offsetX + subWidth, this->width);
-		g_logger_assert(offsetY + subHeight <= this->height, "Sub-image out of range. OffsetY + height = %d which is greater than the texture height: %d", offsetY + subHeight, this->height);
-		g_logger_assert(offsetX >= 0, "Sub-image out of range. OffsetX is negative: %d", offsetX);
-		g_logger_assert(offsetY >= 0, "Sub-image out of range. OffsetY is negative: %d", offsetY);
-		g_logger_assert(subWidth >= 0, "Sub-image out of range. Width is negative: %d", subWidth);
-		g_logger_assert(subHeight >= 0, "Sub-image out of range. Height is negative: %d", subHeight);
+		g_logger_assert(offsetX + subWidth <= this->width, "Sub-image out of range. OffsetX + width = {} which is greater than the texture width: {}", offsetX + subWidth, this->width);
+		g_logger_assert(offsetY + subHeight <= this->height, "Sub-image out of range. OffsetY + height = {} which is greater than the texture height: {}", offsetY + subHeight, this->height);
+		g_logger_assert(offsetX >= 0, "Sub-image out of range. OffsetX is negative: {}", offsetX);
+		g_logger_assert(offsetY >= 0, "Sub-image out of range. OffsetY is negative: {}", offsetY);
+		g_logger_assert(subWidth >= 0, "Sub-image out of range. Width is negative: {}", subWidth);
+		g_logger_assert(subHeight >= 0, "Sub-image out of range. Height is negative: {}", subHeight);
 
 		uint32 externalFormat = TextureUtil::toGlExternalFormat(format);
 		uint32 dataType = TextureUtil::toGlDataType(format);
@@ -448,7 +448,7 @@ namespace MathAnim
 
 			unsigned char* pixels = stbi_load(texture.path.string().c_str(), &texture.width, &texture.height, &channels, 0);
 			// TODO: Do some sort of graceful error propagating here instead
-			g_logger_assert((pixels != nullptr), "STB failed to load image: %s\n-> STB Failure Reason: %s", texture.path.string().c_str(), stbi_failure_reason());
+			g_logger_assert((pixels != nullptr), "STB failed to load image: '{}'\n-> STB Failure Reason: '{}'", texture.path, stbi_failure_reason());
 
 			int bytesPerPixel = channels;
 			if (bytesPerPixel == 4)
@@ -461,7 +461,7 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_warning("Unknown number of channels '%d' in image '%s'.", texture.path.string().c_str(), channels);
+				g_logger_warning("Unknown number of channels '{}' in image '{}'.", texture.path, channels);
 				return;
 			}
 
@@ -472,7 +472,7 @@ namespace MathAnim
 
 			uint32 internalFormat = TextureUtil::toGlSizedInternalFormat(texture.format);
 			uint32 externalFormat = TextureUtil::toGlExternalFormat(texture.format);
-			g_logger_assert(internalFormat != GL_NONE && externalFormat != GL_NONE, "Tried to load image from file, but failed to identify internal format for image '%s'", texture.path.string().c_str());
+			g_logger_assert(internalFormat != GL_NONE && externalFormat != GL_NONE, "Tried to load image from file, but failed to identify internal format for image '{}'", texture.path);
 			GL::pixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			GL::texImage2D(GL_TEXTURE_2D, 0, internalFormat, texture.width, texture.height, 0, externalFormat, GL_UNSIGNED_BYTE, pixels);
 

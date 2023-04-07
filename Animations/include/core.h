@@ -15,7 +15,9 @@
 #pragma warning( pop )
 
 // My stuff
+#define USE_GABE_CPP_PRINT
 #include <cppUtils/cppUtils.hpp>
+#undef USE_GABE_CPP_PRINT
 
 // Standard
 #include <filesystem>

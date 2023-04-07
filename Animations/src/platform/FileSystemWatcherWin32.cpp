@@ -20,7 +20,7 @@ namespace MathAnim
 	{
 		if (path.empty() || !Platform::dirExists(path.string().c_str()))
 		{
-			g_logger_error("Path empty or directory does not exist. Could not create FileSystemWatcher for '%s'", path.string().c_str());
+			g_logger_error("Path empty or directory does not exist. Could not create FileSystemWatcher for '{}'", path);
 			return;
 		}
 
@@ -30,7 +30,7 @@ namespace MathAnim
 			NULL);
 		if (dirHandle == INVALID_HANDLE_VALUE)
 		{
-			g_logger_error("Invalid file access. Could not create FileSystemWatcher for '%s'", path.string().c_str());
+			g_logger_error("Invalid file access. Could not create FileSystemWatcher for '{}'", path);
 			return;
 		}
 
@@ -86,7 +86,7 @@ namespace MathAnim
 		pollingOverlap.hEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
 		if (pollingOverlap.hEvent == NULL)
 		{
-			g_logger_error("Could not create event watcher for FileSystemWatcher '%s'", path.string().c_str());
+			g_logger_error("Could not create event watcher for FileSystemWatcher '{}'", path);
 			return;
 		}
 
@@ -143,7 +143,7 @@ namespace MathAnim
 					renamedQueue.insert(filename);
 					break;
 				default:
-					g_logger_error("Default error. Unknown file action '%d' for FileSystemWatcher '%s'", pNotify->Action, path.string().c_str());
+					g_logger_error("Default error. Unknown file action '{}' for FileSystemWatcher '{}'", pNotify->Action, path);
 					break;
 				}
 

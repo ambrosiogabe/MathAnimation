@@ -25,7 +25,7 @@ namespace MathAnim
 
 	void Framebuffer::clearColorAttachmentUint32(int colorAttachment, uint32 clearColor[4]) const
 	{
-		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '{}'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsInt(texture), "Cannot clear non-uint texture as if it were a uint texture.");
 
@@ -34,7 +34,7 @@ namespace MathAnim
 
 	void Framebuffer::clearColorAttachmentUint64(int colorAttachment, uint64 clearColor) const
 	{
-		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '{}'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsUint64(texture), "Cannot clear non-uint texture as if it were a uint texture.");
 
@@ -43,7 +43,7 @@ namespace MathAnim
 
 	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, const glm::vec3& clearColor) const
 	{
-		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '{}'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
 
@@ -52,7 +52,7 @@ namespace MathAnim
 
 	void Framebuffer::clearColorAttachmentRgb(int colorAttachment, const Vec3& clearColor) const
 	{
-		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '{}'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
 
@@ -61,7 +61,7 @@ namespace MathAnim
 
 	void Framebuffer::clearColorAttachmentRgba(int colorAttachment, const Vec4& clearColor) const
 	{
-		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '{}'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsRgb(texture), "Cannot clear non-rgb texture as if it were a rgb texture.");
 
@@ -77,7 +77,7 @@ namespace MathAnim
 
 	uint32 Framebuffer::readPixelUint32(int colorAttachment, int x, int y) const
 	{
-		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '{}'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsInt(texture), "Cannot read non-uint texture as if it were a uint texture.");
 
@@ -105,7 +105,7 @@ namespace MathAnim
 
 	uint64 Framebuffer::readPixelUint64(int colorAttachment, int x, int y) const
 	{
-		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '{}'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
 		g_logger_assert(TextureUtil::byteFormatIsUint64(texture), "Cannot read non-uint texture as if it were a uint texture.");
 
@@ -133,7 +133,7 @@ namespace MathAnim
 
 	Pixel* Framebuffer::readAllPixelsRgb8(int colorAttachment, bool flipVerticallyOnLoad) const
 	{
-		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '%d'.", colorAttachment);
+		g_logger_assert(colorAttachment >= 0 && colorAttachment < colorAttachments.size(), "Index out of bounds. Color attachment does not exist '{}'.", colorAttachment);
 		const Texture& texture = colorAttachments[colorAttachment];
 		//g_logger_assert(TextureUtil::byteFormatIsRgb(texture.internalFormat) && TextureUtil::byteFormatIsRgb(texture.externalFormat), "Cannot read non-rgb texture as if it were a rgb texture.");
 

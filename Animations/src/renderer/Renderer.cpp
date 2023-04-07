@@ -375,12 +375,12 @@ namespace MathAnim
 			list3DLineNumTris = 0;
 			list3DBillboardNumTris = 0;
 
-			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding(%d) call.", lineEndingStackPtr);
-			g_logger_assert(colorStackPtr == 0, "Missing popColor(%d) call.", colorStackPtr);
-			g_logger_assert(strokeWidthStackPtr == 0, "Missing popStrokeWidth(%d) call.", strokeWidthStackPtr);
-			g_logger_assert(fontStackPtr == 0, "Missing popFont(%d) call.", fontStackPtr);
-			g_logger_assert(camera2DStackPtr == 0, "Missing popCamera2D(%d) call.", camera2DStackPtr);
-			g_logger_assert(camera3DStackPtr == 0, "Missing popCamera3D(%d) call.", camera3DStackPtr);
+			g_logger_assert(lineEndingStackPtr == 0, "Missing popLineEnding({}) call.", lineEndingStackPtr);
+			g_logger_assert(colorStackPtr == 0, "Missing popColor({}) call.", colorStackPtr);
+			g_logger_assert(strokeWidthStackPtr == 0, "Missing popStrokeWidth({}) call.", strokeWidthStackPtr);
+			g_logger_assert(fontStackPtr == 0, "Missing popFont({}) call.", fontStackPtr);
+			g_logger_assert(camera2DStackPtr == 0, "Missing popCamera2D({}) call.", camera2DStackPtr);
+			g_logger_assert(camera3DStackPtr == 0, "Missing popCamera3D({}) call.", camera3DStackPtr);
 		}
 
 		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight)
@@ -471,7 +471,7 @@ namespace MathAnim
 		void renderToFramebuffer(Framebuffer& framebuffer, const char* debugName)
 		{
 			constexpr size_t numExpectedColorAttachments = 6;
-			g_logger_assert(framebuffer.colorAttachments.size() == numExpectedColorAttachments, "Invalid framebuffer. Should have %d color attachments.", numExpectedColorAttachments);
+			g_logger_assert(framebuffer.colorAttachments.size() == numExpectedColorAttachments, "Invalid framebuffer. Should have {} color attachments.", numExpectedColorAttachments);
 			g_logger_assert(framebuffer.includeDepthStencil, "Invalid framebuffer. Should include depth and stencil buffers.");
 
 			debugMsgId = 0;
@@ -791,37 +791,37 @@ namespace MathAnim
 		void popStrokeWidth(int numToPop)
 		{
 			strokeWidthStackPtr -= numToPop;
-			g_logger_assert(strokeWidthStackPtr >= 0, "Popped to many values off of stroke width stack: %d", strokeWidthStackPtr);
+			g_logger_assert(strokeWidthStackPtr >= 0, "Popped to many values off of stroke width stack: {}", strokeWidthStackPtr);
 		}
 
 		void popColor(int numToPop)
 		{
 			colorStackPtr -= numToPop;
-			g_logger_assert(colorStackPtr >= 0, "Popped to many values off of color stack: %d", colorStackPtr);
+			g_logger_assert(colorStackPtr >= 0, "Popped to many values off of color stack: {}", colorStackPtr);
 		}
 
 		void popLineEnding(int numToPop)
 		{
 			lineEndingStackPtr -= numToPop;
-			g_logger_assert(lineEndingStackPtr >= 0, "Popped to many values off of line ending stack: %d", lineEndingStackPtr);
+			g_logger_assert(lineEndingStackPtr >= 0, "Popped to many values off of line ending stack: {}", lineEndingStackPtr);
 		}
 
 		void popFont(int numToPop)
 		{
 			fontStackPtr -= numToPop;
-			g_logger_assert(fontStackPtr >= 0, "Popped to many values off of font stack: %d", fontStackPtr);
+			g_logger_assert(fontStackPtr >= 0, "Popped to many values off of font stack: {}", fontStackPtr);
 		}
 
 		void popCamera2D(int numToPop)
 		{
 			camera2DStackPtr -= numToPop;
-			g_logger_assert(camera2DStackPtr >= 0, "Popped to many values off of camera2D stack: %d", camera2DStackPtr);
+			g_logger_assert(camera2DStackPtr >= 0, "Popped to many values off of camera2D stack: {}", camera2DStackPtr);
 		}
 
 		void popCamera3D(int numToPop)
 		{
 			camera3DStackPtr -= numToPop;
-			g_logger_assert(camera3DStackPtr >= 0, "Popped to many values off of camera3D stack: %d", camera3DStackPtr);
+			g_logger_assert(camera3DStackPtr >= 0, "Popped to many values off of camera3D stack: {}", camera3DStackPtr);
 		}
 
 		// ----------- 2D stuff ----------- 
@@ -1065,7 +1065,7 @@ namespace MathAnim
 			if (path->data.size() <= 1)
 			{
 #ifdef _DEBUG
-				g_logger_warning("Corrupted path data found for AnimObjId: %d", objId);
+				g_logger_warning("Corrupted path data found for AnimObjId: {}", objId);
 #endif
 				return false;
 			}

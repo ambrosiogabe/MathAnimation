@@ -63,7 +63,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("PerspectiveCamera serialized with unknown version: %d", version);
+		g_logger_warning("PerspectiveCamera serialized with unknown version: '{}'", version);
 		return {};
 	}
 

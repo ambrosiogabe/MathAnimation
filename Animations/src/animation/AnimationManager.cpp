@@ -564,7 +564,7 @@ namespace MathAnim
 
 			if (versionMajor < 2 || versionMajor > 3)
 			{
-				g_logger_error("AnimationManager tried to deserialize save file with unknown version '%d.%d'.", versionMajor, versionMinor);
+				g_logger_error("AnimationManager tried to deserialize save file with unknown version '{}.{}'.", versionMajor, versionMinor);
 			}
 
 			am->activeCamera = readIdFromJson(j, "StartingActiveCamera");
@@ -624,8 +624,8 @@ namespace MathAnim
 			uint32 serializerVersion;
 			memory.read<uint32>(&serializerVersion);
 
-			g_logger_assert(magicNumber == MAGIC_NUMBER, "Project file had invalid magic number '0x%8x'. File must have been corrupted.", magicNumber);
-			g_logger_assert((serializerVersion != 0 && serializerVersion <= 1), "Project file saved with invalid version '%d'. Looks like corrupted data.", serializerVersion);
+			g_logger_assert(magicNumber == MAGIC_NUMBER, "Project file had invalid magic number '0x{:8x}'. File must have been corrupted.", magicNumber);
+			g_logger_assert((serializerVersion != 0 && serializerVersion <= 1), "Project file saved with invalid version '{}'. Looks like corrupted data.", serializerVersion);
 
 			if (serializerVersion == 1)
 			{
@@ -646,7 +646,7 @@ namespace MathAnim
 						Animation animation = Animation::legacy_deserialize(memory, version);
 						am->animations.push_back(animation);
 						memory.read<uint32>(&magicNumber);
-						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x{:8x}'", magicNumber);
 
 						am->animationIdMap[animation.id] = i;
 					}
@@ -662,7 +662,7 @@ namespace MathAnim
 						AnimObject animObject = AnimObject::legacy_deserialize(am, memory, version);
 						am->objects.push_back(animObject);
 						memory.read<uint32>(&magicNumber);
-						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x{:8x}'", magicNumber);
 
 						am->objectIdMap[animObject.id] = i;
 					}
@@ -677,7 +677,7 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_error("AnimationManagerEx serialized with unknown version '%d'.", serializerVersion);
+				g_logger_error("AnimationManagerEx serialized with unknown version '{}'.", serializerVersion);
 			}
 
 			// Need to sort animations they get applied in the correct order
@@ -832,7 +832,7 @@ namespace MathAnim
 			AnimObject* obj = getMutableObject(am, animObjId);
 			if (!obj)
 			{
-				g_logger_warning("Cannot update state of object that does not exist for AnimObjID: '%d'", animObjId);
+				g_logger_warning("Cannot update state of object that does not exist for AnimObjID: '{}'", animObjId);
 				return;
 			}
 
@@ -957,7 +957,7 @@ namespace MathAnim
 			// Then remove the parent
 			if (!removeSingleAnimObject(am, animObj))
 			{
-				g_logger_warning("Tried to delete AnimObject<ID: '%d'>, which does not exist.", animObj);
+				g_logger_warning("Tried to delete AnimObject<ID: '{}'>, which does not exist.", animObj);
 			}
 		}
 

@@ -35,7 +35,7 @@ namespace MathAnim
 			// Collect all the available audio playback device names and store them
 			const ALCchar* devices = alcGetString(NULL, ALC_ALL_DEVICES_SPECIFIER);
 			currentDeviceName = alcGetString(device, ALC_ALL_DEVICES_SPECIFIER);
-			g_logger_info("Audio Output Device: '%s'", currentDeviceName);
+			g_logger_info("Audio Output Device: '{}'", (const char*)currentDeviceName);
 			{
 				std::string logMessage = "Available Output Devices:\n";
 				const ALCchar* currentDevice = devices;
@@ -57,7 +57,7 @@ namespace MathAnim
 					deviceIndex++;
 				}
 
-				g_logger_info("%s", logMessage.c_str());
+				g_logger_info("{}", logMessage.c_str());
 			}
 		}
 
@@ -112,7 +112,7 @@ namespace MathAnim
 
 			if (format == AL_INVALID_ENUM)
 			{
-				g_logger_error("Unable to map WAV file with format %d channels and %d bits/sample to AL format.", (int)wav.audioChannelType, wav.bitsPerSample);
+				g_logger_error("Unable to map WAV file with format {} channels and {} bits/sample to AL format.", wav.audioChannelType, wav.bitsPerSample);
 				alDeleteBuffers(1, &res.bufferId);
 				res.bufferId = UINT32_MAX;
 				return res;
@@ -308,7 +308,7 @@ namespace MathAnim
 					g_logger_error("ALC_OUT_OF_MEMORY: an unknown enum value was passed to an OpenAL function");
 					break;
 				default:
-					g_logger_error("UNKNOWN ALC ERROR: %u", inError);
+					g_logger_error("UNKNOWN ALC ERROR: {}", inError);
 				}
 			}
 		}

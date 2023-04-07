@@ -192,7 +192,7 @@ namespace MathAnim
 			AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectId);
 			if (!animObject)
 			{
-				g_logger_error("No anim object with id '%d' exists", animObject);
+				g_logger_error("No anim object with id '{}' exists", animObject);
 				activeAnimObjectId = NULL_ANIM_OBJECT;
 				return;
 			}
@@ -358,7 +358,7 @@ namespace MathAnim
 			Animation* animation = AnimationManager::getMutableAnimation(am, animationId);
 			if (!animation)
 			{
-				g_logger_error("No animation with id '%d' exists", animationId);
+				g_logger_error("No animation with id '{}' exists", animationId);
 				activeAnimationId = NULL_ANIM;
 				return;
 			}
@@ -558,7 +558,7 @@ namespace MathAnim
 			{
 				if (object->as.textObject.font != nullptr)
 				{
-					g_logger_warning("Could not find font %s", object->as.textObject.font->fontFilepath.c_str());
+					g_logger_warning("Could not find font '{}'", object->as.textObject.font->fontFilepath);
 				}
 			}
 
@@ -663,7 +663,7 @@ namespace MathAnim
 			char scratch[scratchLength] = {};
 			if (object->as.laTexObject.textLength >= scratchLength)
 			{
-				g_logger_error("Text object has more than %d characters. Tell Gabe to increase scratch length for LaTex objects.", scratchLength);
+				g_logger_error("Text object has more than '{}' characters. Tell Gabe to increase scratch length for LaTex objects.", scratchLength);
 				return;
 			}
 			g_memory_copyMem(scratch, object->as.laTexObject.text, object->as.laTexObject.textLength * sizeof(char));
@@ -743,7 +743,7 @@ namespace MathAnim
 				}
 				else
 				{
-					g_logger_error("Error opening SVGFileObject:\n\t%s", NFD_GetError());
+					g_logger_error("Error opening SVGFileObject:\n\t'{}'", NFD_GetError());
 				}
 			}
 
@@ -1116,7 +1116,7 @@ namespace MathAnim
 				}
 				else
 				{
-					g_logger_error("Error opening Image:\n\t%s", NFD_GetError());
+					g_logger_error("Error opening Image:\n\t'{}'", NFD_GetError());
 				}
 			}
 

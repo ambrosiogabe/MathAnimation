@@ -143,7 +143,7 @@ namespace MathAnim
 				else
 				{
 					filenameBuffer[0] = '\0';
-					g_logger_error("Error opening file to save to for video export:\n\t%s", NFD_GetError());
+					g_logger_error("Error opening file to save to for video export:\n\t'{}'", NFD_GetError());
 				}
 
 				std::string filename = std::string(filenameBuffer);
@@ -154,7 +154,7 @@ namespace MathAnim
 					{
 						filepath.replace_extension(".mov");
 					}
-					g_logger_info("Exporting video to %s", filepath.string().c_str());
+					g_logger_info("Exporting video to '{}'", filepath);
 					exportVideoTo(am, filepath.string());
 				}
 			}
@@ -203,7 +203,7 @@ namespace MathAnim
 		{
 			if (encoder)
 			{
-				g_logger_warning("Tried to export video to '%s' while another export for file '%s' was in progress.", filename.c_str(), outputVideoFilename.c_str());
+				g_logger_warning("Tried to export video to '{}' while another export for file '{}' was in progress.", filename, outputVideoFilename);
 				return;
 			}
 

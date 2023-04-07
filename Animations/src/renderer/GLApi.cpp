@@ -22,11 +22,11 @@ namespace MathAnim
 			if (versionMajor < minSupportedVersionMajor ||
 				(versionMajor >= minSupportedVersionMajor && versionMinor < minSupportedVersionMinor))
 			{
-				g_logger_error("You are running OpenGL version less than %d.%d. This app does not support GL versions less than %d.%d, you can try to update your graphics drivers to see if that helps.",
+				g_logger_error("You are running OpenGL version less than {}.{}. This app does not support GL versions less than {}.{}, you can try to update your graphics drivers to see if that helps.",
 					minSupportedVersionMajor, minSupportedVersionMinor,
 					minSupportedVersionMajor, minSupportedVersionMinor
 				);
-				g_logger_assert(false, "GL Version %d.%d not supported.", versionMajor, versionMinor);
+				g_logger_assert(false, "GL Version {}.{} not supported.", versionMajor, versionMinor);
 			}
 
 			if (versionMajor >= 4 && versionMinor >= 6)
@@ -68,8 +68,8 @@ namespace MathAnim
 				g_logger_info(R"Raw(
 System Info:
 ============
-GL Version: %d.%d
-Max Texture Image Units: %d
+GL Version: {}.{}
+Max Texture Image Units: {}
 )Raw",
 					versionMajor,
 					versionMinor,
@@ -318,7 +318,7 @@ Max Texture Image Units: %d
 
 		void bindTexSlot(GLenum target, GLuint texture, GLint textureSlot)
 		{
-			g_logger_assert(textureSlot < maxTextureImageUnits, "Invalid texture slot: '%d'. System only supports up to '%d' texture slots.", textureSlot, maxTextureImageUnits);
+			g_logger_assert(textureSlot < maxTextureImageUnits, "Invalid texture slot: '{}'. System only supports up to '{}' texture slots.", textureSlot, maxTextureImageUnits);
 			glActiveTexture(GL_TEXTURE0 + textureSlot);
 			GL::bindTexture(target, texture);
 		}
