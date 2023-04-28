@@ -624,7 +624,7 @@ namespace MathAnim
 			uint32 serializerVersion;
 			memory.read<uint32>(&serializerVersion);
 
-			g_logger_assert(magicNumber == MAGIC_NUMBER, "Project file had invalid magic number '0x{:8x}'. File must have been corrupted.", magicNumber);
+			g_logger_assert(magicNumber == MAGIC_NUMBER, "Project file had invalid magic number '{:#010x}'. File must have been corrupted.", magicNumber);
 			g_logger_assert((serializerVersion != 0 && serializerVersion <= 1), "Project file saved with invalid version '{}'. Looks like corrupted data.", serializerVersion);
 
 			if (serializerVersion == 1)
@@ -646,7 +646,7 @@ namespace MathAnim
 						Animation animation = Animation::legacy_deserialize(memory, version);
 						am->animations.push_back(animation);
 						memory.read<uint32>(&magicNumber);
-						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x{:8x}'", magicNumber);
+						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '{:#010x}'", magicNumber);
 
 						am->animationIdMap[animation.id] = i;
 					}
@@ -662,7 +662,7 @@ namespace MathAnim
 						AnimObject animObject = AnimObject::legacy_deserialize(am, memory, version);
 						am->objects.push_back(animObject);
 						memory.read<uint32>(&magicNumber);
-						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x{:8x}'", magicNumber);
+						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '{:#010x}'", magicNumber);
 
 						am->objectIdMap[animObject.id] = i;
 					}

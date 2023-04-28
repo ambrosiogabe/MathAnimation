@@ -511,7 +511,7 @@ namespace MathAnim
 			memory.read<uint64>(&magicNumber);
 			if (magicNumber != 0xDEADBEEF)
 			{
-				g_logger_error("Project file corrupted. Magic number not 0xDEADBEEF, instead got: 0x{:8x}", magicNumber);
+				g_logger_error("Project file corrupted. Magic number not 0xDEADBEEF, instead got: '{:#010x}'", magicNumber);
 				goto cleanup;
 			}
 			memory.read<int32>(&selectedProjectIndex);

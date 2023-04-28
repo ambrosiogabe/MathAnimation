@@ -159,7 +159,7 @@ namespace MathAnim
 
 		if (magicNumber != 0xC001CAFE)
 		{
-			g_logger_error("Corrupted project file. Expected magic number '0xC001CAFE' but got '0x{:8x}'.", magicNumber);
+			g_logger_error("Corrupted project file. Expected magic number '0xC001CAFE' but got '{:#010x}'.", magicNumber);
 
 			res.numEntries = 0;
 			return res;

@@ -139,7 +139,7 @@ namespace MathAnim
 
 							if (!this->cachedSvgs.evict(oldest->key))
 							{
-								g_logger_error("SVG cache eviction failed: 0x{:8x}", oldest->key);
+								g_logger_error("SVG cache eviction failed: '{:#010x}'", oldest->key);
 								oldest = nullptr;
 							}
 
