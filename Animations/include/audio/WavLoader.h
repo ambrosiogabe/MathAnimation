@@ -44,4 +44,6 @@ namespace MathAnim
 	}
 }
 
+CppUtils::Stream& operator<<(CppUtils::Stream& io, MathAnim::AudioChannelType const& value);
+
 #endif 

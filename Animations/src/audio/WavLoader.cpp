@@ -92,3 +92,21 @@ namespace MathAnim
 		}
 	}
 }
+
+CppUtils::Stream& operator<<(CppUtils::Stream& io, MathAnim::AudioChannelType const& value)
+{
+	switch (value)
+	{
+	case MathAnim::AudioChannelType::Dual:
+		io << "<AudioChannelType::Dual>";
+		break;
+	case MathAnim::AudioChannelType::Mono:
+		io << "<AudioChannelType::Mono>";
+	case MathAnim::AudioChannelType::Length:
+		io << "<AudioChannelType::Undefined>";
+	case MathAnim::AudioChannelType::None:
+		io << "<AudioChannelType::None>";
+	}
+
+	return io;
+}

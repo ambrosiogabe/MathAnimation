@@ -527,55 +527,6 @@ namespace MathAnim
 		return !(a == b);
 	}
 
-	// Print functions
-	std::ostream& operator<<(std::ostream& ostream, const Vec2& vec2)
-	{
-		ostream << "<" << vec2.x << ", " << vec2.y << ">";
-		return ostream;
-	}
-
-	std::ostream& operator<<(std::ostream& ostream, const Vec3& vec3)
-	{
-		ostream << "<" << vec3.x << ", " << vec3.y << ", " << vec3.z << ">";
-		return ostream;
-	}
-
-	std::ostream& operator<<(std::ostream& ostream, const Vec4& vec4)
-	{
-		ostream << "<" << vec4.r << ", " << vec4.g << ", " << vec4.b << ", " << vec4.a << ">";
-		return ostream;
-	}
-
-	std::ostream& operator<<(std::ostream& ostream, const Vec2i& vec2)
-	{
-		ostream << "<" << vec2.x << ", " << vec2.y << ">";
-		return ostream;
-	}
-
-	std::ostream& operator<<(std::ostream& ostream, const Vec3i& vec3)
-	{
-		ostream << "<" << vec3.x << ", " << vec3.y << ", " << vec3.z << ">";
-		return ostream;
-	}
-
-	std::ostream& operator<<(std::ostream& ostream, const Vec4i& vec4)
-	{
-		ostream << "<" << vec4.w << ", " << vec4.x << ", " << vec4.y << ", " << vec4.z << ">";
-		return ostream;
-	}
-
-	std::ostream& operator<<(std::ostream& ostream, const BBox& bbox)
-	{
-		ostream << "Max: " << bbox.max << ", Min: " << bbox.min;
-		return ostream;
-	}
-
-	std::ostream& operator<<(std::ostream& ostream, const BBoxi& bbox)
-	{
-		ostream << "Max: " << bbox.max << ", Min: " << bbox.min;
-		return ostream;
-	}
-
 	namespace CMath
 	{
 		float lengthSquared(const Vec2& vec)
@@ -653,4 +604,53 @@ namespace MathAnim
 			return vec * glm::inversesqrt(lengthSquared(vec));
 		}
 	}
+}
+
+// Print functions
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::Vec2& vec2)
+{
+	ostream << "<" << vec2.x << ", " << vec2.y << ">";
+	return ostream;
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::Vec3& vec3)
+{
+	ostream << "<" << vec3.x << ", " << vec3.y << ", " << vec3.z << ">";
+	return ostream;
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::Vec4& vec4)
+{
+	ostream << "<" << vec4.r << ", " << vec4.g << ", " << vec4.b << ", " << vec4.a << ">";
+	return ostream;
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::Vec2i& vec2)
+{
+	ostream << "<" << vec2.x << ", " << vec2.y << ">";
+	return ostream;
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::Vec3i& vec3)
+{
+	ostream << "<" << vec3.x << ", " << vec3.y << ", " << vec3.z << ">";
+	return ostream;
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::Vec4i& vec4)
+{
+	ostream << "<" << vec4.w << ", " << vec4.x << ", " << vec4.y << ", " << vec4.z << ">";
+	return ostream;
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::BBox& bbox)
+{
+	ostream << "Max: " << bbox.max << ", Min: " << bbox.min;
+	return ostream;
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::BBoxi& bbox)
+{
+	ostream << "Max: " << bbox.max << ", Min: " << bbox.min;
+	return ostream;
 }

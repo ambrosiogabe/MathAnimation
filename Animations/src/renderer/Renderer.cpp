@@ -162,6 +162,7 @@ namespace MathAnim
 
 		void changeBatchIfNeeded(uint32 textureId);
 		void addBillboard(uint32 graphicsId, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor);
+		void addBillboard(uint32 graphicsId, const Vec3& p0, const Vec3& p1, float height, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& shader) const;
@@ -1528,6 +1529,11 @@ namespace MathAnim
 			drawList3DLine.addLine(start, end, packColor(color), thickness);
 		}
 
+		void drawTexturedBillboard3D(const Texture& texture, const Vec3& p0, const Vec3& p1, float height, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId) 
+		{
+			drawList3DBillboard.addBillboard(texture.graphicsId, p0, p1, height, uvMin, uvMax, packColor(color));
+		}
+
 		void drawTexturedBillboard3D(const Texture& texture, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId)
 		{
 			drawList3DBillboard.addBillboard(texture.graphicsId, position, size, uvMin, uvMax, packColor(color));
@@ -2285,6 +2291,59 @@ namespace MathAnim
 			newCmd.textureId = textureId;
 			drawCommands.emplace_back(newCmd);
 		}
+	}
+
+	void DrawList3DBillboard::addBillboard(uint32 textureId, const Vec3& p0, const Vec3& p1, float height, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor)
+	{
+		changeBatchIfNeeded(textureId);
+		const float halfHeight = height / 2.0f;
+
+		// Triangle 1
+		vertices.emplace_back(Vertex3DBillboard{
+			p0,
+			packedColor,
+			{ 0.0f, -halfHeight },
+			{ uvMin.x, uvMin.y }
+			});
+
+		vertices.emplace_back(Vertex3DBillboard{
+			p0,
+			packedColor,
+			{ 0.0f, halfHeight },
+			{ uvMin.x, uvMax.y }
+			});
+
+		vertices.emplace_back(Vertex3DBillboard{
+			p1,
+			packedColor,
+			{ 0.0f, halfHeight },
+			{ uvMax.x, uvMax.y }
+			});
+
+		// Triangle 2
+		vertices.emplace_back(Vertex3DBillboard{
+			p0,
+			packedColor,
+			{ 0.0f, -halfHeight },
+			{ uvMin.x, uvMin.y }
+			});
+
+		vertices.emplace_back(Vertex3DBillboard{
+			p1,
+			packedColor,
+			{ 0.0f, halfHeight },
+			{ uvMax.x, uvMax.y }
+			});
+
+		vertices.emplace_back(Vertex3DBillboard{
+			p1,
+			packedColor,
+			{ 0.0f, -halfHeight },
+			{ uvMax.x, uvMin.y }
+			});
+
+		DrawCmdSimpleTexture3D& currentCmd = drawCommands[drawCommands.size() - 1];
+		currentCmd.vertCount += 6;
 	}
 
 	void DrawList3DBillboard::addBillboard(uint32 textureId, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor)

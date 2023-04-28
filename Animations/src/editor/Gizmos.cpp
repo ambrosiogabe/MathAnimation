@@ -176,8 +176,7 @@ namespace MathAnim
 				constexpr float radius = 0.8f;
 
 				constexpr const Vec3 xPos = Vec3{ radius, 0.0f, 0.0f };
-				float orientationXDp = CMath::dot(xPos, dummyCamera.forward);
-				g_logger_info("XPos: {}", xPos);
+				float orientationXDp = CMath::dot(xPos, dummyCamera.forward); 
 				bool orientationIsXPositive = orientationXDp >= -1.0f && orientationXDp < 0.0f;
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
@@ -669,6 +668,13 @@ namespace MathAnim
 				Vec2 triP2 = pos + Vec2{ stemHalfSize, -GizmoManager::defaultArrowTipHalfWidth } *zoom;
 				Renderer::drawFilledTri(triP0, triP1, triP2);
 				Renderer::popColor();
+
+				Renderer::drawTexturedBillboard3D(
+					GizmoManager::cameraOrientationGizmoTexture,
+					this->position + Vec3{ 0.2f, 0.2f, 0.0f }, this->position + Vec3{ 0.1f, 0.2f, 0.0f } * 2.0f,
+					0.1f,
+					Vec2{ 0, 0 }, Vec2{ 0.5f, 0.5f },
+					*color);
 			}
 		}
 

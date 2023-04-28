@@ -17,7 +17,6 @@
 // My stuff
 #define USE_GABE_CPP_PRINT
 #include <cppUtils/cppUtils.hpp>
-#undef USE_GABE_CPP_PRINT
 
 // Standard
 #include <filesystem>
@@ -41,15 +40,20 @@
 #include <regex>
 
 // GLFW/glad
+#ifndef APIENTRY
 #ifdef _WIN32
 #define APIENTRY __stdcall // NOTE: This hack should prevent me from having to include Windows.h to stop APIENTRY from being redefined
 #else 
 #define APIENTRY
 #endif
+#endif
 
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
+
+#ifdef APIENTRY
 #undef APIENTRY
+#endif
 
 // stb
 #include <stb/stb_image.h>
