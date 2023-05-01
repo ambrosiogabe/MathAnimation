@@ -110,6 +110,26 @@ namespace MathAnim
 		Vec2i max;
 	};
 
+	namespace Vector3
+	{
+		constexpr Vec3 Right = Vec3{ 1.0f, 0.0f, 0.0f };
+		constexpr Vec3 Forward = Vec3{ 0.0f, 0.0f, 1.0f };
+		constexpr Vec3 Up = Vec3{ 0.0f, 1.0f, 0.0f };
+
+		constexpr Vec3 Left = Vec3{ -1.0f, 0.0f, 0.0f };
+		constexpr Vec3 Back = Vec3{ 0.0f, 0.0f, -1.0f };
+		constexpr Vec3 Down = Vec3{ 0.0f, -1.0f, 0.0f };
+	}
+
+	namespace Vector2
+	{
+		constexpr Vec2 Right = Vec2{ 1.0f, 0.0f };
+		constexpr Vec2 Up = Vec2{ 0.0f, 1.0f };
+
+		constexpr Vec2 Left = Vec2{ -1.0f, 0.0f };
+		constexpr Vec2 Down = Vec2{ 0.0f, -1.0f };
+	}
+
 	Vec2 operator+(const Vec2& a, const Vec2& b);
 	Vec2 operator-(const Vec2& a, const Vec2& b);
 	Vec2 operator*(const Vec2& a, float scale);

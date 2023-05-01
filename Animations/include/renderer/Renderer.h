@@ -101,11 +101,14 @@ namespace MathAnim
 		void drawTexturedBillboard3D(const Texture& texture, const Vec3& p0, const Vec3& p1, float height, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId id = NULL_ANIM_OBJECT);
 		void drawTexturedBillboard3D(const Texture& texture, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawColoredBillboard3D(const Vec3& position, const Vec2& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawFilledQuad3D(const Vec3& position, const Vec2& size, const Vec3& normal, const Vec3& perpendicular, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isTransparent = false, bool isBillboard = false);
 		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId = NULL_ANIM_OBJECT, bool isBillboard = false);
 		void drawFilledCircle3D(const Vec3& center, float radius, int numSegments, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isBillboard = false);
 		void drawMultiColoredTri3D(const Vec3& p0, const Vec4& color0, const Vec3& p1, const Vec4& color1, const Vec3& p2, const Vec4& color2, AnimObjId objId = NULL_ANIM_OBJECT, bool isBillboard = false);
+		void drawCone3D(const Vec3& baseCenter, const Vec3& direction, const Vec3& normal, float radius, float length, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawCylinder(const Vec3& startCenter, const Vec3& endCenter, const Vec3& normal, float radius, AnimObjId objId = NULL_ANIM_OBJECT);
 
 		// ----------- Miscellaneous ----------- 
 		void clearColor(const Vec4& color);

@@ -1544,6 +1544,19 @@ namespace MathAnim
 			drawList3DBillboard.addBillboard(UINT32_MAX, position, size, Vec2{ 0, 0 }, Vec2{ 1, 1 }, packColor(color));
 		}
 
+		void drawFilledQuad3D(const Vec3& position, const Vec2& size, const Vec3& normal, const Vec3& perpendicular, AnimObjId objId)
+		{
+			const Vec3 right = CMath::cross(normal, perpendicular);
+
+			const Vec3 topLeft = position + (-size.x * right) + (size.y * perpendicular);
+			const Vec3 topRight = position + (size.x * right) + (size.y * perpendicular);
+			const Vec3 bottomLeft = position + (-size.x * right) + (-size.y * perpendicular);
+			const Vec3 bottomRight = position + (size.x * right) + (-size.y * perpendicular);
+
+			drawFilledTri3D(bottomLeft, topLeft, topRight, objId);
+			drawFilledTri3D(bottomLeft, topRight, bottomRight, objId);
+		}
+
 		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId, const glm::mat4& transform)
 		{
 			glm::vec4 tmpBottomLeft = glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
@@ -1613,6 +1626,67 @@ namespace MathAnim
 		void drawMultiColoredTri3D(const Vec3& p0, const Vec4& color0, const Vec3& p1, const Vec4& color1, const Vec3& p2, const Vec4& color2, AnimObjId objId, bool isBillboard)
 		{
 			drawList3D.addMultiColoredTri(p0, color0, p1, color1, p2, color2, objId, isBillboard);
+		}
+
+		void drawCone3D(const Vec3& baseCenter, const Vec3& direction, const Vec3& normal, float radius, float length, AnimObjId objId)
+		{
+			Vec3 tip = baseCenter + (direction * length);
+
+			const Vec3 rightDir = CMath::cross(direction, normal);
+
+			constexpr int numPointsOnCircle = 16;
+			constexpr float increments = 360.0f / (float)numPointsOnCircle;
+			for (int i = 0; i < numPointsOnCircle; i++)
+			{
+				float radians = glm::radians((float)i * increments);
+				float nextRadians = glm::radians((float)((i + 1) % numPointsOnCircle) * increments);
+
+				float xVal = glm::sin(radians) * radius;
+				float yVal = glm::cos(radians) * radius;
+
+				float nextXVal = glm::sin(nextRadians) * radius;
+				float nextYVal = glm::cos(nextRadians) * radius;
+
+				Vec3 thisPoint = baseCenter + (rightDir * xVal) + (normal * yVal);
+				Vec3 nextPoint = baseCenter + (rightDir * nextXVal) + (normal * nextYVal);
+
+				drawFilledTri3D(baseCenter, thisPoint, nextPoint, objId);
+				drawFilledTri3D(thisPoint, tip, nextPoint, objId);
+			}
+		}
+
+		void drawCylinder(const Vec3& startCenter, const Vec3& endCenter, const Vec3& normal, float radius, AnimObjId objId)
+		{
+			const Vec3 direction = CMath::normalize(endCenter - startCenter);
+			const Vec3 rightDir = CMath::cross(direction, normal);
+
+			constexpr int numPointsOnCircle = 16;
+			constexpr float increments = 360.0f / (float)numPointsOnCircle;
+			for (int i = 0; i < numPointsOnCircle; i++)
+			{
+				const float radians = glm::radians((float)i * increments);
+				const float nextRadians = glm::radians((float)((i + 1) % numPointsOnCircle) * increments);
+
+				const float xVal = glm::sin(radians) * radius;
+				const float yVal = glm::cos(radians) * radius;
+
+				const float nextXVal = glm::sin(nextRadians) * radius;
+				const float nextYVal = glm::cos(nextRadians) * radius;
+
+				const Vec3 thisOffset = (rightDir * xVal) + (normal * yVal);
+				const Vec3 nextOffset = (rightDir * nextXVal) + (normal * nextYVal);
+
+				const Vec3 startThisPoint = startCenter + thisOffset;
+				const Vec3 startNextPoint = startCenter + nextOffset;
+
+				const Vec3 endThisPoint = endCenter + thisOffset;
+				const Vec3 endNextPoint = endCenter + nextOffset;
+
+				drawFilledTri3D(startCenter, startThisPoint, startNextPoint, objId);
+				drawFilledTri3D(endCenter, endThisPoint, endNextPoint, objId);
+				drawFilledTri3D(startThisPoint, endThisPoint, endNextPoint, objId);
+				drawFilledTri3D(startThisPoint, endNextPoint, startNextPoint, objId);
+			}
 		}
 
 		// ----------- Miscellaneous ----------- 

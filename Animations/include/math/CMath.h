@@ -176,6 +176,15 @@ namespace MathAnim
 		inline Vec2 abs(const Vec2& a) { return Vec2{ abs(a.x), abs(a.y) }; }
 		inline Vec3 abs(const Vec3& a) { return Vec3{ abs(a.x), abs(a.y), abs(a.z)}; }
 
+		inline Vec3 cross(const Vec3& a, const Vec3& b)
+		{
+			return Vec3{
+				(a.values[1] * b.values[2]) - (a.values[2] * b.values[1]),
+				(a.values[2] * b.values[0]) - (a.values[0] * b.values[2]),
+				(a.values[0] * b.values[1]) - (a.values[1] * b.values[0]),
+			};
+		}
+
 		// Max, Min helpers
 		Vec2 max(const Vec2& a, const Vec2& b);
 		Vec2 min(const Vec2& a, const Vec2& b);

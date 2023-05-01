@@ -11,11 +11,12 @@ namespace MathAnim
 
 	enum class GizmoVariant : uint8
 	{
-		None = 0,
-		Free = 0x1,
-		Horizontal = 0x2,
-		Vertical = 0x4,
-		All = 0xF
+		None       = 0,
+		Free       = 0b0001,
+		Horizontal = 0b0010,
+		Vertical   = 0b0100,
+		Forward    = 0b1000,
+		All        = 0b1111
 	};
 
 	enum class GizmoType : uint8
