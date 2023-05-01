@@ -9,6 +9,7 @@
 #include "core/Application.h"
 #include "core/Profiling.h"
 #include "math/CMath.h"
+#include "physics/Physics.h"
 
 namespace MathAnim
 {
@@ -139,6 +140,52 @@ namespace MathAnim
 				}
 			}
 
+			{
+				static Vec3 start = Vec3{ 0, 0, 0 };
+				static Vec3 end = Vec3{ 0, 0, 0 };
+				if (Input::mouseClicked(MouseButton::Left))
+				{
+					Vec2 normalizedDeviceCoords = EditorGui::mouseToNormalizedViewport();
+					Camera* camera = Application::getEditorCamera();
+					start = camera->reverseProject(normalizedDeviceCoords, 1.0f);
+					end = camera->reverseProject(normalizedDeviceCoords, 50.0f);
+				}
+
+				static AABB aabb = Physics::createAABB(Vec3{ 0, 1, 0 }, Vec3{ 1, 1, 1 });
+				Ray ray = Physics::createRay(start, end);
+				RaycastResult res = Physics::rayIntersectsAABB(ray, aabb);
+
+				Vec3 boxMin = aabb.min;
+				Vec3 boxMax = aabb.max;
+				if (res.hit())
+				{
+					Renderer::pushColor(Colors::AccentRed[3]);
+				}
+				else
+				{
+					Renderer::pushColor(Colors::AccentGreen[3]);
+				}
+				Renderer::drawCylinder(Vec3{ boxMin.x, boxMin.y, boxMin.z }, Vec3{ boxMax.x, boxMin.y, boxMin.z }, Vector3::Up, 0.03f);
+				Renderer::drawCylinder(Vec3{ boxMin.x, boxMin.y, boxMin.z }, Vec3{ boxMin.x, boxMax.y, boxMin.z }, Vector3::Right, 0.03f);
+				Renderer::drawCylinder(Vec3{ boxMax.x, boxMin.y, boxMin.z }, Vec3{ boxMax.x, boxMax.y, boxMin.z }, Vector3::Right, 0.03f);
+				Renderer::drawCylinder(Vec3{ boxMin.x, boxMax.y, boxMin.z }, Vec3{ boxMax.x, boxMax.y, boxMin.z }, Vector3::Up, 0.03f);
+
+				Renderer::drawCylinder(Vec3{ boxMin.x, boxMin.y, boxMax.z }, Vec3{ boxMax.x, boxMin.y, boxMax.z }, Vector3::Up, 0.03f);
+				Renderer::drawCylinder(Vec3{ boxMin.x, boxMin.y, boxMax.z }, Vec3{ boxMin.x, boxMax.y, boxMax.z }, Vector3::Right, 0.03f);
+				Renderer::drawCylinder(Vec3{ boxMax.x, boxMin.y, boxMax.z }, Vec3{ boxMax.x, boxMax.y, boxMax.z }, Vector3::Right, 0.03f);
+				Renderer::drawCylinder(Vec3{ boxMin.x, boxMax.y, boxMax.z }, Vec3{ boxMax.x, boxMax.y, boxMax.z }, Vector3::Up, 0.03f);
+
+				Renderer::drawCylinder(Vec3{ boxMin.x, boxMin.y, boxMin.z }, Vec3{ boxMin.x, boxMin.y, boxMax.z }, Vector3::Up, 0.03f);
+				Renderer::drawCylinder(Vec3{ boxMin.x, boxMax.y, boxMin.z }, Vec3{ boxMin.x, boxMax.y, boxMax.z }, Vector3::Up, 0.03f);
+				Renderer::drawCylinder(Vec3{ boxMax.x, boxMax.y, boxMin.z }, Vec3{ boxMax.x, boxMax.y, boxMax.z }, Vector3::Up, 0.03f);
+				Renderer::drawCylinder(Vec3{ boxMax.x, boxMin.y, boxMin.z }, Vec3{ boxMax.x, boxMin.y, boxMax.z }, Vector3::Up, 0.03f);
+				Renderer::popColor();
+
+				Renderer::pushColor(Colors::AccentRed[3]);
+				Renderer::drawCylinder(start, end, Vector3::Right, 0.03f);
+				Renderer::popColor();
+			}
+
 			// Draw animation manager camera frustum/billboards
 			{
 				const AnimObject* orthoCameraObj = AnimationManager::getActiveCamera2D(am);
@@ -182,7 +229,7 @@ namespace MathAnim
 				constexpr float radius = 0.8f;
 
 				constexpr const Vec3 xPos = Vec3{ radius, 0.0f, 0.0f };
-				float orientationXDp = CMath::dot(xPos, dummyCamera.forward); 
+				float orientationXDp = CMath::dot(xPos, dummyCamera.forward);
 				bool orientationIsXPositive = orientationXDp >= -1.0f && orientationXDp < 0.0f;
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
@@ -693,7 +740,7 @@ namespace MathAnim
 			if (color != nullptr)
 			{
 				Renderer::pushColor(*color);
-				Vec3 halfSizeZoom = Vec3{ GizmoManager::defaultArrowHalfLength, 0.0f, 0.0f } * zoom;
+				Vec3 halfSizeZoom = Vec3{ GizmoManager::defaultArrowHalfLength, 0.0f, 0.0f } *zoom;
 				Renderer::drawCylinder(
 					pos3D - halfSizeZoom,
 					pos3D + halfSizeZoom,
@@ -702,11 +749,11 @@ namespace MathAnim
 				);
 				Vec3 baseCenter = pos3D + halfSizeZoom;
 				Renderer::drawCone3D(
-					baseCenter, 
-					Vector3::Right, 
-					Vector3::Up, 
+					baseCenter,
+					Vector3::Right,
+					Vector3::Up,
 					GizmoManager::defaultArrowTipRadius * zoom,
-					GizmoManager::defaultArrowTipLength * zoom 
+					GizmoManager::defaultArrowTipLength * zoom
 				);
 				Renderer::popColor();
 			}
@@ -732,7 +779,7 @@ namespace MathAnim
 			if (color != nullptr)
 			{
 				Renderer::pushColor(*color);
-				Vec3 halfSizeZoom = Vec3{ 0.0f, GizmoManager::defaultArrowHalfLength, 0.0f } * zoom;
+				Vec3 halfSizeZoom = Vec3{ 0.0f, GizmoManager::defaultArrowHalfLength, 0.0f } *zoom;
 				Renderer::drawCylinder(
 					pos3D - halfSizeZoom,
 					pos3D + halfSizeZoom,
@@ -771,7 +818,7 @@ namespace MathAnim
 			if (color != nullptr)
 			{
 				Renderer::pushColor(*color);
-				Vec3 halfSizeZoom = Vec3{ 0.0f, 0.0f, GizmoManager::defaultArrowHalfLength } * zoom;
+				Vec3 halfSizeZoom = Vec3{ 0.0f, 0.0f, GizmoManager::defaultArrowHalfLength } *zoom;
 				Renderer::drawCylinder(
 					pos3D - halfSizeZoom,
 					pos3D + halfSizeZoom,

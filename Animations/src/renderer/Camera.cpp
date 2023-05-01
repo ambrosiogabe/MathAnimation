@@ -60,13 +60,13 @@ namespace MathAnim
 		matricesAreCached = false;
 	}
 
-	Vec3 Camera::reverseProject(const Vec2& normalizedInput) const
+	Vec3 Camera::reverseProject(const Vec2& normalizedInput, float zDepth) const
 	{
 		Vec2 ndcCoords = normalizedInput * 2.0f - Vec2{ 1.0f, 1.0f };
 		glm::mat4 inverseView = glm::inverse(viewMatrix);
 		glm::mat4 inverseProj = glm::inverse(projectionMatrix);
-		float zDepth = CMath::mapRange(nearFarRange, Vec2{ 0.0f, 1.0f }, focalDistance);
-		glm::vec4 res = glm::vec4(ndcCoords.x, ndcCoords.y, zDepth, 1.0f);
+		float normalizedZDepth = CMath::mapRange(nearFarRange, Vec2{ -1.0f, 1.0f }, zDepth);
+		glm::vec4 res = glm::vec4(ndcCoords.x, ndcCoords.y, normalizedZDepth, 1.0f);
 		res = inverseView * inverseProj * res;
 		return Vec3{ res.x, res.y, res.z };
 	}
