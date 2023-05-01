@@ -47,7 +47,7 @@ namespace MathAnim
 		uint64 lastActiveGizmo; // Gizmo active last frame
 		GizmoVariant hotGizmoVariant; // Variant of the above IDs
 		Vec3 mouseWorldPos3f;
-		Vec2 mouseWorldPos2f;
+		Ray mouseRay;
 	};
 
 	// -------------- Internal Functions --------------
@@ -75,6 +75,22 @@ namespace MathAnim
 		static constexpr Vec3 defaultHorizontalMoveOffset3D = Vec3{ 0.1f, -0.4f, 0.0f };
 		static constexpr Vec3 defaultForwardMoveOffset3D = Vec3{ -0.4f, -0.4f, -0.1f - defaultArrowHalfLength };
 
+		static constexpr Vec3 defaultVerticalMoveAABBSize = Vec3{ 
+			defaultArrowTipRadius, 
+			defaultArrowTipLength + defaultArrowHalfLength * 2.0f, 
+			0.0f 
+		};
+		static constexpr Vec3 defaultHorizontalMoveAABBSize = Vec3{
+			defaultArrowTipLength + defaultArrowHalfLength * 2.0f,
+			defaultArrowTipRadius,
+			0.0f
+		};
+		static constexpr Vec3 defaultForwardMoveAABBSize = Vec3{
+			0.0f,
+			defaultArrowTipRadius,
+			defaultArrowTipLength + defaultArrowHalfLength * 2.0f
+		};
+
 		static constexpr int cameraOrientationFramebufferSize = 180;
 		static Framebuffer cameraOrientationFramebuffer;
 		static Texture cameraOrientationGizmoTexture;
@@ -86,10 +102,10 @@ namespace MathAnim
 		static GizmoState* getGizmoById(uint64 id);
 		static uint64 hashName(const char* name);
 		static GizmoState* createDefaultGizmoState(const char* name, GizmoType type);
-		static bool isMouseHovered(const Vec2& centerPosition, const Vec2& size);
+		static bool isMouseHovered(const Vec3& centerPosition, const Vec3& size);
 		static Vec3 getMouseWorldPos3f();
-		static Vec2 getMouseWorldPos2f();
-		static void handleActiveCheck(GizmoState* gizmo, const Vec2& offset, const Vec2& gizmoSize, float cameraZoom);
+		static Ray getMouseRay();
+		static void handleActiveCheck(GizmoState* gizmo, const Vec3& offset, const Vec3& gizmoSize, float cameraZoom);
 
 		void init()
 		{
@@ -97,8 +113,8 @@ namespace MathAnim
 			gGizmoManager = new(gMemory)GlobalContext();
 			gGizmoManager->hoveredGizmo = NullGizmo;
 			gGizmoManager->activeGizmo = NullGizmo;
-			gGizmoManager->mouseWorldPos3f = Vec3{ NAN, NAN, NAN };
-			gGizmoManager->mouseWorldPos2f = Vec2{ 0.0f, 0.0f };
+			gGizmoManager->mouseWorldPos3f = Vec3{ 0.0f, 0.0f, 0.0f };
+			gGizmoManager->mouseRay = Physics::createRay(Vec3{ 0, 0, 0 }, Vec3{ 1, 0, 0 });
 
 			cameraOrientationFramebuffer = Renderer::prepareFramebuffer(cameraOrientationFramebufferSize, cameraOrientationFramebufferSize);
 			cameraOrientationGizmoTexture = TextureBuilder()
@@ -111,8 +127,8 @@ namespace MathAnim
 			MP_PROFILE_EVENT("Gizmo_Update");
 			GlobalContext* g = gGizmoManager;
 			g->lastActiveGizmo = g->activeGizmo;
-			//g->mouseWorldPos3f = getMouseWorldPos3f();
-			g->mouseWorldPos2f = getMouseWorldPos2f();
+			g->mouseWorldPos3f = getMouseWorldPos3f();
+			g->mouseRay = getMouseRay();
 
 			EditorGui::onGizmo(am);
 		}
@@ -138,52 +154,6 @@ namespace MathAnim
 				{
 					iter->shouldDraw = false;
 				}
-			}
-
-			{
-				static Vec3 start = Vec3{ 0, 0, 0 };
-				static Vec3 end = Vec3{ 0, 0, 0 };
-				if (Input::mouseClicked(MouseButton::Left))
-				{
-					Vec2 normalizedDeviceCoords = EditorGui::mouseToNormalizedViewport();
-					Camera* camera = Application::getEditorCamera();
-					start = camera->reverseProject(normalizedDeviceCoords, 1.0f);
-					end = camera->reverseProject(normalizedDeviceCoords, 50.0f);
-				}
-
-				static AABB aabb = Physics::createAABB(Vec3{ 0, 1, 0 }, Vec3{ 1, 1, 1 });
-				Ray ray = Physics::createRay(start, end);
-				RaycastResult res = Physics::rayIntersectsAABB(ray, aabb);
-
-				Vec3 boxMin = aabb.min;
-				Vec3 boxMax = aabb.max;
-				if (res.hit())
-				{
-					Renderer::pushColor(Colors::AccentRed[3]);
-				}
-				else
-				{
-					Renderer::pushColor(Colors::AccentGreen[3]);
-				}
-				Renderer::drawCylinder(Vec3{ boxMin.x, boxMin.y, boxMin.z }, Vec3{ boxMax.x, boxMin.y, boxMin.z }, Vector3::Up, 0.03f);
-				Renderer::drawCylinder(Vec3{ boxMin.x, boxMin.y, boxMin.z }, Vec3{ boxMin.x, boxMax.y, boxMin.z }, Vector3::Right, 0.03f);
-				Renderer::drawCylinder(Vec3{ boxMax.x, boxMin.y, boxMin.z }, Vec3{ boxMax.x, boxMax.y, boxMin.z }, Vector3::Right, 0.03f);
-				Renderer::drawCylinder(Vec3{ boxMin.x, boxMax.y, boxMin.z }, Vec3{ boxMax.x, boxMax.y, boxMin.z }, Vector3::Up, 0.03f);
-
-				Renderer::drawCylinder(Vec3{ boxMin.x, boxMin.y, boxMax.z }, Vec3{ boxMax.x, boxMin.y, boxMax.z }, Vector3::Up, 0.03f);
-				Renderer::drawCylinder(Vec3{ boxMin.x, boxMin.y, boxMax.z }, Vec3{ boxMin.x, boxMax.y, boxMax.z }, Vector3::Right, 0.03f);
-				Renderer::drawCylinder(Vec3{ boxMax.x, boxMin.y, boxMax.z }, Vec3{ boxMax.x, boxMax.y, boxMax.z }, Vector3::Right, 0.03f);
-				Renderer::drawCylinder(Vec3{ boxMin.x, boxMax.y, boxMax.z }, Vec3{ boxMax.x, boxMax.y, boxMax.z }, Vector3::Up, 0.03f);
-
-				Renderer::drawCylinder(Vec3{ boxMin.x, boxMin.y, boxMin.z }, Vec3{ boxMin.x, boxMin.y, boxMax.z }, Vector3::Up, 0.03f);
-				Renderer::drawCylinder(Vec3{ boxMin.x, boxMax.y, boxMin.z }, Vec3{ boxMin.x, boxMax.y, boxMax.z }, Vector3::Up, 0.03f);
-				Renderer::drawCylinder(Vec3{ boxMax.x, boxMax.y, boxMin.z }, Vec3{ boxMax.x, boxMax.y, boxMax.z }, Vector3::Up, 0.03f);
-				Renderer::drawCylinder(Vec3{ boxMax.x, boxMin.y, boxMin.z }, Vec3{ boxMax.x, boxMin.y, boxMax.z }, Vector3::Up, 0.03f);
-				Renderer::popColor();
-
-				Renderer::pushColor(Colors::AccentRed[3]);
-				Renderer::drawCylinder(start, end, Vector3::Right, 0.03f);
-				Renderer::popColor();
 			}
 
 			// Draw animation manager camera frustum/billboards
@@ -353,7 +323,7 @@ namespace MathAnim
 				{
 				case FollowMouseMoveMode::None:
 					gizmo->positionMoveStart = *position;
-					gizmo->mouseDelta = gizmo->positionMoveStart - CMath::vector3From2(g->mouseWorldPos2f);
+					gizmo->mouseDelta = gizmo->positionMoveStart - g->mouseWorldPos3f;
 					gizmo->moveMode = FollowMouseMoveMode::FreeMove;
 					break;
 				case FollowMouseMoveMode::HzOnly:
@@ -444,40 +414,59 @@ namespace MathAnim
 			if (g->hoveredGizmo == NullGizmo && g->activeGizmo == NullGizmo)
 			{
 				// Check if free move variant is hovered
-				if (isMouseHovered(CMath::vector2From3(gizmo->position), defaultFreeMoveSize * zoom))
+				//if (isMouseHovered(gizmo->position, defaultFreeMoveSize * zoom))
+				//{
+				//	g->hoveredGizmo = gizmo->idHash;
+				//	g->hotGizmoVariant = GizmoVariant::Free;
+				//}
+				if (isMouseHovered(
+					getGizmoPos3D(gizmo->position, defaultVerticalMoveOffset3D, zoom), 
+					defaultVerticalMoveAABBSize * zoom
+				))
 				{
 					g->hoveredGizmo = gizmo->idHash;
-					g->hotGizmoVariant = GizmoVariant::Free;
+					g->hotGizmoVariant = GizmoVariant::Vertical;
 				}
-				//else if (isMouseHovered(getGizmoPos(gizmo->position, defaultVerticalMoveOffset, zoom), defaultVerticalMoveSize * zoom))
-				//{
-				//	g->hoveredGizmo = gizmo->idHash;
-				//	g->hotGizmoVariant = GizmoVariant::Vertical;
-				//}
-				//else if (isMouseHovered(getGizmoPos(gizmo->position, defaultHorizontalMoveOffset, zoom), defaultHorizontalMoveSize * zoom))
-				//{
-				//	g->hoveredGizmo = gizmo->idHash;
-				//	g->hotGizmoVariant = GizmoVariant::Horizontal;
-				//}
+				else if (isMouseHovered(
+					getGizmoPos3D(gizmo->position, defaultHorizontalMoveOffset3D, zoom), 
+					defaultHorizontalMoveAABBSize * zoom
+				))
+				{
+					g->hoveredGizmo = gizmo->idHash;
+					g->hotGizmoVariant = GizmoVariant::Horizontal;
+				}
+				else if (isMouseHovered(
+					getGizmoPos3D(gizmo->position, defaultForwardMoveOffset3D, zoom),
+					defaultForwardMoveAABBSize * zoom
+				))
+				{
+					g->hoveredGizmo = gizmo->idHash;
+					g->hotGizmoVariant = GizmoVariant::Forward;
+				}
 			}
 
 			if (g->hoveredGizmo == gizmo->idHash)
 			{
 				// Gizmo is "active" if the user is holding the mouse button down on the gizmo
 				// Check if free move variant is changed to active
-				if (g->hotGizmoVariant == GizmoVariant::Free)
-				{
-					handleActiveCheck(gizmo, Vec2{ 0, 0 }, defaultFreeMoveSize, zoom);
-				}
+				//if (g->hotGizmoVariant == GizmoVariant::Free)
+				//{
+				//	handleActiveCheck(gizmo, Vec2{ 0, 0 }, defaultFreeMoveSize, zoom);
+				//}
 				// Check if vertical move is changed to active
-				else if (g->hotGizmoVariant == GizmoVariant::Vertical)
+				if (g->hotGizmoVariant == GizmoVariant::Vertical)
 				{
-					//handleActiveCheck(gizmo, defaultVerticalMoveOffset, defaultVerticalMoveSize, zoom);
+					handleActiveCheck(gizmo, defaultVerticalMoveOffset3D, defaultVerticalMoveAABBSize, zoom);
 				}
 				// Check if horizontal move is changed to active
-				if (g->hotGizmoVariant == GizmoVariant::Horizontal)
+				else if (g->hotGizmoVariant == GizmoVariant::Horizontal)
 				{
-					//handleActiveCheck(gizmo, defaultHorizontalMoveOffset, defaultHorizontalMoveSize, zoom);
+					handleActiveCheck(gizmo, defaultHorizontalMoveOffset3D, defaultHorizontalMoveAABBSize, zoom);
+				}
+				// Check if forward move is changed to active
+				else if (g->hotGizmoVariant == GizmoVariant::Forward)
+				{
+					handleActiveCheck(gizmo, defaultForwardMoveOffset3D, defaultForwardMoveAABBSize, zoom);
 				}
 			}
 
@@ -502,16 +491,20 @@ namespace MathAnim
 					switch (g->hotGizmoVariant)
 					{
 					case GizmoVariant::Free:
-						*position = CMath::vector3From2(g->mouseWorldPos2f);
+						*position = g->mouseWorldPos3f;
 						break;
 					case GizmoVariant::Vertical:
 						// NOTE: We subtract mouseDelta here to make sure it's offset properly from the mouse
 						// and then when it gets added back in below it cancels the operation
-						*position = Vec3{ position->x - gizmo->mouseDelta.x, g->mouseWorldPos2f.y, 0.0f };
+						*position = Vec3{ position->x - gizmo->mouseDelta.x, g->mouseWorldPos3f.y, position->z - gizmo->mouseDelta.z };
 						break;
 					case GizmoVariant::Horizontal:
 						// NOTE: Same note as above
-						*position = Vec3{ g->mouseWorldPos2f.x, position->y - gizmo->mouseDelta.y, 0.0f };
+						*position = Vec3{ g->mouseWorldPos3f.x, position->y - gizmo->mouseDelta.y, position->z - gizmo->mouseDelta.z };
+						break;
+					case GizmoVariant::Forward:
+						// NOTE: Same note as above
+						*position = Vec3{ position->x - gizmo->mouseDelta.x, position->y - gizmo->mouseDelta.y, g->mouseWorldPos3f.z };
 						break;
 					case GizmoVariant::None:
 					case GizmoVariant::All:
@@ -581,45 +574,43 @@ namespace MathAnim
 			return gizmoState;
 		}
 
-		static bool isMouseHovered(const Vec2& centerPosition, const Vec2& size)
+		static bool isMouseHovered(const Vec3& centerPosition, const Vec3& size)
 		{
-			const Vec2& worldCoords = gGizmoManager->mouseWorldPos2f;
-			Vec2 bottomLeft = centerPosition - (Vec2{ size.x, size.y } / 2.0f);
-
-			return worldCoords.x >= bottomLeft.x && worldCoords.x <= bottomLeft.x + size.x &&
-				worldCoords.y >= bottomLeft.y && worldCoords.y <= bottomLeft.y + size.y;
+			const Ray& ray = gGizmoManager->mouseRay;
+			AABB aabb = Physics::createAABB(centerPosition, size);
+			RaycastResult res = Physics::rayIntersectsAABB(ray, aabb);
+			return res.hit();
 		}
 
-		static void handleActiveCheck(GizmoState* gizmo, const Vec2& offset, const Vec2& gizmoSize, float cameraZoom)
+		static void handleActiveCheck(GizmoState* gizmo, const Vec3& offset, const Vec3& gizmoSize, float cameraZoom)
 		{
 			GlobalContext* g = gGizmoManager;
-			if (Input::mouseDown(MouseButton::Left) && isMouseHovered(getGizmoPos(gizmo->position, offset, cameraZoom), gizmoSize * cameraZoom))
+			if (Input::mouseDown(MouseButton::Left) && isMouseHovered(getGizmoPos3D(gizmo->position, offset, cameraZoom), gizmoSize * cameraZoom))
 			{
-				gizmo->mouseDelta = gizmo->position - CMath::vector3From2(g->mouseWorldPos2f);
+				gizmo->mouseDelta = gizmo->position - g->mouseWorldPos3f;
 				g->activeGizmo = gizmo->idHash;
 				g->hoveredGizmo = NullGizmo;
 			}
-			else if (!isMouseHovered(getGizmoPos(gizmo->position, offset, cameraZoom), gizmoSize * cameraZoom))
+			else if (!isMouseHovered(getGizmoPos3D(gizmo->position, offset, cameraZoom), gizmoSize * cameraZoom))
 			{
 				g->hoveredGizmo = NullGizmo;
 			}
 		}
 
-#pragma warning( push )
-#pragma warning( disable : 4505 )
 		static Vec3 getMouseWorldPos3f()
-		{
-			g_logger_warning("TODO: Implement 3D getMouseWorldPos3f() in gizmos.cpp");
-			return Vec3{ NAN, NAN, NAN };
-		}
-#pragma warning( pop )
-
-		static Vec2 getMouseWorldPos2f()
 		{
 			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
 			Camera* camera = Application::getEditorCamera();
-			Vec2 worldCoords = CMath::vector2From3(camera->reverseProject(normalizedMousePos));
-			return worldCoords;
+			return camera->reverseProject(normalizedMousePos);
+		}
+
+		static Ray getMouseRay()
+		{
+			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
+			Camera* camera = Application::getEditorCamera();
+			Vec3 origin = camera->reverseProject(normalizedMousePos, camera->nearFarRange.min);
+			Vec3 end = camera->reverseProject(normalizedMousePos, camera->nearFarRange.max);
+			return Physics::createRay(origin, end);
 		}
 	}
 
