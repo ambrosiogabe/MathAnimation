@@ -19,6 +19,7 @@ namespace MathAnim
 		None = 0,
 		HzOnly,
 		VtOnly,
+		FwdOnly,
 		FreeMove
 	};
 
@@ -328,6 +329,7 @@ namespace MathAnim
 					break;
 				case FollowMouseMoveMode::HzOnly:
 				case FollowMouseMoveMode::VtOnly:
+				case FollowMouseMoveMode::FwdOnly:
 				case FollowMouseMoveMode::FreeMove:
 					break;
 				}
@@ -340,6 +342,7 @@ namespace MathAnim
 					switch (gizmo->moveMode)
 					{
 					case FollowMouseMoveMode::VtOnly:
+					case FollowMouseMoveMode::FwdOnly:
 					case FollowMouseMoveMode::FreeMove:
 						gizmo->moveMode = FollowMouseMoveMode::HzOnly;
 						break;
@@ -354,10 +357,26 @@ namespace MathAnim
 					switch (gizmo->moveMode)
 					{
 					case FollowMouseMoveMode::HzOnly:
+					case FollowMouseMoveMode::FwdOnly:
 					case FollowMouseMoveMode::FreeMove:
 						gizmo->moveMode = FollowMouseMoveMode::VtOnly;
 						break;
 					case FollowMouseMoveMode::VtOnly:
+					case FollowMouseMoveMode::None:
+						break;
+					}
+					*position = gizmo->positionMoveStart;
+				}
+				if (Input::keyPressed(GLFW_KEY_Z))
+				{
+					switch (gizmo->moveMode)
+					{
+					case FollowMouseMoveMode::HzOnly:
+					case FollowMouseMoveMode::VtOnly:
+					case FollowMouseMoveMode::FreeMove:
+						gizmo->moveMode = FollowMouseMoveMode::FwdOnly;
+						break;
+					case FollowMouseMoveMode::FwdOnly:
 					case FollowMouseMoveMode::None:
 						break;
 					}
@@ -388,9 +407,14 @@ namespace MathAnim
 					position->x = unprojectedMousePos.x + gizmo->mouseDelta.x;
 					gizmo->shouldDraw = true;
 					break;
+				case FollowMouseMoveMode::FwdOnly:
+					position->z = unprojectedMousePos.z + gizmo->mouseDelta.z;
+					gizmo->shouldDraw = true;
+					break;
 				case FollowMouseMoveMode::FreeMove:
 					position->x = unprojectedMousePos.x + gizmo->mouseDelta.x;
 					position->y = unprojectedMousePos.y + gizmo->mouseDelta.y;
+					position->z = unprojectedMousePos.z + gizmo->mouseDelta.z;
 					break;
 				case FollowMouseMoveMode::None:
 					break;
@@ -636,22 +660,26 @@ namespace MathAnim
 			Vec3 rightGuideline = this->positionMoveStart + Vec3{ cameraProjectionSize.x, 0.0f, 0.0f };
 			Vec3 bottomGuideline = this->positionMoveStart - Vec3{ 0.0f, cameraProjectionSize.y, 0.0f };
 			Vec3 topGuideline = this->positionMoveStart + Vec3{ 0.0f, cameraProjectionSize.y, 0.0f };
+			Vec3 frontGuideline = this->positionMoveStart + Vec3{ 0.0f, 0.0f, camera->nearFarRange.max * zoom };
+			Vec3 backGuideline = this->positionMoveStart - Vec3{ 0.0f, 0.0f, camera->nearFarRange.max * zoom };
 
-			float hzGuidelineWidth = cameraProjectionSize.x / 1'000.0f;
-			float vtGuidelineWidth = cameraProjectionSize.y / 400.0f;
-			Vec2 hzGuidelineSize = Vec2{ rightGuideline.x - leftGuideline.x, hzGuidelineWidth };
-			Vec2 vtGuidelineSize = Vec2{ vtGuidelineWidth, topGuideline.y - bottomGuideline.y };
+			float guidelineWidth = 0.02f * zoom;
 
 			switch (moveMode)
 			{
 			case FollowMouseMoveMode::HzOnly:
 				Renderer::pushColor(Colors::AccentRed[4]);
-				Renderer::drawFilledQuad(CMath::vector2From3(this->positionMoveStart), hzGuidelineSize);
+				Renderer::drawCylinder(leftGuideline, rightGuideline, Vector3::Up, guidelineWidth);
 				Renderer::popColor();
 				break;
 			case FollowMouseMoveMode::VtOnly:
+				Renderer::pushColor(Colors::Primary[4]);
+				Renderer::drawCylinder(bottomGuideline, topGuideline, Vector3::Right, guidelineWidth);
+				Renderer::popColor();
+				break;
+			case FollowMouseMoveMode::FwdOnly:
 				Renderer::pushColor(Colors::AccentGreen[4]);
-				Renderer::drawFilledQuad(CMath::vector2From3(this->positionMoveStart), vtGuidelineSize);
+				Renderer::drawCylinder(backGuideline, frontGuideline, Vector3::Up, guidelineWidth);
 				Renderer::popColor();
 				break;
 			case FollowMouseMoveMode::None:
