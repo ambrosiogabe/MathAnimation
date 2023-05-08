@@ -45,7 +45,7 @@ namespace MathAnim
 		void calculateMatrices(bool ignoreCache = false);
 		void endFrame();
 		Vec3 reverseProject(const Vec2& normalizedInput, float zDepth) const;
-		inline Vec3 reverseProject(const Vec2& normalizedInput) const { return reverseProject(normalizedInput, focalDistance); }
+		inline Vec3 reverseProject(const Vec2& normalizedInput) const { return reverseProject(normalizedInput, nearFarRange.max); }
 		Vec4 getLeftRightBottomTop() const;
 
 		void serialize(nlohmann::json& j) const;

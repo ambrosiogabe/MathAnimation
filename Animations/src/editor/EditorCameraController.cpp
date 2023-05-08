@@ -87,10 +87,6 @@ namespace MathAnim
 						Vec3 worldDelta = mouseWorldPos - lastMouseWorldPos;
 						if (!CMath::compare(worldDelta, Vec3{ 0, 0, 0 }, 0.01f))
 						{
-							if (camera.mode == CameraMode::Perspective)
-							{
-								worldDelta *= 10.0f;
-							}
 							camera.position -= worldDelta;
 						}
 					}
@@ -114,7 +110,7 @@ namespace MathAnim
 						Vec2 worldDelta = mouseScreenPos - lastMouseScreenPos;
 						constexpr float epsilon = 0.001f;
 
-						Vec3 focalPoint = camera.position + camera.forward * camera.focalDistance;
+						Vec3 focalPoint = camera.position + camera.forward * camera.focalDistance * camera.orthoZoomLevel;
 
 						if (!CMath::compare(worldDelta.y, 0.0f, epsilon))
 						{
@@ -127,7 +123,7 @@ namespace MathAnim
 						}
 
 						Vec3 newForward = CMath::normalize(CMath::convert(camera.orientation * glm::vec3(0, 0, 1)));
-						camera.position = focalPoint - (newForward * camera.focalDistance);
+						camera.position = focalPoint - (newForward * camera.focalDistance * camera.orthoZoomLevel);
 					}
 
 					lastMouseScreenPos = mouseScreenPos;
@@ -145,13 +141,10 @@ namespace MathAnim
 					float oldOrthoZoomLevel = camera.orthoZoomLevel;
 					camera.orthoZoomLevel = glm::clamp(glm::exp(cameraXStep), camera.nearFarRange.min / 2.0f, camera.nearFarRange.max * 2.0f);
 					float zoomDelta = camera.orthoZoomLevel - oldOrthoZoomLevel;
-
+					
 					// Change the camera position for 3D zoom effect
 					// Move camera forwards/backwards
 					camera.position -= camera.forward * zoomDelta * 20.0f;
-					// Change the focal distance as well to compensate for the
-					// camera position change
-					camera.focalDistance += zoomDelta * 20.0f;
 				}
 			}
 		}

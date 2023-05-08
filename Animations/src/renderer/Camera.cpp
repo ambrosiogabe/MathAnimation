@@ -65,10 +65,24 @@ namespace MathAnim
 		Vec2 ndcCoords = normalizedInput * 2.0f - Vec2{ 1.0f, 1.0f };
 		glm::mat4 inverseView = glm::inverse(viewMatrix);
 		glm::mat4 inverseProj = glm::inverse(projectionMatrix);
-		float normalizedZDepth = CMath::mapRange(nearFarRange, Vec2{ -1.0f, 1.0f }, zDepth);
-		glm::vec4 res = glm::vec4(ndcCoords.x, ndcCoords.y, normalizedZDepth, 1.0f);
-		res = inverseView * inverseProj * res;
-		return Vec3{ res.x, res.y, res.z };
+
+		glm::vec4 clipSpacePosFar = glm::vec4(ndcCoords.x, ndcCoords.y, 1.0f, 1.0f);
+		glm::vec4 viewSpacePosFar = inverseProj * clipSpacePosFar;
+		viewSpacePosFar /= viewSpacePosFar.w;
+		glm::vec4 worldSpacePosFarPlane = inverseView * viewSpacePosFar;
+
+		glm::vec4 clipSpacePosNear = glm::vec4(ndcCoords.x, ndcCoords.y, -1.0f, 1.0f);
+		glm::vec4 viewSpacePosNear = inverseProj * clipSpacePosNear;
+		viewSpacePosNear /= viewSpacePosNear.w;
+		glm::vec4 worldSpacePosNearPlane = inverseView * viewSpacePosNear;
+
+		// TODO: Right now if nearFarRange is [1.0, 100.0] then this will return the results 
+		//       at 1.0 + zDepth which is incorrect. To fix it, we need to some how remap our
+		//       near/far plane to be [0.0, 99.0] and then do all the calculations based on that.
+		glm::vec4 direction = glm::normalize(worldSpacePosFarPlane - worldSpacePosNearPlane);
+		glm::vec3 worldSpacePos = worldSpacePosNearPlane + (direction * zDepth);
+
+		return CMath::convert(worldSpacePos);
 	}
 
 	Vec4 Camera::getLeftRightBottomTop() const

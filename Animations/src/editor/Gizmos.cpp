@@ -76,10 +76,10 @@ namespace MathAnim
 		static constexpr Vec3 defaultHorizontalMoveOffset3D = Vec3{ 0.1f, -0.4f, 0.0f };
 		static constexpr Vec3 defaultForwardMoveOffset3D = Vec3{ -0.4f, -0.4f, -0.1f - defaultArrowHalfLength };
 
-		static constexpr Vec3 defaultVerticalMoveAABBSize = Vec3{ 
-			defaultArrowTipRadius, 
-			defaultArrowTipLength + defaultArrowHalfLength * 2.0f, 
-			0.0f 
+		static constexpr Vec3 defaultVerticalMoveAABBSize = Vec3{
+			defaultArrowTipRadius,
+			defaultArrowTipLength + defaultArrowHalfLength * 2.0f,
+			0.0f
 		};
 		static constexpr Vec3 defaultHorizontalMoveAABBSize = Vec3{
 			defaultArrowTipLength + defaultArrowHalfLength * 2.0f,
@@ -104,9 +104,10 @@ namespace MathAnim
 		static uint64 hashName(const char* name);
 		static GizmoState* createDefaultGizmoState(const char* name, GizmoType type);
 		static bool isMouseHovered(const Vec3& centerPosition, const Vec3& size);
-		static Vec3 getMouseWorldPos3f();
+		static Vec3 getMouseWorldPos3f(float zDepth);
 		static Ray getMouseRay();
 		static void handleActiveCheck(GizmoState* gizmo, const Vec3& offset, const Vec3& gizmoSize, float cameraZoom);
+		static uint64 activeOrHoveredGizmo();
 
 		void init()
 		{
@@ -128,7 +129,13 @@ namespace MathAnim
 			MP_PROFILE_EVENT("Gizmo_Update");
 			GlobalContext* g = gGizmoManager;
 			g->lastActiveGizmo = g->activeGizmo;
-			g->mouseWorldPos3f = getMouseWorldPos3f();
+
+			float zDepth = Application::getEditorCamera()->focalDistance;
+			if (activeOrHoveredGizmo() != NullGizmo)
+			{
+				zDepth = CMath::length(getGizmoById(activeOrHoveredGizmo())->position - Application::getEditorCamera()->position);
+			}
+			g->mouseWorldPos3f = getMouseWorldPos3f(zDepth);
 			g->mouseRay = getMouseRay();
 
 			EditorGui::onGizmo(am);
@@ -396,7 +403,7 @@ namespace MathAnim
 			if (gizmo->moveMode != FollowMouseMoveMode::None)
 			{
 				Vec2 mousePos = EditorGui::mouseToNormalizedViewport();
-				Vec3 unprojectedMousePos = camera->reverseProject(mousePos);
+				Vec3 unprojectedMousePos = camera->reverseProject(mousePos, CMath::length(gizmo->position - camera->position));
 				switch (gizmo->moveMode)
 				{
 				case FollowMouseMoveMode::VtOnly:
@@ -444,7 +451,7 @@ namespace MathAnim
 				//	g->hotGizmoVariant = GizmoVariant::Free;
 				//}
 				if (isMouseHovered(
-					getGizmoPos3D(gizmo->position, defaultVerticalMoveOffset3D, zoom), 
+					getGizmoPos3D(gizmo->position, defaultVerticalMoveOffset3D, zoom),
 					defaultVerticalMoveAABBSize * zoom
 				))
 				{
@@ -452,7 +459,7 @@ namespace MathAnim
 					g->hotGizmoVariant = GizmoVariant::Vertical;
 				}
 				else if (isMouseHovered(
-					getGizmoPos3D(gizmo->position, defaultHorizontalMoveOffset3D, zoom), 
+					getGizmoPos3D(gizmo->position, defaultHorizontalMoveOffset3D, zoom),
 					defaultHorizontalMoveAABBSize * zoom
 				))
 				{
@@ -609,23 +616,39 @@ namespace MathAnim
 		static void handleActiveCheck(GizmoState* gizmo, const Vec3& offset, const Vec3& gizmoSize, float cameraZoom)
 		{
 			GlobalContext* g = gGizmoManager;
-			if (Input::mouseDown(MouseButton::Left) && isMouseHovered(getGizmoPos3D(gizmo->position, offset, cameraZoom), gizmoSize * cameraZoom))
+			Vec3 gizmoPos = getGizmoPos3D(gizmo->position, offset, cameraZoom);
+			if (Input::mouseDown(MouseButton::Left) && isMouseHovered(gizmoPos, gizmoSize * cameraZoom))
 			{
 				gizmo->mouseDelta = gizmo->position - g->mouseWorldPos3f;
 				g->activeGizmo = gizmo->idHash;
 				g->hoveredGizmo = NullGizmo;
 			}
-			else if (!isMouseHovered(getGizmoPos3D(gizmo->position, offset, cameraZoom), gizmoSize * cameraZoom))
+			else if (!isMouseHovered(gizmoPos, gizmoSize * cameraZoom))
 			{
 				g->hoveredGizmo = NullGizmo;
 			}
 		}
 
-		static Vec3 getMouseWorldPos3f()
+		static uint64 activeOrHoveredGizmo()
+		{
+			GlobalContext* g = gGizmoManager;
+			if (g->activeGizmo != NullGizmo)
+			{
+				return g->activeGizmo;
+			} 
+			else if (g->hoveredGizmo != NullGizmo)
+			{
+				return g->hoveredGizmo;
+			}
+
+			return NullGizmo;
+		}
+
+		static Vec3 getMouseWorldPos3f(float zDepth)
 		{
 			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
 			Camera* camera = Application::getEditorCamera();
-			return camera->reverseProject(normalizedMousePos);
+			return camera->reverseProject(normalizedMousePos, zDepth);
 		}
 
 		static Ray getMouseRay()
