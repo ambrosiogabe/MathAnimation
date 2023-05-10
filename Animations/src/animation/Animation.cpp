@@ -2477,7 +2477,7 @@ namespace MathAnim
 		// TODO: Render and handle 2D gizmo logic based on edit mode
 		std::string gizmoName = "Move_To_" + std::to_string(anim->id);
 		Vec3 tmp = CMath::vector3From2(anim->as.moveTo.target);
-		GizmoManager::translateGizmo(gizmoName.c_str(), &tmp, GizmoVariant::Free);
+		GizmoManager::translateGizmo(gizmoName.c_str(), &tmp);
 		anim->as.moveTo.target = CMath::vector2From3(tmp);
 	}
 }

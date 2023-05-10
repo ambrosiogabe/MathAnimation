@@ -9,16 +9,6 @@ namespace MathAnim
 	struct Camera;
 	struct Texture;
 
-	enum class GizmoVariant : uint8
-	{
-		None       = 0,
-		Free       = 0b0001,
-		Horizontal = 0b0010,
-		Vertical   = 0b0100,
-		Forward    = 0b1000,
-		All        = 0b1111
-	};
-
 	enum class GizmoType : uint8
 	{
 		None,
@@ -39,9 +29,9 @@ namespace MathAnim
 
 		bool anyGizmoActive();
 
-		bool translateGizmo(const char* gizmoName, Vec3* position, GizmoVariant variant = GizmoVariant::All);
-		bool rotateGizmo(const char* gizmoName, Vec3* rotation, GizmoVariant variant = GizmoVariant::All);
-		bool scaleGizmo(const char* gizmoName, Vec3* scale, GizmoVariant variant = GizmoVariant::All);
+		bool translateGizmo(const char* gizmoName, Vec3* position);
+		bool rotateGizmo(const char* gizmoName, Vec3* rotation);
+		bool scaleGizmo(const char* gizmoName, Vec3* scale);
 	}
 }
 
