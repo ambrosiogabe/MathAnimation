@@ -342,13 +342,16 @@ namespace MathAnim
 			}
 			gizmo->position = *position;
 
+			const Camera* camera = Application::getEditorCamera();
 			if (Input::keyPressed(GLFW_KEY_G))
 			{
+				// Use camera focal distance to move object
+				Vec3 worldPosFocalDistance = getMouseWorldPos3f(camera->focalDistance);
 				switch (gizmo->moveMode)
 				{
 				case FollowMouseConstraint::None:
 					gizmo->positionMoveStart = *position;
-					gizmo->mouseDelta = gizmo->positionMoveStart - g->mouseWorldPos3f;
+					gizmo->mouseDelta = gizmo->positionMoveStart - worldPosFocalDistance;
 					gizmo->moveMode = FollowMouseConstraint::FreeMove;
 					break;
 				case FollowMouseConstraint::XOnly:
@@ -406,6 +409,7 @@ namespace MathAnim
 					}
 					*position = gizmo->positionMoveStart;
 				}
+
 				if (Input::keyPressed(GLFW_KEY_ESCAPE))
 				{
 					// We can return immediately from a cancel operation
@@ -415,12 +419,10 @@ namespace MathAnim
 				}
 			}
 
-			const Camera* camera = Application::getEditorCamera();
 			float zoom = camera->orthoZoomLevel;
 			if (gizmo->moveMode != FollowMouseConstraint::None)
 			{
-				Vec2 mousePos = EditorGui::mouseToNormalizedViewport();
-				Vec3 unprojectedMousePos = camera->reverseProject(mousePos, CMath::length(gizmo->position - camera->position));
+				Vec3 unprojectedMousePos = getMouseWorldPos3f(camera->focalDistance);
 				switch (gizmo->moveMode)
 				{
 				case FollowMouseConstraint::YOnly:
