@@ -62,27 +62,35 @@ namespace MathAnim
 
 	Vec3 Camera::reverseProject(const Vec2& normalizedInput, float zDepth) const
 	{
-		Vec2 ndcCoords = normalizedInput * 2.0f - Vec2{ 1.0f, 1.0f };
-		glm::mat4 inverseView = glm::inverse(viewMatrix);
-		glm::mat4 inverseProj = glm::inverse(projectionMatrix);
+		if (this->mode == CameraMode::Perspective)
+		{
+			Vec2 ndcCoords = normalizedInput * 2.0f - Vec2{ 1.0f, 1.0f };
+			glm::mat4 inverseView = glm::inverse(viewMatrix);
+			glm::mat4 inverseProj = glm::inverse(projectionMatrix);
 
-		glm::vec4 clipSpacePosFar = glm::vec4(ndcCoords.x, ndcCoords.y, 1.0f, 1.0f);
-		glm::vec4 viewSpacePosFar = inverseProj * clipSpacePosFar;
-		viewSpacePosFar /= viewSpacePosFar.w;
-		glm::vec4 worldSpacePosFarPlane = inverseView * viewSpacePosFar;
+			glm::vec4 clipSpacePosMid = glm::vec4(ndcCoords.x, ndcCoords.y, 0.5f, 1.0f);
+			glm::vec4 viewSpacePosMid = inverseProj * clipSpacePosMid;
+			viewSpacePosMid /= viewSpacePosMid.w;
+			glm::vec4 worldSpacePosMidPlane = inverseView * viewSpacePosMid;
 
-		glm::vec4 clipSpacePosNear = glm::vec4(ndcCoords.x, ndcCoords.y, -1.0f, 1.0f);
-		glm::vec4 viewSpacePosNear = inverseProj * clipSpacePosNear;
-		viewSpacePosNear /= viewSpacePosNear.w;
-		glm::vec4 worldSpacePosNearPlane = inverseView * viewSpacePosNear;
+			Vec3 direction = CMath::normalize(CMath::vector3From4(CMath::convert(worldSpacePosMidPlane)) - this->position);
+			return this->position + (direction * zDepth);
+		}
+		else
+		{
+			Vec2 ndcCoords = normalizedInput * 2.0f - Vec2{ 1.0f, 1.0f };
+			glm::mat4 inverseView = glm::inverse(viewMatrix);
+			glm::mat4 inverseProj = glm::inverse(projectionMatrix);
 
-		// TODO: Right now if nearFarRange is [1.0, 100.0] then this will return the results 
-		//       at 1.0 + zDepth which is incorrect. To fix it, we need to some how remap our
-		//       near/far plane to be [0.0, 99.0] and then do all the calculations based on that.
-		glm::vec4 direction = glm::normalize(worldSpacePosFarPlane - worldSpacePosNearPlane);
-		glm::vec3 worldSpacePos = worldSpacePosNearPlane + (direction * zDepth);
+			float normalizedZDepth = (zDepth - nearFarRange.min) / (nearFarRange.max - nearFarRange.min);
+			normalizedZDepth = CMath::mapRange({ 0.0f, 1.0f }, { -1.0f, 1.0f }, normalizedZDepth);
+			glm::vec4 clipSpacePos = glm::vec4(ndcCoords.x, ndcCoords.y, normalizedZDepth, 1.0f);
+			glm::vec4 viewSpacePos = inverseProj * clipSpacePos;
+			viewSpacePos /= viewSpacePos.w;
+			glm::vec4 worldSpacePosMidPlane = inverseView * viewSpacePos;
 
-		return CMath::convert(worldSpacePos);
+			return CMath::vector3From4(CMath::convert(worldSpacePosMidPlane));
+		}
 	}
 
 	Vec4 Camera::getLeftRightBottomTop() const

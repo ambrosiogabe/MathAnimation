@@ -25,6 +25,8 @@ namespace MathAnim
 		RaycastHit hitFlags;
 		Vec3 entry;
 		Vec3 exit;
+		float hitEntryDistance;
+		float hitExitDistance;
 
 		inline bool hit() { return hitFlags != RaycastHit::None; }
 		inline bool hitEntry() { return (hitFlags & RaycastHit::HitEnter) == RaycastHit::HitEnter; }

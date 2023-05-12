@@ -20,8 +20,32 @@ namespace MathAnim
 		XOnly,
 		YOnly,
 		ZOnly,
+		XZOnly,
+		YZOnly,
+		XYOnly,
 		FreeMove
 	};
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& stream, const MathAnim::FollowMouseConstraint& c)
+{
+	switch (c)
+	{
+	case MathAnim::FollowMouseConstraint::None: stream << "FollowMouseConstraint::None"; break;
+	case MathAnim::FollowMouseConstraint::XOnly: stream << "FollowMouseConstraint::XOnly"; break;
+	case MathAnim::FollowMouseConstraint::YOnly: stream << "FollowMouseConstraint::YOnly"; break;
+	case MathAnim::FollowMouseConstraint::ZOnly: stream << "FollowMouseConstraint::ZOnly"; break;
+	case MathAnim::FollowMouseConstraint::XZOnly: stream << "FollowMouseConstraint::XZOnly"; break;
+	case MathAnim::FollowMouseConstraint::YZOnly: stream << "FollowMouseConstraint::YZOnly"; break;
+	case MathAnim::FollowMouseConstraint::XYOnly: stream << "FollowMouseConstraint::XYOnly"; break;
+	case MathAnim::FollowMouseConstraint::FreeMove: stream << "FollowMouseConstraint::FreeMove"; break;
+	}
+
+	return stream;
+}
+
+namespace MathAnim 
+{
 
 	enum class GizmoSubComponent : uint8
 	{
@@ -39,7 +63,9 @@ namespace MathAnim
 
 		XScale,
 		YScale,
-		ZScale
+		ZScale,
+
+		Length
 	};
 
 	struct GizmoState
@@ -84,31 +110,96 @@ namespace MathAnim
 	{
 		// -------------- Internal Variables --------------
 		static GlobalContext* gGizmoManager;
-		static constexpr Vec2 defaultFreeMoveSize = Vec2{ 0.1f, 0.1f };
 
-		static constexpr float defaultArrowHalfLength = 0.3f;
-		static constexpr float defaultArrowTipRadius = 0.1f;
-		static constexpr float defaultArrowTipLength = 0.25f;
+		static constexpr float translatePlaneSideLength = 0.1f;
+		static constexpr float translateArrowHalfLength = 0.3f;
+		static constexpr float translateArrowTipRadius = 0.1f;
+		static constexpr float translateArrowTipLength = 0.25f;
 
-		static constexpr Vec3 defaultVerticalMoveOffset3D = Vec3{ -0.4f, 0.1f, 0.0f };
-		static constexpr Vec3 defaultHorizontalMoveOffset3D = Vec3{ 0.1f, -0.4f, 0.0f };
-		static constexpr Vec3 defaultForwardMoveOffset3D = Vec3{ -0.4f, -0.4f, -0.1f - defaultArrowHalfLength };
+		// Translation arrow offsets
+		static constexpr Vec3 yTranslateOffset = Vec3{ -0.4f, 0.1f, 0.0f };
+		static constexpr Vec3 xTranslateOffset = Vec3{ 0.1f, -0.4f, 0.0f };
+		static constexpr Vec3 zTranslateOffset = Vec3{ -0.4f, -0.4f, -0.1f - translateArrowHalfLength };
 
-		static constexpr Vec3 defaultVerticalMoveAABBSize = Vec3{
-			defaultArrowTipRadius,
-			defaultArrowTipLength + defaultArrowHalfLength * 2.0f,
-			0.0f
+		// Plane movement offsets
+		static const Vec3 xyTranslateOffset = Vec3{ 0.0f, 0.0f, 0.0f };
+		static const Vec3 xzTranslateOffset = Vec3{ 
+			0.0f, 
+			xTranslateOffset.y,
+			zTranslateOffset.z
 		};
-		static constexpr Vec3 defaultHorizontalMoveAABBSize = Vec3{
-			defaultArrowTipLength + defaultArrowHalfLength * 2.0f,
-			defaultArrowTipRadius,
-			0.0f
-		};
-		static constexpr Vec3 defaultForwardMoveAABBSize = Vec3{
+		static const Vec3 zyTranslateOffset = Vec3{
+			yTranslateOffset.x,
 			0.0f,
-			defaultArrowTipRadius,
-			defaultArrowTipLength + defaultArrowHalfLength * 2.0f
+			zTranslateOffset.z
 		};
+
+		// Arrow translation AABBs
+		static constexpr Vec3 yTranslateAABBSize = Vec3{
+			translateArrowTipRadius,
+			translateArrowTipLength + translateArrowHalfLength * 2.0f,
+			translateArrowTipRadius
+		};
+		static constexpr Vec3 xTranslateAABBSize = Vec3{
+			translateArrowTipLength + translateArrowHalfLength * 2.0f,
+			translateArrowTipRadius,
+			translateArrowTipRadius
+		};
+		static constexpr Vec3 zTranslateAABBSize = Vec3{
+			translateArrowTipRadius,
+			translateArrowTipRadius,
+			translateArrowTipLength + translateArrowHalfLength * 2.0f
+		};
+
+		// Plane translation AABBs
+		static constexpr Vec2 translationPlaneSize = Vec2{ translatePlaneSideLength, translatePlaneSideLength };
+		static constexpr Vec3 xyTranslateAABBSize = Vec3{
+			translatePlaneSideLength,
+			translatePlaneSideLength,
+			0.0f
+		};
+		static constexpr Vec3 zyTranslateAABBSize = Vec3{
+			0.0f,
+			translatePlaneSideLength,
+			translatePlaneSideLength
+		};
+		static constexpr Vec3 xzTranslateAABBSize = Vec3{
+			translatePlaneSideLength,
+			0.0f,
+			translatePlaneSideLength
+		};
+
+		static const auto translateGizmoOffsets = fixedSizeArray<Vec3, (uint8)GizmoSubComponent::Length>(
+			Vec3{ 0.f, 0.f, 0.f },
+			xTranslateOffset,
+			yTranslateOffset,
+			zTranslateOffset,
+			xzTranslateOffset,
+			zyTranslateOffset,
+			xyTranslateOffset,
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f }
+		);
+
+		static const auto translateGizmoAABBs = fixedSizeArray<Vec3, (uint8)GizmoSubComponent::Length>(
+			Vec3{ 0.f, 0.f, 0.f },
+			xTranslateAABBSize,
+			yTranslateAABBSize,
+			zTranslateAABBSize,
+			xzTranslateAABBSize,
+			zyTranslateAABBSize,
+			xyTranslateAABBSize,
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f }
+		);
 
 		static constexpr int cameraOrientationFramebufferSize = 180;
 		static Framebuffer cameraOrientationFramebuffer;
@@ -121,6 +212,7 @@ namespace MathAnim
 		static GizmoState* getGizmoById(uint64 id);
 		static uint64 hashName(const char* name);
 		static GizmoState* createDefaultGizmoState(const char* name, GizmoType type);
+		static RaycastResult mouseHoveredRaycast(const Vec3& centerPosition, const Vec3& size);
 		static bool isMouseHovered(const Vec3& centerPosition, const Vec3& size);
 		static Vec3 getMouseWorldPos3f(float zDepth);
 		static Ray getMouseRay();
@@ -358,6 +450,9 @@ namespace MathAnim
 				case FollowMouseConstraint::XOnly:
 				case FollowMouseConstraint::YOnly:
 				case FollowMouseConstraint::ZOnly:
+				case FollowMouseConstraint::XYOnly:
+				case FollowMouseConstraint::YZOnly:
+				case FollowMouseConstraint::XZOnly:
 				case FollowMouseConstraint::FreeMove:
 					break;
 				}
@@ -365,12 +460,16 @@ namespace MathAnim
 
 			if (gizmo->moveMode != FollowMouseConstraint::None)
 			{
+				// Translate arrow hot-keys
 				if (Input::keyPressed(GLFW_KEY_X))
 				{
 					switch (gizmo->moveMode)
 					{
 					case FollowMouseConstraint::YOnly:
 					case FollowMouseConstraint::ZOnly:
+					case FollowMouseConstraint::XYOnly:
+					case FollowMouseConstraint::YZOnly:
+					case FollowMouseConstraint::XZOnly:
 					case FollowMouseConstraint::FreeMove:
 						gizmo->moveMode = FollowMouseConstraint::XOnly;
 						break;
@@ -380,12 +479,15 @@ namespace MathAnim
 					}
 					*position = gizmo->positionMoveStart;
 				}
-				if (Input::keyPressed(GLFW_KEY_Y))
+				else if (Input::keyPressed(GLFW_KEY_Y))
 				{
 					switch (gizmo->moveMode)
 					{
 					case FollowMouseConstraint::XOnly:
 					case FollowMouseConstraint::ZOnly:
+					case FollowMouseConstraint::XYOnly:
+					case FollowMouseConstraint::YZOnly:
+					case FollowMouseConstraint::XZOnly:
 					case FollowMouseConstraint::FreeMove:
 						gizmo->moveMode = FollowMouseConstraint::YOnly;
 						break;
@@ -395,12 +497,15 @@ namespace MathAnim
 					}
 					*position = gizmo->positionMoveStart;
 				}
-				if (Input::keyPressed(GLFW_KEY_Z))
+				else if (Input::keyPressed(GLFW_KEY_Z))
 				{
 					switch (gizmo->moveMode)
 					{
 					case FollowMouseConstraint::XOnly:
 					case FollowMouseConstraint::YOnly:
+					case FollowMouseConstraint::XYOnly:
+					case FollowMouseConstraint::YZOnly:
+					case FollowMouseConstraint::XZOnly:
 					case FollowMouseConstraint::FreeMove:
 						gizmo->moveMode = FollowMouseConstraint::ZOnly;
 						break;
@@ -410,8 +515,63 @@ namespace MathAnim
 					}
 					*position = gizmo->positionMoveStart;
 				}
+				// Planar hot-keys
+				else if (Input::keyPressed(GLFW_KEY_X, KeyMods::Shift))
+				{
+					switch (gizmo->moveMode)
+					{
+					case FollowMouseConstraint::XOnly:
+					case FollowMouseConstraint::YOnly:
+					case FollowMouseConstraint::ZOnly:
+					case FollowMouseConstraint::XYOnly:
+					case FollowMouseConstraint::XZOnly:
+					case FollowMouseConstraint::FreeMove:
+						gizmo->moveMode = FollowMouseConstraint::YZOnly;
+						break;
+					case FollowMouseConstraint::YZOnly:
+					case FollowMouseConstraint::None:
+						break;
+					}
+					*position = gizmo->positionMoveStart;
+				}
+				else if (Input::keyPressed(GLFW_KEY_Y, KeyMods::Shift))
+				{
+					switch (gizmo->moveMode)
+					{
+					case FollowMouseConstraint::XOnly:
+					case FollowMouseConstraint::YOnly:
+					case FollowMouseConstraint::ZOnly:
+					case FollowMouseConstraint::XYOnly:
+					case FollowMouseConstraint::YZOnly:
+					case FollowMouseConstraint::FreeMove:
+						gizmo->moveMode = FollowMouseConstraint::XZOnly;
+						break;
+					case FollowMouseConstraint::XZOnly:
+					case FollowMouseConstraint::None:
+						break;
+					}
+					*position = gizmo->positionMoveStart;
+				}
+				else if (Input::keyPressed(GLFW_KEY_Z, KeyMods::Shift))
+				{
+					switch (gizmo->moveMode)
+					{
+					case FollowMouseConstraint::XOnly:
+					case FollowMouseConstraint::YOnly:
+					case FollowMouseConstraint::ZOnly:
+					case FollowMouseConstraint::YZOnly:
+					case FollowMouseConstraint::XZOnly:
+					case FollowMouseConstraint::FreeMove:
+						gizmo->moveMode = FollowMouseConstraint::XYOnly;
+						break;
+					case FollowMouseConstraint::XYOnly:
+					case FollowMouseConstraint::None:
+						break;
+					}
+					*position = gizmo->positionMoveStart;
+				}
 
-				if (Input::keyPressed(GLFW_KEY_ESCAPE))
+				else if (Input::keyPressed(GLFW_KEY_ESCAPE))
 				{
 					// We can return immediately from a cancel operation
 					*position = gizmo->positionMoveStart;
@@ -423,24 +583,35 @@ namespace MathAnim
 			float zoom = camera->orthoZoomLevel;
 			if (gizmo->moveMode != FollowMouseConstraint::None)
 			{
+				gizmo->shouldDraw = true;
+
 				Vec3 unprojectedMousePos = getMouseWorldPos3f(camera->focalDistance);
 				switch (gizmo->moveMode)
 				{
 				case FollowMouseConstraint::YOnly:
 					position->y = unprojectedMousePos.y + gizmo->mouseDelta.y;
-					gizmo->shouldDraw = true;
 					break;
 				case FollowMouseConstraint::XOnly:
 					position->x = unprojectedMousePos.x + gizmo->mouseDelta.x;
-					gizmo->shouldDraw = true;
 					break;
 				case FollowMouseConstraint::ZOnly:
 					position->z = unprojectedMousePos.z + gizmo->mouseDelta.z;
-					gizmo->shouldDraw = true;
 					break;
 				case FollowMouseConstraint::FreeMove:
 					position->x = unprojectedMousePos.x + gizmo->mouseDelta.x;
 					position->y = unprojectedMousePos.y + gizmo->mouseDelta.y;
+					position->z = unprojectedMousePos.z + gizmo->mouseDelta.z;
+					break;
+				case FollowMouseConstraint::YZOnly:
+					position->y = unprojectedMousePos.y + gizmo->mouseDelta.y;
+					position->z = unprojectedMousePos.z + gizmo->mouseDelta.z;
+					break;
+				case FollowMouseConstraint::XYOnly:
+					position->x = unprojectedMousePos.x + gizmo->mouseDelta.x;
+					position->y = unprojectedMousePos.y + gizmo->mouseDelta.y;
+					break;
+				case FollowMouseConstraint::XZOnly:
+					position->x = unprojectedMousePos.x + gizmo->mouseDelta.x;
 					position->z = unprojectedMousePos.z + gizmo->mouseDelta.z;
 					break;
 				case FollowMouseConstraint::None:
@@ -464,61 +635,54 @@ namespace MathAnim
 			gizmo->shouldDraw = true;
 			if (g->hoveredGizmo == NullGizmo && g->activeGizmo == NullGizmo)
 			{
-				// Check if free move variant is hovered
-				//if (isMouseHovered(gizmo->position, defaultFreeMoveSize * zoom))
-				//{
-				//	g->hoveredGizmo = gizmo->idHash;
-				//	g->hotGizmoVariant = GizmoVariant::Free;
-				//}
-				if (isMouseHovered(
-					getGizmoPos3D(gizmo->position, defaultVerticalMoveOffset3D, zoom),
-					defaultVerticalMoveAABBSize * zoom
-				))
+				// Check which sub-component is hovered
+				// And only take the raycast hit for the closest component to the camera
+				float minHitEntryDistance = FLT_MAX;
+				for (uint8 i = (uint8)GizmoSubComponent::XTranslate; i <= (uint8)GizmoSubComponent::XYPlaneTranslate; i++)
 				{
-					g->hoveredGizmo = gizmo->idHash;
-					g->hotGizmoComponent = GizmoSubComponent::YTranslate;
+					RaycastResult raycast = mouseHoveredRaycast(
+						getGizmoPos3D(gizmo->position, translateGizmoOffsets[i], zoom),
+						translateGizmoAABBs[i] * zoom
+					);
+
+					if (raycast.hitEntry() && raycast.hitEntryDistance < minHitEntryDistance)
+					{
+						g->hoveredGizmo = gizmo->idHash;
+						g->hotGizmoComponent = (GizmoSubComponent)i;
+						minHitEntryDistance = raycast.hitEntryDistance;
+					}
 				}
-				else if (isMouseHovered(
-					getGizmoPos3D(gizmo->position, defaultHorizontalMoveOffset3D, zoom),
-					defaultHorizontalMoveAABBSize * zoom
-				))
+
+				if (minHitEntryDistance == FLT_MAX)
 				{
-					g->hoveredGizmo = gizmo->idHash;
-					g->hotGizmoComponent = GizmoSubComponent::XTranslate;
-				}
-				else if (isMouseHovered(
-					getGizmoPos3D(gizmo->position, defaultForwardMoveOffset3D, zoom),
-					defaultForwardMoveAABBSize * zoom
-				))
-				{
-					g->hoveredGizmo = gizmo->idHash;
-					g->hotGizmoComponent = GizmoSubComponent::ZTranslate;
+					g->hoveredGizmo = NullGizmo;
+					g->hotGizmoComponent = GizmoSubComponent::None;
 				}
 			}
 
 			if (g->hoveredGizmo == gizmo->idHash)
 			{
 				// Gizmo is "active" if the user is holding the mouse button down on the gizmo
-				// Check if free move variant is changed to active
-				//if (g->hotGizmoVariant == GizmoVariant::Free)
-				//{
-				//	handleActiveCheck(gizmo, Vec2{ 0, 0 }, defaultFreeMoveSize, zoom);
-				//}
-				// Check if vertical move is changed to active
 				switch (g->hotGizmoComponent)
 				{
 				case GizmoSubComponent::XTranslate:
-					handleActiveCheck(gizmo, defaultHorizontalMoveOffset3D, defaultHorizontalMoveAABBSize, zoom);
+					handleActiveCheck(gizmo, xTranslateOffset, xTranslateAABBSize, zoom);
 					break;
 				case GizmoSubComponent::YTranslate:
-					handleActiveCheck(gizmo, defaultVerticalMoveOffset3D, defaultVerticalMoveAABBSize, zoom);
+					handleActiveCheck(gizmo, yTranslateOffset, yTranslateAABBSize, zoom);
 					break;
 				case GizmoSubComponent::ZTranslate:
-					handleActiveCheck(gizmo, defaultForwardMoveOffset3D, defaultForwardMoveAABBSize, zoom);
+					handleActiveCheck(gizmo, zTranslateOffset, zTranslateAABBSize, zoom);
 					break;
 				case GizmoSubComponent::XYPlaneTranslate:
+					handleActiveCheck(gizmo, xyTranslateOffset, xyTranslateAABBSize, zoom);
+					break;
 				case GizmoSubComponent::XZPlaneTranslate:
+					handleActiveCheck(gizmo, xzTranslateOffset, xzTranslateAABBSize, zoom);
+					break;
 				case GizmoSubComponent::YZPlaneTranslate:
+					handleActiveCheck(gizmo, zyTranslateOffset, zyTranslateAABBSize, zoom);
+					break;
 				case GizmoSubComponent::XRotate:
 				case GizmoSubComponent::YRotate:
 				case GizmoSubComponent::ZRotate:
@@ -564,10 +728,13 @@ namespace MathAnim
 						*position = Vec3{ position->x - gizmo->mouseDelta.x, position->y - gizmo->mouseDelta.y, g->mouseWorldPos3f.z };
 						break;
 					case GizmoSubComponent::XYPlaneTranslate:
+						*position = Vec3{ g->mouseWorldPos3f.x, g->mouseWorldPos3f.y, position->z - gizmo->mouseDelta.z };
+						break;
 					case GizmoSubComponent::XZPlaneTranslate:
+						*position = Vec3{ g->mouseWorldPos3f.x, position->y - gizmo->mouseDelta.y, g->mouseWorldPos3f.z };
+						break;
 					case GizmoSubComponent::YZPlaneTranslate:
-						// TODO: Broken
-						*position = g->mouseWorldPos3f;
+						*position = Vec3{ position->x - gizmo->mouseDelta.x, g->mouseWorldPos3f.y, g->mouseWorldPos3f.z };
 						break;
 					case GizmoSubComponent::XRotate:
 					case GizmoSubComponent::YRotate:
@@ -642,12 +809,17 @@ namespace MathAnim
 			return gizmoState;
 		}
 
-		static bool isMouseHovered(const Vec3& centerPosition, const Vec3& size)
+		static RaycastResult mouseHoveredRaycast(const Vec3& centerPosition, const Vec3& size)
 		{
 			const Ray& ray = gGizmoManager->mouseRay;
 			AABB aabb = Physics::createAABB(centerPosition, size);
 			RaycastResult res = Physics::rayIntersectsAABB(ray, aabb);
-			return res.hit();
+			return res;
+		}
+
+		static bool isMouseHovered(const Vec3& centerPosition, const Vec3& size)
+		{
+			return mouseHoveredRaycast(centerPosition, size).hit();
 		}
 
 		static void handleActiveCheck(GizmoState* gizmo, const Vec3& offset, const Vec3& gizmoSize, float cameraZoom)
@@ -715,20 +887,20 @@ namespace MathAnim
 			Vec4 finalColor = { color->r, color->g, color->b, alphaLevel };
 
 			Renderer::pushColor(finalColor);
-			Vec3 halfSizeZoom = direction * GizmoManager::defaultArrowHalfLength * camera->orthoZoomLevel;
+			Vec3 halfSizeZoom = direction * GizmoManager::translateArrowHalfLength * camera->orthoZoomLevel;
 			Renderer::drawCylinder(
 				pos3D - halfSizeZoom,
 				pos3D + halfSizeZoom,
 				normalVec,
-				GizmoManager::defaultArrowTipRadius / 3.0f * camera->orthoZoomLevel
+				GizmoManager::translateArrowTipRadius / 3.0f * camera->orthoZoomLevel
 			);
 			Vec3 baseCenter = pos3D + halfSizeZoom;
 			Renderer::drawCone3D(
 				baseCenter,
 				direction,
 				normalVec,
-				GizmoManager::defaultArrowTipRadius * camera->orthoZoomLevel,
-				GizmoManager::defaultArrowTipLength * camera->orthoZoomLevel
+				GizmoManager::translateArrowTipRadius * camera->orthoZoomLevel,
+				GizmoManager::translateArrowTipLength * camera->orthoZoomLevel
 			);
 			Renderer::popColor();
 		}
@@ -776,6 +948,32 @@ namespace MathAnim
 				Renderer::drawCylinder(backGuideline, frontGuideline, Vector3::Up, guidelineWidth);
 				Renderer::popColor();
 				break;
+
+			case FollowMouseConstraint::YZOnly:
+				Renderer::pushColor(Colors::Primary[4]);
+				Renderer::drawCylinder(bottomGuideline, topGuideline, Vector3::Right, guidelineWidth);
+				Renderer::popColor();
+				Renderer::pushColor(Colors::AccentGreen[4]);
+				Renderer::drawCylinder(backGuideline, frontGuideline, Vector3::Up, guidelineWidth);
+				Renderer::popColor();
+				break;
+			case FollowMouseConstraint::XZOnly:
+				Renderer::pushColor(Colors::AccentRed[4]);
+				Renderer::drawCylinder(leftGuideline, rightGuideline, Vector3::Up, guidelineWidth);
+				Renderer::popColor();
+				Renderer::pushColor(Colors::AccentGreen[4]);
+				Renderer::drawCylinder(backGuideline, frontGuideline, Vector3::Up, guidelineWidth);
+				Renderer::popColor();
+				break;
+			case FollowMouseConstraint::XYOnly:
+				Renderer::pushColor(Colors::AccentRed[4]);
+				Renderer::drawCylinder(leftGuideline, rightGuideline, Vector3::Up, guidelineWidth);
+				Renderer::popColor();
+				Renderer::pushColor(Colors::Primary[4]);
+				Renderer::drawCylinder(bottomGuideline, topGuideline, Vector3::Right, guidelineWidth);
+				Renderer::popColor();
+				break;
+
 			case FollowMouseConstraint::FreeMove:
 			case FollowMouseConstraint::None:
 				break;
@@ -785,6 +983,35 @@ namespace MathAnim
 		}
 
 		// Render the Gizmo planar movement sub-components
+		// Render XY Plane
+		{
+			int colorIndex = 4;
+			if ((idHash != g->hoveredGizmo && idHash != g->activeGizmo) ||
+				g->hotGizmoComponent != GizmoSubComponent::XYPlaneTranslate)
+			{
+				colorIndex = 4;
+			}
+			else if (idHash == g->hoveredGizmo)
+			{
+				colorIndex = 5;
+			}
+			else if (idHash == g->activeGizmo)
+			{
+				colorIndex = 6;
+			}
+
+			Vec3 xyPlanePos = getGizmoPos3D(this->position, GizmoManager::xyTranslateOffset, camera->orthoZoomLevel); 
+			Renderer::pushColor(Colors::AccentRed[colorIndex]);
+			Renderer::drawFilledQuad3D(
+				xyPlanePos,
+				GizmoManager::translationPlaneSize * zoom,
+				Vector3::Forward,
+				Vector3::Up
+			);
+			Renderer::popColor();
+		}
+
+		// Render XZ Plane
 		{
 			int colorIndex = 4;
 			if ((idHash != g->hoveredGizmo && idHash != g->activeGizmo) ||
@@ -801,32 +1028,40 @@ namespace MathAnim
 				colorIndex = 6;
 			}
 
-			Renderer::pushColor(Colors::AccentRed[colorIndex]);
-			Renderer::drawFilledQuad3D(
-				this->position,
-				GizmoManager::defaultFreeMoveSize * zoom,
-				Vector3::Forward,
-				Vector3::Up
-			);
-			Renderer::popColor();
-
-			Vec3 xArrowCenter = getGizmoPos3D(this->position, GizmoManager::defaultHorizontalMoveOffset3D, zoom);
-			Vec3 zArrowCenter = getGizmoPos3D(this->position, GizmoManager::defaultForwardMoveOffset3D, zoom);
-			Vec3 yArrowCenter = getGizmoPos3D(this->position, GizmoManager::defaultVerticalMoveOffset3D, zoom);
-
+			Vec3 xzPlanePos = getGizmoPos3D(this->position, GizmoManager::xzTranslateOffset, camera->orthoZoomLevel);
 			Renderer::pushColor(Colors::Primary[colorIndex]);
 			Renderer::drawFilledQuad3D(
-				Vec3{ this->position.x, xArrowCenter.y, zArrowCenter.z },
-				GizmoManager::defaultFreeMoveSize * zoom,
+				xzPlanePos,
+				GizmoManager::translationPlaneSize * zoom,
 				Vector3::Up,
 				Vector3::Right
 			);
 			Renderer::popColor();
 
+		}
+
+		// Render ZY Plane
+		{
+			int colorIndex = 4;
+			if ((idHash != g->hoveredGizmo && idHash != g->activeGizmo) ||
+				g->hotGizmoComponent != GizmoSubComponent::YZPlaneTranslate)
+			{
+				colorIndex = 4;
+			}
+			else if (idHash == g->hoveredGizmo)
+			{
+				colorIndex = 5;
+			}
+			else if (idHash == g->activeGizmo)
+			{
+				colorIndex = 6;
+			}
+
+			Vec3 zyPlanePos = getGizmoPos3D(this->position, GizmoManager::zyTranslateOffset, camera->orthoZoomLevel);
 			Renderer::pushColor(Colors::AccentGreen[colorIndex]);
 			Renderer::drawFilledQuad3D(
-				Vec3{ yArrowCenter.x, this->position.y, zArrowCenter.z },
-				GizmoManager::defaultFreeMoveSize * zoom,
+				zyPlanePos,
+				GizmoManager::translationPlaneSize * zoom,
 				Vector3::Right,
 				Vector3::Up
 			);
@@ -851,7 +1086,7 @@ namespace MathAnim
 
 			GizmoManager::renderGizmoArrow(
 				this->position,
-				GizmoManager::defaultHorizontalMoveOffset3D,
+				GizmoManager::xTranslateOffset,
 				color,
 				Vector3::Right,
 				Vector3::Up
@@ -876,7 +1111,7 @@ namespace MathAnim
 
 			GizmoManager::renderGizmoArrow(
 				this->position,
-				GizmoManager::defaultVerticalMoveOffset3D,
+				GizmoManager::yTranslateOffset,
 				color,
 				Vector3::Up,
 				Vector3::Right
@@ -901,7 +1136,7 @@ namespace MathAnim
 
 			GizmoManager::renderGizmoArrow(
 				this->position,
-				GizmoManager::defaultForwardMoveOffset3D,
+				GizmoManager::zTranslateOffset,
 				color,
 				Vector3::Back,
 				Vector3::Up

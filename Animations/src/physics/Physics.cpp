@@ -28,6 +28,8 @@ namespace MathAnim
 		{
 			RaycastResult res = {};
 			res.hitFlags = RaycastHit::None;
+			res.hitEntryDistance = FLT_MAX;
+			res.hitExitDistance = FLT_MAX;
 
 			float tmin = (aabb.min.x - ray.origin.x) / ray.direction.x;
 			float tmax = (aabb.max.x - ray.origin.x) / ray.direction.x;
@@ -97,12 +99,14 @@ namespace MathAnim
 			{
 				res.hitFlags = res.hitFlags | RaycastHit::HitEnter;
 				res.entry = ray.origin + (ray.direction * tmin);
+				res.hitEntryDistance = tmin;
 			}
 
 			if (tmax >= 0.0f && tmax <= ray.length)
 			{
 				res.hitFlags = res.hitFlags | RaycastHit::HitExit;
 				res.exit = ray.origin + (ray.direction * tmax);
+				res.hitExitDistance = tmax;
 			}
 
 			return res;
