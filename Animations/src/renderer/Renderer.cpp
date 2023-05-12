@@ -1628,6 +1628,46 @@ namespace MathAnim
 			drawList3D.addMultiColoredTri(p0, color0, p1, color1, p2, color2, objId, isBillboard);
 		}
 
+		void drawCube3D(const Vec3& center, const Vec3& size, const Vec3& forward, const Vec3& up, AnimObjId objId)
+		{
+			Vec3 right = CMath::cross(forward, up);
+			Vec3 halfSize = size / 2.0f;
+
+			Vec3 p0 = center - (halfSize * forward) - (halfSize * up) - (halfSize * right); // Back-Bottom-Left
+			Vec3 p1 = p0 + up * size; // Back-Top-Left
+			Vec3 p2 = p1 + right * size; // Back-Top-Right
+			Vec3 p3 = p2 - up * size; // Back-Bottom-Right
+
+			Vec3 p4 = p0 + forward * size; // Front-Bottom-Left
+			Vec3 p5 = p1 + forward * size; // Front-Top-Left
+			Vec3 p6 = p2 + forward * size; // Front-Top-Right
+			Vec3 p7 = p3 + forward * size; // Front-Bottom-Right
+
+			// Back face
+			drawFilledTri3D(p0, p1, p2, objId);
+			drawFilledTri3D(p0, p2, p3, objId);
+
+			// Front face
+			drawFilledTri3D(p4, p5, p6, objId);
+			drawFilledTri3D(p4, p6, p7, objId);
+			
+			// Top Face
+			drawFilledTri3D(p1, p2, p6, objId);
+			drawFilledTri3D(p1, p6, p5, objId);
+			
+			// Bottom Face
+			drawFilledTri3D(p0, p3, p7, objId);
+			drawFilledTri3D(p0, p7, p4, objId);
+			
+			// Left face
+			drawFilledTri3D(p0, p1, p5, objId);
+			drawFilledTri3D(p0, p5, p4, objId);
+			
+			// Right Face
+			drawFilledTri3D(p2, p3, p7, objId);
+			drawFilledTri3D(p2, p7, p6, objId);
+		}
+
 		void drawCone3D(const Vec3& baseCenter, const Vec3& direction, const Vec3& normal, float radius, float length, AnimObjId objId)
 		{
 			Vec3 tip = baseCenter + (direction * length);

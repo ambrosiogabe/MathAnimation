@@ -107,6 +107,7 @@ namespace MathAnim
 		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId = NULL_ANIM_OBJECT, bool isBillboard = false);
 		void drawFilledCircle3D(const Vec3& center, float radius, int numSegments, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isBillboard = false);
 		void drawMultiColoredTri3D(const Vec3& p0, const Vec4& color0, const Vec3& p1, const Vec4& color1, const Vec3& p2, const Vec4& color2, AnimObjId objId = NULL_ANIM_OBJECT, bool isBillboard = false);
+		void drawCube3D(const Vec3& center, const Vec3& size, const Vec3& forward, const Vec3& up, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawCone3D(const Vec3& baseCenter, const Vec3& direction, const Vec3& normal, float radius, float length, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawCylinder(const Vec3& startCenter, const Vec3& endCenter, const Vec3& normal, float radius, AnimObjId objId = NULL_ANIM_OBJECT);
 

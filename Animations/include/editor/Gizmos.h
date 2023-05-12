@@ -28,10 +28,11 @@ namespace MathAnim
 		const Texture& getCameraOrientationTexture();
 
 		bool anyGizmoActive();
+		void changeVisualMode(GizmoType type);
 
 		bool translateGizmo(const char* gizmoName, Vec3* position);
 		bool rotateGizmo(const char* gizmoName, Vec3* rotation);
-		bool scaleGizmo(const char* gizmoName, Vec3* scale);
+		bool scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale);
 	}
 }
 
