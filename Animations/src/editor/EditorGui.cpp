@@ -274,8 +274,9 @@ namespace MathAnim
 			// Composite camera orientation texture in top right corner of the window
 			{
 				const Texture& cameraOrientationTexture = GizmoManager::getCameraOrientationTexture();
-				ImGui::SetCursorPos(editorViewportRelativeOffset);
-				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + viewportSize.x - cameraOrientationTexture.width);
+				ImVec2 topLeft = editorViewportRelativeOffset;
+				topLeft.x += viewportSize.x - cameraOrientationTexture.width;
+				ImGui::SetCursorPos(topLeft);
 				ImTextureID cameraOrientationTextureId = (void*)(uintptr_t)cameraOrientationTexture.graphicsId;
 				ImGui::Image(
 					cameraOrientationTextureId, 
@@ -283,6 +284,43 @@ namespace MathAnim
 					ImVec2(0, 0), 
 					ImVec2(1, 1)
 				);
+
+				// Set cursor for next drawing thing
+				ImGui::SetCursorPos(topLeft);
+			}
+
+			// Draw translate/scale/rotate mode dropdown
+			{
+				constexpr float widthOfDropdown = 150.f;
+				ImGui::SetNextItemWidth(widthOfDropdown);
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() - widthOfDropdown);
+
+				const char* preview = GizmoManager::getVisualModeStr();
+
+				if (ImGui::BeginCombo("##GlobalGizmoModeEditorViewport", preview))
+				{
+					if (ImGui::Selectable("None"))
+					{
+						GizmoManager::changeVisualMode(GizmoType::None);
+					}
+
+					if (ImGui::Selectable("Translate"))
+					{
+						GizmoManager::changeVisualMode(GizmoType::Translation);
+					}
+
+					if (ImGui::Selectable("Rotate")) 
+					{
+						GizmoManager::changeVisualMode(GizmoType::Rotation);
+					}
+
+					if (ImGui::Selectable("Scale"))
+					{
+						GizmoManager::changeVisualMode(GizmoType::Scaling);
+					}
+
+					ImGui::EndCombo();
+				}
 			}
 
 			ImGui::End();

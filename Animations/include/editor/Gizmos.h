@@ -29,6 +29,7 @@ namespace MathAnim
 
 		bool anyGizmoActive();
 		void changeVisualMode(GizmoType type);
+		const char* getVisualModeStr();
 
 		bool translateGizmo(const char* gizmoName, Vec3* position);
 		bool rotateGizmo(const char* gizmoName, Vec3* rotation);
