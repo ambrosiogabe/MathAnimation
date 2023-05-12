@@ -671,7 +671,7 @@ namespace MathAnim
 			if (g->activeGizmo != NullGizmo)
 			{
 				return g->activeGizmo;
-			} 
+			}
 			else if (g->hoveredGizmo != NullGizmo)
 			{
 				return g->hoveredGizmo;
@@ -752,7 +752,7 @@ namespace MathAnim
 		// Render the Gizmo planar movement sub-components
 		{
 			int colorIndex = 4;
-			if ((idHash != g->hoveredGizmo && idHash != g->activeGizmo) || 
+			if ((idHash != g->hoveredGizmo && idHash != g->activeGizmo) ||
 				g->hotGizmoComponent != GizmoSubComponent::XZPlaneTranslate)
 			{
 				colorIndex = 4;
@@ -815,26 +815,30 @@ namespace MathAnim
 				color = &Colors::AccentRed[6];
 			}
 
-			if (color != nullptr)
-			{
-				Renderer::pushColor(*color);
-				Vec3 halfSizeZoom = Vec3{ GizmoManager::defaultArrowHalfLength, 0.0f, 0.0f } *zoom;
-				Renderer::drawCylinder(
-					pos3D - halfSizeZoom,
-					pos3D + halfSizeZoom,
-					Vector3::Up,
-					GizmoManager::defaultArrowTipRadius / 3.0f * zoom
-				);
-				Vec3 baseCenter = pos3D + halfSizeZoom;
-				Renderer::drawCone3D(
-					baseCenter,
-					Vector3::Right,
-					Vector3::Up,
-					GizmoManager::defaultArrowTipRadius * zoom,
-					GizmoManager::defaultArrowTipLength * zoom
-				);
-				Renderer::popColor();
-			}
+			g_logger_assert(color != nullptr, "How did this happen? Gizmo color was set to a nullptr for some reason.");
+
+			float angleDp = CMath::abs(CMath::dot(camera->forward, Vector3::Right));
+			float alphaLevel = angleDp >= 0.9f ? (1.0f - angleDp) / 0.1f : 1.0f;
+			alphaLevel = CMath::ease(alphaLevel, EaseType::Cubic, EaseDirection::InOut);
+			Vec4 finalColor = { color->r, color->g, color->b, alphaLevel };
+
+			Renderer::pushColor(finalColor);
+			Vec3 halfSizeZoom = Vec3{ GizmoManager::defaultArrowHalfLength, 0.0f, 0.0f } *zoom;
+			Renderer::drawCylinder(
+				pos3D - halfSizeZoom,
+				pos3D + halfSizeZoom,
+				Vector3::Up,
+				GizmoManager::defaultArrowTipRadius / 3.0f * zoom
+			);
+			Vec3 baseCenter = pos3D + halfSizeZoom;
+			Renderer::drawCone3D(
+				baseCenter,
+				Vector3::Right,
+				Vector3::Up,
+				GizmoManager::defaultArrowTipRadius * zoom,
+				GizmoManager::defaultArrowTipLength * zoom
+			);
+			Renderer::popColor();
 		}
 
 		// Render the Y-Arrow gizmo translate subcomponent
@@ -854,26 +858,30 @@ namespace MathAnim
 				color = &Colors::Primary[6];
 			}
 
-			if (color != nullptr)
-			{
-				Renderer::pushColor(*color);
-				Vec3 halfSizeZoom = Vec3{ 0.0f, GizmoManager::defaultArrowHalfLength, 0.0f } *zoom;
-				Renderer::drawCylinder(
-					pos3D - halfSizeZoom,
-					pos3D + halfSizeZoom,
-					Vector3::Right,
-					GizmoManager::defaultArrowTipRadius / 3.0f * zoom
-				);
-				Vec3 baseCenter = pos3D + halfSizeZoom;
-				Renderer::drawCone3D(
-					baseCenter,
-					Vector3::Up,
-					Vector3::Right,
-					GizmoManager::defaultArrowTipRadius * zoom,
-					GizmoManager::defaultArrowTipLength * zoom
-				);
-				Renderer::popColor();
-			}
+			g_logger_assert(color != nullptr, "How did this happen? Gizmo color was set to a nullptr for some reason.");
+
+			float angleDp = CMath::abs(CMath::dot(camera->forward, Vector3::Up));
+			float alphaLevel = angleDp >= 0.9f ? (1.0f - angleDp) / 0.1f : 1.0f;
+			alphaLevel = CMath::ease(alphaLevel, EaseType::Cubic, EaseDirection::InOut);
+			Vec4 finalColor = { color->r, color->g, color->b, alphaLevel };
+
+			Renderer::pushColor(finalColor);
+			Vec3 halfSizeZoom = Vec3{ 0.0f, GizmoManager::defaultArrowHalfLength, 0.0f } *zoom;
+			Renderer::drawCylinder(
+				pos3D - halfSizeZoom,
+				pos3D + halfSizeZoom,
+				Vector3::Right,
+				GizmoManager::defaultArrowTipRadius / 3.0f * zoom
+			);
+			Vec3 baseCenter = pos3D + halfSizeZoom;
+			Renderer::drawCone3D(
+				baseCenter,
+				Vector3::Up,
+				Vector3::Right,
+				GizmoManager::defaultArrowTipRadius * zoom,
+				GizmoManager::defaultArrowTipLength * zoom
+			);
+			Renderer::popColor();
 		}
 
 		// Render the Z-Arrow gizmo translate subcomponent
@@ -893,26 +901,30 @@ namespace MathAnim
 				color = &Colors::AccentGreen[6];
 			}
 
-			if (color != nullptr)
-			{
-				Renderer::pushColor(*color);
-				Vec3 halfSizeZoom = Vec3{ 0.0f, 0.0f, GizmoManager::defaultArrowHalfLength } *zoom;
-				Renderer::drawCylinder(
-					pos3D - halfSizeZoom,
-					pos3D + halfSizeZoom,
-					Vector3::Up,
-					GizmoManager::defaultArrowTipRadius / 3.0f * zoom
-				);
-				Vec3 baseCenter = pos3D - halfSizeZoom;
-				Renderer::drawCone3D(
-					baseCenter,
-					Vector3::Back,
-					Vector3::Up,
-					GizmoManager::defaultArrowTipRadius * zoom,
-					GizmoManager::defaultArrowTipLength * zoom
-				);
-				Renderer::popColor();
-			}
+			g_logger_assert(color != nullptr, "How did this happen? Gizmo color was set to a nullptr for some reason.");
+
+			float angleDp = CMath::abs(CMath::dot(camera->forward, Vector3::Forward));
+			float alphaLevel = angleDp >= 0.9f ? (1.0f - angleDp) / 0.1f : 1.0f;
+			alphaLevel = CMath::ease(alphaLevel, EaseType::Cubic, EaseDirection::InOut);
+			Vec4 finalColor = { color->r, color->g, color->b, alphaLevel };
+
+			Renderer::pushColor(finalColor);
+			Vec3 halfSizeZoom = Vec3{ 0.0f, 0.0f, GizmoManager::defaultArrowHalfLength } *zoom;
+			Renderer::drawCylinder(
+				pos3D - halfSizeZoom,
+				pos3D + halfSizeZoom,
+				Vector3::Up,
+				GizmoManager::defaultArrowTipRadius / 3.0f * zoom
+			);
+			Vec3 baseCenter = pos3D - halfSizeZoom;
+			Renderer::drawCone3D(
+				baseCenter,
+				Vector3::Back,
+				Vector3::Up,
+				GizmoManager::defaultArrowTipRadius * zoom,
+				GizmoManager::defaultArrowTipLength * zoom
+			);
+			Renderer::popColor();
 		}
 	}
 
