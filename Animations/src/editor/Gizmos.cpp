@@ -340,12 +340,6 @@ namespace MathAnim
 					iter->shouldDraw = false;
 				}
 			}
-			
-			{
-				Renderer::pushColor(Colors::Primary[3]);
-				Renderer::drawDonut(Vec3{ 3, 3, 3 }, 1.0f, 2.0f, Vector3::Forward, Vector3::Up);
-				Renderer::popColor();
-			}
 
 			// Draw animation manager camera frustum/billboards
 			{
@@ -541,6 +535,41 @@ namespace MathAnim
 				{
 					*position = gizmo->positionMoveStart + delta;
 					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3*)
+		{
+			// Find or create the gizmo
+			GizmoState* gizmo = getGizmoByName(gizmoName);
+			if (!gizmo)
+			{
+				gizmo = createDefaultGizmoState(gizmoName, GizmoType::Rotation);
+				// Initialize to something sensible
+				gizmo->positionMoveStart = gizmoPosition;
+				//gizmo->scaleStart = *scale;
+			}
+			gizmo->position = gizmoPosition;
+
+			Vec3 delta = Vec3{ 0.f, 0.f, 0.f };
+			if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_S))
+			{
+				// Invert the z-delta, it's weird for some reason
+				delta.z *= -1.0f;
+				//*scale = gizmo->scaleStart + delta;
+				return true;
+			}
+
+			// Only handle mouse events if the app is in rotation mode
+			if (gGizmoManager->visualMode == GizmoType::Rotation)
+			{
+				if (handleLinearGizmoMouseEvents(gizmo, gizmoPosition, &delta, GizmoSubComponent::XRotate, GizmoSubComponent::ZRotate))
+				{
+					//*scale = gizmo->scaleStart + delta;
+					//return true;
 				}
 			}
 
@@ -1240,9 +1269,11 @@ namespace MathAnim
 		}
 
 		bool isScale = g->visualMode == GizmoType::Scaling;
+		bool isRotation = g->visualMode == GizmoType::Rotation;
 
 		// Render the Gizmo planar movement sub-components
 		// Render XY Plane
+		if (!isRotation)
 		{
 			int colorIndex = 4;
 			if (g->hotGizmoComponent == GizmoSubComponent::XYPlaneScale ||
@@ -1270,6 +1301,7 @@ namespace MathAnim
 		}
 
 		// Render XZ Plane
+		if (!isRotation)
 		{
 			int colorIndex = 4;
 			if (g->hotGizmoComponent == GizmoSubComponent::XZPlaneScale ||
@@ -1298,6 +1330,7 @@ namespace MathAnim
 		}
 
 		// Render ZY Plane
+		if (!isRotation)
 		{
 			int colorIndex = 4;
 			if (g->hotGizmoComponent == GizmoSubComponent::YZPlaneScale ||
@@ -1350,6 +1383,18 @@ namespace MathAnim
 					Vector3::Up
 				);
 			}
+			else if (isRotation)
+			{
+				Renderer::pushColor(*color);
+				Renderer::drawDonut(
+					this->position,
+					1.0f,
+					1.1f,
+					Vector3::Right,
+					Vector3::Up
+				);
+				Renderer::popColor();
+			}
 			else
 			{
 				GizmoManager::renderGizmoArrow(
@@ -1388,6 +1433,18 @@ namespace MathAnim
 					Vector3::Right
 				);
 			}
+			else if (isRotation)
+			{
+				Renderer::pushColor(*color);
+				Renderer::drawDonut(
+					this->position,
+					1.0f,
+					1.1f,
+					Vector3::Up,
+					Vector3::Right
+				);
+				Renderer::popColor();
+			}
 			else
 			{
 				GizmoManager::renderGizmoArrow(
@@ -1425,6 +1482,18 @@ namespace MathAnim
 					Vector3::Back,
 					Vector3::Up
 				);
+			}
+			else if (isRotation)
+			{
+				Renderer::pushColor(*color);
+				Renderer::drawDonut(
+					this->position,
+					1.0f,
+					1.1f,
+					Vector3::Back,
+					Vector3::Up
+				);
+				Renderer::popColor();
 			}
 			else
 			{

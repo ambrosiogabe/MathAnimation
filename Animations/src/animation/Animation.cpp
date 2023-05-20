@@ -1357,9 +1357,14 @@ namespace MathAnim
 				AnimationManager::updateObjectState(am, this->id);
 			}
 
-			if (GizmoManager::scaleGizmo(gizmoScaleName.c_str(), this->_globalPositionStart, &this->_scaleStart))
+			if (GizmoManager::scaleGizmo(gizmoScaleName.c_str(), this->globalPosition, &this->_scaleStart))
 			{
 				AnimationManager::updateObjectState(am, this->id);
+			}
+
+			if (GizmoManager::rotateGizmo(gizmoScaleName.c_str(), this->globalPosition, &this->_rotationStart))
+			{
+				//AnimationManager::updateObjectState(am, this->id);
 			}
 		}
 
