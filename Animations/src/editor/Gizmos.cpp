@@ -340,6 +340,12 @@ namespace MathAnim
 					iter->shouldDraw = false;
 				}
 			}
+			
+			{
+				Renderer::pushColor(Colors::Primary[3]);
+				Renderer::drawDonut(Vec3{ 3, 3, 3 }, 1.0f, 2.0f, Vector3::Forward, Vector3::Up);
+				Renderer::popColor();
+			}
 
 			// Draw animation manager camera frustum/billboards
 			{

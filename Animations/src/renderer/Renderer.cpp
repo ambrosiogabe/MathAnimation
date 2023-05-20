@@ -1668,11 +1668,11 @@ namespace MathAnim
 			drawFilledTri3D(p2, p7, p6, objId);
 		}
 
-		void drawCone3D(const Vec3& baseCenter, const Vec3& direction, const Vec3& normal, float radius, float length, AnimObjId objId)
+		void drawCone3D(const Vec3& baseCenter, const Vec3& forward, const Vec3& up, float radius, float length, AnimObjId objId)
 		{
-			Vec3 tip = baseCenter + (direction * length);
+			Vec3 tip = baseCenter + (forward * length);
 
-			const Vec3 rightDir = CMath::cross(direction, normal);
+			const Vec3 rightDir = CMath::cross(forward, up);
 
 			constexpr int numPointsOnCircle = 16;
 			constexpr float increments = 360.0f / (float)numPointsOnCircle;
@@ -1687,18 +1687,28 @@ namespace MathAnim
 				float nextXVal = glm::sin(nextRadians) * radius;
 				float nextYVal = glm::cos(nextRadians) * radius;
 
-				Vec3 thisPoint = baseCenter + (rightDir * xVal) + (normal * yVal);
-				Vec3 nextPoint = baseCenter + (rightDir * nextXVal) + (normal * nextYVal);
+				Vec3 thisPoint = baseCenter + (rightDir * xVal) + (up * yVal);
+				Vec3 nextPoint = baseCenter + (rightDir * nextXVal) + (up * nextYVal);
 
 				drawFilledTri3D(baseCenter, thisPoint, nextPoint, objId);
 				drawFilledTri3D(thisPoint, tip, nextPoint, objId);
 			}
 		}
 
-		void drawCylinder(const Vec3& startCenter, const Vec3& endCenter, const Vec3& normal, float radius, AnimObjId objId)
+		static Vec3 calculateOffset(float radius, float degrees, const Vec3& rightDir, const Vec3& up)
 		{
-			const Vec3 direction = CMath::normalize(endCenter - startCenter);
-			const Vec3 rightDir = CMath::cross(direction, normal);
+			const float radians = glm::radians(degrees);
+
+			Vec3 normalVec = { glm::sin(radians), glm::cos(radians), 0.0f };
+			Vec3 radiusVec = normalVec * radius;
+
+			return (rightDir * radiusVec.x) + (up * radiusVec.y);
+		}
+
+		void drawCylinder(const Vec3& startCenter, const Vec3& endCenter, const Vec3& up, float radius, AnimObjId objId)
+		{
+			const Vec3 forward = CMath::normalize(endCenter - startCenter);
+			const Vec3 rightDir = CMath::cross(forward, up);
 
 			constexpr int numPointsOnCircle = 16;
 			constexpr float increments = 360.0f / (float)numPointsOnCircle;
@@ -1713,8 +1723,8 @@ namespace MathAnim
 				const float nextXVal = glm::sin(nextRadians) * radius;
 				const float nextYVal = glm::cos(nextRadians) * radius;
 
-				const Vec3 thisOffset = (rightDir * xVal) + (normal * yVal);
-				const Vec3 nextOffset = (rightDir * nextXVal) + (normal * nextYVal);
+				const Vec3 thisOffset = (rightDir * xVal) + (up * yVal);
+				const Vec3 nextOffset = (rightDir * nextXVal) + (up * nextYVal);
 
 				const Vec3 startThisPoint = startCenter + thisOffset;
 				const Vec3 startNextPoint = startCenter + nextOffset;
@@ -1726,6 +1736,72 @@ namespace MathAnim
 				drawFilledTri3D(endCenter, endThisPoint, endNextPoint, objId);
 				drawFilledTri3D(startThisPoint, endThisPoint, endNextPoint, objId);
 				drawFilledTri3D(startThisPoint, endNextPoint, startNextPoint, objId);
+			}
+		}
+
+		void drawDonut(
+			const Vec3& center,
+			float innerRadius,
+			float outerRadius,
+			const Vec3& forward,
+			const Vec3& up,
+			float thetaStart,
+			float thetaEnd,
+			AnimObjId objId)
+		{
+			const Vec3 rightDir = CMath::cross(forward, up);
+
+			constexpr int numPointsOnCircle = 24;
+			float increments = (thetaEnd - thetaStart) / (float)numPointsOnCircle;
+			for (int donutEdgei = 0; donutEdgei < numPointsOnCircle; donutEdgei++)
+			{
+				// TODO: This is probably wrong, only works for 0-360 degree donut
+				const float thisTheta = (float)donutEdgei * increments;
+				const float nextTheta = (float)((donutEdgei + 1) % numPointsOnCircle) * increments;
+
+				const Vec3 thisInnerOffset = calculateOffset(innerRadius, thisTheta, rightDir, up);
+				const Vec3 thisOuterOffset = calculateOffset(outerRadius, thisTheta, rightDir, up);
+				Vec3 startCenter = thisInnerOffset + ((thisOuterOffset - thisInnerOffset) / 2.0f);
+
+				const Vec3 nextInnerOffset = calculateOffset(innerRadius, nextTheta, rightDir, up);
+				const Vec3 nextOuterOffset = calculateOffset(outerRadius, nextTheta, rightDir, up);
+				Vec3 endCenter = nextInnerOffset + ((nextOuterOffset - nextInnerOffset) / 2.0f);
+				
+				Vec3 startToEndDir = CMath::normalize(endCenter - startCenter);
+
+				Vec3 thisCurvatureCirclePoints[numPointsOnCircle] = {};
+				Vec3 nextCurvatureCirclePoints[numPointsOnCircle] = {};
+
+				Vec3 curvatureThisRightDir = CMath::normalize(thisOuterOffset - thisInnerOffset);
+				Vec3 curvatureThisUpDir = CMath::cross(startToEndDir, curvatureThisRightDir);
+
+				Vec3 curvatureNextRightDir = CMath::normalize(nextOuterOffset - nextInnerOffset);
+				Vec3 curvatureNextUpDir = CMath::cross(startToEndDir, curvatureNextRightDir);
+
+				constexpr float incrementsDonutEdge = 360.0f / (float)numPointsOnCircle;
+				float curvatureRadius = (outerRadius - innerRadius) / 2.0f;
+				for (int donutCurvaturei = 0; donutCurvaturei < numPointsOnCircle; donutCurvaturei++)
+				{
+					const float curvatureTheta = (float)donutCurvaturei * incrementsDonutEdge;
+					Vec3 offset = calculateOffset(curvatureRadius, curvatureTheta, curvatureThisRightDir, curvatureThisUpDir);
+					thisCurvatureCirclePoints[donutCurvaturei] = center + startCenter + offset;
+
+					Vec3 nextOffset = calculateOffset(curvatureRadius, curvatureTheta, curvatureNextRightDir, curvatureNextUpDir);
+					nextCurvatureCirclePoints[donutCurvaturei] = center + endCenter + nextOffset;
+				}
+
+				// Connect the two curvature circles with triangles
+				for (int donutCurvaturei = 0; donutCurvaturei < numPointsOnCircle; donutCurvaturei++)
+				{
+					Vec3 thisCurvatureP0 = thisCurvatureCirclePoints[donutCurvaturei];
+					Vec3 thisCurvatureP1 = thisCurvatureCirclePoints[(donutCurvaturei + 1) % numPointsOnCircle];
+
+					Vec3 nextCurvatureP0 = nextCurvatureCirclePoints[donutCurvaturei];
+					Vec3 nextCurvatureP1 = nextCurvatureCirclePoints[(donutCurvaturei + 1) % numPointsOnCircle];
+
+					drawFilledTri3D(thisCurvatureP0, nextCurvatureP0, nextCurvatureP1, objId);
+					drawFilledTri3D(thisCurvatureP0, nextCurvatureP1, thisCurvatureP1, objId);
+				}
 			}
 		}
 
