@@ -45,12 +45,29 @@ namespace MathAnim
 		glm::mat4 transformation;
 	};
 
+	struct Sphere
+	{
+		Vec3 center;
+		float radius;
+	};
+
+	struct Torus
+	{
+		Vec3 center;
+		float innerRadius;
+		float outerRadius;
+	};
+
 	namespace Physics
 	{
 		Ray createRay(const Vec3& start, const Vec3& end);
 		AABB createAABB(const Vec3& center, const Vec3& size);
+		inline Sphere createSphere(const Vec3& center, float radius) { return Sphere{ center, radius }; }
+		inline Torus createTorus(const Vec3& center, float innerRadius, float outerRadius) { return Torus{ center, innerRadius, outerRadius }; }
 
 		RaycastResult rayIntersectsAABB(const Ray& ray, const AABB& aabb);
+		RaycastResult rayIntersectsSphere(const Ray& ray, const Sphere& sphere);
+		RaycastResult rayIntersectsTorus(const Ray& ray, const Torus& torus);
 	}
 }
 

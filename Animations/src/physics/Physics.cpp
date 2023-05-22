@@ -5,6 +5,10 @@ namespace MathAnim
 {
 	namespace Physics
 	{
+		// ------------- Internal Functions -------------
+		static void addTMinToRaycastResult(RaycastResult& res, const Ray& ray, float tmin);
+		static void addTMaxToRaycastResult(RaycastResult& res, const Ray& ray, float tmax);
+
 		Ray createRay(const Vec3& start, const Vec3& end)
 		{
 			Ray res = {};
@@ -95,21 +99,104 @@ namespace MathAnim
 			}
 
 			// NOTE: tmin and tmax now hold the entry and exit points
+			addTMinToRaycastResult(res, ray, tmin);
+			addTMaxToRaycastResult(res, ray, tmax);
+
+			return res;
+		}
+
+		RaycastResult rayIntersectsSphere(const Ray& ray, const Sphere& sphere)
+		{
+			RaycastResult res = {};
+			res.hitFlags = RaycastHit::None;
+			res.hitEntryDistance = FLT_MAX;
+			res.hitExitDistance = FLT_MAX;
+
+			// For a diagram illustrating what all these variable names mean, see this linked image:
+			// https://github.com/ambrosiogabe/MathAnimation/tree/master/.github/images/sphereRaycastDiagram.PNG
+			Vec3 cVec = sphere.center - ray.origin;
+			float a = CMath::dot(cVec, ray.direction);
+			if (a < 0.0f) return res;
+
+			float c = CMath::length(cVec);
+			float b = glm::sqrt((c * c) - (a * a));
+			if (b > sphere.radius) return res;
+
+			float dt = glm::sqrt((sphere.radius * sphere.radius) - (b * b));
+
+			float tmin = a - dt;
+			float tmax = a + dt;
+
+			// Swap if needed
+			if (tmin > tmax)
+			{
+				float tmp = tmin;
+				tmin = tmax;
+				tmax = tmp;
+			}
+
+			addTMinToRaycastResult(res, ray, tmin);
+			addTMaxToRaycastResult(res, ray, tmax);
+
+			return res;
+		}
+
+		RaycastResult rayIntersectsTorus(const Ray& ray, const Torus& torus)
+		{
+			RaycastResult res = {};
+			res.hitFlags = RaycastHit::None;
+			res.hitEntryDistance = FLT_MAX;
+			res.hitExitDistance = FLT_MAX;
+
+			// For a diagram illustrating what all these variable names mean, see this linked image:
+			// https://github.com/ambrosiogabe/MathAnimation/tree/master/.github/images/sphereRaycastDiagram.PNG
+			Vec3 cVec = torus.center - ray.origin;
+			float a = CMath::dot(cVec, ray.direction);
+			if (a < 0.0f) return res;
+
+			float c = CMath::length(cVec);
+			float b = glm::sqrt((c * c) - (a * a));
+			if (b > torus.outerRadius || b < torus.innerRadius) return res;
+
+			// TODO: This needs to be modified, definitely wrong
+			float dt = glm::sqrt((torus.outerRadius * torus.outerRadius) - (b * b));
+
+			float tmin = a - dt;
+			float tmax = a + dt;
+
+			// Swap if needed
+			if (tmin > tmax)
+			{
+				float tmp = tmin;
+				tmin = tmax;
+				tmax = tmp;
+			}
+
+			addTMinToRaycastResult(res, ray, tmin);
+			addTMaxToRaycastResult(res, ray, tmax);
+
+			return res;
+		}
+
+		// ------------- Internal Functions -------------
+		static void addTMinToRaycastResult(RaycastResult& res, const Ray& ray, float tmin)
+		{
 			if (tmin >= 0.0f && tmin <= ray.length)
 			{
 				res.hitFlags = res.hitFlags | RaycastHit::HitEnter;
 				res.entry = ray.origin + (ray.direction * tmin);
 				res.hitEntryDistance = tmin;
 			}
+		}
 
+		static void addTMaxToRaycastResult(RaycastResult& res, const Ray& ray, float tmax)
+		{
 			if (tmax >= 0.0f && tmax <= ray.length)
 			{
 				res.hitFlags = res.hitFlags | RaycastHit::HitExit;
 				res.exit = ray.origin + (ray.direction * tmax);
 				res.hitExitDistance = tmax;
 			}
-
-			return res;
 		}
 	}
 }
