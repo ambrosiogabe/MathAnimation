@@ -13,9 +13,9 @@ namespace MathAnim
 
 	enum class RaycastHit : uint8
 	{
-		None     = 0,
+		None = 0,
 		HitEnter = 1 << 0,
-		HitExit  = 1 << 1,
+		HitExit = 1 << 1,
 		HitAll = 0b11
 	};
 	MATH_ANIM_ENUM_FLAG_OPS(RaycastHit);
@@ -54,6 +54,8 @@ namespace MathAnim
 	struct Torus
 	{
 		Vec3 center;
+		Vec3 forward;
+		Vec3 up;
 		float innerRadius;
 		float outerRadius;
 	};
@@ -62,8 +64,12 @@ namespace MathAnim
 	{
 		Ray createRay(const Vec3& start, const Vec3& end);
 		AABB createAABB(const Vec3& center, const Vec3& size);
+
 		inline Sphere createSphere(const Vec3& center, float radius) { return Sphere{ center, radius }; }
-		inline Torus createTorus(const Vec3& center, float innerRadius, float outerRadius) { return Torus{ center, innerRadius, outerRadius }; }
+		inline Torus createTorus(const Vec3& center, const Vec3& forward, const Vec3& up, float innerRadius, float outerRadius)
+		{
+			return Torus{ center, forward, up, innerRadius, outerRadius };
+		}
 
 		RaycastResult rayIntersectsAABB(const Ray& ray, const AABB& aabb);
 		RaycastResult rayIntersectsSphere(const Ray& ray, const Sphere& sphere);

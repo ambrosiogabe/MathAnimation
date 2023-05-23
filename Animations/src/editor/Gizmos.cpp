@@ -212,6 +212,9 @@ namespace MathAnim
 		static constexpr Vec3 zyScaleAABBSize = zyTranslateAABBSize;
 		static constexpr Vec3 xzScaleAABBSize = xzTranslateAABBSize;
 
+		static constexpr float rotationGizmoInnerRadius = 1.0f;
+		static constexpr float rotationGizmoOuterRadius = 1.1f;
+
 		static const auto translateGizmoOffsets = fixedSizeArray<Vec3, (uint8)GizmoSubComponent::Length>(
 			Vec3{ 0.f, 0.f, 0.f },
 
@@ -262,6 +265,56 @@ namespace MathAnim
 			xyScaleAABBSize
 			);
 
+		static const auto rotationGizmosForwardVec = fixedSizeArray<Vec3, (uint8)GizmoSubComponent::Length>(
+			Vec3{ 0.f, 0.f, 0.f },
+
+			// Translate
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+
+			// Rotate
+			Vector3::Right,
+			Vector3::Up,
+			Vector3::Back,
+
+			// Scale
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f }
+			);
+
+		static const auto rotationGizmosUpVec = fixedSizeArray<Vec3, (uint8)GizmoSubComponent::Length>(
+			Vec3{ 0.f, 0.f, 0.f },
+
+			// Translate
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+
+			// Rotate
+			Vector3::Up,
+			Vector3::Right,
+			Vector3::Up,
+
+			// Scale
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f },
+			Vec3{ 0.f, 0.f, 0.f }
+		);
+
 		static constexpr int cameraOrientationFramebufferSize = 180;
 		static Framebuffer cameraOrientationFramebuffer;
 		static Texture cameraOrientationGizmoTexture;
@@ -279,8 +332,11 @@ namespace MathAnim
 		static GizmoState* createDefaultGizmoState(const char* name, GizmoType type);
 		static RaycastResult mouseHoveredRaycast(const Vec3& centerPosition, const Vec3& size);
 		static bool isMouseHovered(const Vec3& centerPosition, const Vec3& size);
+		static RaycastResult mouseHoveredRotationGizmoRaycast(const Vec3& center, const Vec3& forward, const Vec3& up, float innerRadius, float outerRadius);
+		static bool isMouseHoveredRotationGizmo(const Vec3& center, const Vec3& forward, const Vec3& up, float innerRadius, float outerRadius);
 		static Vec3 getMouseWorldPos3f(float zDepth);
 		static Ray getMouseRay();
+		static void handleActiveCheckRotationGizmo(GizmoState* gizmo, const Vec3& forward, const Vec3& up, float innerRadius, float outerRadius, float cameraZoom);
 		static void handleActiveCheck(GizmoState* gizmo, const Vec3& offset, const Vec3& gizmoSize, float cameraZoom);
 		static uint64 activeOrHoveredGizmo();
 		static void renderGizmoArrow(const Vec3& gizmoPos, const Vec3& gizmoOffset, const Vec4* color, const Vec3& direction, const Vec3& normalVec);
@@ -555,10 +611,10 @@ namespace MathAnim
 			gizmo->position = gizmoPosition;
 
 			Vec3 delta = Vec3{ 0.f, 0.f, 0.f };
-			if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_S))
+			if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_R))
 			{
 				// Invert the z-delta, it's weird for some reason
-				delta.z *= -1.0f;
+				// delta.z *= -1.0f;
 				//*scale = gizmo->scaleStart + delta;
 				return true;
 			}
@@ -626,10 +682,24 @@ namespace MathAnim
 				float minHitEntryDistance = FLT_MAX;
 				for (uint8 i = (uint8)start; i <= (uint8)end; i++)
 				{
-					RaycastResult raycast = mouseHoveredRaycast(
-						getGizmoPos3D(gizmo->position, translateGizmoOffsets[i], zoom),
-						translateGizmoAABBs[i] * zoom
-					);
+					RaycastResult raycast = {};
+					if (i >= (uint8)GizmoSubComponent::XRotate && i <= (uint8)GizmoSubComponent::ZRotate)
+					{
+						raycast = mouseHoveredRotationGizmoRaycast(
+							getGizmoPos3D(gizmo->position, Vec3{0, 0, 0}, zoom),
+							rotationGizmosForwardVec[i],
+							rotationGizmosUpVec[i],
+							rotationGizmoInnerRadius * zoom,
+							rotationGizmoOuterRadius * zoom
+						);
+					}
+					else
+					{
+						raycast = mouseHoveredRaycast(
+							getGizmoPos3D(gizmo->position, translateGizmoOffsets[i], zoom),
+							translateGizmoAABBs[i] * zoom
+						);
+					}
 
 					if (raycast.hitEntry() && raycast.hitEntryDistance < minHitEntryDistance)
 					{
@@ -676,8 +746,35 @@ namespace MathAnim
 					handleActiveCheck(gizmo, zyTranslateOffset, zyTranslateAABBSize, zoom);
 					break;
 				case GizmoSubComponent::XRotate:
+					handleActiveCheckRotationGizmo(
+						gizmo, 
+						rotationGizmosForwardVec[(uint8)GizmoSubComponent::XRotate],
+						rotationGizmosUpVec[(uint8)GizmoSubComponent::XRotate],
+						rotationGizmoInnerRadius,
+						rotationGizmoOuterRadius,
+						zoom
+						);
+					break;
 				case GizmoSubComponent::YRotate:
+					handleActiveCheckRotationGizmo(
+						gizmo,
+						rotationGizmosForwardVec[(uint8)GizmoSubComponent::YRotate],
+						rotationGizmosUpVec[(uint8)GizmoSubComponent::YRotate],
+						rotationGizmoInnerRadius,
+						rotationGizmoOuterRadius,
+						zoom
+					);
+					break;
 				case GizmoSubComponent::ZRotate:
+					handleActiveCheckRotationGizmo(
+						gizmo,
+						rotationGizmosForwardVec[(uint8)GizmoSubComponent::ZRotate],
+						rotationGizmosUpVec[(uint8)GizmoSubComponent::ZRotate],
+						rotationGizmoInnerRadius,
+						rotationGizmoOuterRadius,
+						zoom
+					);
+					break;
 				case GizmoSubComponent::None:
 				case GizmoSubComponent::Length:
 					break;
@@ -1014,6 +1111,19 @@ namespace MathAnim
 			return gizmoState;
 		}
 
+		static RaycastResult mouseHoveredRotationGizmoRaycast(const Vec3& center, const Vec3& forward, const Vec3& up, float innerRadius, float outerRadius)
+		{
+			const Ray& ray = gGizmoManager->mouseRay;
+			Torus torus = Physics::createTorus(center, forward, up, innerRadius, outerRadius);
+			RaycastResult res = Physics::rayIntersectsTorus(ray, torus);
+			return res;
+		}
+
+		static bool isMouseHoveredRotationGizmo(const Vec3& center, const Vec3& forward, const Vec3& up, float innerRadius, float outerRadius)
+		{
+			return mouseHoveredRotationGizmoRaycast(center, forward, up, innerRadius, outerRadius).hit();
+		}
+
 		static RaycastResult mouseHoveredRaycast(const Vec3& centerPosition, const Vec3& size)
 		{
 			const Ray& ray = gGizmoManager->mouseRay;
@@ -1025,6 +1135,23 @@ namespace MathAnim
 		static bool isMouseHovered(const Vec3& centerPosition, const Vec3& size)
 		{
 			return mouseHoveredRaycast(centerPosition, size).hit();
+		}
+
+		static void handleActiveCheckRotationGizmo(GizmoState* gizmo, const Vec3& forward, const Vec3& up, float innerRadius, float outerRadius, float cameraZoom)
+		{
+			GlobalContext* g = gGizmoManager;
+			Vec3 gizmoPos = getGizmoPos3D(gizmo->position, Vec3{0, 0, 0}, cameraZoom);
+			if (Input::mouseDown(MouseButton::Left) && isMouseHoveredRotationGizmo(gizmoPos, forward, up, innerRadius * cameraZoom, outerRadius * cameraZoom))
+			{
+				gizmo->mouseDelta = gizmo->position - g->mouseWorldPos3f;
+				g->activeGizmo = gizmo->idHash;
+				g->hoveredGizmo = NullGizmo;
+				gizmo->positionMoveStart = gizmo->position;
+			}
+			else if (!isMouseHoveredRotationGizmo(gizmoPos, forward, up, innerRadius * cameraZoom, outerRadius * cameraZoom))
+			{
+				g->hoveredGizmo = NullGizmo;
+			}
 		}
 
 		static void handleActiveCheck(GizmoState* gizmo, const Vec3& offset, const Vec3& gizmoSize, float cameraZoom)
@@ -1361,7 +1488,8 @@ namespace MathAnim
 		{
 			const Vec4* color = &Colors::AccentRed[4];
 			if (g->hotGizmoComponent == GizmoSubComponent::XScale ||
-				g->hotGizmoComponent == GizmoSubComponent::XTranslate)
+				g->hotGizmoComponent == GizmoSubComponent::XTranslate ||
+				g->hotGizmoComponent == GizmoSubComponent::XRotate)
 			{
 				if (idHash == g->activeGizmo)
 				{
@@ -1388,10 +1516,10 @@ namespace MathAnim
 				Renderer::pushColor(*color);
 				Renderer::drawDonut(
 					this->position,
-					1.0f,
-					1.1f,
-					Vector3::Right,
-					Vector3::Up
+					GizmoManager::rotationGizmoInnerRadius * zoom,
+					GizmoManager::rotationGizmoOuterRadius * zoom,
+					GizmoManager::rotationGizmosForwardVec[(uint8)GizmoSubComponent::XRotate],
+					GizmoManager::rotationGizmosUpVec[(uint8)GizmoSubComponent::XRotate]
 				);
 				Renderer::popColor();
 			}
@@ -1411,7 +1539,8 @@ namespace MathAnim
 		{
 			const Vec4* color = &Colors::Primary[4];
 			if (g->hotGizmoComponent == GizmoSubComponent::YScale ||
-				g->hotGizmoComponent == GizmoSubComponent::YTranslate)
+				g->hotGizmoComponent == GizmoSubComponent::YTranslate ||
+				g->hotGizmoComponent == GizmoSubComponent::YRotate)
 			{
 				if (idHash == g->activeGizmo)
 				{
@@ -1438,10 +1567,10 @@ namespace MathAnim
 				Renderer::pushColor(*color);
 				Renderer::drawDonut(
 					this->position,
-					1.0f,
-					1.1f,
-					Vector3::Up,
-					Vector3::Right
+					GizmoManager::rotationGizmoInnerRadius * zoom,
+					GizmoManager::rotationGizmoOuterRadius * zoom,
+					GizmoManager::rotationGizmosForwardVec[(uint8)GizmoSubComponent::YRotate],
+					GizmoManager::rotationGizmosUpVec[(uint8)GizmoSubComponent::YRotate]
 				);
 				Renderer::popColor();
 			}
@@ -1461,7 +1590,8 @@ namespace MathAnim
 		{
 			const Vec4* color = &Colors::AccentGreen[4];;
 			if (g->hotGizmoComponent == GizmoSubComponent::ZScale ||
-				g->hotGizmoComponent == GizmoSubComponent::ZTranslate)
+				g->hotGizmoComponent == GizmoSubComponent::ZTranslate ||
+				g->hotGizmoComponent == GizmoSubComponent::ZRotate)
 			{
 				if (idHash == g->activeGizmo)
 				{
@@ -1488,10 +1618,10 @@ namespace MathAnim
 				Renderer::pushColor(*color);
 				Renderer::drawDonut(
 					this->position,
-					1.0f,
-					1.1f,
-					Vector3::Back,
-					Vector3::Up
+					GizmoManager::rotationGizmoInnerRadius* zoom,
+					GizmoManager::rotationGizmoOuterRadius* zoom,
+					GizmoManager::rotationGizmosForwardVec[(uint8)GizmoSubComponent::ZRotate],
+					GizmoManager::rotationGizmosUpVec[(uint8)GizmoSubComponent::ZRotate]
 				);
 				Renderer::popColor();
 			}

@@ -1757,7 +1757,7 @@ namespace MathAnim
 			{
 				// TODO: This is probably wrong, only works for 0-360 degree donut
 				const float thisTheta = (float)donutEdgei * increments;
-				const float nextTheta = (float)((donutEdgei + 1) % numPointsOnCircle) * increments;
+				const float nextTheta = (float)(donutEdgei + 1) * increments;
 
 				const Vec3 thisInnerOffset = calculateOffset(innerRadius, thisTheta, rightDir, up);
 				const Vec3 thisOuterOffset = calculateOffset(outerRadius, thisTheta, rightDir, up);
