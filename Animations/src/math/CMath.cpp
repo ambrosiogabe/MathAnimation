@@ -127,11 +127,51 @@ namespace MathAnim
 			vec.y = yPrime;
 		}
 
-		float angleBetween(const Vec3& a, const Vec3& b)
+		float angleBetween(const Vec3& a, const Vec3& b, const Vec3& planeNormal)
 		{
 			float dp = dot(a, b);
-			float cosTheta = dp / (length(a) * length(b));
-			return glm::acos(cosTheta);
+			if (compare(dp, 0.0f))
+			{
+				// Vectors are parallel
+				return 0.0f;
+			}
+
+			float lengthMultiplied = length(a) * length(b);
+			if (compare(lengthMultiplied, 0.0f))
+			{
+				// Undefined
+				return 0.0f;
+			}
+
+			float cosTheta = glm::clamp(dp / lengthMultiplied,  -1.0f, 1.0f);
+			float angle = glm::acos(cosTheta);
+
+			// Reverse the angle if needed
+			Vec3 crossProduct = cross(a, b);
+			if (dot(planeNormal, crossProduct) > 0)
+			{
+				angle = -angle;
+			}
+
+			return angle;
+		}
+
+		Vec3 normalizeAxisAngles(const Vec3& rotation)
+		{
+			Vec3 res = rotation;
+			for (int i = 0; i < 3; i++)
+			{
+				while (res.values[i] > 360.0f)
+				{
+					res.values[i] -= 360.0f;
+				}
+				while (res.values[i] < 0.0f)
+				{
+					res.values[i] += 360.0f;
+				}
+			}
+
+			return res;
 		}
 
 		float mapRange(float val, float inMin, float inMax, float outMin, float outMax)

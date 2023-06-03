@@ -77,8 +77,11 @@ namespace MathAnim
 		GizmoType gizmoType;
 		uint64 idHash;
 		Vec3 position;
+		Vec3 rotation;
 		Vec3 positionMoveStart;
 		Vec3 scaleStart;
+		Vec3 rotateStart;
+		Vec3 rotateDragStart;
 		Vec3 mouseDelta;
 		FollowMouseConstraint moveMode;
 		bool shouldDraw;
@@ -328,9 +331,9 @@ namespace MathAnim
 		static bool handleLinearGizmoKeyEvents(GizmoState* gizmo, const Vec3& gizmoPosition, Vec3* delta, int hotKeyStart);
 		static void resetGlobalContext();
 
-		static GizmoState* getGizmoByName(const char* name);
+		static GizmoState* getGizmoByName(const char* name, GizmoType type);
 		static GizmoState* getGizmoById(uint64 id);
-		static uint64 hashName(const char* name);
+		static uint64 hashName(const char* name, GizmoType type);
 		static GizmoState* createDefaultGizmoState(const char* name, GizmoType type);
 		static RaycastResult mouseHoveredRaycast(const Vec3& centerPosition, const Vec3& size);
 		static bool isMouseHovered(const Vec3& centerPosition, const Vec3& size);
@@ -570,7 +573,7 @@ namespace MathAnim
 		bool translateGizmo(const char* gizmoName, Vec3* position)
 		{
 			// Find or create the gizmo
-			GizmoState* gizmo = getGizmoByName(gizmoName);
+			GizmoState* gizmo = getGizmoByName(gizmoName, GizmoType::Translation);
 			if (!gizmo)
 			{
 				gizmo = createDefaultGizmoState(gizmoName, GizmoType::Translation);
@@ -599,25 +602,26 @@ namespace MathAnim
 			return false;
 		}
 
-		bool rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3*)
+		bool rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation)
 		{
 			// Find or create the gizmo
-			GizmoState* gizmo = getGizmoByName(gizmoName);
+			GizmoState* gizmo = getGizmoByName(gizmoName, GizmoType::Rotation);
 			if (!gizmo)
 			{
 				gizmo = createDefaultGizmoState(gizmoName, GizmoType::Rotation);
 				// Initialize to something sensible
 				gizmo->positionMoveStart = gizmoPosition;
-				//gizmo->scaleStart = *scale;
+				gizmo->rotateStart = *rotation;
 			}
 			gizmo->position = gizmoPosition;
+			gizmo->rotation = *rotation;
 
 			Vec3 delta = Vec3{ 0.f, 0.f, 0.f };
 			if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_R))
 			{
 				// Invert the z-delta, it's weird for some reason
 				// delta.z *= -1.0f;
-				//*scale = gizmo->scaleStart + delta;
+				// *scale = gizmo->scaleStart + delta;
 				return true;
 			}
 
@@ -626,8 +630,9 @@ namespace MathAnim
 			{
 				if (handleLinearGizmoMouseEvents(gizmo, gizmoPosition, &delta, GizmoSubComponent::XRotate, GizmoSubComponent::ZRotate))
 				{
-					//*scale = gizmo->scaleStart + delta;
-					//return true;
+					*rotation = gizmo->rotateStart + delta;
+					*rotation = CMath::normalizeAxisAngles(*rotation);
+					return true;
 				}
 			}
 
@@ -637,7 +642,7 @@ namespace MathAnim
 		bool scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale)
 		{
 			// Find or create the gizmo
-			GizmoState* gizmo = getGizmoByName(gizmoName);
+			GizmoState* gizmo = getGizmoByName(gizmoName, GizmoType::Scaling);
 			if (!gizmo)
 			{
 				gizmo = createDefaultGizmoState(gizmoName, GizmoType::Scaling);
@@ -834,8 +839,50 @@ namespace MathAnim
 						newPos = Vec3{ gizmoPosition.x - gizmo->mouseDelta.x, g->mouseWorldPos3f.y, g->mouseWorldPos3f.z };
 						break;
 					case GizmoSubComponent::XRotate:
+					{
+						// We want our delta to be the angle between our old vector and the new vector from the object's center to the mouse
+						// on the ZY-Plane
+						Vec3 ogGizmoCenterToMouse = Vec3{ 0.0f, gizmo->rotateDragStart.y - gizmoPosition.y, gizmo->rotateDragStart.z - gizmoPosition.z };
+						Vec3 deltaGizmoCenterToMouse = Vec3{ 0.0f, g->mouseWorldPos3f.y - gizmoPosition.y, g->mouseWorldPos3f.z - gizmoPosition.z };
+						float newAngle = CMath::angleBetween(ogGizmoCenterToMouse, deltaGizmoCenterToMouse, Vector3::Right);
+						float xDelta = gizmoPosition.z - glm::degrees(newAngle);
+						newPos = Vec3{
+							xDelta + gizmoPosition.x - gizmo->mouseDelta.x,
+							gizmoPosition.y - gizmo->mouseDelta.y,
+							gizmoPosition.z - gizmo->mouseDelta.z
+						};
+					}
+					break;
 					case GizmoSubComponent::YRotate:
+					{
+						// We want our delta to be the angle between our old vector and the new vector from the object's center to the mouse
+						// on the XZ-Plane
+						Vec3 ogGizmoCenterToMouse = Vec3{ gizmo->rotateDragStart.x - gizmoPosition.x, 0.0f, gizmo->rotateDragStart.z - gizmoPosition.z };
+						Vec3 deltaGizmoCenterToMouse = Vec3{ g->mouseWorldPos3f.x - gizmoPosition.x, 0.0f, g->mouseWorldPos3f.z - gizmoPosition.z };
+						float newAngle = CMath::angleBetween(ogGizmoCenterToMouse, deltaGizmoCenterToMouse, Vector3::Up);
+						float yDelta = gizmoPosition.y - glm::degrees(newAngle);
+						newPos = Vec3{
+							gizmoPosition.x - gizmo->mouseDelta.x,
+							yDelta + gizmoPosition.y - gizmo->mouseDelta.y,
+							gizmoPosition.z - gizmo->mouseDelta.z,
+						};
+					}
+					break;
 					case GizmoSubComponent::ZRotate:
+					{
+						// We want our delta to be the angle between our old vector and the new vector from the object's center to the mouse
+						// on the XY-Plane
+						Vec3 ogGizmoCenterToMouse = Vec3{ gizmo->rotateDragStart.x - gizmoPosition.x, gizmo->rotateDragStart.y - gizmoPosition.y, 0.0f };
+						Vec3 deltaGizmoCenterToMouse = Vec3{ g->mouseWorldPos3f.x - gizmoPosition.x, g->mouseWorldPos3f.y - gizmoPosition.y, 0.0f };
+						float newAngle = CMath::angleBetween(ogGizmoCenterToMouse, deltaGizmoCenterToMouse, Vector3::Forward);
+						float zDelta = gizmoPosition.z - glm::degrees(newAngle);
+						newPos = Vec3{
+							gizmoPosition.x - gizmo->mouseDelta.x,
+							gizmoPosition.y - gizmo->mouseDelta.y,
+							zDelta + gizmoPosition.z - gizmo->mouseDelta.z,
+						};
+					}
+					break;
 					case GizmoSubComponent::None:
 					case GizmoSubComponent::Length:
 						break;
@@ -1062,9 +1109,9 @@ namespace MathAnim
 			gGizmoManager->mouseRay = Physics::createRay(Vec3{ 0, 0, 0 }, Vec3{ 1, 0, 0 });
 		}
 
-		static GizmoState* getGizmoByName(const char* name)
+		static GizmoState* getGizmoByName(const char* name, GizmoType type)
 		{
-			uint64 gizmoId = hashName(name);
+			uint64 gizmoId = hashName(name, type);
 			return getGizmoById(gizmoId);
 		}
 
@@ -1080,8 +1127,24 @@ namespace MathAnim
 			return g->gizmos[iter->second];
 		}
 
-		static uint64 hashName(const char* name)
+		static uint64 hashName(const char* name, GizmoType type)
 		{
+			const char* typeInfo = "None";
+			switch (type)
+			{
+			case GizmoType::Translation:
+				typeInfo = "::Translation";
+				break;
+			case GizmoType::Rotation:
+				typeInfo = "::Rotation";
+				break;
+			case GizmoType::Scaling:
+				typeInfo = "::Scaling";
+				break;
+			case GizmoType::None:
+				break;
+			}
+
 			constexpr uint64 FNVOffsetBasis = 0xcbf29ce48422232ULL;
 			constexpr uint64 FNVPrime = 0x00000100000001B3ULL;
 
@@ -1093,6 +1156,13 @@ namespace MathAnim
 				hash = hash ^ name[i];
 			}
 
+			size_t typeInfoStrLen = std::strlen(typeInfo);
+			for (size_t i = 0; i < typeInfoStrLen; i++)
+			{
+				hash = hash * FNVPrime;
+				hash = hash ^ typeInfo[i];
+			}
+
 			return hash;
 		}
 
@@ -1100,7 +1170,7 @@ namespace MathAnim
 		{
 			GizmoState* gizmoState = (GizmoState*)g_memory_allocate(sizeof(GizmoState));
 			gizmoState->gizmoType = type;
-			uint64 hash = hashName(name);
+			uint64 hash = hashName(name, type);
 			gizmoState->idHash = hash;
 			gizmoState->shouldDraw = false;
 			gizmoState->moveMode = FollowMouseConstraint::None;
@@ -1155,6 +1225,8 @@ namespace MathAnim
 				g->activeGizmo = gizmo->idHash;
 				g->hoveredGizmo = NullGizmo;
 				gizmo->positionMoveStart = gizmo->position;
+				gizmo->rotateDragStart = g->mouseWorldPos3f;
+				gizmo->rotateStart = gizmo->rotation;
 			}
 			else if (!isMouseHoveredRotationGizmo(gizmoPos, forward, up, innerRadius * cameraZoom, outerRadius * cameraZoom))
 			{

@@ -1331,13 +1331,11 @@ namespace MathAnim
 		{
 			// TODO: Render and handle 2D gizmo logic based on edit mode
 			std::string gizmoName = std::string((char*)this->name) + std::to_string(this->id);
-			std::string gizmoTranslateName = gizmoName + "##Translate";
-			std::string gizmoScaleName = gizmoName + "##Scale";
 
 			// It's important to render the gizmo at the global location, and then transform
 			// the result back to local coordinates since the user is editing with gizmos in global
 			// space
-			if (GizmoManager::translateGizmo(gizmoTranslateName.c_str(), &this->_globalPositionStart))
+			if (GizmoManager::translateGizmo(gizmoName.c_str(), &this->_globalPositionStart))
 			{
 				glm::mat4 parentsTransform = glm::mat4(1.0f);
 				if (!isNull(this->parentId))
@@ -1357,14 +1355,14 @@ namespace MathAnim
 				AnimationManager::updateObjectState(am, this->id);
 			}
 
-			if (GizmoManager::scaleGizmo(gizmoScaleName.c_str(), this->globalPosition, &this->_scaleStart))
+			if (GizmoManager::scaleGizmo(gizmoName.c_str(), this->globalPosition, &this->_scaleStart))
 			{
 				AnimationManager::updateObjectState(am, this->id);
 			}
 
-			if (GizmoManager::rotateGizmo(gizmoScaleName.c_str(), this->globalPosition, &this->_rotationStart))
+			if (GizmoManager::rotateGizmo(gizmoName.c_str(), this->globalPosition, &this->_rotationStart))
 			{
-				//AnimationManager::updateObjectState(am, this->id);
+				AnimationManager::updateObjectState(am, this->id);
 			}
 		}
 

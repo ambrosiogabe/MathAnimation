@@ -166,9 +166,17 @@ namespace MathAnim
 		 * @brief Calculates the angle between vectors a and b
 		 * @param a 
 		 * @param b 
+		 * @param planeNormal The normal between the two vectors a and b to rotate around
 		 * @return Angle in radians between a and b
 		*/
-		float angleBetween(const Vec3& a, const Vec3& b);
+		float angleBetween(const Vec3& a, const Vec3& b, const Vec3& planeNormal);
+
+		/**
+		 * @brief Normalizes a rotation vector by making sure all angles are between [0-360] degrees
+		 * @param rotation The rotation to normalize
+		 * @return The rotation normalized between [0-360] degrees
+		*/
+		Vec3 normalizeAxisAngles(const Vec3& rotation);
 
 		constexpr inline float toRadians(float degrees) { return degrees * PI / 180.0f; }
 		constexpr inline float toDegrees(float radians) { return radians * 180.0f / PI; }
