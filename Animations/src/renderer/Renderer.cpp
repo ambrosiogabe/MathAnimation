@@ -1071,6 +1071,12 @@ namespace MathAnim
 			//       The second loop
 			//       connects the verts into quads to form the stroke
 
+			// TODO: Clean this up. Path's should never have a duplicate start/end point in the first
+			//       place if it's a closed path, that should be implicit. Instead we should normalize paths
+			//       and make sure that if a path gets closed the endpoint != the start point.
+			//       Here's a Github issue to track this:
+			//         https://github.com/ambrosiogabe/MathAnimation/issues/104
+			//       ID for code search: %BW7n4C2kfxQtpij6tHL
 			bool firstPointIsSameAsLastPoint = path->data.size() > 0 
 				? path->data[0].position == path->data[path->data.size() - 1].position
 				: true;
