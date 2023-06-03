@@ -1071,8 +1071,14 @@ namespace MathAnim
 			//       The second loop
 			//       connects the verts into quads to form the stroke
 
-			int endPoint = (int)path->data.size();
-			for (int vertIndex = 0; vertIndex < path->data.size(); vertIndex++)
+			bool firstPointIsSameAsLastPoint = path->data.size() > 0 
+				? path->data[0].position == path->data[path->data.size() - 1].position
+				: true;
+
+			int endPoint = firstPointIsSameAsLastPoint
+				? (int)path->data.size() - 1
+				: (int)path->data.size();
+			for (int vertIndex = 0; vertIndex < (int)path->data.size(); vertIndex++)
 			{
 				Path_Vertex2DLine& vertex = path->data[vertIndex];
 				Vec2 currentPos = vertex.position;
@@ -1087,9 +1093,6 @@ namespace MathAnim
 					? path->data[endPoint - 1].position
 					: path->data[0].position;
 				const Vec4& currentColor = vertex.color;
-
-				// Generate a miter
-				bool generateVerts = true;
 
 				Vec2 dirA = CMath::normalize(currentPos - previousPos);
 				Vec2 dirB = CMath::normalize(nextPos - currentPos);
@@ -1126,21 +1129,22 @@ namespace MathAnim
 
 					vertex.backP1 = centerPoint;
 					vertex.backP2 = firstPoint;
-					generateVerts = false;
+
+					// -----------
+					continue; // NOTE: The continue here. This is basically like an exit early thing
+					// -----------
 				}
 
 				// If we're drawing the beginning/end of the path, just
 				// do a straight cap on the line segment
 				if (vertIndex == 0 && !closePath)
 				{
-					generateVerts = true;
 					Vec2 normal = CMath::normalize(nextPos - currentPos);
 					extrusionNormal = Vec2{ -normal.y, normal.x };
 					miterThickness = vertex.thickness;
 				}
 				else if (vertIndex == endPoint - 1 && !closePath)
 				{
-					generateVerts = true;
 					Vec2 normal = CMath::normalize(currentPos - previousPos);
 					extrusionNormal = Vec2{ -normal.y, normal.x };
 					miterThickness = vertex.thickness;
@@ -1149,14 +1153,11 @@ namespace MathAnim
 				// If we're doing a bevel or something, that uses special vertices
 				// to join segments. Otherwise we can just use the extrusion normal
 				// and miterThickness to join the segments
-				if (generateVerts)
-				{
-					vertex.frontP1 = vertex.position + extrusionNormal * miterThickness * 0.5f;
-					vertex.frontP2 = vertex.position - extrusionNormal * miterThickness * 0.5f;
+				vertex.frontP1 = vertex.position + extrusionNormal * miterThickness * 0.5f;
+				vertex.frontP2 = vertex.position - extrusionNormal * miterThickness * 0.5f;
 
-					vertex.backP1 = vertex.position + extrusionNormal * miterThickness * 0.5f;
-					vertex.backP2 = vertex.position - extrusionNormal * miterThickness * 0.5f;
-				}
+				vertex.backP1 = vertex.position + extrusionNormal * miterThickness * 0.5f;
+				vertex.backP2 = vertex.position - extrusionNormal * miterThickness * 0.5f;
 			}
 
 			// NOTE: This is some weird shenanigans in order to get the path
@@ -1181,17 +1182,31 @@ namespace MathAnim
 			for (int vertIndex = 0; vertIndex < endPoint; vertIndex++)
 			{
 				const Path_Vertex2DLine& vertex = path->data[vertIndex % path->data.size()];
+				const Vec4& color = path->colors[vertIndex % path->data.size()];
 				const Path_Vertex2DLine& nextVertex = path->data[(vertIndex + 1) % path->data.size()];
+				const Vec4& nextColor = path->colors[(vertIndex + 1) % path->data.size()];
+
+				if (CMath::anyIsNanOrInf(vertex.frontP1) || CMath::anyIsNanOrInf(vertex.frontP2)
+					|| CMath::anyIsNanOrInf(vertex.backP1) || CMath::anyIsNanOrInf(vertex.backP2))
+				{
+					g_logger_info("WTF");
+				}
+
+				if (CMath::anyIsNanOrInf(nextVertex.frontP1) || CMath::anyIsNanOrInf(nextVertex.frontP2)
+					|| CMath::anyIsNanOrInf(nextVertex.backP1) || CMath::anyIsNanOrInf(nextVertex.backP2))
+				{
+					g_logger_info("WTF");
+				}
 
 				drawMultiColoredTri3D(
-					transformVertVec3(vertex.frontP1, path->transform), vertex.color,
-					transformVertVec3(vertex.frontP2, path->transform), vertex.color,
-					transformVertVec3(nextVertex.backP1, path->transform), nextVertex.color,
+					transformVertVec3(vertex.frontP1, path->transform), color,
+					transformVertVec3(vertex.frontP2, path->transform), color,
+					transformVertVec3(nextVertex.backP1, path->transform), nextColor,
 					objId);
 				drawMultiColoredTri3D(
-					transformVertVec3(vertex.frontP2, path->transform), vertex.color,
-					transformVertVec3(nextVertex.backP2, path->transform), nextVertex.color,
-					transformVertVec3(nextVertex.backP1, path->transform), nextVertex.color,
+					transformVertVec3(vertex.frontP2, path->transform), color,
+					transformVertVec3(nextVertex.backP2, path->transform), nextColor,
+					transformVertVec3(nextVertex.backP1, path->transform), nextColor,
 					objId);
 			}
 
@@ -3070,15 +3085,10 @@ namespace MathAnim
 			);
 
 			GL::bindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-			uint32 offset = drawCommands[i].indexOffset - 3;
-			if (offset == UINT32_MAX)
-			{
-				offset = 0;
-			}
 			GL::bufferData(
 				GL_ELEMENT_ARRAY_BUFFER,
 				sizeof(uint16) * drawCommands[i].elementCount,
-				indices.data() + offset,
+				indices.data() + drawCommands[i].indexOffset,
 				GL_DYNAMIC_DRAW
 			);
 

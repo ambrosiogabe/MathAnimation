@@ -110,6 +110,24 @@ namespace MathAnim
 			return Vec4{vec.x, vec.y, vec.z, vec.w};
 		}
 
+		inline bool anyIsNanOrInf(const Vec2& v)
+		{
+			return isnan(v.x) || isnan(v.y) 
+				|| isinf(v.x) || isinf(v.y);
+		}
+
+		inline bool anyIsNanOrInf(const Vec3& v)
+		{
+			return isnan(v.x) || isnan(v.y) || isnan(v.z)
+				|| isinf(v.x) || isinf(v.y) || isinf(v.z);
+		}
+
+		inline bool anyIsNanOrInf(const Vec4& v)
+		{
+			return isnan(v.x) || isnan(v.y) || isnan(v.z) || isnan(v.w)
+				|| isinf(v.x) || isinf(v.y) || isinf(v.z) || isinf(v.w);
+		}
+
 		// Winding order stuff
 		bool isClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2);
 		inline bool isCounterClockwise(const Vec2& p0, const Vec2& p1, const Vec2& p2) { return !isClockwise(p0, p1, p2); }
