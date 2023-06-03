@@ -2297,7 +2297,7 @@ namespace MathAnim
 				if (lengthDrawn >= lengthToDraw && t < 1.0f)
 				{
 					MP_PROFILE_EVENT("Svg_RenderOutline2D_EndPath");
-					if (!Renderer::endPath(context, false, parent->id, parent->is3D))
+					if (!Renderer::endPath(context, false, parent->id))
 					{
 #ifdef _DEBUG
 						g_logger_warning("Failed to end path for object: {}<{}>", parent->id, parent->name);
@@ -2305,20 +2305,20 @@ namespace MathAnim
 					}
 					Renderer::free(context);
 					break;
-			}
+				}
 				else
 				{
 					MP_PROFILE_EVENT("Svg_RenderOutline2D_EndPath");
-					if (!Renderer::endPath(context, true, parent->id, parent->is3D))
+					if (!Renderer::endPath(context, true, parent->id))
 					{
 #ifdef _DEBUG
 						g_logger_warning("Failed to end path for object: {}<{}>", parent->id, parent->name);
 #endif
 					}
 					Renderer::free(context);
+				}
+			}
 		}
-	}
-}
 	}
 
 	static void growBufferIfNeeded(uint8** buffer, size_t* capacity, size_t numElements, size_t numElementsToAdd)

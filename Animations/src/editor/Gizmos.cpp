@@ -447,65 +447,76 @@ namespace MathAnim
 				constexpr const Vec3 xPos = Vec3{ radius, 0.0f, 0.0f };
 				float orientationXDp = CMath::dot(xPos, dummyCamera.forward);
 				bool orientationIsXPositive = orientationXDp >= -1.0f && orientationXDp < 0.0f;
+
+				Renderer::pushColor(orientationIsXPositive ? Colors::AccentRed[4] : Colors::AccentRed[6]);
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					xPos, size,
-					Vec2{ 0, 0 }, Vec2{ 0.5f, 0.5f },
-					orientationIsXPositive ? Colors::AccentRed[4] : Colors::AccentRed[6]
+					Vec2{ 0, 0 }, Vec2{ 0.5f, 0.5f }
 				);
+				Renderer::popColor();
+
+				Renderer::pushColor(orientationIsXPositive ? Colors::AccentRed[6] : Colors::AccentRed[4]);
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					-1.0f * xPos, size,
-					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 },
-					orientationIsXPositive ? Colors::AccentRed[6] : Colors::AccentRed[4]
+					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 }
 				);
+				Renderer::popColor();
 
 				constexpr const Vec3 yPos = Vec3{ 0.0f, radius, 0.0f };
 				float orientationYDp = CMath::dot(yPos, dummyCamera.forward);
 				bool orientationIsYPositive = orientationYDp >= -1.0f && orientationYDp < 0.0f;
+
+				Renderer::pushColor(orientationIsYPositive ? Colors::Primary[4] : Colors::Primary[7]);
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					yPos, size,
-					Vec2{ 0.5f, 0.0f }, Vec2{ 1.0f, 0.5f },
-					orientationIsYPositive ? Colors::Primary[4] : Colors::Primary[7]
+					Vec2{ 0.5f, 0.0f }, Vec2{ 1.0f, 0.5f }
 				);
+				Renderer::popColor();
+				
+				Renderer::pushColor(orientationIsYPositive ? Colors::Primary[7] : Colors::Primary[4]);
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					-1.0f * yPos, size,
-					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 },
-					orientationIsYPositive ? Colors::Primary[7] : Colors::Primary[4]
+					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 }
 				);
+				Renderer::popColor();
 
 				constexpr const Vec3 zPos = Vec3{ 0, 0, radius };
 				float orientationZDp = CMath::dot(zPos, dummyCamera.forward);
 				bool orientationIsZPositive = orientationZDp >= -1.0f && orientationZDp < 0.0f;
+
+				Renderer::pushColor(orientationIsZPositive ? Colors::AccentGreen[4] : Colors::AccentGreen[6]);
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					zPos, size,
-					Vec2{ 0.0f, 0.5f }, Vec2{ 0.5f, 1.0f },
-					orientationIsZPositive ? Colors::AccentGreen[4] : Colors::AccentGreen[6]
+					Vec2{ 0.0f, 0.5f }, Vec2{ 0.5f, 1.0f }
 				);
+				Renderer::popColor();
+
+				Renderer::pushColor(orientationIsZPositive ? Colors::AccentGreen[6] : Colors::AccentGreen[4]);
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					-1.0f * zPos, size,
-					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 },
-					orientationIsZPositive ? Colors::AccentGreen[6] : Colors::AccentGreen[4]
+					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 }
 				);
+				Renderer::popColor();
 
 				constexpr const Vec3 center = Vec3{ 0, 0, 0 };
 				constexpr float lineWidth = 0.4f;
-				Renderer::drawLine3D(
-					center, xPos, lineWidth,
-					orientationIsXPositive ? Colors::AccentRed[4] : Colors::AccentRed[6]
-				);
-				Renderer::drawLine3D(
-					center, yPos, lineWidth,
-					orientationIsYPositive ? Colors::Primary[4] : Colors::Primary[7]
-				);
-				Renderer::drawLine3D(
-					center, zPos, lineWidth,
-					orientationIsZPositive ? Colors::AccentGreen[4] : Colors::AccentGreen[6]
-				);
+				Renderer::pushColor(orientationIsXPositive ? Colors::AccentRed[4] : Colors::AccentRed[6]);
+				Renderer::drawLine3D(center, xPos, lineWidth);
+				Renderer::popColor();
+
+				Renderer::pushColor(orientationIsYPositive ? Colors::Primary[4] : Colors::Primary[7]);
+				Renderer::drawLine3D(center, yPos, lineWidth);
+				Renderer::popColor();
+
+				Renderer::pushColor(orientationIsZPositive ? Colors::AccentGreen[4] : Colors::AccentGreen[6]);
+				Renderer::drawLine3D(center, zPos, lineWidth);
+				Renderer::popColor();
 
 				Renderer::popCamera3D();
 			}
@@ -617,13 +628,13 @@ namespace MathAnim
 			gizmo->rotation = *rotation;
 
 			Vec3 delta = Vec3{ 0.f, 0.f, 0.f };
-			if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_R))
-			{
-				// Invert the z-delta, it's weird for some reason
-				// delta.z *= -1.0f;
-				// *scale = gizmo->scaleStart + delta;
-				return true;
-			}
+			//if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_R))
+			//{
+			//	// TODO: Implement me please...
+			//	*rotation = gizmo->rotateStart + delta;
+			//	*rotation = CMath::normalizeAxisAngles(*rotation);
+			//	return true;
+			//}
 
 			// Only handle mouse events if the app is in rotation mode
 			if (gGizmoManager->visualMode == GizmoType::Rotation)

@@ -87,26 +87,32 @@ namespace MathAnim
 		// ----------- 2D Line stuff ----------- 
 		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void free(Path2DContext* path);
-		bool endPath(Path2DContext* path, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT, bool is3D = false);
+		bool endPath(Path2DContext* path, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
 		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath = true, AnimObjId objId = NULL_ANIM_OBJECT);
 
-		void lineTo(Path2DContext* path, const Vec2& point, bool applyTransform = true);
+		void lineTo(Path2DContext* path, const Vec2& point);
 		void quadTo(Path2DContext* path, const Vec2& p1, const Vec2& p2);
 		void cubicTo(Path2DContext* path, const Vec2& p1, const Vec2& p2, const Vec2& p3);
 
 		void setTransform(Path2DContext* path, const glm::mat4& transform);
 
 		// ----------- 3D stuff ----------- 
-		void drawLine3D(const Vec3& start, const Vec3& end, float thickness, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
-		void drawTexturedBillboard3D(const Texture& texture, const Vec3& p0, const Vec3& p1, float height, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId id = NULL_ANIM_OBJECT);
-		void drawTexturedBillboard3D(const Texture& texture, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
-		void drawColoredBillboard3D(const Vec3& position, const Vec2& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT);
-		void drawFilledQuad3D(const Vec3& position, const Vec2& size, const Vec3& normal, const Vec3& perpendicular, AnimObjId objId = NULL_ANIM_OBJECT);
-		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId objId = NULL_ANIM_OBJECT, const glm::mat4& transform = glm::identity<glm::mat4>());
-		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isTransparent = false, bool isBillboard = false);
-		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId = NULL_ANIM_OBJECT, bool isBillboard = false);
-		void drawFilledCircle3D(const Vec3& center, float radius, int numSegments, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), bool isBillboard = false);
-		void drawMultiColoredTri3D(const Vec3& p0, const Vec4& color0, const Vec3& p1, const Vec4& color1, const Vec3& p2, const Vec4& color2, AnimObjId objId = NULL_ANIM_OBJECT, bool isBillboard = false);
+		
+		// 3D Lines
+		void drawLine3D(const Vec3& start, const Vec3& end, float thickness, AnimObjId objId = NULL_ANIM_OBJECT);
+		
+		// Billboards
+		void drawTexturedBillboard3D(const Texture& texture, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawBillboard3D(const Vec3& position, const Vec2& size, AnimObjId objId = NULL_ANIM_OBJECT);
+		
+		// 2D Shapes in 3D Space
+		void drawFilledQuad3D(const Vec3& position, const Vec2& size, const Vec3& forward, const Vec3& up, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawMultiColoredTri3D(const Vec3& p0, const Vec4& color0, const Vec3& p1, const Vec4& color1, const Vec3& p2, const Vec4& color2, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawFilledCircle3D(const Vec3& center, float radius, int numSegments, AnimObjId objId = NULL_ANIM_OBJECT, const glm::mat4& transform = glm::identity<glm::mat4>());
+		
+		// 3D Shapes
 		void drawCube3D(const Vec3& center, const Vec3& size, const Vec3& forward, const Vec3& up, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawCone3D(const Vec3& baseCenter, const Vec3& forward, const Vec3& up, float radius, float length, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawCylinder(const Vec3& startCenter, const Vec3& endCenter, const Vec3& up, float radius, AnimObjId objId = NULL_ANIM_OBJECT);

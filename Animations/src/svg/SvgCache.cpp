@@ -243,40 +243,21 @@ namespace MathAnim
 			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale);
 			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);
 
-			if (parent->is3D)
-			{
-				Renderer::drawTexturedQuad3D(
-					metadata.textureRef,
-					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
-					metadata.texCoordsMin,
-					metadata.texCoordsMax,
-					Vec4{
-						(float)parent->fillColor.r / 255.0f,
-						(float)parent->fillColor.g / 255.0f,
-						(float)parent->fillColor.b / 255.0f,
-						(float)parent->fillColor.a / 255.0f
-					},
-					parent->globalTransform,
-					parent->isTransparent
-				);
-			}
-			else
-			{
-				Renderer::drawTexturedQuad(
-					metadata.textureRef,
-					Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
-					metadata.texCoordsMin,
-					metadata.texCoordsMax,
-					Vec4{
-						(float)parent->fillColor.r / 255.0f,
-						(float)parent->fillColor.g / 255.0f,
-						(float)parent->fillColor.b / 255.0f,
-						(float)parent->fillColor.a / 255.0f
-					},
-					parent->id,
-					parent->globalTransform
-				);
-			}
+			// Everything is 3D now... Good or bad? Who knows?
+			Renderer::drawTexturedQuad3D(
+				metadata.textureRef,
+				Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
+				metadata.texCoordsMin,
+				metadata.texCoordsMax,
+				Vec4{
+					(float)parent->fillColor.r / 255.0f,
+					(float)parent->fillColor.g / 255.0f,
+					(float)parent->fillColor.b / 255.0f,
+					(float)parent->fillColor.a / 255.0f
+				},
+				parent->globalTransform,
+				parent->isTransparent
+			);
 		}
 	}
 

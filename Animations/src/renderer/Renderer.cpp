@@ -121,6 +121,7 @@ namespace MathAnim
 		float thickness;
 		Vec3 p1;
 		uint32 color;
+		uint64 objId;
 	};
 
 	struct DrawList3DLine
@@ -134,7 +135,7 @@ namespace MathAnim
 		void init();
 
 		void changeBatchIfNeeded();
-		void addLine(const Vec3& p0, const Vec3& p1, uint32 packedColor, float thickness);
+		void addLine(const Vec3& p0, const Vec3& p1, uint32 packedColor, float thickness, AnimObjId objId);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& shader) const;
@@ -148,6 +149,7 @@ namespace MathAnim
 		uint32 color;
 		Vec2 halfSize;
 		Vec2 textureCoords;
+		uint64 objId;
 	};
 
 	struct DrawList3DBillboard
@@ -161,8 +163,8 @@ namespace MathAnim
 		void init();
 
 		void changeBatchIfNeeded(uint32 textureId);
-		void addBillboard(uint32 graphicsId, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor);
-		void addBillboard(uint32 graphicsId, const Vec3& p0, const Vec3& p1, float height, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor);
+		void addBillboard(uint32 graphicsId, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor, AnimObjId objId);
+		void addBillboard(uint32 graphicsId, const Vec3& p0, const Vec3& p1, float height, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor, AnimObjId objId);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& shader) const;
@@ -176,6 +178,7 @@ namespace MathAnim
 		Vec4 color;
 		Vec2 textureCoords;
 		Vec3 normal;
+		uint64 objId;
 	};
 
 	struct DrawList3D
@@ -192,10 +195,10 @@ namespace MathAnim
 		void init();
 
 		void changeBatchIfNeeded(uint32 textureId, bool isTransparent);
-		void addFilledCircle3D(const Vec3& center, float radius, int numSegments, const Vec4& color, AnimObjId objId, const glm::mat4& transform, bool isBillboard);
-		void addTexturedQuad3D(uint32 textureId, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const Vec3& faceNormal, bool isTransparent);
-		void addColoredTri(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec4& color, AnimObjId objId, bool isBillboard);
-		void addMultiColoredTri(const Vec3& p0, const Vec4& c0, const Vec3& p1, const Vec4& c1, const Vec3& p2, const Vec4& c2, AnimObjId objId, bool isBillboard);
+		void addFilledCircle3D(const Vec3& center, float radius, int numSegments, const Vec4& color, AnimObjId objId, const glm::mat4& transform);
+		void addTexturedQuad3D(uint32 textureId, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const Vec3& faceNormal, AnimObjId objId);
+		void addColoredTri(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec4& color, AnimObjId objId);
+		void addMultiColoredTri(const Vec3& p0, const Vec4& c0, const Vec3& p1, const Vec4& c1, const Vec3& p2, const Vec4& c2, AnimObjId objId);
 
 		void setupGraphicsBuffers();
 		void render(const Shader& opaqueShader, const Shader& transparentShader, const Shader& compositeShader, const Framebuffer& framebuffer) const;
@@ -1018,25 +1021,16 @@ namespace MathAnim
 				? strokeWidthStack[strokeWidthStackPtr - 1]
 				: defaultStrokeWidth;
 
-			glm::vec4 color = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-
 			context->transform = transform;
 			//glm::vec4 translatedPos = glm::vec4(start.x, start.y, 0.0f, 1.0f);
 			//translatedPos = context->transform * translatedPos;
 
 			Path_Vertex2DLine vert = {};
 			vert.position = start;
-			vert.color = Vec4{
-				color.r,
-				color.g,
-				color.b,
-				color.a
-			};
+			vert.color = getColor();
 			vert.thickness = strokeWidth;
 			context->data.emplace_back(vert);
-			context->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
+			context->colors.push_back(vert.color);
 
 			return context;
 		}
@@ -1054,14 +1048,7 @@ namespace MathAnim
 			return Vec3{ translated.x, translated.y, translated.z };
 		}
 
-		static Vec2 transformVertVec2(const Vec2& vert, const glm::mat4& transform)
-		{
-			glm::vec4 translated = glm::vec4(vert.x, vert.y, 0.0f, 1.0f);
-			translated = transform * translated;
-			return Vec2{ translated.x, translated.y };
-		}
-
-		bool endPath(Path2DContext* path, bool closePath, AnimObjId objId, bool is3D)
+		bool endPath(Path2DContext* path, bool closePath, AnimObjId objId)
 		{
 			g_logger_assert(path != nullptr, "Null path.");
 
@@ -1196,32 +1183,16 @@ namespace MathAnim
 				const Path_Vertex2DLine& vertex = path->data[vertIndex % path->data.size()];
 				const Path_Vertex2DLine& nextVertex = path->data[(vertIndex + 1) % path->data.size()];
 
-				if (!is3D)
-				{
-					drawMultiColoredTri(
-						transformVertVec2(vertex.frontP1, path->transform), vertex.color,
-						transformVertVec2(vertex.frontP2, path->transform), vertex.color,
-						transformVertVec2(nextVertex.backP1, path->transform), nextVertex.color,
-						objId);
-					drawMultiColoredTri(
-						transformVertVec2(vertex.frontP2, path->transform), vertex.color,
-						transformVertVec2(nextVertex.backP2, path->transform), nextVertex.color,
-						transformVertVec2(nextVertex.backP1, path->transform), nextVertex.color,
-						objId);
-				}
-				else
-				{
-					drawMultiColoredTri3D(
-						transformVertVec3(vertex.frontP1, path->transform), vertex.color,
-						transformVertVec3(vertex.frontP2, path->transform), vertex.color,
-						transformVertVec3(nextVertex.backP1, path->transform), nextVertex.color,
-						objId);
-					drawMultiColoredTri3D(
-						transformVertVec3(vertex.frontP2, path->transform), vertex.color,
-						transformVertVec3(nextVertex.backP2, path->transform), nextVertex.color,
-						transformVertVec3(nextVertex.backP1, path->transform), nextVertex.color,
-						objId);
-				}
+				drawMultiColoredTri3D(
+					transformVertVec3(vertex.frontP1, path->transform), vertex.color,
+					transformVertVec3(vertex.frontP2, path->transform), vertex.color,
+					transformVertVec3(nextVertex.backP1, path->transform), nextVertex.color,
+					objId);
+				drawMultiColoredTri3D(
+					transformVertVec3(vertex.frontP2, path->transform), vertex.color,
+					transformVertVec3(nextVertex.backP2, path->transform), nextVertex.color,
+					transformVertVec3(nextVertex.backP1, path->transform), nextVertex.color,
+					objId);
 			}
 
 			return true;
@@ -1381,7 +1352,7 @@ namespace MathAnim
 			}
 		}
 
-		void lineTo(Path2DContext* path, const Vec2& point, bool applyTransform)
+		void lineTo(Path2DContext* path, const Vec2& point)
 		{
 			g_logger_assert(path != nullptr, "Null path.");
 
@@ -1389,24 +1360,9 @@ namespace MathAnim
 				? strokeWidthStack[strokeWidthStackPtr - 1]
 				: defaultStrokeWidth;
 
-			glm::vec4 color = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-
-			glm::vec4 translatedPos = glm::vec4(point.x, point.y, 0.0f, 1.0f);
-			if (applyTransform)
-			{
-				//translatedPos = path->transform * translatedPos;
-			}
-
 			Path_Vertex2DLine vert;
-			vert.position = Vec2{ translatedPos.x, translatedPos.y };
-			vert.color = Vec4{
-				color.r,
-				color.g,
-				color.b,
-				color.a
-			};
+			vert.position = point;
+			vert.color = getColor();
 			vert.thickness = strokeWidth;
 
 			lineToInternal(path, vert, true);
@@ -1417,51 +1373,37 @@ namespace MathAnim
 			g_logger_assert(path != nullptr, "Null path.");
 			g_logger_assert(path->data.size() > 0, "Cannot do a quadTo on an empty path.");
 
-			//glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, 0.0f, 1.0f);
-			//glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, 0.0f, 1.0f);
-			//
-			//tmpP1 = path->transform * tmpP1;
-			//tmpP2 = path->transform * tmpP2;
-
-			Vec2 transformedP0 = path->data[path->data.size() - 1].position;
-			//Vec2 transformedP1 = Vec2{ tmpP1.x, tmpP1.y };
-			//Vec2 transformedP2 = Vec2{ tmpP2.x, tmpP2.y };
-			Vec2 transformedP1 = p1;
-			Vec2 transformedP2 = p2;
+			Vec2 p0 = path->data[path->data.size() - 1].position;
 
 			{
 				// Add raw curve data
 				Curve rawCurve{};
 				rawCurve.type = CurveType::Bezier2;
-				rawCurve.p0 = transformedP0;
-				rawCurve.as.bezier2.p1 = transformedP1;
-				rawCurve.as.bezier2.p2 = transformedP2;
+				rawCurve.p0 = p0;
+				rawCurve.as.bezier2.p1 = p1;
+				rawCurve.as.bezier2.p2 = p2;
 
 				path->approximateLength += rawCurve.calculateApproximatePerimeter();
 				path->rawCurves.emplace_back(rawCurve);
-
-				glm::vec4 color = colorStackPtr > 0
-					? colorStack[colorStackPtr - 1]
-					: defaultColor;
-				path->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
+				path->colors.push_back(getColor());
 			}
 
 			// Estimate the length of the bezier curve to get an approximate for the
 			// number of line segments to use
-			Vec2 chord1 = transformedP1 - transformedP0;
-			Vec2 chord2 = transformedP2 - transformedP1;
+			Vec2 chord1 = p1 - p0;
+			Vec2 chord2 = p2 - p1;
 			float chordLengthSq = CMath::lengthSquared(chord1) + CMath::lengthSquared(chord2);
-			float lineLengthSq = CMath::lengthSquared(transformedP2 - transformedP0);
+			float lineLengthSq = CMath::lengthSquared(p2 - p0);
 			float approxLength = glm::sqrt(lineLengthSq + chordLengthSq) / 2.0f;
 			int numSegments = (int)(approxLength * 40.0f);
 			for (int i = 1; i < numSegments - 1; i++)
 			{
 				float t = (float)i / (float)numSegments;
-				Vec2 interpPoint = CMath::bezier2(transformedP0, transformedP1, transformedP2, t);
+				Vec2 interpPoint = CMath::bezier2(p0, p1, p2, t);
 				lineToInternal(path, interpPoint, false);
 			}
 
-			lineToInternal(path, transformedP2, false);
+			lineToInternal(path, p2, false);
 		}
 
 		void cubicTo(Path2DContext* path, const Vec2& p1, const Vec2& p2, const Vec2& p3)
@@ -1469,54 +1411,39 @@ namespace MathAnim
 			g_logger_assert(path != nullptr, "Null path.");
 			g_logger_assert(path->data.size() > 0, "Cannot do a cubicTo on an empty path.");
 
-			//glm::vec4 tmpP1 = glm::vec4(p1.x, p1.y, 0.0f, 1.0f);
-			//glm::vec4 tmpP2 = glm::vec4(p2.x, p2.y, 0.0f, 1.0f);
-			//glm::vec4 tmpP3 = glm::vec4(p3.x, p3.y, 0.0f, 1.0f);
-			//
-			//tmpP1 = path->transform * tmpP1;
-			//tmpP2 = path->transform * tmpP2;
-			//tmpP3 = path->transform * tmpP3;
-
-			Vec2 transformedP0 = path->data[path->data.size() - 1].position;
-			Vec2 transformedP1 = p1;//Vec2{ tmpP1.x, tmpP1.y };
-			Vec2 transformedP2 = p2;//Vec2{ tmpP2.x, tmpP2.y };
-			Vec2 transformedP3 = p3;//Vec2{ tmpP3.x, tmpP3.y };
+			Vec2 p0 = path->data[path->data.size() - 1].position;
 
 			{
 				// Add raw curve data
 				Curve rawCurve{};
 				rawCurve.type = CurveType::Bezier3;
-				rawCurve.p0 = transformedP0;
-				rawCurve.as.bezier3.p1 = transformedP1;
-				rawCurve.as.bezier3.p2 = transformedP2;
-				rawCurve.as.bezier3.p3 = transformedP3;
+				rawCurve.p0 = p0;
+				rawCurve.as.bezier3.p1 = p1;
+				rawCurve.as.bezier3.p2 = p2;
+				rawCurve.as.bezier3.p3 = p3;
 
 				path->approximateLength += rawCurve.calculateApproximatePerimeter();
 				path->rawCurves.emplace_back(rawCurve);
-
-				glm::vec4 color = colorStackPtr > 0
-					? colorStack[colorStackPtr - 1]
-					: defaultColor;
-				path->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
+				path->colors.push_back(getColor());
 			}
 
 			// Estimate the length of the bezier curve to get an approximate for the
 			// number of line segments to use
-			Vec2 chord1 = transformedP1 - transformedP0;
-			Vec2 chord2 = transformedP2 - transformedP1;
-			Vec2 chord3 = transformedP3 - transformedP2;
+			Vec2 chord1 = p1 - p0;
+			Vec2 chord2 = p2 - p1;
+			Vec2 chord3 = p3 - p2;
 			float chordLengthSq = CMath::lengthSquared(chord1) + CMath::lengthSquared(chord2) + CMath::lengthSquared(chord3);
-			float lineLengthSq = CMath::lengthSquared(transformedP3 - transformedP0);
+			float lineLengthSq = CMath::lengthSquared(p3 - p0);
 			float approxLength = glm::sqrt(lineLengthSq + chordLengthSq) / 2.0f;
 			int numSegments = (int)(approxLength * 40.0f);
 			for (int i = 1; i < numSegments - 1; i++)
 			{
 				float t = (float)i / (float)numSegments;
-				Vec2 interpPoint = CMath::bezier3(transformedP0, transformedP1, transformedP2, transformedP3, t);
+				Vec2 interpPoint = CMath::bezier3(p0, p1, p2, p3, t);
 				lineToInternal(path, interpPoint, false);
 			}
 
-			lineToInternal(path, transformedP3, false);
+			lineToInternal(path, p3, false);
 		}
 
 		void setTransform(Path2DContext* path, const glm::mat4& transform)
@@ -1526,40 +1453,45 @@ namespace MathAnim
 		}
 
 		// ----------- 3D stuff ----------- 
-		void drawLine3D(const Vec3& start, const Vec3& end, float thickness, const Vec4& color, AnimObjId)
+
+		// 3D Lines
+
+		void drawLine3D(const Vec3& start, const Vec3& end, float thickness, AnimObjId objId)
 		{
-			drawList3DLine.addLine(start, end, packColor(color), thickness);
+			uint32 packedColor = packColor(getColor());
+			drawList3DLine.addLine(start, end, packedColor, thickness, objId);
 		}
 
-		void drawTexturedBillboard3D(const Texture& texture, const Vec3& p0, const Vec3& p1, float height, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId) 
+		// Billboards
+
+		void drawTexturedBillboard3D(const Texture& texture, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, AnimObjId objId)
 		{
-			drawList3DBillboard.addBillboard(texture.graphicsId, p0, p1, height, uvMin, uvMax, packColor(color));
+			uint32 packedColor = packColor(getColor());
+			drawList3DBillboard.addBillboard(texture.graphicsId, position, size, uvMin, uvMax, packedColor, objId);
 		}
 
-		void drawTexturedBillboard3D(const Texture& texture, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId)
+		void drawBillboard3D(const Vec3& position, const Vec2& size, AnimObjId objId)
 		{
-			drawList3DBillboard.addBillboard(texture.graphicsId, position, size, uvMin, uvMax, packColor(color));
+			uint32 packedColor = packColor(getColor());
+			drawList3DBillboard.addBillboard(UINT32_MAX, position, size, Vec2{ 0, 0 }, Vec2{ 1, 1 }, packedColor, objId);
 		}
 
-		void drawColoredBillboard3D(const Vec3& position, const Vec2& size, const Vec4& color, AnimObjId)
-		{
-			drawList3DBillboard.addBillboard(UINT32_MAX, position, size, Vec2{ 0, 0 }, Vec2{ 1, 1 }, packColor(color));
-		}
+		// 2D Shapes in 3D Space
 
-		void drawFilledQuad3D(const Vec3& position, const Vec2& size, const Vec3& normal, const Vec3& perpendicular, AnimObjId objId)
+		void drawFilledQuad3D(const Vec3& position, const Vec2& size, const Vec3& forward, const Vec3& up, AnimObjId objId)
 		{
-			const Vec3 right = CMath::cross(normal, perpendicular);
+			const Vec3 right = CMath::cross(up, forward);
 
-			const Vec3 topLeft = position + (-size.x * right) + (size.y * perpendicular);
-			const Vec3 topRight = position + (size.x * right) + (size.y * perpendicular);
-			const Vec3 bottomLeft = position + (-size.x * right) + (-size.y * perpendicular);
-			const Vec3 bottomRight = position + (size.x * right) + (-size.y * perpendicular);
+			const Vec3 topLeft = position + (-size.x * right) + (size.y * up);
+			const Vec3 topRight = position + (size.x * right) + (size.y * up);
+			const Vec3 bottomLeft = position + (-size.x * right) + (-size.y * up);
+			const Vec3 bottomRight = position + (size.x * right) + (-size.y * up);
 
 			drawFilledTri3D(bottomLeft, topLeft, topRight, objId);
 			drawFilledTri3D(bottomLeft, topRight, bottomRight, objId);
 		}
 
-		void drawFilledQuad3D(const Vec3& size, const Vec4& color, AnimObjId, const glm::mat4& transform)
+		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform, AnimObjId objId)
 		{
 			glm::vec4 tmpBottomLeft = glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
 			glm::vec4 tmpTopLeft = glm::vec4(-size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
@@ -1578,57 +1510,26 @@ namespace MathAnim
 			Vec3 bottomRight = { tmpBottomRight.x, tmpBottomRight.y, tmpBottomRight.z };
 			Vec3 faceNormal = Vec3{ tmpFaceNormal.x, tmpFaceNormal.y, tmpFaceNormal.z };
 
-			drawList3D.addTexturedQuad3D(UINT32_MAX, bottomLeft, topLeft, topRight, bottomRight, Vec2{ 0, 0 }, Vec2{ 1, 1 }, color, faceNormal, color.a < 1.0f);
+			drawList3D.addTexturedQuad3D(texture.graphicsId, bottomLeft, topLeft, topRight, bottomRight, uvMin, uvMax, color, faceNormal, objId);
 		}
 
-		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform, bool isTransparent, bool isBillboard)
+		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId)
 		{
-			glm::vec4 tmpBottomLeft = glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
-			glm::vec4 tmpTopLeft = glm::vec4(-size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
-			glm::vec4 tmpTopRight = glm::vec4(size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
-			glm::vec4 tmpBottomRight = glm::vec4(size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
-			glm::vec4 tmpFaceNormal = transform * glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
-
-			if (!isBillboard)
-			{
-				tmpBottomLeft = transform * tmpBottomLeft;
-				tmpTopLeft = transform * tmpTopLeft;
-				tmpTopRight = transform * tmpTopRight;
-				tmpBottomRight = transform * tmpBottomRight;
-			}
-			else
-			{
-				glm::vec4 cameraRight = glm::vec4(CMath::convert(getCurrentCamera3D()->right), 1.0f);
-				glm::vec4 cameraUp = glm::vec4(CMath::convert(getCurrentCamera3D()->up), 1.0f);
-				tmpBottomLeft = (-cameraRight * 0.5f * size.x) - (cameraUp * 0.5f * size.y);
-				tmpTopLeft = (-cameraRight * 0.5f * size.x) + (cameraUp * 0.5f * size.y);
-				tmpTopRight = (cameraRight * 0.5f * size.x) + (cameraUp * 0.5f * size.y);
-				tmpBottomRight = (cameraRight * 0.5f * size.x) - (cameraUp * 0.5f * size.y);
-			}
-
-			Vec3 bottomLeft = { tmpBottomLeft.x, tmpBottomLeft.y, tmpBottomLeft.z };
-			Vec3 topLeft = { tmpTopLeft.x, tmpTopLeft.y, tmpTopLeft.z };
-			Vec3 topRight = { tmpTopRight.x, tmpTopRight.y, tmpTopRight.z };
-			Vec3 bottomRight = { tmpBottomRight.x, tmpBottomRight.y, tmpBottomRight.z };
-			Vec3 faceNormal = Vec3{ tmpFaceNormal.x, tmpFaceNormal.y, tmpFaceNormal.z };
-
-			drawList3D.addTexturedQuad3D(texture.graphicsId, bottomLeft, topLeft, topRight, bottomRight, uvMin, uvMax, color, faceNormal, isTransparent);
+			drawList3D.addColoredTri(p0, p1, p2, getColor(), objId);
 		}
 
-		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId, bool isBillboard)
+		void drawMultiColoredTri3D(const Vec3& p0, const Vec4& color0, const Vec3& p1, const Vec4& color1, const Vec3& p2, const Vec4& color2, AnimObjId objId)
 		{
-			drawList3D.addColoredTri(p0, p1, p2, getColor(), objId, isBillboard);
+			drawList3D.addMultiColoredTri(p0, color0, p1, color1, p2, color2, objId);
 		}
 
-		void drawFilledCircle3D(const Vec3& center, float radius, int numSegments, const Vec4& color, const glm::mat4& transform, bool isBillboard)
+		void drawFilledCircle3D(const Vec3& center, float radius, int numSegments, AnimObjId objId, const glm::mat4& transform)
 		{
-			drawList3D.addFilledCircle3D(center, radius, numSegments, color, NULL_ANIM_OBJECT, transform, isBillboard);
+			Vec4 color = getColor();
+			drawList3D.addFilledCircle3D(center, radius, numSegments, color, objId, transform);
 		}
 
-		void drawMultiColoredTri3D(const Vec3& p0, const Vec4& color0, const Vec3& p1, const Vec4& color1, const Vec3& p2, const Vec4& color2, AnimObjId objId, bool isBillboard)
-		{
-			drawList3D.addMultiColoredTri(p0, color0, p1, color1, p2, color2, objId, isBillboard);
-		}
+		// 3D Shapes
 
 		void drawCube3D(const Vec3& center, const Vec3& size, const Vec3& forward, const Vec3& up, AnimObjId objId)
 		{
@@ -1652,19 +1553,19 @@ namespace MathAnim
 			// Front face
 			drawFilledTri3D(p4, p5, p6, objId);
 			drawFilledTri3D(p4, p6, p7, objId);
-			
+
 			// Top Face
 			drawFilledTri3D(p1, p2, p6, objId);
 			drawFilledTri3D(p1, p6, p5, objId);
-			
+
 			// Bottom Face
 			drawFilledTri3D(p0, p3, p7, objId);
 			drawFilledTri3D(p0, p7, p4, objId);
-			
+
 			// Left face
 			drawFilledTri3D(p0, p1, p5, objId);
 			drawFilledTri3D(p0, p5, p4, objId);
-			
+
 			// Right Face
 			drawFilledTri3D(p2, p3, p7, objId);
 			drawFilledTri3D(p2, p7, p6, objId);
@@ -1768,7 +1669,7 @@ namespace MathAnim
 				const Vec3 nextInnerOffset = calculateOffset(innerRadius, nextTheta, rightDir, up);
 				const Vec3 nextOuterOffset = calculateOffset(outerRadius, nextTheta, rightDir, up);
 				Vec3 endCenter = nextInnerOffset + ((nextOuterOffset - nextInnerOffset) / 2.0f);
-				
+
 				Vec3 startToEndDir = CMath::normalize(endCenter - startCenter);
 
 				Vec3 thisCurvatureCirclePoints[numPointsOnCircle] = {};
@@ -1841,7 +1742,7 @@ namespace MathAnim
 					// vertex position (x, y, z)
 					x = xy * cosf(sectorAngle);             // r * cos(u) * cos(v)
 					y = xy * sinf(sectorAngle);             // r * cos(u) * sin(v)
-					vertices.push_back(center + Vec3{x, y, z});
+					vertices.push_back(center + Vec3{ x, y, z });
 
 					// normalized vertex normal (nx, ny, nz)
 					// nx = x * lengthInv;
@@ -2418,7 +2319,7 @@ namespace MathAnim
 		}
 	}
 
-	void DrawList3DLine::addLine(const Vec3& p0, const Vec3& p1, uint32 packedColor, float thickness)
+	void DrawList3DLine::addLine(const Vec3& p0, const Vec3& p1, uint32 packedColor, float thickness, AnimObjId objId)
 	{
 		changeBatchIfNeeded();
 
@@ -2429,21 +2330,24 @@ namespace MathAnim
 			p0,
 			-thickness,
 			p1,
-			packedColor
+			packedColor,
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DLine{
 			p0,
 			thickness,
 			p1,
-			packedColor
+			packedColor,
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DLine{
 			p1,
 			thickness,
 			p0,
-			packedColor
+			packedColor,
+			objId
 			});
 
 		// Triangle 2
@@ -2451,21 +2355,24 @@ namespace MathAnim
 			p0,
 			thickness,
 			p1,
-			packedColor
+			packedColor,
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DLine{
 			p1,
 			thickness,
 			p0,
-			packedColor
+			packedColor,
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DLine{
 			p1,
 			-thickness,
 			p0,
-			packedColor
+			packedColor,
+			objId
 			});
 
 		DrawCmdSimple3D& currentCmd = drawCommands[drawCommands.size() - 1];
@@ -2570,7 +2477,7 @@ namespace MathAnim
 	{
 		const Camera* currentCamera = Renderer::getCurrentCamera3D();
 		if (drawCommands.size() == 0 ||
-			drawCommands[drawCommands.size() - 1].camera != currentCamera || 
+			drawCommands[drawCommands.size() - 1].camera != currentCamera ||
 			drawCommands[drawCommands.size() - 1].textureId != textureId)
 		{
 			DrawCmdSimpleTexture3D newCmd;
@@ -2582,7 +2489,7 @@ namespace MathAnim
 		}
 	}
 
-	void DrawList3DBillboard::addBillboard(uint32 textureId, const Vec3& p0, const Vec3& p1, float height, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor)
+	void DrawList3DBillboard::addBillboard(uint32 textureId, const Vec3& p0, const Vec3& p1, float height, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor, AnimObjId objId)
 	{
 		changeBatchIfNeeded(textureId);
 		const float halfHeight = height / 2.0f;
@@ -2592,21 +2499,24 @@ namespace MathAnim
 			p0,
 			packedColor,
 			{ 0.0f, -halfHeight },
-			{ uvMin.x, uvMin.y }
+			{ uvMin.x, uvMin.y },
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DBillboard{
 			p0,
 			packedColor,
 			{ 0.0f, halfHeight },
-			{ uvMin.x, uvMax.y }
+			{ uvMin.x, uvMax.y },
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DBillboard{
 			p1,
 			packedColor,
 			{ 0.0f, halfHeight },
-			{ uvMax.x, uvMax.y }
+			{ uvMax.x, uvMax.y },
+			objId
 			});
 
 		// Triangle 2
@@ -2614,28 +2524,31 @@ namespace MathAnim
 			p0,
 			packedColor,
 			{ 0.0f, -halfHeight },
-			{ uvMin.x, uvMin.y }
+			{ uvMin.x, uvMin.y },
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DBillboard{
 			p1,
 			packedColor,
 			{ 0.0f, halfHeight },
-			{ uvMax.x, uvMax.y }
+			{ uvMax.x, uvMax.y },
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DBillboard{
 			p1,
 			packedColor,
 			{ 0.0f, -halfHeight },
-			{ uvMax.x, uvMin.y }
+			{ uvMax.x, uvMin.y },
+			objId
 			});
 
 		DrawCmdSimpleTexture3D& currentCmd = drawCommands[drawCommands.size() - 1];
 		currentCmd.vertCount += 6;
 	}
 
-	void DrawList3DBillboard::addBillboard(uint32 textureId, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor)
+	void DrawList3DBillboard::addBillboard(uint32 textureId, const Vec3& position, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, uint32 packedColor, AnimObjId objId)
 	{
 		changeBatchIfNeeded(textureId);
 		Vec2 halfSize = size / 2.0f;
@@ -2645,21 +2558,24 @@ namespace MathAnim
 			position,
 			packedColor,
 			{ -halfSize.x, -halfSize.y },
-			{ uvMin.x, uvMin.y }
+			{ uvMin.x, uvMin.y },
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DBillboard{
 			position,
 			packedColor,
 			{ -halfSize.x, halfSize.y },
-			{ uvMin.x, uvMax.y }
+			{ uvMin.x, uvMax.y },
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DBillboard{
 			position,
 			packedColor,
 			{ halfSize.x, halfSize.y },
-			{ uvMax.x, uvMax.y }
+			{ uvMax.x, uvMax.y },
+			objId
 			});
 
 		// Triangle 2
@@ -2667,21 +2583,24 @@ namespace MathAnim
 			position,
 			packedColor,
 			{ -halfSize.x, -halfSize.y },
-			{ uvMin.x, uvMin.y }
+			{ uvMin.x, uvMin.y },
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DBillboard{
 			position,
 			packedColor,
 			{ halfSize.x, halfSize.y },
-			{ uvMax.x, uvMax.y }
+			{ uvMax.x, uvMax.y },
+			objId
 			});
 
 		vertices.emplace_back(Vertex3DBillboard{
 			position,
 			packedColor,
 			{ halfSize.x, -halfSize.y },
-			{ uvMax.x, uvMin.y }
+			{ uvMax.x, uvMin.y },
+			objId
 			});
 
 		DrawCmdSimpleTexture3D& currentCmd = drawCommands[drawCommands.size() - 1];
@@ -2820,8 +2739,9 @@ namespace MathAnim
 		}
 	}
 
-	void DrawList3D::addTexturedQuad3D(uint32 textureId, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const Vec3& faceNormal, bool isTransparent)
+	void DrawList3D::addTexturedQuad3D(uint32 textureId, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const Vec3& faceNormal, AnimObjId objId)
 	{
+		bool isTransparent = color.a < 0.0f;
 		changeBatchIfNeeded(textureId, isTransparent);
 		DrawCmd3D& cmd = drawCommands[drawCommands.size() - 1];
 
@@ -2833,6 +2753,7 @@ namespace MathAnim
 		Vertex3D vert;
 		vert.color = color;
 		vert.normal = faceNormal;
+		vert.objId = objId;
 
 		vert.position = bottomLeft;
 		vert.textureCoords = uvMin;
@@ -2852,7 +2773,7 @@ namespace MathAnim
 		cmd.vertCount += 4;
 	}
 
-	void DrawList3D::addFilledCircle3D(const Vec3& _center, float radius, int numSegments, const Vec4& color, AnimObjId, const glm::mat4& transform, bool)
+	void DrawList3D::addFilledCircle3D(const Vec3& _center, float radius, int numSegments, const Vec4& color, AnimObjId objId, const glm::mat4& transform)
 	{
 		if (numSegments <= 0)
 		{
@@ -2873,6 +2794,7 @@ namespace MathAnim
 		centerVert.normal = Vec3{ 0, 0, 0 };
 		centerVert.position = CMath::vector3From4(CMath::convert(center));
 		centerVert.textureCoords = Vec2{ 0.5f, 0.5f };
+		centerVert.objId = objId;
 
 		vertices.push_back(centerVert);
 		cmd.vertCount++;
@@ -2893,6 +2815,7 @@ namespace MathAnim
 			vert.normal = Vec3{ 0, 0, 0 };
 			vert.position = CMath::vector3From4(CMath::convert(radiusVector));
 			vert.textureCoords = Vec2{ x, y };
+			vert.objId = objId;
 
 			vertices.push_back(vert);
 			cmd.vertCount++;
@@ -2913,9 +2836,9 @@ namespace MathAnim
 		}
 	}
 
-	void DrawList3D::addColoredTri(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec4& color, AnimObjId, bool)
+	void DrawList3D::addColoredTri(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec4& color, AnimObjId)
 	{
-		bool isTransparent = color.a < 1.0f; // TODO: Might not want to do this, because OIT makes some stuff look kinda weird
+		bool isTransparent = color.a < 1.0f;
 		changeBatchIfNeeded(UINT32_MAX, isTransparent);
 		DrawCmd3D& cmd = drawCommands[drawCommands.size() - 1];
 
@@ -2944,9 +2867,9 @@ namespace MathAnim
 		cmd.vertCount += 3;
 	}
 
-	void DrawList3D::addMultiColoredTri(const Vec3& p0, const Vec4& c0, const Vec3& p1, const Vec4& c1, const Vec3& p2, const Vec4& c2, AnimObjId, bool)
+	void DrawList3D::addMultiColoredTri(const Vec3& p0, const Vec4& c0, const Vec3& p1, const Vec4& c1, const Vec3& p2, const Vec4& c2, AnimObjId objId)
 	{
-		bool isTransparent = c0.a < 1.0f || c1.a < 1.0f || c2.a < 1.0f; // TODO: Might not want to do this, because OIT makes some stuff look kinda weird
+		bool isTransparent = c0.a < 1.0f || c1.a < 1.0f || c2.a < 1.0f;
 		changeBatchIfNeeded(UINT32_MAX, isTransparent);
 		DrawCmd3D& cmd = drawCommands[drawCommands.size() - 1];
 
@@ -2955,6 +2878,7 @@ namespace MathAnim
 		cmd.elementCount += 3;
 
 		Vertex3D vert;
+		vert.objId = objId;
 		vert.normal = Vec3{ 0, 1, 0 };
 
 		vert.color = c0;
