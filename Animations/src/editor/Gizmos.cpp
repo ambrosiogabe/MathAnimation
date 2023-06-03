@@ -214,6 +214,8 @@ namespace MathAnim
 
 		static constexpr float rotationGizmoInnerRadius = 1.0f;
 		static constexpr float rotationGizmoOuterRadius = 1.1f;
+		static constexpr float rotationGizmoExtraInnerBoundsScale = 0.9f;
+		static constexpr float rotationGizmoExtraOuterBoundsScale = 1.1f;
 
 		static const auto translateGizmoOffsets = fixedSizeArray<Vec3, (uint8)GizmoSubComponent::Length>(
 			Vec3{ 0.f, 0.f, 0.f },
@@ -1114,7 +1116,13 @@ namespace MathAnim
 		static RaycastResult mouseHoveredRotationGizmoRaycast(const Vec3& center, const Vec3& forward, const Vec3& up, float innerRadius, float outerRadius)
 		{
 			const Ray& ray = gGizmoManager->mouseRay;
-			Torus torus = Physics::createTorus(center, forward, up, innerRadius, outerRadius);
+			Torus torus = Physics::createTorus(
+				center,
+				forward,
+				up,
+				// Add a bit of extra room while checking if the mouse hits the bounds
+				innerRadius * rotationGizmoExtraInnerBoundsScale,
+				outerRadius * rotationGizmoExtraOuterBoundsScale);
 			RaycastResult res = Physics::rayIntersectsTorus(ray, torus);
 			return res;
 		}
@@ -1402,7 +1410,7 @@ namespace MathAnim
 		// Render XY Plane
 		if (!isRotation)
 		{
-			int colorIndex = 4;
+			int colorIndex = 3;
 			if (g->hotGizmoComponent == GizmoSubComponent::XYPlaneScale ||
 				g->hotGizmoComponent == GizmoSubComponent::XYPlaneTranslate)
 			{
@@ -1430,7 +1438,7 @@ namespace MathAnim
 		// Render XZ Plane
 		if (!isRotation)
 		{
-			int colorIndex = 4;
+			int colorIndex = 3;
 			if (g->hotGizmoComponent == GizmoSubComponent::XZPlaneScale ||
 				g->hotGizmoComponent == GizmoSubComponent::XZPlaneTranslate)
 			{
@@ -1459,7 +1467,7 @@ namespace MathAnim
 		// Render ZY Plane
 		if (!isRotation)
 		{
-			int colorIndex = 4;
+			int colorIndex = 3;
 			if (g->hotGizmoComponent == GizmoSubComponent::YZPlaneScale ||
 				g->hotGizmoComponent == GizmoSubComponent::YZPlaneTranslate)
 			{
@@ -1486,7 +1494,7 @@ namespace MathAnim
 
 		// Render the X-Arrow translate gizmo subcomponent
 		{
-			const Vec4* color = &Colors::AccentRed[4];
+			const Vec4* color = &Colors::AccentRed[3];
 			if (g->hotGizmoComponent == GizmoSubComponent::XScale ||
 				g->hotGizmoComponent == GizmoSubComponent::XTranslate ||
 				g->hotGizmoComponent == GizmoSubComponent::XRotate)
@@ -1537,7 +1545,7 @@ namespace MathAnim
 
 		// Render the Y-Arrow gizmo translate subcomponent
 		{
-			const Vec4* color = &Colors::Primary[4];
+			const Vec4* color = &Colors::Primary[3];
 			if (g->hotGizmoComponent == GizmoSubComponent::YScale ||
 				g->hotGizmoComponent == GizmoSubComponent::YTranslate ||
 				g->hotGizmoComponent == GizmoSubComponent::YRotate)
@@ -1588,7 +1596,7 @@ namespace MathAnim
 
 		// Render the Z-Arrow gizmo translate subcomponent
 		{
-			const Vec4* color = &Colors::AccentGreen[4];;
+			const Vec4* color = &Colors::AccentGreen[3];
 			if (g->hotGizmoComponent == GizmoSubComponent::ZScale ||
 				g->hotGizmoComponent == GizmoSubComponent::ZTranslate ||
 				g->hotGizmoComponent == GizmoSubComponent::ZRotate)
