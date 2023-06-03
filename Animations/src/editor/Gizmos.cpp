@@ -288,7 +288,7 @@ namespace MathAnim
 			Vec3{ 0.f, 0.f, 0.f },
 			Vec3{ 0.f, 0.f, 0.f },
 			Vec3{ 0.f, 0.f, 0.f }
-			);
+		);
 
 		static const auto rotationGizmosUpVec = fixedSizeArray<Vec3, (uint8)GizmoSubComponent::Length>(
 			Vec3{ 0.f, 0.f, 0.f },
@@ -686,7 +686,7 @@ namespace MathAnim
 					if (i >= (uint8)GizmoSubComponent::XRotate && i <= (uint8)GizmoSubComponent::ZRotate)
 					{
 						raycast = mouseHoveredRotationGizmoRaycast(
-							getGizmoPos3D(gizmo->position, Vec3{0, 0, 0}, zoom),
+							getGizmoPos3D(gizmo->position, Vec3{ 0, 0, 0 }, zoom),
 							rotationGizmosForwardVec[i],
 							rotationGizmosUpVec[i],
 							rotationGizmoInnerRadius * zoom,
@@ -747,13 +747,13 @@ namespace MathAnim
 					break;
 				case GizmoSubComponent::XRotate:
 					handleActiveCheckRotationGizmo(
-						gizmo, 
+						gizmo,
 						rotationGizmosForwardVec[(uint8)GizmoSubComponent::XRotate],
 						rotationGizmosUpVec[(uint8)GizmoSubComponent::XRotate],
 						rotationGizmoInnerRadius,
 						rotationGizmoOuterRadius,
 						zoom
-						);
+					);
 					break;
 				case GizmoSubComponent::YRotate:
 					handleActiveCheckRotationGizmo(
@@ -1140,7 +1140,7 @@ namespace MathAnim
 		static void handleActiveCheckRotationGizmo(GizmoState* gizmo, const Vec3& forward, const Vec3& up, float innerRadius, float outerRadius, float cameraZoom)
 		{
 			GlobalContext* g = gGizmoManager;
-			Vec3 gizmoPos = getGizmoPos3D(gizmo->position, Vec3{0, 0, 0}, cameraZoom);
+			Vec3 gizmoPos = getGizmoPos3D(gizmo->position, Vec3{ 0, 0, 0 }, cameraZoom);
 			if (Input::mouseDown(MouseButton::Left) && isMouseHoveredRotationGizmo(gizmoPos, forward, up, innerRadius * cameraZoom, outerRadius * cameraZoom))
 			{
 				gizmo->mouseDelta = gizmo->position - g->mouseWorldPos3f;
@@ -1618,8 +1618,8 @@ namespace MathAnim
 				Renderer::pushColor(*color);
 				Renderer::drawDonut(
 					this->position,
-					GizmoManager::rotationGizmoInnerRadius* zoom,
-					GizmoManager::rotationGizmoOuterRadius* zoom,
+					GizmoManager::rotationGizmoInnerRadius * zoom,
+					GizmoManager::rotationGizmoOuterRadius * zoom,
 					GizmoManager::rotationGizmosForwardVec[(uint8)GizmoSubComponent::ZRotate],
 					GizmoManager::rotationGizmosUpVec[(uint8)GizmoSubComponent::ZRotate]
 				);

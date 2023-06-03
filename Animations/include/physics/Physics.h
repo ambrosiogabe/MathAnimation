@@ -22,11 +22,11 @@ namespace MathAnim
 
 	struct RaycastResult
 	{
-		RaycastHit hitFlags;
 		Vec3 entry;
-		Vec3 exit;
 		float hitEntryDistance;
+		Vec3 exit;
 		float hitExitDistance;
+		RaycastHit hitFlags;
 
 		inline bool hit() { return hitFlags != RaycastHit::None; }
 		inline bool hitEntry() { return (hitFlags & RaycastHit::HitEnter) == RaycastHit::HitEnter; }

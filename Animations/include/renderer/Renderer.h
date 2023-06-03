@@ -111,6 +111,7 @@ namespace MathAnim
 		void drawCone3D(const Vec3& baseCenter, const Vec3& forward, const Vec3& up, float radius, float length, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawCylinder(const Vec3& startCenter, const Vec3& endCenter, const Vec3& up, float radius, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawDonut(const Vec3& center, float innerRadius, float outerRadius, const Vec3& forward, const Vec3& up, float thetaStart = 0, float thetaEnd = 360, AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawSphere(const Vec3& center, float radius, AnimObjId objectId = NULL_ANIM_OBJECT);
 
 		// ----------- Miscellaneous ----------- 
 		void clearColor(const Vec4& color);

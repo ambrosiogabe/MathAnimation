@@ -483,7 +483,6 @@ namespace MathAnim
 			GL::drawBuffers(4, compositeDrawBuffers);
 
 			// Do all the draw calls
-			drawList3DLine.render(shader3DLine);
 			drawList3DBillboard.render(shader3DScreenAlignedBillboard);
 
 			// Draw 3D objects after the lines so that we can do appropriate blending
@@ -494,6 +493,9 @@ namespace MathAnim
 				shader3DComposite,
 				framebuffer
 			);
+
+			// Draw 3D Lines on top of 3D stuff, since lines should only be used for debug drawing
+			drawList3DLine.render(shader3DLine);
 
 			// Reset the draw buffers to draw to FB_attachment_0
 			GL::drawBuffers(4, compositeDrawBuffers);
@@ -1699,7 +1701,7 @@ namespace MathAnim
 		{
 			const float radians = glm::radians(degrees);
 
-			Vec3 normalVec = { glm::sin(radians), glm::cos(radians), 0.0f };
+			Vec3 normalVec = { -glm::sin(radians), glm::cos(radians), 0.0f };
 			Vec3 radiusVec = normalVec * radius;
 
 			return (rightDir * radiusVec.x) + (up * radiusVec.y);
@@ -1749,7 +1751,7 @@ namespace MathAnim
 			float thetaEnd,
 			AnimObjId objId)
 		{
-			const Vec3 rightDir = CMath::cross(forward, up);
+			const Vec3 rightDir = CMath::cross(up, forward);
 
 			constexpr int numPointsOnCircle = 24;
 			float increments = (thetaEnd - thetaStart) / (float)numPointsOnCircle;
@@ -1801,6 +1803,105 @@ namespace MathAnim
 
 					drawFilledTri3D(thisCurvatureP0, nextCurvatureP0, nextCurvatureP1, objId);
 					drawFilledTri3D(thisCurvatureP0, nextCurvatureP1, thisCurvatureP1, objId);
+				}
+			}
+		}
+
+		void drawSphere(
+			const Vec3& center,
+			float radius,
+			AnimObjId objId)
+		{
+			std::vector<Vec3> vertices{};
+
+			float x, y, z, xy;                              // vertex position
+			// float nx, ny, nz, lengthInv = 1.0f / radius;    // vertex normal
+			// float s, t;                                     // vertex texCoord
+
+			// SectorCount is number of quads in slice
+			constexpr float sectorCount = 20;
+			// StackCount is a slice
+			constexpr float stackCount = 20;
+			constexpr float sectorStep = 2.f * glm::pi<float>() / sectorCount;
+			constexpr float stackStep = glm::pi<float>() / stackCount;
+			float sectorAngle, stackAngle;
+
+			for (int i = 0; i <= stackCount; ++i)
+			{
+				stackAngle = glm::pi<float>() / 2 - i * stackStep;        // starting from pi/2 to -pi/2
+				xy = radius * cosf(stackAngle);             // r * cos(u)
+				z = radius * sinf(stackAngle);              // r * sin(u)
+
+				// add (sectorCount+1) vertices per stack
+				// first and last vertices have same position and normal, but different tex coords
+				for (int j = 0; j <= sectorCount; ++j)
+				{
+					sectorAngle = j * sectorStep;           // starting from 0 to 2pi
+
+					// vertex position (x, y, z)
+					x = xy * cosf(sectorAngle);             // r * cos(u) * cos(v)
+					y = xy * sinf(sectorAngle);             // r * cos(u) * sin(v)
+					vertices.push_back(center + Vec3{x, y, z});
+
+					// normalized vertex normal (nx, ny, nz)
+					// nx = x * lengthInv;
+					// ny = y * lengthInv;
+					// nz = z * lengthInv;
+					// normals.push_back(nx);
+					// normals.push_back(ny);
+					// normals.push_back(nz);
+
+					// vertex tex coord (s, t) range between [0, 1]
+					// s = (float)j / sectorCount;
+					// t = (float)i / stackCount;
+					// texCoords.push_back(s);
+					// texCoords.push_back(t);
+				}
+			}
+
+			// generate CCW index list of sphere triangles
+			// k1--k1+1
+			// |  / |
+			// | /  |
+			// k2--k2+1
+			// std::vector<int> indices;
+			// std::vector<int> lineIndices;
+			int k1, k2;
+			for (int i = 0; i < stackCount; ++i)
+			{
+				k1 = (int)((float)i * (sectorCount + 1.f));     // beginning of current stack
+				k2 = (int)((float)k1 + sectorCount + 1.f);      // beginning of next stack
+
+				for (int j = 0; j < sectorCount; ++j, ++k1, ++k2)
+				{
+					// 2 triangles per sector excluding first and last stacks
+					// k1 => k2 => k1+1
+					if (i != 0)
+					{
+						// indices.push_back(k1);
+						// indices.push_back(k2);
+						// indices.push_back(k1 + 1);
+						drawFilledTri3D(vertices[k1], vertices[k2], vertices[k1 + 1], objId);
+					}
+
+					// k1+1 => k2 => k2+1
+					if (i != (stackCount - 1))
+					{
+						// indices.push_back(k1 + 1);
+						// indices.push_back(k2);
+						// indices.push_back(k2 + 1);
+						drawFilledTri3D(vertices[k1 + 1], vertices[k2], vertices[k2 + 1], objId);
+					}
+
+					// store indices for lines
+					// vertical lines for all stacks, k1 => k2
+					//lineIndices.push_back(k1);
+					//lineIndices.push_back(k2);
+					//if (i != 0)  // horizontal lines except 1st stack, k1 => k+1
+					//{
+					//	lineIndices.push_back(k1);
+					//	lineIndices.push_back(k1 + 1);
+					//}
 				}
 			}
 		}
@@ -2406,7 +2507,7 @@ namespace MathAnim
 
 		GL::pushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, Renderer::debugMsgId++, -1, "3D_Line_Pass");
 
-		GL::enable(GL_DEPTH_TEST);
+		GL::disable(GL_DEPTH_TEST);
 		GL::disable(GL_CULL_FACE);
 
 		GL::bindVertexArray(vao);
@@ -2428,8 +2529,6 @@ namespace MathAnim
 
 			GL::drawArrays(GL_TRIANGLES, 0, (GLsizei)vertices.size());
 		}
-
-		GL::disable(GL_DEPTH_TEST);
 
 		GL::popDebugGroup();
 	}
