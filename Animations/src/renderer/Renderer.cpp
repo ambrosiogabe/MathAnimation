@@ -497,16 +497,18 @@ namespace MathAnim
 				framebuffer
 			);
 
-			// Draw 3D Lines on top of 3D stuff, since lines should only be used for debug drawing
-			drawList3DLine.render(shader3DLine);
-
 			// Reset the draw buffers to draw to FB_attachment_0
 			GL::drawBuffers(4, compositeDrawBuffers);
 
+			drawList3DLine.render(shader3DLine);
+
+			// TODO: Do we want 2D stuff or not??? It's just a hassle right now, and it's much easier
+			//       to keep everything in 3D space.
+			// 
 			// Draw 2D stuff over 3D stuff so that 3D stuff is always "behind" the
 			// 2D stuff like a HUD
 			// These should be blended appropriately
-			drawList2D.render(shader2D);
+			// drawList2D.render(shader2D);
 
 			GL::popDebugGroup();
 		}
@@ -1219,7 +1221,7 @@ namespace MathAnim
 			return true;
 		}
 
-		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath, AnimObjId)
+		void renderOutline(Path2DContext* path, float startT, float endT, bool closePath, AnimObjId objId)
 		{
 			startT = glm::clamp(startT, 0.0f, 1.0f);
 			endT = glm::clamp(endT, startT, 1.0f);
@@ -1362,12 +1364,12 @@ namespace MathAnim
 
 				if (endT < 1.0f)
 				{
-					Renderer::endPath(context, false);
+					Renderer::endPath(context, false, objId);
 					Renderer::free(context);
 				}
 				else
 				{
-					Renderer::endPath(context, closePath);
+					Renderer::endPath(context, closePath, objId);
 					Renderer::free(context);
 				}
 			}
@@ -1512,7 +1514,7 @@ namespace MathAnim
 			drawFilledTri3D(bottomLeft, topRight, bottomRight, objId);
 		}
 
-		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform, AnimObjId objId)
+		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, AnimObjId objId, const glm::mat4& transform)
 		{
 			glm::vec4 tmpBottomLeft = glm::vec4(-size.x / 2.0f, -size.y / 2.0f, 0.0f, 1.0f);
 			glm::vec4 tmpTopLeft = glm::vec4(-size.x / 2.0f, size.y / 2.0f, 0.0f, 1.0f);
@@ -1531,7 +1533,7 @@ namespace MathAnim
 			Vec3 bottomRight = { tmpBottomRight.x, tmpBottomRight.y, tmpBottomRight.z };
 			Vec3 faceNormal = Vec3{ tmpFaceNormal.x, tmpFaceNormal.y, tmpFaceNormal.z };
 
-			drawList3D.addTexturedQuad3D(texture.graphicsId, bottomLeft, topLeft, topRight, bottomRight, uvMin, uvMax, color, faceNormal, objId);
+			drawList3D.addTexturedQuad3D(texture.graphicsId, bottomLeft, topLeft, topRight, bottomRight, uvMin, uvMax, getColor(), faceNormal, objId);
 		}
 
 		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId)
@@ -2424,6 +2426,9 @@ namespace MathAnim
 
 		GL::vertexAttribIPointer(3, 1, GL_UNSIGNED_INT, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, color)));
 		GL::enableVertexAttribArray(3);
+
+		GL::vertexAttribIPointer(4, 2, GL_UNSIGNED_INT, sizeof(Vertex3DLine), (void*)(offsetof(Vertex3DLine, objId)));
+		GL::enableVertexAttribArray(4);
 	}
 
 	void DrawList3DLine::render(const Shader& shader) const
@@ -2652,6 +2657,9 @@ namespace MathAnim
 
 		GL::vertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex3DBillboard), (void*)(offsetof(Vertex3DBillboard, textureCoords)));
 		GL::enableVertexAttribArray(3);
+
+		GL::vertexAttribIPointer(4, 2, GL_UNSIGNED_INT, sizeof(Vertex3DBillboard), (void*)(offsetof(Vertex3DBillboard, objId)));
+		GL::enableVertexAttribArray(4);
 	}
 
 	void DrawList3DBillboard::render(const Shader& shader) const
@@ -2762,7 +2770,7 @@ namespace MathAnim
 
 	void DrawList3D::addTexturedQuad3D(uint32 textureId, const Vec3& bottomLeft, const Vec3& topLeft, const Vec3& topRight, const Vec3& bottomRight, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const Vec3& faceNormal, AnimObjId objId)
 	{
-		bool isTransparent = color.a < 0.0f;
+		bool isTransparent = color.a < 1.0f;
 		changeBatchIfNeeded(textureId, isTransparent);
 		DrawCmd3D& cmd = drawCommands[drawCommands.size() - 1];
 
@@ -2947,6 +2955,9 @@ namespace MathAnim
 
 		GL::vertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, normal)));
 		GL::enableVertexAttribArray(3);
+
+		GL::vertexAttribIPointer(4, 2, GL_UNSIGNED_INT, sizeof(Vertex3D), (void*)(offsetof(Vertex3D, objId)));
+		GL::enableVertexAttribArray(4);
 	}
 
 	void DrawList3D::render(
@@ -3118,6 +3129,7 @@ namespace MathAnim
 		// Composite the accumulation and revealage textures together
 		// Render to the composite framebuffer attachment
 		GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		GL::disable(GL_DEPTH_TEST);
 
 		compositeShader.bind();
 

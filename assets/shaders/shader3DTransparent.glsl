@@ -39,11 +39,13 @@ uniform vec3 sunDirection;
 uniform vec3 sunColor;
 uniform sampler2D uTexture;
 
+#define UINT32_MAX uint(0xFFFFFFFF)
+
 void main()
 {
-   float diff = max(dot(normalize(fNormal), sunDirection), 0.0);
-   vec3 diffuse = diff * sunColor;
-   vec3 ambient = vec3(0.1);
+   // float diff = max(dot(normalize(fNormal), sunDirection), 0.0);
+   // vec3 diffuse = diff * sunColor;
+   // vec3 ambient = vec3(0.1);
 
    vec4 objColor = fColor * texture(uTexture, fTexCoord);
    //vec4 premultipliedReflect = vec4(clamp(ambient + diffuse, vec3(0.0), vec3(1.0)), 1.0) * objColor;
@@ -58,6 +60,7 @@ void main()
 
       for a full explanation and derivation.*/
 
+   // NOTE: This is for use with BSDF shaders
    // premultipliedReflect.a *= 1.0 - clamp(0.5, 0.0, 1.0);
 
    /* You may need to adjust the w function if you have a very large or very small view volume; see the paper and
@@ -69,13 +72,15 @@ void main()
    /* If your scene has a lot of content very close to the far plane,
       then include this line (one rsqrt instruction):
       b /= sqrt(1e4 * abs(csZ)); */
-   float w = clamp(a * a * a * 1e8 * b * b * b, 1e-2, 3e2);
+   float w = clamp(pow(min(1.0, premultipliedReflect.a * 10.0) + 0.01, 3.0) * 1e8 * pow(1.0 - gl_FragCoord.z * 0.9, 3.0), 1e-2, 3e3);
    accumulation = premultipliedReflect * w;
    revealage = premultipliedReflect.a;
 
-   if (w > 0.5) {
+   // W is the inverse of this object's alpha so we want to check if (1 - w) is greater than
+   // 0.5 to output the object id for picking
+   if (premultipliedReflect.a > 0.5) {
       ObjId = fObjId;
    } else {
-      ObjId = uvec2(0xFFFFFFFFUL, 0xFFFFFFFFUL);
+      ObjId = uvec2(UINT32_MAX, UINT32_MAX);
    }
 }

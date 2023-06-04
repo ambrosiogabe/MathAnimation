@@ -107,7 +107,7 @@ namespace MathAnim
 		
 		// 2D Shapes in 3D Space
 		void drawFilledQuad3D(const Vec3& position, const Vec2& size, const Vec3& forward, const Vec3& up, AnimObjId objId = NULL_ANIM_OBJECT);
-		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, const glm::mat4& transform = glm::identity<glm::mat4>(), AnimObjId objId = NULL_ANIM_OBJECT);
+		void drawTexturedQuad3D(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, AnimObjId objId = NULL_ANIM_OBJECT, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void drawFilledTri3D(const Vec3& p0, const Vec3& p1, const Vec3& p2, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawMultiColoredTri3D(const Vec3& p0, const Vec4& color0, const Vec3& p1, const Vec4& color1, const Vec3& p2, const Vec4& color2, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawFilledCircle3D(const Vec3& center, float radius, int numSegments, AnimObjId objId = NULL_ANIM_OBJECT, const glm::mat4& transform = glm::identity<glm::mat4>());

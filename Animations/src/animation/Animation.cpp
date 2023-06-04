@@ -1450,20 +1450,16 @@ namespace MathAnim
 			if (parent)
 			{
 				const Texture& texture = TextureCache::getTexture(parent->as.image.textureHandle);
-				Renderer::drawTexturedQuad(
+				Renderer::pushColor(this->fillColor);
+				Renderer::drawTexturedQuad3D(
 					texture,
 					Vec2{ (float)parent->as.image.size.x, (float)parent->as.image.size.y },
 					Vec2{ 0, 1 },
 					Vec2{ 1, 0 },
-					Vec4{
-						(float)this->fillColor.r / 255.0f,
-						(float)this->fillColor.g / 255.0f,
-						(float)this->fillColor.b / 255.0f,
-						(float)this->fillColor.a / 255.0f
-					},
 					this->id,
 					this->globalTransform
 				);
+				Renderer::popColor();
 			}
 		}
 		break;

@@ -224,6 +224,8 @@ namespace MathAnim
 				return GL_R8UI;
 			case ByteFormat::R8_F:
 				return GL_R8;
+			case ByteFormat::DepthStencil:
+				return GL_DEPTH24_STENCIL8;
 			case ByteFormat::None:
 				return GL_NONE;
 			}
@@ -255,6 +257,8 @@ namespace MathAnim
 				return GL_RED_INTEGER;
 			case ByteFormat::R8_F:
 				return GL_RED;
+			case ByteFormat::DepthStencil:
+				return GL_DEPTH_STENCIL;
 			case ByteFormat::None:
 				return GL_NONE;
 			}
@@ -286,6 +290,8 @@ namespace MathAnim
 				return GL_UNSIGNED_BYTE;
 			case ByteFormat::R8_F:
 				return GL_FLOAT;
+			case ByteFormat::DepthStencil:
+				return GL_UNSIGNED_INT_24_8;
 			case ByteFormat::None:
 				return GL_NONE;
 			}
@@ -316,6 +322,8 @@ namespace MathAnim
 			case ByteFormat::R8_UI:
 				return true;
 			case ByteFormat::None:
+				return false;
+			case ByteFormat::DepthStencil:
 				return false;
 			case ByteFormat::R8_F:
 				return false;
@@ -349,6 +357,8 @@ namespace MathAnim
 				return false;
 			case ByteFormat::None:
 				return false;
+			case ByteFormat::DepthStencil:
+				return false;
 			case ByteFormat::R8_F:
 				return false;
 			}
@@ -379,6 +389,8 @@ namespace MathAnim
 			case ByteFormat::R8_UI:
 				return false;
 			case ByteFormat::None:
+				return false;
+			case ByteFormat::DepthStencil:
 				return false;
 			case ByteFormat::R8_F:
 				return false;
@@ -435,6 +447,7 @@ namespace MathAnim
 			case ByteFormat::R8_F:
 				return sizeof(uint8);
 			case ByteFormat::None:
+			case ByteFormat::DepthStencil:
 				return 0;
 			}
 

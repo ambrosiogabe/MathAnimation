@@ -214,9 +214,11 @@ namespace MathAnim
 
 			if (includeDepthStencil)
 			{
-				g_logger_assert(rbo != UINT32_MAX, "Tried to delete invalid renderbuffer.");
-				GL::deleteRenderbuffers(1, &rbo);
-				rbo = UINT32_MAX;
+				g_logger_assert(depthStencilBuffer.graphicsId != UINT32_MAX, "Tried to delete invalid depth-stencil buffer.");
+				depthStencilBuffer.destroy();
+				//g_logger_assert(rbo != UINT32_MAX, "Tried to delete invalid renderbuffer.");
+				//GL::deleteRenderbuffers(1, &rbo);
+				//rbo = UINT32_MAX;
 			}
 		}
 		else
@@ -285,11 +287,27 @@ namespace MathAnim
 
 		if (framebuffer.includeDepthStencil)
 		{
+			Texture& depthStencil = framebuffer.depthStencilBuffer;
+			depthStencil = {};
+			depthStencil.width = framebuffer.width;
+			depthStencil.height = framebuffer.height;
+			depthStencil.magFilter = FilterMode::Nearest;
+			depthStencil.minFilter = FilterMode::Nearest;
+			depthStencil.format = ByteFormat::DepthStencil;
+			TextureUtil::generateEmptyTexture(depthStencil);
+			GL::framebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depthStencil.graphicsId, 0);
+
 			// Create renderbuffer to store depth_stencil info
-			GL::genRenderbuffers(1, &framebuffer.rbo);
-			GL::bindRenderbuffer(GL_RENDERBUFFER, framebuffer.rbo);
-			GL::renderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, framebuffer.width, framebuffer.height);
-			GL::framebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, framebuffer.rbo);
+			//GL::genRenderbuffers(1, &framebuffer.rbo);
+			//GL::bindRenderbuffer(GL_RENDERBUFFER, framebuffer.rbo);
+			//GL::renderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, framebuffer.width, framebuffer.height);
+			//GL::framebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, framebuffer.rbo);
+		}
+		else
+		{
+			framebuffer.depthStencilBuffer.graphicsId = UINT32_MAX;
+			framebuffer.depthStencilBuffer.width = 0;
+			framebuffer.depthStencilBuffer.height = 0;
 		}
 
 		if (GL::checkFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)

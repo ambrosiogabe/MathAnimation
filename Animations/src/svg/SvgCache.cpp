@@ -244,20 +244,16 @@ namespace MathAnim
 			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);
 
 			// Everything is 3D now... Good or bad? Who knows?
+			Renderer::pushColor(parent->fillColor);
 			Renderer::drawTexturedQuad3D(
 				metadata.textureRef,
 				Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
 				metadata.texCoordsMin,
 				metadata.texCoordsMax,
-				Vec4{
-					(float)parent->fillColor.r / 255.0f,
-					(float)parent->fillColor.g / 255.0f,
-					(float)parent->fillColor.b / 255.0f,
-					(float)parent->fillColor.a / 255.0f
-				},
-				parent->globalTransform,
-				parent->isTransparent
+				parent->id,
+				parent->globalTransform
 			);
+			Renderer::popColor();
 		}
 	}
 

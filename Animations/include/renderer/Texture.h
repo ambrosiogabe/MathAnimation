@@ -32,6 +32,8 @@ namespace MathAnim
 		RG32_UI,
 		R8_UI,
 		R8_F,
+
+		DepthStencil,
 	};
 
 	enum class ColorChannel
