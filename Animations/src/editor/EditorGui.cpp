@@ -8,6 +8,7 @@
 #include "editor/panels/ConsoleLog.h"
 #include "editor/timeline/Timeline.h"
 #include "editor/imgui/ImGuiLayer.h"
+#include "editor/imgui/ImGuiExtended.h"
 #include "editor/Gizmos.h"
 #include "editor/EditorSettings.h"
 #include "editor/EditorLayout.h"
@@ -48,6 +49,7 @@ namespace MathAnim
 		static bool mainViewportIsActive;
 		static bool editorViewportIsActive;
 		static std::vector<ActionText> actionTextQueue;
+		static Texture gizmoPreviewTexture;
 
 		static bool openActiveObjectSelectionContextMenu = false;
 		static const char* openActiveObjectSelectionContextMenuId = "##ACTIVE_OBJECT_SELECTION_CTX_MENU";
@@ -71,6 +73,10 @@ namespace MathAnim
 			AssetManagerPanel::init(projectRoot);
 			EditorLayout::init(projectRoot);
 			timelineLoaded = true;
+
+			gizmoPreviewTexture = TextureBuilder()
+				.setFilepath("./assets/images/gizmoPreviews.png")
+				.generate(true);
 		}
 
 		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am, float deltaTime)
@@ -179,6 +185,8 @@ namespace MathAnim
 
 		void free(AnimationManagerData* am)
 		{
+			gizmoPreviewTexture.destroy();
+
 			AssetManagerPanel::free();
 			SceneHierarchyPanel::free();
 			ExportPanel::free();
@@ -291,30 +299,62 @@ namespace MathAnim
 
 			// Draw translate/scale/rotate mode dropdown
 			{
-				constexpr float widthOfDropdown = 150.f;
-				ImGui::SetNextItemWidth(widthOfDropdown);
-				ImGui::SetCursorPosX(ImGui::GetCursorPosX() - widthOfDropdown);
+				constexpr float comboWidth = 40.f;
+				constexpr float gizmoSelectVtPadding = 15.f;
 
-				const char* preview = GizmoManager::getVisualModeStr();
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() - comboWidth);
+				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + gizmoSelectVtPadding);
 
-				if (ImGui::BeginCombo("##GlobalGizmoModeEditorViewport", preview))
+				constexpr ImVec2 gizmoPreviewSize = ImVec2(30, 38);
+				constexpr ImVec2 translationUvMin = ImVec2(0, 0);
+				constexpr ImVec2 translationUvMax = ImVec2(0.3984f, 0.5f);
+
+				constexpr ImVec2 rotationUvMin = ImVec2(0.5f, 0.0f);
+				constexpr ImVec2 rotationUvMax = ImVec2(1.0f, 0.5f);
+
+				constexpr ImVec2 scaleUvMin = ImVec2(0.0f, 0.5f);
+				constexpr ImVec2 scaleUvMax = ImVec2(0.3984f, 1.0f);
+
+				GizmoType gizmoType = GizmoManager::getVisualMode();
+				// Preview is set to empty texture which is also the none default
+				ImVec2 previewUvMin = ImVec2(0.5f, 0.5f);
+				ImVec2 previewUvMax = ImVec2(1.0f, 1.0f);
+				switch (gizmoType)
+				{
+				case GizmoType::Translation:
+					previewUvMin = translationUvMin;
+					previewUvMax = translationUvMax;
+					break;
+				case GizmoType::Rotation:
+					previewUvMin = rotationUvMin;
+					previewUvMax = rotationUvMax;
+					break;
+				case GizmoType::Scaling:
+					previewUvMin = scaleUvMin;
+					previewUvMax = scaleUvMax;
+					break;
+				default:
+					break;
+				}
+
+				if (ImGuiExtended::BeginImageCombo("GlobalGizmoModeEditorViewport", gizmoPreviewTexture, gizmoPreviewSize, previewUvMin, previewUvMax))
 				{
 					if (ImGui::Selectable("None"))
 					{
 						GizmoManager::changeVisualMode(GizmoType::None);
 					}
 
-					if (ImGui::Selectable("Translate"))
+					if (ImGuiExtended::SelectableImage("Translate", gizmoPreviewTexture, gizmoPreviewSize, translationUvMin, translationUvMax))
 					{
 						GizmoManager::changeVisualMode(GizmoType::Translation);
 					}
 
-					if (ImGui::Selectable("Rotate")) 
+					if (ImGuiExtended::SelectableImage("Rotate", gizmoPreviewTexture, gizmoPreviewSize, rotationUvMin, rotationUvMax))
 					{
 						GizmoManager::changeVisualMode(GizmoType::Rotation);
 					}
 
-					if (ImGui::Selectable("Scale"))
+					if (ImGuiExtended::SelectableImage("Scale", gizmoPreviewTexture, gizmoPreviewSize, scaleUvMin, scaleUvMax))
 					{
 						GizmoManager::changeVisualMode(GizmoType::Scaling);
 					}

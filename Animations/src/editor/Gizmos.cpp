@@ -581,6 +581,11 @@ namespace MathAnim
 			return "Undefined";
 		}
 
+		GizmoType getVisualMode()
+		{
+			return gGizmoManager->visualMode;
+		}
+
 		bool translateGizmo(const char* gizmoName, Vec3* position)
 		{
 			// Find or create the gizmo

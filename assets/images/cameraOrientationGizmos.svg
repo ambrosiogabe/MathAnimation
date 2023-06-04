@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   inkscape:export-ydpi="96"
+   inkscape:export-xdpi="96"
+   inkscape:export-filename="C:\dev\C++\MathAnimations\assets\images\engineAssets.png"
+   sodipodi:docname="rawAssets.svg"
+   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   id="svg8"
+   version="1.1"
+   viewBox="0 0 67.733332 67.733337"
+   height="256"
+   width="256">
+  <defs
+     id="defs2">
+    <rect
+       x="7.3499122"
+       y="5.8799295"
+       width="18.842503"
+       height="21.916101"
+       id="rect887" />
+    <rect
+       x="6.5481033"
+       y="4.8108516"
+       width="23.118814"
+       height="25.657875"
+       id="rect881" />
+    <clipPath
+       id="clipPath849"
+       clipPathUnits="userSpaceOnUse">
+      <rect
+         y="0"
+         x="3.5527137e-15"
+         height="190.5"
+         width="338.66666"
+         id="rect851"
+         style="fill:#000000;fill-opacity:0.979839;stroke-width:3.94862;stroke-linejoin:round;paint-order:markers fill stroke" />
+    </clipPath>
+    <rect
+       id="rect887-8"
+       height="21.916101"
+       width="18.842503"
+       y="5.8799295"
+       x="7.3499122" />
+    <rect
+       id="rect900"
+       height="21.916101"
+       width="18.842503"
+       y="5.8799295"
+       x="7.3499122" />
+    <rect
+       x="7.3499122"
+       y="5.8799295"
+       width="18.842503"
+       height="21.916101"
+       id="rect887-8-8" />
+    <rect
+       x="7.3499122"
+       y="5.8799295"
+       width="18.842503"
+       height="21.916101"
+       id="rect929" />
+  </defs>
+  <sodipodi:namedview
+     fit-margin-bottom="0"
+     fit-margin-right="0"
+     fit-margin-left="0"
+     fit-margin-top="0"
+     inkscape:pagecheckerboard="true"
+     units="px"
+     inkscape:window-maximized="1"
+     inkscape:window-y="-5"
+     inkscape:window-x="3833"
+     inkscape:window-height="1018"
+     inkscape:window-width="1920"
+     showgrid="false"
+     inkscape:document-rotation="0"
+     inkscape:current-layer="layer1"
+     inkscape:document-units="px"
+     inkscape:cy="172.14371"
+     inkscape:cx="309.62995"
+     inkscape:zoom="1.4"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     borderopacity="1.0"
+     bordercolor="#666666"
+     pagecolor="#ffffff"
+     id="base" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     id="layer1"
+     inkscape:groupmode="layer"
+     inkscape:label="Layer 1">
+    <circle
+       style="fill:#ffffff;stroke-width:4.87131;paint-order:markers fill stroke"
+       id="path832"
+       cx="16.933334"
+       cy="16.933334"
+       r="16.933334"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <circle
+       r="16.933334"
+       cy="16.933334"
+       cx="50.800003"
+       id="path832-6"
+       style="fill:#ffffff;stroke-width:4.87132;paint-order:markers fill stroke"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <circle
+       r="16.933334"
+       cy="50.800003"
+       cx="16.933334"
+       id="path832-4"
+       style="fill:#ffffff;stroke-width:4.87132;paint-order:markers fill stroke"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <circle
+       style="fill:#ffffff;stroke-width:4.87132;paint-order:markers fill stroke"
+       id="path832-4-8"
+       cx="50.800003"
+       cy="50.800003"
+       r="16.933334"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <text
+       xml:space="preserve"
+       id="text885"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.5833px;line-height:1.25;font-family:Fipps;-inkscape-font-specification:Fipps;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect887);fill:#000000;fill-opacity:1;stroke:none;"
+       transform="matrix(2.4787441,0,0,2.4787441,-8.6614472,-12.503208)"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"><tspan
+         x="7.3496094"
+         y="15.413813"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Segoe UI';-inkscape-font-specification:'Segoe UI'">X</tspan></tspan></text>
+    <text
+       transform="matrix(2.4787441,0,0,2.4787441,25.119526,-12.719244)"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.5833px;line-height:1.25;font-family:Fipps;-inkscape-font-specification:Fipps;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect887-8);fill:#000000;fill-opacity:1;stroke:none;"
+       id="text885-1"
+       xml:space="preserve"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"><tspan
+         x="7.3496094"
+         y="15.413813"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Segoe UI';-inkscape-font-specification:'Segoe UI'">Y</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       id="text885-1-6"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.5833px;line-height:1.25;font-family:Fipps;-inkscape-font-specification:Fipps;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect887-8-8);fill:#000000;fill-opacity:1;stroke:none;"
+       transform="matrix(2.4787441,0,0,2.4787441,-7.8664608,20.689448)"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"><tspan
+         x="7.3496094"
+         y="15.413813"><tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Segoe UI';-inkscape-font-specification:'Segoe UI'">Z</tspan></tspan></text>
+  </g>
+</svg>
