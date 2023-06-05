@@ -19,6 +19,7 @@
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
 #include "core/Profiling.h"
+#include "utils/FontAwesome.h"
 
 #include <imgui.h>
 
@@ -279,31 +280,22 @@ namespace MathAnim
 				ImGui::PopFont();
 			}
 
-			// Composite camera orientation texture in top right corner of the window
+			// Draw translate/scale/rotate mode dropdown at the top-right corner of the viewport
+			static bool showCameraOrientationGizmo = true;
 			{
-				const Texture& cameraOrientationTexture = GizmoManager::getCameraOrientationTexture();
+				const char* chooseGizmoModePopupId = "CHOOSE_GIZMO_MODE_POPUP";
+
+				ImDrawList* drawList = ImGui::GetCurrentWindow()->DrawList;
+
+				constexpr ImVec2 comboSize = ImVec2(80.f, 40.f);
+				constexpr ImVec2 comboHalfSize = ImVec2(40.f, 40.f);
+				constexpr float comboHzPadding = 15.f;
+				constexpr float comboVtPadding = 15.f;
+
 				ImVec2 topLeft = editorViewportRelativeOffset;
-				topLeft.x += viewportSize.x - cameraOrientationTexture.width;
+				topLeft.x += viewportSize.x - comboSize.x - comboHzPadding;
+				topLeft.y += comboVtPadding;
 				ImGui::SetCursorPos(topLeft);
-				ImTextureID cameraOrientationTextureId = (void*)(uintptr_t)cameraOrientationTexture.graphicsId;
-				ImGui::Image(
-					cameraOrientationTextureId, 
-					ImVec2((float)cameraOrientationTexture.width, (float)cameraOrientationTexture.height),
-					ImVec2(0, 0), 
-					ImVec2(1, 1)
-				);
-
-				// Set cursor for next drawing thing
-				ImGui::SetCursorPos(topLeft);
-			}
-
-			// Draw translate/scale/rotate mode dropdown
-			{
-				constexpr float comboWidth = 40.f;
-				constexpr float gizmoSelectVtPadding = 15.f;
-
-				ImGui::SetCursorPosX(ImGui::GetCursorPosX() - comboWidth);
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + gizmoSelectVtPadding);
 
 				constexpr ImVec2 gizmoPreviewSize = ImVec2(30, 38);
 				constexpr ImVec2 translationUvMin = ImVec2(0, 0);
@@ -315,52 +307,126 @@ namespace MathAnim
 				constexpr ImVec2 scaleUvMin = ImVec2(0.0f, 0.5f);
 				constexpr ImVec2 scaleUvMax = ImVec2(0.3984f, 1.0f);
 
-				GizmoType gizmoType = GizmoManager::getVisualMode();
-				// Preview is set to empty texture which is also the none default
-				ImVec2 previewUvMin = ImVec2(0.5f, 0.5f);
-				ImVec2 previewUvMax = ImVec2(1.0f, 1.0f);
-				switch (gizmoType)
-				{
-				case GizmoType::Translation:
-					previewUvMin = translationUvMin;
-					previewUvMax = translationUvMax;
-					break;
-				case GizmoType::Rotation:
-					previewUvMin = rotationUvMin;
-					previewUvMax = rotationUvMax;
-					break;
-				case GizmoType::Scaling:
-					previewUvMin = scaleUvMin;
-					previewUvMax = scaleUvMax;
-					break;
-				default:
-					break;
-				}
+				ImVec2 previewUvMin = ImVec2(0.0f / (float)gizmoPreviewTexture.width, 0.0f / (float)gizmoPreviewTexture.width);
+				ImVec2 previewUvMax = ImVec2(77.0f / (float)gizmoPreviewTexture.width, 77.0f / (float)gizmoPreviewTexture.width);
 
-				if (ImGuiExtended::BeginImageCombo("GlobalGizmoModeEditorViewport", gizmoPreviewTexture, gizmoPreviewSize, previewUvMin, previewUvMax))
+				GizmoType gizmoType = GizmoManager::getVisualMode();
+
+				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+
+				if (ImGui::InvisibleButton(
+					"GizmoPreviewButton", 
+					comboHalfSize
+				))
 				{
-					if (ImGui::Selectable("None"))
+					if (gizmoType == GizmoType::None)
+					{
+						GizmoManager::changeVisualMode(GizmoType::Translation);
+					}
+					else
 					{
 						GizmoManager::changeVisualMode(GizmoType::None);
 					}
+				}
 
-					if (ImGuiExtended::SelectableImage("Translate", gizmoPreviewTexture, gizmoPreviewSize, translationUvMin, translationUvMax))
+				// Draw the actual button
+				ImVec2 windowPos = ImGui::GetCurrentWindow()->Pos;
+				bool enableButtonHovered = ImGui::IsItemHovered();
+				ImVec4 bgColor = gizmoType != GizmoType::None
+					? enableButtonHovered ? Colors::Primary[1] : Colors::Primary[2]
+					: enableButtonHovered ? Colors::Neutral[4] : Colors::Neutral[5];
+				constexpr float rounding = 4.f;
+				drawList->AddRectFilled(
+					topLeft + windowPos,
+					topLeft + comboHalfSize + windowPos,
+					ImColor(bgColor),
+					rounding
+				);
+				drawList->AddImage(
+					(void*)(uintptr_t)gizmoPreviewTexture.graphicsId,
+					topLeft + windowPos + ImVec2(rounding, rounding),
+					topLeft + comboHalfSize + windowPos - ImVec2(rounding, rounding),
+					previewUvMin,
+					previewUvMax
+				);
+
+				ImGui::SetCursorPos(topLeft + ImVec2(comboHalfSize.x, 0.0f));
+				std::string chevronLabel = ICON_FA_CHEVRON_DOWN + std::string("##GizmoPreviewDropdown");
+				if (ImGui::InvisibleButton(
+					chevronLabel.c_str(),
+					comboHalfSize
+				))
+				{
+					ImGui::OpenPopup(chooseGizmoModePopupId);
+				}
+
+				ImColor dropdownArrowBgColor = ImGui::IsItemHovered()
+					? Colors::Neutral[5]
+					: Colors::Neutral[7];
+				drawList->AddRectFilled(
+					topLeft + ImVec2(comboHalfSize.x, 0.f) + windowPos,
+					topLeft + comboSize + windowPos,
+					ImColor(dropdownArrowBgColor),
+					rounding
+				);
+
+				ImColor chevronColor = Colors::Neutral[2];
+				ImVec2 chevronSize = ImGui::CalcTextSize(ICON_FA_ANGLE_DOWN);
+				// Center the chevron on the button
+				ImVec2 chevronPos = topLeft + ImVec2(comboHalfSize.x, 0.f) + windowPos +
+					(comboHalfSize / 2.0f) - (chevronSize / 2.0f);
+				drawList->AddText(chevronPos, chevronColor, ICON_FA_ANGLE_DOWN);
+
+				ImGui::PopStyleVar();
+
+				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20, 10));
+				if (ImGui::BeginPopupContextItem(chooseGizmoModePopupId))
+				{
+					ImGui::TextColored(ImColor(Colors::Neutral[3]), "Object Gizmos");
+
+					if (ImGui::Selectable("Translate"))
 					{
 						GizmoManager::changeVisualMode(GizmoType::Translation);
 					}
 
-					if (ImGuiExtended::SelectableImage("Rotate", gizmoPreviewTexture, gizmoPreviewSize, rotationUvMin, rotationUvMax))
+					if (ImGui::Selectable("Rotate"))
 					{
 						GizmoManager::changeVisualMode(GizmoType::Rotation);
 					}
 
-					if (ImGuiExtended::SelectableImage("Scale", gizmoPreviewTexture, gizmoPreviewSize, scaleUvMin, scaleUvMax))
+					if (ImGui::Selectable("Scale"))
 					{
 						GizmoManager::changeVisualMode(GizmoType::Scaling);
 					}
 
-					ImGui::EndCombo();
+					ImGui::Checkbox("Show Camera Orientation", &showCameraOrientationGizmo);
+
+					ImGui::EndPopup();
 				}
+				ImGui::PopStyleVar();
+
+				// Set cursor for next drawing thing
+				ImVec2 bottomRight = topLeft + comboSize + ImVec2(0.f, comboVtPadding);
+				ImGui::SetCursorPos(bottomRight);
+			}
+
+			// Composite camera orientation texture in top right corner of the window
+			if (showCameraOrientationGizmo)
+			{
+				constexpr float cameraOrientationGizmoVtPadding = 15.f;
+
+				const Texture& cameraOrientationTexture = GizmoManager::getCameraOrientationTexture();
+
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() - cameraOrientationTexture.width);
+				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + cameraOrientationGizmoVtPadding);
+
+				ImTextureID cameraOrientationTextureId = (void*)(uintptr_t)cameraOrientationTexture.graphicsId;
+				ImGui::Image(
+					cameraOrientationTextureId, 
+					ImVec2((float)cameraOrientationTexture.width, (float)cameraOrientationTexture.height),
+					ImVec2(0, 0), 
+					ImVec2(1, 1)
+				);
 			}
 
 			ImGui::End();

@@ -320,7 +320,7 @@ namespace MathAnim
 			Vec3{ 0.f, 0.f, 0.f }
 		);
 
-		static constexpr int cameraOrientationFramebufferSize = 180;
+		static constexpr int cameraOrientationFramebufferSize = 150;
 		static Framebuffer cameraOrientationFramebuffer;
 		static Texture cameraOrientationGizmoTexture;
 
@@ -436,7 +436,7 @@ namespace MathAnim
 				dummyCamera.orthoZoomLevel = editorCamera.orthoZoomLevel;
 				dummyCamera.calculateMatrices(true);
 
-				dummyCamera.position = -6.0f * dummyCamera.forward;
+				dummyCamera.position = -5.0f * dummyCamera.forward;
 				dummyCamera.calculateMatrices(true);
 
 				Renderer::pushCamera3D(&dummyCamera);
