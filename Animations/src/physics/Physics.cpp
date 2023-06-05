@@ -223,18 +223,6 @@ namespace MathAnim
 			addTMinToRaycastResult(res, ray, (float)minT);
 			addTMaxToRaycastResult(res, ray, (float)maxT);
 
-			if (res.hitEntry())
-			{
-				g_logger_info("Hit entry: {}", res.entry);
-				g_logger_info("Hit entry distance: {}", res.hitEntryDistance);
-			}
-
-			if (res.hitExit())
-			{
-				g_logger_info("Hit exit: {}", res.exit);
-				g_logger_info("Hit exit distance: {}", res.hitExitDistance);
-			}
-
 			return res;
 		}
 
