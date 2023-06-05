@@ -399,7 +399,10 @@ namespace MathAnim
 						GizmoManager::changeVisualMode(GizmoType::Scaling);
 					}
 
-					ImGui::Checkbox("Show Camera Orientation", &showCameraOrientationGizmo);
+					if (ImGui::Selectable("Toggle Camera Orientation"))
+					{
+						showCameraOrientationGizmo = !showCameraOrientationGizmo;
+					}
 
 					ImGui::EndPopup();
 				}
