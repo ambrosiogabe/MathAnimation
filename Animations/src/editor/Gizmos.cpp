@@ -328,7 +328,7 @@ namespace MathAnim
 
 		// -------------- Internal Functions --------------
 		static bool handleLinearGizmoMouseEvents(GizmoState* gizmo, const Vec3& gizmoPosition, Vec3* delta, GizmoSubComponent start, GizmoSubComponent end);
-		static bool handleLinearGizmoKeyEvents(GizmoState* gizmo, const Vec3& gizmoPosition, Vec3* delta, int hotKeyStart);
+		static bool handleLinearGizmoKeyEvents(GizmoState* gizmo, const Vec3& gizmoPosition, Vec3* delta, int hotKeyStart, GizmoType moveType);
 		static void resetGlobalContext();
 
 		static GizmoState* getGizmoByName(const char* name, GizmoType type);
@@ -475,7 +475,7 @@ namespace MathAnim
 					Vec2{ 0.5f, 0.0f }, Vec2{ 1.0f, 0.5f }
 				);
 				Renderer::popColor();
-				
+
 				Renderer::pushColor(orientationIsYPositive ? Colors::Primary[7] : Colors::Primary[4]);
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
@@ -599,7 +599,7 @@ namespace MathAnim
 			gizmo->position = *position;
 
 			Vec3 delta = Vec3{ 0.f, 0.f, 0.f };
-			if (handleLinearGizmoKeyEvents(gizmo, *position, &delta, GLFW_KEY_G))
+			if (handleLinearGizmoKeyEvents(gizmo, *position, &delta, GLFW_KEY_G, GizmoType::Translation))
 			{
 				*position = gizmo->positionMoveStart + delta;
 				return true;
@@ -633,13 +633,12 @@ namespace MathAnim
 			gizmo->rotation = *rotation;
 
 			Vec3 delta = Vec3{ 0.f, 0.f, 0.f };
-			//if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_R))
-			//{
-			//	// TODO: Implement me please...
-			//	*rotation = gizmo->rotateStart + delta;
-			//	*rotation = CMath::normalizeAxisAngles(*rotation);
-			//	return true;
-			//}
+			if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_R, GizmoType::Rotation))
+			{
+				*rotation = gizmo->rotateStart + delta;
+				*rotation = CMath::normalizeAxisAngles(*rotation);
+				return true;
+			}
 
 			// Only handle mouse events if the app is in rotation mode
 			if (gGizmoManager->visualMode == GizmoType::Rotation)
@@ -669,7 +668,7 @@ namespace MathAnim
 			gizmo->position = gizmoPosition;
 
 			Vec3 delta = Vec3{ 0.f, 0.f, 0.f };
-			if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_S))
+			if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_S, GizmoType::Scaling))
 			{
 				// Invert the z-delta, it's weird for some reason
 				delta.z *= -1.0f;
@@ -915,19 +914,21 @@ namespace MathAnim
 			return modified;
 		}
 
-		static bool handleLinearGizmoKeyEvents(GizmoState* gizmo, const Vec3& gizmoPosition, Vec3* delta, int hotKeyStart)
+		static bool handleLinearGizmoKeyEvents(GizmoState* gizmo, const Vec3& gizmoPosition, Vec3* delta, int hotKeyStart, GizmoType moveType)
 		{
 			GlobalContext* g = gGizmoManager;
 
 			const Camera* camera = Application::getEditorCamera();
 			if (Input::keyPressed(hotKeyStart))
 			{
-				// Use camera focal distance to move object
-				Vec3 worldPosFocalDistance = getMouseWorldPos3f(camera->focalDistance);
+				// Use distance to gizmo as the focal distance to land somewhere almost on the same plane as the gizmo
+				Vec3 worldPosFocalDistance = getMouseWorldPos3f(CMath::length(gizmoPosition - camera->position));
 				switch (gizmo->moveMode)
 				{
 				case FollowMouseConstraint::None:
 					gizmo->positionMoveStart = gizmoPosition;
+					gizmo->rotateDragStart = worldPosFocalDistance;
+					gizmo->rotateStart = gizmo->rotation;
 					gizmo->mouseDelta = gizmo->positionMoveStart - worldPosFocalDistance;
 					gizmo->moveMode = FollowMouseConstraint::FreeMove;
 					break;
@@ -1069,37 +1070,80 @@ namespace MathAnim
 			{
 				gizmo->shouldDraw = true;
 
-				Vec3 unprojectedMousePos = getMouseWorldPos3f(camera->focalDistance);
-				switch (gizmo->moveMode)
+				Vec3 unprojectedMousePos = getMouseWorldPos3f(CMath::length(gizmoPosition - camera->position));
+				if (moveType != GizmoType::Rotation)
 				{
-				case FollowMouseConstraint::YOnly:
-					delta->y = (unprojectedMousePos.y + gizmo->mouseDelta.y) - gizmo->positionMoveStart.y;
-					break;
-				case FollowMouseConstraint::XOnly:
-					delta->x = (unprojectedMousePos.x + gizmo->mouseDelta.x) - gizmo->positionMoveStart.x;
-					break;
-				case FollowMouseConstraint::ZOnly:
-					delta->z = (unprojectedMousePos.z + gizmo->mouseDelta.z) - gizmo->positionMoveStart.z;
-					break;
-				case FollowMouseConstraint::FreeMove:
-					delta->x = (unprojectedMousePos.x + gizmo->mouseDelta.x) - gizmo->positionMoveStart.x;
-					delta->y = (unprojectedMousePos.y + gizmo->mouseDelta.y) - gizmo->positionMoveStart.y;
-					delta->z = (unprojectedMousePos.z + gizmo->mouseDelta.z) - gizmo->positionMoveStart.z;
-					break;
-				case FollowMouseConstraint::YZOnly:
-					delta->y = (unprojectedMousePos.y + gizmo->mouseDelta.y) - gizmo->positionMoveStart.y;
-					delta->z = (unprojectedMousePos.z + gizmo->mouseDelta.z) - gizmo->positionMoveStart.z;
-					break;
-				case FollowMouseConstraint::XYOnly:
-					delta->x = (unprojectedMousePos.x + gizmo->mouseDelta.x) - gizmo->positionMoveStart.x;
-					delta->y = (unprojectedMousePos.y + gizmo->mouseDelta.y) - gizmo->positionMoveStart.y;
-					break;
-				case FollowMouseConstraint::XZOnly:
-					delta->x = (unprojectedMousePos.x + gizmo->mouseDelta.x) - gizmo->positionMoveStart.x;
-					delta->z = (unprojectedMousePos.z + gizmo->mouseDelta.z) - gizmo->positionMoveStart.z;
-					break;
-				case FollowMouseConstraint::None:
-					break;
+					switch (gizmo->moveMode)
+					{
+					case FollowMouseConstraint::YOnly:
+						delta->y = (unprojectedMousePos.y + gizmo->mouseDelta.y) - gizmo->positionMoveStart.y;
+						break;
+					case FollowMouseConstraint::XOnly:
+						delta->x = (unprojectedMousePos.x + gizmo->mouseDelta.x) - gizmo->positionMoveStart.x;
+						break;
+					case FollowMouseConstraint::ZOnly:
+						delta->z = (unprojectedMousePos.z + gizmo->mouseDelta.z) - gizmo->positionMoveStart.z;
+						break;
+					case FollowMouseConstraint::FreeMove:
+						delta->x = (unprojectedMousePos.x + gizmo->mouseDelta.x) - gizmo->positionMoveStart.x;
+						delta->y = (unprojectedMousePos.y + gizmo->mouseDelta.y) - gizmo->positionMoveStart.y;
+						delta->z = (unprojectedMousePos.z + gizmo->mouseDelta.z) - gizmo->positionMoveStart.z;
+						break;
+					case FollowMouseConstraint::YZOnly:
+						delta->y = (unprojectedMousePos.y + gizmo->mouseDelta.y) - gizmo->positionMoveStart.y;
+						delta->z = (unprojectedMousePos.z + gizmo->mouseDelta.z) - gizmo->positionMoveStart.z;
+						break;
+					case FollowMouseConstraint::XYOnly:
+						delta->x = (unprojectedMousePos.x + gizmo->mouseDelta.x) - gizmo->positionMoveStart.x;
+						delta->y = (unprojectedMousePos.y + gizmo->mouseDelta.y) - gizmo->positionMoveStart.y;
+						break;
+					case FollowMouseConstraint::XZOnly:
+						delta->x = (unprojectedMousePos.x + gizmo->mouseDelta.x) - gizmo->positionMoveStart.x;
+						delta->z = (unprojectedMousePos.z + gizmo->mouseDelta.z) - gizmo->positionMoveStart.z;
+						break;
+					case FollowMouseConstraint::None:
+						break;
+					}
+				}
+				else
+				{
+					switch (gizmo->moveMode)
+					{
+					case FollowMouseConstraint::YOnly:
+					{
+						Vec3 ogGizmoCenterToMouse = Vec3{ gizmo->rotateDragStart.x - gizmoPosition.x, 0.0f, gizmo->rotateDragStart.z - gizmoPosition.z };
+						Vec3 deltaGizmoCenterToMouse = Vec3{ unprojectedMousePos.x - gizmoPosition.x, 0.0f, unprojectedMousePos.z - gizmoPosition.z };
+						float newAngle = CMath::angleBetween(ogGizmoCenterToMouse, deltaGizmoCenterToMouse, Vector3::Up);
+						delta->y = gizmoPosition.y - glm::degrees(newAngle);
+					}
+						break;
+					case FollowMouseConstraint::XOnly:
+					{
+						Vec3 ogGizmoCenterToMouse = Vec3{ 0.0f, gizmo->rotateDragStart.y - gizmoPosition.y, gizmo->rotateDragStart.z - gizmoPosition.z };
+						Vec3 deltaGizmoCenterToMouse = Vec3{ 0.0f, unprojectedMousePos.y - gizmoPosition.y, unprojectedMousePos.z - gizmoPosition.z };
+						float newAngle = CMath::angleBetween(ogGizmoCenterToMouse, deltaGizmoCenterToMouse, Vector3::Right);
+						delta->x = gizmoPosition.x - glm::degrees(newAngle);
+					}
+						break;
+					case FollowMouseConstraint::ZOnly:
+					{
+						// TODO: Clean this up, it's duplicated logic from above where we do the same
+						//       thing to handle mouse drag gizmo rotations. 
+						//       Same for the XOnly and YOnly cases above.
+						Vec3 ogGizmoCenterToMouse = Vec3{ gizmo->rotateDragStart.x - gizmoPosition.x, gizmo->rotateDragStart.y - gizmoPosition.y, 0.0f };
+						Vec3 deltaGizmoCenterToMouse = Vec3{ unprojectedMousePos.x - gizmoPosition.x, unprojectedMousePos.y - gizmoPosition.y, 0.0f };
+						float newAngle = CMath::angleBetween(ogGizmoCenterToMouse, deltaGizmoCenterToMouse, Vector3::Forward);
+						delta->z = gizmo->rotateStart.z - glm::degrees(newAngle);
+					}
+						break;
+					// TODO: Implement these
+					case FollowMouseConstraint::FreeMove:
+					case FollowMouseConstraint::YZOnly:
+					case FollowMouseConstraint::XYOnly:
+					case FollowMouseConstraint::XZOnly:
+					case FollowMouseConstraint::None:
+						break;
+					}
 				}
 
 				g->activeGizmo = gizmo->idHash;
