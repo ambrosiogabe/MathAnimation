@@ -777,7 +777,11 @@ namespace MathAnim
 			glm::quat yRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
 			glm::quat zRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-			glm::mat4 rotation = glm::toMat4(xRotation * yRotation * zRotation);
+			glm::quat finalRotation = xRotation;
+			finalRotation = yRotation * finalRotation;
+			finalRotation = zRotation * finalRotation;
+
+			glm::mat4 rotation = glm::toMat4(finalRotation);
 			glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), CMath::convert(scale));
 			glm::mat4 translation = glm::translate(glm::mat4(1.0f), CMath::convert(position));
 
