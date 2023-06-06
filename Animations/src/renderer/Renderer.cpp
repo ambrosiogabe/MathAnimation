@@ -515,8 +515,7 @@ namespace MathAnim
 
 		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am, const char* debugName)
 		{
-			const AnimObject* camera2DObj = AnimationManager::getActiveCamera2D(am);
-			if (!camera2DObj)
+			if (!AnimationManager::hasActive2DCamera(am))
 			{
 				// Don't render anything if no camera is active
 				// TODO: Maybe render a texture in the future that says something like "No Active Camera in Scene"
@@ -524,7 +523,8 @@ namespace MathAnim
 				return;
 			}
 
-			Renderer::clearColor(camera2DObj->as.camera.fillColor);
+			const Camera& camera2D = AnimationManager::getActiveCamera2D(am);
+			Renderer::clearColor(camera2D.fillColor);
 			renderToFramebuffer(framebuffer, debugName);
 		}
 
@@ -777,6 +777,8 @@ namespace MathAnim
 		void pushCamera2D(const Camera* camera)
 		{
 			g_logger_assert(camera2DStackPtr < MAX_STACK_SIZE, "Ran out of room on the camera2D stack.");
+			g_logger_assert(camera != nullptr, "Cannot push nullptr camera2D to stack.");
+			// TODO: Come up with better solution, copying here is probably going to cause a perf hit
 			camera2DStack[camera2DStackPtr] = camera;
 			camera2DStackPtr++;
 		}
@@ -784,6 +786,8 @@ namespace MathAnim
 		void pushCamera3D(const Camera* camera)
 		{
 			g_logger_assert(camera3DStackPtr < MAX_STACK_SIZE, "Ran out of room on the camera3D stack.");
+			g_logger_assert(camera != nullptr, "Cannot push nullptr camera3D to stack.");
+			// TODO: Come up with better solution, copying here is probably going to cause a perf hit
 			camera3DStack[camera3DStackPtr] = camera;
 			camera3DStackPtr++;
 		}
@@ -1978,6 +1982,7 @@ namespace MathAnim
 					path->rawCurves.emplace_back(rawCurve);
 				}
 
+				path->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
 				path->data.emplace_back(vert);
 			}
 		}
@@ -1998,13 +2003,12 @@ namespace MathAnim
 
 					path->approximateLength += rawCurve.calculateApproximatePerimeter();
 					path->rawCurves.emplace_back(rawCurve);
-
-					glm::vec4 color = colorStackPtr > 0
-						? colorStack[colorStackPtr - 1]
-						: defaultColor;
-					path->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
 				}
 
+				glm::vec4 color = colorStackPtr > 0
+					? colorStack[colorStackPtr - 1]
+					: defaultColor;
+				path->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
 				path->data.emplace_back(vert);
 			}
 		}

@@ -325,7 +325,7 @@ namespace MathAnim
 				{
 					if (ImGui::MenuItem("2D Camera"))
 					{
-						if (AnimationManager::getActiveCamera2D(am))
+						if (AnimationManager::hasActive2DCamera(am))
 						{
 							g_logger_error("Already an active 2D camera in the scene, cannot add another.");
 						}
@@ -341,7 +341,7 @@ namespace MathAnim
 
 					if (ImGui::MenuItem("3D Camera"))
 					{
-						if (AnimationManager::getActiveCamera3D(am))
+						if (AnimationManager::hasActive3DCamera(am))
 						{
 							g_logger_error("Already an active 3D camera in the scene, cannot add another.");
 						}

@@ -203,16 +203,25 @@ namespace MathAnim
 				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
 				{
 					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
-					Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am)->as.camera);
-					Renderer::pushCamera3D(&AnimationManager::getActiveCamera3D(am)->as.camera);
-					AnimationManager::render(am, deltaFrame);
-					Renderer::popCamera2D();
-					Renderer::popCamera3D();
+					if (//AnimationManager::hasActive2DCamera(am) && 
+						AnimationManager::hasActive3DCamera(am))
+					{
+						// TODO: Either come up with multi-camera scenes or get rid of the idea of 2D cameras altogether
+						Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am));
+						Renderer::pushCamera3D(&AnimationManager::getActiveCamera3D(am));
+						AnimationManager::render(am, deltaFrame);
+						Renderer::popCamera2D();
+						Renderer::popCamera3D();
 
-					Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
-					Renderer::renderToFramebuffer(mainFramebuffer, am, "OutputVP_Main_Framebuffer_Pass");
+						Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
+						Renderer::renderToFramebuffer(mainFramebuffer, am, "OutputVP_Main_Framebuffer_Pass");
 
-					Renderer::clearDrawCalls();
+						Renderer::clearDrawCalls();
+					}
+					else
+					{
+						// TODO: Display some sort of graphic on screen to let user know they don't have active camera
+					}
 				}
 
 				// Render editor viewport and active objects with outlines around them
@@ -300,15 +309,23 @@ namespace MathAnim
 
 			// If the window is closing, save the last rendered frame to a preview image
 			// TODO: Do this a better way
-			// Like no hard coded image path here and hard coded number of components
-			Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am)->as.camera);
-			Renderer::pushCamera3D(&AnimationManager::getActiveCamera3D(am)->as.camera);
-			AnimationManager::render(am, 0);
-			Renderer::popCamera2D();
-			Renderer::popCamera3D();
+			//       Like no hard coded image path here and hard coded number of components
+			if (//AnimationManager::hasActive2DCamera(am) && 
+				AnimationManager::hasActive3DCamera(am))
+			{
+				Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am));
+				Renderer::pushCamera3D(&AnimationManager::getActiveCamera3D(am));
+				AnimationManager::render(am, 0);
+				Renderer::popCamera2D();
+				Renderer::popCamera3D();
 
-			Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
-			Renderer::renderToFramebuffer(mainFramebuffer, am, "AppClosing_Screenshot");
+				Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
+				Renderer::renderToFramebuffer(mainFramebuffer, am, "AppClosing_Screenshot");
+			}
+			else
+			{
+				// TODO: Add graphic warning no active camera here or something
+			}
 
 			Pixel* pixels = mainFramebuffer.readAllPixelsRgb8(0);
 			std::filesystem::path outputFile = (currentProjectRoot / "projectPreview.png");

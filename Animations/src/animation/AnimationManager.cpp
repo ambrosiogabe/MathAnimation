@@ -348,14 +348,28 @@ namespace MathAnim
 			return am->currentFrame >= AnimationManager::lastAnimatedFrame(am);
 		}
 
-		const AnimObject* getActiveCamera2D(const AnimationManagerData* am)
+		const Camera& getActiveCamera2D(const AnimationManagerData* am)
 		{
-			return getObject(am, am->activeCamera);
+			g_logger_assert(hasActive2DCamera(am), "No Camera2D set on the scene, cannot retrieve it.");
+			const AnimObject* obj = getObject(am, am->activeCamera);
+			return obj->as.camera;
 		}
 
-		const AnimObject* getActiveCamera3D(const AnimationManagerData* am)
+		const Camera& getActiveCamera3D(const AnimationManagerData* am)
 		{
-			return getObject(am, am->activeCamera3D);
+			g_logger_assert(hasActive3DCamera(am), "No Camera3D set on the scene, cannot retrieve it.");
+			const AnimObject* obj = getObject(am, am->activeCamera3D);
+			return obj->as.camera;
+		}
+
+		bool hasActive2DCamera(const AnimationManagerData* am)
+		{
+			return am->activeCamera != NULL_ANIM_OBJECT;
+		}
+
+		bool hasActive3DCamera(const AnimationManagerData* am)
+		{
+			return am->activeCamera3D != NULL_ANIM_OBJECT;
 		}
 
 		void setActiveCamera2D(AnimationManagerData* am, AnimObjId cameraObj)
@@ -567,14 +581,21 @@ namespace MathAnim
 				g_logger_error("AnimationManager tried to deserialize save file with unknown version '{}.{}'.", versionMajor, versionMinor);
 			}
 
-			am->activeCamera = readIdFromJson(j, "StartingActiveCamera");
+			// TODO: Deprecate 2D cameras. All cameras will be 3D from here on out.
+			am->activeCamera3D = readIdFromJson(j, "StartingActiveCamera");
+			am->activeCamera = am->activeCamera3D;
 			// NOTE: This is for legacy projects. It would be better to bump the serialized file version
 			//       but that's too much work. And this hack works fine.
-			if (isNull(am->activeCamera))
+			if (isNull(am->activeCamera3D))
 			{
-				am->activeCamera = readIdFromJson(j, "ActiveCamera");
+				am->activeCamera3D = readIdFromJson(j, "ActiveCamera");
+				am->activeCamera = am->activeCamera3D;
 			}
-			am->activeCamera3D = readIdFromJson(j, "ActiveCamera3D");
+			if (isNull(am->activeCamera3D))
+			{
+				am->activeCamera3D = readIdFromJson(j, "ActiveCamera3D");
+				am->activeCamera = am->activeCamera3D;
+			}
 
 			// Read each animation followed by 0xDEADBEEF
 			for (size_t i = 0; i < j["Animations"].size(); i++)

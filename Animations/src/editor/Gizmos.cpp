@@ -404,10 +404,9 @@ namespace MathAnim
 
 			// Draw animation manager camera frustum/billboards
 			{
-				const AnimObject* orthoCameraObj = AnimationManager::getActiveCamera2D(am);
-				if (orthoCameraObj)
+				if (AnimationManager::hasActive2DCamera(am))
 				{
-					const Camera& orthoCamera = orthoCameraObj->as.camera;
+					const Camera& orthoCamera = AnimationManager::getActiveCamera2D(am);
 
 					Renderer::pushStrokeWidth(0.05f);
 					Renderer::pushColor(Colors::Neutral[0]);
@@ -1116,7 +1115,7 @@ namespace MathAnim
 						float newAngle = CMath::angleBetween(ogGizmoCenterToMouse, deltaGizmoCenterToMouse, Vector3::Up);
 						delta->y = gizmoPosition.y - glm::degrees(newAngle);
 					}
-						break;
+					break;
 					case FollowMouseConstraint::XOnly:
 					{
 						Vec3 ogGizmoCenterToMouse = Vec3{ 0.0f, gizmo->rotateDragStart.y - gizmoPosition.y, gizmo->rotateDragStart.z - gizmoPosition.z };
@@ -1124,7 +1123,7 @@ namespace MathAnim
 						float newAngle = CMath::angleBetween(ogGizmoCenterToMouse, deltaGizmoCenterToMouse, Vector3::Right);
 						delta->x = gizmoPosition.x - glm::degrees(newAngle);
 					}
-						break;
+					break;
 					case FollowMouseConstraint::ZOnly:
 					{
 						// TODO: Clean this up, it's duplicated logic from above where we do the same
@@ -1135,7 +1134,7 @@ namespace MathAnim
 						float newAngle = CMath::angleBetween(ogGizmoCenterToMouse, deltaGizmoCenterToMouse, Vector3::Forward);
 						delta->z = gizmo->rotateStart.z - glm::degrees(newAngle);
 					}
-						break;
+					break;
 					// TODO: Implement these
 					case FollowMouseConstraint::FreeMove:
 					case FollowMouseConstraint::YZOnly:

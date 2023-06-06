@@ -10,6 +10,7 @@ namespace MathAnim
 	struct AnimObject;
 	struct Animation;
 	struct Framebuffer;
+	struct Camera;
 
 	struct AnimationManagerData;
 
@@ -38,8 +39,10 @@ namespace MathAnim
 		int lastAnimatedFrame(const AnimationManagerData* am);
 		bool isPastLastFrame(const AnimationManagerData* am);
 
-		const AnimObject* getActiveCamera2D(const AnimationManagerData* am);
-		const AnimObject* getActiveCamera3D(const AnimationManagerData* am);
+		const Camera& getActiveCamera2D(const AnimationManagerData* am);
+		const Camera& getActiveCamera3D(const AnimationManagerData* am);
+		bool hasActive2DCamera(const AnimationManagerData* am);
+		bool hasActive3DCamera(const AnimationManagerData* am);
 		void setActiveCamera2D(AnimationManagerData* am, AnimObjId cameraObj);
 		void setActiveCamera3D(AnimationManagerData* am, AnimObjId cameraObj);
 		void calculateCameraMatrices(AnimationManagerData* am);
