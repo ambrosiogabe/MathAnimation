@@ -1954,10 +1954,6 @@ namespace MathAnim
 
 			// Don't add the vertex if it's going to itself
 			Vec2 deltaToCursor = path->data[path->data.size() - 1].position - vert.position;
-			//if (vert.position.x == 0.188720495f)
-			//{
-			//	g_logger_info("HERE");
-			//}
 			if (!CMath::compare(deltaToCursor, Vec2{ 0.0f, 0.0f }, 0.00001f))
 			{
 				if (addRawCurve)
@@ -1985,10 +1981,6 @@ namespace MathAnim
 
 			// Don't add the vertex if it's going to itself
 			Vec2 deltaToCursor = path->data[path->data.size() - 1].position - vert.position;
-			//if (vert.position.x == 0.188720495f)
-			//{
-			//	g_logger_info("HERE");
-			//}
 			if (!CMath::compare(deltaToCursor, Vec2{ 0.0f, 0.0f }, 0.00001f))
 			{
 				if (addRawCurve)
