@@ -921,7 +921,7 @@ namespace MathAnim
 			GlobalContext* g = gGizmoManager;
 
 			const Camera* camera = Application::getEditorCamera();
-			if (!EditorGui::anyEditorItemActive() && Input::keyPressed(hotKeyStart))
+			if (EditorGui::mouseHoveredEditorViewport() && !EditorGui::anyEditorItemActive() && Input::keyPressed(hotKeyStart))
 			{
 				// Use distance to gizmo as the focal distance to land somewhere almost on the same plane as the gizmo
 				Vec3 worldPosFocalDistance = getMouseWorldPos3f(CMath::length(gizmoPosition - camera->position));
