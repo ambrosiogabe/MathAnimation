@@ -591,6 +591,11 @@ namespace MathAnim
 			return hashRes;
 		}
 
+		bool setCursorPos(const Window&, const Vec2i& cursorPos)
+		{
+			return (bool)SetCursorPos(cursorPos.x, cursorPos.y);
+		}
+
 		// --------------- Internal Functions ---------------
 		static void wideToChar(const WCHAR* wide, char* buffer, size_t bufferLength)
 		{

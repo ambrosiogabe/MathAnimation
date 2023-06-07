@@ -14,8 +14,10 @@ namespace MathAnim
 
 		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am, float deltaTime);
 		void onGizmo(AnimationManagerData* am);
+		Vec2 toNormalizedViewportCoords(const Vec2& screenCoords);
 		Vec2 mouseToNormalizedViewport();
 		Vec2 mouseToViewportCoords();
+		Vec2 toViewportCoords(const Vec2& screenCoords);
 
 		void free(AnimationManagerData* am);
 
@@ -28,6 +30,8 @@ namespace MathAnim
 		bool editorViewportActive();
 		bool mouseHoveredEditorViewport();
 		bool anyEditorItemActive();
+
+		BBox getViewportBounds();
 	}
 }
 

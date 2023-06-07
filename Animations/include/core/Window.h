@@ -35,6 +35,8 @@ namespace MathAnim
 		void update(float dt);
         
 		void setCursorMode(CursorMode cursorMode);
+
+		bool setCursorPos(const Vec2i& screenCoordinates) const;
         
 		bool shouldClose();
         

@@ -8,6 +8,7 @@
 #include "core/Input.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
+#include "core/Window.h"
 #include "math/CMath.h"
 #include "physics/Physics.h"
 
@@ -101,6 +102,8 @@ namespace MathAnim
 		uint64 lastActiveGizmo; // Gizmo active last frame
 		GizmoSubComponent hotGizmoComponent; // SubComponent of the above IDs
 		Vec3 mouseWorldPos3f;
+		Vec2 mouseScreenCoords;
+		Vec2 mouseScreenDelta;
 		Ray mouseRay;
 		GizmoType visualMode; // This is the gizmo's that are visually shown to the user
 	};
@@ -374,6 +377,18 @@ namespace MathAnim
 			{
 				zDepth = CMath::length(getGizmoById(activeOrHoveredGizmo())->position - Application::getEditorCamera()->position);
 			}
+
+			if (activeOrHoveredGizmo() != NullGizmo)
+			{
+				// If a gizmo is active, then we need to keep a running tally of the deltas instead of using global screen coords.
+				// This is so that when the cursor wraps around it maintains a consistent delta.
+				g->mouseScreenCoords += Vec2{ g->mouseScreenDelta.x, -g->mouseScreenDelta.y };
+			}
+			else
+			{
+				g->mouseScreenCoords = Vec2{ Input::mouseX, Input::mouseY };
+			}
+			g->mouseScreenDelta = Vec2{ Input::deltaMouseX, Input::deltaMouseY };
 			g->mouseWorldPos3f = getMouseWorldPos3f(zDepth);
 			g->mouseRay = getMouseRay();
 
@@ -948,6 +963,38 @@ namespace MathAnim
 
 			if (gizmo->moveMode != FollowMouseConstraint::None)
 			{
+				{
+					// Check if the mouse cursor is moving off the editor viewport, if it is make sure it "wraps" around to the
+					// other side like blender so the mouse is always in the viewport
+					BBox viewportBounds = EditorGui::getViewportBounds();
+					Vec2 mouseCoords = Vec2{ Input::mouseX, Input::mouseY };
+					if (mouseCoords.x > viewportBounds.max.x)
+					{
+						g->mouseScreenDelta.x = (mouseCoords.x - viewportBounds.max.x);
+						mouseCoords.x = viewportBounds.min.x + g->mouseScreenDelta.x;
+					}
+					else if (mouseCoords.x < viewportBounds.min.x)
+					{
+						g->mouseScreenDelta.x = (mouseCoords.x - viewportBounds.min.x);
+						mouseCoords.x = viewportBounds.max.x + g->mouseScreenDelta.x;
+					}
+
+					// Y-s are flipped for viewport bounds
+					if (mouseCoords.y < viewportBounds.min.y)
+					{
+						g->mouseScreenDelta.y = (mouseCoords.y - viewportBounds.min.y);
+						mouseCoords.y = viewportBounds.max.y + g->mouseScreenDelta.y;
+					}
+					else if (mouseCoords.y > viewportBounds.max.y)
+					{
+						g->mouseScreenDelta.y = (mouseCoords.y - viewportBounds.max.y);
+						constexpr float cursorHeight = 50.f; // Just a stupid guess for toolbar height? Or cursor height? IDK
+						mouseCoords.y = viewportBounds.min.y + g->mouseScreenDelta.y + cursorHeight;
+					}
+
+					Application::getWindow().setCursorPos(Vec2i{ (int)mouseCoords.x, (int)mouseCoords.y });
+				}
+
 				// Translate arrow hot-keys
 				if (Input::keyPressed(GLFW_KEY_X))
 				{
@@ -1169,6 +1216,7 @@ namespace MathAnim
 			gGizmoManager->hoveredGizmo = NullGizmo;
 			gGizmoManager->activeGizmo = NullGizmo;
 			gGizmoManager->mouseWorldPos3f = Vec3{ 0.0f, 0.0f, 0.0f };
+			gGizmoManager->mouseScreenCoords = Vec2{ Input::mouseX, Input::mouseY };
 			gGizmoManager->mouseRay = Physics::createRay(Vec3{ 0, 0, 0 }, Vec3{ 1, 0, 0 });
 		}
 
@@ -1331,7 +1379,7 @@ namespace MathAnim
 
 		static Vec3 getMouseWorldPos3f(float zDepth)
 		{
-			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
+			Vec2 normalizedMousePos = EditorGui::toNormalizedViewportCoords(gGizmoManager->mouseScreenCoords);
 			Camera* camera = Application::getEditorCamera();
 			return camera->reverseProject(normalizedMousePos, zDepth);
 		}

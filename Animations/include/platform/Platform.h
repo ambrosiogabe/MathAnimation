@@ -5,6 +5,7 @@
 namespace MathAnim
 {
 	struct MemMapUserData;
+	struct Window;
 
 	struct MemMappedFile
 	{
@@ -48,6 +49,8 @@ namespace MathAnim
 		std::string md5FromString(const char* str, size_t length, int md5Length = 16);
 
 		std::string md5FromString(const std::string& str, int md5Length = 16);
+
+		bool setCursorPos(const Window& window, const Vec2i& cursorPos);
 	}
 }
 

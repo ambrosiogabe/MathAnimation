@@ -169,19 +169,27 @@ namespace MathAnim
 			}
 		}
 
+		Vec2 toNormalizedViewportCoords(const Vec2& screenCoords)
+		{
+			Vec2 viewportPos = toViewportCoords(screenCoords);
+			viewportPos.x = (viewportPos.x / viewportSize.x);
+			viewportPos.y = (viewportPos.y / viewportSize.y);
+			return viewportPos;
+		}
+
 		Vec2 mouseToNormalizedViewport()
 		{
-			Vec2 mousePos = mouseToViewportCoords();
-			mousePos.x = (mousePos.x / viewportSize.x);
-			mousePos.y = (mousePos.y / viewportSize.y);
-			return mousePos;
+			return toNormalizedViewportCoords(Vec2{ Input::mouseX, Input::mouseY });
 		}
 
 		Vec2 mouseToViewportCoords()
 		{
-			Vec2 mousePos = Vec2{ Input::mouseX, Input::mouseY };
-			mousePos -= viewportOffset;
-			return mousePos;
+			return toViewportCoords(Vec2{ Input::mouseX, Input::mouseY });
+		}
+
+		Vec2 toViewportCoords(const Vec2& screenCoords)
+		{
+			return screenCoords - Vec2{ viewportOffset.x, viewportOffset.y };
 		}
 
 		void free(AnimationManagerData* am)
@@ -233,6 +241,14 @@ namespace MathAnim
 		bool anyEditorItemActive()
 		{
 			return ImGui::IsAnyItemActive();
+		}
+
+		BBox getViewportBounds()
+		{
+			BBox res;
+			res.min = viewportOffset;
+			res.max = viewportOffset + viewportSize;
+			return res;
 		}
 
 		// ------------- Internal Functions -------------
@@ -320,7 +336,7 @@ namespace MathAnim
 				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
 
 				if (ImGui::InvisibleButton(
-					"GizmoPreviewButton", 
+					"GizmoPreviewButton",
 					comboHalfSize
 				))
 				{
@@ -430,9 +446,9 @@ namespace MathAnim
 
 				ImTextureID cameraOrientationTextureId = (void*)(uintptr_t)cameraOrientationTexture.graphicsId;
 				ImGui::Image(
-					cameraOrientationTextureId, 
+					cameraOrientationTextureId,
 					ImVec2((float)cameraOrientationTexture.width, (float)cameraOrientationTexture.height),
-					ImVec2(0, 0), 
+					ImVec2(0, 0),
 					ImVec2(1, 1)
 				);
 			}
