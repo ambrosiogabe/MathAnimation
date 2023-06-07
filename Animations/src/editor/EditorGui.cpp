@@ -230,6 +230,11 @@ namespace MathAnim
 			return mouseHoveringViewport;
 		}
 
+		bool anyEditorItemActive()
+		{
+			return ImGui::IsAnyItemActive();
+		}
+
 		// ------------- Internal Functions -------------
 		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime)
 		{
