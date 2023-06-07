@@ -28,10 +28,10 @@ namespace MathAnim
 		right = CMath::normalize(CMath::convert(orientation * GLOBAL_RIGHT));
 		up = CMath::normalize(CMath::convert(orientation * GLOBAL_UP));
 
-		fov = glm::clamp(fov, 1.0f, 270.0f);
+		fov = glm::clamp(fov, 1.0f, 360.0f);
 		if (mode == CameraMode::Perspective)
 		{
-			projectionMatrix = glm::perspective(fov, aspectRatio, nearFarRange.min, nearFarRange.max);
+			projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, nearFarRange.min, nearFarRange.max);
 		}
 		else
 		{

@@ -78,6 +78,7 @@ namespace MathAnim
 		uint64 idHash;
 		Vec3 position;
 		Vec3 rotation;
+		Vec3 scale;
 		Vec3 positionMoveStart;
 		Vec3 scaleStart;
 		Vec3 rotateStart;
@@ -433,6 +434,7 @@ namespace MathAnim
 				dummyCamera.orientation = editorCamera.orientation;
 				dummyCamera.focalDistance = editorCamera.focalDistance;
 				dummyCamera.orthoZoomLevel = editorCamera.orthoZoomLevel;
+				dummyCamera.fov = 360.0f - 23.0f;
 				dummyCamera.calculateMatrices(true);
 
 				dummyCamera.position = -5.0f * dummyCamera.forward;
@@ -665,6 +667,7 @@ namespace MathAnim
 				gizmo->scaleStart = *scale;
 			}
 			gizmo->position = gizmoPosition;
+			gizmo->scale = *scale;
 
 			Vec3 delta = Vec3{ 0.f, 0.f, 0.f };
 			if (handleLinearGizmoKeyEvents(gizmo, gizmoPosition, &delta, GLFW_KEY_S, GizmoType::Scaling))
@@ -928,6 +931,7 @@ namespace MathAnim
 					gizmo->positionMoveStart = gizmoPosition;
 					gizmo->rotateDragStart = worldPosFocalDistance;
 					gizmo->rotateStart = gizmo->rotation;
+					gizmo->scaleStart = gizmo->scale;
 					gizmo->mouseDelta = gizmo->positionMoveStart - worldPosFocalDistance;
 					gizmo->moveMode = FollowMouseConstraint::FreeMove;
 					break;

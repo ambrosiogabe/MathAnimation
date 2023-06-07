@@ -755,7 +755,14 @@ namespace MathAnim
 
 		static void handleCameraObjectInspector(AnimationManagerData*, AnimObject* object)
 		{
-			ImGui::DragFloat(": Field Of View", &object->as.camera.fov, 1.0f, 180.0f);
+			int currentMode = (int)object->as.camera.mode;
+			if (ImGui::Combo(": Projection", &currentMode, _cameraModeNames.data(), (int)CameraMode::Length))
+			{
+				g_logger_assert(currentMode >= 0 && currentMode < (int)CameraMode::Length, "How did this happen?");
+				object->as.camera.mode = (CameraMode)currentMode;
+			}
+
+			ImGui::DragFloat(": Field Of View", &object->as.camera.fov, 1.0f, 360.0f);
 			ImGui::DragFloat3(": Position", &object->as.camera.position.x);
 			ImGui::DragFloat3(": Orientation", &object->as.camera.orientation.x);
 			ImGui::DragInt2(": Aspect Ratio", &object->as.camera.aspectRatioFraction.x);
