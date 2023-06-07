@@ -108,7 +108,6 @@ namespace MathAnim
 
 	struct Path2DContext
 	{
-		std::vector<Vec4> colors;
 		std::vector<Curve> rawCurves;
 		std::vector<Path_Vertex2DLine> data;
 		glm::mat4 transform;
@@ -1028,15 +1027,12 @@ namespace MathAnim
 				: defaultStrokeWidth;
 
 			context->transform = transform;
-			//glm::vec4 translatedPos = glm::vec4(start.x, start.y, 0.0f, 1.0f);
-			//translatedPos = context->transform * translatedPos;
 
 			Path_Vertex2DLine vert = {};
 			vert.position = start;
 			vert.color = getColor();
 			vert.thickness = strokeWidth;
 			context->data.emplace_back(vert);
-			context->colors.push_back(vert.color);
 
 			return context;
 		}
@@ -1083,7 +1079,7 @@ namespace MathAnim
 			//       Here's a Github issue to track this:
 			//         https://github.com/ambrosiogabe/MathAnimation/issues/104
 			//       ID for code search: %BW7n4C2kfxQtpij6tHL
-			bool firstPointIsSameAsLastPoint = path->data.size() > 0 
+			bool firstPointIsSameAsLastPoint = path->data.size() > 0
 				? path->data[0].position == path->data[path->data.size() - 1].position
 				: true;
 
@@ -1108,6 +1104,13 @@ namespace MathAnim
 
 				Vec2 dirA = CMath::normalize(currentPos - previousPos);
 				Vec2 dirB = CMath::normalize(nextPos - currentPos);
+				if (CMath::compare(dirA, -1.0f * dirB))
+				{
+					// Vectors are pointing away from each other. This means finding a bisection vector would be 
+					// inconclusive since it could point either way. So we'll just wiggle the vector a bit to
+					// make the math not degrade to inf's and nan's
+					dirA.x += 0.0000001f;
+				}
 				Vec2 bisectionPerp = CMath::normalize(dirA + dirB);
 				Vec2 secondLinePerp = Vec2{ -dirB.y, dirB.x };
 				// This is the miter
@@ -1122,7 +1125,7 @@ namespace MathAnim
 				}
 
 				constexpr float strokeMiterLimit = 2.0f;
-				bool shouldConvertToBevel = miterThickness / vertex.thickness > strokeMiterLimit;
+				bool shouldConvertToBevel = CMath::abs(miterThickness / vertex.thickness) > strokeMiterLimit;
 				if (shouldConvertToBevel)
 				{
 					float firstBevelWidth = vertex.thickness / CMath::dot(bisection, dirA) * 0.5f;
@@ -1194,21 +1197,9 @@ namespace MathAnim
 			for (int vertIndex = 0; vertIndex < endPoint; vertIndex++)
 			{
 				const Path_Vertex2DLine& vertex = path->data[vertIndex % path->data.size()];
-				const Vec4& color = path->colors[vertIndex % path->data.size()];
+				const Vec4& color = vertex.color;
 				const Path_Vertex2DLine& nextVertex = path->data[(vertIndex + 1) % path->data.size()];
-				const Vec4& nextColor = path->colors[(vertIndex + 1) % path->data.size()];
-
-				if (CMath::anyIsNanOrInf(vertex.frontP1) || CMath::anyIsNanOrInf(vertex.frontP2)
-					|| CMath::anyIsNanOrInf(vertex.backP1) || CMath::anyIsNanOrInf(vertex.backP2))
-				{
-					g_logger_info("WTF");
-				}
-
-				if (CMath::anyIsNanOrInf(nextVertex.frontP1) || CMath::anyIsNanOrInf(nextVertex.frontP2)
-					|| CMath::anyIsNanOrInf(nextVertex.backP1) || CMath::anyIsNanOrInf(nextVertex.backP2))
-				{
-					g_logger_info("WTF");
-				}
+				const Vec4& nextColor = nextVertex.color;
 
 				drawMultiColoredTri3D(
 					transformVertVec3(vertex.frontP1, path->transform), color,
@@ -1254,7 +1245,7 @@ namespace MathAnim
 
 					if (context == nullptr)
 					{
-						Renderer::pushColor(path->colors[curvei]);
+						Renderer::pushColor(path->data[curvei].color);
 						if (currentT >= startT)
 						{
 							context = Renderer::beginPath(path->rawCurves[curvei].p0);
@@ -1273,7 +1264,7 @@ namespace MathAnim
 					}
 
 					const Vec2& p0 = curve.p0;
-					Renderer::pushColor(path->colors[curvei + 1]);
+					Renderer::pushColor(path->data[curvei + 1].color);
 
 					switch (curve.type)
 					{
@@ -1412,7 +1403,6 @@ namespace MathAnim
 
 				path->approximateLength += rawCurve.calculateApproximatePerimeter();
 				path->rawCurves.emplace_back(rawCurve);
-				path->colors.push_back(getColor());
 			}
 
 			// Estimate the length of the bezier curve to get an approximate for the
@@ -1451,7 +1441,6 @@ namespace MathAnim
 
 				path->approximateLength += rawCurve.calculateApproximatePerimeter();
 				path->rawCurves.emplace_back(rawCurve);
-				path->colors.push_back(getColor());
 			}
 
 			// Estimate the length of the bezier curve to get an approximate for the
@@ -1949,27 +1938,27 @@ namespace MathAnim
 		static void lineToInternal(Path2DContext* path, const Vec2& point, bool addRawCurve)
 		{
 			g_logger_assert(path != nullptr, "Null path.");
+			if (path->data.size() <= 0)
+			{
+				return;
+			}
 
 			float strokeWidth = strokeWidthStackPtr > 0
 				? strokeWidthStack[strokeWidthStackPtr - 1]
 				: defaultStrokeWidth;
 
-			glm::vec4 color = colorStackPtr > 0
-				? colorStack[colorStackPtr - 1]
-				: defaultColor;
-
 			Path_Vertex2DLine vert;
 			vert.position = point;
-			vert.color = Vec4{
-				color.r,
-				color.g,
-				color.b,
-				color.a
-			};
+			vert.color = getColor();
 			vert.thickness = strokeWidth;
 
 			// Don't add the vertex if it's going to itself
-			if (path->data.size() > 0 && path->data[path->data.size() - 1].position != vert.position)
+			Vec2 deltaToCursor = path->data[path->data.size() - 1].position - vert.position;
+			//if (vert.position.x == 0.188720495f)
+			//{
+			//	g_logger_info("HERE");
+			//}
+			if (!CMath::compare(deltaToCursor, Vec2{ 0.0f, 0.0f }, 0.00001f))
 			{
 				if (addRawCurve)
 				{
@@ -1982,7 +1971,6 @@ namespace MathAnim
 					path->rawCurves.emplace_back(rawCurve);
 				}
 
-				path->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
 				path->data.emplace_back(vert);
 			}
 		}
@@ -1990,9 +1978,18 @@ namespace MathAnim
 		static void lineToInternal(Path2DContext* path, const Path_Vertex2DLine& vert, bool addRawCurve)
 		{
 			g_logger_assert(path != nullptr, "Null path.");
+			if (path->data.size() <= 0)
+			{
+				return;
+			}
 
 			// Don't add the vertex if it's going to itself
-			if (path->data.size() > 0 && path->data[path->data.size() - 1].position != vert.position)
+			Vec2 deltaToCursor = path->data[path->data.size() - 1].position - vert.position;
+			//if (vert.position.x == 0.188720495f)
+			//{
+			//	g_logger_info("HERE");
+			//}
+			if (!CMath::compare(deltaToCursor, Vec2{ 0.0f, 0.0f }, 0.00001f))
 			{
 				if (addRawCurve)
 				{
@@ -2005,10 +2002,6 @@ namespace MathAnim
 					path->rawCurves.emplace_back(rawCurve);
 				}
 
-				glm::vec4 color = colorStackPtr > 0
-					? colorStack[colorStackPtr - 1]
-					: defaultColor;
-				path->colors.push_back(Vec4{ color.r, color.g, color.b, color.a });
 				path->data.emplace_back(vert);
 			}
 		}
