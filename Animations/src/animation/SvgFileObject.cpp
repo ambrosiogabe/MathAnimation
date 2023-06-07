@@ -20,6 +20,7 @@ namespace MathAnim
 		// Generate children objects and place them accordingly
 		// Each child represents a group sub-object
 
+		float zOffset = 0.0f;
 		for (int i = 0; i < svgGroup->numObjects; i++)
 		{
 			const SvgObject& obj = svgGroup->objects[i];
@@ -29,7 +30,9 @@ namespace MathAnim
 			AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, parentId, true);
 			childObj.parentId = parentId;
 
-			childObj._positionStart = Vec3{ offset.x, offset.y, 0.0f };
+			childObj._positionStart = Vec3{ offset.x, offset.y, zOffset };
+			// To avoid z-fighting, we'll offset the z-indices very slightly
+			zOffset -= 0.0001f;
 			childObj.isGenerated = true;
 			// Copy the sub-object as the svg object here
 			childObj._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
