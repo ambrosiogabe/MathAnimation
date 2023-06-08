@@ -979,7 +979,6 @@ namespace MathAnim
 						mouseCoords.x = viewportBounds.max.x + g->mouseScreenDelta.x;
 					}
 
-					// Y-s are flipped for viewport bounds
 					if (mouseCoords.y < viewportBounds.min.y)
 					{
 						g->mouseScreenDelta.y = (mouseCoords.y - viewportBounds.min.y);
@@ -988,10 +987,9 @@ namespace MathAnim
 					else if (mouseCoords.y > viewportBounds.max.y)
 					{
 						g->mouseScreenDelta.y = (mouseCoords.y - viewportBounds.max.y);
-						constexpr float cursorHeight = 50.f; // Just a stupid guess for toolbar height? Or cursor height? IDK
-						mouseCoords.y = viewportBounds.min.y + g->mouseScreenDelta.y + cursorHeight;
+						mouseCoords.y = viewportBounds.min.y + g->mouseScreenDelta.y;
 					}
-
+					
 					Application::getWindow().setCursorPos(Vec2i{ (int)mouseCoords.x, (int)mouseCoords.y });
 				}
 

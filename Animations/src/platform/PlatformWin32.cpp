@@ -1,6 +1,11 @@
 #ifdef _WIN32
 #include "platform/Platform.h"
 #include "core.h"
+#include "core/Window.h"
+
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <glfw/glfw3native.h>
+#undef GLFW_EXPOSE_NATIVE_WIN32
 
 #include <io.h>
 #include <Windows.h>
@@ -591,9 +596,17 @@ namespace MathAnim
 			return hashRes;
 		}
 
-		bool setCursorPos(const Window&, const Vec2i& cursorPos)
+		bool setCursorPos(const Window& window, const Vec2i& cursorPos)
 		{
-			return (bool)SetCursorPos(cursorPos.x, cursorPos.y);
+			RECT rect;
+			if (GetWindowRect(glfwGetWin32Window((GLFWwindow*)window.windowPtr), &rect))
+			{
+				int titleBarHeight = GetSystemMetrics(SM_CYCAPTION);
+				int resizableHeight = GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+				return (bool)SetCursorPos(cursorPos.x + rect.left, cursorPos.y + rect.top + titleBarHeight + resizableHeight);
+			}
+
+			return false;
 		}
 
 		// --------------- Internal Functions ---------------
