@@ -1323,47 +1323,39 @@ namespace MathAnim
 
 	void AnimObject::onGizmo(AnimationManagerData* am)
 	{
-		if (is3D)
-		{
-			// TODO: Render and handle 3D gizmo logic based on edit mode
-		}
-		else
-		{
-			// TODO: Render and handle 2D gizmo logic based on edit mode
-			std::string gizmoName = std::string((char*)this->name) + std::to_string(this->id);
+		std::string gizmoName = std::string((char*)this->name) + std::to_string(this->id);
 
-			// It's important to render the gizmo at the global location, and then transform
-			// the result back to local coordinates since the user is editing with gizmos in global
-			// space
-			if (GizmoManager::translateGizmo(gizmoName.c_str(), &this->_globalPositionStart))
+		// It's important to render the gizmo at the global location, and then transform
+		// the result back to local coordinates since the user is editing with gizmos in global
+		// space
+		if (GizmoManager::translateGizmo(gizmoName.c_str(), &this->_globalPositionStart))
+		{
+			glm::mat4 parentsTransform = glm::mat4(1.0f);
+			if (!isNull(this->parentId))
 			{
-				glm::mat4 parentsTransform = glm::mat4(1.0f);
-				if (!isNull(this->parentId))
+				const AnimObject* parent = AnimationManager::getObject(am, this->parentId);
+				if (parent)
 				{
-					const AnimObject* parent = AnimationManager::getObject(am, this->parentId);
-					if (parent)
-					{
-						parentsTransform = parent->_globalTransformStart;
-					}
+					parentsTransform = parent->_globalTransformStart;
 				}
-				glm::mat4 inverseParentTransform = glm::inverse(parentsTransform);
-				glm::vec4 newGlobalPosition = glm::vec4(_globalPositionStart.x, _globalPositionStart.y, _globalPositionStart.z, 1.0f);
-				glm::vec4 newLocal = inverseParentTransform * newGlobalPosition;
-
-				// Then get local position
-				this->_positionStart = Vec3{ newLocal.x, newLocal.y, newLocal.z };
-				AnimationManager::updateObjectState(am, this->id);
 			}
+			glm::mat4 inverseParentTransform = glm::inverse(parentsTransform);
+			glm::vec4 newGlobalPosition = glm::vec4(_globalPositionStart.x, _globalPositionStart.y, _globalPositionStart.z, 1.0f);
+			glm::vec4 newLocal = inverseParentTransform * newGlobalPosition;
 
-			if (GizmoManager::scaleGizmo(gizmoName.c_str(), this->globalPosition, &this->_scaleStart))
-			{
-				AnimationManager::updateObjectState(am, this->id);
-			}
+			// Then get local position
+			this->_positionStart = Vec3{ newLocal.x, newLocal.y, newLocal.z };
+			AnimationManager::updateObjectState(am, this->id);
+		}
 
-			if (GizmoManager::rotateGizmo(gizmoName.c_str(), this->globalPosition, &this->_rotationStart))
-			{
-				AnimationManager::updateObjectState(am, this->id);
-			}
+		if (GizmoManager::scaleGizmo(gizmoName.c_str(), this->globalPosition, &this->_scaleStart))
+		{
+			AnimationManager::updateObjectState(am, this->id);
+		}
+
+		if (GizmoManager::rotateGizmo(gizmoName.c_str(), this->globalPosition, &this->_rotationStart))
+		{
+			AnimationManager::updateObjectState(am, this->id);
 		}
 
 		switch (objectType)
@@ -1552,9 +1544,7 @@ namespace MathAnim
 		this->drawCurveDebugBoxes = obj.drawCurveDebugBoxes;
 		this->drawDebugBoxes = obj.drawDebugBoxes;
 		this->fillColor = obj.fillColor;
-		this->is3D = obj.is3D;
 		this->status = obj.status;
-		this->isTransparent = obj.isTransparent;
 		this->svgScale = obj.svgScale;
 		this->percentCreated = obj.percentCreated;
 
@@ -1883,8 +1873,6 @@ namespace MathAnim
 		SERIALIZE_NON_NULL_PROP(memory, this, _strokeWidthStart);
 		SERIALIZE_NON_NULL_PROP(memory, this, svgScale);
 
-		SERIALIZE_NON_NULL_PROP(memory, this, isTransparent);
-		SERIALIZE_NON_NULL_PROP(memory, this, is3D);
 		SERIALIZE_NON_NULL_PROP(memory, this, drawDebugBoxes);
 		SERIALIZE_NON_NULL_PROP(memory, this, drawCurveDebugBoxes);
 
@@ -1972,8 +1960,6 @@ namespace MathAnim
 
 		DESERIALIZE_PROP(&res, _strokeWidthStart, j, 0.0f);
 		DESERIALIZE_PROP(&res, svgScale, j, 0.0f);
-		DESERIALIZE_PROP(&res, isTransparent, j, false);
-		DESERIALIZE_PROP(&res, is3D, j, false);
 		DESERIALIZE_PROP(&res, drawDebugBoxes, j, false);
 		DESERIALIZE_PROP(&res, drawCurveDebugBoxes, j, false);
 
@@ -2120,13 +2106,13 @@ namespace MathAnim
 			memory.read<float>(&res._strokeWidthStart);
 			memory.read<float>(&res.svgScale);
 
+			// NOTE: These do nothing now, but we still deserialize them to not break 
+			//       backwards compatibility.
 			uint8 isTransparent;
 			memory.read<uint8>(&isTransparent);
-			res.isTransparent = isTransparent != 0;
 
 			uint8 is3D;
 			memory.read<uint8>(&is3D);
-			res.is3D = is3D != 0;
 
 			uint8 drawDebugBoxes;
 			memory.read<uint8>(&drawDebugBoxes);
@@ -2287,10 +2273,8 @@ namespace MathAnim
 		res.svgObject = nullptr;
 		res._svgObjectStart = nullptr;
 
-		res.isTransparent = false;
 		res.drawDebugBoxes = false;
 		res.drawCurveDebugBoxes = false;
-		res.is3D = false;
 		res.isGenerated = false;
 		res.svgScale = 1.0f;
 
@@ -2432,10 +2416,8 @@ namespace MathAnim
 			Svg::copy(res._svgObjectStart, from._svgObjectStart);
 		}
 
-		res.isTransparent = from.isTransparent;
 		res.drawDebugBoxes = from.drawDebugBoxes;
 		res.drawCurveDebugBoxes = from.drawCurveDebugBoxes;
-		res.is3D = from.is3D;
 		res.isGenerated = from.isGenerated;
 		res.svgScale = from.svgScale;
 

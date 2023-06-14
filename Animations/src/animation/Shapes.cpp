@@ -310,7 +310,6 @@ namespace MathAnim
 			cubeFace._positionStart = offsets[i];
 			cubeFace._rotationStart = rotations[i];
 			cubeFace.setName(("Face " + std::to_string(i)).c_str());
-			cubeFace.is3D = true;
 			cubeFace.as.square.reInit(&cubeFace);
 
 			AnimationManager::addAnimObject(am, cubeFace);

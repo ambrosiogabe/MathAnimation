@@ -219,9 +219,6 @@ namespace MathAnim
 				ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed);
 				ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
 				ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
-
-				ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
-				ImGui::Checkbox(": Is 3D", &animObject->is3D);
 			}
 
 			std::string svgPropsComponentName = "Svg Properties##" + std::to_string(animObjectId);

@@ -469,12 +469,10 @@ namespace MathAnim
 		SvgObject* svgObject;
 		float svgScale;
 		AnimObjectStatus status;
-		bool isTransparent;
 		bool drawDebugBoxes;
 		bool drawCurveDebugBoxes;
 		bool drawCurves;
 		bool drawControlPoints;
-		bool is3D;
 		bool isGenerated;
 		float _strokeWidthStart;
 		float strokeWidth;
