@@ -136,7 +136,7 @@ namespace MathAnim
 		// Translation arrow offsets
 		static constexpr Vec3 yTranslateOffset = Vec3{ -0.4f, 0.1f, 0.0f };
 		static constexpr Vec3 xTranslateOffset = Vec3{ 0.1f, -0.4f, 0.0f };
-		static constexpr Vec3 zTranslateOffset = Vec3{ -0.4f, -0.4f, -0.1f - translateArrowHalfLength };
+		static constexpr Vec3 zTranslateOffset = Vec3{ -0.4f, -0.4f, 0.1f + translateArrowHalfLength };
 
 		// Plane movement offsets
 		static const Vec3 xyTranslateOffset = Vec3{ 0.0f, 0.0f, 0.0f };
@@ -189,7 +189,7 @@ namespace MathAnim
 		// Scale arrow offsets
 		static constexpr Vec3 yScaleOffset = Vec3{ -0.4f, 0.1f, 0.0f };
 		static constexpr Vec3 xScaleOffset = Vec3{ 0.1f, -0.4f, 0.0f };
-		static constexpr Vec3 zScaleOffset = Vec3{ -0.4f, -0.4f, -0.1f - translateArrowHalfLength };
+		static constexpr Vec3 zScaleOffset = Vec3{ -0.4f, -0.4f, 0.1f + translateArrowHalfLength };
 
 		// Plane scale offsets
 		static const Vec3 xyScaleOffset = xyTranslateOffset;
@@ -449,7 +449,7 @@ namespace MathAnim
 				dummyCamera.orientation = editorCamera.orientation;
 				dummyCamera.focalDistance = editorCamera.focalDistance;
 				dummyCamera.orthoZoomLevel = editorCamera.orthoZoomLevel;
-				dummyCamera.fov = 360.0f - 23.0f;
+				dummyCamera.fov = 23.0f;
 				dummyCamera.calculateMatrices(true);
 
 				dummyCamera.position = -5.0f * dummyCamera.forward;
@@ -468,7 +468,7 @@ namespace MathAnim
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					xPos, size,
-					Vec2{ 0, 0 }, Vec2{ 0.5f, 0.5f }
+					Vec2{ 0.0f, 0.5f }, Vec2{ 0.5f, 1.0f }
 				);
 				Renderer::popColor();
 
@@ -476,7 +476,7 @@ namespace MathAnim
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					-1.0f * xPos, size,
-					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 }
+					Vec2{ 0.5f, 0.0f }, Vec2{ 1.0f, 0.5f }
 				);
 				Renderer::popColor();
 
@@ -488,7 +488,7 @@ namespace MathAnim
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					yPos, size,
-					Vec2{ 0.5f, 0.0f }, Vec2{ 1.0f, 0.5f }
+					Vec2{ 0.5f, 0.5f }, Vec2{ 1.0f, 1.0f }
 				);
 				Renderer::popColor();
 
@@ -496,7 +496,7 @@ namespace MathAnim
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					-1.0f * yPos, size,
-					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 }
+					Vec2{ 0.5f, 0.0f }, Vec2{ 1.0f, 0.5f }
 				);
 				Renderer::popColor();
 
@@ -508,7 +508,7 @@ namespace MathAnim
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					zPos, size,
-					Vec2{ 0.0f, 0.5f }, Vec2{ 0.5f, 1.0f }
+					Vec2{ 0.0f, 0.0f }, Vec2{ 0.5f, 0.5f }
 				);
 				Renderer::popColor();
 
@@ -516,7 +516,7 @@ namespace MathAnim
 				Renderer::drawTexturedBillboard3D(
 					cameraOrientationGizmoTexture,
 					-1.0f * zPos, size,
-					Vec2{ 0.5f, 0.5f }, Vec2{ 1, 1 }
+					Vec2{ 0.5f, 0.0f }, Vec2{ 1.0f, 0.5f }
 				);
 				Renderer::popColor();
 
@@ -989,7 +989,7 @@ namespace MathAnim
 						g->mouseScreenDelta.y = (mouseCoords.y - viewportBounds.max.y);
 						mouseCoords.y = viewportBounds.min.y + g->mouseScreenDelta.y;
 					}
-					
+
 					Application::getWindow().setCursorPos(Vec2i{ (int)mouseCoords.x, (int)mouseCoords.y });
 				}
 
@@ -1378,14 +1378,14 @@ namespace MathAnim
 		static Vec3 getMouseWorldPos3f(float zDepth)
 		{
 			Vec2 normalizedMousePos = EditorGui::toNormalizedViewportCoords(gGizmoManager->mouseScreenCoords);
-			Camera* camera = Application::getEditorCamera();
+			const Camera* camera = Application::getEditorCamera();
 			return camera->reverseProject(normalizedMousePos, zDepth);
 		}
 
 		static Ray getMouseRay()
 		{
 			Vec2 normalizedMousePos = EditorGui::mouseToNormalizedViewport();
-			Camera* camera = Application::getEditorCamera();
+			const Camera* camera = Application::getEditorCamera();
 			Vec3 origin = camera->reverseProject(normalizedMousePos, camera->nearFarRange.min);
 			Vec3 end = camera->reverseProject(normalizedMousePos, camera->nearFarRange.max);
 			return Physics::createRay(origin, end);
@@ -1798,7 +1798,7 @@ namespace MathAnim
 					this->position,
 					GizmoManager::zScaleOffset,
 					color,
-					Vector3::Back,
+					Vector3::Forward,
 					Vector3::Up
 				);
 			}
@@ -1820,7 +1820,7 @@ namespace MathAnim
 					this->position,
 					GizmoManager::zTranslateOffset,
 					color,
-					Vector3::Back,
+					Vector3::Forward,
 					Vector3::Up
 				);
 			}

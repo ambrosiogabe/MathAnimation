@@ -4,14 +4,25 @@
 #include "renderer/Camera.h"
 #include "core/Input.h"
 #include "core/Profiling.h"
+#include "core/Serialization.hpp"
 #include "math/CMath.h"
-
 #include "renderer/Renderer.h"
+
+#include <nlohmann/json.hpp>
 
 namespace MathAnim
 {
+	struct EditorCamera
+	{
+		Camera baseCamera;
+		float pivotDistance;
+	};
+
 	namespace EditorCameraController
 	{
+		// NOTE: This should be slightly bigger than the camera z-distance in Camera::createDefault()
+		static constexpr float defaultPivotDistance = 7.0f;
+
 		static bool cameraIsPanning = false;
 		static bool cameraIsRotating = false;
 		static float mouseScrollSensitivity = 0.035f;
@@ -23,10 +34,28 @@ namespace MathAnim
 		static float resetTimeCounter = 0.0f;
 		static Camera targetCamera;
 
-		void update(float deltaTime, Camera& camera)
+		EditorCamera* init(const Camera& camera)
+		{
+			EditorCamera* res = (EditorCamera*)g_memory_allocate(sizeof(EditorCamera));
+			res->baseCamera = camera;
+			res->pivotDistance = defaultPivotDistance;
+			return res;
+		}
+
+		void free(EditorCamera* editorCamera)
+		{
+			if (editorCamera != nullptr)
+			{
+				g_memory_free(editorCamera);
+			}
+		}
+
+		void update(float deltaTime, EditorCamera* editorCamera)
 		{
 			MP_PROFILE_EVENT("EditorCameraController_UpdateOrtho");
 
+			g_logger_assert(editorCamera != nullptr, "EditorCamera* cannot be nullptr.");
+			Camera& camera = editorCamera->baseCamera;
 			const EditorSettingsData& data = EditorSettings::getSettings();
 
 			if (Input::mouseUp(MouseButton::Middle))
@@ -55,9 +84,12 @@ namespace MathAnim
 					CameraMode oldMode = camera.mode;
 					camera = targetCamera;
 					camera.mode = oldMode;
+					camera.calculateMatrices(true);
+					editorCamera->pivotDistance = defaultPivotDistance;
 					resettingToDefault = false;
 				}
 				resetTimeCounter += deltaTime;
+				camera.calculateMatrices(true);
 				return;
 			}
 
@@ -107,10 +139,10 @@ namespace MathAnim
 					Vec2 mouseScreenPos = EditorGui::mouseToNormalizedViewport();
 					if (cameraIsRotating)
 					{
-						Vec2 worldDelta = mouseScreenPos - lastMouseScreenPos;
+						Vec2 worldDelta = lastMouseScreenPos - mouseScreenPos;
 						constexpr float epsilon = 0.001f;
 
-						Vec3 focalPoint = camera.position + camera.forward * camera.focalDistance * camera.orthoZoomLevel;
+						Vec3 focalPoint = camera.position + camera.forward * editorCamera->pivotDistance;
 
 						if (!CMath::compare(worldDelta.y, 0.0f, epsilon))
 						{
@@ -123,7 +155,7 @@ namespace MathAnim
 						}
 
 						Vec3 newForward = CMath::normalize(CMath::convert(camera.orientation * glm::vec3(0, 0, 1)));
-						camera.position = focalPoint - (newForward * camera.focalDistance * camera.orthoZoomLevel);
+						camera.position = focalPoint - (newForward * editorCamera->pivotDistance);
 					}
 
 					lastMouseScreenPos = mouseScreenPos;
@@ -135,18 +167,67 @@ namespace MathAnim
 			{
 				if (Input::scrollY != 0.0f)
 				{
+					// The steps we want to take are in linear space, but we want to zoom in exponential space.
+					// So we figure out the delta by taking the log first, then step it linearly by the amount
+					// we scrolled, then we take the exponential of the result to get it back to exponential space.
+
 					float currentZoomLevel = camera.orthoZoomLevel;
 					float cameraXStep = glm::log(currentZoomLevel);
 					cameraXStep -= Input::scrollY * mouseScrollSensitivity * data.scrollSensitvity;
 					float oldOrthoZoomLevel = camera.orthoZoomLevel;
 					camera.orthoZoomLevel = glm::clamp(glm::exp(cameraXStep), camera.nearFarRange.min / 2.0f, camera.nearFarRange.max * 2.0f);
 					float zoomDelta = camera.orthoZoomLevel - oldOrthoZoomLevel;
-					
+
 					// Change the camera position for 3D zoom effect
 					// Move camera forwards/backwards
-					camera.position -= camera.forward * zoomDelta * 20.0f;
+					if (!CMath::compare(zoomDelta, 0.0f))
+					{
+						camera.position -= camera.forward * zoomDelta * camera.focalDistance * 0.5f;
+						editorCamera->pivotDistance += zoomDelta * camera.focalDistance * 0.5f;
+					}
 				}
 			}
+
+			camera.calculateMatrices(true);
+		}
+
+		void endFrame(EditorCamera* camera)
+		{
+			g_logger_assert(camera != nullptr, "EditorCamera* cannot be nullptr.");
+			camera->baseCamera.endFrame();
+		}
+
+		const Camera& getCamera(const EditorCamera* editorCamera)
+		{
+			return editorCamera->baseCamera;
+		}
+
+		void serialize(const EditorCamera* camera, nlohmann::json& j)
+		{
+			SERIALIZE_OBJECT(j, camera, baseCamera);
+			SERIALIZE_NON_NULL_PROP(j, camera, pivotDistance);
+		}
+
+		EditorCamera* deserialize(const nlohmann::json& j, uint32 version)
+		{
+			switch (version)
+			{
+			case 3:
+			{
+				EditorCamera* res = init(Camera::createDefault());
+				DESERIALIZE_OBJECT(res, baseCamera, Camera, version, j);
+				DESERIALIZE_PROP(res, pivotDistance, j, defaultPivotDistance);
+
+				res->baseCamera.calculateMatrices(true);
+				return res;
+			}
+			break;
+			default:
+				break;
+			}
+
+			g_logger_warning("EditorCamera serialized with unknown version: '{}'", version);
+			return {};
 		}
 	}
 }

@@ -459,6 +459,7 @@ namespace MathAnim
 			g_logger_assert(texture.path != "", "Cannot generate texture from file without a filepath provided.");
 			int channels;
 
+			stbi_set_flip_vertically_on_load(true);
 			unsigned char* pixels = stbi_load(texture.path.string().c_str(), &texture.width, &texture.height, &channels, 0);
 			// TODO: Do some sort of graceful error propagating here instead
 			g_logger_assert((pixels != nullptr), "STB failed to load image: '{}'\n-> STB Failure Reason: '{}'", texture.path, stbi_failure_reason());

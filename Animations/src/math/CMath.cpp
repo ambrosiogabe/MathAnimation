@@ -773,6 +773,15 @@ namespace MathAnim
 		// Transformation helpers
 		glm::mat4 calculateTransform(const Vec3& eulerAnglesRotation, const Vec3& scale, const Vec3& position)
 		{
+			glm::mat4 rotation = glm::toMat4(quatFromEulerAngles(eulerAnglesRotation));
+			glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), CMath::convert(scale));
+			glm::mat4 translation = glm::translate(glm::mat4(1.0f), CMath::convert(position));
+
+			return translation * rotation * scaleMatrix;
+		}
+
+		glm::quat quatFromEulerAngles(const Vec3& eulerAnglesRotation)
+		{
 			glm::quat xRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
 			glm::quat yRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
 			glm::quat zRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -781,11 +790,7 @@ namespace MathAnim
 			finalRotation = yRotation * finalRotation;
 			finalRotation = zRotation * finalRotation;
 
-			glm::mat4 rotation = glm::toMat4(finalRotation);
-			glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), CMath::convert(scale));
-			glm::mat4 translation = glm::translate(glm::mat4(1.0f), CMath::convert(position));
-
-			return translation * rotation * scaleMatrix;
+			return finalRotation;
 		}
 
 		Vec3 extractPosition(const glm::mat4& transformation)

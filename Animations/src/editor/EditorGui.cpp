@@ -123,7 +123,7 @@ namespace MathAnim
 
 			const Texture& mainColorTexture = mainFramebuffer.getColorAttachment(0);
 			ImTextureID textureId = (void*)(uintptr_t)mainColorTexture.graphicsId;
-			ImGui::Image(textureId, mainViewportSize, ImVec2(0, 0), ImVec2(1, 1));
+			ImGui::Image(textureId, mainViewportSize, ImVec2(0, 1), ImVec2(1, 0));
 			ImGui::End();
 
 			drawEditorViewport(editorFramebuffer, deltaTime);
@@ -173,7 +173,7 @@ namespace MathAnim
 		{
 			Vec2 viewportPos = toViewportCoords(screenCoords);
 			viewportPos.x = (viewportPos.x / viewportSize.x);
-			viewportPos.y = (viewportPos.y / viewportSize.y);
+			viewportPos.y = 1.0f - (viewportPos.y / viewportSize.y);
 			return viewportPos;
 		}
 
@@ -263,7 +263,7 @@ namespace MathAnim
 
 			const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
 			ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
-			ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
+			ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
 			mouseHoveringViewport = ImGui::IsItemHovered();
 
 			// Draw action text displayed in the bottom left corner of the viewport
@@ -318,18 +318,8 @@ namespace MathAnim
 				topLeft.y += comboVtPadding;
 				ImGui::SetCursorPos(topLeft);
 
-				constexpr ImVec2 gizmoPreviewSize = ImVec2(30, 38);
-				constexpr ImVec2 translationUvMin = ImVec2(0, 0);
-				constexpr ImVec2 translationUvMax = ImVec2(0.3984f, 0.5f);
-
-				constexpr ImVec2 rotationUvMin = ImVec2(0.5f, 0.0f);
-				constexpr ImVec2 rotationUvMax = ImVec2(1.0f, 0.5f);
-
-				constexpr ImVec2 scaleUvMin = ImVec2(0.0f, 0.5f);
-				constexpr ImVec2 scaleUvMax = ImVec2(0.3984f, 1.0f);
-
-				ImVec2 previewUvMin = ImVec2(0.0f / (float)gizmoPreviewTexture.width, 0.0f / (float)gizmoPreviewTexture.width);
-				ImVec2 previewUvMax = ImVec2(77.0f / (float)gizmoPreviewTexture.width, 77.0f / (float)gizmoPreviewTexture.width);
+				ImVec2 previewUvMin = ImVec2(0.0f / (float)gizmoPreviewTexture.width, 1.0f);
+				ImVec2 previewUvMax = ImVec2(77.0f / (float)gizmoPreviewTexture.width, 1.0f - (77.0f / (float)gizmoPreviewTexture.height));
 
 				GizmoType gizmoType = GizmoManager::getVisualMode();
 
@@ -448,8 +438,8 @@ namespace MathAnim
 				ImGui::Image(
 					cameraOrientationTextureId,
 					ImVec2((float)cameraOrientationTexture.width, (float)cameraOrientationTexture.height),
-					ImVec2(0, 0),
-					ImVec2(1, 1)
+					ImVec2(0, 1),
+					ImVec2(1, 0)
 				);
 			}
 

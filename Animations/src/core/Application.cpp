@@ -61,7 +61,7 @@ namespace MathAnim
 		static Window* window = nullptr;
 		static Framebuffer mainFramebuffer;
 		static Framebuffer editorFramebuffer;
-		static Camera editorCamera;
+		static EditorCamera* editorCamera = nullptr;
 		static int absoluteCurrentFrame = -1;
 		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
@@ -93,7 +93,7 @@ namespace MathAnim
 		void init(const char* projectFile)
 		{
 			// Initialize these just in case this is a new project
-			editorCamera = Camera::createDefault();
+			editorCamera = EditorCameraController::init(Camera::createDefault());
 
 			// Initialize other global systems
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
@@ -196,7 +196,7 @@ namespace MathAnim
 				LuauLayer::update();
 
 				// Update camera matrices
-				editorCamera.calculateMatrices();
+				// NOTE: The editor camera matrices are updated in EditorCameraController::update
 				AnimationManager::calculateCameraMatrices(am);
 
 				// Render all animation draw calls to main framebuffer
@@ -230,8 +230,8 @@ namespace MathAnim
 					Renderer::bindAndUpdateViewportForFramebuffer(editorFramebuffer);
 					Renderer::clearFramebuffer(editorFramebuffer, "#3a3a39"_hex);
 
-					Renderer::pushCamera2D(&editorCamera);
-					Renderer::pushCamera3D(&editorCamera);
+					Renderer::pushCamera2D(&EditorCameraController::getCamera(editorCamera));
+					Renderer::pushCamera3D(&EditorCameraController::getCamera(editorCamera));
 
 					{
 						// Then render the rest of the stuff
@@ -263,7 +263,7 @@ namespace MathAnim
 						Renderer::clearDrawCalls();
 
 						// Draw the gizmo manager miscellaneous stuff
-						GizmoManager::renderOrientationGizmo(editorCamera);
+						GizmoManager::renderOrientationGizmo(EditorCameraController::getCamera(editorCamera));
 						Renderer::clearDrawCalls();
 					}
 
@@ -289,7 +289,7 @@ namespace MathAnim
 
 				// End frame stuff
 				AnimationManager::endFrame(am);
-				editorCamera.endFrame();
+				EditorCameraController::endFrame(editorCamera);
 				Renderer::endFrame();
 
 				// Miscellaneous
@@ -379,6 +379,7 @@ namespace MathAnim
 
 			mainFramebuffer.destroy();
 			editorFramebuffer.destroy();
+			EditorCameraController::free(editorCamera);
 
 			onig_end();
 			Highlighters::free();
@@ -767,9 +768,9 @@ namespace MathAnim
 			return currentProjectTmpDir;
 		}
 
-		Camera* getEditorCamera()
+		const Camera* getEditorCamera()
 		{
-			return &editorCamera;
+			return &EditorCameraController::getCamera(editorCamera);
 		}
 
 		SvgCache* getSvgCache()
@@ -786,7 +787,7 @@ namespace MathAnim
 		{
 			nlohmann::json cameraData = nlohmann::json();
 
-			editorCamera.serialize(cameraData["EditorCamera"]);
+			EditorCameraController::serialize(editorCamera, cameraData["EditorCamera"]);
 
 			return cameraData;
 		}
@@ -799,31 +800,37 @@ namespace MathAnim
 			{
 				if (cameraData.contains("EditorCamera"))
 				{
-					editorCamera = Camera::deserialize(cameraData["EditorCamera"], version);
+					EditorCameraController::free(editorCamera);
+					editorCamera = EditorCameraController::deserialize(cameraData["EditorCamera"], version);
 				}
 			}
 			break;
 			case 2:
 			{
-				// Upgrading legacy projects will default to the 2D camera
+				// Upgrading legacy projects will default to the orthographic camera
+				Camera newCamera = editorCamera != nullptr 
+					? EditorCameraController::getCamera(editorCamera)
+					: Camera::createDefault();
 				if (cameraData.contains("EditorCamera2D"))
 				{
 					OrthoCamera oldCamera2D = OrthoCamera::deserialize(cameraData["EditorCamera2D"], version);
-					editorCamera.position = CMath::vector3From2(oldCamera2D.position);
-					editorCamera.position.z = -2;
-					editorCamera.aspectRatioFraction.x = (int)oldCamera2D.projectionSize.x;
-					editorCamera.aspectRatioFraction.y = (int)oldCamera2D.projectionSize.y;
+					newCamera.position = CMath::vector3From2(oldCamera2D.position);
+					newCamera.position.z = -2;
+					newCamera.aspectRatioFraction.x = (int)oldCamera2D.projectionSize.x;
+					newCamera.aspectRatioFraction.y = (int)oldCamera2D.projectionSize.y;
 				}
 				else if (cameraData.contains("EditorCamera3D"))
 				{
 					PerspectiveCamera oldCamera3D = PerspectiveCamera::deserialize(cameraData["EditorCamera3D"], version);
-					editorCamera.position = CMath::convert(oldCamera3D.position);
-					editorCamera.fov = oldCamera3D.fov;
-					editorCamera.orientation = glm::quat(oldCamera3D.orientation);
+					newCamera.position = CMath::convert(oldCamera3D.position);
+					newCamera.fov = oldCamera3D.fov;
+					newCamera.orientation = glm::quat(oldCamera3D.orientation);
 				}
 
-				editorCamera.matricesAreCached = false;
-				editorCamera.calculateMatrices();
+				newCamera.calculateMatrices(true);
+
+				EditorCameraController::free(editorCamera);
+				editorCamera = EditorCameraController::init(newCamera);
 			}
 			break;
 			default:

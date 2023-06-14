@@ -389,6 +389,7 @@ namespace MathAnim
 
 		glm::mat4 transformationFrom(const Vec3& forward, const Vec3& up, const Vec3& position);
 		glm::mat4 calculateTransform(const Vec3& eulerAnglesRotation, const Vec3& scale, const Vec3& position);
+		glm::quat quatFromEulerAngles(const Vec3& eulerAnglesRotation);
 		Vec3 extractPosition(const glm::mat4& transformation);
 
 		// ----------- (De)Serialization -----------

@@ -52,8 +52,7 @@ namespace MathAnim
 		const std::filesystem::path& getCurrentProjectRoot();
 		const std::filesystem::path& getTmpDir();
 
-		// TODO: Ugly hack
-		Camera* getEditorCamera();
+		const Camera* getEditorCamera();
 		// TODO: Ugly hack
 		SvgCache* getSvgCache();
 

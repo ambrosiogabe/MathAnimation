@@ -1454,8 +1454,8 @@ namespace MathAnim
 				Renderer::drawTexturedQuad3D(
 					texture,
 					Vec2{ (float)parent->as.image.size.x, (float)parent->as.image.size.y },
-					Vec2{ 0, 1 },
-					Vec2{ 1, 0 },
+					Vec2{ 0, 0 },
+					Vec2{ 1, 1 },
 					this->id,
 					this->globalTransform
 				);

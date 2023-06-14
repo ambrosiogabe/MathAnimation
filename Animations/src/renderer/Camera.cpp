@@ -98,8 +98,8 @@ namespace MathAnim
 		float sizeX = focalDistance * glm::tan(glm::radians(fov / 2.0f));
 		float sizeY = sizeX / aspectRatio;
 
-		float halfSizeX = -sizeX * 0.5f;
-		float halfSizeY = -sizeY * 0.5f;
+		float halfSizeX = sizeX * 0.5f;
+		float halfSizeY = sizeY * 0.5f;
 
 		return Vec4{
 			-halfSizeX * orthoZoomLevel,
@@ -158,8 +158,8 @@ namespace MathAnim
 		Camera res = {};
 
 		// Quaternion from euler angles
-		res.orientation = glm::quat(glm::vec3(0.0f, 0.0f, 0.0f));
-		res.position = Vec3{ 9.0f, 4.5f, -20.0f };
+		res.orientation = CMath::quatFromEulerAngles(Vec3{ 0, -180.0f, 0 });
+		res.position = Vec3{ 9.0f, 4.5f, 6.0f };
 		res.mode = CameraMode::Orthographic;
 		res.fov = 75.0f;
 		res.aspectRatioFraction.x = 1920;
