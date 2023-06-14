@@ -11,6 +11,7 @@ namespace MathAnim
 {
 	struct AnimObjectPayload;
 	struct AnimationManagerData;
+	struct Texture;
 	
 	struct FilePayload
 	{
@@ -39,6 +40,10 @@ namespace MathAnim
 		bool RenamableIconSelectable(const char* icon, char* stringBuffer, size_t stringBufferSize, bool isSelected, float width);
 
 		void CenteredWrappedText(ImVec2 textPosition, ImColor color, const char* text, float maxWidth);
+
+		bool SelectableImage(const char* internalName, const Texture& image, const ImVec2& size, const ImVec2& uvMin = ImVec2(0, 0), const ImVec2& uvMax = ImVec2(1, 1));
+
+		bool BeginImageCombo(const char* internalName, const Texture& image, const ImVec2& size, const ImVec2& uvMin = ImVec2(0, 0), const ImVec2& uvMax = ImVec2(1, 1));
 
 		bool ProgressBar(const char* label, float value, float maxWidth = -1.0f);
 	}

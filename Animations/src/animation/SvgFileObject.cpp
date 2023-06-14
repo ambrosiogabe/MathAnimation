@@ -20,6 +20,7 @@ namespace MathAnim
 		// Generate children objects and place them accordingly
 		// Each child represents a group sub-object
 
+		float zOffset = 0.0f;
 		for (int i = 0; i < svgGroup->numObjects; i++)
 		{
 			const SvgObject& obj = svgGroup->objects[i];
@@ -29,7 +30,9 @@ namespace MathAnim
 			AnimObject childObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::SvgObject, parentId, true);
 			childObj.parentId = parentId;
 
-			childObj._positionStart = Vec3{ offset.x, offset.y, 0.0f };
+			childObj._positionStart = Vec3{ offset.x, offset.y, zOffset };
+			// To avoid z-fighting, we'll offset the z-indices very slightly
+			zOffset -= 0.0001f;
 			childObj.isGenerated = true;
 			// Copy the sub-object as the svg object here
 			childObj._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
@@ -130,6 +133,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			SvgFileObject res = {};
 
@@ -150,7 +154,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_error("SvgFileObject serialized with unknown version '%d'.", version);
+		g_logger_error("SvgFileObject serialized with unknown version '{}'.", version);
 		return {};
 	}
 
@@ -179,7 +183,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		g_logger_error("Invalid version '{}' while deserializing text object.", version);
 		SvgFileObject res;
 		g_memory_zeroMem(&res, sizeof(SvgFileObject));
 		return res;

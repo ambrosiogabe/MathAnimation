@@ -5,8 +5,6 @@
 #include "renderer/Renderer.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Fonts.h"
-#include "renderer/PerspectiveCamera.h"
-#include "renderer/OrthoCamera.h"
 #include "core/Application.h"
 #include "core/Serialization.hpp"
 #include "latex/LaTexLayer.h"
@@ -142,6 +140,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			TextObject res = {};
 
@@ -165,7 +164,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("TextObject serialized with unknown version '%d'.", version);
+		g_logger_warning("TextObject serialized with unknown version '{}'.", version);
 		return {};
 	}
 
@@ -198,7 +197,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		g_logger_error("Invalid version '{}' while deserializing text object.", version);
 		TextObject res;
 		g_memory_zeroMem(&res, sizeof(TextObject));
 		return res;
@@ -347,7 +346,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing text object.", version);
+		g_logger_error("Invalid version '{}' while deserializing text object.", version);
 		LaTexObject res;
 		g_memory_zeroMem(&res, sizeof(LaTexObject));
 		return res;
@@ -367,6 +366,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			LaTexObject res = {};
 
@@ -380,7 +380,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("LaTexObject serialized with unknown version '%d'.", version);
+		g_logger_warning("LaTexObject serialized with unknown version '{}'.", version);
 		return {};
 	}
 
@@ -405,6 +405,12 @@ namespace MathAnim
 		Font* font = Fonts::getDefaultMonoFont();
 		if (font == nullptr)
 		{
+			static bool loggedWarning = false;
+			if (!loggedWarning)
+			{
+				g_logger_warning("No Default Mono Font found. Cannot generate code block.");
+				loggedWarning = true;
+			}
 			return;
 		}
 
@@ -531,7 +537,7 @@ namespace MathAnim
 		obj->generatedChildrenIds.clear();
 
 		// Next init again which should regenerate the children
-		init(am, obj->id);
+		this->init(am, obj->id);
 	}
 
 	void CodeBlock::serialize(nlohmann::json& memory) const
@@ -563,7 +569,7 @@ namespace MathAnim
 			return res;
 		}
 
-		g_logger_error("Invalid version '%d' while deserializing code object.", version);
+		g_logger_error("Invalid version '{}' while deserializing code object.", version);
 		CodeBlock res;
 		g_memory_zeroMem(&res, sizeof(CodeBlock));
 		return res;
@@ -584,6 +590,7 @@ namespace MathAnim
 		switch (version)
 		{
 		case 2:
+		case 3:
 		{
 			CodeBlock res = {};
 
@@ -598,7 +605,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("CodeBlock serialized with unknown version '%d'.", version);
+		g_logger_warning("CodeBlock serialized with unknown version '{}'.", version);
 		return {};
 	}
 

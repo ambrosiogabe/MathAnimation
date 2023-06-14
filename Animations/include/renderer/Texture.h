@@ -32,6 +32,8 @@ namespace MathAnim
 		RG32_UI,
 		R8_UI,
 		R8_F,
+
+		DepthStencil,
 	};
 
 	enum class ColorChannel
@@ -61,7 +63,7 @@ namespace MathAnim
 
 		std::filesystem::path path;
 
-		void bind() const;
+		void bind(int textureSlot) const;
 		void unbind() const;
 		void destroy();
 

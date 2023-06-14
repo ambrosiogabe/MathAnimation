@@ -1,7 +1,6 @@
 #ifndef MATH_ANIM_TEXT_ANIMATIONS_H
 #define MATH_ANIM_TEXT_ANIMATIONS_H
 #include "core.h"
-#include "renderer/OrthoCamera.h"
 #include "parsers/SyntaxHighlighter.h"
 
 #include <nlohmann/json_fwd.hpp>

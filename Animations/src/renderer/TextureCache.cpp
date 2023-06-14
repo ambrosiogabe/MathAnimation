@@ -38,7 +38,7 @@ namespace MathAnim
 				return textureHandleIter->second;
 			}
 
-			g_logger_info("Caching texture '%s'", absolutePath.string().c_str());
+			g_logger_info("Caching texture '{}'", absolutePath);
 
 			// Load the texture since it does not exist
 			CachedTexture newEntry;
@@ -78,14 +78,14 @@ namespace MathAnim
 				//       isn't in a critical path
 				if (textureIter->second.refCount == 0)
 				{
-					g_logger_error("Attempted to unload a texture that has already been unloaded. Texture: '%s'", textureIter->second.absPath.string().c_str());
+					g_logger_error("Attempted to unload a texture that has already been unloaded. Texture: '{}'", textureIter->second.absPath);
 					return;
 				}
 
 				textureIter->second.refCount--;
 				if (textureIter->second.refCount == 0)
 				{
-					g_logger_info("Unloading cached texture '%s'", textureIter->second.absPath.string().c_str());
+					g_logger_info("Unloading cached texture '{}'", textureIter->second.absPath);
 
 					// Delete the filepath -> handle mapping
 					auto handleIter = cachedTexturePaths.find(textureIter->second.absPath);
@@ -107,11 +107,11 @@ namespace MathAnim
 				auto deadTextureHandle = deadTextures.find(handle);
 				if (deadTextureHandle != deadTextures.end())
 				{
-					g_logger_warning("Tried to unload a dead texture. The texture has already been unloaded '%s'.", deadTextureHandle->second.string().c_str());
+					g_logger_warning("Tried to unload a dead texture. The texture has already been unloaded '{}'.", deadTextureHandle->second);
 				}
 				else
 				{
-					g_logger_warning("Tried to unload unknown texture handle '%d'", handle);
+					g_logger_warning("Tried to unload unknown texture handle '{}'", handle);
 				}
 			}
 		}
@@ -126,7 +126,7 @@ namespace MathAnim
 
 			if (!isNull(textureHandle))
 			{
-				g_logger_error("Texture with handle '%d' not cached!", textureHandle);
+				g_logger_error("Texture with handle '{}' not cached!", textureHandle);
 			}
 			static Texture dummy = {};
 			return dummy;

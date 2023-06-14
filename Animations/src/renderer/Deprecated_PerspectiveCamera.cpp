@@ -1,4 +1,4 @@
-#include "renderer/PerspectiveCamera.h"
+#include "renderer/Deprecated_PerspectiveCamera.h"
 #include "core/Application.h"
 #include "core/Serialization.hpp"
 #include "math/CMath.h"
@@ -63,7 +63,7 @@ namespace MathAnim
 			break;
 		}
 
-		g_logger_warning("PerspectiveCamera serialized with unknown version: %d", version);
+		g_logger_warning("PerspectiveCamera serialized with unknown version: '{}'", version);
 		return {};
 	}
 

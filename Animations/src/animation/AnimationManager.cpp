@@ -3,7 +3,7 @@
 #include "renderer/Renderer.h"
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
-#include "renderer/OrthoCamera.h"
+#include "renderer/Camera.h"
 #include "editor/EditorSettings.h"
 #include "editor/panels/InspectorPanel.h"
 #include "svg/Svg.h"
@@ -38,15 +38,14 @@ namespace MathAnim
 		// NOTE(gabe): So this is due to my whacky architecture, but at the beginning of rendering
 		// each frame we actually need to reset the camera position to its start position. I really
 		// need to figure out a better architecture for this haha
-		AnimObjId startingActiveCamera;
 		AnimObjId activeCamera;
+		AnimObjId activeCamera3D;
 		int currentFrame;
 	};
 
 	namespace AnimationManager
 	{
 		// -------- Internal Functions --------
-		static void deserializeAnimationManagerV2(AnimationManagerData* am, const nlohmann::json& j);
 		static bool compareAnimation(const Animation& a1, const Animation& a2);
 		static void updateGlobalTransform(AnimObject& obj, const glm::mat4& parentTransform, const glm::mat4& parentTransformStart);
 		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj);
@@ -59,36 +58,19 @@ namespace MathAnim
 
 		AnimationManagerData* create()
 		{
-			void *animManagerMemory = g_memory_allocate(sizeof(AnimationManagerData));
+			void* animManagerMemory = g_memory_allocate(sizeof(AnimationManagerData));
 			// Placement new to ensure the vectors and stuff are appropriately constructed
 			// but I can still use my memory tracker
 			AnimationManagerData* res = new (animManagerMemory) AnimationManagerData();
 
-			res->startingActiveCamera = NULL_ANIM_OBJECT;
+			res->activeCamera = NULL_ANIM_OBJECT;
+			res->activeCamera3D = NULL_ANIM_OBJECT;
 			res->currentFrame = 0;
-
-			// TODO: Initialize some cameras and add them to the scene if this is
-			// the first time the scene is being opened
-			//
-			// camera2D.position = Vec2{ 0.0f, 0.0f };
-			// camera2D.projectionSize = Vec2{ viewportWidth, viewportHeight };
-			// camera2D.zoom = 1.0f;
-			// editorCamera2D = camera2D;
-
-			// camera3D.forward = glm::vec3(0, 0, 1);
-			// camera3D.fov = 70.0f;
-			// camera3D.orientation = glm::vec3(-15.0f, 50.0f, 0);
-			// camera3D.position = glm::vec3(
-			//	-10.0f * glm::cos(glm::radians(-camera3D.orientation.y)),
-			//	2.5f,
-			//	10.0f * glm::sin(glm::radians(-camera3D.orientation.y))
-			//);
-			// editorCamera3D = camera3D;
 
 			return res;
 		}
 
-		void free(AnimationManagerData *am)
+		void free(AnimationManagerData* am)
 		{
 			if (am)
 			{
@@ -110,7 +92,7 @@ namespace MathAnim
 			}
 		}
 
-		void endFrame(AnimationManagerData *am)
+		void endFrame(AnimationManagerData* am)
 		{
 			MP_PROFILE_EVENT("AnimationManager_EndFrame");
 
@@ -131,7 +113,7 @@ namespace MathAnim
 			am->queuedRemoveAnimations.clear();
 
 			// Add all queued objects
-			for (const auto &obj : am->queuedAddObjects)
+			for (const auto& obj : am->queuedAddObjects)
 			{
 				addQueuedAnimObject(am, obj);
 			}
@@ -139,15 +121,28 @@ namespace MathAnim
 			am->queuedAddObjects.clear();
 
 			// Add all queued animations
-			for (const auto &animation : am->queuedAddAnimations)
+			for (const auto& animation : am->queuedAddAnimations)
 			{
 				addQueuedAnimation(am, animation);
 			}
 			// Clear queue
 			am->queuedAddAnimations.clear();
+
+			// End camera frames
+			AnimObject* activeCamera = getMutableObject(am, am->activeCamera);
+			if (activeCamera)
+			{
+				activeCamera->as.camera.endFrame();
+			}
+
+			AnimObject* activeCamera3D = getMutableObject(am, am->activeCamera3D);
+			if (activeCamera3D)
+			{
+				activeCamera3D->as.camera.endFrame();
+			}
 		}
 
-		void resetToFrame(AnimationManagerData *am, uint32 absoluteFrame)
+		void resetToFrame(AnimationManagerData* am, uint32 absoluteFrame)
 		{
 			MP_PROFILE_EVENT("AnimationManager_ResetToFrame");
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
@@ -173,7 +168,7 @@ namespace MathAnim
 			am->currentFrame = absoluteFrame;
 		}
 
-		void calculateAnimationKeyFrames(AnimationManagerData *am)
+		void calculateAnimationKeyFrames(AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -193,7 +188,7 @@ namespace MathAnim
 			calculateBBoxes(am);
 		}
 
-		void addAnimObject(AnimationManagerData *am, const AnimObject &object)
+		void addAnimObject(AnimationManagerData* am, const AnimObject& object)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -202,7 +197,7 @@ namespace MathAnim
 			am->queuedAddObjects.push_back(object);
 		}
 
-		void addAnimation(AnimationManagerData *am, const Animation &animation)
+		void addAnimation(AnimationManagerData* am, const Animation& animation)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -211,16 +206,24 @@ namespace MathAnim
 			am->queuedAddAnimations.push_back(animation);
 		}
 
-		void removeAnimObject(AnimationManagerData *am, AnimObjId animObj)
+		void removeAnimObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			// These removes get queued until the end of the frame so that
 			// pointers are stable for at least the duration of one frame
 			am->queuedRemoveObjects.push_back(animObj);
+			if (animObj == am->activeCamera)
+			{
+				am->activeCamera = NULL_ANIM_OBJECT;
+			}
+			else if (animObj == am->activeCamera3D)
+			{
+				am->activeCamera = NULL_ANIM_OBJECT;
+			}
 		}
 
-		void removeAnimation(AnimationManagerData *am, AnimId anim)
+		void removeAnimation(AnimationManagerData* am, AnimId anim)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -229,10 +232,10 @@ namespace MathAnim
 			am->queuedRemoveAnimations.push_back(anim);
 		}
 
-		void addObjectToAnim(AnimationManagerData *am, AnimObjId animObjId, AnimId animationId)
+		void addObjectToAnim(AnimationManagerData* am, AnimObjId animObjId, AnimId animationId)
 		{
-			Animation *anim = getMutableAnimation(am, animationId);
-			AnimObject *obj = getMutableObject(am, animObjId);
+			Animation* anim = getMutableAnimation(am, animationId);
+			AnimObject* obj = getMutableObject(am, animObjId);
 			if (anim && obj)
 			{
 				anim->animObjectIds.insert(animObjId);
@@ -240,10 +243,10 @@ namespace MathAnim
 			}
 		}
 
-		void removeObjectFromAnim(AnimationManagerData *am, AnimObjId animObjId, AnimId animationId)
+		void removeObjectFromAnim(AnimationManagerData* am, AnimObjId animObjId, AnimId animationId)
 		{
-			Animation *anim = getMutableAnimation(am, animationId);
-			AnimObject *obj = getMutableObject(am, animObjId);
+			Animation* anim = getMutableAnimation(am, animationId);
+			AnimObject* obj = getMutableObject(am, animObjId);
 			if (anim && obj)
 			{
 				anim->animObjectIds.erase(animObjId);
@@ -251,7 +254,7 @@ namespace MathAnim
 			}
 		}
 
-		bool setAnimationTime(AnimationManagerData *am, AnimId anim, int frameStart, int duration)
+		bool setAnimationTime(AnimationManagerData* am, AnimId anim, int frameStart, int duration)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -280,87 +283,18 @@ namespace MathAnim
 			return false;
 		}
 
-		void setAnimationTrack(AnimationManagerData *am, AnimId anim, int track)
+		void setAnimationTrack(AnimationManagerData* am, AnimId anim, int track)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
-			Animation *animation = getMutableAnimation(am, anim);
+			Animation* animation = getMutableAnimation(am, anim);
 			if (animation)
 			{
 				animation->timelineTrack = track;
 			}
 		}
 
-		Framebuffer prepareFramebuffer(int outputWidth, int outputHeight)
-		{
-			Texture compositeTexture = TextureBuilder()
-										   .setFormat(ByteFormat::RGBA8_UI)
-										   .setMinFilter(FilterMode::Linear)
-										   .setMagFilter(FilterMode::Linear)
-										   .setWidth(outputWidth)
-										   .setHeight(outputHeight)
-										   .build();
-
-			Texture accumulationTexture = TextureBuilder()
-											  .setFormat(ByteFormat::RGBA16_F)
-											  .setMinFilter(FilterMode::Linear)
-											  .setMagFilter(FilterMode::Linear)
-											  .setWidth(outputWidth)
-											  .setHeight(outputHeight)
-											  .build();
-
-			Texture revelageTexture = TextureBuilder()
-										  .setFormat(ByteFormat::R8_F)
-										  .setMinFilter(FilterMode::Linear)
-										  .setMagFilter(FilterMode::Linear)
-										  .setWidth(outputWidth)
-										  .setHeight(outputHeight)
-										  .build();
-
-			Texture objIdTexture = TextureBuilder()
-									   .setFormat(ByteFormat::RG32_UI)
-									   .setMinFilter(FilterMode::Nearest)
-									   .setMagFilter(FilterMode::Nearest)
-									   .setWidth(outputWidth)
-									   .setHeight(outputHeight)
-									   .build();
-
-			Texture activeObjectsOutlineMask = TextureBuilder()
-				.setFormat(ByteFormat::RGBA16_F)
-				.setMinFilter(FilterMode::Nearest)
-				.setMagFilter(FilterMode::Nearest)
-				// TODO: Should we have a smaller framebuffer for outlines?
-				// We could potentially make it 2x or 3x smaller and then just
-				// render to that instead of having it attached to the main framebuffer
-				.setWidth(outputWidth)
-				.setHeight(outputHeight)
-				.build();
-
-			Texture activeObjectsOutlineMask2 = TextureBuilder()
-				.setFormat(ByteFormat::RGBA16_F)
-				.setMinFilter(FilterMode::Nearest)
-				.setMagFilter(FilterMode::Nearest)
-				// TODO: Should we have a smaller framebuffer for outlines?
-				// We could potentially make it 2x or 3x smaller and then just
-				// render to that instead of having it attached to the main framebuffer
-				.setWidth(outputWidth)
-				.setHeight(outputHeight)
-				.build();
-
-			Framebuffer res = FramebufferBuilder(outputWidth, outputHeight)
-				.addColorAttachment(compositeTexture)
-				.addColorAttachment(accumulationTexture)
-				.addColorAttachment(revelageTexture)
-				.addColorAttachment(objIdTexture)
-				.addColorAttachment(activeObjectsOutlineMask)
-				.addColorAttachment(activeObjectsOutlineMask2)
-				.includeDepthStencil()
-				.generate();
-
-			return res;
-		}
-
-		void render(AnimationManagerData *am, int deltaFrame)
+		void render(AnimationManagerData* am, int deltaFrame)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 			MP_PROFILE_EVENT("AnimationManager_Render");
@@ -370,9 +304,7 @@ namespace MathAnim
 				applyDelta(am, deltaFrame);
 			}
 
-			// Render any active/animating objects
-			// Make sure to initialize the NanoVG cache and then flush it after all the
-			// draw calls are complete
+			// NOTE: Render any active/animating objects
 			{
 				MP_PROFILE_EVENT("AnimationManager_UpdateActiveObjects");
 
@@ -390,16 +322,13 @@ namespace MathAnim
 					}
 					else if (objectIter->objectType == AnimObjectTypeV1::Camera)
 					{
-						if (objectIter->as.camera.is2D)
-						{
-							objectIter->as.camera.camera2D.position = CMath::vector2From3(objectIter->globalPosition);
-						}
+						objectIter->as.camera.position = objectIter->globalPosition;
 					}
 				}
 			}
 		}
 
-		int lastAnimatedFrame(const AnimationManagerData *am)
+		int lastAnimatedFrame(const AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -414,23 +343,61 @@ namespace MathAnim
 			return lastFrame + 60;
 		}
 
-		bool isPastLastFrame(const AnimationManagerData *am)
+		bool isPastLastFrame(const AnimationManagerData* am)
 		{
 			return am->currentFrame >= AnimationManager::lastAnimatedFrame(am);
 		}
 
-		const AnimObject *getActiveOrthoCamera(const AnimationManagerData *am)
+		const Camera& getActiveCamera2D(const AnimationManagerData* am)
 		{
-			return getObject(am, am->activeCamera);
+			g_logger_assert(hasActive2DCamera(am), "No Camera2D set on the scene, cannot retrieve it.");
+			const AnimObject* obj = getObject(am, am->activeCamera);
+			return obj->as.camera;
 		}
 
-		void setActiveOrthoCamera(AnimationManagerData *am, AnimObjId id)
+		const Camera& getActiveCamera3D(const AnimationManagerData* am)
 		{
-			am->startingActiveCamera = id;
-			am->activeCamera = id;
+			g_logger_assert(hasActive3DCamera(am), "No Camera3D set on the scene, cannot retrieve it.");
+			const AnimObject* obj = getObject(am, am->activeCamera3D);
+			return obj->as.camera;
 		}
 
-		const AnimObject *getPendingObject(const AnimationManagerData *am, AnimObjId animObj)
+		bool hasActive2DCamera(const AnimationManagerData* am)
+		{
+			return am->activeCamera != NULL_ANIM_OBJECT;
+		}
+
+		bool hasActive3DCamera(const AnimationManagerData* am)
+		{
+			return am->activeCamera3D != NULL_ANIM_OBJECT;
+		}
+
+		void setActiveCamera2D(AnimationManagerData* am, AnimObjId cameraObj)
+		{
+			am->activeCamera = cameraObj;
+		}
+
+		void setActiveCamera3D(AnimationManagerData* am, AnimObjId cameraObj)
+		{
+			am->activeCamera3D = cameraObj;
+		}
+
+		void calculateCameraMatrices(AnimationManagerData* am)
+		{
+			AnimObject* camera2D = getMutableObject(am, am->activeCamera);
+			if (camera2D)
+			{
+				camera2D->as.camera.calculateMatrices();
+			}
+
+			AnimObject* camera3D = getMutableObject(am, am->activeCamera3D);
+			if (camera3D)
+			{
+				camera3D->as.camera.calculateMatrices();
+			}
+		}
+
+		const AnimObject* getPendingObject(const AnimationManagerData* am, AnimObjId animObj)
 		{
 			for (int i = 0; i < am->queuedAddObjects.size(); i++)
 			{
@@ -443,12 +410,12 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		const AnimObject *getObject(const AnimationManagerData *am, AnimObjId animObj)
+		const AnimObject* getObject(const AnimationManagerData* am, AnimObjId animObj)
 		{
-			return getMutableObject((AnimationManagerData *)am, animObj);
+			return getMutableObject((AnimationManagerData*)am, animObj);
 		}
 
-		AnimObject *getMutableObject(AnimationManagerData *am, AnimObjId animObj)
+		AnimObject* getMutableObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -486,12 +453,12 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		const Animation *getAnimation(const AnimationManagerData *am, AnimId anim)
+		const Animation* getAnimation(const AnimationManagerData* am, AnimId anim)
 		{
-			return getMutableAnimation((AnimationManagerData *)am, anim);
+			return getMutableAnimation((AnimationManagerData*)am, anim);
 		}
 
-		Animation *getMutableAnimation(AnimationManagerData *am, AnimId anim)
+		Animation* getMutableAnimation(AnimationManagerData* am, AnimId anim)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -513,19 +480,19 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		const std::vector<AnimObject> &getAnimObjects(const AnimationManagerData *am)
+		const std::vector<AnimObject>& getAnimObjects(const AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 			return am->objects;
 		}
 
-		const std::vector<Animation> &getAnimations(const AnimationManagerData *am)
+		const std::vector<Animation>& getAnimations(const AnimationManagerData* am)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 			return am->animations;
 		}
 
-		std::vector<AnimId> getAssociatedAnimations(const AnimationManagerData *am, AnimObjId animObj)
+		std::vector<AnimId> getAssociatedAnimations(const AnimationManagerData* am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -542,7 +509,7 @@ namespace MathAnim
 			return res;
 		}
 
-		std::vector<AnimObjId> getChildren(const AnimationManagerData *am, AnimObjId animObj)
+		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId animObj)
 		{
 			std::vector<AnimObjId> res;
 			for (int i = 0; i < am->objects.size(); i++)
@@ -556,9 +523,9 @@ namespace MathAnim
 			return res;
 		}
 
-		AnimObjId getNextSibling(const AnimationManagerData *am, AnimObjId objId)
+		AnimObjId getNextSibling(const AnimationManagerData* am, AnimObjId objId)
 		{
-			const AnimObject *obj = getObject(am, objId);
+			const AnimObject* obj = getObject(am, objId);
 			if (obj)
 			{
 				bool passedMyself = false;
@@ -583,7 +550,8 @@ namespace MathAnim
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
 			// Custom data starts here. Subject to change from version to version
-			writeIdToJson("StartingActiveCamera", am->startingActiveCamera, output);
+			writeIdToJson("ActiveCamera", am->activeCamera, output);
+			writeIdToJson("ActiveCamera3D", am->activeCamera3D, output);
 			output["Animations"] = nlohmann::json::array();
 
 			// Write out each animation
@@ -607,24 +575,53 @@ namespace MathAnim
 		void deserialize(AnimationManagerData* am, const nlohmann::json& j, int currentFrame, uint32 versionMajor, uint32 versionMinor)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
-			
-			if (versionMajor == 2)
+
+			if (versionMajor < 2 || versionMajor > 3)
 			{
-				deserializeAnimationManagerV2(am, j);
-				am->currentFrame = currentFrame;
-				// Calculate all key frame starting points and stuff
-				calculateAnimationKeyFrames(am);
-				// Apply all  animations appropriately
-				Application::resetToFrame(currentFrame);
-				resetToFrame(am, currentFrame);
-			}
-			else
-			{
-				g_logger_error("AnimationManager tried to deserialize save file with unknown version '%d.%d'.", versionMajor, versionMinor);
+				g_logger_error("AnimationManager tried to deserialize save file with unknown version '{}.{}'.", versionMajor, versionMinor);
 			}
 
-			// Need to sort animations they get applied in the correct order
+			// TODO: Deprecate 2D cameras. All cameras will be 3D from here on out.
+			am->activeCamera3D = readIdFromJson(j, "StartingActiveCamera");
+			am->activeCamera = am->activeCamera3D;
+			// NOTE: This is for legacy projects. It would be better to bump the serialized file version
+			//       but that's too much work. And this hack works fine.
+			if (isNull(am->activeCamera3D))
+			{
+				am->activeCamera3D = readIdFromJson(j, "ActiveCamera");
+				am->activeCamera = am->activeCamera3D;
+			}
+			if (isNull(am->activeCamera3D))
+			{
+				am->activeCamera3D = readIdFromJson(j, "ActiveCamera3D");
+				am->activeCamera = am->activeCamera3D;
+			}
+
+			// Read each animation followed by 0xDEADBEEF
+			for (size_t i = 0; i < j["Animations"].size(); i++)
+			{
+				Animation animation = Animation::deserialize(j["Animations"][i], versionMajor);
+				am->animationIdMap[animation.id] = i;
+				am->animations.emplace_back(animation);
+			}
+
+			// Read each anim object followed by 0xDEADBEEF
+			for (size_t i = 0; i < j["AnimationObjects"].size(); i++)
+			{
+				AnimObject animObject = AnimObject::deserialize(am, j["AnimationObjects"][i], versionMajor);
+				am->objectIdMap[animObject.id] = i;
+				am->objects.emplace_back(animObject);
+			}
+
+			// Sort the animations afterwards since they could be inserted in random order
 			sortAnimations(am);
+
+			am->currentFrame = currentFrame;
+			// Calculate all key frame starting points and stuff
+			calculateAnimationKeyFrames(am);
+			// Apply all  animations appropriately
+			Application::resetToFrame(currentFrame);
+			resetToFrame(am, currentFrame);
 		}
 
 		void sortAnimations(AnimationManagerData* am)
@@ -648,8 +645,8 @@ namespace MathAnim
 			uint32 serializerVersion;
 			memory.read<uint32>(&serializerVersion);
 
-			g_logger_assert(magicNumber == MAGIC_NUMBER, "Project file had invalid magic number '0x%8x'. File must have been corrupted.", magicNumber);
-			g_logger_assert((serializerVersion != 0 && serializerVersion <= 1), "Project file saved with invalid version '%d'. Looks like corrupted data.", serializerVersion);
+			g_logger_assert(magicNumber == MAGIC_NUMBER, "Project file had invalid magic number '{:#010x}'. File must have been corrupted.", magicNumber);
+			g_logger_assert((serializerVersion != 0 && serializerVersion <= 1), "Project file saved with invalid version '{}'. Looks like corrupted data.", serializerVersion);
 
 			if (serializerVersion == 1)
 			{
@@ -660,8 +657,7 @@ namespace MathAnim
 					// startingActiveCamera -> AnimObjId
 					// numAnimations -> uint32
 					// animations    -> dynamic
-					memory.read<AnimObjId>(&am->startingActiveCamera);
-					am->activeCamera = am->startingActiveCamera;
+					memory.read<AnimObjId>(&am->activeCamera);
 					uint32 numAnimations;
 					memory.read<uint32>(&numAnimations);
 
@@ -671,7 +667,7 @@ namespace MathAnim
 						Animation animation = Animation::legacy_deserialize(memory, version);
 						am->animations.push_back(animation);
 						memory.read<uint32>(&magicNumber);
-						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '{:#010x}'", magicNumber);
 
 						am->animationIdMap[animation.id] = i;
 					}
@@ -687,7 +683,7 @@ namespace MathAnim
 						AnimObject animObject = AnimObject::legacy_deserialize(am, memory, version);
 						am->objects.push_back(animObject);
 						memory.read<uint32>(&magicNumber);
-						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '0x%8x'", magicNumber);
+						g_logger_assert(magicNumber == MAGIC_NUMBER, "Corrupted animation in file data. Bad magic number '{:#010x}'", magicNumber);
 
 						am->objectIdMap[animObject.id] = i;
 					}
@@ -702,7 +698,7 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_error("AnimationManagerEx serialized with unknown version '%d'.", serializerVersion);
+				g_logger_error("AnimationManagerEx serialized with unknown version '{}'.", serializerVersion);
 			}
 
 			// Need to sort animations they get applied in the correct order
@@ -717,7 +713,7 @@ namespace MathAnim
 			}
 		}
 
-		void applyGlobalTransforms(AnimationManagerData *am)
+		void applyGlobalTransforms(AnimationManagerData* am)
 		{
 			MP_PROFILE_EVENT("AnimationManager_ApplyGlobalTransforms");
 			// ----- Apply the parent->child transformations -----
@@ -734,7 +730,7 @@ namespace MathAnim
 			}
 		}
 
-		void applyGlobalTransformsTo(AnimationManagerData *am, AnimObjId obj)
+		void applyGlobalTransformsTo(AnimationManagerData* am, AnimObjId obj)
 		{
 			// Initialize the queue with the object to update
 			std::queue<AnimObjId> objects = {};
@@ -748,12 +744,12 @@ namespace MathAnim
 				objects.pop();
 
 				// Update child transform
-				AnimObject *nextObj = getMutableObject(am, nextObjId);
+				AnimObject* nextObj = getMutableObject(am, nextObjId);
 				if (nextObj)
 				{
 					glm::mat4 parentTransform = glm::mat4(1.0f);
 					glm::mat4 parentTransformStart = glm::mat4(1.0f);
-					const AnimObject *parent = getObject(am, nextObj->parentId);
+					const AnimObject* parent = getObject(am, nextObj->parentId);
 					if (parent)
 					{
 						parentTransform = parent->globalTransform;
@@ -774,7 +770,7 @@ namespace MathAnim
 			}
 		}
 
-		void calculateBBoxes(AnimationManagerData *am)
+		void calculateBBoxes(AnimationManagerData* am)
 		{
 			MP_PROFILE_EVENT("AnimationManager_CalculateBBoxes");
 			// ----- Calculate child bbox first then parent -----
@@ -791,7 +787,7 @@ namespace MathAnim
 			}
 		}
 
-		void calculateBBoxFor(AnimationManagerData *am, AnimObjId obj)
+		void calculateBBoxFor(AnimationManagerData* am, AnimObjId obj)
 		{
 			// Parent
 			//   -> Child1
@@ -832,8 +828,8 @@ namespace MathAnim
 				}
 				else
 				{
-					finalBoundingBox.min = Vec2{FLT_MAX, FLT_MAX};
-					finalBoundingBox.max = Vec2{-FLT_MAX, -FLT_MAX};
+					finalBoundingBox.min = Vec2{ FLT_MAX, FLT_MAX };
+					finalBoundingBox.max = Vec2{ -FLT_MAX, -FLT_MAX };
 				}
 
 				// Then append all direct children to the queue so they are
@@ -852,12 +848,12 @@ namespace MathAnim
 			}
 		}
 
-		void updateObjectState(AnimationManagerData *am, AnimObjId animObjId)
+		void updateObjectState(AnimationManagerData* am, AnimObjId animObjId)
 		{
-			AnimObject *obj = getMutableObject(am, animObjId);
+			AnimObject* obj = getMutableObject(am, animObjId);
 			if (!obj)
 			{
-				g_logger_warning("Cannot update state of object that does not exist for AnimObjID: '%d'", animObjId);
+				g_logger_warning("Cannot update state of object that does not exist for AnimObjID: '{}'", animObjId);
 				return;
 			}
 
@@ -867,7 +863,7 @@ namespace MathAnim
 
 			if (!isNull(obj->parentId))
 			{
-				AnimObject *parent;
+				AnimObject* parent;
 				while ((parent = getMutableObject(am, obj->parentId)) != nullptr)
 				{
 					obj = parent;
@@ -879,7 +875,7 @@ namespace MathAnim
 			for (auto childIter = obj->beginBreadthFirst(am); childIter != obj->end(); ++childIter)
 			{
 				AnimObjId childId = *childIter;
-				AnimObject *child = getMutableObject(am, childId);
+				AnimObject* child = getMutableObject(am, childId);
 				if (child)
 				{
 					child->resetAllState();
@@ -892,7 +888,7 @@ namespace MathAnim
 			// Apply any changes from animations in order
 			for (auto animIter = obj->referencedAnimations.begin(); animIter != obj->referencedAnimations.end(); animIter++)
 			{
-				Animation *anim = AnimationManager::getMutableAnimation(am, *animIter);
+				Animation* anim = AnimationManager::getMutableAnimation(am, *animIter);
 				if (anim)
 				{
 					float frameStart = (float)anim->frameStart;
@@ -915,35 +911,7 @@ namespace MathAnim
 		}
 
 		// -------- Internal Functions --------
-		static void deserializeAnimationManagerV2(AnimationManagerData* am, const nlohmann::json& j)
-		{
-			// We're in function V2 so this is a version 2 for sure
-			constexpr uint32 version = 2;
-
-			am->startingActiveCamera = readIdFromJson(j, "StartingActiveCamera");
-			am->activeCamera = am->startingActiveCamera;
-
-			// Read each animation followed by 0xDEADBEEF
-			for (size_t i = 0; i < j["Animations"].size(); i++)
-			{
-				Animation animation = Animation::deserialize(j["Animations"][i], version);
-				am->animationIdMap[animation.id] = i;
-				am->animations.emplace_back(animation);
-			}
-
-			// Read each anim object followed by 0xDEADBEEF
-			for (size_t i = 0; i < j["AnimationObjects"].size(); i++)
-			{
-				AnimObject animObject = AnimObject::deserialize(am, j["AnimationObjects"][i], version);
-				am->objectIdMap[animObject.id] = i;
-				am->objects.emplace_back(animObject);
-			}
-
-			// Sort the animations afterwards since they could be inserted in random order
-			sortAnimations(am);
-		}
-
-		static bool compareAnimation(const Animation &a1, const Animation &a2)
+		static bool compareAnimation(const Animation& a1, const Animation& a2)
 		{
 			// Sort by timeline track secondarily
 			if (a1.frameStart == a2.frameStart)
@@ -954,7 +922,7 @@ namespace MathAnim
 			return a1.frameStart < a2.frameStart;
 		}
 
-		static void updateGlobalTransform(AnimObject &obj, const glm::mat4 &parentTransform, const glm::mat4 &parentTransformStart)
+		static void updateGlobalTransform(AnimObject& obj, const glm::mat4& parentTransform, const glm::mat4& parentTransformStart)
 		{
 			// Calculate global transformation
 			obj.globalTransform = parentTransform * CMath::calculateTransform(obj.rotation, obj.scale, obj.position);
@@ -965,13 +933,13 @@ namespace MathAnim
 			obj._globalPositionStart = CMath::extractPosition(obj._globalTransformStart);
 		}
 
-		static void addQueuedAnimObject(AnimationManagerData *am, const AnimObject &obj)
+		static void addQueuedAnimObject(AnimationManagerData* am, const AnimObject& obj)
 		{
 			am->objects.push_back(obj);
 			am->objectIdMap[obj.id] = am->objects.size() - 1;
 		}
 
-		static void addQueuedAnimation(AnimationManagerData *am, const Animation &animation)
+		static void addQueuedAnimation(AnimationManagerData* am, const Animation& animation)
 		{
 			for (auto iter = am->animations.begin(); iter != am->animations.end(); iter++)
 			{
@@ -996,7 +964,7 @@ namespace MathAnim
 			am->animationIdMap[animation.id] = am->animations.size() - 1;
 		}
 
-		static void removeQueuedAnimObject(AnimationManagerData *am, AnimObjId animObj)
+		static void removeQueuedAnimObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -1010,11 +978,11 @@ namespace MathAnim
 			// Then remove the parent
 			if (!removeSingleAnimObject(am, animObj))
 			{
-				g_logger_warning("Tried to delete AnimObject<ID: '%d'>, which does not exist.", animObj);
+				g_logger_warning("Tried to delete AnimObject<ID: '{}'>, which does not exist.", animObj);
 			}
 		}
 
-		static void removeQueuedAnimation(AnimationManagerData *am, AnimId anim)
+		static void removeQueuedAnimation(AnimationManagerData* am, AnimId anim)
 		{
 			g_logger_assert(am != nullptr, "Null AnimationManagerData.");
 
@@ -1038,7 +1006,7 @@ namespace MathAnim
 			}
 		}
 
-		static bool removeSingleAnimObject(AnimationManagerData *am, AnimObjId animObj)
+		static bool removeSingleAnimObject(AnimationManagerData* am, AnimObjId animObj)
 		{
 			// Remove the anim object
 			auto iter = am->objectIdMap.find(animObj);
@@ -1088,7 +1056,7 @@ namespace MathAnim
 			return true;
 		}
 
-		static void applyDelta(AnimationManagerData *am, int deltaFrame)
+		static void applyDelta(AnimationManagerData* am, int deltaFrame)
 		{
 			MP_PROFILE_EVENT("AnimationManager_ApplyDelta");
 			// int previousFrame = am->currentFrame;
@@ -1181,7 +1149,7 @@ namespace MathAnim
 			// applyGlobalTransforms(am);
 		}
 
-		static void applyAnimationsFrom(AnimationManagerData *am, int startIndex, int currentFrame, bool calculateKeyframes)
+		static void applyAnimationsFrom(AnimationManagerData* am, int startIndex, int currentFrame, bool calculateKeyframes)
 		{
 			MP_PROFILE_EVENT("AnimationManager_ApplyAnimationsFrom");
 

@@ -58,7 +58,7 @@ namespace MathAnim
 		static void handleSquareInspector(AnimObject* object);
 		static void handleCircleInspector(AnimObject* object);
 		static void handleArrowInspector(AnimObject* object);
-		static void handleCubeInspector(AnimObject* object);
+		static void handleCubeInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleAxisInspector(AnimObject* object);
 		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleImageObjectInspector(AnimationManagerData* am, AnimObject* object);
@@ -192,7 +192,7 @@ namespace MathAnim
 			AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectId);
 			if (!animObject)
 			{
-				g_logger_error("No anim object with id '%d' exists", animObject);
+				g_logger_error("No anim object with id '{}' exists", animObject);
 				activeAnimObjectId = NULL_ANIM_OBJECT;
 				return;
 			}
@@ -219,9 +219,6 @@ namespace MathAnim
 				ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed);
 				ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
 				ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
-
-				ImGui::Checkbox(": Is Transparent", &animObject->isTransparent);
-				ImGui::Checkbox(": Is 3D", &animObject->is3D);
 			}
 
 			std::string svgPropsComponentName = "Svg Properties##" + std::to_string(animObjectId);
@@ -323,7 +320,7 @@ namespace MathAnim
 					handleCircleInspector(animObject);
 					break;
 				case AnimObjectTypeV1::Cube:
-					handleCubeInspector(animObject);
+					handleCubeInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::Axis:
 					handleAxisInspector(animObject);
@@ -358,7 +355,7 @@ namespace MathAnim
 			Animation* animation = AnimationManager::getMutableAnimation(am, animationId);
 			if (!animation)
 			{
-				g_logger_error("No animation with id '%d' exists", animationId);
+				g_logger_error("No animation with id '{}' exists", animationId);
 				activeAnimationId = NULL_ANIM;
 				return;
 			}
@@ -558,7 +555,7 @@ namespace MathAnim
 			{
 				if (object->as.textObject.font != nullptr)
 				{
-					g_logger_warning("Could not find font %s", object->as.textObject.font->fontFilepath.c_str());
+					g_logger_warning("Could not find font '{}'", object->as.textObject.font->fontFilepath);
 				}
 			}
 
@@ -663,7 +660,7 @@ namespace MathAnim
 			char scratch[scratchLength] = {};
 			if (object->as.laTexObject.textLength >= scratchLength)
 			{
-				g_logger_error("Text object has more than %d characters. Tell Gabe to increase scratch length for LaTex objects.", scratchLength);
+				g_logger_error("Text object has more than '{}' characters. Tell Gabe to increase scratch length for LaTex objects.", scratchLength);
 				return;
 			}
 			g_memory_copyMem(scratch, object->as.laTexObject.text, object->as.laTexObject.textLength * sizeof(char));
@@ -743,7 +740,7 @@ namespace MathAnim
 				}
 				else
 				{
-					g_logger_error("Error opening SVGFileObject:\n\t%s", NFD_GetError());
+					g_logger_error("Error opening SVGFileObject:\n\t'{}'", NFD_GetError());
 				}
 			}
 
@@ -753,26 +750,25 @@ namespace MathAnim
 			}
 		}
 
-		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object)
+		static void handleCameraObjectInspector(AnimationManagerData*, AnimObject* object)
 		{
-			if (object->as.camera.is2D)
+			int currentMode = (int)object->as.camera.mode;
+			if (ImGui::Combo(": Projection", &currentMode, _cameraModeNames.data(), (int)CameraMode::Length))
 			{
-				ImGui::DragFloat2(": Projection Size", (float*)&object->as.camera.camera2D.projectionSize.x, slowDragSpeed);
-				ImGui::DragFloat(": Zoom", &object->as.camera.camera2D.zoom, slowDragSpeed);
+				g_logger_assert(currentMode >= 0 && currentMode < (int)CameraMode::Length, "How did this happen?");
+				object->as.camera.mode = (CameraMode)currentMode;
 			}
 
-			if (ImGui::Checkbox(": Is 2D", &object->as.camera.is2D))
-			{
-				// TODO: Do something to set the camera appropriately to 3D or whatever
-			}
-
-			if (ImGui::Checkbox(": Is Active Camera", &object->as.camera.isActiveCamera))
-			{
-				if (object->as.camera.isActiveCamera)
-				{
-					AnimationManager::setActiveOrthoCamera(am, object->id);
-				}
-			}
+			ImGui::DragFloat(": Field Of View", &object->as.camera.fov, 1.0f, 360.0f);
+			ImGui::DragFloat3(": Position", &object->as.camera.position.x);
+			ImGui::DragFloat3(": Orientation", &object->as.camera.orientation.x);
+			ImGui::DragInt2(": Aspect Ratio", &object->as.camera.aspectRatioFraction.x);
+			ImGui::DragFloat(": Near", &object->as.camera.nearFarRange.min);
+			ImGui::DragFloat(": Far", &object->as.camera.nearFarRange.max);
+			ImGui::DragFloat(": Focal Distance", &object->as.camera.focalDistance);
+			ImGui::BeginDisabled(object->as.camera.mode != CameraMode::Orthographic);
+			ImGui::DragFloat(": Ortho Zoom Level", &object->as.camera.orthoZoomLevel);
+			ImGui::EndDisabled();
 
 			ImGui::ColorEdit4(": Background Color", &object->as.camera.fillColor.r);
 		}
@@ -909,18 +905,11 @@ namespace MathAnim
 			}
 		}
 
-		static void handleCubeInspector(AnimObject* object)
+		static void handleCubeInspector(AnimationManagerData* am, AnimObject* object)
 		{
 			if (ImGui::DragFloat(": Side Length", &object->as.cube.sideLength, slowDragSpeed))
 			{
-				//for (int i = 0; i < object->children.size(); i++)
-				//{
-				//	object->children[i].free();
-				//}
-				//object->children.clear();
-				g_logger_warning("TODO: Fix me");
-
-				object->as.cube.reInit(object);
+				object->as.cube.reInit(am, object);
 			}
 		}
 
@@ -1131,7 +1120,7 @@ namespace MathAnim
 				}
 				else
 				{
-					g_logger_error("Error opening Image:\n\t%s", NFD_GetError());
+					g_logger_error("Error opening Image:\n\t'{}'", NFD_GetError());
 				}
 			}
 

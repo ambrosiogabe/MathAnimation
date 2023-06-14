@@ -7,8 +7,8 @@
 using namespace tinyxml2;
 
 #define PANIC(formatStr, ...) \
-	snprintf(errorBuffer, errorBufferSize, formatStr, __VA_ARGS__); \
-	g_logger_error(formatStr, __VA_ARGS__);
+	snprintf(errorBuffer, errorBufferSize, formatStr, __VA_ARGS__);
+	// g_logger_error(formatStr, __VA_ARGS__);
 #define PANIC_NOFMT(str) \
 	snprintf(errorBuffer, errorBufferSize, str); \
 	g_logger_error(str);
@@ -75,6 +75,31 @@ namespace MathAnim
 		EndOfFile,
 		Length
 	};
+
+	std::ostream& operator<<(std::ostream& ostream, StyleTokenType token)
+	{
+		switch (token) 
+		{
+		case StyleTokenType::Panic: ostream << "StyleTokenType::Panic"; break;
+		case StyleTokenType::Identifier: ostream << "StyleTokenType::Identifier"; break;
+		case StyleTokenType::HashtagIdentifier: ostream << "StyleTokenType::HashtagIdentifier"; break;
+		case StyleTokenType::DotIdentifier: ostream << "StyleTokenType::DotIdentifier"; break;
+		case StyleTokenType::String: ostream << "StyleTokenType::String"; break;
+		case StyleTokenType::Color: ostream << "StyleTokenType::Color"; break;
+		case StyleTokenType::Number: ostream << "StyleTokenType::Number"; break;
+		case StyleTokenType::NumberPixels: ostream << "StyleTokenType::NumberPixels"; break;
+		case StyleTokenType::LeftCurlyBracket: ostream << "StyleTokenType::LeftCurlyBracket"; break;
+		case StyleTokenType::RightCurlyBracket: ostream << "StyleTokenType::RightCurlyBracket"; break;
+		case StyleTokenType::LeftParen: ostream << "StyleTokenType::LeftParen"; break;
+		case StyleTokenType::RightParen: ostream << "StyleTokenType::RightParen"; break;
+		case StyleTokenType::Colon: ostream << "StyleTokenType::Colon"; break;
+		case StyleTokenType::Semicolon: ostream << "StyleTokenType::Semicolon"; break;
+		case StyleTokenType::EndOfFile: ostream << "StyleTokenType::EndOfFile"; break;
+		case StyleTokenType::Length: ostream << "StyleTokenType::Length"; break;
+		}
+
+		return ostream;
+	}
 
 	struct DumbString
 	{
@@ -341,7 +366,7 @@ namespace MathAnim
 			{
 				if (!parseSvgStylesheet(styleElement, &rootStylesheet))
 				{
-					PANIC("Parsing SVG style failed: %s", styleElement->GetText());
+					PANIC("Parsing SVG style failed: '%s'", styleElement->GetText());
 					return nullptr;
 				}
 			}
@@ -362,14 +387,14 @@ namespace MathAnim
 					case SvgElementType::Path:
 					{
 						const XMLAttribute* id = childEl->FindAttribute("id");
-						if (id == nullptr) g_logger_warning("Child element '%s' had no id attribute.", childEl->Name());
+						if (id == nullptr) g_logger_warning("Child element '{}' had no id attribute.", childEl->Name());
 
 						SvgObject obj;
 						if (parseSvgPathTag(childEl, &obj, rootStylesheet))
 						{
 							std::string idStr = std::string(id->Value());
 							auto iter = objIds.find(idStr);
-							g_logger_assert(iter == objIds.end(), "Tried to insert duplicate ID '%s' in SVG object map", idStr.c_str());
+							g_logger_assert(iter == objIds.end(), "Tried to insert duplicate ID '{}' in SVG object map", idStr);
 							obj.calculateBBox();
 							objIds[idStr] = obj;
 						}
@@ -434,10 +459,10 @@ namespace MathAnim
 						const XMLAttribute* yAttr = childEl->FindAttribute("y");
 						const XMLAttribute* linkAttr = childEl->FindAttribute("xlink:href");
 
-						if (!xAttr) g_logger_warning("Child element '%s' had no x attribute.", childEl->Name());
-						if (!yAttr) g_logger_warning("Child element '%s' had no y attribute.", childEl->Name());
+						if (!xAttr) g_logger_warning("Child element '{}' had no x attribute.", childEl->Name());
+						if (!yAttr) g_logger_warning("Child element '{}' had no y attribute.", childEl->Name());
 
-						if (!linkAttr) g_logger_warning("Child element '%s' had no xlink:href attribute.", childEl->Name());
+						if (!linkAttr) g_logger_warning("Child element '{}' had no xlink:href attribute.", childEl->Name());
 
 						if (xAttr && yAttr && linkAttr)
 						{
@@ -446,7 +471,7 @@ namespace MathAnim
 							const char* linkText = linkAttr->Value();
 							if (linkText[0] != '#')
 							{
-								g_logger_warning("Child element '%s' link attribute '%s' did not begin with '#'.", childEl->Name(), linkText);
+								g_logger_warning("Child element '{}' link attribute '{}' did not begin with '#'.", childEl->Name(), linkText);
 								continue;
 							}
 
@@ -454,7 +479,7 @@ namespace MathAnim
 							auto iter = objIds.find(id);
 							if (iter == objIds.end())
 							{
-								g_logger_warning("Could not find link to svg path '%s' for child element '%s'", id.c_str(), childEl->Name());
+								g_logger_warning("Could not find link to svg path '{}' for child element '{}'", id, childEl->Name());
 								continue;
 							}
 
@@ -472,14 +497,14 @@ namespace MathAnim
 						const XMLAttribute* xAttr = childEl->FindAttribute("x");
 						const XMLAttribute* yAttr = childEl->FindAttribute("y");
 
-						if (!xAttr) g_logger_warning("Child element '%s' had no x attribute.", childEl->Name());
-						if (!yAttr) g_logger_warning("Child element '%s' had no y attribute.", childEl->Name());
+						if (!xAttr) g_logger_warning("Child element '{}' had no x attribute.", childEl->Name());
+						if (!yAttr) g_logger_warning("Child element '{}' had no y attribute.", childEl->Name());
 
 						const XMLAttribute* wAttr = childEl->FindAttribute("width");
 						const XMLAttribute* hAttr = childEl->FindAttribute("height");
 
-						if (!wAttr) g_logger_warning("Child element '%s' had no width attribute.", childEl->Name());
-						if (!hAttr) g_logger_warning("Child element '%s' had no height attribute.", childEl->Name());
+						if (!wAttr) g_logger_warning("Child element '{}' had no width attribute.", childEl->Name());
+						if (!hAttr) g_logger_warning("Child element '{}' had no height attribute.", childEl->Name());
 
 						if (wAttr && hAttr && xAttr && yAttr)
 						{
@@ -521,7 +546,7 @@ namespace MathAnim
 						}
 						else
 						{
-							g_logger_warning("Failed to parse path tag in SVG '%s'", filepath);
+							g_logger_warning("Failed to parse path tag in SVG '{}'", filepath);
 							goto error_cleanup;
 						}
 					}
@@ -539,7 +564,7 @@ namespace MathAnim
 						}
 						else
 						{
-							g_logger_warning("Failed to parse path tag in SVG '%s'", filepath);
+							g_logger_warning("Failed to parse path tag in SVG '{}'", filepath);
 							goto error_cleanup;
 						}
 					}
@@ -887,7 +912,7 @@ namespace MathAnim
 				}
 				else
 				{
-					g_logger_warning("Unknown fill-rule type: %s", value.c_str());
+					g_logger_warning("Unknown fill-rule type: {}", value);
 				}
 			}
 			else if (attributeName == "fill")
@@ -1668,22 +1693,22 @@ namespace MathAnim
 				g_logger_info("Token<EOF>: \\0");
 				break;
 			case StyleTokenType::Identifier:
-				g_logger_info("Token<Identifier>: %s", token.as.identifier.text);
+				g_logger_info("Token<Identifier>: {}", token.as.identifier.text);
 				break;
 			case StyleTokenType::DotIdentifier:
-				g_logger_info("Token<DotIdentifier>: .%s", token.as.identifier.text);
+				g_logger_info("Token<DotIdentifier>: .{}", token.as.identifier.text);
 				break;
 			case StyleTokenType::HashtagIdentifier:
-				g_logger_info("Token<HashtagIdentifier>: #%s", token.as.identifier.text);
+				g_logger_info("Token<HashtagIdentifier>: #{}", token.as.identifier.text);
 				break;
 			case StyleTokenType::LeftCurlyBracket:
-				g_logger_info("Token<LCurlyBracket>: {");
+				g_logger_info("Token<LCurlyBracket>: {{");
 				break;
 			case StyleTokenType::LeftParen:
 				g_logger_info("Token<LParen>: (");
 				break;
 			case StyleTokenType::Number:
-				g_logger_info("Token<Number>: %2.3f", token.as.number);
+				g_logger_info("Token<Number>: {}", token.as.number);
 				break;
 			case StyleTokenType::RightCurlyBracket:
 				g_logger_info("Token<RCurlyBracket>: }");
@@ -1692,7 +1717,7 @@ namespace MathAnim
 				g_logger_info("Token<RParen>: )");
 				break;
 			case StyleTokenType::String:
-				g_logger_info("Token<String>: \"%s\"", token.as.identifier.text);
+				g_logger_info("Token<String>: \"{}\"", token.as.identifier.text);
 				break;
 			case StyleTokenType::Colon:
 				g_logger_info("Token<Colon>: :");

@@ -293,7 +293,7 @@ namespace MathAnim
 				}
 				else
 				{
-					g_logger_error("File drag drop target got filepath of length '%d' that was too long to fit into buffer of length '%d'.", (uint32)objPayload->filepathLength, (uint32)outBufferSize);
+					g_logger_error("File drag drop target got filepath of length '{}' that was too long to fit into buffer of length '{}'.", objPayload->filepathLength, outBufferSize);
 					return false;
 				}
 
@@ -542,6 +542,33 @@ namespace MathAnim
 			}
 
 			// End CenteredWrapText
+		}
+
+		bool SelectableImage(const char* internalName, const Texture& image, const ImVec2& size, const ImVec2& uvMin, const ImVec2& uvMax)
+		{
+			std::string id = std::string("##") + image.path.string() + internalName;
+			bool res = ImGui::Selectable(id.c_str(), false, 0, size);
+
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			ImVec2 rectMin = ImGui::GetItemRectMin();
+			ImVec2 rectMax = ImGui::GetItemRectMax();
+			drawList->AddImage((void*)(uintptr_t)image.graphicsId, rectMin, rectMax, uvMin, uvMax);
+
+			return res;
+		}
+
+		bool BeginImageCombo(const char* internalName, const Texture& image, const ImVec2& size, const ImVec2& uvMin, const ImVec2& uvMax)
+		{
+			std::string id = std::string("##") + image.path.string() + internalName;
+			ImGui::PushItemWidth(size.x);
+			bool res = ImGui::BeginCombo(id.c_str(), "", ImGuiComboFlags_NoArrowButton);
+
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			ImVec2 rectMin = ImGui::GetItemRectMin();
+			ImVec2 rectMax = ImGui::GetItemRectMax();
+			drawList->AddImage((void*)(uintptr_t)image.graphicsId, rectMin, rectMax, uvMin, uvMax);
+
+			return res;
 		}
 
 		bool ProgressBar(const char* label, float value, float maxWidth)

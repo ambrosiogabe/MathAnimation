@@ -30,7 +30,7 @@ namespace MathAnim
 		}
 
 		// Write out the entry into the TOC
-		g_logger_assert(entryNameLength < UINT32_MAX, "Invalid entry name. Has length > UINT32_MAX. Entry name: '%s'", entryName);
+		g_logger_assert(entryNameLength < UINT32_MAX, "Invalid entry name. Has length > UINT32_MAX. Entry name: '{}'", entryName);
 		uint32 entryNameLengthU32 = (uint32)entryNameLength; 
 		tocEntries.write<uint32>(&entryNameLengthU32);
 		tocEntries.writeDangerous((const uint8*)entryName, entryNameLength);
@@ -66,7 +66,7 @@ namespace MathAnim
 			tocEntries.read<uint32>(&currentEntryNameLength);
 			if (entryNameLength >= UINT32_MAX) 
 			{
-				g_logger_error("Corrupted TableOfContents. Invalid entry name. Has length > UINT32_MAX. Entry name: '%s'", entryName);
+				g_logger_error("Corrupted TableOfContents. Invalid entry name. Has length > UINT32_MAX. Entry name: '{}'", entryName);
 				return res;
 			}
 
@@ -79,7 +79,7 @@ namespace MathAnim
 			else
 			{
 				// Compare the strings
-				int strCompare = g_memory_compareMem(&tocEntries.data[tocEntries.offset], (void*)entryName, sizeof(uint8) * currentEntryNameLength);
+				int strCompare = g_memory_compareMem(&tocEntries.data[tocEntries.offset], tocEntries.size - tocEntries.offset, (void*)entryName, sizeof(uint8) * currentEntryNameLength);
 				if (strCompare == 0)
 				{
 					// Return this entry data
@@ -89,7 +89,7 @@ namespace MathAnim
 					tocEntries.read<size_t>(&dataSize);
 					if (dataOffset + dataSize > data.size) 
 					{
-						g_logger_error("Corrupted TableOfContents. Data Entry '%s' exceeds available size of data with [offset, size]: [%d, %d]", entryName, dataOffset, dataSize);
+						g_logger_error("Corrupted TableOfContents. Data Entry '{}' exceeds available size of data with [offset, size]: [{}, {}]", entryName, dataOffset, dataSize);
 						return res;
 					}
 
@@ -101,7 +101,7 @@ namespace MathAnim
 			}
 		}
 
-		g_logger_warning("No entry found in TableOfContents with name '%s'.", entryName);
+		g_logger_warning("No entry found in TableOfContents with name '{}'.", entryName);
 		return res;
 	}
 
@@ -159,7 +159,7 @@ namespace MathAnim
 
 		if (magicNumber != 0xC001CAFE)
 		{
-			g_logger_error("Corrupted project file. Expected magic number '0xC001CAFE' but got '0x%8x'.", magicNumber);
+			g_logger_error("Corrupted project file. Expected magic number '0xC001CAFE' but got '{:#010x}'.", magicNumber);
 
 			res.numEntries = 0;
 			return res;

@@ -172,15 +172,15 @@ namespace MathAnim
 					{
 					case SaveEditorLayoutError::ReservedLayoutName:
 						errorMessage = "Failed to save editor layout. Name '" + std::string(saveNameBuffer) + "' is reserved.";
-						g_logger_warning("Failed to save editor layout. Name '%s' is reserved.", saveNameBuffer);
+						g_logger_warning("Failed to save editor layout. Name '{}' is reserved.", saveNameBuffer);
 						break;
 					case SaveEditorLayoutError::FailedToSaveImGuiIni:
 						errorMessage = "Failed to save editor layout. Failed to save imgui file for '" + std::string(saveNameBuffer) + "'";
-						g_logger_warning("Failed to save editor layout. Failed to save imgui file for '%s'.", saveNameBuffer);
+						g_logger_warning("Failed to save editor layout. Failed to save imgui file for '{}'.", saveNameBuffer);
 						break;
 					case SaveEditorLayoutError::FailedToConvertIniToJson:
 						errorMessage = "Failed to save editor layout. Failed to save convert imgui file to json for '" + std::string(saveNameBuffer) + "'";
-						g_logger_warning("Failed to save editor layout. Failed to save convert imgui file to json for '%s'.", saveNameBuffer);
+						g_logger_warning("Failed to save editor layout. Failed to save convert imgui file to json for '{}'.", saveNameBuffer);
 						break;
 					case SaveEditorLayoutError::None:
 						break;

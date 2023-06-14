@@ -40,22 +40,22 @@ namespace MathAnim
 				header.magicRiff[0] == 'R' &&
 				header.magicRiff[1] == 'I' &&
 				header.magicRiff[2] == 'F' &&
-				header.magicRiff[3] == 'F', "Invalid header. Did not get 'RIFF' magic number. Instead got '%s'", header.magicRiff);
+				header.magicRiff[3] == 'F', "Invalid header. Did not get 'RIFF' magic number. Instead got '{}'", header.magicRiff);
 			g_logger_assert(
 				header.magicWave[0] == 'W' &&
 				header.magicWave[1] == 'A' &&
 				header.magicWave[2] == 'V' &&
-				header.magicWave[3] == 'E', "Invalid header. Did not get 'WAVE' magic number. Instead got '%s'", header.magicWave);
+				header.magicWave[3] == 'E', "Invalid header. Did not get 'WAVE' magic number. Instead got '{}'", header.magicWave);
 			g_logger_assert(
 				header.magicFmt[0] == 'f' &&
 				header.magicFmt[1] == 'm' &&
 				header.magicFmt[2] == 't' &&
-				header.magicFmt[3] == ' ', "Invalid header. Did not get 'fmt ' magic number. Instead got '%s'", header.magicFmt);
+				header.magicFmt[3] == ' ', "Invalid header. Did not get 'fmt ' magic number. Instead got '{}'", header.magicFmt);
 			g_logger_assert(
 				header.dataHeader.magicData[0] == 'd' &&
 				header.dataHeader.magicData[1] == 'a' &&
 				header.dataHeader.magicData[2] == 't' &&
-				header.dataHeader.magicData[3] == 'a', "Invalid header. Did not get 'data' magic number. Instead got '%s'", header.dataHeader.magicData);
+				header.dataHeader.magicData[3] == 'a', "Invalid header. Did not get 'data' magic number. Instead got '{}'", header.dataHeader.magicData);
 
 
 			WavData res;
@@ -76,7 +76,7 @@ namespace MathAnim
 			fclose(fp);
 			res.audioData = audioData;
 
-			g_logger_assert(res.audioChannelType != AudioChannelType::None, "Unknown audio channel format '%d'. Should be 1 or 2 for mono or dual audio channels.", header.dataHeader.audioChannelType);
+			g_logger_assert(res.audioChannelType != AudioChannelType::None, "Unknown audio channel format '{}'. Should be 1 or 2 for mono or dual audio channels.", header.dataHeader.audioChannelType);
 
 			return res;
 		}
@@ -91,4 +91,22 @@ namespace MathAnim
 			g_memory_zeroMem(&wav, sizeof(WavData));
 		}
 	}
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& io, MathAnim::AudioChannelType const& value)
+{
+	switch (value)
+	{
+	case MathAnim::AudioChannelType::Dual:
+		io << "<AudioChannelType::Dual>";
+		break;
+	case MathAnim::AudioChannelType::Mono:
+		io << "<AudioChannelType::Mono>";
+	case MathAnim::AudioChannelType::Length:
+		io << "<AudioChannelType::Undefined>";
+	case MathAnim::AudioChannelType::None:
+		io << "<AudioChannelType::None>";
+	}
+
+	return io;
 }

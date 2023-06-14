@@ -16,27 +16,22 @@ namespace MathAnim
 		// ----------- Internal Variables -----------
 		static bool keyDownLastFrame[GLFW_KEY_LAST + 1] = {};
 		static bool keyDownData[GLFW_KEY_LAST + 1] = {};
-		static bool keyUpData[GLFW_KEY_LAST + 1] = {};
 
 		// Shift+Key combo data
 		static bool shiftKeyDownLastFrame[GLFW_KEY_LAST + 1] = {};
 		static bool shiftKeyDownData[GLFW_KEY_LAST + 1] = {};
-		static bool shiftKeyUpData[GLFW_KEY_LAST + 1] = {};
 
 		// Ctrl+Key combo data
 		static bool ctrlKeyDownLastFrame[GLFW_KEY_LAST + 1] = {};
 		static bool ctrlKeyDownData[GLFW_KEY_LAST + 1] = {};
-		static bool ctrlKeyUpData[GLFW_KEY_LAST + 1] = {};
 
 		// Alt+Key combo data
 		static bool altKeyDownLastFrame[GLFW_KEY_LAST + 1] = {};
 		static bool altKeyDownData[GLFW_KEY_LAST + 1] = {};
-		static bool altKeyUpData[GLFW_KEY_LAST + 1] = {};
 
 		// Super+Key combo data
 		static bool superKeyDownLastFrame[GLFW_KEY_LAST + 1] = {};
 		static bool superKeyDownData[GLFW_KEY_LAST + 1] = {};
-		static bool superKeyUpData[GLFW_KEY_LAST + 1] = {};
 
 		static float lastMouseX;
 		static float lastMouseY;
@@ -91,13 +86,6 @@ namespace MathAnim
 			g_memory_copyMem(ctrlKeyDownLastFrame, ctrlKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
 			g_memory_copyMem(altKeyDownLastFrame, altKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
 
-			// Key up states need to be reset
-			g_memory_zeroMem(keyUpData, sizeof(bool) * (GLFW_KEY_LAST + 1));
-			g_memory_zeroMem(shiftKeyUpData, sizeof(bool) * (GLFW_KEY_LAST + 1));
-			g_memory_zeroMem(ctrlKeyUpData, sizeof(bool) * (GLFW_KEY_LAST + 1));
-			g_memory_zeroMem(altKeyUpData, sizeof(bool) * (GLFW_KEY_LAST + 1));
-			g_memory_zeroMem(superKeyUpData, sizeof(bool) * (GLFW_KEY_LAST + 1));
-
 			// Reset mouse states
 			deltaMouseX = 0;
 			deltaMouseY = 0;
@@ -136,12 +124,6 @@ namespace MathAnim
 
 			if (action == GLFW_RELEASE)
 			{
-				keyUpData[key] = true;
-				shiftKeyUpData[key] = true;
-				altKeyUpData[key] = true;
-				ctrlKeyUpData[key] = true;
-				superKeyUpData[key] = true;
-
 				shiftKeyDownData[key] = false;
 				ctrlKeyDownData[key] = false;
 				altKeyDownData[key] = false;
@@ -171,7 +153,7 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_error("Cannot check if key '%d' is pressed. Key is out of range of known key codes.", key);
+				g_logger_error("Cannot check if key '{}' is pressed. Key is out of range of known key codes.", key);
 			}
 
 			return false;
@@ -187,6 +169,18 @@ namespace MathAnim
 				bool altMod = altKeyDownData[key];
 				bool superMod = superKeyDownData[key];
 
+				if (key == GLFW_KEY_LEFT_SHIFT || key == GLFW_KEY_RIGHT_SHIFT)
+					mods = mods | KeyMods::Shift;
+
+				if (key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL)
+					mods = mods | KeyMods::Ctrl;
+
+				if (key == GLFW_KEY_LEFT_SUPER || key == GLFW_KEY_RIGHT_SUPER)
+					mods = mods | KeyMods::Super;
+
+				if (key == GLFW_KEY_LEFT_ALT || key == GLFW_KEY_RIGHT_ALT)
+					mods = mods | KeyMods::Alt;
+
 				if (mods == KeyMods::None)
 					return res && !shiftMod && !ctrlMod && !altMod && !superMod;
 
@@ -199,7 +193,7 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_error("Cannot check if key '%d' is down. Key is out of range of known key codes.", key);
+				g_logger_error("Cannot check if key '{}' is down. Key is out of range of known key codes.", key);
 			}
 
 			return false;
@@ -207,37 +201,14 @@ namespace MathAnim
 
 		bool keyUp(int key, KeyMods mods)
 		{
-			if (key >= 0 && key <= GLFW_KEY_LAST)
-			{
-				bool res = keyUpData[key];
-				bool shiftMod = shiftKeyUpData[key];
-				bool ctrlMod = ctrlKeyUpData[key];
-				bool altMod = altKeyUpData[key];
-				bool superMod = superKeyUpData[key];
-
-				if (mods == KeyMods::None)
-					return res && !shiftMod && !ctrlMod && !altMod && !superMod;
-
-				res = (uint8)(mods & KeyMods::Shift) ? res && shiftMod : res && !shiftMod;
-				res = (uint8)(mods & KeyMods::Alt) ? res && altMod : res && !altMod;
-				res = (uint8)(mods & KeyMods::Ctrl) ? res && ctrlMod : res && !ctrlMod;
-				res = (uint8)(mods & KeyMods::Super) ? res && superMod : res && !superMod;
-
-				return res;
-			}
-			else
-			{
-				g_logger_error("Cannot check if key '%d' is up. Key is out of range of known key codes.", key);
-			}
-
-			return false;
+			return !keyDown(key, mods);
 		}
 
 		bool mouseClicked(MouseButton button)
 		{
 			if ((uint8)button < 0 || (uint8)button >= (uint8)MouseButton::Length)
 			{
-				g_logger_error("Cannot check if mouse button '%d' is clicked. Button is out of range of known mouse buttons.", (uint8)button);
+				g_logger_error("Cannot check if mouse button '{}' is clicked. Button is out of range of known mouse buttons.", (uint8)button);
 				return false;
 			}
 
@@ -249,7 +220,7 @@ namespace MathAnim
 		{
 			if ((uint8)button < 0 || (uint8)button >= (uint8)MouseButton::Length)
 			{
-				g_logger_error("Cannot check if mouse button '%d' is down. Button is out of range of known mouse buttons.", (uint8)button);
+				g_logger_error("Cannot check if mouse button '{}' is down. Button is out of range of known mouse buttons.", (uint8)button);
 				return false;
 			}
 
@@ -260,7 +231,7 @@ namespace MathAnim
 		{
 			if ((uint8)button < 0 || (uint8)button >= (uint8)MouseButton::Length)
 			{
-				g_logger_error("Cannot check if mouse button '%d' is up. Button is out of range of known mouse buttons.", (uint8)button);
+				g_logger_error("Cannot check if mouse button '{}' is up. Button is out of range of known mouse buttons.", (uint8)button);
 				return false;
 			}
 

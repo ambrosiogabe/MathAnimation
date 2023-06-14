@@ -12,19 +12,26 @@ namespace MathAnim
 	{
 		void init(AnimationManagerData* am, const std::filesystem::path& projectRoot, uint32 outputWidth, uint32 outputHeight);
 
-		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am);
+		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am, float deltaTime);
 		void onGizmo(AnimationManagerData* am);
+		Vec2 toNormalizedViewportCoords(const Vec2& screenCoords);
 		Vec2 mouseToNormalizedViewport();
 		Vec2 mouseToViewportCoords();
+		Vec2 toViewportCoords(const Vec2& screenCoords);
 
 		void free(AnimationManagerData* am);
 
 		const TimelineData& getTimelineData();
 		void setTimelineData(const TimelineData& data);
 
+		void displayActionText(const std::string& actionText);
+
 		bool mainViewportActive();
 		bool editorViewportActive();
 		bool mouseHoveredEditorViewport();
+		bool anyEditorItemActive();
+
+		BBox getViewportBounds();
 	}
 }
 

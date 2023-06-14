@@ -54,6 +54,13 @@ namespace MathAnim
 		static int getNumChildren(int parentIndex);
 		static void addExistingAnimObject(AnimationManagerData* am, const AnimObject& obj, int level);
 
+		static inline void createAndAddAnimObject(AnimationManagerData* am, AnimObjectTypeV1 type)
+		{
+			AnimObject animObject = AnimObject::createDefault(am, type);
+			AnimationManager::addAnimObject(am, animObject);
+			addNewAnimObject(animObject);
+		}
+
 		void init(AnimationManagerData* am)
 		{
 			inBetweenBuffer = std::vector<BetweenMetadata>();
@@ -128,7 +135,7 @@ namespace MathAnim
 				if (!animObject)
 				{
 					animObject = AnimationManager::getPendingObject(am, element.animObjectId);
-					g_logger_assert(animObject != nullptr, "Scene hierarchy tried to access anim object with id '%d' that does not exist and is not pending addition.", element.animObjectId);
+					g_logger_assert(animObject != nullptr, "Scene hierarchy tried to access anim object with id '{}' that does not exist and is not pending addition.", element.animObjectId);
 				}
 
 				if (element.selected)
@@ -310,33 +317,118 @@ namespace MathAnim
 		// --------- Internal functions ---------
 		static void imGuiRightClickPopup(AnimationManagerData* am)
 		{
-			// String buffer to write object names
-			char buffer[256];
-			size_t bufferSize = sizeof(buffer);
+			const Vec4& grayedTextColor = Colors::Neutral[3];
 
 			if (ImGui::BeginPopupContextWindow())
 			{
-				for (int i = 1; i < (int)AnimObjectTypeV1::Length; i++)
+				if (ImGui::BeginMenu("Cameras"))
 				{
-					if (AnimObject::isInternalObjectOnly((AnimObjectTypeV1)i))
+					if (ImGui::MenuItem("2D Camera"))
 					{
-						continue;
-					}
-
-#ifdef sprintf_s
-					int strRes = sprintf_s(buffer, bufferSize, "Add %s", AnimObject::getAnimObjectName((AnimObjectTypeV1)i));
-#else
-					int strRes = snprintf(buffer, bufferSize, "Add %s", AnimObject::getAnimObjectName((AnimObjectTypeV1)i));
-#endif
-					if (strRes != -1)
-					{
-						if (ImGui::MenuItem(buffer))
+						if (AnimationManager::hasActive2DCamera(am))
 						{
-							AnimObject animObject = AnimObject::createDefault(am, (AnimObjectTypeV1)i);
+							g_logger_error("Already an active 2D camera in the scene, cannot add another.");
+						}
+						else
+						{
+							AnimObject animObject = AnimObject::createDefault(am, AnimObjectTypeV1::Camera);
+							animObject.as.camera.mode = CameraMode::Orthographic;
 							AnimationManager::addAnimObject(am, animObject);
 							addNewAnimObject(animObject);
+							AnimationManager::setActiveCamera2D(am, animObject.id);
 						}
 					}
+
+					if (ImGui::MenuItem("3D Camera"))
+					{
+						if (AnimationManager::hasActive3DCamera(am))
+						{
+							g_logger_error("Already an active 3D camera in the scene, cannot add another.");
+						}
+						else
+						{
+							AnimObject animObject = AnimObject::createDefault(am, AnimObjectTypeV1::Camera);
+							animObject.as.camera.mode = CameraMode::Perspective;
+							AnimationManager::addAnimObject(am, animObject);
+							addNewAnimObject(animObject);
+							AnimationManager::setActiveCamera2D(am, animObject.id);
+						}
+					}
+
+					ImGui::EndMenu();
+				}
+
+				if (ImGui::BeginMenu("Shapes"))
+				{
+					ImGui::TextColored(grayedTextColor, "2D Shapes");
+					ImGui::Separator();
+
+					if (ImGui::MenuItem("Square"))
+					{
+						createAndAddAnimObject(am, AnimObjectTypeV1::Square);
+					}
+
+					if (ImGui::MenuItem("Circle"))
+					{
+						createAndAddAnimObject(am, AnimObjectTypeV1::Circle);
+					}
+
+					if (ImGui::MenuItem("Arrow"))
+					{
+						createAndAddAnimObject(am, AnimObjectTypeV1::Arrow);
+					}
+
+					if (ImGui::MenuItem("Axis"))
+					{
+						createAndAddAnimObject(am, AnimObjectTypeV1::Axis);
+					}
+
+					ImGui::TextColored(grayedTextColor, "3D Shapes");
+					ImGui::Separator();
+
+					if (ImGui::MenuItem("Cube"))
+					{
+						createAndAddAnimObject(am, AnimObjectTypeV1::Cube);
+					}
+
+					ImGui::EndMenu();
+				}
+
+				if (ImGui::BeginMenu("Text"))
+				{
+					if (ImGui::MenuItem("Text Object"))
+					{
+						createAndAddAnimObject(am, AnimObjectTypeV1::TextObject);
+					}
+
+					if (ImGui::MenuItem("LaTeX"))
+					{
+						createAndAddAnimObject(am, AnimObjectTypeV1::LaTexObject);
+					}
+
+					if (ImGui::MenuItem("Code Block"))
+					{
+						createAndAddAnimObject(am, AnimObjectTypeV1::CodeBlock);
+					}
+
+					ImGui::EndMenu();
+				}
+
+				ImGui::Separator();
+
+				if (ImGui::MenuItem("SVG File"))
+				{
+					createAndAddAnimObject(am, AnimObjectTypeV1::SvgFileObject);
+				}
+
+				if (ImGui::MenuItem("Image"))
+				{
+					createAndAddAnimObject(am, AnimObjectTypeV1::Image);
+				}
+
+				if (ImGui::MenuItem("Script"))
+				{
+					createAndAddAnimObject(am, AnimObjectTypeV1::ScriptObject);
 				}
 
 				ImGui::EndPopup();

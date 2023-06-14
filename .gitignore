@@ -31,3 +31,10 @@ Makefile
 
 .idea/
 cmake-build-*/
+
+# These will get copied when the build runs
+assets/grammars
+assets/themes
+
+**rawAssets.svg
+**gizmoPreviews.svg

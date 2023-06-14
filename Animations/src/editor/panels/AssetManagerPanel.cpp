@@ -120,7 +120,7 @@ namespace MathAnim
 						// File was renamed, so rename it on the filesystem to match it
 						if (std::rename(oldFilepath.string().c_str(), newFilepath.string().c_str()))
 						{
-							g_logger_error("There was an error renaming file '%s' to '%s'.", filename.c_str(), stringBuffer);
+							g_logger_error("There was an error renaming file '{}' to '{}'.", filename, stringBuffer);
 						}
 						else if (fileRenamedCallback)
 						{

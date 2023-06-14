@@ -2,6 +2,7 @@
 #include "core/Window.h"
 #include "core/Input.h"
 #include "renderer/GLApi.h"
+#include "platform/Platform.h"
 
 namespace MathAnim
 {
@@ -61,6 +62,29 @@ namespace MathAnim
 			GLFW_CURSOR_HIDDEN;
 
 		glfwSetInputMode((GLFWwindow*)windowPtr, GLFW_CURSOR, glfwCursorMode);
+	}
+
+	bool Window::setCursorPos(const Vec2i& screenCoordinates) const
+	{
+		if (screenCoordinates.x > this->width || screenCoordinates.x < 0) 
+		{
+			return false;
+		}
+
+		if (screenCoordinates.y > this->height || screenCoordinates.y < 0)
+		{
+			return false;
+		}
+
+		if (screenCoordinates.x == (int)Input::mouseX && screenCoordinates.y == (int)Input::mouseY)
+		{
+			// NOP;
+			return true;
+		}
+
+		// Tell our mouse callback about this event to avoid lag in processing
+		Input::mouseCallback((GLFWwindow*)this->windowPtr, (double)screenCoordinates.x, (double)screenCoordinates.y);
+		return Platform::setCursorPos(*this, screenCoordinates);
 	}
 
 	void Window::makeContextCurrent()

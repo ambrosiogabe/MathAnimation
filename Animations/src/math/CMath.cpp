@@ -2,13 +2,15 @@
 
 #include <nlohmann/json.hpp>
 
+#include <cmath>
+#include <complex>
+
+typedef std::complex<double> complex;
+
 namespace MathAnim
 {
 	namespace CMath
 	{
-		// ------------------ Internal Values ------------------
-		static float PI = 3.1415926535897932384626433832795028841971693993751058209749445923078164062f;
-
 		// ------------------ Internal Functions ------------------
 		static float easeInSine(float t);
 		static float easeOutSine(float t);
@@ -78,6 +80,13 @@ namespace MathAnim
 			return abs(x - y) <= epsilon * std::max(1.0f, std::max(abs(x), abs(y)));
 		}
 
+		bool compare(std::complex<double> xComplex, std::complex<double> yComplex, double epsilon)
+		{
+			double x = xComplex.real();
+			double y = yComplex.real();
+			return std::abs(x - y) <= epsilon * std::max(1.0, std::max(std::abs(x), std::abs(y)));
+		}
+
 		bool compare(const Vec2& vec1, const Vec2& vec2, float epsilon)
 		{
 			return compare(vec1.x, vec2.x, epsilon) && compare(vec1.y, vec2.y, epsilon);
@@ -91,26 +100,6 @@ namespace MathAnim
 		bool compare(const Vec4& vec1, const Vec4& vec2, float epsilon)
 		{
 			return compare(vec1.x, vec2.x, epsilon) && compare(vec1.y, vec2.y, epsilon) && compare(vec1.z, vec2.z, epsilon) && compare(vec1.w, vec2.w, epsilon);
-		}
-
-		Vec2 vector2From3(const Vec3& vec)
-		{
-			return Vec2{ vec.x, vec.y };
-		}
-
-		Vec3 vector3From2(const Vec2& vec)
-		{
-			return Vec3{ vec.x, vec.y, 0.0f };
-		}
-
-		float toRadians(float degrees)
-		{
-			return degrees * PI / 180.0f;
-		}
-
-		float toDegrees(float radians)
-		{
-			return radians * 180.0f / PI;
 		}
 
 		void rotate(Vec2& vec, float angleDeg, const Vec2& origin)
@@ -138,6 +127,53 @@ namespace MathAnim
 			vec.y = yPrime;
 		}
 
+		float angleBetween(const Vec3& a, const Vec3& b, const Vec3& planeNormal)
+		{
+			float dp = dot(a, b);
+			if (compare(dp, 0.0f))
+			{
+				// Vectors are parallel
+				return 0.0f;
+			}
+
+			float lengthMultiplied = length(a) * length(b);
+			if (compare(lengthMultiplied, 0.0f))
+			{
+				// Undefined
+				return 0.0f;
+			}
+
+			float cosTheta = glm::clamp(dp / lengthMultiplied,  -1.0f, 1.0f);
+			float angle = glm::acos(cosTheta);
+
+			// Reverse the angle if needed
+			Vec3 crossProduct = cross(a, b);
+			if (dot(planeNormal, crossProduct) > 0)
+			{
+				angle = -angle;
+			}
+
+			return angle;
+		}
+
+		Vec3 normalizeAxisAngles(const Vec3& rotation)
+		{
+			Vec3 res = rotation;
+			for (int i = 0; i < 3; i++)
+			{
+				while (res.values[i] > 360.0f)
+				{
+					res.values[i] -= 360.0f;
+				}
+				while (res.values[i] < 0.0f)
+				{
+					res.values[i] += 360.0f;
+				}
+			}
+
+			return res;
+		}
+
 		float mapRange(float val, float inMin, float inMax, float outMin, float outMax)
 		{
 			return (val - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
@@ -148,29 +184,205 @@ namespace MathAnim
 			return (value - inputRange.x) / (inputRange.y - inputRange.x) * (outputRange.y - outputRange.x) + outputRange.x;
 		}
 
-		int max(int a, int b)
+		// Returns n=0..numComplexValues, and fills in outArray with the n values from
+		// inArray that are real-valued (i.e., whose imaginary parts are within TOLERANCE of 0.)
+		// outArray must be large enough to receive numComplexValues values.
+		static int filterRealNumbers(int numComplexValues, const complex inArray[], double outArray[])
 		{
-			return a > b ? a : b;
+			int numRealValues = 0;
+			for (int i = 0; i < numComplexValues; ++i)
+			{
+				if (fabs(inArray[i].imag()) < 0.0001f)
+				{
+					outArray[numRealValues++] = inArray[i].real();
+				}
+			}
+			return numRealValues;
 		}
 
-		int min(int a, int b)
+		int solveQuadraticEquation(double a, double b, double c, double roots[2])
 		{
-			return a < b ? a : b;
+			roots[0] = NAN;
+			roots[1] = NAN;
+
+			if (CMath::compare((float)a, 0.0f))
+			{
+				if (CMath::compare((float)b, 0.0f))
+				{
+					// The equation devolves to: c = 0, where the variable x has vanished!
+					return 0;   // cannot divide by zero, so there is no solution.
+				}
+				else
+				{
+					// Simple linear equation: bx + c = 0, so x = -c/b.
+					roots[0] = -c / b;
+					return 1;   // there is a single solution.
+				}
+			}
+			else
+			{
+				const double radicand = b * b - 4.0 * a * a;
+				if (CMath::compare((float)radicand, 0.0f))
+				{
+					// Both roots have the same value: -b / 2a.
+					roots[0] = -b / (2.0 * a);
+					return 1;
+				}
+				else
+				{
+					// There are two distinct real roots.
+					const double r = glm::sqrt(radicand);
+					const double d = 2.0 * a;
+
+					roots[0] = (-b + r) / d;
+					roots[1] = (-b - r) / d;
+					return 2;
+				}
+			}
 		}
 
-		float saturate(float val)
+		static complex cbrt(complex a, int n)
 		{
-			return val < 0 ? 0 :
-				val > 1 ? 1 :
-				val;
+			/*
+				This function returns one of the 3 complex cube roots of the complex number 'a'.
+				The value of n=0..2 selects which root is returned.
+			*/
+
+			const double TWOPI = 2.0f * 3.141592653589793238462643383279502884;
+
+			double rho = pow(abs(a), 1.0 / 3.0);
+			double theta = ((TWOPI * n) + arg(a)) / 3.0;
+			return complex(rho * cos(theta), rho * sin(theta));
 		}
 
-		Vec2 max(const Vec2& a, const Vec2& b) 
+		int solveCubicEquation(double aReal, double bReal, double cReal, double dReal, double roots[3])
+		{
+			roots[0] = NAN;
+			roots[1] = NAN;
+			roots[2] = NAN;
+
+			complex a = complex(aReal);
+			complex b = complex(bReal);
+			complex c = complex(cReal);
+			complex d = complex(dReal);
+
+			if (CMath::compare(a, 0.0))
+			{
+				return solveQuadraticEquation(bReal, cReal, dReal, roots);
+			}
+
+			b /= a;
+			c /= a;
+			d /= a;
+
+			complex S = b / 3.0;
+			complex D = c / 3.0 - S * S;
+			complex E = S * S * S + (d - S * c) / 2.0;
+			complex Froot = sqrt(E * E + D * D * D);
+			complex F = -Froot - E;
+
+			if (CMath::compare(F, 0.0))
+			{
+				F = Froot - E;
+			}
+
+			complex complexRoots[3];
+			for (int i = 0; i < 3; ++i)
+			{
+				const complex G = cbrt(F, i);
+				complexRoots[i] = G - D / G - S;
+			}
+
+			return filterRealNumbers(3, complexRoots, roots);
+		}
+
+		int solveQuarticEquation(double aReal, double bReal, double cReal, double dReal, double eReal , double roots[4])
+		{
+			roots[0] = NAN;
+			roots[1] = NAN;
+			roots[2] = NAN;
+			roots[3] = NAN;
+
+			if (compare((float)aReal, 0.0f))
+			{
+				return solveCubicEquation(bReal, cReal, dReal, eReal, roots);
+			}
+
+			complex a = complex(aReal);
+			complex b = complex(bReal);
+			complex c = complex(cReal);
+			complex d = complex(dReal);
+			complex e = complex(eReal);
+
+			// See "Summary of Ferrari's Method" in http://en.wikipedia.org/wiki/Quartic_function
+
+			// Without loss of generality, we can divide through by 'a'.
+			// Anywhere 'a' appears in the equations, we can assume a = 1.
+			b /= a;
+			c /= a;
+			d /= a;
+			e /= a;
+
+			complex b2 = b * b;
+			complex b3 = b * b2;
+			complex b4 = b2 * b2;
+
+			complex alpha = (-3.0 / 8.0) * b2 + c;
+			complex beta = b3 / 8.0 - b * c / 2.0 + d;
+			complex gamma = (-3.0 / 256.0) * b4 + b2 * c / 16.0 - b * d / 4.0 + e;
+
+			complex alpha2 = alpha * alpha;
+			complex t = -b / 4.0;
+
+			complex complexRoots[4];
+
+			if (CMath::compare(beta, 0.0))
+			{
+				complex rad = sqrt(alpha2 - 4.0 * gamma);
+				complex r1 = sqrt((-alpha + rad) / 2.0);
+				complex r2 = sqrt((-alpha - rad) / 2.0);
+
+				complexRoots[0] = t + r1;
+				complexRoots[1] = t - r1;
+				complexRoots[2] = t + r2;
+				complexRoots[3] = t - r2;
+			}
+			else
+			{
+				complex alpha3 = alpha * alpha2;
+				complex P = -(alpha2 / 12.0 + gamma);
+				complex Q = -alpha3 / 108.0 + alpha * gamma / 3.0 - beta * beta / 8.0;
+				complex R = -Q / 2.0 + sqrt(Q * Q / 4.0 + P * P * P / 27.0);
+				complex U = cbrt(R, 0);
+				complex y = (-5.0 / 6.0) * alpha + U;
+				if (CMath::compare(U, 0.0))
+				{
+					y -= cbrt(Q, 0);
+				}
+				else
+				{
+					y -= P / (3.0 * U);
+				}
+				complex W = sqrt(alpha + 2.0 * y);
+
+				complex r1 = sqrt(-(3.0 * alpha + 2.0 * y + 2.0 * beta / W));
+				complex r2 = sqrt(-(3.0 * alpha + 2.0 * y - 2.0 * beta / W));
+
+				complexRoots[0] = t + (W - r1) / 2.0;
+				complexRoots[1] = t + (W + r1) / 2.0;
+				complexRoots[2] = t + (-W - r2) / 2.0;
+				complexRoots[3] = t + (-W + r2) / 2.0;
+			}
+
+			return filterRealNumbers(4, complexRoots, roots);
+		}
+
+		Vec2 max(const Vec2& a, const Vec2& b)
 		{
 			return Vec2{ glm::max(a.x, b.x), glm::max(a.y, b.y) };
 		}
 
-		Vec2 min(const Vec2& a, const Vec2& b) 
+		Vec2 min(const Vec2& a, const Vec2& b)
 		{
 			return Vec2{ glm::min(a.x, b.x), glm::min(a.y, b.y) };
 		}
@@ -180,7 +392,7 @@ namespace MathAnim
 			return Vec3{ glm::max(a.x, b.x), glm::max(a.y, b.y), glm::max(a.z, b.z) };
 		}
 
-		Vec3 min(const Vec3& a, const Vec3& b) 
+		Vec3 min(const Vec3& a, const Vec3& b)
 		{
 			return Vec3{ glm::min(a.x, b.x), glm::min(a.y, b.y), glm::min(a.z, b.z) };
 		}
@@ -190,14 +402,9 @@ namespace MathAnim
 			return Vec4{ glm::max(a.x, b.x), glm::max(a.y, b.y), glm::max(a.z, b.z), glm::max(a.w, b.w) };
 		}
 
-		Vec4 min(const Vec4& a, const Vec4& b) 
+		Vec4 min(const Vec4& a, const Vec4& b)
 		{
 			return Vec4{ glm::min(a.x, b.x), glm::min(a.y, b.y), glm::min(a.z, b.z), glm::min(a.w, b.w) };
-		}
-
-		Vec2 rangeMaxMin(Vec2 range, float value)
-		{
-			return Vec2{ glm::min(range.min, value), glm::max(range.max, value) };
 		}
 
 		uint32 hashString(const char* str)
@@ -262,7 +469,7 @@ namespace MathAnim
 			// Derivative taken from https://en.wikipedia.org/wiki/B�zier_curve#Quadratic_B�zier_curves
 			// Just return the normalized derivative at point t
 			return normalize(
-				(2.0f * (1.0f - t) * (p1 - p0)) + 
+				(2.0f * (1.0f - t) * (p1 - p0)) +
 				(2.0f * t * (p2 - p1))
 			);
 		}
@@ -273,14 +480,14 @@ namespace MathAnim
 			// Just return the normalized derivative at point t
 			return normalize(
 				(3.0f * (1.0f - t) * (1.0f - t) * (p1 - p0)) +
-				(6.0f * (1.0f - t) * t * (p2 - p1)) + 
+				(6.0f * (1.0f - t) * t * (p2 - p1)) +
 				(3.0f * t * t * (p3 - p2))
 			);
 		}
 
 		Vec3 bezier1Normal(const Vec3& p0, const Vec3& p1, float)
 		{
-			return normalize(p1 -  p0);
+			return normalize(p1 - p0);
 		}
 
 		Vec3 bezier2Normal(const Vec3& p0, const Vec3& p1, const Vec3& p2, float t)
@@ -312,7 +519,7 @@ namespace MathAnim
 
 			// If the denominator is 0, then return invalid t-value
 			tValues.x = CMath::compare(w1.x - w0.x, 0.0f)
-				? -1.0f 
+				? -1.0f
 				: (-w0.x) / (w1.x - w0.x);
 			tValues.y = CMath::compare(w1.y - w0.y, 0.0f)
 				? -1.0f
@@ -552,18 +759,38 @@ namespace MathAnim
 			return (target - src) * t + src;
 		}
 
+		glm::mat4 transformationFrom(const Vec3& forward, const Vec3& up, const Vec3& position)
+		{
+			Vec3 right = CMath::cross(up, forward);
+			return glm::transpose(glm::mat4(
+				glm::vec4(right.x, up.x, forward.x, 0.0f),
+				glm::vec4(right.y, up.y, forward.y, 0.0f),
+				glm::vec4(right.z, up.z, forward.z, 0.0f),
+				glm::vec4(position.x, position.y, position.z, 1.0f)
+			));
+		}
+
 		// Transformation helpers
 		glm::mat4 calculateTransform(const Vec3& eulerAnglesRotation, const Vec3& scale, const Vec3& position)
+		{
+			glm::mat4 rotation = glm::toMat4(quatFromEulerAngles(eulerAnglesRotation));
+			glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), CMath::convert(scale));
+			glm::mat4 translation = glm::translate(glm::mat4(1.0f), CMath::convert(position));
+
+			return translation * rotation * scaleMatrix;
+		}
+
+		glm::quat quatFromEulerAngles(const Vec3& eulerAnglesRotation)
 		{
 			glm::quat xRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
 			glm::quat yRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
 			glm::quat zRotation = glm::angleAxis(glm::radians(eulerAnglesRotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-			glm::mat4 rotation = glm::toMat4(xRotation * yRotation * zRotation);
-			glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), CMath::convert(scale));
-			glm::mat4 translation = glm::translate(glm::mat4(1.0f), CMath::convert(position));
+			glm::quat finalRotation = xRotation;
+			finalRotation = yRotation * finalRotation;
+			finalRotation = zRotation * finalRotation;
 
-			return translation * rotation * scaleMatrix;
+			return finalRotation;
 		}
 
 		Vec3 extractPosition(const glm::mat4& transformation)
@@ -576,182 +803,212 @@ namespace MathAnim
 		}
 
 		// (de)Serialization functions
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec4& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
-			memory[propertyName]["Z"] = vec.z;
-			memory[propertyName]["W"] = vec.w;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
+			j[propertyName]["Z"] = vec.z;
+			j[propertyName]["W"] = vec.w;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec3& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
-			memory[propertyName]["Z"] = vec.z;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
+			j[propertyName]["Z"] = vec.z;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec2& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec4i& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec4i& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
-			memory[propertyName]["Z"] = vec.z;
-			memory[propertyName]["W"] = vec.w;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
+			j[propertyName]["Z"] = vec.z;
+			j[propertyName]["W"] = vec.w;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec3i& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec3i& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
-			memory[propertyName]["Z"] = vec.z;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
+			j[propertyName]["Z"] = vec.z;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const Vec2i& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const Vec2i& vec)
 		{
-			memory[propertyName]["X"] = vec.x;
-			memory[propertyName]["Y"] = vec.y;
+			j[propertyName]["X"] = vec.x;
+			j[propertyName]["Y"] = vec.y;
 		}
 
-		void serialize(nlohmann::json& memory, const char* propertyName, const glm::u8vec4& vec)
+		void serialize(nlohmann::json& j, const char* propertyName, const glm::u8vec4& vec)
 		{
-			memory[propertyName]["R"] = vec.r;
-			memory[propertyName]["G"] = vec.g;
-			memory[propertyName]["B"] = vec.b;
-			memory[propertyName]["A"] = vec.a;
+			j[propertyName]["R"] = vec.r;
+			j[propertyName]["G"] = vec.g;
+			j[propertyName]["B"] = vec.b;
+			j[propertyName]["A"] = vec.a;
 		}
 
-		Vec4 deserializeVec4(const nlohmann::json& memory, const Vec4& defaultValue)
+		void serialize(nlohmann::json& j, const char* propertyName, const glm::quat& quat)
+		{
+			j[propertyName]["W"] = quat.w;
+			j[propertyName]["X"] = quat.x;
+			j[propertyName]["Y"] = quat.y;
+			j[propertyName]["Z"] = quat.z;
+		}
+
+		Vec4 deserializeVec4(const nlohmann::json& j, const Vec4& defaultValue)
 		{
 			Vec4 res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
-			if (memory.contains("Z"))
+			if (j.contains("Z"))
 			{
-				res.z = memory["Z"];
+				res.z = j["Z"];
 			}
-			if (memory.contains("W"))
+			if (j.contains("W"))
 			{
-				res.w = memory["W"];
+				res.w = j["W"];
 			}
 			return res;
 		}
 
-		Vec3 deserializeVec3(const nlohmann::json& memory, const Vec3& defaultValue)
+		Vec3 deserializeVec3(const nlohmann::json& j, const Vec3& defaultValue)
 		{
 			Vec3 res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
-			if (memory.contains("Z"))
+			if (j.contains("Z"))
 			{
-				res.z = memory["Z"];
+				res.z = j["Z"];
 			}
 			return res;
 		}
 
-		Vec2 deserializeVec2(const nlohmann::json& memory, const Vec2& defaultValue)
+		Vec2 deserializeVec2(const nlohmann::json& j, const Vec2& defaultValue)
 		{
 			Vec2 res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
 			return res;
 		}
 
-		Vec4i deserializeVec4i(const nlohmann::json& memory, const Vec4i& defaultValue)
+		Vec4i deserializeVec4i(const nlohmann::json& j, const Vec4i& defaultValue)
 		{
 			Vec4i res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
-			if (memory.contains("Z"))
+			if (j.contains("Z"))
 			{
-				res.z = memory["Z"];
+				res.z = j["Z"];
 			}
-			if (memory.contains("W"))
+			if (j.contains("W"))
 			{
-				res.w = memory["W"];
+				res.w = j["W"];
 			}
 			return res;
 		}
 
-		Vec3i deserializeVec3i(const nlohmann::json& memory, const Vec3i& defaultValue)
+		Vec3i deserializeVec3i(const nlohmann::json& j, const Vec3i& defaultValue)
 		{
 			Vec3i res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
-			if (memory.contains("Z"))
+			if (j.contains("Z"))
 			{
-				res.z = memory["Z"];
+				res.z = j["Z"];
 			}
 			return res;
 		}
 
-		Vec2i deserializeVec2i(const nlohmann::json& memory, const Vec2i& defaultValue)
+		Vec2i deserializeVec2i(const nlohmann::json& j, const Vec2i& defaultValue)
 		{
 			Vec2i res = defaultValue;
-			if (memory.contains("X"))
+			if (j.contains("X"))
 			{
-				res.x = memory["X"];
+				res.x = j["X"];
 			}
-			if (memory.contains("Y"))
+			if (j.contains("Y"))
 			{
-				res.y = memory["Y"];
+				res.y = j["Y"];
 			}
 			return res;
 		}
 
-		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& memory, const glm::u8vec4& defaultValue)
+		glm::u8vec4 deserializeU8Vec4(const nlohmann::json& j, const glm::u8vec4& defaultValue)
 		{
 			glm::u8vec4 res = defaultValue;
-			if (memory.contains("R"))
+			if (j.contains("R"))
 			{
-				res.x = memory["R"];
+				res.x = j["R"];
 			}
-			if (memory.contains("G"))
+			if (j.contains("G"))
 			{
-				res.y = memory["G"];
+				res.y = j["G"];
 			}
-			if (memory.contains("B"))
+			if (j.contains("B"))
 			{
-				res.z = memory["B"];
+				res.z = j["B"];
 			}
-			if (memory.contains("A"))
+			if (j.contains("A"))
 			{
-				res.w = memory["A"];
+				res.w = j["A"];
+			}
+			return res;
+		}
+
+		glm::quat deserializeQuat(const nlohmann::json& j, const glm::quat& defaultValue)
+		{
+			glm::quat res = defaultValue;
+			if (j.contains("W"))
+			{
+				res.w = j["W"];
+			}
+			if (j.contains("X"))
+			{
+				res.x = j["X"];
+			}
+			if (j.contains("Y"))
+			{
+				res.y = j["Y"];
+			}
+			if (j.contains("Z"))
+			{
+				res.z = j["Z"];
 			}
 			return res;
 		}

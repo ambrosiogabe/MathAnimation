@@ -741,7 +741,7 @@ namespace MathAnim
 			uint32 bytesPerSample = audioData->bitsPerSample / 8;
 			uint32 numBytesVisible = (uint32)((float)audioData->bytesPerSec * amountOfSecondsVisibleInTimeline);
 			uint32 end = glm::min(firstSampleByte + numBytesVisible, audioData->dataSize);
-			g_logger_assert(bytesPerSample == 1 || bytesPerSample == 2, "Need 1 or 2 bytes per sample for audio data. Instead got %d bytes per sample", bytesPerSample);
+			g_logger_assert(bytesPerSample == 1 || bytesPerSample == 2, "Need 1 or 2 bytes per sample for audio data. Instead got '{}' bytes per sample", bytesPerSample);
 
 			constexpr float distanceBetweenLineSegments = 1.0f;
 			// TODO: Make this configurable
@@ -791,7 +791,6 @@ namespace MathAnim
 			{
 				bool processedAllData = true;
 
-				//g_logger_info("Recaching audio data.");
 				// When we cache the data, if there's a lot of audio to process
 				// spread the processing over a few frames to minimize lag
 				constexpr int maxBytesToProcessInOneFrame = 500'000;
@@ -1676,7 +1675,7 @@ namespace MathAnim
 		// Max formatted string length is HH:MM:SS:ff
 		constexpr char requiredBuffer[] = "HH:MM:SS:ff";
 		constexpr size_t requiredBufferSize = sizeof(requiredBuffer) / sizeof(strBuffer[0]);
-		g_logger_assert(strBufferLength >= requiredBufferSize, "String buffer length must be at least '%d' characters.", requiredBufferSize);
+		g_logger_assert(strBufferLength >= requiredBufferSize, "String buffer length must be at least '{}' characters.", requiredBufferSize);
 		if (numHours < 100 && numHours >= 0)
 		{
 #ifdef sprintf_s

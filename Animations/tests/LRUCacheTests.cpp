@@ -422,7 +422,7 @@ namespace MathAnim
 				}
 			}
 
-			g_logger_info("%s", stringBuffer.c_str());
+			g_logger_info("{}", stringBuffer);
 		}
 	}
 }

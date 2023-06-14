@@ -7,7 +7,8 @@
 
 namespace MathAnim
 {
-	struct OrthoCamera
+	struct [[deprecated("This is kept for legacy purposes. Use the Camera class instead for future work.")]] 
+    OrthoCamera
 	{
 		Vec2 position;
 		Vec2 projectionSize;

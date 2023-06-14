@@ -6,7 +6,6 @@
 #include "renderer/Framebuffer.h"
 #include "renderer/Texture.h"
 #include "renderer/Colors.h"
-#include "renderer/PerspectiveCamera.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
 #include "core/Serialization.hpp"
@@ -1668,7 +1667,10 @@ namespace MathAnim
 
 	SvgObject* SvgObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
-		if (version == 2)
+		switch (version)
+		{
+		case 2:
+		case 3:
 		{
 			SvgObject* res = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
 
@@ -1680,7 +1682,7 @@ namespace MathAnim
 			{
 				if (!SvgParser::parseSvgPath((const char*)pathStr.c_str(), pathStr.length(), res))
 				{
-					g_logger_error("Error deserializing SVG. Bad path data: '%s'", pathStr.c_str());
+					g_logger_error("Error deserializing SVG. Bad path data: '{}'", pathStr);
 				}
 			}
 			else
@@ -1690,8 +1692,12 @@ namespace MathAnim
 
 			return res;
 		}
+		break;
+		default:
+			break;
+		}
 
-		g_logger_warning("Svg serialized with unknown version '%d'", version);
+		g_logger_warning("Svg serialized with unknown version '{}'", version);
 		return nullptr;
 	}
 
@@ -1717,7 +1723,7 @@ namespace MathAnim
 			{
 				if (!SvgParser::parseSvgPath((const char*)string, stringLength, res))
 				{
-					g_logger_error("Error deserializing SVG. Bad path data: '%s'", string);
+					g_logger_error("Error deserializing SVG. Bad path data: '{}'", string);
 				}
 			}
 			else
@@ -2294,7 +2300,7 @@ namespace MathAnim
 					if (!Renderer::endPath(context, false, parent->id))
 					{
 #ifdef _DEBUG
-						g_logger_warning("Failed to end path for object: %d<%s>", parent->id, parent->name);
+						g_logger_warning("Failed to end path for object: {}<{}>", parent->id, parent->name);
 #endif
 					}
 					Renderer::free(context);
@@ -2306,7 +2312,7 @@ namespace MathAnim
 					if (!Renderer::endPath(context, true, parent->id))
 					{
 #ifdef _DEBUG
-						g_logger_warning("Failed to end path for object: %d<%s>", parent->id, parent->name);
+						g_logger_warning("Failed to end path for object: {}<{}>", parent->id, parent->name);
 #endif
 					}
 					Renderer::free(context);

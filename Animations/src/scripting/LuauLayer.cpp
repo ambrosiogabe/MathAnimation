@@ -80,7 +80,7 @@ namespace MathAnim
 			FILE* fp = fopen(scriptPath.c_str(), "rb");
 			if (!fp)
 			{
-				g_logger_warning("Could not open file '%s', error opening file.", filename.c_str());
+				g_logger_warning("Could not open file '{}', error opening file.", filename);
 				return false;
 			}
 
@@ -187,7 +187,7 @@ namespace MathAnim
 			auto iter = cachedBytecode.find(filename);
 			if (iter == cachedBytecode.end())
 			{
-				g_logger_warning("Tried to execute script '%s' which was never compiled successfully.", filename.c_str());
+				g_logger_warning("Tried to execute script '{}' which was never compiled successfully.", filename);
 				return false;
 			}
 
@@ -220,14 +220,14 @@ namespace MathAnim
 			const AnimObject* obj = AnimationManager::getObject(am, id);
 			if (!obj)
 			{
-				g_logger_error("Cannot run script on null anim object. Object '%d' does not exist.", id);
+				g_logger_error("Cannot run script on null anim object. Object '{}' does not exist.", id);
 				return false;
 			}
 
 			auto iter = cachedBytecode.find(filename);
 			if (iter == cachedBytecode.end())
 			{
-				g_logger_warning("Tried to execute script '%s' which was never compiled successfully.", filename.c_str());
+				g_logger_warning("Tried to execute script '{}' which was never compiled successfully.", filename);
 				return false;
 			}
 
@@ -283,7 +283,7 @@ namespace MathAnim
 			auto iter = cachedBytecode.find(filename);
 			if (iter == cachedBytecode.end())
 			{
-				g_logger_warning("Tried to delete script '%s' which was never compiled successfully.", filename.c_str());
+				g_logger_warning("Tried to delete script '{}' which was never compiled successfully.", filename);
 				return false;
 			}
 

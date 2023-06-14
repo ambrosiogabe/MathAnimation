@@ -10,6 +10,11 @@ namespace MathAnim
 	{
 		void init(int versionMajor, int versionMinor);
 
+		// System-specific settings (retrieved at initialization)
+
+		// Gets the maximum number of texture units able to be bound by the fragment shader
+		int32 getMaxTextureImageUnits();
+
 		// Blending
 		void blendFunc(GLenum sfactor, GLenum dfactor);
 		void blendFunci(GLuint buf, GLenum src, GLenum dst);
@@ -65,8 +70,9 @@ namespace MathAnim
 		// Textures
 		void readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels);
 		void genTextures(GLsizei n, GLuint* textures);
-		void activeTexture(GLenum texture);
 		void bindTexture(GLenum target, GLuint texture);
+		void bindTexSlot(GLenum target, GLuint texture, GLint textureSlot);
+		void unbindTexture(GLenum target);
 		void deleteTextures(GLsizei n, const GLuint* textures);
 		void texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void* pixels);
 		void texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels);
@@ -115,7 +121,7 @@ namespace MathAnim
 		void getIntegerv(GLenum pname, GLint* data);
 		const GLubyte* getStringi(GLenum name, GLuint index);
 
-		// Debug callback stuffs
+		// Debug callback stuff
 		void debugMessageCallback(GLDEBUGPROC callback, const void* userParam);
 		void pushDebugGroup(GLenum source, GLuint id, GLsizei length, const GLchar* message);
 		void popDebugGroup(void);

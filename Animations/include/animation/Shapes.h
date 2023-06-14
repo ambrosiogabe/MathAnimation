@@ -9,6 +9,7 @@ struct RawMemory;
 namespace MathAnim
 {
 	struct AnimObject;
+	struct AnimationManagerData;
 
 	struct Square
 	{
@@ -59,8 +60,8 @@ namespace MathAnim
 	{
 		float sideLength;
 
-		void init(AnimObject* self);
-		void reInit(AnimObject* self);
+		void init(AnimationManagerData* am, AnimObject* self);
+		void reInit(AnimationManagerData* am, AnimObject* self);
 
 		void serialize(nlohmann::json& j) const;
 		static Cube deserialize(const nlohmann::json& j, uint32 version);

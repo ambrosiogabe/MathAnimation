@@ -2,9 +2,10 @@
 #define MATH_ANIM_FRAMEBUFFER_H
 #include "core.h"
 
+#include "renderer/Texture.h"
+
 namespace MathAnim
 {
-	struct Texture;
 	enum class ByteFormat;
 	struct Pixel
 	{
@@ -25,8 +26,8 @@ namespace MathAnim
 		bool includeDepthStencil;
 
 		// Color attachments
-		// TODO: All color attachments will be resized to match the framebuffer size (perhaps this should be changed in the future...?)
 		std::vector<Texture> colorAttachments;
+		Texture depthStencilBuffer;
 
 		void bind() const;
 		void unbind() const;

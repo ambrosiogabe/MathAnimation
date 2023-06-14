@@ -12,6 +12,19 @@ namespace MathAnim
 		Length
 	};
 
+	inline std::ostream& operator<<(std::ostream& ostream, AudioChannelType channel)
+	{
+		switch (channel)
+		{
+		case AudioChannelType::None: ostream << "AudioChannelType::None"; break;
+		case AudioChannelType::Dual: ostream << "AudioChannelType::Dual"; break;
+		case AudioChannelType::Mono: ostream << "AudioChannelType::Mono"; break;
+		case AudioChannelType::Length: ostream << "AudioChannelType::Length"; break;
+		default: ostream << "AudioChannelType::UNDEFINED"; break;
+		}
+		return ostream;
+	}
+
 	struct WavData
 	{
 		uint32 sampleRate;
@@ -30,5 +43,7 @@ namespace MathAnim
 		void free(WavData& wav);
 	}
 }
+
+CppUtils::Stream& operator<<(CppUtils::Stream& io, MathAnim::AudioChannelType const& value);
 
 #endif 

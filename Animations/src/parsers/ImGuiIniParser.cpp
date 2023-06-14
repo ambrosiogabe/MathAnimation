@@ -208,7 +208,7 @@ namespace MathAnim
 				FILE* outputFile = fopen(outputFilepath, "wb");
 				if (!outputFile)
 				{
-					g_logger_error("Failed to open file '%s' for writing when converting imgui json file.", outputFilepath);
+					g_logger_error("Failed to open file '{}' for writing when converting imgui json file.", outputFilepath);
 					return;
 				}
 
@@ -385,7 +385,7 @@ namespace MathAnim
 			}
 			catch (std::exception ex)
 			{
-				g_logger_error("Failed to parse imgui ini as json file: '%s'", ex.what());
+				g_logger_error("Failed to parse imgui ini as json file: '{}'", ex.what());
 			}
 		}
 
@@ -608,7 +608,7 @@ namespace MathAnim
 			{
 				if (keyValuePairs.find(key) == keyValuePairs.end())
 				{
-					g_logger_error("Failed to parse imgui.ini file. DockSpace was missing required key '%s'", key.c_str());
+					g_logger_error("Failed to parse imgui.ini file. DockSpace was missing required key '{}'", key);
 					return false;
 				}
 			}
@@ -656,7 +656,7 @@ namespace MathAnim
 			{
 				if (keyValuePairs.find(key) == keyValuePairs.end())
 				{
-					g_logger_error("Failed to parse imgui.ini file. DockSpace was missing required key '%s'", key.c_str());
+					g_logger_error("Failed to parse imgui.ini file. DockSpace was missing required key '{}'", key);
 					return false;
 				}
 			}

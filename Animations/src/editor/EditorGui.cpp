@@ -7,6 +7,8 @@
 #include "editor/panels/InspectorPanel.h"
 #include "editor/panels/ConsoleLog.h"
 #include "editor/timeline/Timeline.h"
+#include "editor/imgui/ImGuiLayer.h"
+#include "editor/imgui/ImGuiExtended.h"
 #include "editor/Gizmos.h"
 #include "editor/EditorSettings.h"
 #include "editor/EditorLayout.h"
@@ -17,14 +19,22 @@
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
 #include "core/Profiling.h"
+#include "utils/FontAwesome.h"
 
 #include <imgui.h>
 
 namespace MathAnim
 {
+	struct ActionText
+	{
+		std::string text;
+		float displayTimeLeft;
+	};
+
 	namespace EditorGui
 	{
 		// ------------- Internal Functions -------------
+		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime);
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
 		static void checkHotKeys(AnimationManagerData* am);
 		static void checkForMousePicking(const AnimationManagerData* am, const Framebuffer& mainFramebuffer);
@@ -39,12 +49,15 @@ namespace MathAnim
 		static bool mouseHoveringViewport;
 		static bool mainViewportIsActive;
 		static bool editorViewportIsActive;
+		static std::vector<ActionText> actionTextQueue;
+		static Texture gizmoPreviewTexture;
 
 		static bool openActiveObjectSelectionContextMenu = false;
 		static const char* openActiveObjectSelectionContextMenuId = "##ACTIVE_OBJECT_SELECTION_CTX_MENU";
 
 		void init(AnimationManagerData* am, const std::filesystem::path& projectRoot, uint32 outputWidth, uint32 outputHeight)
 		{
+			actionTextQueue = {};
 			viewportOffset = { 0, 0 };
 			viewportSize = { 0, 0 };
 
@@ -61,9 +74,13 @@ namespace MathAnim
 			AssetManagerPanel::init(projectRoot);
 			EditorLayout::init(projectRoot);
 			timelineLoaded = true;
+
+			gizmoPreviewTexture = TextureBuilder()
+				.setFilepath("./assets/images/gizmoPreviews.png")
+				.generate(true);
 		}
 
-		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am)
+		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am, float deltaTime)
 		{
 			MP_PROFILE_EVENT("EditorGui_Update");
 
@@ -73,7 +90,8 @@ namespace MathAnim
 
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-			ImGui::Begin("Animation View", nullptr, ImGuiWindowFlags_MenuBar);
+			// NOTE: Begin will return whether the window is visible
+			mainViewportIsActive = ImGui::Begin("Animation View", nullptr, ImGuiWindowFlags_MenuBar);
 			if (ImGui::BeginMenuBar())
 			{
 				ImVec2 contentRegion = ImGui::GetContentRegionAvail();
@@ -105,27 +123,10 @@ namespace MathAnim
 
 			const Texture& mainColorTexture = mainFramebuffer.getColorAttachment(0);
 			ImTextureID textureId = (void*)(uintptr_t)mainColorTexture.graphicsId;
-			ImGui::Image(textureId, mainViewportSize, ImVec2(0, 0), ImVec2(1, 1));
-			mainViewportIsActive = ImGui::IsItemVisible();
+			ImGui::Image(textureId, mainViewportSize, ImVec2(0, 1), ImVec2(1, 0));
 			ImGui::End();
 
-			// Draw the editor framebuffer viewport
-			{
-				ImGui::Begin("Animation Editor View", nullptr);
-
-				ImVec2 editorViewportRelativeOffset;
-				getLargestSizeForViewport(&viewportSize, &editorViewportRelativeOffset);
-				ImGui::SetCursorPos(editorViewportRelativeOffset);
-				viewportOffset = ImGui::GetCursorScreenPos() - ImGui::GetMainViewport()->Pos;
-
-				const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
-				ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
-				ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 0), ImVec2(1, 1));
-				mouseHoveringViewport = ImGui::IsItemHovered();
-				editorViewportIsActive = ImGui::IsItemVisible();
-
-				ImGui::End();
-			}
+			drawEditorViewport(editorFramebuffer, deltaTime);
 
 			ImGui::PopStyleVar();
 
@@ -168,23 +169,33 @@ namespace MathAnim
 			}
 		}
 
+		Vec2 toNormalizedViewportCoords(const Vec2& screenCoords)
+		{
+			Vec2 viewportPos = toViewportCoords(screenCoords);
+			viewportPos.x = (viewportPos.x / viewportSize.x);
+			viewportPos.y = 1.0f - (viewportPos.y / viewportSize.y);
+			return viewportPos;
+		}
+
 		Vec2 mouseToNormalizedViewport()
 		{
-			Vec2 mousePos = mouseToViewportCoords();
-			mousePos.x = (mousePos.x / viewportSize.x);
-			mousePos.y = (mousePos.y / viewportSize.y);
-			return mousePos;
+			return toNormalizedViewportCoords(Vec2{ Input::mouseX, Input::mouseY });
 		}
 
 		Vec2 mouseToViewportCoords()
 		{
-			Vec2 mousePos = Vec2{ Input::mouseX, Input::mouseY };
-			mousePos -= viewportOffset;
-			return mousePos;
+			return toViewportCoords(Vec2{ Input::mouseX, Input::mouseY });
+		}
+
+		Vec2 toViewportCoords(const Vec2& screenCoords)
+		{
+			return screenCoords - Vec2{ viewportOffset.x, viewportOffset.y };
 		}
 
 		void free(AnimationManagerData* am)
 		{
+			gizmoPreviewTexture.destroy();
+
 			AssetManagerPanel::free();
 			SceneHierarchyPanel::free();
 			ExportPanel::free();
@@ -206,6 +217,12 @@ namespace MathAnim
 			timelineLoaded = true;
 		}
 
+		void displayActionText(const std::string& actionText)
+		{
+			constexpr float timeToDisplaySeconds = 3.0f;
+			actionTextQueue.emplace_back(ActionText{ actionText, timeToDisplaySeconds });
+		}
+
 		bool mainViewportActive()
 		{
 			return mainViewportIsActive;
@@ -221,7 +238,214 @@ namespace MathAnim
 			return mouseHoveringViewport;
 		}
 
+		bool anyEditorItemActive()
+		{
+			return ImGui::IsAnyItemActive();
+		}
+
+		BBox getViewportBounds()
+		{
+			BBox res;
+			res.min = viewportOffset;
+			res.max = viewportOffset + viewportSize;
+			return res;
+		}
+
 		// ------------- Internal Functions -------------
+		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime)
+		{
+			editorViewportIsActive = ImGui::Begin("Animation Editor View", nullptr);
+
+			ImVec2 editorViewportRelativeOffset;
+			getLargestSizeForViewport(&viewportSize, &editorViewportRelativeOffset);
+			ImGui::SetCursorPos(editorViewportRelativeOffset);
+			viewportOffset = ImGui::GetCursorScreenPos() - ImGui::GetMainViewport()->Pos;
+
+			const Texture& editorColorTexture = editorFramebuffer.getColorAttachment(0);
+			ImTextureID editorTextureId = (void*)(uintptr_t)editorColorTexture.graphicsId;
+			ImGui::Image(editorTextureId, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
+			mouseHoveringViewport = ImGui::IsItemHovered();
+
+			// Draw action text displayed in the bottom left corner of the viewport
+			{
+				ImGui::PushFont(ImGuiLayer::getMediumFont());
+
+				ImDrawList* drawList = ImGui::GetWindowDrawList();
+				float fontHeight = ImGui::GetFontSize();
+				ImVec2 position = ImGui::GetWindowPos() + ImVec2(0.0f, ImGui::GetWindowSize().y);
+				position.y -= fontHeight * (float)actionTextQueue.size();
+				for (auto iter = actionTextQueue.begin(); iter != actionTextQueue.end(); iter++)
+				{
+					constexpr float fadeTime = 0.5f;
+					float opacity = 1.0f;
+					if (iter->displayTimeLeft <= fadeTime)
+					{
+						opacity = 1.0f - ((fadeTime - iter->displayTimeLeft) / fadeTime);
+					}
+
+					drawList->AddText(position, ImColor(1.0f, 1.0f, 1.0f, opacity), iter->text.c_str());
+					position.y += fontHeight;
+
+					iter->displayTimeLeft -= deltaTime;
+
+					if (iter->displayTimeLeft <= 0.0f)
+					{
+						iter = actionTextQueue.erase(iter);
+						if (actionTextQueue.size() == 0)
+						{
+							break;
+						}
+					}
+				}
+
+				ImGui::PopFont();
+			}
+
+			// Draw translate/scale/rotate mode dropdown at the top-right corner of the viewport
+			static bool showCameraOrientationGizmo = true;
+			{
+				const char* chooseGizmoModePopupId = "CHOOSE_GIZMO_MODE_POPUP";
+
+				ImDrawList* drawList = ImGui::GetCurrentWindow()->DrawList;
+
+				constexpr ImVec2 comboSize = ImVec2(80.f, 40.f);
+				constexpr ImVec2 comboHalfSize = ImVec2(40.f, 40.f);
+				constexpr float comboHzPadding = 15.f;
+				constexpr float comboVtPadding = 15.f;
+
+				ImVec2 topLeft = editorViewportRelativeOffset;
+				topLeft.x += viewportSize.x - comboSize.x - comboHzPadding;
+				topLeft.y += comboVtPadding;
+				ImGui::SetCursorPos(topLeft);
+
+				ImVec2 previewUvMin = ImVec2(0.0f / (float)gizmoPreviewTexture.width, 1.0f);
+				ImVec2 previewUvMax = ImVec2(77.0f / (float)gizmoPreviewTexture.width, 1.0f - (77.0f / (float)gizmoPreviewTexture.height));
+
+				GizmoType gizmoType = GizmoManager::getVisualMode();
+
+				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+
+				if (ImGui::InvisibleButton(
+					"GizmoPreviewButton",
+					comboHalfSize
+				))
+				{
+					if (gizmoType == GizmoType::None)
+					{
+						GizmoManager::changeVisualMode(GizmoType::Translation);
+					}
+					else
+					{
+						GizmoManager::changeVisualMode(GizmoType::None);
+					}
+				}
+
+				// Draw the actual button
+				ImVec2 windowPos = ImGui::GetCurrentWindow()->Pos;
+				bool enableButtonHovered = ImGui::IsItemHovered();
+				ImVec4 bgColor = gizmoType != GizmoType::None
+					? enableButtonHovered ? Colors::Primary[1] : Colors::Primary[2]
+					: enableButtonHovered ? Colors::Neutral[4] : Colors::Neutral[5];
+				constexpr float rounding = 4.f;
+				drawList->AddRectFilled(
+					topLeft + windowPos,
+					topLeft + comboHalfSize + windowPos,
+					ImColor(bgColor),
+					rounding
+				);
+				drawList->AddImage(
+					(void*)(uintptr_t)gizmoPreviewTexture.graphicsId,
+					topLeft + windowPos + ImVec2(rounding, rounding),
+					topLeft + comboHalfSize + windowPos - ImVec2(rounding, rounding),
+					previewUvMin,
+					previewUvMax
+				);
+
+				ImGui::SetCursorPos(topLeft + ImVec2(comboHalfSize.x, 0.0f));
+				std::string chevronLabel = ICON_FA_CHEVRON_DOWN + std::string("##GizmoPreviewDropdown");
+				if (ImGui::InvisibleButton(
+					chevronLabel.c_str(),
+					comboHalfSize
+				))
+				{
+					ImGui::OpenPopup(chooseGizmoModePopupId);
+				}
+
+				ImColor dropdownArrowBgColor = ImGui::IsItemHovered()
+					? Colors::Neutral[5]
+					: Colors::Neutral[7];
+				drawList->AddRectFilled(
+					topLeft + ImVec2(comboHalfSize.x, 0.f) + windowPos,
+					topLeft + comboSize + windowPos,
+					ImColor(dropdownArrowBgColor),
+					rounding
+				);
+
+				ImColor chevronColor = Colors::Neutral[2];
+				ImVec2 chevronSize = ImGui::CalcTextSize(ICON_FA_ANGLE_DOWN);
+				// Center the chevron on the button
+				ImVec2 chevronPos = topLeft + ImVec2(comboHalfSize.x, 0.f) + windowPos +
+					(comboHalfSize / 2.0f) - (chevronSize / 2.0f);
+				drawList->AddText(chevronPos, chevronColor, ICON_FA_ANGLE_DOWN);
+
+				ImGui::PopStyleVar();
+
+				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20, 10));
+				if (ImGui::BeginPopupContextItem(chooseGizmoModePopupId))
+				{
+					ImGui::TextColored(ImColor(Colors::Neutral[3]), "Object Gizmos");
+
+					if (ImGui::Selectable("Translate"))
+					{
+						GizmoManager::changeVisualMode(GizmoType::Translation);
+					}
+
+					if (ImGui::Selectable("Rotate"))
+					{
+						GizmoManager::changeVisualMode(GizmoType::Rotation);
+					}
+
+					if (ImGui::Selectable("Scale"))
+					{
+						GizmoManager::changeVisualMode(GizmoType::Scaling);
+					}
+
+					if (ImGui::Selectable("Toggle Camera Orientation"))
+					{
+						showCameraOrientationGizmo = !showCameraOrientationGizmo;
+					}
+
+					ImGui::EndPopup();
+				}
+				ImGui::PopStyleVar();
+
+				// Set cursor for next drawing thing
+				ImVec2 bottomRight = topLeft + comboSize + ImVec2(0.f, comboVtPadding);
+				ImGui::SetCursorPos(bottomRight);
+			}
+
+			// Composite camera orientation texture in top right corner of the window
+			if (showCameraOrientationGizmo)
+			{
+				constexpr float cameraOrientationGizmoVtPadding = 15.f;
+
+				const Texture& cameraOrientationTexture = GizmoManager::getCameraOrientationTexture();
+
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() - cameraOrientationTexture.width);
+				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + cameraOrientationGizmoVtPadding);
+
+				ImTextureID cameraOrientationTextureId = (void*)(uintptr_t)cameraOrientationTexture.graphicsId;
+				ImGui::Image(
+					cameraOrientationTextureId,
+					ImVec2((float)cameraOrientationTexture.width, (float)cameraOrientationTexture.height),
+					ImVec2(0, 1),
+					ImVec2(1, 0)
+				);
+			}
+
+			ImGui::End();
+		}
+
 		static void checkHotKeys(AnimationManagerData* am)
 		{
 			AnimObjId activeAnimObj = InspectorPanel::getActiveAnimObject();

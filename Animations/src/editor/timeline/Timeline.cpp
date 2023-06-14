@@ -136,7 +136,7 @@ namespace MathAnim
 					if (Audio::isNull(audioSource))
 					{
 						// Failed to load the file, there must be something wrong with it.
-						g_logger_error("Failed to load audio source file '%s'", timelineData.audioSourceFile);
+						g_logger_error("Failed to load audio source file '{}'", timelineData.audioSourceFile);
 						g_memory_free(timelineData.audioSourceFile);
 						timelineData.audioSourceFile = nullptr;
 						timelineData.audioSourceFileLength = 0;
@@ -174,7 +174,7 @@ namespace MathAnim
 					}
 					else
 					{
-						g_logger_error("Error opening audio source:\n\t%s", NFD_GetError());
+						g_logger_error("Error opening audio source:\n\t'{}'", NFD_GetError());
 					}
 				}
 
@@ -293,7 +293,7 @@ namespace MathAnim
 
 		void serialize(const TimelineData& timelineData, nlohmann::json& j)
 		{
-			g_logger_assert(timelineData.audioSourceFileLength < UINT32_MAX, "Corrupted timeline data. Somehow audio source file length > UINT32_MAX '%d'", timelineData.audioSourceFileLength);
+			g_logger_assert(timelineData.audioSourceFileLength < UINT32_MAX, "Corrupted timeline data. Somehow audio source file length > UINT32_MAX. Length: '{}'", timelineData.audioSourceFileLength);
 			SERIALIZE_NULLABLE_U8_CSTRING(j, &timelineData, audioSourceFile, "Undefined");
 			SERIALIZE_NON_NULL_PROP(j, &timelineData, firstFrame);
 			SERIALIZE_NON_NULL_PROP(j, &timelineData, currentFrame);
@@ -475,7 +475,7 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_assert(insertIndex >= 0 && insertIndex < numTracks, "Invalid insert index '%d' for track.", insertIndex);
+				g_logger_assert(insertIndex >= 0 && insertIndex < numTracks, "Invalid insert index '{}' for track.", insertIndex);
 				// Move all tracks after insert index to the end
 				std::memmove(tracks + insertIndex + 1, tracks + insertIndex, (numTracks - insertIndex - 1) * sizeof(ImGuiTimeline_Track));
 				tracks[insertIndex] = createDefaultTrack();
@@ -493,7 +493,7 @@ namespace MathAnim
 
 		static void deleteTrack(AnimationManagerData* am, int index)
 		{
-			g_logger_assert(index >= 0 && index < numTracks, "Invalid track index '%d' for deleting track.", index);
+			g_logger_assert(index >= 0 && index < numTracks, "Invalid track index '{}' for deleting track.", index);
 			freeTrack(tracks[index], am);
 
 			// If the track wasn't the last track, move everything ahead of it back one
@@ -612,17 +612,6 @@ namespace MathAnim
 						tracks[track].segments[segment].frameDuration = animations[i].duration;
 						tracks[track].segments[segment].userData.as.ptrData = (void*)animations[i].id;
 						tracks[track].segments[segment].segmentName = Animation::getAnimationName(animations[i].type);
-
-						//for (int j = 0; j < animObjects[i].animations.size(); j++)
-						//{
-						//	g_logger_assert(animObjects[i].animations[j].objectId == animObjects[i].id, "How did this happen?");
-						//	g_logger_assert(j < tracks[track].segments[segment].numSubSegments, "Invalid index '%d'/'%d'", j, tracks[track].segments[segment].numSubSegments);
-						//	ImGuiTimeline_SubSegment& subSegment = tracks[track].segments[segment].subSegments[j];
-						//	subSegment.frameStart = animObjects[i].animations[j].frameStart;
-						//	subSegment.frameDuration = animObjects[i].animations[j].duration;
-						//	subSegment.segmentName = Animation::getAnimationName(animObjects[i].animations[j].type);
-						//	subSegment.userData = (void*)(uintptr_t)animObjects[i].animations[j].id;
-						//}
 
 						segment++;
 					}
