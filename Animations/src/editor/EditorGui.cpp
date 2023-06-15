@@ -498,6 +498,12 @@ namespace MathAnim
 			// Paste object from clipboard to scene
 			if (mouseHoveringViewport && clipboard.type == ClipboardContents::GameObject && Input::keyPressed(GLFW_KEY_V, KeyMods::Ctrl))
 			{
+				if (clipboard.lastCopiedObject.size() == 0)
+				{
+					// No object to copy, so just exit early
+					return;
+				}
+
 				// Create one more copy of the objects so they all get a unique ID and we can safely add them
 				// to the scene without conflicting ID's
 				std::vector<AnimObject> copiedObjects = {};
@@ -510,6 +516,7 @@ namespace MathAnim
 				}
 
 				// Re-assign all the parent ID's to the appropriate newly created objects
+				// And add them to the animation manager
 				for (auto& obj : copiedObjects)
 				{
 					if (!isNull(obj.parentId))
@@ -528,6 +535,13 @@ namespace MathAnim
 					AnimationManager::addAnimObject(am, obj);
 					SceneHierarchyPanel::addNewAnimObject(obj);
 				}
+
+				// Set the newly copied object as the active game object
+				activeAnimObj = copiedObjects[0].id;
+				InspectorPanel::setActiveAnimObject(am, activeAnimObj);
+
+				// Trigger the translate hot-key gizmo on the new active anim object
+				copiedObjects[0].triggerTranslateHotKeyGizmo();
 			}
 
 			// Shift+G (Open Group Menu pressed)

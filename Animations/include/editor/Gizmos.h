@@ -32,6 +32,8 @@ namespace MathAnim
 		const char* getVisualModeStr();
 		GizmoType getVisualMode();
 
+		void triggerTranslateHotKeyGizmo(const char* name, Vec3* position);
+
 		bool translateGizmo(const char* gizmoName, Vec3* position);
 		bool rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation);
 		bool scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale);
