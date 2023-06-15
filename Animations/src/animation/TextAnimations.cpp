@@ -216,26 +216,6 @@ namespace MathAnim
 		return res;
 	}
 
-	TextObject TextObject::createCopy(const TextObject& from)
-	{
-		TextObject res = {};
-		if (from.font)
-		{
-			// NOTE: We can pass nullptr for vg here because it shouldn't actually need it
-			res.font = Fonts::loadFont(from.font->fontFilepath.c_str());
-		}
-		else
-		{
-			res.font = nullptr;
-		}
-
-		res.text = (char*)g_memory_allocate((from.textLength + 1) * sizeof(char));
-		g_memory_copyMem(res.text, (void*)from.text, from.textLength);
-		res.textLength = from.textLength;
-		res.text[res.textLength] = '\0';
-		return res;
-	}
-
 	void LaTexObject::update(AnimationManagerData* am, AnimObjId parentId)
 	{
 		if (isParsingLaTex)

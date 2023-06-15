@@ -608,7 +608,7 @@ namespace MathAnim
 			// Read each anim object followed by 0xDEADBEEF
 			for (size_t i = 0; i < j["AnimationObjects"].size(); i++)
 			{
-				AnimObject animObject = AnimObject::deserialize(am, j["AnimationObjects"][i], versionMajor);
+				AnimObject animObject = AnimObject::deserialize(j["AnimationObjects"][i], versionMajor);
 				am->objectIdMap[animObject.id] = i;
 				am->objects.emplace_back(animObject);
 			}

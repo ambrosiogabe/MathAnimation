@@ -31,6 +31,20 @@ namespace MathAnim
 		float displayTimeLeft;
 	};
 
+	enum class ClipboardContents : uint8
+	{
+		None = 0,
+		GameObject,
+		AnimationClip
+	};
+
+	struct Clipboard
+	{
+		ClipboardContents type;
+		Animation lastCopiedAnimation;
+		std::vector<AnimObject> lastCopiedObject;
+	};
+
 	namespace EditorGui
 	{
 		// ------------- Internal Functions -------------
@@ -50,6 +64,7 @@ namespace MathAnim
 		static bool mainViewportIsActive;
 		static bool editorViewportIsActive;
 		static std::vector<ActionText> actionTextQueue;
+		static Clipboard clipboard;
 		static Texture gizmoPreviewTexture;
 
 		static bool openActiveObjectSelectionContextMenu = false;
@@ -60,6 +75,8 @@ namespace MathAnim
 			actionTextQueue = {};
 			viewportOffset = { 0, 0 };
 			viewportSize = { 0, 0 };
+
+			clipboard = {};
 
 			if (!timelineLoaded)
 			{
@@ -203,6 +220,11 @@ namespace MathAnim
 			Timeline::freeInstance(timeline);
 			Timeline::free(am);
 			timelineLoaded = false;
+
+			for (auto& obj : clipboard.lastCopiedObject)
+			{
+				obj.free();
+			}
 		}
 
 		const TimelineData& getTimelineData()
@@ -449,30 +471,83 @@ namespace MathAnim
 		static void checkHotKeys(AnimationManagerData* am)
 		{
 			AnimObjId activeAnimObj = InspectorPanel::getActiveAnimObject();
+			const AnimObject* activeObject = AnimationManager::getObject(am, activeAnimObj);
+			ImGuiIO& io = ImGui::GetIO();
+
+			// Ctrl+S (Save Project)
 			if (Input::keyPressed(GLFW_KEY_S, KeyMods::Ctrl))
 			{
 				Application::saveProject();
 			}
 
+			// Ctrl+C and mouse hovering viewport/scene heirarchy panel and active object
+			// Copy object to clipboard
+			if (mouseHoveringViewport && !isNull(activeAnimObj) && activeObject && Input::keyPressed(GLFW_KEY_C, KeyMods::Ctrl))
+			{
+				// Free the old contents
+				for (auto& obj : clipboard.lastCopiedObject)
+				{
+					obj.free();
+				}
+
+				clipboard.type = ClipboardContents::GameObject;
+				clipboard.lastCopiedObject = AnimObject::createDeepCopyWithChildren(am, *activeObject);
+			}
+
+			// Ctrl+V and mouse hovering viewport/scene heirarchy panel and active object
+			// Paste object from clipboard to scene
+			if (mouseHoveringViewport && clipboard.type == ClipboardContents::GameObject && Input::keyPressed(GLFW_KEY_V, KeyMods::Ctrl))
+			{
+				// Create one more copy of the objects so they all get a unique ID and we can safely add them
+				// to the scene without conflicting ID's
+				std::vector<AnimObject> copiedObjects = {};
+				std::unordered_map<AnimObjId, AnimObjId> copyIdMap = {};
+				for (auto& obj : clipboard.lastCopiedObject)
+				{
+					AnimObject copy = obj.createDeepCopy();
+					copyIdMap[obj.id] = copy.id;
+					copiedObjects.emplace_back(copy);
+				}
+
+				// Re-assign all the parent ID's to the appropriate newly created objects
+				for (auto& obj : copiedObjects)
+				{
+					if (!isNull(obj.parentId))
+					{
+						auto iter = copyIdMap.find(obj.parentId);
+						if (iter != copyIdMap.end())
+						{
+							obj.parentId = iter->second;
+						}
+						else
+						{
+							g_logger_error("Failed to find suitable parent id '{}' while deep copying object '{}' in a paste operation.", obj.parentId);
+						}
+					}
+
+					AnimationManager::addAnimObject(am, obj);
+					SceneHierarchyPanel::addNewAnimObject(obj);
+				}
+			}
+
+			// Shift+G (Open Group Menu pressed)
 			if (mouseHoveringViewport && !isNull(activeAnimObj) && Input::keyPressed(GLFW_KEY_G, KeyMods::Shift))
 			{
 				Input::keyPressed(GLFW_KEY_G, KeyMods::Shift);
 				openActiveObjectSelectionContextMenu = true;
 			}
 
-			ImGuiIO& io = ImGui::GetIO();
-			if (!io.WantTextInput)
+			// Space is pressed, handle Pause/Play of timeline
+			if (!io.WantTextInput && Input::keyPressed(GLFW_KEY_SPACE))
 			{
-				if (Input::keyPressed(GLFW_KEY_SPACE))
-				{
-					AnimState currentPlayState = Application::getEditorPlayState();
-					AnimState newState = currentPlayState == AnimState::PlayForward
-						? AnimState::Pause
-						: AnimState::PlayForward;
-					Application::setEditorPlayState(newState);
-				}
+				AnimState currentPlayState = Application::getEditorPlayState();
+				AnimState newState = currentPlayState == AnimState::PlayForward
+					? AnimState::Pause
+					: AnimState::PlayForward;
+				Application::setEditorPlayState(newState);
 			}
 
+			// Handle Shift+G Popup
 			if (openActiveObjectSelectionContextMenu)
 			{
 				ImGui::OpenPopup(openActiveObjectSelectionContextMenuId);

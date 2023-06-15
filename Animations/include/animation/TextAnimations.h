@@ -26,7 +26,6 @@ namespace MathAnim
 		static TextObject deserialize(const nlohmann::json& j, uint32 version);
 
 		static TextObject createDefault();
-		static TextObject createCopy(const TextObject& from);
 
 		[[deprecated("This is for upgrading legacy projects developed in beta")]]
 		static TextObject legacy_deserialize(RawMemory& memory, uint32 version);

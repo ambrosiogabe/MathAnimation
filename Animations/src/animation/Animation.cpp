@@ -1932,7 +1932,7 @@ namespace MathAnim
 		}
 	}
 
-	AnimObject AnimObject::deserialize(AnimationManagerData*, const nlohmann::json& j, uint32 version)
+	AnimObject AnimObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		if (version < 2 || version > 3)
 		{
@@ -2250,8 +2250,7 @@ namespace MathAnim
 	AnimObject AnimObject::createDefault(AnimationManagerData* am, AnimObjectTypeV1 type)
 	{
 		AnimObject res;
-		res.id = animObjectUidCounter++;
-		g_logger_assert(animObjectUidCounter < UINT64_MAX, "Somehow our UID counter reached '{}'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", UINT64_MAX);
+		res.id = getNextUid();;
 		res.parentId = NULL_ANIM_OBJECT;
 		res.percentCreated = 0.0f;
 		res.circumscribeId = NULL_ANIM;
@@ -2375,87 +2374,62 @@ namespace MathAnim
 		return res;
 	}
 
-	AnimObject AnimObject::createCopy(const AnimObject& from)
+	std::vector<AnimObject> AnimObject::createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from)
 	{
-		AnimObject res;
-		res.id = from.id;
-		res.parentId = from.parentId;
-		res.percentCreated = from.percentCreated;
+		std::vector<AnimObject> res = {};
+		std::unordered_map<AnimObjId, AnimObjId> copyIdMap = {};
 
-		res.nameLength = from.nameLength;
-		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
-		g_memory_copyMem(res.name, (void*)from.name, sizeof(uint8) * (res.nameLength + 1));
-
-		res.status = from.status;
-		res.objectType = from.objectType;
-
-		res.rotation = from.rotation;
-		res._rotationStart = from._rotationStart;
-
-		res.scale = from.scale;
-		res._scaleStart = from._scaleStart;
-
-		res.position = from.position;
-		res._positionStart = from._positionStart;
-		res._globalPositionStart = from._globalPositionStart;
-		res.globalPosition = from.globalPosition;
-
-		res.svgObject = nullptr;
-		res._svgObjectStart = nullptr;
-
-		if (from.svgObject)
 		{
-			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-			*res.svgObject = Svg::createDefault();
-			Svg::copy(res.svgObject, from.svgObject);
-		}
-		if (from._svgObjectStart)
-		{
-			res._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
-			*res._svgObjectStart = Svg::createDefault();
-			Svg::copy(res._svgObjectStart, from._svgObjectStart);
+			AnimObject copy = from.createDeepCopy();
+			copyIdMap[from.id] = copy.id;
+			res.emplace_back(copy);
 		}
 
-		res.drawDebugBoxes = from.drawDebugBoxes;
-		res.drawCurveDebugBoxes = from.drawCurveDebugBoxes;
-		res.isGenerated = from.isGenerated;
-		res.svgScale = from.svgScale;
-
-		res.strokeWidth = from.strokeWidth;
-		res._strokeWidthStart = from._strokeWidthStart;
-		res.strokeColor = from.strokeColor;
-		res._strokeColorStart = from._strokeColorStart;
-		res.fillColor = from.fillColor;
-		res._fillColorStart = from._fillColorStart;
-
-		res.objectType = from.objectType;
-
-		res.generatedChildrenIds = from.generatedChildrenIds;
-
-		switch (from.objectType)
+		for (auto it = from.beginBreadthFirst(am); it != from.end(); ++it)
 		{
-		case AnimObjectTypeV1::TextObject:
-			res.as.textObject = TextObject::createCopy(from.as.textObject);
-			break;
-		case AnimObjectTypeV1::LaTexObject:
-		case AnimObjectTypeV1::SvgObject:
-		case AnimObjectTypeV1::Square:
-		case AnimObjectTypeV1::Circle:
-		case AnimObjectTypeV1::Cube:
-		case AnimObjectTypeV1::Axis:
-		case AnimObjectTypeV1::SvgFileObject:
-		case AnimObjectTypeV1::Camera:
-		case AnimObjectTypeV1::ScriptObject:
-		case AnimObjectTypeV1::CodeBlock:
-		case AnimObjectTypeV1::Arrow:
-		case AnimObjectTypeV1::Image:
-			// TODO: Implement Copy for these
-			break;
-		case AnimObjectTypeV1::Length:
-		case AnimObjectTypeV1::None:
-			break;
+			const AnimObject* obj = AnimationManager::getObject(am, *it);
+			if (obj)
+			{
+				AnimObject copy = obj->createDeepCopy();
+				copyIdMap[obj->id] = copy.id;
+				if (!isNull(copy.parentId))
+				{
+					auto iter = copyIdMap.find(copy.parentId);
+					if (iter != copyIdMap.end())
+					{
+						copy.parentId = iter->second;
+					}
+					else
+					{
+						g_logger_error("Failed to find suitable parent id '{}' while deep copying object '{}'.", copy.parentId, obj->name);
+					}
+				}
+				res.emplace_back(copy);
+			}
+			else
+			{
+				g_logger_error("Tried to copy undefined AnimObject '{}' while copying object '{}'", *it, from.name);
+			}
 		}
 
+		return res;
+	}
+
+	AnimObject AnimObject::createDeepCopy() const
+	{
+		// TODO: Do some performance checking on this. I have a feeling it will be slow, but 
+		//       double check this if copy/paste becomes laggy.
+		nlohmann::json j = {};
+		this->serialize(j);
+		AnimObject res = AnimObject::deserialize(j, SERIALIZER_VERSION_MAJOR);
+		res.id = getNextUid();
+		return res;
+	}
+
+	AnimObjId AnimObject::getNextUid()
+	{
+		AnimObjId res = animObjectUidCounter++;
+		g_logger_assert(animObjectUidCounter < UINT64_MAX, "Somehow our UID counter reached '{}'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", UINT64_MAX);
 		return res;
 	}
 
