@@ -1321,12 +1321,6 @@ namespace MathAnim
 		name[newNameLength] = '\0';
 	}
 
-	void AnimObject::triggerTranslateHotKeyGizmo()
-	{
-		std::string gizmoName = std::string((char*)this->name) + std::to_string(this->id);
-		GizmoManager::triggerTranslateHotKeyGizmo(gizmoName.c_str(), &this->_globalPositionStart);
-	}
-
 	void AnimObject::onGizmo(AnimationManagerData* am)
 	{
 		std::string gizmoName = std::string((char*)this->name) + std::to_string(this->id);

@@ -124,8 +124,6 @@ namespace MathAnim
 		// -------------- Internal Variables --------------
 		static GlobalContext* gGizmoManager;
 
-		static constexpr int GIZMO_KEY_ALWAYS_TRUE = GLFW_KEY_LAST + 1;
-
 		static constexpr float translatePlaneSideLength = 0.1f;
 		static constexpr float translateArrowHalfLength = 0.3f;
 		static constexpr float translateArrowTipRadius = 0.1f;
@@ -604,17 +602,6 @@ namespace MathAnim
 			return gGizmoManager->visualMode;
 		}
 
-		void triggerTranslateHotKeyGizmo(const char* name, Vec3* position)
-		{
-			// Create the gizmo if needed by calling this
-			translateGizmo(name, position);
-			GizmoState* gizmo = getGizmoByName(name, GizmoType::Translation);
-
-			// Trigger the gizmo by passing a special flag to force this to pretend the user initiated the key press
-			Vec3 delta;
-			handleLinearGizmoKeyEvents(gizmo, *position, &delta, GIZMO_KEY_ALWAYS_TRUE, GizmoType::Translation);
-		}
-
 		bool translateGizmo(const char* gizmoName, Vec3* position)
 		{
 			// Find or create the gizmo
@@ -949,10 +936,7 @@ namespace MathAnim
 			GlobalContext* g = gGizmoManager;
 
 			const Camera* camera = Application::getEditorCamera();
-			bool inputKeyPressed = 
-				hotKeyStart == GIZMO_KEY_ALWAYS_TRUE || // This flag is so that you can trigger this programaticcaly
-				Input::keyPressed(hotKeyStart);
-			if (EditorGui::mouseHoveredEditorViewport() && !EditorGui::anyEditorItemActive() && inputKeyPressed)
+			if (EditorGui::mouseHoveredEditorViewport() && !EditorGui::anyEditorItemActive() && Input::keyPressed(hotKeyStart))
 			{
 				// Use distance to gizmo as the focal distance to land somewhere almost on the same plane as the gizmo
 				Vec3 worldPosFocalDistance = getMouseWorldPos3f(CMath::length(gizmoPosition - camera->position));

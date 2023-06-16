@@ -500,7 +500,6 @@ namespace MathAnim
 
 		void setName(const char* newName, size_t newNameLength = 0);
 		void onGizmo(AnimationManagerData* am);
-		void triggerTranslateHotKeyGizmo();
 		void render(AnimationManagerData* am) const;
 		void renderMoveToAnimation(AnimationManagerData* am, float t, const Vec3& target);
 		void renderFadeInAnimation(AnimationManagerData* am, float t);

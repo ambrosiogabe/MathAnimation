@@ -1,3 +1,4 @@
+#include "editor/EditorGui.h"
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/panels/InspectorPanel.h"
 #include "animation/Animation.h"
@@ -42,6 +43,7 @@ namespace MathAnim
 		static std::vector<BetweenMetadata> inBetweenBuffer;
 		static std::vector<SceneTreeMetadata> orderedEntities;
 		static SceneTreeMoveData dragDropMove;
+		static bool mouseHoveredSceneHeirarchyPanel = false;
 
 		// --------- Internal functions ---------
 		static void imGuiRightClickPopup(AnimationManagerData* am);
@@ -208,7 +210,9 @@ namespace MathAnim
 			imGuiRightClickPopup(am);
 
 			// Handle delete animation object
-			if (ImGui::IsWindowHovered() && activeElementIndex != -1 && Input::keyPressed(GLFW_KEY_DELETE))
+			mouseHoveredSceneHeirarchyPanel = ImGui::IsWindowHovered();
+			bool mouseHoveredSceneOrEditorPanel = mouseHoveredSceneHeirarchyPanel || EditorGui::mouseHoveredEditorViewport();
+			if (mouseHoveredSceneOrEditorPanel && activeElementIndex != -1 && Input::keyPressed(GLFW_KEY_DELETE))
 			{
 				const AnimObject* animObject = AnimationManager::getObject(am, orderedEntities[activeElementIndex].animObjectId);
 				if (animObject)
@@ -312,6 +316,11 @@ namespace MathAnim
 			//		orderedEntities.push({ entity, level, index, selected, isOpen });
 			//	}
 			//}
+		}
+
+		bool mouseIsHovered()
+		{
+			return mouseHoveredSceneHeirarchyPanel;
 		}
 
 		// --------- Internal functions ---------

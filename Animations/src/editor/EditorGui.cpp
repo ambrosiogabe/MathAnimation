@@ -482,7 +482,10 @@ namespace MathAnim
 
 			// Ctrl+C and mouse hovering viewport/scene heirarchy panel and active object
 			// Copy object to clipboard
-			if (mouseHoveringViewport && !isNull(activeAnimObj) && activeObject && Input::keyPressed(GLFW_KEY_C, KeyMods::Ctrl))
+			bool mouseHoveringViewportOrScenePanel = mouseHoveringViewport || SceneHierarchyPanel::mouseIsHovered();
+			if (mouseHoveringViewportOrScenePanel && 
+				!isNull(activeAnimObj) && activeObject && 
+				Input::keyPressed(GLFW_KEY_C, KeyMods::Ctrl))
 			{
 				// Free the old contents
 				for (auto& obj : clipboard.lastCopiedObject)
@@ -496,7 +499,9 @@ namespace MathAnim
 
 			// Ctrl+V and mouse hovering viewport/scene heirarchy panel and active object
 			// Paste object from clipboard to scene
-			if (mouseHoveringViewport && clipboard.type == ClipboardContents::GameObject && Input::keyPressed(GLFW_KEY_V, KeyMods::Ctrl))
+			if (mouseHoveringViewportOrScenePanel && 
+				clipboard.type == ClipboardContents::GameObject && 
+				Input::keyPressed(GLFW_KEY_V, KeyMods::Ctrl))
 			{
 				if (clipboard.lastCopiedObject.size() == 0)
 				{
@@ -539,9 +544,6 @@ namespace MathAnim
 				// Set the newly copied object as the active game object
 				activeAnimObj = copiedObjects[0].id;
 				InspectorPanel::setActiveAnimObject(am, activeAnimObj);
-
-				// Trigger the translate hot-key gizmo on the new active anim object
-				copiedObjects[0].triggerTranslateHotKeyGizmo();
 			}
 
 			// Shift+G (Open Group Menu pressed)
