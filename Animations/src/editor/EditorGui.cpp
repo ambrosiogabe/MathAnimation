@@ -31,12 +31,28 @@ namespace MathAnim
 		float displayTimeLeft;
 	};
 
+	enum class ClipboardContents : uint8
+	{
+		None = 0,
+		GameObject,
+		AnimationClip
+	};
+
+	struct Clipboard
+	{
+		ClipboardContents type;
+		Animation lastCopiedAnimation;
+		std::vector<AnimObject> lastCopiedObject;
+	};
+
 	namespace EditorGui
 	{
 		// ------------- Internal Functions -------------
 		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime);
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
 		static void checkHotKeys(AnimationManagerData* am);
+		static AnimObjId pasteObjectInternal(AnimationManagerData* am, AnimObjId newParent = NULL_ANIM_OBJECT, bool useNewParent = false);
+		static void freeClipboardContents(Clipboard& board);
 		static void checkForMousePicking(const AnimationManagerData* am, const Framebuffer& mainFramebuffer);
 
 		static void showActiveObjectSelctionCtxMenu(AnimationManagerData* am);
@@ -50,6 +66,7 @@ namespace MathAnim
 		static bool mainViewportIsActive;
 		static bool editorViewportIsActive;
 		static std::vector<ActionText> actionTextQueue;
+		static Clipboard clipboard;
 		static Texture gizmoPreviewTexture;
 
 		static bool openActiveObjectSelectionContextMenu = false;
@@ -60,6 +77,8 @@ namespace MathAnim
 			actionTextQueue = {};
 			viewportOffset = { 0, 0 };
 			viewportSize = { 0, 0 };
+
+			clipboard = {};
 
 			if (!timelineLoaded)
 			{
@@ -203,6 +222,11 @@ namespace MathAnim
 			Timeline::freeInstance(timeline);
 			Timeline::free(am);
 			timelineLoaded = false;
+
+			for (auto& obj : clipboard.lastCopiedObject)
+			{
+				obj.free();
+			}
 		}
 
 		const TimelineData& getTimelineData()
@@ -248,6 +272,47 @@ namespace MathAnim
 			BBox res;
 			res.min = viewportOffset;
 			res.max = viewportOffset + viewportSize;
+			return res;
+		}
+
+		void copyObjectToClipboard(const AnimationManagerData* am, AnimObjId objId)
+		{
+			// Free the old contents
+			const AnimObject* obj = AnimationManager::getObject(am, objId);
+			if (obj)
+			{
+				freeClipboardContents(clipboard);
+				clipboard.type = ClipboardContents::GameObject;
+				clipboard.lastCopiedObject = AnimObject::createDeepCopyWithChildren(am, *obj);
+			}
+			else
+			{
+				g_logger_error("Tried to copy null object '{}' to clipboard.", objId);
+			}
+		}
+
+		AnimObjId pasteObjectFromClipboardToParent(AnimationManagerData* am, AnimObjId newParent)
+		{
+			return pasteObjectInternal(am, newParent, true);
+		}
+
+		AnimObjId pasteObjectFromClipboard(AnimationManagerData* am)
+		{
+			return pasteObjectInternal(am);
+		}
+
+		AnimObjId duplicateObject(AnimationManagerData* am, AnimObjId obj)
+		{
+			// Duplicate should just duplicate and not copy to the clipboard
+			// so we'll save the old clipboard contents and restore them after the copy.
+			Clipboard oldClipboard = clipboard;
+			clipboard = {};
+			copyObjectToClipboard(am, obj);
+			AnimObjId res = pasteObjectFromClipboard(am);
+			freeClipboardContents(clipboard);
+			// Then replace the old clipboard
+			clipboard = oldClipboard;
+
 			return res;
 		}
 
@@ -449,30 +514,56 @@ namespace MathAnim
 		static void checkHotKeys(AnimationManagerData* am)
 		{
 			AnimObjId activeAnimObj = InspectorPanel::getActiveAnimObject();
+			const AnimObject* activeObject = AnimationManager::getObject(am, activeAnimObj);
+			bool mouseHoveringViewportOrScenePanel = mouseHoveringViewport || SceneHierarchyPanel::mouseIsHovered();
+			ImGuiIO& io = ImGui::GetIO();
+
+			// Ctrl+S (Save Project)
 			if (Input::keyPressed(GLFW_KEY_S, KeyMods::Ctrl))
 			{
 				Application::saveProject();
 			}
 
+			// Ctrl+C and mouse hovering viewport/scene heirarchy panel and active object
+			// Copy object to clipboard
+			if (mouseHoveringViewportOrScenePanel && !isNull(activeAnimObj) && activeObject && Input::keyPressed(GLFW_KEY_C, KeyMods::Ctrl))
+			{
+				copyObjectToClipboard(am, activeAnimObj);
+			}
+
+			// Ctrl+V and mouse hovering viewport/scene heirarchy panel and active object
+			// Paste object from clipboard to scene
+			if (mouseHoveringViewportOrScenePanel && clipboard.type == ClipboardContents::GameObject &&
+				Input::keyPressed(GLFW_KEY_V, KeyMods::Ctrl))
+			{
+				activeAnimObj = pasteObjectFromClipboard(am);
+			}
+
+			// Ctrl+D and mouse hovering viewport/scene heirarchy panel and duplicate the active object
+			// Duplicate active object
+			if (mouseHoveringViewportOrScenePanel && !isNull(activeAnimObj) && Input::keyPressed(GLFW_KEY_D, KeyMods::Ctrl))
+			{
+				activeAnimObj = duplicateObject(am, activeAnimObj);
+			}
+
+			// Shift+G (Open Group Menu pressed)
 			if (mouseHoveringViewport && !isNull(activeAnimObj) && Input::keyPressed(GLFW_KEY_G, KeyMods::Shift))
 			{
 				Input::keyPressed(GLFW_KEY_G, KeyMods::Shift);
 				openActiveObjectSelectionContextMenu = true;
 			}
 
-			ImGuiIO& io = ImGui::GetIO();
-			if (!io.WantTextInput)
+			// Space is pressed, handle Pause/Play of timeline
+			if (!io.WantTextInput && Input::keyPressed(GLFW_KEY_SPACE))
 			{
-				if (Input::keyPressed(GLFW_KEY_SPACE))
-				{
-					AnimState currentPlayState = Application::getEditorPlayState();
-					AnimState newState = currentPlayState == AnimState::PlayForward
-						? AnimState::Pause
-						: AnimState::PlayForward;
-					Application::setEditorPlayState(newState);
-				}
+				AnimState currentPlayState = Application::getEditorPlayState();
+				AnimState newState = currentPlayState == AnimState::PlayForward
+					? AnimState::Pause
+					: AnimState::PlayForward;
+				Application::setEditorPlayState(newState);
 			}
 
+			// Handle Shift+G Popup
 			if (openActiveObjectSelectionContextMenu)
 			{
 				ImGui::OpenPopup(openActiveObjectSelectionContextMenuId);
@@ -480,6 +571,65 @@ namespace MathAnim
 			}
 
 			showActiveObjectSelctionCtxMenu(am);
+		}
+
+		static AnimObjId pasteObjectInternal(AnimationManagerData* am, AnimObjId newParent, bool useNewParent)
+		{
+			if (clipboard.lastCopiedObject.size() == 0)
+			{
+				// No object to copy, so just exit early
+				return NULL_ANIM_OBJECT;
+			}
+
+			// Create one more copy of the objects so they all get a unique ID and we can safely add them
+			// to the scene without conflicting ID's
+			std::vector<AnimObject> copiedObjects = {};
+			std::unordered_map<AnimObjId, AnimObjId> copyIdMap = {};
+			for (auto& obj : clipboard.lastCopiedObject)
+			{
+				AnimObject copy = obj.createDeepCopy();
+				copyIdMap[obj.id] = copy.id;
+				copiedObjects.emplace_back(copy);
+			}
+
+			if (useNewParent)
+			{
+				copiedObjects[0].parentId = newParent;
+			}
+
+			// Re-assign all the parent ID's to the appropriate newly created objects
+			// And add them to the animation manager
+			for (int i = 0; i < copiedObjects.size(); i++)
+			{
+				AnimObject& obj = copiedObjects[i];
+				if (!isNull(obj.parentId))
+				{
+					auto iter = copyIdMap.find(obj.parentId);
+					if (iter != copyIdMap.end())
+					{
+						obj.parentId = iter->second;
+					}
+					else if (i != 0)
+					{
+						g_logger_error("Failed to find suitable parent id '{}' while deep copying object '{}' in a paste operation.", obj.parentId);
+					}
+				}
+
+				AnimationManager::addAnimObject(am, obj);
+				SceneHierarchyPanel::addNewAnimObject(obj);
+			}
+
+			// Set the newly copied object as the active game object
+			InspectorPanel::setActiveAnimObject(am, copiedObjects[0].id);
+			return copiedObjects[0].id;
+		}
+
+		static void freeClipboardContents(Clipboard& board)
+		{
+			for (auto& lastObj : board.lastCopiedObject)
+			{
+				lastObj.free();
+			}
 		}
 
 		static void checkForMousePicking(const AnimationManagerData* am, const Framebuffer& mainFramebuffer)

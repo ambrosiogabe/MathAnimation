@@ -20,6 +20,8 @@ namespace MathAnim
 
 		void serialize(nlohmann::json& memory);
 		void deserialize(RawMemory& memory);
+
+		bool mouseIsHovered();
 	};
 }
 

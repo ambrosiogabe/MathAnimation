@@ -22,6 +22,14 @@ namespace MathAnim
 		void resetToFrame(AnimationManagerData* am, uint32 absoluteFrame);
 		void calculateAnimationKeyFrames(AnimationManagerData* am);
 
+		/**
+		 * @brief Adds this animation object to the animation manager. 
+		 *        IMPORTANT: This function takes ownership of this object, so any references
+		 *        to the object after adding it using this function are undefined behavior.
+		 * 
+		 * @param am Animation Manager
+		 * @param object The object to add
+		*/
 		void addAnimObject(AnimationManagerData* am, const AnimObject& object);
 		void addAnimation(AnimationManagerData* am, const Animation& animation);
 

@@ -521,14 +521,24 @@ namespace MathAnim
 
 		void free();
 		void serialize(nlohmann::json& j) const;
-		static AnimObject deserialize(AnimationManagerData* am, const nlohmann::json& j, uint32 version);
+		static AnimObject deserialize(const nlohmann::json& j, uint32 version);
 		static AnimObject createDefaultFromParent(AnimationManagerData* am, AnimObjectTypeV1 type, AnimObjId parentId, bool addChildAsGenerated = false);
 		static AnimObject createDefaultFromObj(AnimationManagerData* am, AnimObjectTypeV1 type, const AnimObject& obj);
 		static AnimObject createDefault(AnimationManagerData* am, AnimObjectTypeV1 type);
-		static AnimObject createCopy(const AnimObject& from);
+
+		/**
+		 * @brief EXPENSIVE. This should not be run often. It creates a deep copy of `from` and returns
+		 *        a copy of the parent object and all the children in breadth-first traversal order.
+		 * 
+		 * @param from The object to copy from.
+		 * @return A deep copy of `from` and all its children in breadth-first traversal order
+		*/
+		static std::vector<AnimObject> createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from);
+		AnimObject createDeepCopy() const;
 
 		static inline bool isInternalObjectOnly(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _isInternalObjectOnly[(size_t)type]; }
 		static inline const char* getAnimObjectName(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _animationObjectTypeNames[(size_t)type]; }
+		static AnimObjId getNextUid();
 
 		[[deprecated("This is for upgrading legacy projects developed in beta")]]
 		static AnimObject legacy_deserialize(AnimationManagerData* am, RawMemory& memory, uint32 version);
