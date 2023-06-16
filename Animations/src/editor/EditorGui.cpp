@@ -574,8 +574,9 @@ namespace MathAnim
 
 			// Re-assign all the parent ID's to the appropriate newly created objects
 			// And add them to the animation manager
-			for (auto& obj : copiedObjects)
+			for (int i = 0; i < copiedObjects.size(); i++)
 			{
+				AnimObject& obj = copiedObjects[i];
 				if (!isNull(obj.parentId))
 				{
 					auto iter = copyIdMap.find(obj.parentId);
@@ -583,7 +584,7 @@ namespace MathAnim
 					{
 						obj.parentId = iter->second;
 					}
-					else
+					else if (i != 0)
 					{
 						g_logger_error("Failed to find suitable parent id '{}' while deep copying object '{}' in a paste operation.", obj.parentId);
 					}
