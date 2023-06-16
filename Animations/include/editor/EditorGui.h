@@ -32,6 +32,23 @@ namespace MathAnim
 		bool anyEditorItemActive();
 
 		BBox getViewportBounds();
+
+		void copyObjectToClipboard(const AnimationManagerData* am, AnimObjId obj);
+
+		/**
+		 * @return Returns the newly copied object id
+		*/
+		AnimObjId duplicateObject(AnimationManagerData* am, AnimObjId obj);
+
+		/**
+		 * @return Returns the newly copied object id 
+		*/
+		AnimObjId pasteObjectFromClipboardToParent(AnimationManagerData* am, AnimObjId newParent);
+
+		/**
+		 * @return Returns the newly copied object id
+		*/
+		AnimObjId pasteObjectFromClipboard(AnimationManagerData* am);
 	}
 }
 

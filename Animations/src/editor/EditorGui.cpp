@@ -51,11 +51,7 @@ namespace MathAnim
 		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime);
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
 		static void checkHotKeys(AnimationManagerData* am);
-		static void copyObjectToClipboard(const AnimationManagerData* am, const AnimObject* obj);
-		/**
-		 * @return Returns the newly copied object id 
-		*/
-		static AnimObjId pasteObjectFromClipboard(AnimationManagerData* am);
+		static AnimObjId pasteObjectInternal(AnimationManagerData* am, AnimObjId newParent = NULL_ANIM_OBJECT, bool useNewParent = false);
 		static void freeClipboardContents(Clipboard& board);
 		static void checkForMousePicking(const AnimationManagerData* am, const Framebuffer& mainFramebuffer);
 
@@ -279,6 +275,47 @@ namespace MathAnim
 			return res;
 		}
 
+		void copyObjectToClipboard(const AnimationManagerData* am, AnimObjId objId)
+		{
+			// Free the old contents
+			const AnimObject* obj = AnimationManager::getObject(am, objId);
+			if (obj)
+			{
+				freeClipboardContents(clipboard);
+				clipboard.type = ClipboardContents::GameObject;
+				clipboard.lastCopiedObject = AnimObject::createDeepCopyWithChildren(am, *obj);
+			}
+			else
+			{
+				g_logger_error("Tried to copy null object '{}' to clipboard.", objId);
+			}
+		}
+
+		AnimObjId pasteObjectFromClipboardToParent(AnimationManagerData* am, AnimObjId newParent)
+		{
+			return pasteObjectInternal(am, newParent, true);
+		}
+
+		AnimObjId pasteObjectFromClipboard(AnimationManagerData* am)
+		{
+			return pasteObjectInternal(am);
+		}
+
+		AnimObjId duplicateObject(AnimationManagerData* am, AnimObjId obj)
+		{
+			// Duplicate should just duplicate and not copy to the clipboard
+			// so we'll save the old clipboard contents and restore them after the copy.
+			Clipboard oldClipboard = clipboard;
+			clipboard = {};
+			copyObjectToClipboard(am, obj);
+			AnimObjId res = pasteObjectFromClipboard(am);
+			freeClipboardContents(clipboard);
+			// Then replace the old clipboard
+			clipboard = oldClipboard;
+
+			return res;
+		}
+
 		// ------------- Internal Functions -------------
 		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime)
 		{
@@ -491,12 +528,12 @@ namespace MathAnim
 			// Copy object to clipboard
 			if (mouseHoveringViewportOrScenePanel && !isNull(activeAnimObj) && activeObject && Input::keyPressed(GLFW_KEY_C, KeyMods::Ctrl))
 			{
-				copyObjectToClipboard(am, activeObject);
+				copyObjectToClipboard(am, activeAnimObj);
 			}
 
 			// Ctrl+V and mouse hovering viewport/scene heirarchy panel and active object
 			// Paste object from clipboard to scene
-			if (mouseHoveringViewportOrScenePanel && clipboard.type == ClipboardContents::GameObject && 
+			if (mouseHoveringViewportOrScenePanel && clipboard.type == ClipboardContents::GameObject &&
 				Input::keyPressed(GLFW_KEY_V, KeyMods::Ctrl))
 			{
 				activeAnimObj = pasteObjectFromClipboard(am);
@@ -504,18 +541,9 @@ namespace MathAnim
 
 			// Ctrl+D and mouse hovering viewport/scene heirarchy panel and duplicate the active object
 			// Duplicate active object
-			if (mouseHoveringViewportOrScenePanel && Input::keyPressed(GLFW_KEY_D, KeyMods::Ctrl))
+			if (mouseHoveringViewportOrScenePanel && !isNull(activeAnimObj) && Input::keyPressed(GLFW_KEY_D, KeyMods::Ctrl))
 			{
-				// We don't actually want to lose our clipboard contents.
-				// Duplicate should just duplicate and not copy to the clipboard
-				// so we'll save the old contents and restore them after the copy.
-				Clipboard oldClipboard = clipboard;
-				clipboard = {};
-				copyObjectToClipboard(am, activeObject);
-				activeAnimObj = pasteObjectFromClipboard(am);
-				freeClipboardContents(clipboard);
-				// Then replace the old clipboard
-				clipboard = oldClipboard;
+				activeAnimObj = duplicateObject(am, activeAnimObj);
 			}
 
 			// Shift+G (Open Group Menu pressed)
@@ -545,15 +573,7 @@ namespace MathAnim
 			showActiveObjectSelctionCtxMenu(am);
 		}
 
-		static void copyObjectToClipboard(const AnimationManagerData* am, const AnimObject* obj)
-		{
-			// Free the old contents
-			freeClipboardContents(clipboard);
-			clipboard.type = ClipboardContents::GameObject;
-			clipboard.lastCopiedObject = AnimObject::createDeepCopyWithChildren(am, *obj);
-		}
-
-		static AnimObjId pasteObjectFromClipboard(AnimationManagerData* am)
+		static AnimObjId pasteObjectInternal(AnimationManagerData* am, AnimObjId newParent, bool useNewParent)
 		{
 			if (clipboard.lastCopiedObject.size() == 0)
 			{
@@ -570,6 +590,11 @@ namespace MathAnim
 				AnimObject copy = obj.createDeepCopy();
 				copyIdMap[obj.id] = copy.id;
 				copiedObjects.emplace_back(copy);
+			}
+
+			if (useNewParent)
+			{
+				copiedObjects[0].parentId = newParent;
 			}
 
 			// Re-assign all the parent ID's to the appropriate newly created objects
