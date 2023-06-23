@@ -31,6 +31,7 @@
 #include "editor/panels/InspectorPanel.h"
 #include "editor/panels/MenuBar.h"
 #include "editor/panels/ExportPanel.h"
+#include "editor/UndoSystem.h"
 #include "parsers/SyntaxHighlighter.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
@@ -49,6 +50,7 @@ namespace MathAnim
 {
 	namespace Application
 	{
+		static uint32 MAX_UNDO_HISTORY = 5;
 		static AnimState animState = AnimState::Pause;
 
 		static int outputWidth = 3840;
@@ -62,6 +64,7 @@ namespace MathAnim
 		static Framebuffer mainFramebuffer;
 		static Framebuffer editorFramebuffer;
 		static EditorCamera* editorCamera = nullptr;
+		static UndoSystemData* undoSystem = nullptr;
 		static int absoluteCurrentFrame = -1;
 		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
@@ -388,6 +391,7 @@ namespace MathAnim
 			LuauLayer::free();
 			SceneManagementPanel::free();
 			EditorGui::free(am);
+			UndoSystem::free(undoSystem);
 			AnimationManager::free(am);
 			Fonts::unloadAllFonts();
 			Renderer::free();
@@ -778,6 +782,11 @@ namespace MathAnim
 			return svgCache;
 		}
 
+		UndoSystemData* getUndoSystem()
+		{
+			return undoSystem;
+		}
+
 		GlobalThreadPool* threadPool()
 		{
 			return globalThreadPool;
@@ -865,6 +874,7 @@ namespace MathAnim
 
 		static void freeSceneSystems()
 		{
+			UndoSystem::free(undoSystem);
 			AnimationManager::free(am);
 			EditorSettings::free();
 		}
@@ -872,6 +882,7 @@ namespace MathAnim
 		static void initializeSceneSystems()
 		{
 			am = AnimationManager::create();
+			undoSystem = UndoSystem::init(am, MAX_UNDO_HISTORY);
 			EditorSettings::init();
 		}
 	}

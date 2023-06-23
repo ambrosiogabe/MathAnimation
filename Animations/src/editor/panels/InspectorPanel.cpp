@@ -2,6 +2,7 @@
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/imgui/ImGuiExtended.h"
 #include "editor/imgui/ImGuiLayer.h"
+#include "editor/UndoSystem.h"
 #include "animation/AnimationManager.h"
 #include "animation/Animation.h"
 #include "animation/TextAnimations.h"
@@ -266,6 +267,8 @@ namespace MathAnim
 				}
 				applySettingToChildren("##StrokeColorChildrenApply", &strokeColorToggled);
 
+				static glm::u8vec4 ogColor = glm::u8vec4();
+				static bool colorIsBeingEdited = false;
 				float fillColor[4] = {
 					(float)animObject->_fillColorStart.r / 255.0f,
 					(float)animObject->_fillColorStart.g / 255.0f,
@@ -275,6 +278,12 @@ namespace MathAnim
 				static bool fillColorToggled = false;
 				if (ImGui::ColorEdit4(": Fill Color", fillColor))
 				{
+					if (!colorIsBeingEdited)
+					{
+						ogColor = animObject->_fillColorStart;
+						colorIsBeingEdited = true;
+					}
+
 					animObject->_fillColorStart.r = (uint8)(fillColor[0] * 255.0f);
 					animObject->_fillColorStart.g = (uint8)(fillColor[1] * 255.0f);
 					animObject->_fillColorStart.b = (uint8)(fillColor[2] * 255.0f);
@@ -285,6 +294,12 @@ namespace MathAnim
 						animObject->copyFillColorToChildren(am);
 					}
 				}
+				if (ImGui::IsItemDeactivatedAfterEdit())
+				{
+					colorIsBeingEdited = false;
+					UndoSystem::setObjFillColor(Application::getUndoSystem(), animObject->id, ogColor, animObject->_fillColorStart);
+				}
+
 				applySettingToChildren("##FillColorChildrenApply", &fillColorToggled);
 
 				ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);

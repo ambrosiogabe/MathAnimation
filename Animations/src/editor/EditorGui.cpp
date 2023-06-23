@@ -12,6 +12,7 @@
 #include "editor/Gizmos.h"
 #include "editor/EditorSettings.h"
 #include "editor/EditorLayout.h"
+#include "editor/UndoSystem.h"
 #include "animation/AnimationManager.h"
 #include "core/Application.h"
 #include "core/Input.h"
@@ -517,6 +518,18 @@ namespace MathAnim
 			const AnimObject* activeObject = AnimationManager::getObject(am, activeAnimObj);
 			bool mouseHoveringViewportOrScenePanel = mouseHoveringViewport || SceneHierarchyPanel::mouseIsHovered();
 			ImGuiIO& io = ImGui::GetIO();
+
+			// TODO: Should undo+redo be global or should we only do them when hovering over
+			//       certain panels?
+			if (!io.WantTextInput && Input::keyPressed(GLFW_KEY_Z, KeyMods::Ctrl))
+			{
+				UndoSystem::undo(Application::getUndoSystem());
+			}
+
+			if (!io.WantTextInput && Input::keyPressed(GLFW_KEY_Z, KeyMods::Ctrl | KeyMods::Shift))
+			{
+				UndoSystem::redo(Application::getUndoSystem());
+			}
 
 			// Ctrl+S (Save Project)
 			if (Input::keyPressed(GLFW_KEY_S, KeyMods::Ctrl))

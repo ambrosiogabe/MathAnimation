@@ -9,6 +9,7 @@ namespace MathAnim
 	struct Framebuffer;
 	struct Window;
 	struct Camera;
+	struct UndoSystemData;
 
 	enum class AnimState : uint8
 	{
@@ -55,6 +56,7 @@ namespace MathAnim
 		const Camera* getEditorCamera();
 		// TODO: Ugly hack
 		SvgCache* getSvgCache();
+		UndoSystemData* getUndoSystem();
 
 		GlobalThreadPool* threadPool();
 	}
