@@ -50,7 +50,7 @@ namespace MathAnim
 {
 	namespace Application
 	{
-		static uint32 MAX_UNDO_HISTORY = 5;
+		static uint32 MAX_UNDO_HISTORY = 300;
 		static AnimState animState = AnimState::Pause;
 
 		static int outputWidth = 3840;

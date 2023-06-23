@@ -204,6 +204,7 @@ namespace MathAnim
 		if (obj)
 		{
 			obj->_fillColorStart = this->newColor;
+			AnimationManager::updateObjectState(am, this->objId);
 		}
 	}
 
@@ -213,6 +214,7 @@ namespace MathAnim
 		if (obj)
 		{
 			obj->_fillColorStart = this->oldColor;
+			AnimationManager::updateObjectState(am, this->objId);
 		}
 	}
 }
