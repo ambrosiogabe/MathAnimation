@@ -19,6 +19,19 @@ namespace MathAnim
 		size_t filepathLength;
 	};
 
+	enum class EditState : uint8
+	{
+		NotEditing = 0,
+		BeingEdited,
+		FinishedEditing,
+	};
+
+	struct ColorEditU8Vec4Ex
+	{
+		glm::u8vec4 ogColor;
+		EditState editState;
+	};
+
 	namespace ImGuiExtended
 	{
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size = ImVec2(0, 0));
@@ -46,6 +59,10 @@ namespace MathAnim
 		bool BeginImageCombo(const char* internalName, const Texture& image, const ImVec2& size, const ImVec2& uvMin = ImVec2(0, 0), const ImVec2& uvMax = ImVec2(1, 1));
 
 		bool ProgressBar(const char* label, float value, float maxWidth = -1.0f);
+
+		EditState ColorEdit4(const char* label, glm::u8vec4* color);
+
+		ColorEditU8Vec4Ex ColorEdit4Ex(const char* label, glm::u8vec4* color);
 	}
 }
 

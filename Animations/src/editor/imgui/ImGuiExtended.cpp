@@ -18,11 +18,24 @@ namespace MathAnim
 		bool isToggled;
 	};
 
+	struct AdditionalEditState
+	{
+		bool isBeingEdited;
+	};
+
+	struct EditU8Vec4Data
+	{
+		glm::u8vec4 ogVector;
+		EditState editState;
+	};
+
 	namespace ImGuiExtended
 	{
 		// -------- Internal Vars --------
 		static std::unordered_map<std::string, RenamableState> renamableStates;
 		static std::unordered_map<std::string, ToggleState> toggleStates;
+		static std::unordered_map<std::string, AdditionalEditState> additionalEditStates;
+		static std::unordered_map<std::string, EditU8Vec4Data> editU8Vec4Data;
 		static constexpr bool drawDebugBoxes = false;
 		static const char* filePayloadId = "DRAG_DROP_FILE_PAYLOAD";
 
@@ -623,6 +636,82 @@ namespace MathAnim
 			ImGui::Text(label);
 
 			return false;
+		}
+
+		EditState ColorEdit4(const char* label, glm::u8vec4* color)
+		{
+			auto additionalEditIter = additionalEditStates.find(label);
+			AdditionalEditState* state = nullptr;
+			if (additionalEditIter == additionalEditStates.end())
+			{
+				additionalEditStates[label] = { false };
+				state = &additionalEditStates[label];
+			}
+			else
+			{
+				state = &additionalEditIter->second;
+			}
+
+			float fillColor[4] = {
+				(float)color->r / 255.0f,
+				(float)color->g / 255.0f,
+				(float)color->b / 255.0f,
+				(float)color->a / 255.0f,
+			};
+
+			bool editRes = ImGui::ColorEdit4(": Fill Color", fillColor);
+			g_logger_info("Edit res: {}", (int)editRes);
+			if (editRes)
+			{
+				if (!state->isBeingEdited)
+				{
+					state->isBeingEdited = true;
+				}
+
+				color->r = (uint8)(fillColor[0] * 255.0f);
+				color->g = (uint8)(fillColor[1] * 255.0f);
+				color->b = (uint8)(fillColor[2] * 255.0f);
+				color->a = (uint8)(fillColor[3] * 255.0f);
+			}
+
+			if (ImGui::IsItemDeactivatedAfterEdit())
+			{
+				state->isBeingEdited = false;
+				return EditState::FinishedEditing;
+			}
+
+			return editRes 
+				? EditState::BeingEdited
+				: EditState::NotEditing;
+		}
+
+		ColorEditU8Vec4Ex ColorEdit4Ex(const char* label, glm::u8vec4* color)
+		{
+			// TODO: Refactor this, it's duplication
+			auto iter = editU8Vec4Data.find(label);
+			EditU8Vec4Data* state = nullptr;
+			if (iter == editU8Vec4Data.end())
+			{
+				editU8Vec4Data[label] = { *color, EditState::NotEditing };
+				state = &editU8Vec4Data[label];
+			}
+			else
+			{
+				state = &iter->second;
+			}
+
+			if (state->editState == EditState::NotEditing)
+			{
+				state->ogVector = *color;
+				//g_logger_info("Original color: {}", Vec4{(float)state->ogVector.r, (float)state->ogVector.g, (float)state->ogVector.b, (float)state->ogVector.a});
+			}
+
+			state->editState = ColorEdit4(label, color);
+
+			return {
+				state->ogVector,
+				state->editState
+			};
 		}
 	}
 }
