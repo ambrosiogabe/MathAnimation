@@ -660,7 +660,7 @@ namespace MathAnim
 			};
 
 			bool editRes = ImGui::ColorEdit4(": Fill Color", fillColor);
-			g_logger_info("Edit res: {}", (int)editRes);
+			editRes = editRes || ImGui::IsItemActive();
 			if (editRes)
 			{
 				if (!state->isBeingEdited)

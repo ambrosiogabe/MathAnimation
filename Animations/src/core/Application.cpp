@@ -102,10 +102,15 @@ namespace MathAnim
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
 			//globalThreadPool = new GlobalThreadPool(true);
 
-			// Initiaize GLFW/Glad
-			GlVersion glVersion = GladLayer::init();
+			// Initialize GLFW
+			GladLayer::initGlfw();
+
+			// Create the window
 			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
 			window->setVSync(true);
+
+			// Initialize OpenGL functions
+			GlVersion glVersion = GladLayer::init();
 
 			// Initialize Onigiruma
 			OnigEncoding use_encs[1];

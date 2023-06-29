@@ -22,11 +22,16 @@ namespace MathAnim
 		void init()
 		{
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
-			GlVersion glVersion = GladLayer::init();
 
-			// Initialize GLFW/Glad
+			// Initialize GLFW
+			GladLayer::initGlfw();
+
+			// Create the window
 			window = new Window(1920, 1080, winTitle, WindowFlags::None);
 			window->setVSync(true);
+
+			// Setup OpenGL functions
+			GlVersion glVersion = GladLayer::init();
 
 			ImGuiLayer::init(*window, nullptr, ImGuiLayerFlags::None);
 
