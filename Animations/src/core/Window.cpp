@@ -1,6 +1,7 @@
 #include "core.h"
 #include "core/Window.h"
 #include "core/Input.h"
+#include "core/Profiling.h"
 #include "renderer/GLApi.h"
 #include "platform/Platform.h"
 
@@ -17,6 +18,8 @@ namespace MathAnim
 	Window::Window(int inWidth, int inHeight, const char* inTitle, WindowFlags flags)
 		: width(inWidth), height(inHeight), title(inTitle)
 	{
+		MP_PROFILE_EVENT("Window::Constructor");
+
 		// Specifying 1.0 here will make sure GLFW tries to get the highest supported profile 
 		// for us automatically
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 1);
@@ -29,7 +32,11 @@ namespace MathAnim
 			glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 		}
 
-		windowPtr = (void*)glfwCreateWindow(width, height, title, nullptr, nullptr);
+		{
+			MP_PROFILE_EVENT("Window::Constructor::glfwCreateWindow");
+			windowPtr = (void*)glfwCreateWindow(width, height, title, nullptr, nullptr);
+		}
+
 		if (windowPtr == nullptr)
 		{
 			glfwTerminate();
@@ -67,7 +74,7 @@ namespace MathAnim
 
 	bool Window::setCursorPos(const Vec2i& screenCoordinates) const
 	{
-		if (screenCoordinates.x > this->width || screenCoordinates.x < 0) 
+		if (screenCoordinates.x > this->width || screenCoordinates.x < 0)
 		{
 			return false;
 		}

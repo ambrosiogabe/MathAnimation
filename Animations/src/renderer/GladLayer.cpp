@@ -1,5 +1,6 @@
 #include "renderer/GladLayer.h"
 #include "core.h"
+#include "core/Profiling.h"
 #include "renderer/GLApi.h"
 
 #ifdef _WIN32
@@ -17,6 +18,8 @@ namespace MathAnim
 
 		void initGlfw()
 		{
+			MP_PROFILE_EVENT("GladLayer::initGlfw");
+
 			// Initialize glfw first
 			glfwInit();
 			g_logger_info("GLFW initialized.");
@@ -24,6 +27,8 @@ namespace MathAnim
 
 		GlVersion init()
 		{
+			MP_PROFILE_EVENT("GladLayer::init");
+
 			// Load OpenGL functions using Glad
             int version = gladLoadGL(static_cast<GLADloadfunc>(glfwGetProcAddress));
 

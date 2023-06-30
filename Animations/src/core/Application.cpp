@@ -95,6 +95,8 @@ namespace MathAnim
 
 		void init(const char* projectFile)
 		{
+			MP_PROFILE_FRAME("Application::Init");
+
 			// Initialize these just in case this is a new project
 			editorCamera = EditorCameraController::init(Camera::createDefault());
 

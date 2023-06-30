@@ -39,6 +39,8 @@ namespace MathAnim
 
 		void init(const Window& window, const char* jsonLayoutFile, ImGuiLayerFlags flags)
 		{
+			MP_PROFILE_EVENT("ImGuiLayer::init");
+
 			layerFlags = flags;
 
 			// Set up dear imgui
