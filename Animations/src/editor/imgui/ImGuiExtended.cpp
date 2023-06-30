@@ -659,7 +659,7 @@ namespace MathAnim
 				(float)color->a / 255.0f,
 			};
 
-			bool editRes = ImGui::ColorEdit4(": Fill Color", fillColor);
+			bool editRes = ImGui::ColorEdit4(label, fillColor);
 			editRes = editRes || ImGui::IsItemActive();
 			if (editRes)
 			{

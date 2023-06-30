@@ -12,7 +12,6 @@ namespace MathAnim
 
 		virtual void execute(AnimationManagerData* const am) = 0;
 		virtual void undo(AnimationManagerData* const am) = 0;
-		virtual void free() = 0;
 	};
 
 	struct UndoSystemData
@@ -33,22 +32,39 @@ namespace MathAnim
 	// -------------------------------------
 	// Command Forward Decls
 	// -------------------------------------
-	class ModifyFillColorCommand : public Command
+	class ModifyU8Vec4Command : public Command
 	{
 	public:
-		ModifyFillColorCommand(AnimObjId objId, const glm::u8vec4& oldColor, const glm::u8vec4& newColor)
-			: objId(objId), oldColor(oldColor), newColor(newColor)
+		ModifyU8Vec4Command(AnimObjId objId, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType)
+			: objId(objId), oldVec(oldVec), newVec(newVec), propType(propType)
 		{
 		}
 
 		virtual void execute(AnimationManagerData* const am) override;
 		virtual void undo(AnimationManagerData* const am) override;
-		virtual void free() override {}
 
 	private:
 		AnimObjId objId;
-		glm::u8vec4 oldColor;
-		glm::u8vec4 newColor;
+		glm::u8vec4 oldVec;
+		glm::u8vec4 newVec;
+		U8Vec4PropType propType;
+	};
+
+	class ApplyU8Vec4ToChildrenCommand : public Command
+	{
+	public:
+		ApplyU8Vec4ToChildrenCommand(AnimObjId objId, U8Vec4PropType propType)
+			: objId(objId), oldProps({}), propType(propType)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId objId;
+		U8Vec4PropType propType;
+		std::unordered_map<AnimObjId, glm::u8vec4> oldProps;
 	};
 
 	namespace UndoSystem
@@ -76,14 +92,14 @@ namespace MathAnim
 
 		void free(UndoSystemData* us)
 		{
-			for (uint32 i = us->undoCursorHead; 
+			for (uint32 i = us->undoCursorHead;
 				i != ((us->undoCursorHead + us->numCommands) % us->maxHistorySize);
 				i = ((i + 1) % us->maxHistorySize))
 			{
 				// Don't free the tail, nothing ever gets placed there
 				if (i == ((us->undoCursorHead + us->numCommands) % us->maxHistorySize)) break;
 
-				us->history[i]->free();
+				us->history[i]->~Command();
 				g_memory_free(us->history[i]);
 			}
 
@@ -124,25 +140,22 @@ namespace MathAnim
 			us->undoCursorTail = (us->undoCursorTail + 1) % us->maxHistorySize;
 		}
 
-		void setObjFillColor(UndoSystemData* us, AnimObjId objId, const glm::u8vec4& oldColor, const glm::u8vec4& newColor)
+		void applyU8Vec4ToChildren(UndoSystemData* us, AnimObjId id, U8Vec4PropType propType)
 		{
-			const AnimObject* obj = AnimationManager::getObject(us->am, objId);
-			if (obj)
-			{
-				ModifyFillColorCommand* newCommand = (ModifyFillColorCommand*)g_memory_allocate(sizeof(ModifyFillColorCommand));
-				new(newCommand)ModifyFillColorCommand(objId, oldColor, newColor);
-				pushAndExecuteCommand(us, newCommand);
-			}
+			auto* newCommand = (ApplyU8Vec4ToChildrenCommand*)g_memory_allocate(sizeof(ApplyU8Vec4ToChildrenCommand));
+			new(newCommand)ApplyU8Vec4ToChildrenCommand(id, propType);
+			pushAndExecuteCommand(us, newCommand);
+		}
 
+		void setU8Vec4Prop(UndoSystemData* us, AnimObjId objId, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType)
+		{
+			auto* newCommand = (ModifyU8Vec4Command*)g_memory_allocate(sizeof(ModifyU8Vec4Command));
+			new(newCommand)ModifyU8Vec4Command(objId, oldVec, newVec, propType);
+			pushAndExecuteCommand(us, newCommand);
 		}
 
 #pragma warning( push )
 #pragma warning( disable : 4100 )
-		void setObjStrokeColor(UndoSystemData* us, AnimObjId objId, const Vec4& newColor)
-		{
-
-		}
-
 		void addNewObjToScene(UndoSystemData* us, const AnimObject& obj)
 		{
 
@@ -168,7 +181,7 @@ namespace MathAnim
 				{
 					if (i == ((us->undoCursorHead + us->numCommands) % us->maxHistorySize)) break;
 
-					us->history[i]->free();
+					us->history[i]->~Command();
 					g_memory_free(us->history[i]);
 					numCommandsRemoved++;
 				}
@@ -179,7 +192,7 @@ namespace MathAnim
 
 			if (((us->undoCursorTail + 1) % us->maxHistorySize) == us->undoCursorHead)
 			{
-				us->history[us->undoCursorHead]->free();
+				us->history[us->undoCursorHead]->~Command();
 				g_memory_free(us->history[us->undoCursorHead]);
 
 				us->undoCursorHead = (us->undoCursorHead + 1) % us->maxHistorySize;
@@ -198,22 +211,95 @@ namespace MathAnim
 	// -------------------------------------
 	// Command Implementations
 	// -------------------------------------
-	void ModifyFillColorCommand::execute(AnimationManagerData* const am)
+	void ModifyU8Vec4Command::execute(AnimationManagerData* const am)
 	{
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
-			obj->_fillColorStart = this->newColor;
+			switch (propType)
+			{
+			case U8Vec4PropType::FillColor:
+				obj->_fillColorStart = this->newVec;
+				break;
+			case U8Vec4PropType::StrokeColor:
+				obj->_strokeColorStart = this->newVec;
+				break;
+			}
 			AnimationManager::updateObjectState(am, this->objId);
 		}
 	}
 
-	void ModifyFillColorCommand::undo(AnimationManagerData* const am)
+	void ModifyU8Vec4Command::undo(AnimationManagerData* const am)
 	{
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
-			obj->_fillColorStart = this->oldColor;
+			switch (propType)
+			{
+			case U8Vec4PropType::FillColor:
+				obj->_fillColorStart = this->oldVec;
+				break;
+			case U8Vec4PropType::StrokeColor:
+				obj->_strokeColorStart = this->oldVec;
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ApplyU8Vec4ToChildrenCommand::execute(AnimationManagerData* const am)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			for (auto it = obj->beginBreadthFirst(am); it != obj->end(); ++it)
+			{
+				AnimObjId childId = *it;
+				AnimObject* childObj = AnimationManager::getMutableObject(am, childId);
+				if (childObj)
+				{
+					switch (propType)
+					{
+					case U8Vec4PropType::FillColor:
+						this->oldProps[childId] = childObj->_fillColorStart;
+						childObj->_fillColorStart = obj->_fillColorStart;
+						break;
+					case U8Vec4PropType::StrokeColor:
+						this->oldProps[childId] = childObj->_strokeColorStart;
+						childObj->_fillColorStart = obj->_strokeColorStart;
+						break;
+					}
+				}
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ApplyU8Vec4ToChildrenCommand::undo(AnimationManagerData* const am)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			for (auto it = obj->beginBreadthFirst(am); it != obj->end(); ++it)
+			{
+				AnimObjId childId = *it;
+				AnimObject* childObj = AnimationManager::getMutableObject(am, childId);
+				if (childObj)
+				{
+					if (auto childColorIter = this->oldProps.find(childId); childColorIter != this->oldProps.end())
+					{
+						switch (propType)
+						{
+						case U8Vec4PropType::FillColor:
+							childObj->_fillColorStart = childColorIter->second;
+							break;
+						case U8Vec4PropType::StrokeColor:
+							childObj->_strokeColorStart = childColorIter->second;
+							break;
+						}
+					}
+				}
+			}
 			AnimationManager::updateObjectState(am, this->objId);
 		}
 	}

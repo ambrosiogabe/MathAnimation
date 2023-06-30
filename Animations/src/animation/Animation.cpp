@@ -18,6 +18,7 @@
 #include "editor/EditorSettings.h"
 #include "editor/EditorGui.h"
 #include "editor/panels/SceneHierarchyPanel.h"
+#include "editor/UndoSystem.h"
 
 #include <nlohmann/json.hpp>
 

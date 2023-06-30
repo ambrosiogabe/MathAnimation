@@ -38,7 +38,7 @@ namespace MathAnim
 
 		// ---------------------- Internal Functions ----------------------
 		static void checkSvgErrorPopup();
-		static bool applySettingToChildren(const char* id, bool* toggled);
+		static bool applySettingToChildren(const char* id);
 
 		// ---------------------- Inspector functions ----------------------
 		static void handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId);
@@ -180,11 +180,19 @@ namespace MathAnim
 			}
 		}
 
-		static bool applySettingToChildren(const char* id, bool* toggled)
+		static bool applySettingToChildren(const char* id)
 		{
-			std::string fullId = std::string(ICON_FA_CLONE) + std::string(id);
-			ImGui::SameLine();
-			return ImGuiExtended::ToggleButton(fullId.c_str(), toggled);
+			if (ImGui::BeginPopupContextItem(id))
+			{
+				if (ImGui::Selectable("Apply to children"))
+				{
+					return true;
+				}
+
+				ImGui::EndPopup();
+			}
+
+			return false;
 		}
 
 		// ---------------------- Inspector functions ----------------------
@@ -225,69 +233,71 @@ namespace MathAnim
 			std::string svgPropsComponentName = "Svg Properties##" + std::to_string(animObjectId);
 			if (ImGui::CollapsingHeader(svgPropsComponentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				static bool scaleToggled = false;
 				if (ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed))
 				{
-					if (scaleToggled)
-					{
-						animObject->copySvgScaleToChildren(am);
-					}
+					//if (scaleToggled)
+					//{
+					//	animObject->copySvgScaleToChildren(am);
+					//}
 				}
-				applySettingToChildren("##SvgScaleChildrenApply", &scaleToggled);
+				applySettingToChildren("##SvgScaleChildrenApply");
 
 				// NanoVG only allows stroke width between [0-200] so we reflect that here
-				static bool strokeWidthToggled = false;
 				if (ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f))
 				{
-					if (strokeWidthToggled)
+					/*if (strokeWidthToggled)
 					{
 						animObject->copyStrokeWidthToChildren(am);
-					}
+					}*/
 				}
-				applySettingToChildren("##StrokeWidthChildrenApply", &strokeWidthToggled);
+				applySettingToChildren("##StrokeWidthChildrenApply");
 
-				float strokeColor[4] = {
-					(float)animObject->_strokeColorStart.r / 255.0f,
-					(float)animObject->_strokeColorStart.g / 255.0f,
-					(float)animObject->_strokeColorStart.b / 255.0f,
-					(float)animObject->_strokeColorStart.a / 255.0f,
-				};
-				static bool strokeColorToggled = false;
-				if (ImGui::ColorEdit4(": Stroke Color", strokeColor))
+				// Stroke Color
 				{
-					animObject->_strokeColorStart.r = (uint8)(strokeColor[0] * 255.0f);
-					animObject->_strokeColorStart.g = (uint8)(strokeColor[1] * 255.0f);
-					animObject->_strokeColorStart.b = (uint8)(strokeColor[2] * 255.0f);
-					animObject->_strokeColorStart.a = (uint8)(strokeColor[3] * 255.0f);
-
-					if (strokeColorToggled)
-					{
-						animObject->copyStrokeColorToChildren(am);
-					}
-				}
-				applySettingToChildren("##StrokeColorChildrenApply", &strokeColorToggled);
-
-				{
-					static bool fillColorToggled = false;
-					auto res = ImGuiExtended::ColorEdit4Ex(": Fill Color", &animObject->_fillColorStart);
-					if (res.editState == EditState::BeingEdited)
-					{
-						if (fillColorToggled)
-						{
-							animObject->copyFillColorToChildren(am);
-						}
-					}
-
+					auto res = ImGuiExtended::ColorEdit4Ex(": Stroke Color", &animObject->_strokeColorStart);
 					if (res.editState == EditState::FinishedEditing)
 					{
-						UndoSystem::setObjFillColor(
+						UndoSystem::setU8Vec4Prop(
 							Application::getUndoSystem(),
 							animObject->id,
 							res.ogColor,
-							animObject->_fillColorStart);
+							animObject->_strokeColorStart,
+							U8Vec4PropType::StrokeColor
+						);
 					}
 
-					applySettingToChildren("##FillColorChildrenApply", &fillColorToggled);
+					if (applySettingToChildren("##StrokeColorChildrenApply"))
+					{
+						UndoSystem::applyU8Vec4ToChildren(
+							Application::getUndoSystem(),
+							animObject->id,
+							U8Vec4PropType::StrokeColor
+						);
+					}
+				}
+
+				// Fill Color
+				{
+					auto res = ImGuiExtended::ColorEdit4Ex(": Fill Color", &animObject->_fillColorStart);
+					if (res.editState == EditState::FinishedEditing)
+					{
+						UndoSystem::setU8Vec4Prop(
+							Application::getUndoSystem(),
+							animObject->id,
+							res.ogColor,
+							animObject->_fillColorStart,
+							U8Vec4PropType::FillColor
+						);
+					}
+
+					if (applySettingToChildren("##FillColorChildrenApply"))
+					{
+						UndoSystem::applyU8Vec4ToChildren(
+							Application::getUndoSystem(),
+							animObject->id,
+							U8Vec4PropType::FillColor
+						);
+					}
 				}
 
 				ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);

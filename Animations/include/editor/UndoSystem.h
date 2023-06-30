@@ -8,6 +8,12 @@ namespace MathAnim
 	struct UndoSystemData;
 	struct AnimObject;
 
+	enum class U8Vec4PropType : uint8
+	{
+		FillColor = 0,
+		StrokeColor
+	};
+
 	namespace UndoSystem
 	{
 		UndoSystemData* init(AnimationManagerData* const am, int maxHistory);
@@ -16,8 +22,8 @@ namespace MathAnim
 		void undo(UndoSystemData* us);
 		void redo(UndoSystemData* us);
 
-		void setObjFillColor(UndoSystemData* us, AnimObjId objId, const glm::u8vec4& oldColor, const glm::u8vec4& newColor);
-		void setObjStrokeColor(UndoSystemData* us, AnimObjId objId, const Vec4& newColor);
+		void applyU8Vec4ToChildren(UndoSystemData* us, AnimObjId id, U8Vec4PropType propType);
+		void setU8Vec4Prop(UndoSystemData* us, AnimObjId objId, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType);
 		void addNewObjToScene(UndoSystemData* us, const AnimObject& obj);
 		void removeObjFromScene(UndoSystemData* us, AnimObjId objId);
 	}
