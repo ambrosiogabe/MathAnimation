@@ -225,9 +225,44 @@ namespace MathAnim
 					g_logger_error("Anim Object name has more 256 characters. Tell Gabe to increase scratch length for Anim Object names.");
 				}
 
-				ImGui::DragFloat3(": Position", (float*)&animObject->_positionStart.x, slowDragSpeed);
-				ImGui::DragFloat3(": Rotation", (float*)&animObject->_rotationStart.x);
-				ImGui::DragFloat3(": Scale", (float*)&animObject->_scaleStart.x, slowDragSpeed);
+				// Position
+				if (auto res = ImGuiExtended::DragFloat3Ex(": Position", &animObject->_positionStart, slowDragSpeed); 
+					res.editState == EditState::FinishedEditing)
+				{
+					UndoSystem::setVec3Prop(
+						Application::getUndoSystem(),
+						animObject->id,
+						res.ogVector,
+						animObject->_positionStart,
+						Vec3PropType::Position
+					);
+				}
+
+				// Rotation
+				if (auto res = ImGuiExtended::DragFloat3Ex(": Rotation", &animObject->_rotationStart);
+					res.editState == EditState::FinishedEditing)
+				{
+					UndoSystem::setVec3Prop(
+						Application::getUndoSystem(),
+						animObject->id,
+						res.ogVector,
+						animObject->_rotationStart,
+						Vec3PropType::Rotation
+					);
+				}
+
+				// Scale
+				if (auto res = ImGuiExtended::DragFloat3Ex(": Scale", &animObject->_scaleStart, slowDragSpeed);
+					res.editState == EditState::FinishedEditing)
+				{
+					UndoSystem::setVec3Prop(
+						Application::getUndoSystem(),
+						animObject->id,
+						res.ogVector,
+						animObject->_scaleStart,
+						Vec3PropType::Scale
+					);
+				}
 			}
 
 			std::string svgPropsComponentName = "Svg Properties##" + std::to_string(animObjectId);
@@ -235,12 +270,7 @@ namespace MathAnim
 			{
 				if (ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed))
 				{
-					//if (scaleToggled)
-					//{
-					//	animObject->copySvgScaleToChildren(am);
-					//}
 				}
-				applySettingToChildren("##SvgScaleChildrenApply");
 
 				// NanoVG only allows stroke width between [0-200] so we reflect that here
 				if (ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f))
@@ -253,51 +283,47 @@ namespace MathAnim
 				applySettingToChildren("##StrokeWidthChildrenApply");
 
 				// Stroke Color
+				if (auto res = ImGuiExtended::ColorEdit4Ex(": Stroke Color", &animObject->_strokeColorStart);
+					res.editState == EditState::FinishedEditing)
 				{
-					auto res = ImGuiExtended::ColorEdit4Ex(": Stroke Color", &animObject->_strokeColorStart);
-					if (res.editState == EditState::FinishedEditing)
-					{
-						UndoSystem::setU8Vec4Prop(
-							Application::getUndoSystem(),
-							animObject->id,
-							res.ogColor,
-							animObject->_strokeColorStart,
-							U8Vec4PropType::StrokeColor
-						);
-					}
+					UndoSystem::setU8Vec4Prop(
+						Application::getUndoSystem(),
+						animObject->id,
+						res.ogColor,
+						animObject->_strokeColorStart,
+						U8Vec4PropType::StrokeColor
+					);
+				}
 
-					if (applySettingToChildren("##StrokeColorChildrenApply"))
-					{
-						UndoSystem::applyU8Vec4ToChildren(
-							Application::getUndoSystem(),
-							animObject->id,
-							U8Vec4PropType::StrokeColor
-						);
-					}
+				if (applySettingToChildren("##StrokeColorChildrenApply"))
+				{
+					UndoSystem::applyU8Vec4ToChildren(
+						Application::getUndoSystem(),
+						animObject->id,
+						U8Vec4PropType::StrokeColor
+					);
 				}
 
 				// Fill Color
+				if (auto res = ImGuiExtended::ColorEdit4Ex(": Fill Color", &animObject->_fillColorStart);
+					res.editState == EditState::FinishedEditing)
 				{
-					auto res = ImGuiExtended::ColorEdit4Ex(": Fill Color", &animObject->_fillColorStart);
-					if (res.editState == EditState::FinishedEditing)
-					{
-						UndoSystem::setU8Vec4Prop(
-							Application::getUndoSystem(),
-							animObject->id,
-							res.ogColor,
-							animObject->_fillColorStart,
-							U8Vec4PropType::FillColor
-						);
-					}
+					UndoSystem::setU8Vec4Prop(
+						Application::getUndoSystem(),
+						animObject->id,
+						res.ogColor,
+						animObject->_fillColorStart,
+						U8Vec4PropType::FillColor
+					);
+				}
 
-					if (applySettingToChildren("##FillColorChildrenApply"))
-					{
-						UndoSystem::applyU8Vec4ToChildren(
-							Application::getUndoSystem(),
-							animObject->id,
-							U8Vec4PropType::FillColor
-						);
-					}
+				if (applySettingToChildren("##FillColorChildrenApply"))
+				{
+					UndoSystem::applyU8Vec4ToChildren(
+						Application::getUndoSystem(),
+						animObject->id,
+						U8Vec4PropType::FillColor
+					);
 				}
 
 				ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
@@ -312,8 +338,8 @@ namespace MathAnim
 			std::string componentName = std::string(_animationObjectTypeNames[(uint8)animObject->objectType])
 				+ "##" + std::to_string(animObjectId);
 
-			bool shouldShow = !_isInternalObjectOnly[(uint8)animObject->objectType];
-			if (shouldShow && ImGui::CollapsingHeader(componentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+			if (bool shouldShow = !_isInternalObjectOnly[(uint8)animObject->objectType]; 
+				shouldShow && ImGui::CollapsingHeader(componentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				switch (animObject->objectType)
 				{

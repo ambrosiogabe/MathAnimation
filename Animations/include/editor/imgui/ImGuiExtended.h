@@ -32,6 +32,12 @@ namespace MathAnim
 		EditState editState;
 	};
 
+	struct DragFloat3ExData
+	{
+		Vec3 ogVector;
+		EditState editState;
+	};
+
 	namespace ImGuiExtended
 	{
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size = ImVec2(0, 0));
@@ -63,6 +69,10 @@ namespace MathAnim
 		EditState ColorEdit4(const char* label, glm::u8vec4* color);
 
 		ColorEditU8Vec4Ex ColorEdit4Ex(const char* label, glm::u8vec4* color);
+
+		EditState DragFloat3(const char* label, Vec3* vec3, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+
+		DragFloat3ExData DragFloat3Ex(const char* label, Vec3* vec3, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
 	}
 }
 

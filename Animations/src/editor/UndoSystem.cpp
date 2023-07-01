@@ -50,6 +50,24 @@ namespace MathAnim
 		U8Vec4PropType propType;
 	};
 
+	class ModifyVec3Command : public Command
+	{
+	public:
+		ModifyVec3Command(AnimObjId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType)
+			: objId(objId), oldVec(oldVec), newVec(newVec), propType(propType)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId objId;
+		Vec3 oldVec;
+		Vec3 newVec;
+		Vec3PropType propType;
+	};
+
 	class ApplyU8Vec4ToChildrenCommand : public Command
 	{
 	public:
@@ -154,6 +172,13 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
+		void setVec3Prop(UndoSystemData* us, AnimObjId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType)
+		{
+			auto* newCommand = (ModifyVec3Command*)g_memory_allocate(sizeof(ModifyVec3Command));
+			new(newCommand)ModifyVec3Command(objId, oldVec, newVec, propType);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
 #pragma warning( push )
 #pragma warning( disable : 4100 )
 		void addNewObjToScene(UndoSystemData* us, const AnimObject& obj)
@@ -241,6 +266,48 @@ namespace MathAnim
 				break;
 			case U8Vec4PropType::StrokeColor:
 				obj->_strokeColorStart = this->oldVec;
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyVec3Command::execute(AnimationManagerData* const am)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case Vec3PropType::Position:
+				obj->_positionStart = this->newVec;
+				break;
+			case Vec3PropType::Scale:
+				obj->_scaleStart = this->newVec;
+				break;
+			case Vec3PropType::Rotation:
+				obj->_rotationStart = this->newVec;
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyVec3Command::undo(AnimationManagerData* const am)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case Vec3PropType::Position:
+				obj->_positionStart = this->oldVec;
+				break;
+			case Vec3PropType::Scale:
+				obj->_scaleStart = this->oldVec;
+				break;
+			case Vec3PropType::Rotation:
+				obj->_rotationStart = this->oldVec;
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);

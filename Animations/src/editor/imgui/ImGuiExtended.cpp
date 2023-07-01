@@ -29,35 +29,66 @@ namespace MathAnim
 		EditState editState;
 	};
 
+	template<typename T>
+	class ImGuiState
+	{
+	public:
+		ImGuiState()
+		{
+			this->state = {};
+		}
+
+		/**
+		 * @brief Finds the element indexed by key. If the element doesn't exist, it gets 
+		 *        initialized with `defaultValue` and returns a reference to the newly created
+		 *        item.
+		 * 
+		 * @param key
+		 * @param defaultValue 
+		 * @return Reference to the item in the unordered_map
+		*/
+		T& findOrDefault(const std::string& key, const T& defaultValue)
+		{
+			if (auto iter = state.find(key); iter == state.end())
+			{
+				state[key] = defaultValue;
+				return state[key];
+			}
+			else
+			{
+				return iter->second;
+			}
+		}
+		
+		void clear()
+		{
+			state.clear();
+		}
+
+	private:
+		std::unordered_map<std::string, T> state;
+	};
+
 	namespace ImGuiExtended
 	{
 		// -------- Internal Vars --------
-		static std::unordered_map<std::string, RenamableState> renamableStates;
-		static std::unordered_map<std::string, ToggleState> toggleStates;
-		static std::unordered_map<std::string, AdditionalEditState> additionalEditStates;
-		static std::unordered_map<std::string, EditU8Vec4Data> editU8Vec4Data;
+		static ImGuiState<RenamableState> renamableStates;
+		static ImGuiState<ToggleState> toggleStates;
+		static ImGuiState<AdditionalEditState> additionalEditStates;
+		static ImGuiState<EditU8Vec4Data> editU8Vec4Data;
+		static ImGuiState<DragFloat3ExData> dragFloat3State;
 		static constexpr bool drawDebugBoxes = false;
 		static const char* filePayloadId = "DRAG_DROP_FILE_PAYLOAD";
 
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size)
 		{
-			auto toggleIter = toggleStates.find(string);
-			ToggleState* state = nullptr;
-			if (toggleIter == toggleStates.end())
-			{
-				toggleStates[string] = { false };
-				state = &toggleStates[string];
-			}
-			else
-			{
-				state = &toggleIter->second;
-			}
+			ToggleState& state = toggleStates.findOrDefault(string, { false });
 
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
 			ImGui::PushStyleColor(
 				ImGuiCol_Button,
-				state->isToggled
+				state.isToggled
 				? Colors::Neutral[6]
 				: Colors::Neutral[8]
 			);
@@ -70,9 +101,9 @@ namespace MathAnim
 
 			if (clicked)
 			{
-				state->isToggled = !state->isToggled;
+				state.isToggled = !state.isToggled;
 			}
-			*enabled = state->isToggled;
+			*enabled = state.isToggled;
 
 			return clicked;
 		}
@@ -136,24 +167,14 @@ namespace MathAnim
 		{
 			std::string iconName = std::string(buttonText);
 			std::string mapName = "Button_" + iconName;
-			auto renamableIter = renamableStates.find(mapName);
-			RenamableState* state = nullptr;
-			if (renamableIter == renamableStates.end())
-			{
-				renamableStates[mapName] = { false, Vec2{0, 0} };
-				state = &renamableStates[mapName];
-			}
-			else
-			{
-				state = &renamableIter->second;
-			}
+			RenamableState& state = renamableStates.findOrDefault(mapName, { false, Vec2{0, 0} });
 
 			ImGui::PushID(mapName.c_str());
 			ImVec2 cursor = ImGui::GetCursorScreenPos();
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
 			bool buttonClicked = ImGui::Button(
 				"##Selectable",
-				ImVec2(state->groupSize.x, state->groupSize.y)
+				ImVec2(state.groupSize.x, state.groupSize.y)
 			);
 			ImGui::PopStyleColor();
 			ImGui::PopID();
@@ -203,7 +224,7 @@ namespace MathAnim
 			ImGui::SetCursorScreenPos(cursor + ImVec2(size));
 			ImGui::EndGroup();
 
-			state->groupSize = Vec2{ size.x, size.y };
+			state.groupSize = Vec2{ size.x, size.y };
 
 			return buttonClicked;
 		}
@@ -383,17 +404,7 @@ namespace MathAnim
 		bool RenamableIconSelectable(const char* icon, char* stringBuffer, size_t stringBufferSize, bool isSelected, float width)
 		{
 			std::string iconName = std::string(stringBuffer);
-			auto renamableIter = renamableStates.find(iconName);
-			RenamableState* state = nullptr;
-			if (renamableIter == renamableStates.end())
-			{
-				renamableStates[iconName] = { false, Vec2{0, 0} };
-				state = &renamableStates[iconName];
-			}
-			else
-			{
-				state = &renamableIter->second;
-			}
+			RenamableState& state = renamableStates.findOrDefault(iconName, { false, Vec2{0, 0} });
 
 			ImGui::PushID(iconName.c_str());
 			ImVec2 cursor = ImGui::GetCursorScreenPos();
@@ -402,7 +413,7 @@ namespace MathAnim
 				"##Selectable",
 				&isSelected,
 				0,
-				ImVec2(state->groupSize.x, state->groupSize.y)
+				ImVec2(state.groupSize.x, state.groupSize.y)
 			);
 			bool selectableIsClicked = ImGui::IsItemClicked();
 			ImGuiItemStatusFlags itemStatusFlags = ImGui::GetItemStatusFlags();
@@ -414,14 +425,14 @@ namespace MathAnim
 
 			if (isAlreadySelected)
 			{
-				if (selectableIsClicked && !state->isBeingRenamed)
+				if (selectableIsClicked && !state.isBeingRenamed)
 				{
-					state->isBeingRenamed = true;
+					state.isBeingRenamed = true;
 				}
 			}
 			else
 			{
-				state->isBeingRenamed = false;
+				state.isBeingRenamed = false;
 			}
 
 			ImGui::PopID();
@@ -461,7 +472,7 @@ namespace MathAnim
 				iconEndY + ImGui::GetStyle().FramePadding.y
 			);
 			ImGui::SetCursorScreenPos(textPosition);
-			if (!state->isBeingRenamed)
+			if (!state.isBeingRenamed)
 			{
 				CenteredWrappedText(textPosition, fontColor, stringBuffer, wrapWidth);
 				if (drawDebugBoxes)
@@ -482,20 +493,20 @@ namespace MathAnim
 					| ImGuiInputTextFlags_AutoSelectAll
 				))
 				{
-					state->isBeingRenamed = false;
+					state.isBeingRenamed = false;
 					selectionChanged = true;
 				}
 
 				if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !selectableIsClicked)
 				{
-					state->isBeingRenamed = false;
+					state.isBeingRenamed = false;
 				}
 			}
 
 			ImGui::SetCursorScreenPos(cursor + ImVec2(size));
 			ImGui::EndGroup();
 
-			state->groupSize = Vec2{ size.x, size.y };
+			state.groupSize = Vec2{ size.x, size.y };
 
 			ImGui::SetLastItemData(itemId, itemFlags, itemStatusFlags, itemRect);
 
@@ -640,17 +651,8 @@ namespace MathAnim
 
 		EditState ColorEdit4(const char* label, glm::u8vec4* color)
 		{
-			auto additionalEditIter = additionalEditStates.find(label);
-			AdditionalEditState* state = nullptr;
-			if (additionalEditIter == additionalEditStates.end())
-			{
-				additionalEditStates[label] = { false };
-				state = &additionalEditStates[label];
-			}
-			else
-			{
-				state = &additionalEditIter->second;
-			}
+			std::string fullLabel = std::string("##ColorEdit4##") + label;
+			AdditionalEditState& state = additionalEditStates.findOrDefault(fullLabel, { false });
 
 			float fillColor[4] = {
 				(float)color->r / 255.0f,
@@ -663,10 +665,7 @@ namespace MathAnim
 			editRes = editRes || ImGui::IsItemActive();
 			if (editRes)
 			{
-				if (!state->isBeingEdited)
-				{
-					state->isBeingEdited = true;
-				}
+				state.isBeingEdited = true;
 
 				color->r = (uint8)(fillColor[0] * 255.0f);
 				color->g = (uint8)(fillColor[1] * 255.0f);
@@ -676,7 +675,7 @@ namespace MathAnim
 
 			if (ImGui::IsItemDeactivatedAfterEdit())
 			{
-				state->isBeingEdited = false;
+				state.isBeingEdited = false;
 				return EditState::FinishedEditing;
 			}
 
@@ -687,30 +686,58 @@ namespace MathAnim
 
 		ColorEditU8Vec4Ex ColorEdit4Ex(const char* label, glm::u8vec4* color)
 		{
-			// TODO: Refactor this, it's duplication
-			auto iter = editU8Vec4Data.find(label);
-			EditU8Vec4Data* state = nullptr;
-			if (iter == editU8Vec4Data.end())
+			EditU8Vec4Data& state = editU8Vec4Data.findOrDefault(label, { *color, EditState::NotEditing });
+
+			if (state.editState == EditState::NotEditing)
 			{
-				editU8Vec4Data[label] = { *color, EditState::NotEditing };
-				state = &editU8Vec4Data[label];
-			}
-			else
-			{
-				state = &iter->second;
+				state.ogVector = *color;
 			}
 
-			if (state->editState == EditState::NotEditing)
-			{
-				state->ogVector = *color;
-				//g_logger_info("Original color: {}", Vec4{(float)state->ogVector.r, (float)state->ogVector.g, (float)state->ogVector.b, (float)state->ogVector.a});
-			}
-
-			state->editState = ColorEdit4(label, color);
+			state.editState = ColorEdit4(label, color);
 
 			return {
-				state->ogVector,
-				state->editState
+				state.ogVector,
+				state.editState
+			};
+		}
+
+		EditState DragFloat3(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			std::string fullLabel = std::string("##Vec3##") + label;
+			AdditionalEditState& state = additionalEditStates.findOrDefault(fullLabel, { false });
+
+			bool editRes = ImGui::DragFloat3(label, vec3->values, v_speed, v_min, v_max, format, flags);
+			editRes = editRes || ImGui::IsItemActive();
+			if (editRes)
+			{
+				state.isBeingEdited = true;
+			}
+
+			if (ImGui::IsItemDeactivatedAfterEdit())
+			{
+				state.isBeingEdited = false;
+				return EditState::FinishedEditing;
+			}
+
+			return editRes
+				? EditState::BeingEdited
+				: EditState::NotEditing;
+		}
+
+		DragFloat3ExData DragFloat3Ex(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			DragFloat3ExData& state = dragFloat3State.findOrDefault(label, { *vec3, EditState::NotEditing });
+
+			if (state.editState == EditState::NotEditing)
+			{
+				state.ogVector = *vec3;
+			}
+
+			state.editState = DragFloat3(label, vec3, v_speed, v_min, v_max, format, flags);
+
+			return {
+				state.ogVector,
+				state.editState
 			};
 		}
 	}
