@@ -1329,7 +1329,8 @@ namespace MathAnim
 		// It's important to render the gizmo at the global location, and then transform
 		// the result back to local coordinates since the user is editing with gizmos in global
 		// space
-		if (GizmoManager::translateGizmo(gizmoName.c_str(), &this->_globalPositionStart))
+		if (auto res = GizmoManager::translateGizmo(gizmoName.c_str(), &this->_globalPositionStart);
+			res.editState != EditState::NotEditing)
 		{
 			glm::mat4 parentsTransform = glm::mat4(1.0f);
 			if (!isNull(this->parentId))
@@ -1347,16 +1348,51 @@ namespace MathAnim
 			// Then get local position
 			this->_positionStart = Vec3{ newLocal.x, newLocal.y, newLocal.z };
 			AnimationManager::updateObjectState(am, this->id);
+
+			if (res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec3Prop(
+					Application::getUndoSystem(),
+					this->id,
+					res.ogVector,
+					this->_positionStart,
+					Vec3PropType::Position
+				);
+			}
 		}
 
-		if (GizmoManager::scaleGizmo(gizmoName.c_str(), this->globalPosition, &this->_scaleStart))
+		if (auto res = GizmoManager::scaleGizmo(gizmoName.c_str(), this->globalPosition, &this->_scaleStart);
+			res.editState != EditState::NotEditing)
 		{
 			AnimationManager::updateObjectState(am, this->id);
+
+			if (res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec3Prop(
+					Application::getUndoSystem(),
+					this->id,
+					res.ogVector,
+					this->_scaleStart,
+					Vec3PropType::Scale
+				);
+			}
 		}
 
-		if (GizmoManager::rotateGizmo(gizmoName.c_str(), this->globalPosition, &this->_rotationStart))
+		if (auto res = GizmoManager::rotateGizmo(gizmoName.c_str(), this->globalPosition, &this->_rotationStart);
+			res.editState != EditState::NotEditing)
 		{
 			AnimationManager::updateObjectState(am, this->id);
+
+			if (res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec3Prop(
+					Application::getUndoSystem(),
+					this->id,
+					res.ogVector,
+					this->_rotationStart,
+					Vec3PropType::Rotation
+				);
+			}
 		}
 
 		switch (objectType)

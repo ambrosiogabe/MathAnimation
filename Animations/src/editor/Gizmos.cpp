@@ -602,7 +602,7 @@ namespace MathAnim
 			return gGizmoManager->visualMode;
 		}
 
-		bool translateGizmo(const char* gizmoName, Vec3* position)
+		DragFloat3ExData translateGizmo(const char* gizmoName, Vec3* position)
 		{
 			// Find or create the gizmo
 			GizmoState* gizmo = getGizmoByName(gizmoName, GizmoType::Translation);
@@ -618,7 +618,15 @@ namespace MathAnim
 			if (handleLinearGizmoKeyEvents(gizmo, *position, &delta, GLFW_KEY_G, GizmoType::Translation))
 			{
 				*position = gizmo->positionMoveStart + delta;
-				return true;
+
+				// See rotation for notes on this
+				bool finishedEditing = gGizmoManager->activeGizmo != gizmo->idHash && gizmo->positionMoveStart != *position;
+				return {
+					gizmo->positionMoveStart,
+					finishedEditing 
+					? EditState::FinishedEditing
+					: EditState::BeingEdited
+				};
 			}
 
 			// Only handle mouse events if the app is in translate mode
@@ -627,14 +635,25 @@ namespace MathAnim
 				if (handleLinearGizmoMouseEvents(gizmo, *position, &delta, GizmoSubComponent::XTranslate, GizmoSubComponent::XYPlaneTranslate))
 				{
 					*position = gizmo->positionMoveStart + delta;
-					return true;
+
+					// See rotation for notes on this
+					bool finishedEditing = gGizmoManager->activeGizmo != gizmo->idHash && gizmo->positionMoveStart != *position;
+					return {
+						gizmo->positionMoveStart,
+						finishedEditing
+						? EditState::FinishedEditing
+						: EditState::BeingEdited
+					};
 				}
 			}
 
-			return false;
+			return {
+				gizmo->positionMoveStart,
+				EditState::NotEditing
+			};
 		}
 
-		bool rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation)
+		DragFloat3ExData rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation)
 		{
 			// Find or create the gizmo
 			GizmoState* gizmo = getGizmoByName(gizmoName, GizmoType::Rotation);
@@ -653,7 +672,17 @@ namespace MathAnim
 			{
 				*rotation = gizmo->rotateStart + delta;
 				*rotation = CMath::normalizeAxisAngles(*rotation);
-				return true;
+
+				// We know we're finished editing if the active gizmo is null. However
+				// we don't want to trigger FinishedEdit state if the rotation didn't actually change
+				// so we also check if the rotation changed before sending the finishedEditing state
+				bool finishedEditing = gGizmoManager->activeGizmo != gizmo->idHash && gizmo->rotateStart != *rotation;
+				return {
+					gizmo->rotateStart,
+					finishedEditing
+					? EditState::FinishedEditing
+					: EditState::BeingEdited
+				};
 			}
 
 			// Only handle mouse events if the app is in rotation mode
@@ -663,14 +692,25 @@ namespace MathAnim
 				{
 					*rotation = gizmo->rotateStart + delta;
 					*rotation = CMath::normalizeAxisAngles(*rotation);
-					return true;
+
+					// See above for notes on this
+					bool finishedEditing = gGizmoManager->activeGizmo != gizmo->idHash && gizmo->rotateStart != *rotation;
+					return {
+						gizmo->rotateStart,
+						finishedEditing
+						? EditState::FinishedEditing
+						: EditState::BeingEdited
+					};
 				}
 			}
 
-			return false;
+			return {
+				gizmo->rotateStart,
+				EditState::NotEditing
+			};
 		}
 
-		bool scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale)
+		DragFloat3ExData scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale)
 		{
 			// Find or create the gizmo
 			GizmoState* gizmo = getGizmoByName(gizmoName, GizmoType::Scaling);
@@ -690,7 +730,15 @@ namespace MathAnim
 				// Invert the z-delta, it's weird for some reason
 				delta.z *= -1.0f;
 				*scale = gizmo->scaleStart + delta;
-				return true;
+
+				// See rotation for notes on this
+				bool finishedEditing = gGizmoManager->activeGizmo != gizmo->idHash && gizmo->scaleStart != *scale;
+				return {
+					gizmo->scaleStart,
+					finishedEditing
+					? EditState::FinishedEditing
+					: EditState::BeingEdited
+				};
 			}
 
 			// Only handle mouse events if the app is in scale mode
@@ -699,11 +747,22 @@ namespace MathAnim
 				if (handleLinearGizmoMouseEvents(gizmo, gizmoPosition, &delta, GizmoSubComponent::XScale, GizmoSubComponent::XYPlaneScale))
 				{
 					*scale = gizmo->scaleStart + delta;
-					return true;
+
+					// See rotation for notes on this
+					bool finishedEditing = gGizmoManager->activeGizmo != gizmo->idHash && gizmo->scaleStart != *scale;
+					return {
+						gizmo->scaleStart,
+						finishedEditing
+						? EditState::FinishedEditing
+						: EditState::BeingEdited
+					};
 				}
 			}
 
-			return false;
+			return {
+				gizmo->scaleStart,
+				EditState::NotEditing
+			};
 		}
 
 		// -------------- Internal Functions --------------
@@ -823,17 +882,19 @@ namespace MathAnim
 			bool modified = false;
 			if (g->activeGizmo == gizmo->idHash)
 			{
+				modified = true;
+
 				if (Input::mouseUp(MouseButton::Left))
 				{
 					g->activeGizmo = NullGizmo;
 				}
-				else if (Input::keyPressed(GLFW_KEY_ESCAPE))
+
+				if (Input::keyPressed(GLFW_KEY_ESCAPE))
 				{
 					// Cancel move operation
 					resetGlobalContext();
 					gizmo->moveMode = FollowMouseConstraint::None;
 					*delta = Vec3{ 0.f, 0.f, 0.f };
-					modified = true;
 				}
 				else
 				{
@@ -924,7 +985,6 @@ namespace MathAnim
 					// when we started dragging the object
 					newPos += gizmo->mouseDelta;
 					*delta = newPos - gizmo->positionMoveStart;
-					modified = true;
 				}
 			}
 

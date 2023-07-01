@@ -2,6 +2,8 @@
 #define MATH_ANIM_GIZMOS_H
 #include "core.h"
 
+#include "editor/imgui/ImGuiExtended.h"
+
 namespace MathAnim
 {
 	struct Framebuffer;
@@ -32,9 +34,9 @@ namespace MathAnim
 		const char* getVisualModeStr();
 		GizmoType getVisualMode();
 
-		bool translateGizmo(const char* gizmoName, Vec3* position);
-		bool rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation);
-		bool scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale);
+		DragFloat3ExData translateGizmo(const char* gizmoName, Vec3* position);
+		DragFloat3ExData rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation);
+		DragFloat3ExData scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale);
 	}
 }
 
