@@ -206,12 +206,6 @@ namespace MathAnim
 
 			g_logger_info("Initialized freetype library.");
 			initialized = true;
-
-#if defined(_WIN32)
-			defaultMonoFont = loadFont("C:\\Windows\\Fonts\\consola.ttf");
-#elif defined(__linux__)
-			defaultMonoFont = loadFont("/usr/share/fonts/liberation/LiberationMono-Regular.ttf");
-#endif
 		}
 
 		int createOutline(Font* font, uint32 character, GlyphOutline* outlineResult)
@@ -514,7 +508,10 @@ namespace MathAnim
 
 		void unloadAllFonts()
 		{
-			unloadFont(defaultMonoFont);
+			if (defaultMonoFont)
+			{
+				unloadFont(defaultMonoFont);
+			}
 			defaultMonoFont = nullptr;
 
 			// Delete all unsized fonts
@@ -546,6 +543,16 @@ namespace MathAnim
 
 		Font* getDefaultMonoFont()
 		{
+			// Lazy load the font
+			if (!defaultMonoFont)
+			{
+#if defined(_WIN32)
+				defaultMonoFont = loadFont("C:\\Windows\\Fonts\\consola.ttf");
+#elif defined(__linux__)
+				defaultMonoFont = loadFont("/usr/share/fonts/liberation/LiberationMono-Regular.ttf");
+#endif
+			}
+
 			return defaultMonoFont;
 		}
 

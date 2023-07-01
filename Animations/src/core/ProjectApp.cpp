@@ -107,6 +107,7 @@ namespace MathAnim
 			Window::cleanup();
 			globalThreadPool->free();
 			GladLayer::deinit();
+			Platform::free();
 		}
 
 		Window* getWindow()

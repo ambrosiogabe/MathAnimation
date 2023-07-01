@@ -182,17 +182,18 @@ namespace MathAnim
 
 		static bool applySettingToChildren(const char* id)
 		{
+			bool res = false;
 			if (ImGui::BeginPopupContextItem(id))
 			{
 				if (ImGui::Selectable("Apply to children"))
 				{
-					return true;
+					res = true;
 				}
 
 				ImGui::EndPopup();
 			}
 
-			return false;
+			return res;
 		}
 
 		// ---------------------- Inspector functions ----------------------

@@ -411,6 +411,7 @@ namespace MathAnim
 			delete globalThreadPool;
 
 			GladLayer::deinit();
+			Platform::free();
 		}
 
 		void saveProject()
