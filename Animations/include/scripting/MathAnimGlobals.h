@@ -6,9 +6,9 @@ namespace MathAnim
 {
 	namespace MathAnimGlobals
 	{
-		std::string getBuiltinDefinitionSource();
-		std::string getMathAnimApiTypes();
-		std::string getMathAnimModule();
+		std::string_view getBuiltinDefinitionSource();
+		std::string_view getMathAnimApiTypes();
+		std::string_view getMathAnimModule();
 	}
 }
 

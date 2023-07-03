@@ -167,7 +167,7 @@ namespace MathAnim
 				CppUtils::IO::setForegroundColor(CppUtils::RED);
 			}
 
-			CppUtils::IO::printf("Initialization took: {}ms", numMs);
+			CppUtils::IO::printf("Initialization took: {}ms\n", numMs);
 
 			CppUtils::IO::resetColor();
 		}

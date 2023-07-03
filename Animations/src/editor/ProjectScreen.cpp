@@ -99,7 +99,7 @@ namespace MathAnim
 				{
 					projects[i].texture = TextureBuilder()
 						.setFilepath(projects[i].previewImageFilepath.c_str())
-						.generate(true);
+						.generateFromFile();
 				}
 				else
 				{

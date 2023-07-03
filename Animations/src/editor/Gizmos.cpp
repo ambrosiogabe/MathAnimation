@@ -363,7 +363,7 @@ namespace MathAnim
 			cameraOrientationFramebuffer = Renderer::prepareFramebuffer(cameraOrientationFramebufferSize, cameraOrientationFramebufferSize);
 			cameraOrientationGizmoTexture = TextureBuilder()
 				.setFilepath("./assets/images/cameraOrientationGizmos.png")
-				.generate(true);
+				.generateFromFile();
 		}
 
 		void update(AnimationManagerData* am)

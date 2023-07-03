@@ -97,7 +97,7 @@ namespace MathAnim
 
 			gizmoPreviewTexture = TextureBuilder()
 				.setFilepath("./assets/images/gizmoPreviews.png")
-				.generate(true);
+				.generateFromFile();
 		}
 
 		void update(const Framebuffer& mainFramebuffer, const Framebuffer& editorFramebuffer, AnimationManagerData* am, float deltaTime)

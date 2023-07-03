@@ -55,7 +55,7 @@ namespace MathAnim
 			.setFormat(ByteFormat::RGB8_UI)
 			.setMagFilter(FilterMode::Linear)
 			.setMinFilter(FilterMode::Linear)
-			.generate();
+			.generateEmpty();
 		return SvgCacheEntry{ Vec2{0, 0}, Vec2{1, 1}, dummy };
 	}
 

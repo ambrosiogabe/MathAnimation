@@ -1163,7 +1163,7 @@ namespace MathAnim
 			return;
 		}
 
-		TextureHandle handle = TextureCache::loadTexture(imageFilepath, getLoadOptions());
+		TextureHandle handle = TextureCache::lazyLoadTexture(imageFilepath, getLoadOptions());
 		const Texture& texture = TextureCache::getTexture(handle);
 
 		size.x = size.x == 0.0f ? (float)texture.width / Application::getOutputSize().x * Application::getViewportSize().x : size.x;
@@ -1282,7 +1282,7 @@ namespace MathAnim
 
 			if (res.imageFilepath > 0)
 			{
-				res.textureHandle = TextureCache::loadTexture(res.imageFilepath, res.getLoadOptions());
+				res.textureHandle = TextureCache::lazyLoadTexture(res.imageFilepath, res.getLoadOptions());
 			}
 
 			return res;

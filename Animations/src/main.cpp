@@ -25,11 +25,11 @@ int main(int argc, char* argv[])
 	if (projectFile != "")
 	{
 		Application::init(projectFile.c_str());
-		// Application::run();
-		// Application::free();
+		Application::run();
+		Application::free();
 	}
 	
-	// g_memory_dumpMemoryLeaks();
+	g_memory_dumpMemoryLeaks();
 	return 0;
 }
 

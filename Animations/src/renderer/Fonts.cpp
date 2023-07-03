@@ -285,7 +285,7 @@ namespace MathAnim
 				.setMinFilter(FilterMode::Linear)
 				.setWrapS(WrapMode::None)
 				.setWrapT(WrapMode::None)
-				.generate();
+				.generateEmpty();
 
 			// Generate the texture and upload it to the GPU
 			uint8* textureMemory = (uint8*)g_memory_allocate(sizeof(uint8) * textureWidth * textureHeight);

@@ -1908,7 +1908,7 @@ namespace MathAnim
 				.setMagFilter(FilterMode::Nearest)
 				.setMinFilter(FilterMode::Nearest)
 				.setFormat(ByteFormat::RGBA8_UI)
-				.generate();
+				.generateEmpty();
 			uint32 whitePixel = 0xFFFFFFFF;
 			defaultWhiteTexture.uploadSubImage(0, 0, 1, 1, (uint8*)&whitePixel, sizeof(uint32));
 		}

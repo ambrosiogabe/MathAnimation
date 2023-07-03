@@ -4,7 +4,7 @@ namespace MathAnim
 {
 	namespace MathAnimGlobals
 	{
-        static const std::string builtinDefinitionLuaSrc = R"BUILTIN_SRC(
+        static const std::string_view builtinDefinitionLuaSrc = R"BUILTIN_SRC(
 type Logger = {
     write: <T...>(T...) -> (),
     info: <T...>(T...) -> (),
@@ -15,7 +15,7 @@ type Logger = {
 declare logger: Logger
 )BUILTIN_SRC";
 
-        static const std::string mathAnimModule = R"BUILTIN_TYPES(
+        static constexpr std::string_view mathAnimModule = R"BUILTIN_TYPES(
 export type Vec2 = {
     x: number,
     y: number
@@ -92,17 +92,17 @@ local MathAnim: MathAnimModule
 return MathAnim
 )BUILTIN_TYPES";
 
-        std::string getMathAnimModule()
+        std::string_view getMathAnimModule()
         {
             return mathAnimModule;
         }
 
-        std::string getBuiltinDefinitionSource()
+        std::string_view getBuiltinDefinitionSource()
         {
             return builtinDefinitionLuaSrc;
         }
 
-        std::string getMathAnimApiTypes()
+        std::string_view getMathAnimApiTypes()
         {
             return mathAnimModule;
         }
