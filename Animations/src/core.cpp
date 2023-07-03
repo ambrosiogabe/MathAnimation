@@ -287,8 +287,11 @@ void RawMemory::free()
 
 void RawMemory::shrinkToFit()
 {
-	data = (uint8*)g_memory_realloc(data, offset);
-	size = offset;
+	if (size != offset)
+	{
+		data = (uint8*)g_memory_realloc(data, offset);
+		size = offset;
+	}
 }
 
 void RawMemory::resetReadWriteCursor()
@@ -303,7 +306,7 @@ void RawMemory::setCursor(size_t inOffset)
 
 void RawMemory::writeDangerous(const uint8* inData, size_t inDataSize)
 {
-	if (this->offset + inDataSize >= this->size)
+	if (this->offset + inDataSize > this->size)
 	{
 		// Reallocate
 		size_t newSize = (this->offset + inDataSize) * 2;

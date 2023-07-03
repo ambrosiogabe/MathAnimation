@@ -16,8 +16,6 @@ namespace MathAnim
 	GlobalThreadPool::GlobalThreadPool(uint32 numThreads)
 		: cv(), queueMtx(), generalMtx(), doWork(true), numThreads(numThreads)
 	{
-		MP_PROFILE_EVENT("GlobalThreadPool::Constructor");
-
 		tasks = new std::priority_queue<ThreadTask, std::vector<ThreadTask>, CompareThreadTask>();
 		cv = new std::condition_variable();
 		generalMtx = new std::mutex();

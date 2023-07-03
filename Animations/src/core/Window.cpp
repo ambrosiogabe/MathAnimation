@@ -18,8 +18,6 @@ namespace MathAnim
 	Window::Window(int inWidth, int inHeight, const char* inTitle, WindowFlags flags)
 		: width(inWidth), height(inHeight), title(inTitle)
 	{
-		MP_PROFILE_EVENT("Window::Constructor");
-
 		// Specifying 1.0 here will make sure GLFW tries to get the highest supported profile 
 		// for us automatically
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 1);
@@ -33,10 +31,11 @@ namespace MathAnim
 		}
 
 		{
-			MP_PROFILE_EVENT("Window::Constructor::glfwCreateWindow");
+			auto begin = std::chrono::high_resolution_clock::now();
 			windowPtr = (void*)glfwCreateWindow(width, height, title, nullptr, nullptr);
+			auto end = std::chrono::high_resolution_clock::now();
+			g_logger_info("glfwCreateWindow took {}ms", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
 		}
-
 		if (windowPtr == nullptr)
 		{
 			glfwTerminate();

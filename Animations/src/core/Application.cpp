@@ -95,7 +95,7 @@ namespace MathAnim
 
 		void init(const char* projectFile)
 		{
-			MP_PROFILE_FRAME("Application::Init");
+			auto begin = std::chrono::high_resolution_clock::now();
 
 			// Initialize these just in case this is a new project
 			editorCamera = EditorCameraController::init(Camera::createDefault());
@@ -151,6 +151,25 @@ namespace MathAnim
 
 			GL::enable(GL_BLEND);
 			GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			auto end = std::chrono::high_resolution_clock::now();
+			auto numMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+			if (numMs < 200)
+			{
+				CppUtils::IO::setForegroundColor(CppUtils::DARKGREEN);
+			}
+			else if (numMs < 400)
+			{
+				CppUtils::IO::setForegroundColor(CppUtils::DARKYELLOW);
+			}
+			else
+			{
+				CppUtils::IO::setForegroundColor(CppUtils::RED);
+			}
+
+			CppUtils::IO::printf("Initialization took: {}ms", numMs);
+
+			CppUtils::IO::resetColor();
 		}
 
 		void run()
@@ -825,7 +844,7 @@ namespace MathAnim
 			case 2:
 			{
 				// Upgrading legacy projects will default to the orthographic camera
-				Camera newCamera = editorCamera != nullptr 
+				Camera newCamera = editorCamera != nullptr
 					? EditorCameraController::getCamera(editorCamera)
 					: Camera::createDefault();
 				if (cameraData.contains("EditorCamera2D"))
