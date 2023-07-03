@@ -1585,7 +1585,8 @@ namespace MathAnim
 	RawMemory SvgObject::getPathAsBinaryString() const
 	{
 		size_t numElements = 0;
-		size_t capacity = 256;
+		// Have initial capacity set to 10KB to reduce realloc calls
+		size_t capacity = 1'024 * 10;
 		uint8* buffer = (uint8*)g_memory_allocate(sizeof(uint8) * capacity);
 		constexpr size_t tmpBufferSize = 256;
 		char tmpBuffer[tmpBufferSize];
