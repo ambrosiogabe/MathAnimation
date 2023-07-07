@@ -104,6 +104,8 @@ endif()
 add_custom_command(TARGET MathAnimations
     COMMAND ${CMAKE_COMMAND} -E make_directory
         $<TARGET_FILE_DIR:MathAnimations>/assets/grammars
+    COMMAND ${CMAKE_COMMAND} -E make_directory 
+        ${MATH_ANIMATIONS_ASSETS_DIR}/grammars
     COMMAND ${CMAKE_COMMAND} -E copy
         ${MATH_ANIMATIONS_GRAMMARS_DIR}/minimalCpp/syntaxes/cpp.tmLanguage.json
         ${MATH_ANIMATIONS_GRAMMARS_DIR}/glsl/syntaxes/glsl.tmLanguage.json
@@ -117,6 +119,8 @@ add_custom_command(TARGET MathAnimations
 add_custom_command(TARGET MathAnimations
     COMMAND ${CMAKE_COMMAND} -E make_directory
         $<TARGET_FILE_DIR:MathAnimations>/assets/themes
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        ${MATH_ANIMATIONS_ASSETS_DIR}/themes
     COMMAND ${CMAKE_COMMAND} -E copy
         ${MATH_ANIMATIONS_THEMES_DIR}/atomOneDark/themes/OneDark.json
         ${MATH_ANIMATIONS_THEMES_DIR}/gruvbox/themes/gruvbox-dark-soft.json
