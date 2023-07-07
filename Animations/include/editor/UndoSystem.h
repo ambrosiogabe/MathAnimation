@@ -21,6 +21,11 @@ namespace MathAnim
 		Rotation
 	};
 
+	enum class StringPropType : uint8
+	{
+		Name = 0,
+	};
+
 	namespace UndoSystem
 	{
 		UndoSystemData* init(AnimationManagerData* const am, int maxHistory);
@@ -32,6 +37,7 @@ namespace MathAnim
 		void applyU8Vec4ToChildren(UndoSystemData* us, AnimObjId id, U8Vec4PropType propType);
 		void setU8Vec4Prop(UndoSystemData* us, AnimObjId objId, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType);
 		void setVec3Prop(UndoSystemData* us, AnimObjId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType);
+		void setStringProp(UndoSystemData* us, AnimObjId objId, const std::string& oldString, const std::string& newString, StringPropType propType);
 		void addNewObjToScene(UndoSystemData* us, const AnimObject& obj);
 		void removeObjFromScene(UndoSystemData* us, AnimObjId objId);
 	}

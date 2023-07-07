@@ -216,9 +216,23 @@ namespace MathAnim
 				{
 					g_memory_copyMem(scratch, animObject->name, animObject->nameLength * sizeof(char));
 					scratch[animObject->nameLength] = '\0';
-					if (ImGui::InputText(": Name", scratch, scratchLength * sizeof(char)))
+					if (auto res = ImGuiExtended::InputTextEx(": Name", scratch, scratchLength * sizeof(char));
+						res.editState != EditState::NotEditing)
 					{
-						animObject->setName(scratch);
+						if (res.editState == EditState::FinishedEditing)
+						{
+							UndoSystem::setStringProp(
+								Application::getUndoSystem(),
+								animObject->id,
+								res.ogText,
+								(char*)animObject->name,
+								StringPropType::Name
+							);
+						}
+						else
+						{
+							animObject->setName(scratch);
+						}
 					}
 				}
 				else

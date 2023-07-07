@@ -68,6 +68,24 @@ namespace MathAnim
 		Vec3PropType propType;
 	};
 
+	class ModifyStringCommand : public Command
+	{
+	public:
+		ModifyStringCommand(AnimObjId objId, const std::string& oldString, const std::string& newString, StringPropType propType)
+			: objId(objId), oldString(oldString), newString(newString), propType(propType)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId objId;
+		std::string oldString;
+		std::string newString;
+		StringPropType propType;
+	};
+
 	class ApplyU8Vec4ToChildrenCommand : public Command
 	{
 	public:
@@ -176,6 +194,13 @@ namespace MathAnim
 		{
 			auto* newCommand = (ModifyVec3Command*)g_memory_allocate(sizeof(ModifyVec3Command));
 			new(newCommand)ModifyVec3Command(objId, oldVec, newVec, propType);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
+		void setStringProp(UndoSystemData* us, AnimObjId objId, const std::string& oldString, const std::string& newString, StringPropType propType)
+		{
+			auto* newCommand = (ModifyStringCommand*)g_memory_allocate(sizeof(ModifyStringCommand));
+			new(newCommand)ModifyStringCommand(objId, oldString, newString, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -308,6 +333,36 @@ namespace MathAnim
 				break;
 			case Vec3PropType::Rotation:
 				obj->_rotationStart = this->oldVec;
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyStringCommand::execute(AnimationManagerData* const am) 
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case StringPropType::Name:
+				obj->setName(this->newString.c_str(), this->newString.length());
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyStringCommand::undo(AnimationManagerData* const am) 
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case StringPropType::Name:
+				obj->setName(this->oldString.c_str(), this->oldString.length());
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);

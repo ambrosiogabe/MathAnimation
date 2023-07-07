@@ -23,12 +23,6 @@ namespace MathAnim
 		bool isBeingEdited;
 	};
 
-	struct EditU8Vec4Data
-	{
-		glm::u8vec4 ogVector;
-		EditState editState;
-	};
-
 	template<typename T>
 	class ImGuiState
 	{
@@ -75,10 +69,38 @@ namespace MathAnim
 		static ImGuiState<RenamableState> renamableStates;
 		static ImGuiState<ToggleState> toggleStates;
 		static ImGuiState<AdditionalEditState> additionalEditStates;
-		static ImGuiState<EditU8Vec4Data> editU8Vec4Data;
+		static ImGuiState<ColorEditU8Vec4Ex> editU8Vec4Data;
 		static ImGuiState<DragFloat3ExData> dragFloat3State;
+		static ImGuiState<InputTextExData> inputTextData;
+
 		static constexpr bool drawDebugBoxes = false;
 		static const char* filePayloadId = "DRAG_DROP_FILE_PAYLOAD";
+
+		// Helper functions to wrap around ImGui function calls and return a tri-state instead of true/false
+		template<typename Closure>
+		static EditState undoableImGuiFunction(
+			const char* label,
+			Closure&& closure)
+		{
+			AdditionalEditState& state = additionalEditStates.findOrDefault(label, { false });
+
+			bool editRes = closure();
+			editRes = editRes || ImGui::IsItemActive();
+			if (editRes)
+			{
+				state.isBeingEdited = true;
+			}
+
+			if (ImGui::IsItemDeactivatedAfterEdit())
+			{
+				state.isBeingEdited = false;
+				return EditState::FinishedEditing;
+			}
+
+			return editRes
+				? EditState::BeingEdited
+				: EditState::NotEditing;
+		}
 
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size)
 		{
@@ -649,10 +671,36 @@ namespace MathAnim
 			return false;
 		}
 
+		EditState InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+		{
+			return undoableImGuiFunction(
+				label,
+				[&]()
+				{
+					return ImGui::InputText(label, buf, buf_size, flags, callback, user_data);
+				});
+		}
+
+		InputTextExData InputTextEx(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+		{
+			InputTextExData& state = inputTextData.findOrDefault(label, { buf });
+
+			if (state.editState == EditState::NotEditing)
+			{
+				state.ogText = buf;
+			}
+
+			state.editState = InputText(label, buf, buf_size, flags, callback, user_data);
+
+			return {
+				state.ogText,
+				state.editState
+			};
+		}
+
 		EditState ColorEdit4(const char* label, glm::u8vec4* color)
 		{
-			std::string fullLabel = std::string("##ColorEdit4##") + label;
-			AdditionalEditState& state = additionalEditStates.findOrDefault(fullLabel, { false });
+			AdditionalEditState& state = additionalEditStates.findOrDefault(label, { false });
 
 			float fillColor[4] = {
 				(float)color->r / 255.0f,
@@ -686,42 +734,28 @@ namespace MathAnim
 
 		ColorEditU8Vec4Ex ColorEdit4Ex(const char* label, glm::u8vec4* color)
 		{
-			EditU8Vec4Data& state = editU8Vec4Data.findOrDefault(label, { *color, EditState::NotEditing });
+			ColorEditU8Vec4Ex& state = editU8Vec4Data.findOrDefault(label, { *color, EditState::NotEditing });
 
 			if (state.editState == EditState::NotEditing)
 			{
-				state.ogVector = *color;
+				state.ogColor = *color;
 			}
 
 			state.editState = ColorEdit4(label, color);
 
 			return {
-				state.ogVector,
+				state.ogColor,
 				state.editState
 			};
 		}
 
 		EditState DragFloat3(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
 		{
-			std::string fullLabel = std::string("##Vec3##") + label;
-			AdditionalEditState& state = additionalEditStates.findOrDefault(fullLabel, { false });
-
-			bool editRes = ImGui::DragFloat3(label, vec3->values, v_speed, v_min, v_max, format, flags);
-			editRes = editRes || ImGui::IsItemActive();
-			if (editRes)
-			{
-				state.isBeingEdited = true;
-			}
-
-			if (ImGui::IsItemDeactivatedAfterEdit())
-			{
-				state.isBeingEdited = false;
-				return EditState::FinishedEditing;
-			}
-
-			return editRes
-				? EditState::BeingEdited
-				: EditState::NotEditing;
+			return undoableImGuiFunction(
+				label,
+				[&]() {
+					return ImGui::DragFloat3(label, (float*)vec3->values, v_speed, v_min, v_max, format, flags);
+				});
 		}
 
 		DragFloat3ExData DragFloat3Ex(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
