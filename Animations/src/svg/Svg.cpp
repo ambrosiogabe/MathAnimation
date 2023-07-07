@@ -1645,7 +1645,7 @@ namespace MathAnim
 						(int32)(curve.as.bezier3.p1.y * 1e6),
 						(int32)(curve.as.bezier3.p2.x * 1e6),
 						(int32)(curve.as.bezier3.p2.y * 1e6),
-						(int32)(curve.as.bezier3.p3.y * 1e6),
+						(int32)(curve.as.bezier3.p3.x * 1e6),
 						(int32)(curve.as.bezier3.p3.y * 1e6)
 					};
 					writeBufferBin(&buffer, &capacity, &numElements, (uint8*)p1AndP2AsInt, sizeof(p1AndP2AsInt));
