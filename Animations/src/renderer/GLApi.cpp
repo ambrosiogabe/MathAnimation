@@ -65,16 +65,16 @@ namespace MathAnim
 			static bool loggedSystemInfo = false;
 			if (!loggedSystemInfo)
 			{
-				g_logger_info(R"Raw(
-System Info:
-============
-GL Version: {}.{}
-Max Texture Image Units: {}
-)Raw",
-					versionMajor,
-					versionMinor,
-					maxTextureImageUnits
-				);
+				CppUtils::IO::printf("+{-:35}+\n", "");
+				CppUtils::IO::printf("|{ :<35}|\n", " System Info");
+				CppUtils::IO::printf("+{-:35}+\n", "");
+				std::string glVersionInfo = std::string("GL Version: ") 
+					+ std::to_string(versionMajor) + "." + std::to_string(versionMinor) 
+					+ std::string(" ");
+				CppUtils::IO::printf("|{ :>35}|\n", glVersionInfo);
+				std::string textureUnitInfo = std::string("Max Texture Image Units: ") + std::to_string(maxTextureImageUnits) + std::string(" ");
+				CppUtils::IO::printf("|{ :>35}|\n", textureUnitInfo);
+				CppUtils::IO::printf("+{-:35}+\n", "");
 				loggedSystemInfo = true;
 			}
 		}

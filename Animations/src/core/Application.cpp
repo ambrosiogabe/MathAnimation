@@ -154,21 +154,21 @@ namespace MathAnim
 
 			auto end = std::chrono::high_resolution_clock::now();
 			auto numMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
-			if (numMs < 200)
+			CppUtils::IO::printf("|> Initialization took: ");
+			if (numMs < 400)
 			{
-				CppUtils::IO::setForegroundColor(CppUtils::DARKGREEN);
+				CppUtils::IO::setForegroundColor(CppUtils::GREEN);
 			}
-			else if (numMs < 400)
+			else if (numMs < 500)
 			{
-				CppUtils::IO::setForegroundColor(CppUtils::DARKYELLOW);
+				CppUtils::IO::setForegroundColor(CppUtils::YELLOW);
 			}
 			else
 			{
 				CppUtils::IO::setForegroundColor(CppUtils::RED);
 			}
 
-			CppUtils::IO::printf("Initialization took: {}ms\n", numMs);
-
+			CppUtils::IO::printf("{}ms\n", numMs);
 			CppUtils::IO::resetColor();
 		}
 
