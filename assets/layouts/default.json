@@ -143,7 +143,7 @@
                 "id": "0x0000000E",
                 "indentationLevel": 10,
                 "parent": "0x0000000C",
-                "selected": "0x5AC5330E",
+                "selected": "0x4117C304",
                 "sizeRef": {
                     "X": 663.0,
                     "Y": 1424.0
@@ -159,6 +159,32 @@
                 "selected": "0x0F18B61B",
                 "sizeRef": {
                     "X": 2494.0,
+                    "Y": 562.0
+                },
+                "split": "X",
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000003",
+                "indentationLevel": 8,
+                "parent": "0x00000006",
+                "selected": "0x0F18B61B",
+                "sizeRef": {
+                    "X": 2696.0,
+                    "Y": 562.0
+                },
+                "split": null,
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000004",
+                "indentationLevel": 8,
+                "parent": "0x00000006",
+                "selected": "0xD9BA0F36",
+                "sizeRef": {
+                    "X": 662.0,
                     "Y": 562.0
                 },
                 "split": null,
@@ -264,14 +290,14 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x00000006,0",
+            "dockId": "0x00000003,0",
             "name": "Timeline",
             "pos": {
                 "X": 480.0,
                 "Y": 1472.0
             },
             "size": {
-                "X": 3360.0,
+                "X": 2696.0,
                 "Y": 562.0
             },
             "viewportId": null,
@@ -486,14 +512,14 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x00000006,1",
+            "dockId": "0x00000003,1",
             "name": "Scene Manager",
             "pos": {
                 "X": 480.0,
                 "Y": 1472.0
             },
             "size": {
-                "X": 3360.0,
+                "X": 2696.0,
                 "Y": 562.0
             },
             "viewportId": null,
@@ -591,14 +617,14 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x00000006,2",
+            "dockId": "0x00000003,2",
             "name": "Asset Manager",
             "pos": {
                 "X": 480.0,
                 "Y": 1472.0
             },
             "size": {
-                "X": 3360.0,
+                "X": 2696.0,
                 "Y": 562.0
             },
             "viewportId": null,
@@ -606,14 +632,14 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x00000006,3",
+            "dockId": "0x00000003,3",
             "name": "Console Output",
             "pos": {
                 "X": 480.0,
                 "Y": 1472.0
             },
             "size": {
-                "X": 3360.0,
+                "X": 2696.0,
                 "Y": 562.0
             },
             "viewportId": null,
@@ -720,6 +746,36 @@
             "size": {
                 "X": 720.0,
                 "Y": 200.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x0000000E,0",
+            "name": " Animation Object Inspector",
+            "pos": {
+                "X": 3177.0,
+                "Y": 46.0
+            },
+            "size": {
+                "X": 663.0,
+                "Y": 1424.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000004,0",
+            "name": " Animation Inspector",
+            "pos": {
+                "X": 3178.0,
+                "Y": 1472.0
+            },
+            "size": {
+                "X": 662.0,
+                "Y": 562.0
             },
             "viewportId": null,
             "viewportPos": null

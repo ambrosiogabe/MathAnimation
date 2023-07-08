@@ -66,8 +66,8 @@ namespace MathAnim
 
 		void update(AnimationManagerData* am)
 		{
-			ImGui::Begin(ICON_FA_LIST " Inspector");
-			if (ImGui::CollapsingHeader("Animation Object Inspector", ImGuiTreeNodeFlags_DefaultOpen))
+			ImGui::Begin(ICON_FA_LIST " Animation Object Inspector");
+			// if (ImGui::CollapsingHeader("Animation Object Inspector", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				ImGui::Indent(indentationDepth);
 				if (!isNull(activeAnimObjectId))
@@ -84,9 +84,10 @@ namespace MathAnim
 				}
 				ImGui::Unindent(indentationDepth);
 			}
+			ImGui::End();
 
-			ImGui::Separator();
-			if (ImGui::CollapsingHeader("Animation Inspector", ImGuiTreeNodeFlags_DefaultOpen))
+			ImGui::Begin(ICON_FA_LIST " Animation Inspector");
+			//if (ImGui::CollapsingHeader("Animation Inspector", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				ImGui::Indent(indentationDepth);
 				if (!isNull(activeAnimationId))
@@ -486,11 +487,11 @@ namespace MathAnim
 
 				if (Animation::isAnimationGroup(animation->type))
 				{
-					static bool isAddingAnimObject = false;
 					ImGui::PushStyleColor(ImGuiCol_FrameBg, Colors::Neutral[7]);
 
 					// TODO: UI needs some work
-					if (ImGui::BeginListBox(": Anim Objects", ImVec2(0.0f, 5 * ImGui::GetTextLineHeightWithSpacing())))
+					ImGui::Text("Animation Objects:");
+					if (ImGui::BeginListBox("##: Anim Objects", ImVec2(0.0f, 5 * ImGui::GetTextLineHeightWithSpacing())))
 					{
 						std::unordered_set<AnimObjId> objectIdsCopy = animation->animObjectIds;
 						for (auto animObjectIdIter = objectIdsCopy.begin(); animObjectIdIter != objectIdsCopy.end(); animObjectIdIter++)
@@ -533,40 +534,28 @@ namespace MathAnim
 							}
 						}
 
-						if (isAddingAnimObject)
-						{
-							const char dummyInputText[] = "Drag Object Here";
-							size_t dummyInputTextSize = sizeof(dummyInputText);
-							ImGui::BeginDisabled();
-							ImGui::InputText("##AnimObjectDropTarget", (char*)dummyInputText, dummyInputTextSize, ImGuiInputTextFlags_ReadOnly);
-							ImGui::EndDisabled();
-
-							if (auto objPayload = ImGuiExtended::AnimObjectDragDropTarget(); objPayload != nullptr)
-							{
-								bool exists =
-									std::find(
-										animation->animObjectIds.begin(),
-										animation->animObjectIds.end(),
-										objPayload->animObjectId
-									) != animation->animObjectIds.end();
-
-								if (!exists)
-								{
-									AnimationManager::addObjectToAnim(am, objPayload->animObjectId, animation->id);
-								}
-								isAddingAnimObject = false;
-							}
-						}
-
 						ImGui::EndListBox();
 					}
 
-					ImGui::PopStyleColor();
-
-					if (ImGui::Button(ICON_FA_PLUS " Add Anim Object"))
+					// Handle drag drop for anim object
 					{
-						isAddingAnimObject = true;
+						if (auto objPayload = ImGuiExtended::AnimObjectDragDropTarget(); objPayload != nullptr)
+						{
+							bool exists =
+								std::find(
+									animation->animObjectIds.begin(),
+									animation->animObjectIds.end(),
+									objPayload->animObjectId
+								) != animation->animObjectIds.end();
+
+							if (!exists)
+							{
+								AnimationManager::addObjectToAnim(am, objPayload->animObjectId, animation->id);
+							}
+						}
 					}
+
+					ImGui::PopStyleColor();
 				}
 			}
 
