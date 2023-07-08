@@ -649,12 +649,18 @@ namespace MathAnim
 					const bool is_selected = (fontIndex == n);
 					if (ImGui::Selectable(fonts[n].c_str(), is_selected))
 					{
+						std::string oldFont = "";
 						if (object->as.textObject.font)
 						{
-							Fonts::unloadFont(object->as.textObject.font);
+							oldFont = object->as.textObject.font->fontFilepath;
 						}
-						object->as.textObject.font = Fonts::loadFont(fonts[n].c_str());
-						shouldRegenerate = true;
+
+						UndoSystem::setFont(
+							Application::getUndoSystem(),
+							object->id,
+							oldFont,
+							fonts[n]
+						);
 					}
 
 					// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)

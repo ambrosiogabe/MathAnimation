@@ -1,6 +1,7 @@
 #include "editor/UndoSystem.h"
 #include "animation/AnimationManager.h"
 #include "animation/Animation.h"
+#include "renderer/Fonts.h"
 
 namespace MathAnim
 {
@@ -154,6 +155,23 @@ namespace MathAnim
 		StringPropType propType;
 	};
 
+	class SetFontCommand : public Command
+	{
+	public:
+		SetFontCommand(AnimObjId objId, const std::string& oldFont, const std::string& newFont)
+			: objId(objId), oldFont(oldFont), newFont(newFont)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId objId;
+		std::string oldFont;
+		std::string newFont;
+	};
+
 	class ApplyU8Vec4ToChildrenCommand : public Command
 	{
 	public:
@@ -283,6 +301,13 @@ namespace MathAnim
 		{
 			auto* newCommand = (ModifyStringCommand*)g_memory_allocate(sizeof(ModifyStringCommand));
 			new(newCommand)ModifyStringCommand(objId, oldString, newString, propType);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
+		void setFont(UndoSystemData* us, AnimObjId objId, const std::string& oldFont, const std::string& newFont)
+		{
+			auto* newCommand = (SetFontCommand*)g_memory_allocate(sizeof(SetFontCommand));
+			new(newCommand)SetFontCommand(objId, oldFont, newFont);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -583,6 +608,34 @@ namespace MathAnim
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void SetFontCommand::execute(AnimationManagerData* const am)
+	{
+		AnimObject* object = AnimationManager::getMutableObject(am, objId);
+		if (object)
+		{
+			if (object->as.textObject.font)
+			{
+				Fonts::unloadFont(object->as.textObject.font);
+			}
+			object->as.textObject.font = Fonts::loadFont(newFont.c_str());
+			object->as.textObject.reInit(am, object);
+		}
+	}
+
+	void SetFontCommand::undo(AnimationManagerData* const am)
+	{
+		AnimObject* object = AnimationManager::getMutableObject(am, objId);
+		if (object && oldFont != "")
+		{
+			if (object->as.textObject.font)
+			{
+				Fonts::unloadFont(object->as.textObject.font);
+			}
+			object->as.textObject.font = Fonts::loadFont(oldFont.c_str());
+			object->as.textObject.reInit(am, object);
 		}
 	}
 
