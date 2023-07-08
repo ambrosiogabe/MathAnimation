@@ -50,6 +50,24 @@ namespace MathAnim
 		U8Vec4PropType propType;
 	};
 
+	class ModifyFloatCommand : public Command
+	{
+	public:
+		ModifyFloatCommand(AnimObjId objId, float oldValue, float newValue, FloatPropType propType)
+			: objId(objId), oldValue(oldValue), newValue(newValue), propType(propType)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId objId;
+		float oldValue;
+		float newValue;
+		FloatPropType propType;
+	};
+
 	class ModifyVec3Command : public Command
 	{
 	public:
@@ -190,6 +208,13 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
+		void setFloatProp(UndoSystemData* us, AnimObjId objId, float oldValue, float newValue, FloatPropType propType)
+		{
+			auto* newCommand = (ModifyFloatCommand*)g_memory_allocate(sizeof(ModifyFloatCommand));
+			new(newCommand)ModifyFloatCommand(objId, oldValue, newValue, propType);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
 		void setVec3Prop(UndoSystemData* us, AnimObjId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType)
 		{
 			auto* newCommand = (ModifyVec3Command*)g_memory_allocate(sizeof(ModifyVec3Command));
@@ -291,6 +316,36 @@ namespace MathAnim
 				break;
 			case U8Vec4PropType::StrokeColor:
 				obj->_strokeColorStart = this->oldVec;
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyFloatCommand::execute(AnimationManagerData* const am) 
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case FloatPropType::StrokeWidth:
+				obj->_strokeWidthStart= this->newValue;
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyFloatCommand::undo(AnimationManagerData* const am) 
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case FloatPropType::StrokeWidth:
+				obj->_strokeWidthStart = this->oldValue;
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);

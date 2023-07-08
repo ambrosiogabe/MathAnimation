@@ -289,12 +289,16 @@ namespace MathAnim
 				}
 
 				// NanoVG only allows stroke width between [0-200] so we reflect that here
-				if (ImGui::DragFloat(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f))
+				if (auto res = ImGuiExtended::DragFloatEx(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f);
+					res.editState == EditState::FinishedEditing)
 				{
-					/*if (strokeWidthToggled)
-					{
-						animObject->copyStrokeWidthToChildren(am);
-					}*/
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						animObject->id,
+						res.ogData,
+						animObject->_strokeWidthStart,
+						FloatPropType::StrokeWidth
+					);
 				}
 				if (applySettingToChildren("##StrokeWidthChildrenApply"))
 				{
