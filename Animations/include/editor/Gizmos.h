@@ -34,9 +34,9 @@ namespace MathAnim
 		const char* getVisualModeStr();
 		GizmoType getVisualMode();
 
-		DragFloat3ExData translateGizmo(const char* gizmoName, Vec3* position);
-		DragFloat3ExData rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation);
-		DragFloat3ExData scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale);
+		ImGuiDataEx<Vec3> translateGizmo(const char* gizmoName, Vec3* position);
+		ImGuiDataEx<Vec3> rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation);
+		ImGuiDataEx<Vec3> scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale);
 	}
 }
 

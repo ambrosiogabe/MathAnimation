@@ -26,21 +26,10 @@ namespace MathAnim
 		FinishedEditing,
 	};
 
-	struct ColorEditU8Vec4Ex
+	template<typename T>
+	struct ImGuiDataEx
 	{
-		glm::u8vec4 ogColor;
-		EditState editState;
-	};
-
-	struct DragFloat3ExData
-	{
-		Vec3 ogVector;
-		EditState editState;
-	};
-
-	struct InputTextExData
-	{
-		std::string ogText;
+		T ogData;
 		EditState editState;
 	};
 
@@ -73,13 +62,15 @@ namespace MathAnim
 		bool ProgressBar(const char* label, float value, float maxWidth = -1.0f);
 
 		EditState InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr, void* user_data = nullptr);
-		InputTextExData InputTextEx(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr, void* user_data = nullptr);
+		ImGuiDataEx<std::string> InputTextEx(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr, void* user_data = nullptr);
+
+		EditState DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+		ImGuiDataEx<float> DragFloatEx(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+		EditState DragFloat3(const char* label, Vec3* vec3, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+		ImGuiDataEx<Vec3> DragFloat3Ex(const char* label, Vec3* vec3, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
 
 		EditState ColorEdit4(const char* label, glm::u8vec4* color);
-		ColorEditU8Vec4Ex ColorEdit4Ex(const char* label, glm::u8vec4* color);
-
-		EditState DragFloat3(const char* label, Vec3* vec3, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
-		DragFloat3ExData DragFloat3Ex(const char* label, Vec3* vec3, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+		ImGuiDataEx<glm::u8vec4> ColorEdit4Ex(const char* label, glm::u8vec4* color);
 	}
 }
 

@@ -1354,7 +1354,7 @@ namespace MathAnim
 				UndoSystem::setVec3Prop(
 					Application::getUndoSystem(),
 					this->id,
-					res.ogVector,
+					res.ogData,
 					this->_positionStart,
 					Vec3PropType::Position
 				);
@@ -1371,7 +1371,7 @@ namespace MathAnim
 				UndoSystem::setVec3Prop(
 					Application::getUndoSystem(),
 					this->id,
-					res.ogVector,
+					res.ogData,
 					this->_scaleStart,
 					Vec3PropType::Scale
 				);
@@ -1388,7 +1388,7 @@ namespace MathAnim
 				UndoSystem::setVec3Prop(
 					Application::getUndoSystem(),
 					this->id,
-					res.ogVector,
+					res.ogData,
 					this->_rotationStart,
 					Vec3PropType::Rotation
 				);

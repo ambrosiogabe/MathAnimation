@@ -602,7 +602,7 @@ namespace MathAnim
 			return gGizmoManager->visualMode;
 		}
 
-		DragFloat3ExData translateGizmo(const char* gizmoName, Vec3* position)
+		ImGuiDataEx<Vec3> translateGizmo(const char* gizmoName, Vec3* position)
 		{
 			// Find or create the gizmo
 			GizmoState* gizmo = getGizmoByName(gizmoName, GizmoType::Translation);
@@ -653,7 +653,7 @@ namespace MathAnim
 			};
 		}
 
-		DragFloat3ExData rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation)
+		ImGuiDataEx<Vec3> rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation)
 		{
 			// Find or create the gizmo
 			GizmoState* gizmo = getGizmoByName(gizmoName, GizmoType::Rotation);
@@ -710,7 +710,7 @@ namespace MathAnim
 			};
 		}
 
-		DragFloat3ExData scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale)
+		ImGuiDataEx<Vec3> scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale)
 		{
 			// Find or create the gizmo
 			GizmoState* gizmo = getGizmoByName(gizmoName, GizmoType::Scaling);

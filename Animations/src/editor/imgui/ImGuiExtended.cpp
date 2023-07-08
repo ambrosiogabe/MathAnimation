@@ -29,7 +29,7 @@ namespace MathAnim
 	public:
 		ImGuiState()
 		{
-			this->state = {};
+			this->states = {};
 		}
 
 		/**
@@ -41,12 +41,12 @@ namespace MathAnim
 		 * @param defaultValue 
 		 * @return Reference to the item in the unordered_map
 		*/
-		T& findOrDefault(const std::string& key, const T& defaultValue)
+		T& findOrDefault(const std::string& label, const T& defaultValue)
 		{
-			if (auto iter = state.find(key); iter == state.end())
+			if (auto iter = states.find(label); iter == states.end())
 			{
-				state[key] = defaultValue;
-				return state[key];
+				states[label] = defaultValue;
+				return states[label];
 			}
 			else
 			{
@@ -56,22 +56,19 @@ namespace MathAnim
 		
 		void clear()
 		{
-			state.clear();
+			states.clear();
 		}
 
 	private:
-		std::unordered_map<std::string, T> state;
+		std::unordered_map<std::string, T> states;
 	};
 
 	namespace ImGuiExtended
 	{
 		// -------- Internal Vars --------
+		static ImGuiState<AdditionalEditState> additionalEditStates;
 		static ImGuiState<RenamableState> renamableStates;
 		static ImGuiState<ToggleState> toggleStates;
-		static ImGuiState<AdditionalEditState> additionalEditStates;
-		static ImGuiState<ColorEditU8Vec4Ex> editU8Vec4Data;
-		static ImGuiState<DragFloat3ExData> dragFloat3State;
-		static ImGuiState<InputTextExData> inputTextData;
 
 		static constexpr bool drawDebugBoxes = false;
 		static const char* filePayloadId = "DRAG_DROP_FILE_PAYLOAD";
@@ -79,7 +76,7 @@ namespace MathAnim
 		// Helper functions to wrap around ImGui function calls and return a tri-state instead of true/false
 		template<typename Closure>
 		static EditState undoableImGuiFunction(
-			const char* label,
+			const std::string& label,
 			Closure&& closure)
 		{
 			AdditionalEditState& state = additionalEditStates.findOrDefault(label, { false });
@@ -101,6 +98,48 @@ namespace MathAnim
 				? EditState::BeingEdited
 				: EditState::NotEditing;
 		}
+
+		template<typename T>
+		class ImGuiStateEx
+		{
+		public:
+			ImGuiStateEx()
+			{
+				this->states = {};
+			}
+
+			template<typename Closure>
+			ImGuiDataEx<T> undoableImGuiFunctionEx(const std::string& label, const T& defaultValue, Closure&& closure)
+			{
+				ImGuiDataEx<T>& state = states.findOrDefault(label, { defaultValue, EditState::NotEditing });
+
+				if (state.editState == EditState::NotEditing)
+				{
+					state.ogData = defaultValue;
+				}
+
+				state.editState = closure();
+
+				return {
+					state.ogData,
+					state.editState
+				};
+			}
+
+			void clear()
+			{
+				states.clear();
+			}
+
+		private:
+			ImGuiState<ImGuiDataEx<T>> states;
+		};
+
+		// ------------ Extra State Vars ------------
+		static ImGuiStateEx<glm::u8vec4> colorEditU84Data;
+		static ImGuiStateEx<float> dragFloatData;
+		static ImGuiStateEx<Vec3> dragFloat3Data;
+		static ImGuiStateEx<std::string> inputTextData;
 
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size)
 		{
@@ -673,34 +712,73 @@ namespace MathAnim
 
 		EditState InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
 		{
+			std::string fullLabel = label + std::string("##InputText");
 			return undoableImGuiFunction(
-				label,
+				fullLabel,
 				[&]()
 				{
 					return ImGui::InputText(label, buf, buf_size, flags, callback, user_data);
 				});
 		}
 
-		InputTextExData InputTextEx(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+		ImGuiDataEx<std::string> InputTextEx(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
 		{
-			InputTextExData& state = inputTextData.findOrDefault(label, { buf });
+			return inputTextData.undoableImGuiFunctionEx(
+				label,
+				buf,
+				[&]()
+				{
+					return InputText(label, buf, buf_size, flags, callback, user_data);
+				});
+		}
 
-			if (state.editState == EditState::NotEditing)
-			{
-				state.ogText = buf;
-			}
+		EditState DragFloat(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			std::string fullLabel = label + std::string("##DragFloat");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::DragFloat(label, v, v_speed, v_min, v_max, format, flags);
+				});
+		}
 
-			state.editState = InputText(label, buf, buf_size, flags, callback, user_data);
+		ImGuiDataEx<float> DragFloatEx(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			return dragFloatData.undoableImGuiFunctionEx(
+				label,
+				*v,
+				[&]()
+				{
+					return DragFloat(label, v, v_speed, v_min, v_max, format, flags);
+				});
+		}
 
-			return {
-				state.ogText,
-				state.editState
-			};
+		EditState DragFloat3(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			std::string fullLabel = label + std::string("##DragFloat3");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]() {
+					return ImGui::DragFloat3(label, (float*)vec3->values, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		ImGuiDataEx<Vec3> DragFloat3Ex(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			return dragFloat3Data.undoableImGuiFunctionEx(
+				label,
+				*vec3,
+				[&]()
+				{
+					return DragFloat3(label, vec3, v_speed, v_min, v_max, format, flags);
+				});
 		}
 
 		EditState ColorEdit4(const char* label, glm::u8vec4* color)
 		{
-			AdditionalEditState& state = additionalEditStates.findOrDefault(label, { false });
+			std::string fullLabel = label + std::string("##ColorEdit4");
+			AdditionalEditState& state = additionalEditStates.findOrDefault(fullLabel, { false });
 
 			float fillColor[4] = {
 				(float)color->r / 255.0f,
@@ -727,52 +805,20 @@ namespace MathAnim
 				return EditState::FinishedEditing;
 			}
 
-			return editRes 
+			return editRes
 				? EditState::BeingEdited
 				: EditState::NotEditing;
 		}
 
-		ColorEditU8Vec4Ex ColorEdit4Ex(const char* label, glm::u8vec4* color)
+		ImGuiDataEx<glm::u8vec4> ColorEdit4Ex(const char* label, glm::u8vec4* color)
 		{
-			ColorEditU8Vec4Ex& state = editU8Vec4Data.findOrDefault(label, { *color, EditState::NotEditing });
-
-			if (state.editState == EditState::NotEditing)
-			{
-				state.ogColor = *color;
-			}
-
-			state.editState = ColorEdit4(label, color);
-
-			return {
-				state.ogColor,
-				state.editState
-			};
-		}
-
-		EditState DragFloat3(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
-		{
-			return undoableImGuiFunction(
+			return colorEditU84Data.undoableImGuiFunctionEx(
 				label,
-				[&]() {
-					return ImGui::DragFloat3(label, (float*)vec3->values, v_speed, v_min, v_max, format, flags);
+				*color,
+				[&]()
+				{
+					return ColorEdit4(label, color);
 				});
-		}
-
-		DragFloat3ExData DragFloat3Ex(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
-		{
-			DragFloat3ExData& state = dragFloat3State.findOrDefault(label, { *vec3, EditState::NotEditing });
-
-			if (state.editState == EditState::NotEditing)
-			{
-				state.ogVector = *vec3;
-			}
-
-			state.editState = DragFloat3(label, vec3, v_speed, v_min, v_max, format, flags);
-
-			return {
-				state.ogVector,
-				state.editState
-			};
 		}
 	}
 }

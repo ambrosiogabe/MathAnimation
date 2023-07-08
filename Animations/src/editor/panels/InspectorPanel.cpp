@@ -224,7 +224,7 @@ namespace MathAnim
 							UndoSystem::setStringProp(
 								Application::getUndoSystem(),
 								animObject->id,
-								res.ogText,
+								res.ogData,
 								(char*)animObject->name,
 								StringPropType::Name
 							);
@@ -241,13 +241,13 @@ namespace MathAnim
 				}
 
 				// Position
-				if (auto res = ImGuiExtended::DragFloat3Ex(": Position", &animObject->_positionStart, slowDragSpeed); 
+				if (auto res = ImGuiExtended::DragFloat3Ex(": Position", &animObject->_positionStart, slowDragSpeed);
 					res.editState == EditState::FinishedEditing)
 				{
 					UndoSystem::setVec3Prop(
 						Application::getUndoSystem(),
 						animObject->id,
-						res.ogVector,
+						res.ogData,
 						animObject->_positionStart,
 						Vec3PropType::Position
 					);
@@ -260,7 +260,7 @@ namespace MathAnim
 					UndoSystem::setVec3Prop(
 						Application::getUndoSystem(),
 						animObject->id,
-						res.ogVector,
+						res.ogData,
 						animObject->_rotationStart,
 						Vec3PropType::Rotation
 					);
@@ -273,7 +273,7 @@ namespace MathAnim
 					UndoSystem::setVec3Prop(
 						Application::getUndoSystem(),
 						animObject->id,
-						res.ogVector,
+						res.ogData,
 						animObject->_scaleStart,
 						Vec3PropType::Scale
 					);
@@ -283,6 +283,7 @@ namespace MathAnim
 			std::string svgPropsComponentName = "Svg Properties##" + std::to_string(animObjectId);
 			if (ImGui::CollapsingHeader(svgPropsComponentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
+				// TODO: Remove this once you get auto SVG stuff working good
 				if (ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed))
 				{
 				}
@@ -295,7 +296,10 @@ namespace MathAnim
 						animObject->copyStrokeWidthToChildren(am);
 					}*/
 				}
-				applySettingToChildren("##StrokeWidthChildrenApply");
+				if (applySettingToChildren("##StrokeWidthChildrenApply"))
+				{
+
+				}
 
 				// Stroke Color
 				if (auto res = ImGuiExtended::ColorEdit4Ex(": Stroke Color", &animObject->_strokeColorStart);
@@ -304,7 +308,7 @@ namespace MathAnim
 					UndoSystem::setU8Vec4Prop(
 						Application::getUndoSystem(),
 						animObject->id,
-						res.ogColor,
+						res.ogData,
 						animObject->_strokeColorStart,
 						U8Vec4PropType::StrokeColor
 					);
@@ -326,7 +330,7 @@ namespace MathAnim
 					UndoSystem::setU8Vec4Prop(
 						Application::getUndoSystem(),
 						animObject->id,
-						res.ogColor,
+						res.ogData,
 						animObject->_fillColorStart,
 						U8Vec4PropType::FillColor
 					);
@@ -341,19 +345,24 @@ namespace MathAnim
 					);
 				}
 
-				ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
-				if (animObject->drawDebugBoxes)
+				static bool showAdvancedStuff = false;
+				ImGui::Checkbox(": Advanced", &showAdvancedStuff);
+				if (showAdvancedStuff)
 				{
-					ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
+					ImGui::Checkbox(": Draw Debug Boxes", &animObject->drawDebugBoxes);
+					if (animObject->drawDebugBoxes)
+					{
+						ImGui::Checkbox(": Draw Curve Debug Boxes", &animObject->drawCurveDebugBoxes);
+					}
+					ImGui::Checkbox(": Draw Curves", &animObject->drawCurves);
+					ImGui::Checkbox(": Draw Control Points", &animObject->drawControlPoints);
 				}
-				ImGui::Checkbox(": Draw Curves", &animObject->drawCurves);
-				ImGui::Checkbox(": Draw Control Points", &animObject->drawControlPoints);
 			}
 
 			std::string componentName = std::string(_animationObjectTypeNames[(uint8)animObject->objectType])
 				+ "##" + std::to_string(animObjectId);
 
-			if (bool shouldShow = !_isInternalObjectOnly[(uint8)animObject->objectType]; 
+			if (bool shouldShow = !_isInternalObjectOnly[(uint8)animObject->objectType];
 				shouldShow && ImGui::CollapsingHeader(componentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				switch (animObject->objectType)
