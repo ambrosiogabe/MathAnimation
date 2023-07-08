@@ -53,6 +53,9 @@ namespace MathAnim
 		void setFloatProp(UndoSystemData* us, AnimObjId objId, float oldValue, float newValue, FloatPropType propType);
 		void setVec3Prop(UndoSystemData* us, AnimObjId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType);
 		void setStringProp(UndoSystemData* us, AnimObjId objId, const std::string& oldString, const std::string& newString, StringPropType propType);
+		
+		void addObjectToAnim(UndoSystemData* us, AnimObjId objToAdd, AnimId animToAddTo);
+		void removeObjectFromAnim(UndoSystemData* us, AnimObjId objToAdd, AnimId animToAddTo);
 		void addNewObjToScene(UndoSystemData* us, const AnimObject& obj);
 		void removeObjFromScene(UndoSystemData* us, AnimObjId objId);
 	}

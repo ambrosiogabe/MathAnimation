@@ -67,7 +67,6 @@ namespace MathAnim
 		void update(AnimationManagerData* am)
 		{
 			ImGui::Begin(ICON_FA_LIST " Animation Object Inspector");
-			// if (ImGui::CollapsingHeader("Animation Object Inspector", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				ImGui::Indent(indentationDepth);
 				if (!isNull(activeAnimObjectId))
@@ -87,7 +86,6 @@ namespace MathAnim
 			ImGui::End();
 
 			ImGui::Begin(ICON_FA_LIST " Animation Inspector");
-			//if (ImGui::CollapsingHeader("Animation Inspector", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				ImGui::Indent(indentationDepth);
 				if (!isNull(activeAnimationId))
@@ -522,7 +520,16 @@ namespace MathAnim
 								ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonSize.x);
 								if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
 								{
-									AnimationManager::removeObjectFromAnim(am, *animObjectIdIter, animation->id);
+									// This will invalidate our iterator, so instead of continuing to loop
+									// we break out. This will cause the GUI to break for a single frame,
+									// but it's worth it in order to avoid the undefined behavior otherwise.
+									UndoSystem::removeObjectFromAnim(
+										Application::getUndoSystem(),
+										*animObjectIdIter,
+										animation->id
+									);
+									ImGui::PopID();
+									break;
 								}
 								buttonSize = ImGui::GetItemRectSize();
 
@@ -538,21 +545,13 @@ namespace MathAnim
 					}
 
 					// Handle drag drop for anim object
+					if (auto objPayload = ImGuiExtended::AnimObjectDragDropTarget(); objPayload != nullptr)
 					{
-						if (auto objPayload = ImGuiExtended::AnimObjectDragDropTarget(); objPayload != nullptr)
-						{
-							bool exists =
-								std::find(
-									animation->animObjectIds.begin(),
-									animation->animObjectIds.end(),
-									objPayload->animObjectId
-								) != animation->animObjectIds.end();
-
-							if (!exists)
-							{
-								AnimationManager::addObjectToAnim(am, objPayload->animObjectId, animation->id);
-							}
-						}
+						UndoSystem::addObjectToAnim(
+							Application::getUndoSystem(),
+							objPayload->animObjectId,
+							animation->id
+						);
 					}
 
 					ImGui::PopStyleColor();

@@ -32,6 +32,38 @@ namespace MathAnim
 	// -------------------------------------
 	// Command Forward Decls
 	// -------------------------------------
+	class AddObjectToAnimCommand : public Command
+	{
+	public:
+		AddObjectToAnimCommand(AnimObjId objToAdd, AnimId animToAddTo)
+			: objToAdd(objToAdd), animToAddTo(animToAddTo)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId objToAdd;
+		AnimId animToAddTo;
+	};
+
+	class RemoveObjectFromAnimCommand : public Command
+	{
+	public:
+		RemoveObjectFromAnimCommand(AnimObjId objToAdd, AnimId animToAddTo)
+			: objToAdd(objToAdd), animToAddTo(animToAddTo)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId objToAdd;
+		AnimId animToAddTo;
+	};
+
 	class ModifyU8Vec4Command : public Command
 	{
 	public:
@@ -254,6 +286,20 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
+		void addObjectToAnim(UndoSystemData* us, AnimObjId objToAdd, AnimId animToAddTo)
+		{
+			auto* newCommand = (AddObjectToAnimCommand*)g_memory_allocate(sizeof(AddObjectToAnimCommand));
+			new(newCommand)AddObjectToAnimCommand(objToAdd, animToAddTo);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
+		void removeObjectFromAnim(UndoSystemData* us, AnimObjId objToAdd, AnimId animToAddTo)
+		{
+			auto* newCommand = (RemoveObjectFromAnimCommand*)g_memory_allocate(sizeof(RemoveObjectFromAnimCommand));
+			new(newCommand)RemoveObjectFromAnimCommand(objToAdd, animToAddTo);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
 #pragma warning( push )
 #pragma warning( disable : 4100 )
 		void addNewObjToScene(UndoSystemData* us, const AnimObject& obj)
@@ -311,6 +357,26 @@ namespace MathAnim
 	// -------------------------------------
 	// Command Implementations
 	// -------------------------------------
+	void AddObjectToAnimCommand::execute(AnimationManagerData* const am)
+	{
+		AnimationManager::addObjectToAnim(am, objToAdd, animToAddTo);
+	}
+
+	void AddObjectToAnimCommand::undo(AnimationManagerData* const am)
+	{
+		AnimationManager::removeObjectFromAnim(am, objToAdd, animToAddTo);
+	}
+
+	void RemoveObjectFromAnimCommand::execute(AnimationManagerData* const am)
+	{
+		AnimationManager::removeObjectFromAnim(am, objToAdd, animToAddTo);
+	}
+
+	void RemoveObjectFromAnimCommand::undo(AnimationManagerData* const am)
+	{
+		AnimationManager::addObjectToAnim(am, objToAdd, animToAddTo);
+	}
+
 	void ModifyU8Vec4Command::execute(AnimationManagerData* const am)
 	{
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
@@ -390,7 +456,7 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyFloatCommand::execute(AnimationManagerData* const am) 
+	void ModifyFloatCommand::execute(AnimationManagerData* const am)
 	{
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
@@ -398,7 +464,7 @@ namespace MathAnim
 			switch (propType)
 			{
 			case FloatPropType::StrokeWidth:
-				obj->_strokeWidthStart= this->newValue;
+				obj->_strokeWidthStart = this->newValue;
 				break;
 			case FloatPropType::LagRatio:
 				break;
@@ -420,7 +486,7 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyFloatCommand::undo(AnimationManagerData* const am) 
+	void ModifyFloatCommand::undo(AnimationManagerData* const am)
 	{
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
@@ -490,7 +556,7 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyStringCommand::execute(AnimationManagerData* const am) 
+	void ModifyStringCommand::execute(AnimationManagerData* const am)
 	{
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
@@ -505,7 +571,7 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyStringCommand::undo(AnimationManagerData* const am) 
+	void ModifyStringCommand::undo(AnimationManagerData* const am)
 	{
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
