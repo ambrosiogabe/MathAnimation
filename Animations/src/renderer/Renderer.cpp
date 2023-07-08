@@ -1047,7 +1047,8 @@ namespace MathAnim
 		{
 			glm::vec4 translated = glm::vec4(vert.x, vert.y, 0.0f, 1.0f);
 			translated = transform * translated;
-			return Vec3{ translated.x, translated.y, translated.z };
+			// NOTE: Add a small offset to the z-coord to avoid z-fighting
+			return Vec3{ translated.x, translated.y, translated.z + 0.0001f };
 		}
 
 		bool endPath(Path2DContext* path, bool closePath, AnimObjId objId)
