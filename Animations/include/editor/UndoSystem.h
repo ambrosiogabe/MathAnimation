@@ -29,6 +29,7 @@ namespace MathAnim
 	enum class FloatPropType : uint8
 	{
 		StrokeWidth = 0,
+		LagRatio,
 	};
 
 	enum class EnumPropType : uint8

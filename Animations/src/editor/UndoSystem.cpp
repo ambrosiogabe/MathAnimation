@@ -400,8 +400,23 @@ namespace MathAnim
 			case FloatPropType::StrokeWidth:
 				obj->_strokeWidthStart= this->newValue;
 				break;
+			case FloatPropType::LagRatio:
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case FloatPropType::LagRatio:
+				anim->lagRatio = this->newValue;
+				break;
+			case FloatPropType::StrokeWidth:
+				break;
+			}
 		}
 	}
 
@@ -417,6 +432,19 @@ namespace MathAnim
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case FloatPropType::LagRatio:
+				anim->lagRatio = this->oldValue;
+				break;
+			case FloatPropType::StrokeWidth:
+				break;
+			}
 		}
 	}
 

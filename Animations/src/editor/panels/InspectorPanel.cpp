@@ -470,7 +470,17 @@ namespace MathAnim
 				}
 
 				ImGui::BeginDisabled(animation->playbackType == PlaybackType::Synchronous);
-				ImGui::DragFloat(": Lag Ratio", &animation->lagRatio, slowDragSpeed, 0.0f, 1.0f);
+				if (auto res = ImGuiExtended::DragFloatEx(": Lag Ratio", &animation->lagRatio, slowDragSpeed, 0.0f, 1.0f);
+					res.editState == EditState::FinishedEditing)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						animation->lagRatio,
+						FloatPropType::LagRatio
+					);
+				}
 				ImGui::EndDisabled();
 
 
