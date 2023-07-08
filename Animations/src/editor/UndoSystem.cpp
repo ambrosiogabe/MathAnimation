@@ -299,9 +299,12 @@ namespace MathAnim
 
 		void setStringProp(UndoSystemData* us, AnimObjId objId, const std::string& oldString, const std::string& newString, StringPropType propType)
 		{
-			auto* newCommand = (ModifyStringCommand*)g_memory_allocate(sizeof(ModifyStringCommand));
-			new(newCommand)ModifyStringCommand(objId, oldString, newString, propType);
-			pushAndExecuteCommand(us, newCommand);
+			if (oldString != newString)
+			{
+				auto* newCommand = (ModifyStringCommand*)g_memory_allocate(sizeof(ModifyStringCommand));
+				new(newCommand)ModifyStringCommand(objId, oldString, newString, propType);
+				pushAndExecuteCommand(us, newCommand);
+			}
 		}
 
 		void setFont(UndoSystemData* us, AnimObjId objId, const std::string& oldFont, const std::string& newFont)
@@ -591,6 +594,13 @@ namespace MathAnim
 			case StringPropType::Name:
 				obj->setName(this->newString.c_str(), this->newString.length());
 				break;
+			case StringPropType::TextObjectText:
+				if (obj->objectType == AnimObjectTypeV1::TextObject)
+				{
+					obj->as.textObject.setText(newString);
+					obj->as.textObject.reInit(am, obj);
+				}
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
 		}
@@ -605,6 +615,13 @@ namespace MathAnim
 			{
 			case StringPropType::Name:
 				obj->setName(this->oldString.c_str(), this->oldString.length());
+				break;
+			case StringPropType::TextObjectText:
+				if (obj->objectType == AnimObjectTypeV1::TextObject)
+				{
+					obj->as.textObject.setText(oldString);
+					obj->as.textObject.reInit(am, obj);
+				}
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);

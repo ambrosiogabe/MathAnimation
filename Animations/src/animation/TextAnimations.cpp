@@ -135,6 +135,29 @@ namespace MathAnim
 		}
 	}
 
+	void TextObject::setText(const std::string& newText)
+	{
+		size_t newLength = newText.length();
+		text = (char*)g_memory_realloc(text, sizeof(char) * (newLength + 1));
+		textLength = (int32_t)newLength;
+		g_memory_copyMem(text, (void*)newText.c_str(), newLength * sizeof(char));
+		text[newLength] = '\0';
+	}
+
+	void TextObject::setText(const char* newText, size_t newTextSize)
+	{
+		size_t newLength = newTextSize;
+		if (newLength == 0)
+		{
+			newLength = std::strlen(newText);
+		}
+
+		text = (char*)g_memory_realloc(text, sizeof(char) * (newLength + 1));
+		textLength = (int32_t)newLength;
+		g_memory_copyMem(text, (void*)newText, newLength * sizeof(char));
+		text[newLength] = '\0';
+	}
+
 	TextObject TextObject::deserialize(const nlohmann::json& j, uint32 version)
 	{
 		switch (version)

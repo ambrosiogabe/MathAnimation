@@ -22,6 +22,9 @@ namespace MathAnim
 		void reInit(AnimationManagerData* am, AnimObject* obj);
 		void free();
 
+		void setText(const std::string& newText);
+		void setText(const char* newText, size_t newTextSize = 0);
+
 		void serialize(nlohmann::json& j) const;
 		static TextObject deserialize(const nlohmann::json& j, uint32 version);
 

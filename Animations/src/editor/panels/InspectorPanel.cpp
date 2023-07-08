@@ -608,8 +608,6 @@ namespace MathAnim
 
 		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object)
 		{
-			bool shouldRegenerate = false;
-
 			const std::vector<std::string>& fonts = Platform::getAvailableFonts();
 			int fontIndex = -1;
 			if (object->as.textObject.font != nullptr)
@@ -681,19 +679,27 @@ namespace MathAnim
 			}
 			g_memory_copyMem(scratch, object->as.textObject.text, object->as.textObject.textLength * sizeof(char));
 			scratch[object->as.textObject.textLength] = '\0';
-			if (ImGui::InputTextMultiline(": Text", scratch, scratchLength * sizeof(char)))
+			if (auto res = ImGuiExtended::InputTextMultilineEx(": Text##TextObject", scratch, scratchLength * sizeof(char));
+				res.editState != EditState::NotEditing)
 			{
-				size_t newLength = std::strlen(scratch);
-				object->as.textObject.text = (char*)g_memory_realloc(object->as.textObject.text, sizeof(char) * (newLength + 1));
-				object->as.textObject.textLength = (int32_t)newLength;
-				g_memory_copyMem(object->as.textObject.text, scratch, newLength * sizeof(char));
-				object->as.textObject.text[newLength] = '\0';
-				shouldRegenerate = true;
-			}
-
-			if (shouldRegenerate)
-			{
-				object->as.textObject.reInit(am, object);
+				if (res.editState == EditState::FinishedEditing)
+				{
+					UndoSystem::setStringProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						scratch,
+						StringPropType::TextObjectText
+					);
+				}
+				else
+				{
+					if (strcmp(scratch, object->as.textObject.text) != 0)
+					{
+						object->as.textObject.setText(scratch);
+						object->as.textObject.reInit(am, object);
+					}
+				}
 			}
 		}
 

@@ -24,6 +24,7 @@ namespace MathAnim
 	enum class StringPropType : uint8
 	{
 		Name = 0,
+		TextObjectText,
 	};
 
 	enum class FloatPropType : uint8

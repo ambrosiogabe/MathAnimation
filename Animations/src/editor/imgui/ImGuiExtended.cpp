@@ -141,6 +141,7 @@ namespace MathAnim
 		static ImGuiStateEx<float> dragFloatData;
 		static ImGuiStateEx<Vec3> dragFloat3Data;
 		static ImGuiStateEx<std::string> inputTextData;
+		static ImGuiStateEx<std::string> inputTextMultilineData;
 
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size)
 		{
@@ -730,6 +731,28 @@ namespace MathAnim
 				[&]()
 				{
 					return InputText(label, buf, buf_size, flags, callback, user_data);
+				});
+		}
+
+		EditState InputTextMultiline(const char* label, char* buf, size_t buf_size, const ImVec2& size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+		{
+			std::string fullLabel = label + std::string("##InputTextMultiline");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::InputTextMultiline(label, buf, buf_size, size, flags, callback, user_data);
+				});
+		}
+
+		ImGuiDataEx<std::string> InputTextMultilineEx(const char* label, char* buf, size_t buf_size, const ImVec2& size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+		{
+			return inputTextData.undoableImGuiFunctionEx(
+				label,
+				buf,
+				[&]()
+				{
+					return InputTextMultiline(label, buf, buf_size, size, flags, callback, user_data);
 				});
 		}
 
