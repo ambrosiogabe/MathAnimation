@@ -449,18 +449,40 @@ namespace MathAnim
 			switch (propType)
 			{
 			case EnumPropType::EaseType:
-				g_logger_assert((int)this->newEnum >= 0 && (int)this->newEnum < (int)EaseType::Length, "How did this happen?");
+				g_logger_assert(this->newEnum >= 0 && this->newEnum < (int)EaseType::Length, "How did this happen?");
 				anim->easeType = (EaseType)this->newEnum;
 				break;
 			case EnumPropType::EaseDirection:
-				g_logger_assert((int)this->newEnum >= 0 && (int)this->newEnum < (int)EaseDirection::Length, "How did this happen?");
+				g_logger_assert(this->newEnum >= 0 && this->newEnum < (int)EaseDirection::Length, "How did this happen?");
 				anim->easeDirection = (EaseDirection)this->newEnum;
 				break;
 			case EnumPropType::PlaybackType:
-				g_logger_assert((int)this->newEnum >= 0 && (int)this->newEnum < (int)PlaybackType::Length, "How did this happen?");
+				g_logger_assert(this->newEnum >= 0 && this->newEnum < (int)PlaybackType::Length, "How did this happen?");
 				anim->playbackType = (PlaybackType)this->newEnum;
 				break;
+			case EnumPropType::HighlighterLanguage:
+				break;
 			}
+		}
+
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->id);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case EnumPropType::HighlighterLanguage:
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
+				g_logger_assert(newEnum >= 0 && newEnum < (int)HighlighterLanguage::Length, "How did this happen?");
+				obj->as.codeBlock.language = (HighlighterLanguage)newEnum;
+				obj->as.codeBlock.reInit(am, obj);
+				break;
+			case EnumPropType::EaseType:
+			case EnumPropType::EaseDirection:
+			case EnumPropType::PlaybackType:
+				break;
+			}
+
+			AnimationManager::updateObjectState(am, id);
 		}
 	}
 
@@ -480,7 +502,28 @@ namespace MathAnim
 			case EnumPropType::PlaybackType:
 				anim->playbackType = (PlaybackType)this->oldEnum;
 				break;
+			case EnumPropType::HighlighterLanguage:
+				break;
 			}
+		}
+
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->id);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case EnumPropType::HighlighterLanguage:
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
+				obj->as.codeBlock.language = (HighlighterLanguage)oldEnum;
+				obj->as.codeBlock.reInit(am, obj);
+				break;
+			case EnumPropType::EaseType:
+			case EnumPropType::EaseDirection:
+			case EnumPropType::PlaybackType:
+				break;
+			}
+
+			AnimationManager::updateObjectState(am, id);
 		}
 	}
 
@@ -595,11 +638,9 @@ namespace MathAnim
 				obj->setName(this->newString.c_str(), this->newString.length());
 				break;
 			case StringPropType::TextObjectText:
-				if (obj->objectType == AnimObjectTypeV1::TextObject)
-				{
-					obj->as.textObject.setText(newString);
-					obj->as.textObject.reInit(am, obj);
-				}
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::TextObject, "How did this happen?");
+				obj->as.textObject.setText(newString);
+				obj->as.textObject.reInit(am, obj);
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
@@ -617,11 +658,9 @@ namespace MathAnim
 				obj->setName(this->oldString.c_str(), this->oldString.length());
 				break;
 			case StringPropType::TextObjectText:
-				if (obj->objectType == AnimObjectTypeV1::TextObject)
-				{
-					obj->as.textObject.setText(oldString);
-					obj->as.textObject.reInit(am, obj);
-				}
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::TextObject, "How did this happen?");
+				obj->as.textObject.setText(oldString);
+				obj->as.textObject.reInit(am, obj);
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
@@ -639,6 +678,8 @@ namespace MathAnim
 			}
 			object->as.textObject.font = Fonts::loadFont(newFont.c_str());
 			object->as.textObject.reInit(am, object);
+
+			AnimationManager::updateObjectState(am, objId);
 		}
 	}
 
@@ -653,6 +694,8 @@ namespace MathAnim
 			}
 			object->as.textObject.font = Fonts::loadFont(oldFont.c_str());
 			object->as.textObject.reInit(am, object);
+
+			AnimationManager::updateObjectState(am, objId);
 		}
 	}
 

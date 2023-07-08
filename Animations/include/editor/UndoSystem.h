@@ -38,6 +38,7 @@ namespace MathAnim
 		EaseType = 0,
 		EaseDirection,
 		PlaybackType,
+		HighlighterLanguage,
 	};
 
 	namespace UndoSystem

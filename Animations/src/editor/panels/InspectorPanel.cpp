@@ -716,11 +716,16 @@ namespace MathAnim
 			}
 
 			int currentLang = (int)object->as.codeBlock.language - 1;
-			if (ImGui::Combo(": Language", &currentLang, _highlighterLanguageNames.data() + 1, (int)HighlighterLanguage::Length - 1))
+			if (auto res = ImGuiExtended::ComboEx(": Language", &currentLang, _highlighterLanguageNames.data() + 1, (int)HighlighterLanguage::Length - 1);
+				res.editState == EditState::FinishedEditing)
 			{
-				g_logger_assert(currentLang >= 0 && currentLang < (int)HighlighterLanguage::Length - 1, "How did this happen?");
-				object->as.codeBlock.language = (HighlighterLanguage)(currentLang + 1);
-				shouldRegenerate = true;
+				UndoSystem::setEnumProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData + 1,
+					currentLang + 1,
+					EnumPropType::HighlighterLanguage
+				);
 			}
 
 			int currentTheme = (int)object->as.codeBlock.theme - 1;
