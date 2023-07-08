@@ -137,6 +137,7 @@ namespace MathAnim
 
 		// ------------ Extra State Vars ------------
 		static ImGuiStateEx<glm::u8vec4> colorEditU84Data;
+		static ImGuiStateEx<int> comboData;
 		static ImGuiStateEx<float> dragFloatData;
 		static ImGuiStateEx<Vec3> dragFloat3Data;
 		static ImGuiStateEx<std::string> inputTextData;
@@ -772,6 +773,25 @@ namespace MathAnim
 				[&]()
 				{
 					return DragFloat3(label, vec3, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		EditState Combo(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items)
+		{
+			std::string fullLabel = label + std::string("##Combo");
+			return ImGui::Combo(label, current_item, items, items_count, popup_max_height_in_items)
+				? EditState::FinishedEditing
+				: EditState::NotEditing;
+		}
+
+		ImGuiDataEx<int> ComboEx(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items)
+		{
+			return comboData.undoableImGuiFunctionEx(
+				label,
+				*current_item,
+				[&]()
+				{
+					return Combo(label, current_item, items, items_count, popup_max_height_in_items);
 				});
 		}
 

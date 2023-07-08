@@ -50,6 +50,24 @@ namespace MathAnim
 		U8Vec4PropType propType;
 	};
 
+	class ModifyEnumCommand : public Command
+	{
+	public:
+		ModifyEnumCommand(AnimObjId id, int oldEnum, int newEnum, EnumPropType propType)
+			: id(id), oldEnum(oldEnum), newEnum(newEnum), propType(propType)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId id;
+		int oldEnum;
+		int newEnum;
+		EnumPropType propType;
+	};
+
 	class ModifyFloatCommand : public Command
 	{
 	public:
@@ -208,6 +226,13 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
+		void setEnumProp(UndoSystemData* us, AnimObjId id, int oldEnum, int newEnum, EnumPropType propType)
+		{
+			auto* newCommand = (ModifyEnumCommand*)g_memory_allocate(sizeof(ModifyEnumCommand));
+			new(newCommand)ModifyEnumCommand(id, oldEnum, newEnum, propType);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
 		void setFloatProp(UndoSystemData* us, AnimObjId objId, float oldValue, float newValue, FloatPropType propType)
 		{
 			auto* newCommand = (ModifyFloatCommand*)g_memory_allocate(sizeof(ModifyFloatCommand));
@@ -319,6 +344,49 @@ namespace MathAnim
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyEnumCommand::execute(AnimationManagerData* const am)
+	{
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->id);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case EnumPropType::EaseType:
+				g_logger_assert((int)this->newEnum >= 0 && (int)this->newEnum < (int)EaseType::Length, "How did this happen?");
+				anim->easeType = (EaseType)this->newEnum;
+				break;
+			case EnumPropType::EaseDirection:
+				g_logger_assert((int)this->newEnum >= 0 && (int)this->newEnum < (int)EaseDirection::Length, "How did this happen?");
+				anim->easeDirection = (EaseDirection)this->newEnum;
+				break;
+			case EnumPropType::PlaybackType:
+				g_logger_assert((int)this->newEnum >= 0 && (int)this->newEnum < (int)PlaybackType::Length, "How did this happen?");
+				anim->playbackType = (PlaybackType)this->newEnum;
+				break;
+			}
+		}
+	}
+
+	void ModifyEnumCommand::undo(AnimationManagerData* const am)
+	{
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->id);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case EnumPropType::EaseType:
+				anim->easeType = (EaseType)this->oldEnum;
+				break;
+			case EnumPropType::EaseDirection:
+				anim->easeDirection = (EaseDirection)this->oldEnum;
+				break;
+			case EnumPropType::PlaybackType:
+				anim->playbackType = (PlaybackType)this->oldEnum;
+				break;
+			}
 		}
 	}
 

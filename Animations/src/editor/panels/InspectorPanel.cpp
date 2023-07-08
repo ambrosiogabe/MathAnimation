@@ -431,24 +431,42 @@ namespace MathAnim
 			if (ImGui::CollapsingHeader(animPropsComponentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				int currentType = (int)(animation->easeType) - 1;
-				if (ImGui::Combo(": Ease Type", &currentType, &easeTypeNames[1], (int)EaseType::Length - 1))
+				if (auto res = ImGuiExtended::ComboEx(": Ease Type", &currentType, &easeTypeNames[1], (int)EaseType::Length - 1);
+					res.editState == EditState::FinishedEditing)
 				{
-					g_logger_assert(currentType >= 0 && currentType + 1 < (int)EaseType::Length, "How did this happen?");
-					animation->easeType = (EaseType)(currentType + 1);
+					UndoSystem::setEnumProp(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData + 1,
+						currentType + 1,
+						EnumPropType::EaseType
+					);
 				}
 
 				int currentDirection = (int)(animation->easeDirection) - 1;
-				if (ImGui::Combo(": Ease Direction", &currentDirection, &easeDirectionNames[1], (int)EaseDirection::Length - 1))
+				if (auto res = ImGuiExtended::ComboEx(": Ease Direction", &currentDirection, &easeDirectionNames[1], (int)EaseDirection::Length - 1);
+					res.editState == EditState::FinishedEditing)
 				{
-					g_logger_assert(currentDirection >= 0 && currentDirection + 1 < (int)EaseDirection::Length, "How did this happen?");
-					animation->easeDirection = (EaseDirection)(currentDirection + 1);
+					UndoSystem::setEnumProp(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData + 1,
+						currentDirection + 1,
+						EnumPropType::EaseDirection
+					);
 				}
 
 				int currentPlaybackType = (int)(animation->playbackType) - 1;
-				if (ImGui::Combo(": Playback Type", &currentPlaybackType, &_playbackTypeNames[1], (int)PlaybackType::Length - 1))
+				if (auto res = ImGuiExtended::ComboEx(": Playback Type", &currentPlaybackType, &_playbackTypeNames[1], (int)PlaybackType::Length - 1);
+					res.editState == EditState::FinishedEditing)
 				{
-					g_logger_assert(currentPlaybackType >= 0 && currentPlaybackType + 1 < (int)PlaybackType::Length, "How did this happen?");
-					animation->playbackType = (PlaybackType)(currentPlaybackType + 1);
+					UndoSystem::setEnumProp(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData + 1,
+						currentPlaybackType + 1,
+						EnumPropType::PlaybackType
+					);
 				}
 
 				ImGui::BeginDisabled(animation->playbackType == PlaybackType::Synchronous);
