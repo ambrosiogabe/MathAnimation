@@ -6,9 +6,6 @@
 
 namespace MathAnim
 {
-	// --------------- Internal Functions ---------------
-	static HighlightSegment getSegmentFrom(size_t startIndex, size_t endIndex, const TokenRule& setting);
-
 	SyntaxHighlighter::SyntaxHighlighter(const std::filesystem::path& grammar)
 	{
 		this->grammar = Grammar::importGrammar(grammar.string().c_str());
@@ -45,19 +42,42 @@ namespace MathAnim
 			if (!grammarTree.tree[child].scope)
 			{
 				std::vector<ScopedName> ancestorScopes = grammarTree.getAllAncestorScopes(child);
-				const TokenRule* rule = theme.match(ancestorScopes);
-				g_logger_assert(rule != nullptr, "Something bad happened. TokenRule* should never return nullptr, no default rule is set for this theme.");
-				
+				const ThemeSetting* setting = theme.match(ancestorScopes, ThemeSettingType::ForegroundColor);
+
+				Vec4 settingForeground = Vec4{ 1, 1, 1, 1 };
+				if (setting)
+				{
+					g_logger_assert(setting->foregroundColor.has_value(), "Something bad happened here.");
+					settingForeground = setting->foregroundColor.value().color;
+				}
+
 				size_t absStart = highlightCursor;
 				size_t nodeSize = grammarTree.tree[child].sourceSpan.size;
-				res.segments.emplace_back(getSegmentFrom(absStart, absStart + nodeSize, *rule));
+
+				HighlightSegment segment = {};
+				segment.startPos = absStart;
+				segment.endPos = absStart + nodeSize;
+				segment.color = settingForeground;
+
+				res.segments.emplace_back(segment);
 				highlightCursor += nodeSize;
 			}
 		}
 
 		if (highlightCursor < code.length())
 		{
-			HighlightSegment finalSegment = getSegmentFrom(highlightCursor, code.length(), theme.defaultRule);
+			Vec4 settingColor = Vec4{ 1, 1, 1, 1 };
+			const ThemeSetting* setting = theme.defaultRule.getSetting(ThemeSettingType::ForegroundColor);
+			if (setting && setting->foregroundColor.has_value())
+			{
+				settingColor = setting->foregroundColor.value().color;
+			}
+
+			HighlightSegment finalSegment = {};
+			finalSegment.startPos = highlightCursor;
+			finalSegment.endPos = code.length();
+			finalSegment.color = settingColor;
+
 			res.segments.emplace_back(finalSegment);
 		}
 
@@ -140,30 +160,5 @@ namespace MathAnim
 			}
 			themes.clear();
 		}
-	}
-
-	// --------------- Internal Functions ---------------
-	static HighlightSegment getSegmentFrom(size_t startIndex, size_t endIndex, const TokenRule& rule)
-	{
-		HighlightSegment segment = {};
-		segment.startPos = startIndex;
-		segment.endPos = endIndex;
-
-		for (const ThemeSetting& setting : rule.settings)
-		{
-			if (setting.type == ThemeSettingType::ForegroundColor)
-			{
-				if (setting.foregroundColor.has_value())
-				{
-					segment.color = setting.foregroundColor->color;
-				}
-				else
-				{
-					g_logger_warning("Something bad happened here...");
-				}
-			}
-		}
-
-		return segment;
 	}
 }

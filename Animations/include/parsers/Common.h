@@ -35,7 +35,7 @@ namespace MathAnim
 	{
 		std::vector<ScopedName> scopes;
 
-		bool matches(const std::vector<ScopedName>& ancestors, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const;
+		bool matches(const std::vector<ScopedName>& ancestors, int* scopeMatched, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const;
 	};
 
 	struct ScopeRuleCollection
@@ -43,7 +43,7 @@ namespace MathAnim
 		std::vector<ScopeRule> scopeRules;
 		std::string friendlyName;
 
-		bool matches(const std::vector<ScopedName>& ancestors, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const;
+		bool matches(const std::vector<ScopedName>& ancestors, int* ruleMatched, int* scopeMatched, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const;
 
 		static ScopeRuleCollection from(const std::string& str);
 	};

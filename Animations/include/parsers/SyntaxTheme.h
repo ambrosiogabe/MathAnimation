@@ -22,6 +22,16 @@ namespace MathAnim
 		std::string name;
 		std::vector<ScopeRuleCollection> scopeCollection;
 		std::vector<ThemeSetting> settings;
+
+		const ThemeSetting* getSetting(ThemeSettingType type) const;
+	};
+
+	struct TokenRuleMatch
+	{
+		const TokenRule* matchedRule;
+		std::string styleMatched;
+
+		inline const ThemeSetting* getSetting(ThemeSettingType type) const { return matchedRule ? matchedRule->getSetting(type) : nullptr; }
 	};
 
 	struct SyntaxTheme
@@ -31,7 +41,8 @@ namespace MathAnim
 		CssColor defaultBackground;
 		std::vector<TokenRule> tokenColors;
 
-		const TokenRule* match(const std::vector<ScopedName>& ancestorScopes) const;
+		TokenRuleMatch match(const std::vector<ScopedName>& ancestorScopes) const;
+		const ThemeSetting* match(const std::vector<ScopedName>& ancestorScopes, ThemeSettingType settingType) const;
 
 		static SyntaxTheme* importTheme(const char* filepath);
 		static void free(SyntaxTheme* theme);

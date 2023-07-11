@@ -13,6 +13,9 @@ namespace MathAnim
 	struct ScopeMatch
 	{
 		size_t ruleIndex;
+		int collectionMatched;
+		int ruleMatched;
+		int scopeMatched;
 		int maxDescendantMatched;
 		int levelMatched;
 		float levelMatchPercent;
@@ -23,7 +26,20 @@ namespace MathAnim
 	static SyntaxTheme* importThemeFromXml(const XMLDocument& document, const char* filepath);
 	static const XMLElement* getValue(const XMLElement* element, const std::string& keyName);
 
-	const TokenRule* SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
+	const ThemeSetting* TokenRule::getSetting(ThemeSettingType type) const
+	{
+		for (const ThemeSetting& setting : settings)
+		{
+			if (setting.type == type)
+			{
+				return &setting;
+			}
+		}
+
+		return nullptr;
+	}
+
+	TokenRuleMatch SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
 	{
 		// Pick the best rule according to the guide laid out here https://macromates.com/manual/en/scope_selectors
 		/*
@@ -48,10 +64,16 @@ namespace MathAnim
 				int descendantMatched = 0;
 				int levelMatched = 0;
 				float levelMatchPercent = 0.0f;
-				if (scopeRule.matches(ancestorScopes, &descendantMatched, &levelMatched, &levelMatchPercent))
+				int ruleMatched = 0;
+				int scopeMatched = 0;
+				if (scopeRule.matches(ancestorScopes, &ruleMatched, &scopeMatched , &descendantMatched, &levelMatched, &levelMatchPercent))
 				{
+					int collectionMatched = (int)scopeRuleIndex;
 					potentialMatches.push_back({
 						ruleIndex,
+						collectionMatched,
+						ruleMatched,
+						scopeMatched,
 						descendantMatched,
 						levelMatched,
 						levelMatchPercent
@@ -147,14 +169,41 @@ namespace MathAnim
 			}
 		}
 
-		g_logger_info("Found '{}' potential matches.", potentialMatches.size());
-
 		if (potentialMatches.size() > 0)
 		{
-			return &tokenColors[potentialMatches[0].ruleIndex];
+			const auto& match = potentialMatches[0];
+			const auto& tokenRuleMatch = tokenColors[match.ruleIndex];
+
+			const auto& matchedCollection = tokenRuleMatch.scopeCollection[match.collectionMatched];
+			const auto& matchedScopeRule = matchedCollection.scopeRules[match.ruleMatched];
+			const auto& matchedScope = matchedScopeRule.scopes[match.scopeMatched];
+			std::string matchedOnStr = "";
+			for (size_t i = 0; i < match.levelMatched; i++)
+			{
+				g_logger_assert(i < matchedScope.dotSeparatedScopes.size(), "How did that happen?");
+				matchedOnStr += matchedScope.dotSeparatedScopes[i];
+				if (i < match.levelMatched - 1)
+				{
+					matchedOnStr += ".";
+				}
+			}
+			
+			return {
+				&tokenRuleMatch,
+				matchedOnStr
+			};
 		}
 
-		return &defaultRule;
+		return {
+			nullptr,
+			""
+		};
+	}
+
+	const ThemeSetting* SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes, ThemeSettingType settingType) const
+	{
+		TokenRuleMatch matchedRule = match(ancestorScopes);
+		return matchedRule.getSetting(settingType);
 	}
 
 	SyntaxTheme* SyntaxTheme::importTheme(const char* filepathStr)

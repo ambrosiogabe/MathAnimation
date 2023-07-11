@@ -6,6 +6,7 @@ namespace MathAnim
 	{
 		*levelMatched = 0;
 
+		bool matched = true;
 		for (size_t index = 0; index < dotSeparatedScopes.size(); index++)
 		{
 			if (index >= other.dotSeparatedScopes.size())
@@ -14,6 +15,7 @@ namespace MathAnim
 			}
 			else if (dotSeparatedScopes[index] != other.dotSeparatedScopes[index])
 			{
+				matched = false;
 				break;
 			}
 
@@ -22,7 +24,7 @@ namespace MathAnim
 
 		*levelMatchPercent = (float)(*levelMatched) / (float)dotSeparatedScopes.size();
 
-		return (*levelMatched) > 0;
+		return matched;
 	}
 
 	std::string ScopedName::getFriendlyName() const
@@ -70,7 +72,7 @@ namespace MathAnim
 		return scope;
 	}
 
-	bool ScopeRule::matches(const std::vector<ScopedName>& ancestors, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const
+	bool ScopeRule::matches(const std::vector<ScopedName>& ancestors, int* scopeMatched, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const
 	{
 		*descendantMatched = 0;
 		*levelMatched = 0;
@@ -105,6 +107,7 @@ namespace MathAnim
 
 				// We matched as much as we could, which means this rule matches this ancestor hiearchy
 				// The deepest level we matched is i (0-indexed)
+				*scopeMatched = *descendantMatched - 1;
 				*descendantMatched = ((int)i + 1);
 				return true;
 			}
@@ -113,24 +116,28 @@ namespace MathAnim
 		return false;
 	}
 
-	bool ScopeRuleCollection::matches(const std::vector<ScopedName>& ancestors, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const
+	bool ScopeRuleCollection::matches(const std::vector<ScopedName>& ancestors, int* ruleMatched, int* scopeMatched, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const
 	{
 		bool matched = false;
 		int descendantMatchedLocal = 0;
 		int levelMatchedLocal = 0;
 		float levelMatchPercentLocal = 0.0f;
-		for (const auto& scopeRule : scopeRules)
+		int scopeMatchedLocal = 0;
+		for (size_t i = 0; i < scopeRules.size(); i++)
 		{
-			if (scopeRule.matches(ancestors, &descendantMatchedLocal, &levelMatchedLocal, &levelMatchPercentLocal))
+			const auto& scopeRule = scopeRules[i];
+			if (scopeRule.matches(ancestors, &scopeMatchedLocal, &descendantMatchedLocal, &levelMatchedLocal, &levelMatchPercentLocal))
 			{
 				if ((descendantMatchedLocal > *descendantMatched) ||
 					(descendantMatchedLocal == *descendantMatched && levelMatchPercentLocal > *levelMatchPercent) ||
 					(descendantMatchedLocal == *descendantMatched && levelMatchPercentLocal == *levelMatchPercent 
 						&& levelMatchedLocal > *levelMatched))
 				{
+					*scopeMatched = scopeMatchedLocal;
 					*descendantMatched = descendantMatchedLocal;
 					*levelMatched = levelMatchedLocal;
 					*levelMatchPercent = levelMatchPercentLocal;
+					*ruleMatched = (int)i;
 				}
 				matched = true;
 			}
