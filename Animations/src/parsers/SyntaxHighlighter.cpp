@@ -7,9 +7,7 @@
 namespace MathAnim
 {
 	// --------------- Internal Functions ---------------
-	size_t applyTheme(const GrammarMatch& match, size_t highlightCursor, const SyntaxTheme& theme, CodeHighlights& out, const TokenRule* parentRule);
 	static HighlightSegment getSegmentFrom(size_t startIndex, size_t endIndex, const TokenRule& setting);
-	static int printMatches(char* bufferPtr, size_t bufferSizeLeft, const GrammarMatch& match, const std::string& code, int level = 1);
 
 	SyntaxHighlighter::SyntaxHighlighter(const std::filesystem::path& grammar)
 	{
@@ -23,42 +21,27 @@ namespace MathAnim
 			return {};
 		}
 
-		std::vector<GrammarMatch> matches = {};
-		while (grammar->getNextMatch(code, &matches))
-		{
-		}
-
-		if (printDebugInfo)
-		{
-			constexpr size_t bufferSize = 1024 * 10;
-			char buffer[bufferSize] = "\0";
-			char* bufferPtr = buffer;
-			size_t bufferSizeLeft = bufferSize;
-			for (auto match : matches)
-			{
-				int numBytesWritten = printMatches(bufferPtr, bufferSizeLeft, match, code);
-				if (numBytesWritten > 0 && numBytesWritten < bufferSizeLeft)
-				{
-					bufferSizeLeft -= numBytesWritten;
-					bufferPtr += numBytesWritten;
-				}
-				else
-				{
-					break;
-				}
-			}
-
-			g_logger_info("Matches:\n{}", buffer);
-		}
-
+		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code, printDebugInfo);
 		CodeHighlights res = {};
 		res.codeBlock = code;
 
-		// Attempt to break up the matches into one set of well-defined highlight segments
+		// For each atom in our grammar tree, output a highlight segment with the
+		// appropriate style for that atom
 		size_t highlightCursor = 0;
-		for (size_t i = 0; i < matches.size(); i++)
+		for (size_t child = 0; child < grammarTree.tree.size(); child++)
 		{
-			highlightCursor = applyTheme(matches[i], highlightCursor, theme, res, nullptr);
+			// Any nodes without a scope are an ATOM node
+			if (!grammarTree.tree[child].scope)
+			{
+				std::vector<ScopedName> ancestorScopes = grammarTree.getAllAncestorScopes(child);
+				const TokenRule* rule = theme.match(ancestorScopes);
+				g_logger_assert(rule != nullptr, "Something bad happened. TokenRule* should never return nullptr, no default rule is set for this theme.");
+				
+				size_t absStart = highlightCursor;
+				size_t nodeSize = grammarTree.tree[child].sourceSpan.size;
+				res.segments.emplace_back(getSegmentFrom(absStart, absStart + nodeSize, *rule));
+				highlightCursor += nodeSize;
+			}
 		}
 
 		if (highlightCursor < code.length())
@@ -149,55 +132,6 @@ namespace MathAnim
 	}
 
 	// --------------- Internal Functions ---------------
-	size_t applyTheme(const GrammarMatch& match, size_t highlightCursor, const SyntaxTheme& theme, CodeHighlights& out, const TokenRule* parentRule)
-	{
-		if (highlightCursor > match.start)
-		{
-			g_logger_warning("Somehow two matches overlap...");
-			// Skip this if the matches intersect
-			return highlightCursor;
-		}
-
-		const TokenRule& defaultThemeRule = theme.defaultRule;
-		if (!parentRule)
-		{
-			parentRule = &defaultThemeRule;
-		}
-
-		if (highlightCursor < match.start)
-		{
-			// If no match covers this space, then just color this bit of text the parent's color
-			HighlightSegment segment = getSegmentFrom(highlightCursor, match.start, *parentRule);
-			out.segments.emplace_back(segment);
-			highlightCursor = match.start;
-		}
-
-		// First get this match's best color and default to parent's theme if this one doesn't
-		// have a best match
-		const TokenRule* myBestMatch = theme.match(match.scope);
-		if (!myBestMatch)
-		{
-			myBestMatch = parentRule;
-		}
-
-		// If this match has children, try to match the children to a style first
-		for (auto subMatch : match.subMatches)
-		{
-			size_t newCursor = applyTheme(subMatch, highlightCursor, theme, out, myBestMatch);
-			highlightCursor = newCursor;
-		}
-
-		// If the children didn't cover this entire highlight region, then cover the remaining region with the
-		// parent's best matched style
-		if (highlightCursor < match.end)
-		{
-			HighlightSegment segment = getSegmentFrom(highlightCursor, match.end, *myBestMatch);
-			out.segments.emplace_back(segment);
-		}
-
-		return match.end;
-	}
-
 	static HighlightSegment getSegmentFrom(size_t startIndex, size_t endIndex, const TokenRule& rule)
 	{
 		HighlightSegment segment = {};
@@ -210,7 +144,7 @@ namespace MathAnim
 			{
 				if (setting.foregroundColor.has_value())
 				{
-					segment.color = *setting.foregroundColor;
+					segment.color = setting.foregroundColor->color;
 				}
 				else
 				{
@@ -220,59 +154,5 @@ namespace MathAnim
 		}
 
 		return segment;
-	}
-
-	static int printMatches(char* bufferPtr, size_t bufferSizeLeft, const GrammarMatch& match, const std::string& code, int level)
-	{
-		int totalNumBytesWritten = 0;
-		std::string val = code.substr(match.start, (match.end - match.start)).c_str();
-		for (size_t i = 0; i < val.length(); i++)
-		{
-			if (val[i] == '\n')
-			{
-				val[i] = '\\';
-				val.insert(i + 1, "n");
-				i++;
-			}
-		}
-
-		int numBytesWritten;
-		if (level > 1)
-		{
-			numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "%*c'%s': '%s'\n", level * 2, ' ', match.scope.friendlyName.c_str(), val.c_str());
-		}
-		else
-		{
-			numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s': '%s'\n", match.scope.friendlyName.c_str(), val.c_str());
-		}
-
-		if (numBytesWritten > 0 && numBytesWritten < bufferSizeLeft)
-		{
-			bufferSizeLeft -= numBytesWritten;
-			bufferPtr += numBytesWritten;
-		}
-		else
-		{
-			return -1;
-		}
-
-		totalNumBytesWritten += numBytesWritten;
-
-		for (auto subMatch : match.subMatches)
-		{
-			numBytesWritten = printMatches(bufferPtr, bufferSizeLeft, subMatch, code, level + 1);
-			totalNumBytesWritten += numBytesWritten;
-			if (numBytesWritten > 0 && numBytesWritten < bufferSizeLeft)
-			{
-				bufferSizeLeft -= numBytesWritten;
-				bufferPtr += numBytesWritten;
-			}
-			else
-			{
-				return -1;
-			}
-		}
-
-		return totalNumBytesWritten;
 	}
 }

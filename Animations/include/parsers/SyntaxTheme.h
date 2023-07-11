@@ -1,6 +1,7 @@
 #ifndef MATH_ANIM_SYNTAX_THEME_H
 #define MATH_ANIM_SYNTAX_THEME_H
 #include "parsers/Common.h"
+#include "svg/Styles.h"
 
 namespace MathAnim
 {
@@ -13,24 +14,24 @@ namespace MathAnim
 	struct ThemeSetting
 	{
 		ThemeSettingType type;
-		std::optional<Vec4> foregroundColor;
+		std::optional<CssColor> foregroundColor;
 	};
 
 	struct TokenRule
 	{
 		std::string name;
-		std::vector<ScopeRule> scopes;
+		std::vector<ScopeRuleCollection> scopeCollection;
 		std::vector<ThemeSetting> settings;
 	};
 
 	struct SyntaxTheme
 	{
 		TokenRule defaultRule;
-		Vec4 defaultForeground;
-		Vec4 defaultBackground;
+		CssColor defaultForeground;
+		CssColor defaultBackground;
 		std::vector<TokenRule> tokenColors;
 
-		const TokenRule* match(const ScopeRule& scope) const;
+		const TokenRule* match(const std::vector<ScopedName>& ancestorScopes) const;
 
 		static SyntaxTheme* importTheme(const char* filepath);
 		static void free(SyntaxTheme* theme);

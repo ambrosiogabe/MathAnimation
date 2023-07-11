@@ -39,7 +39,7 @@ namespace MathAnim
 
 			if (val.contains("name"))
 			{
-				ScopeRule scope = ScopeRule::from(val["name"]);
+				ScopedName scope = ScopedName::from(val["name"]);
 				Capture cap = {};
 				cap.index = captureNumber;
 				cap.scope = scope;
@@ -107,7 +107,7 @@ namespace MathAnim
 			GrammarMatch eof;
 			eof.start = str.length();
 			eof.end = str.length();
-			eof.scope = ScopeRule::from("EOF_NO_END_MATCH");
+			eof.scope = ScopedName::from("source.ERROR_EOF_NO_CLOSING_MATCH");
 
 			// If there was no end group matched, then automatically use the end of the file as the end block
 			// which is specified in the rules for textmates
@@ -258,12 +258,334 @@ namespace MathAnim
 		}
 	}
 
+	void SourceGrammarTree::insertNode(const SourceGrammarTreeNode& node, size_t sourceSpanOffset)
+	{
+		size_t nodeAbsStart = node.sourceSpan.relativeStart + sourceSpanOffset;
+		size_t nodeAbsEnd = nodeAbsStart + node.sourceSpan.size;
+
+		// Assume that we won't find a place to insert this node
+		size_t insertIndex = this->tree.size();
+		size_t parentDelta = 0;
+		for (size_t i = 0; i < this->tree.size();)
+		{
+			size_t absoluteOffset = 0;
+			{
+				size_t parentIndex = i;
+				while (parentIndex != 0)
+				{
+					parentIndex = parentIndex - tree[parentIndex].parentDelta;
+					absoluteOffset += tree[parentIndex].sourceSpan.relativeStart;
+				}
+			}
+
+			const SourceGrammarTreeNode& currentNode = this->tree[i];
+			size_t currentNodeAbsStart = currentNode.sourceSpan.relativeStart + absoluteOffset;
+			size_t currentNodeAbsEnd = currentNodeAbsStart + currentNode.sourceSpan.size;
+			if (nodeAbsStart >= currentNodeAbsStart && nodeAbsEnd <= currentNodeAbsEnd)
+			{
+				// The node we're inserting will be a child of the current node
+				insertIndex = i + 1;
+				i += 1;
+				parentDelta = 1;
+
+				absoluteOffset += currentNode.sourceSpan.relativeStart;
+			}
+			else if (nodeAbsStart < currentNodeAbsStart)
+			{
+				// The current node starts after our node, so we'll break now
+				// insert the new node and update the surrounding nodes
+				break;
+			}
+			else
+			{
+				// The node is a sibling of the current node
+				insertIndex = i + currentNode.nextNodeDelta;
+				i += currentNode.nextNodeDelta;
+				parentDelta += currentNode.nextNodeDelta;
+			}
+		}
+
+		// Insert the node
+		{
+			SourceGrammarTreeNode nodeToInsert = node;
+			nodeToInsert.parentDelta = parentDelta;
+			tree.insert(tree.begin() + insertIndex, nodeToInsert);
+		}
+
+		// Update the new node's relative offset
+		{
+			size_t parentAbsOffset = 0;
+			size_t parentIndex = insertIndex;
+			while (parentIndex != 0)
+			{
+				parentIndex = parentIndex - tree[parentIndex].parentDelta;
+				parentAbsOffset += tree[parentIndex].sourceSpan.relativeStart;
+			}
+
+			g_logger_assert(nodeAbsStart >= parentAbsOffset, "This should never happen...?");
+			tree[insertIndex].sourceSpan.relativeStart = nodeAbsStart - parentAbsOffset;
+		}
+
+		// Update siblings
+		{
+			size_t nodeToInsertParentIndex = insertIndex - tree[insertIndex].parentDelta;
+			size_t firstSiblingIndex = insertIndex + tree[insertIndex].nextNodeDelta;
+			for (size_t i = firstSiblingIndex; i < tree.size();)
+			{
+				size_t thisNodesParentIndex = i - (tree[i].parentDelta + tree[insertIndex].nextNodeDelta);
+				if (thisNodesParentIndex != nodeToInsertParentIndex)
+				{
+					// This means we've traversed all siblings and don't need to update anything else
+					// so we can break out of the loop
+					break;
+				}
+
+				tree[i].parentDelta += tree[insertIndex].nextNodeDelta;
+				i += tree[i].nextNodeDelta;
+			}
+		}
+
+		// Update parents next node deltas
+		{
+			size_t parentIndex = insertIndex;
+			while (parentIndex != 0)
+			{
+				parentIndex = parentIndex - tree[parentIndex].parentDelta;
+				tree[parentIndex].nextNodeDelta += tree[insertIndex].nextNodeDelta;
+			}
+		}
+	}
+
+	std::vector<ScopedName> SourceGrammarTree::getAllAncestorScopes(size_t node) const
+	{
+		std::vector<ScopedName> ancestorScopes = {};
+		if (tree[node].scope)
+		{
+			ancestorScopes.push_back(*tree[node].scope);
+		}
+
+		size_t parentIndex = node;
+		while (parentIndex != 0 && parentIndex >= tree[parentIndex].parentDelta)
+		{
+			parentIndex = parentIndex - tree[parentIndex].parentDelta;
+			if (tree[parentIndex].scope)
+			{
+				ancestorScopes.insert(ancestorScopes.begin(), *tree[parentIndex].scope);
+			}
+		}
+
+		return ancestorScopes;
+	}
+
+	// For the source code looking like this (and the rules defined here https://macromates.com/blog/2005/introduction-to-scopes/#htmlxml-analogy):
+	// 
+	//   `char const* str = "Hello world\n";`
+	// 
+	// The resulting tree would look like this:
+	// 
+	// 0: c_source { next: 18, parent: 0, start: 0, size: 34 },
+	//    1: storage: { next: 2, parent: -1, start: 0, size: 4 },
+	//       2: ATOM: { next: 1, parent: -1, start: 0, size: 4 },         `char`
+	//    3: ATOM: { next: 1, parent: -3, start: 4, size: 1 },            ` `
+	//    4: modifier: { next: 2, parent: -4, start: 5, size: 5 },
+	//       5: ATOM: { next: 1, parent: -1, start: 0, size: 5 },         `const`
+	//    6: operator: { next: 2, parent: -6, start: 10, size: 1 },
+	//       7: ATOM: { next: 1, parent: -1, start: 0, size: 1 },         `*`
+	//    8: ATOM: { next: 1, parent: -8, start: 11, size: 5 },           ` str `
+	//    9: operator: { next: 2, parent: -9, start: 16, size: 1 },
+	//       10: ATOM: { next: 1, parent: -1, start: 0, size: 1 },        `=`
+	//    11: ATOM: { next: 1, parent: -11, start: 17, size: 1 },         ` `
+	//    12: string: { next: 5, parent: -12, start: 18, size: 15 },
+	//       13: ATOM: { next: 1, parent: -1, start: 0, size: 12 },       `"Hello world`
+	//       14: constant: { next: 2, parent: -2, start: 12, size: 2 },
+	//          15: ATOM: { next: 1, parent: -1, start: 0, size: 2 },     `\n`
+	//       16: ATOM: { next: 1, parent: -4, start: 14, size: 1 },       `"`
+	//    17: ATOM: { next: 1, parent: -17, start: 33, size: 1 },         `;`
+	// 18: END
+
+	static size_t addMatchesToTree(SourceGrammarTree& tree, const std::vector<GrammarMatch>& matches, size_t cursorIndex)
+	{
+		for (const auto& match : matches)
+		{
+			// Construct a grammar tree node and insert it into our tree
+			SourceGrammarTreeNode newNode = {};
+			newNode.sourceSpan.relativeStart = 0;
+			newNode.sourceSpan.size = match.end - match.start;
+			newNode.nextNodeDelta = 1;
+			newNode.scope = match.scope;
+
+			tree.insertNode(newNode, match.start);
+
+			if (match.subMatches.size() > 0)
+			{
+				// Recursively add sub-matches
+				cursorIndex = addMatchesToTree(tree, match.subMatches, cursorIndex);
+			}
+			else
+			{
+				if (cursorIndex < match.start)
+				{
+					// Fill in the gap
+					SourceGrammarTreeNode gapNode = {};
+					gapNode.sourceSpan.relativeStart = 0;
+					gapNode.sourceSpan.size = match.start - cursorIndex;
+					gapNode.nextNodeDelta = 1;
+					gapNode.scope = std::nullopt;
+					tree.insertNode(gapNode, cursorIndex);
+					cursorIndex += gapNode.sourceSpan.size;
+				}
+
+				// Insert an atomic node as a child of the current node
+				SourceGrammarTreeNode atomicNode = {};
+				atomicNode.sourceSpan = newNode.sourceSpan;
+				atomicNode.nextNodeDelta = 1;
+				atomicNode.scope = std::nullopt;
+				tree.insertNode(atomicNode, cursorIndex);
+				cursorIndex += atomicNode.sourceSpan.size;
+			}
+		}
+
+		return cursorIndex;
+	}
+
+	// NOTE: This is for debugging the syntax highligher
+	static void printTree(const SourceGrammarTree& tree)
+	{
+		constexpr size_t bufferSize = 1024 * 10;
+		static char buffer[bufferSize];
+
+		char* bufferPtr = buffer;
+		size_t bufferSizeLeft = bufferSize;
+		size_t indentationLevel = 0;
+		for (size_t i = 0; i < tree.tree.size(); i++)
+		{
+			if (tree.tree[i].parentDelta == 1)
+			{
+				// We've gone down a level
+				indentationLevel++;
+			}
+
+			for (size_t indent = 0; indent < indentationLevel; indent++)
+			{
+				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "  ");
+				bufferPtr += numBytesWritten;
+				bufferSizeLeft -= numBytesWritten;
+			}
+
+			const std::optional<ScopedName>& scope = tree.tree[i].scope;
+			if (scope)
+			{
+				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s': ", scope->getFriendlyName().c_str());
+				bufferPtr += numBytesWritten;
+				bufferSizeLeft -= numBytesWritten;
+			}
+			else
+			{
+				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'ATOM': ");
+				bufferPtr += numBytesWritten;
+				bufferSizeLeft -= numBytesWritten;
+			}
+
+			{
+				if (scope)
+				{
+					std::string offsetVal =
+						std::string("<")
+						+ std::to_string(tree.tree[i].sourceSpan.relativeStart)
+						+ ", "
+						+ std::to_string(tree.tree[i].sourceSpan.size)
+						+ ">";
+					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s'\n", offsetVal.c_str());
+					bufferPtr += numBytesWritten;
+					bufferSizeLeft -= numBytesWritten;
+				}
+				else
+				{
+					// Only print atoms
+					size_t absStart = tree.tree[i].sourceSpan.relativeStart;
+					size_t parentIndex = i;
+					while (parentIndex != 0)
+					{
+						parentIndex = parentIndex - tree.tree[parentIndex].parentDelta;
+						absStart += tree.tree[parentIndex].sourceSpan.relativeStart;
+					}
+
+					std::string val = tree.codeBlock.substr(absStart, tree.tree[i].sourceSpan.size);
+					for (size_t cIndex = 0; cIndex < val.length(); cIndex++)
+					{
+						if (val[cIndex] == '\n')
+						{
+							val[cIndex] = '\\';
+							val.insert(cIndex + 1, "n");
+							cIndex++;
+						}
+					}
+					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s'\n", val.c_str());
+					bufferPtr += numBytesWritten;
+					bufferSizeLeft -= numBytesWritten;
+				}
+			}
+
+			// If next node's parent is < our parent then we're going up 1 or more levels
+			if (i + 1 < tree.tree.size())
+			{
+				const SourceGrammarTreeNode& nextNode = tree.tree[i + 1];
+				size_t nextNodesParentIndex = (i + 1) - nextNode.parentDelta;
+				size_t thisNodesParentIndex = i - tree.tree[i].parentDelta;
+				while (nextNodesParentIndex < thisNodesParentIndex && indentationLevel > 0)
+				{
+					// We're going up a level
+					indentationLevel--;
+					thisNodesParentIndex = thisNodesParentIndex - tree.tree[thisNodesParentIndex].parentDelta;
+				}
+			}
+		}
+
+		g_logger_info("SourceGrammarTree:\n{}", buffer);
+	}
+
+	SourceGrammarTree Grammar::parseCodeBlock(const std::string& code, bool printDebugStuff) const
+	{
+		std::vector<GrammarMatch> matches = {};
+		while (this->getNextMatch(code, &matches))
+		{
+		}
+
+		SourceGrammarTree res{};
+		res.rootScope = this->scope;
+		res.codeBlock = code;
+
+		// Construct and insert the root node which will cover all the source code
+		{
+			SourceGrammarTreeNode rootNode = {};
+			rootNode.parentDelta = 0;
+			rootNode.nextNodeDelta = 1;
+			rootNode.scope = this->scope;
+			rootNode.sourceSpan.relativeStart = 0;
+			rootNode.sourceSpan.size = code.length();
+
+			res.insertNode(rootNode, 0);
+		}
+
+		addMatchesToTree(res, matches, 0);
+
+		if (printDebugStuff)
+		{
+			printTree(res);
+		}
+
+		return res;
+	}
+
 	bool Grammar::getNextMatch(const std::string& code, std::vector<GrammarMatch>* outMatches) const
 	{
 		size_t start = 0;
-		if (outMatches->size() > 0)
+		for (size_t i = 0; i < outMatches->size(); i++)
 		{
-			start = (*outMatches)[outMatches->size() - 1].end;
+			if ((*outMatches)[i].end > start)
+			{
+				start = (*outMatches)[i].end;
+			}
 		}
 
 		size_t lineEnd = start;
@@ -366,7 +688,7 @@ namespace MathAnim
 		if (j.contains("scopeName"))
 		{
 			const std::string& scope = j["scopeName"];
-			res->scope = ScopeRule::from(scope);
+			res->scope = ScopedName::from(scope);
 		}
 
 		res->repository = {};
@@ -426,7 +748,7 @@ namespace MathAnim
 
 			if (json.contains("name"))
 			{
-				p.scope = ScopeRule::from(json["name"]);
+				p.scope = ScopedName::from(json["name"]);
 			}
 			else
 			{
@@ -463,7 +785,7 @@ namespace MathAnim
 
 			if (json.contains("name"))
 			{
-				c.scope = ScopeRule::from(json["name"]);
+				c.scope = ScopedName::from(json["name"]);
 			}
 			else
 			{
@@ -595,7 +917,7 @@ namespace MathAnim
 					GrammarMatch match = {};
 					match.start = (size_t)region->beg[0];
 					match.end = (size_t)region->end[0];
-					match.scope = ScopeRule::from("FIRST_MATCH");
+					match.scope = ScopedName::from("source.FIRST_MATCH");
 					res = match;
 				}
 			}

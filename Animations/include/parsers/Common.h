@@ -15,17 +15,37 @@ namespace MathAnim
 	{
 		std::vector<std::string> dotSeparatedScopes;
 
-		bool contains(const ScopedName& other, int* levelMatched) const;
+		bool matches(const ScopedName& other, int* levelMatched, float* levelMatchPercent) const;
+		std::string getFriendlyName() const;
+
+		static ScopedName from(const std::string& string);
 	};
 
+	// Information on how scopes work here https://macromates.com/manual/en/scope_selectors
+	// 
+	// "string" matches anything starting with "string"
+	//   Examples: "string.quoted.double.cpp" "string.quoted" "string"
+	//             are all valid matches for the selector "string"
+	//
+	// An empty scope matches all scopes, but has the lowest ranking.
+	//
+	// Descendants also work like CSS descendants. See the link above for more info.
+	
 	struct ScopeRule
 	{
 		std::vector<ScopedName> scopes;
+
+		bool matches(const std::vector<ScopedName>& ancestors, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const;
+	};
+
+	struct ScopeRuleCollection
+	{
+		std::vector<ScopeRule> scopeRules;
 		std::string friendlyName;
 
-		bool contains(const ScopeRule& other, int* levelMatched) const;
+		bool matches(const std::vector<ScopedName>& ancestors, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const;
 
-		static ScopeRule from(const std::string& str);
+		static ScopeRuleCollection from(const std::string& str);
 	};
 
 	namespace Parser

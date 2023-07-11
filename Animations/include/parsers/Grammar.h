@@ -14,7 +14,7 @@ namespace MathAnim
 	struct Capture
 	{
 		size_t index;
-		ScopeRule scope;
+		ScopedName scope;
 	};
 
 	struct CaptureList
@@ -27,7 +27,7 @@ namespace MathAnim
 
 	struct SimpleSyntaxPattern
 	{
-		std::optional<ScopeRule> scope;
+		std::optional<ScopedName> scope;
 		regex_t* regMatch;
 		std::optional<CaptureList> captures;
 
@@ -39,7 +39,7 @@ namespace MathAnim
 	struct SyntaxPattern; // Forward declare since this is a recursive type
 	struct ComplexSyntaxPattern
 	{
-		std::optional<ScopeRule> scope;
+		std::optional<ScopedName> scope;
 		regex_t* begin;
 		regex_t* end;
 		std::optional<CaptureList> beginCaptures;
@@ -89,8 +89,38 @@ namespace MathAnim
 	{
 		size_t start;
 		size_t end;
-		ScopeRule scope;
+		ScopedName scope;
 		std::vector<GrammarMatch> subMatches;
+	};
+
+	// Data for source grammar trees
+	struct Span
+	{
+		size_t relativeStart;
+		size_t size;
+	};
+
+	struct SourceGrammarTreeNode
+	{
+		size_t nextNodeDelta;
+		size_t parentDelta;
+		Span sourceSpan;
+		// If no scope rule is specified, then this is a leaf node and represents an atomic
+		// value. So this would be representative of direct text that gets highlighted.
+		std::optional<ScopedName> scope;
+	};
+
+	// This corresponds to the tree represented here: https://macromates.com/blog/2005/introduction-to-scopes/#htmlxml-analogy
+	struct SourceGrammarTree
+	{
+		std::vector<SourceGrammarTreeNode> tree;
+		ScopedName rootScope;
+		std::string codeBlock;
+
+		void insertNode(const SourceGrammarTreeNode& node, size_t sourceSpanOffset);
+		void removeNode(size_t nodeIndex);
+
+		std::vector<ScopedName> getAllAncestorScopes(size_t node) const;
 	};
 
 	// This loosely follows the rules set out by TextMate grammars.
@@ -98,12 +128,13 @@ namespace MathAnim
 	struct Grammar
 	{
 		std::string name;
-		ScopeRule scope;
+		ScopedName scope;
 		std::string fileTypes;
 		std::vector<SyntaxPattern> patterns;
 		PatternRepository repository;
 		OnigRegion* region;
 
+		SourceGrammarTree parseCodeBlock(const std::string& code, bool printDebugStuff = false) const;
 		bool getNextMatch(const std::string& code, std::vector<GrammarMatch>* outMatches) const;
 
 		static Grammar* importGrammar(const char* filepath);

@@ -2,64 +2,178 @@
 
 namespace MathAnim
 {
-	bool ScopedName::contains(const ScopedName& other, int* levelMatched) const
+	bool ScopedName::matches(const ScopedName& other, int* levelMatched, float* levelMatchPercent) const
 	{
 		*levelMatched = 0;
 
-		for (size_t index = 0; index < other.dotSeparatedScopes.size(); index++)
+		for (size_t index = 0; index < dotSeparatedScopes.size(); index++)
 		{
-			if (index >= dotSeparatedScopes.size())
+			if (index >= other.dotSeparatedScopes.size())
 			{
 				break;
 			}
-			else if (dotSeparatedScopes[index] == other.dotSeparatedScopes[index])
+			else if (dotSeparatedScopes[index] != other.dotSeparatedScopes[index])
 			{
-				*levelMatched = (*levelMatched) + 1;
-			}
-			else
-			{
-				// If we don't match all selectors then this is not a match
-				*levelMatched = 0;
 				break;
 			}
+
+			*levelMatched = (*levelMatched) + 1;
 		}
+
+		*levelMatchPercent = (float)(*levelMatched) / (float)dotSeparatedScopes.size();
 
 		return (*levelMatched) > 0;
 	}
 
-	bool ScopeRule::contains(const ScopeRule& other, int* levelMatched) const
+	std::string ScopedName::getFriendlyName() const
 	{
-		if (scopes.size() > 0 && other.scopes.size() > 0)
+		std::string res = "";
+		for (size_t i = 0; i < dotSeparatedScopes.size(); i++)
 		{
-			return scopes[0].contains(other.scopes[0], levelMatched);
+			const auto& scope = dotSeparatedScopes[i];
+			res += scope;
+			if (i < dotSeparatedScopes.size() - 1)
+			{
+				res += ".";
+			}
+		}
+
+		return res;
+	}
+
+	ScopedName ScopedName::from(const std::string& str)
+	{
+		size_t scopeStart = 0;
+		ScopedName scope = {};
+		for (size_t i = 0; i < str.length(); i++)
+		{
+			if (str[i] != '.' && str[i] != '-' && str[i] != '_' && !Parser::isAlpha(str[i]))
+			{
+				g_logger_error("Invalid scope name encountered. Scope name '{}' contains invalid characters.", str);
+			}
+
+			if (str[i] == '.')
+			{
+				std::string scopeStr = str.substr(scopeStart, i - scopeStart);
+				scope.dotSeparatedScopes.emplace_back(scopeStr);
+				scopeStart = i + 1;
+			}
+		}
+
+		if (scopeStart > 0 && scopeStart < str.length())
+		{
+			// Add the last scope
+			std::string scopeStr = str.substr(scopeStart, str.length() - scopeStart);
+			scope.dotSeparatedScopes.emplace_back(scopeStr);
+		}
+
+		return scope;
+	}
+
+	bool ScopeRule::matches(const std::vector<ScopedName>& ancestors, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const
+	{
+		*descendantMatched = 0;
+		*levelMatched = 0;
+
+		if (scopes.size() == 0)
+		{
+			return false;
+		}
+
+		// ScopeRule: "string"
+		// ScopeRule: "source string"
+		// ScopeRule: "source"
+		// Scope:     "foo source.php string.quoted"
+		for (size_t i = 0; i < ancestors.size(); i++)
+		{
+			if (scopes[*descendantMatched].matches(ancestors[i], levelMatched, levelMatchPercent))
+			{
+				*descendantMatched = (*descendantMatched + 1);
+				i = (i + 1);
+				while (*descendantMatched < scopes.size() && i < ancestors.size())
+				{
+					// Didn't get a full match on the rule, so this doesn't count as a match
+					if (!scopes[*descendantMatched].matches(ancestors[i], levelMatched, levelMatchPercent))
+					{
+						*descendantMatched = 0;
+						*levelMatched = 0;
+						return false;
+					}
+				}
+
+				// We matched as much as we could, which means this rule matches this ancestor hiearchy
+				// The deepest level we matched is i (0-indexed)
+				*descendantMatched = ((int)i + 1);
+				return true;
+			}
 		}
 
 		return false;
 	}
 
-	ScopeRule ScopeRule::from(const std::string& str)
+	bool ScopeRuleCollection::matches(const std::vector<ScopedName>& ancestors, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const
 	{
-		ScopeRule res = {};
+		bool matched = false;
+		int descendantMatchedLocal = 0;
+		int levelMatchedLocal = 0;
+		float levelMatchPercentLocal = 0.0f;
+		for (const auto& scopeRule : scopeRules)
+		{
+			if (scopeRule.matches(ancestors, &descendantMatchedLocal, &levelMatchedLocal, &levelMatchPercentLocal))
+			{
+				if ((descendantMatchedLocal > *descendantMatched) ||
+					(descendantMatchedLocal == *descendantMatched && levelMatchPercentLocal > *levelMatchPercent) ||
+					(descendantMatchedLocal == *descendantMatched && levelMatchPercentLocal == *levelMatchPercent 
+						&& levelMatchedLocal > *levelMatched))
+				{
+					*descendantMatched = descendantMatchedLocal;
+					*levelMatched = levelMatchedLocal;
+					*levelMatchPercent = levelMatchPercentLocal;
+				}
+				matched = true;
+			}
+		}
+
+		return matched;
+	}
+
+	ScopeRuleCollection ScopeRuleCollection::from(const std::string& str)
+	{
+		ScopeRuleCollection res = {};
 
 		res.friendlyName = str;
 
 		size_t scopeStart = 0;
+		ScopeRule currentRule = {};
 		ScopedName currentScope = {};
 		for (size_t i = 0; i < str.length(); i++)
 		{
-			if (str[i] == '.' || str[i] == ' ')
+			if (str[i] == '.' || str[i] == ' ' || str[i] == ',')
 			{
 				std::string scope = str.substr(scopeStart, i - scopeStart);
-				currentScope.dotSeparatedScopes.emplace_back(scope);
+				if (scope != "")
+				{
+					currentScope.dotSeparatedScopes.emplace_back(scope);
+				}
 				scopeStart = i + 1;
 			}
-			
+
 			// NOTE: Important that this is a separate if-stmt. This means the last dotted scope
 			// will get added before starting the descendant scope after the space
-			if (str[i] == ' ')
+			if (str[i] == ' ' || str[i] == ',')
 			{
 				// Space separated scope
-				res.scopes.emplace_back(currentScope);
+				if (currentScope.dotSeparatedScopes.size() > 0)
+				{
+					currentRule.scopes.emplace_back(currentScope);
+				}
+				currentScope = {};
+			}
+
+			if (str[i] == ',')
+			{
+				res.scopeRules.emplace_back(currentRule);
+				currentRule = {};
 				currentScope = {};
 			}
 		}
@@ -72,7 +186,12 @@ namespace MathAnim
 
 		if (currentScope.dotSeparatedScopes.size() > 0)
 		{
-			res.scopes.emplace_back(currentScope);
+			currentRule.scopes.emplace_back(currentScope);
+		}
+
+		if (currentRule.scopes.size() > 0)
+		{
+			res.scopeRules.emplace_back(currentRule);
 		}
 
 		return res;
