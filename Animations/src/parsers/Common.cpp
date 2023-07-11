@@ -99,6 +99,8 @@ namespace MathAnim
 						*levelMatched = 0;
 						return false;
 					}
+
+					*descendantMatched = (*descendantMatched) + 1;
 				}
 
 				// We matched as much as we could, which means this rule matches this ancestor hiearchy
