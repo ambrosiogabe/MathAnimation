@@ -703,6 +703,26 @@ namespace MathAnim
 			}
 		}
 
+		struct CodeEditUserData
+		{
+			std::vector<ScopedName> ancestors;
+			HighlighterLanguage language;
+		};
+
+		static int codeEditCallback(ImGuiInputTextCallbackData* data)
+		{
+			CodeEditUserData& userData = *(CodeEditUserData*)data->UserData;
+
+			const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(userData.language);
+			if (!highlighter)
+			{
+				return 0;
+			}
+
+			userData.ancestors = highlighter->getAncestorsFor(data->Buf, data->CursorPos);
+			return 0;
+		}
+
 		static void handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object)
 		{
 			bool shouldRegenerate = false;
@@ -736,9 +756,13 @@ namespace MathAnim
 				shouldRegenerate = true;
 			}
 
+			static CodeEditUserData codeEditUserData = {};
+			codeEditUserData.language = object->as.codeBlock.language;
+			codeEditUserData.ancestors = {};
+
 			g_memory_copyMem(scratch, object->as.codeBlock.text, object->as.codeBlock.textLength * sizeof(char));
 			scratch[object->as.codeBlock.textLength] = '\0';
-			if (ImGui::InputTextMultiline(": Code", scratch, scratchLength * sizeof(char)))
+			if (ImGui::InputTextMultiline(": Code", scratch, scratchLength * sizeof(char), ImVec2(0, 0), ImGuiInputTextFlags_CallbackAlways, codeEditCallback, &codeEditUserData))
 			{
 				size_t newLength = std::strlen(scratch);
 				object->as.codeBlock.text = (char*)g_memory_realloc(object->as.codeBlock.text, sizeof(char) * (newLength + 1));
@@ -747,6 +771,29 @@ namespace MathAnim
 				object->as.codeBlock.text[newLength] = '\0';
 				shouldRegenerate = true;
 			}
+
+			ImGui::BeginChild("Code Ancestors", ImVec2(0, 0), true);
+
+			if (ImGui::BeginTable("textmate scopes", 2))
+			{
+				ImGui::TableNextColumn(); ImGui::Text("textmate scopes");
+
+				for (size_t i = 0; i < codeEditUserData.ancestors.size(); i++)
+				{
+					size_t backwardsIndex = codeEditUserData.ancestors.size() - i - 1;
+					std::string friendlyName = codeEditUserData.ancestors[backwardsIndex].getFriendlyName();
+					ImGui::TableNextColumn(); ImGui::Text(friendlyName.c_str());
+
+					if (i < codeEditUserData.ancestors.size() - 1)
+					{
+						ImGui::TableNextRow(); ImGui::TableNextColumn();
+					}
+				}
+
+				ImGui::EndTable();
+			}
+
+			ImGui::EndChild();
 
 			if (shouldRegenerate)
 			{

@@ -121,6 +121,7 @@ namespace MathAnim
 		void removeNode(size_t nodeIndex);
 
 		std::vector<ScopedName> getAllAncestorScopes(size_t node) const;
+		std::vector<ScopedName> getAllAncestorScopesAtChar(size_t cursorPos) const;
 	};
 
 	// This loosely follows the rules set out by TextMate grammars.

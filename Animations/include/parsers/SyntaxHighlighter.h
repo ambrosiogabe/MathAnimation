@@ -1,6 +1,7 @@
 #ifndef MATH_ANIM_SYNTAX_HIGHLIGHTER_H
 #define MATH_ANIM_SYNTAX_HIGHLIGHTER_H
 #include "core.h"
+#include "parsers/Common.h"
 
 namespace MathAnim
 {
@@ -81,6 +82,8 @@ namespace MathAnim
 	{
 	public:
 		SyntaxHighlighter(const std::filesystem::path& grammar);
+
+		std::vector<ScopedName> getAncestorsFor(const std::string& code, size_t cursorPos) const;
 
 		CodeHighlights parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo = false) const;
 

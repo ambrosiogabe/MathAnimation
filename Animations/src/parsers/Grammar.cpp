@@ -377,6 +377,56 @@ namespace MathAnim
 		return ancestorScopes;
 	}
 
+	std::vector<ScopedName> SourceGrammarTree::getAllAncestorScopesAtChar(size_t cursorPos) const
+	{
+		size_t nodePos = 0;
+		{
+			size_t absPos = 0;
+			for (size_t i = 0; i < tree.size();)
+			{
+				size_t absSpanStart = tree[i].sourceSpan.relativeStart + absPos;
+				size_t absSpanEnd = absSpanStart + tree[i].sourceSpan.size;
+				if (cursorPos >= absSpanStart && cursorPos < absSpanEnd)
+				{
+					// This is a leaf node, so this is the node we're looking for
+					if (tree[i].nextNodeDelta == 1)
+					{
+						nodePos = i;
+						break;
+					}
+
+					// Otherwise, the cursorPos is at one of the children of this branch
+					// so we start iterating through the children
+					absPos += tree[i].sourceSpan.relativeStart;
+					i += 1;
+				}
+				else
+				{
+					// Skip this node since the cursor doesn't live in it
+					i += tree[i].nextNodeDelta;
+				}
+			}
+		}
+
+		std::vector<ScopedName> ancestorScopes = {};
+		if (tree[nodePos].scope)
+		{
+			ancestorScopes.push_back(*tree[nodePos].scope);
+		}
+
+		size_t parentIndex = nodePos;
+		while (parentIndex != 0 && parentIndex >= tree[parentIndex].parentDelta)
+		{
+			parentIndex = parentIndex - tree[parentIndex].parentDelta;
+			if (tree[parentIndex].scope)
+			{
+				ancestorScopes.insert(ancestorScopes.begin(), *tree[parentIndex].scope);
+			}
+		}
+
+		return ancestorScopes;
+	}
+
 	// For the source code looking like this (and the rules defined here https://macromates.com/blog/2005/introduction-to-scopes/#htmlxml-analogy):
 	// 
 	//   `char const* str = "Hello world\n";`

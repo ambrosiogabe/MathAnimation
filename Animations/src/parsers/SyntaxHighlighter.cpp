@@ -14,6 +14,17 @@ namespace MathAnim
 		this->grammar = Grammar::importGrammar(grammar.string().c_str());
 	}
 
+	std::vector<ScopedName> SyntaxHighlighter::getAncestorsFor(const std::string& code, size_t cursorPos) const
+	{
+		if (!this->grammar)
+		{
+			return {};
+		}
+
+		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code);
+		return grammarTree.getAllAncestorScopesAtChar(cursorPos);
+	}
+
 	CodeHighlights SyntaxHighlighter::parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo) const
 	{
 		if (!this->grammar)
