@@ -179,13 +179,30 @@ namespace MathAnim
 		{
 			if (patternArray.has_value())
 			{
+				std::vector<GrammarMatch> tmpRes = {};
 				for (auto pattern : patternArray->patterns)
 				{
-					if (pattern.match(str, start, end, repo, region, outMatches))
+					std::vector<GrammarMatch> currentRes = {};
+					if (pattern.match(str, start, end, repo, region, &currentRes))
 					{
-						return true;
+						// The first match wins
+						// The match that starts at the earliest position wins
+						if (tmpRes.size() == 0 || (
+							currentRes[0].start < tmpRes[0].start
+							))
+						{
+							tmpRes = currentRes;
+						}
 					}
 				}
+
+				if (tmpRes.size() > 0)
+				{
+					outMatches->insert(outMatches->end(), tmpRes.begin(), tmpRes.end());
+					return true;
+				}
+				
+				return false;
 			}
 		}
 		break;
@@ -656,6 +673,7 @@ namespace MathAnim
 				std::vector<GrammarMatch> currentRes = {};
 				if (pattern.match(code, start, lineEnd, this->repository, region, &currentRes))
 				{
+					// The match that starts at the earliest position wins
 					// The first match wins
 					if (tmpRes.size() == 0 || (
 						currentRes[0].start < tmpRes[0].start
