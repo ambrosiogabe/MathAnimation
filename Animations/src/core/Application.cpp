@@ -114,7 +114,7 @@ namespace MathAnim
 			// Initialize OpenGL functions
 			GlVersion glVersion = GladLayer::init();
 
-			// Initialize Onigiruma
+			// Initialize Oniguruma
 			OnigEncoding use_encs[1];
 			use_encs[0] = ONIG_ENCODING_ASCII;
 			onig_initialize(use_encs, sizeof(use_encs) / sizeof(use_encs[0]));

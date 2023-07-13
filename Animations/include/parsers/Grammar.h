@@ -11,10 +11,23 @@ namespace MathAnim
 	struct ParserInfo;
 	struct PatternRepository;
 
+	struct SyntaxPattern; // Forward declare since this is a recursive type
+	struct PatternArray
+	{
+		std::vector<SyntaxPattern> patterns;
+
+		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+
+		void free();
+	};
+
 	struct Capture
 	{
 		size_t index;
-		ScopedName scope;
+		// If this is set, this is a simple capture and the scope name is just used as the captured name
+		std::optional<ScopedName> scope;
+		// If this is set, then the capture scope name is based on the best match in the pattern array
+		std::optional<PatternArray> patternArray;
 	};
 
 	struct CaptureList
@@ -31,12 +44,11 @@ namespace MathAnim
 		regex_t* regMatch;
 		std::optional<CaptureList> captures;
 
-		bool match(const std::string& str, size_t start, size_t end, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 
 		void free();
 	};
 
-	struct SyntaxPattern; // Forward declare since this is a recursive type
 	struct ComplexSyntaxPattern
 	{
 		std::optional<ScopedName> scope;
@@ -44,16 +56,9 @@ namespace MathAnim
 		regex_t* end;
 		std::optional<CaptureList> beginCaptures;
 		std::optional<CaptureList> endCaptures;
-		std::optional<std::vector<SyntaxPattern>> patterns;
+		std::optional<PatternArray> patterns;
 
 		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
-
-		void free();
-	};
-
-	struct PatternArray
-	{
-		std::vector<SyntaxPattern> patterns;
 
 		void free();
 	};
@@ -131,7 +136,7 @@ namespace MathAnim
 		std::string name;
 		ScopedName scope;
 		std::string fileTypes;
-		std::vector<SyntaxPattern> patterns;
+		PatternArray patterns;
 		PatternRepository repository;
 		OnigRegion* region;
 

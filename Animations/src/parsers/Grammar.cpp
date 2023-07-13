@@ -10,10 +10,10 @@ namespace MathAnim
 	// ----------- Internal Functions -----------
 	static Grammar* importGrammarFromJson(const json& j);
 	static SyntaxPattern parsePattern(const json& json);
-	static std::vector<SyntaxPattern> parsePatternsArray(const json& json);
+	static PatternArray parsePatternsArray(const json& json);
 	static regex_t* onigFromString(const std::string& str);
 	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t start, size_t end, regex_t* reg, OnigRegion* region);
-	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t start, size_t end, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures);
+	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t startOffset, size_t endOffset, const PatternRepository& repo, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures);
 
 	CaptureList CaptureList::from(const json& j)
 	{
@@ -43,6 +43,15 @@ namespace MathAnim
 				Capture cap = {};
 				cap.index = captureNumber;
 				cap.scope = scope;
+				cap.patternArray = std::nullopt;
+				res.captures.emplace_back(cap);
+			}
+			else if (val.contains("patterns"))
+			{
+				Capture cap = {};
+				cap.index = captureNumber;
+				cap.scope = std::nullopt;
+				cap.patternArray = parsePatternsArray(val["patterns"]);
 				res.captures.emplace_back(cap);
 			}
 			else
@@ -54,9 +63,9 @@ namespace MathAnim
 		return res;
 	}
 
-	bool SimpleSyntaxPattern::match(const std::string& str, size_t start, size_t end, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
+	bool SimpleSyntaxPattern::match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
 	{
-		std::vector<GrammarMatch> subMatches = checkForMatches(str, start, end, this->regMatch, region, this->captures);
+		std::vector<GrammarMatch> subMatches = checkForMatches(str, start, end, repo, this->regMatch, region, this->captures);
 
 		bool captureWholePattern = false;
 		if (this->scope.has_value())
@@ -99,9 +108,8 @@ namespace MathAnim
 			return false;
 		}
 
-		size_t endBlockOffset = beginBlockMatch->end - start;
 		// This match can go to the end of the string
-		std::optional<GrammarMatch> endBlockMatch = getFirstMatch(str, start + endBlockOffset, str.length(), this->end, region);
+		std::optional<GrammarMatch> endBlockMatch = getFirstMatch(str, beginBlockMatch->end, str.length(), this->end, region);
 		if (!endBlockMatch.has_value())
 		{
 			GrammarMatch eof;
@@ -116,8 +124,8 @@ namespace MathAnim
 
 		// If the begin/end pair *does* have a match, then get all grammar matches for the begin/end blocks and
 		// run the extra patterns against the text between begin/end
-		std::vector<GrammarMatch> beginMatches = checkForMatches(str, beginBlockMatch->start, beginBlockMatch->end, this->begin, region, this->beginCaptures);
-		std::vector<GrammarMatch> endMatches = checkForMatches(str, endBlockMatch->start, endBlockMatch->end, this->end, region, this->endCaptures);
+		std::vector<GrammarMatch> beginMatches = checkForMatches(str, beginBlockMatch->start, beginBlockMatch->end, repo, this->begin, region, this->beginCaptures);
+		std::vector<GrammarMatch> endMatches = checkForMatches(str, endBlockMatch->start, endBlockMatch->end, repo, this->end, region, this->endCaptures);
 
 		GrammarMatch res = {};
 		res.subMatches.insert(res.subMatches.end(), beginMatches.begin(), beginMatches.end());
@@ -126,10 +134,26 @@ namespace MathAnim
 		{
 			size_t inBetweenStart = beginBlockMatch->end;
 			size_t inBetweenEnd = endBlockMatch->start;
-			for (auto pattern : *patterns)
+			while (inBetweenStart < inBetweenEnd)
 			{
-				pattern.match(str, inBetweenStart, inBetweenEnd, repo, region, &res.subMatches);
+				size_t lastSubMatchesSize = res.subMatches.size();
+				if (!patterns->match(str, inBetweenStart, inBetweenEnd, repo, region, &res.subMatches))
+				{
+					break;
+				}
+
+				for (size_t i = lastSubMatchesSize; i < res.subMatches.size(); i++)
+				{
+					if (res.subMatches[i].end > inBetweenStart)
+					{
+						inBetweenStart = res.subMatches[i].end;
+					}
+				}
 			}
+			//for (auto pattern : *patterns)
+			//{
+			//	pattern.match(str, inBetweenStart, inBetweenEnd, repo, region, &res.subMatches);
+			//}
 		}
 
 		res.subMatches.insert(res.subMatches.end(), endMatches.begin(), endMatches.end());
@@ -163,9 +187,60 @@ namespace MathAnim
 		end = nullptr;
 	}
 
+	bool PatternArray::match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
+	{
+		std::vector<GrammarMatch> tmpRes = {};
+		size_t tmpResMin = SIZE_MAX;
+		size_t tmpResMax = 0;
+		for (const auto& pattern : patterns)
+		{
+			std::vector<GrammarMatch> currentRes = {};
+			if (pattern.match(str, start, end, repo, region, &currentRes))
+			{
+				// Find the "surface area" this pattern matches.
+				// Where "surface area" is the (begin-end) substring that it matches
+				size_t currentResMin = SIZE_MAX;
+				size_t currentResMax = 0;
+				for (const auto& match : currentRes)
+				{
+					if (match.start < currentResMin)
+					{
+						currentResMin = match.start;
+					}
+					if (match.end > currentResMax)
+					{
+						currentResMax = match.end;
+					}
+				}
+
+				// The largest surface area that occurs the earliest wins out of all matches
+				size_t currentSurfaceArea = currentResMax - currentResMin;
+				size_t tmpSurfaceArea = tmpResMax - tmpResMin;
+				if (tmpRes.size() == 0 || 
+					currentResMin < tmpResMin || (
+						currentResMin == tmpResMin &&
+						currentSurfaceArea > tmpSurfaceArea
+					))
+				{
+					tmpRes = currentRes;
+					tmpResMin = currentResMin;
+					tmpResMax = currentResMax;
+				}
+			}
+		}
+
+		if (tmpRes.size() > 0)
+		{
+			outMatches->insert(outMatches->end(), tmpRes.begin(), tmpRes.end());
+			return true;
+		}
+
+		return false;
+	}
+
 	void PatternArray::free()
 	{
-		for (auto pattern : patterns)
+		for (auto& pattern : patterns)
 		{
 			pattern.free();
 		}
@@ -179,30 +254,7 @@ namespace MathAnim
 		{
 			if (patternArray.has_value())
 			{
-				std::vector<GrammarMatch> tmpRes = {};
-				for (auto pattern : patternArray->patterns)
-				{
-					std::vector<GrammarMatch> currentRes = {};
-					if (pattern.match(str, start, end, repo, region, &currentRes))
-					{
-						// The first match wins
-						// The match that starts at the earliest position wins
-						if (tmpRes.size() == 0 || (
-							currentRes[0].start < tmpRes[0].start
-							))
-						{
-							tmpRes = currentRes;
-						}
-					}
-				}
-
-				if (tmpRes.size() > 0)
-				{
-					outMatches->insert(outMatches->end(), tmpRes.begin(), tmpRes.end());
-					return true;
-				}
-				
-				return false;
+				return patternArray->match(str, start, end, repo, region, outMatches);
 			}
 		}
 		break;
@@ -231,7 +283,7 @@ namespace MathAnim
 		{
 			if (simplePattern.has_value())
 			{
-				return simplePattern->match(str, start, end, region, outMatches);
+				return simplePattern->match(str, start, end, repo, region, outMatches);
 			}
 		}
 		case PatternType::Invalid:
@@ -487,6 +539,19 @@ namespace MathAnim
 			{
 				// Recursively add sub-matches
 				cursorIndex = addMatchesToTree(tree, match.subMatches, cursorIndex);
+
+				// If the sub-matches didn't fill this match entirely, fill in the gap
+				if (cursorIndex < match.end)
+				{
+					// Fill in the gap
+					SourceGrammarTreeNode gapNode = {};
+					gapNode.sourceSpan.relativeStart = 0;
+					gapNode.sourceSpan.size = match.end - cursorIndex;
+					gapNode.nextNodeDelta = 1;
+					gapNode.scope = std::nullopt;
+					tree.insertNode(gapNode, cursorIndex);
+					cursorIndex += gapNode.sourceSpan.size;
+				}
 			}
 			else
 			{
@@ -668,26 +733,8 @@ namespace MathAnim
 			}
 
 			std::vector<GrammarMatch> tmpRes = {};
-			for (auto pattern : this->patterns)
+			if (this->patterns.match(code, start, lineEnd, this->repository, region, outMatches))
 			{
-				std::vector<GrammarMatch> currentRes = {};
-				if (pattern.match(code, start, lineEnd, this->repository, region, &currentRes))
-				{
-					// The match that starts at the earliest position wins
-					// The first match wins
-					if (tmpRes.size() == 0 || (
-						currentRes[0].start < tmpRes[0].start
-						))
-					{
-						tmpRes = currentRes;
-					}
-				}
-			}
-
-			// The first match wins
-			if (tmpRes.size() > 0)
-			{
-				outMatches->insert(outMatches->end(), tmpRes.begin(), tmpRes.end());
 				return true;
 			}
 
@@ -724,10 +771,7 @@ namespace MathAnim
 	{
 		if (grammar)
 		{
-			for (size_t i = 0; i < grammar->patterns.size(); i++)
-			{
-				grammar->patterns[i].free();
-			}
+			grammar->patterns.free();
 
 			if (grammar->region)
 			{
@@ -887,7 +931,7 @@ namespace MathAnim
 				c.patterns = std::nullopt;
 			}
 
-			res.complexPattern = c;
+			res.complexPattern.emplace(c);
 			return res;
 		}
 		// If this pattern only contains a patterns array then return
@@ -896,25 +940,23 @@ namespace MathAnim
 		{
 			SyntaxPattern res = {};
 			res.type = PatternType::Array;
-			PatternArray pa = {};
-			pa.patterns = parsePatternsArray(json["patterns"]);
-			res.patternArray = pa;
+			res.patternArray = parsePatternsArray(json["patterns"]);
 			return res;
 		}
 
 		return dummy;
 	}
 
-	static std::vector<SyntaxPattern> parsePatternsArray(const json& json)
+	static PatternArray parsePatternsArray(const json& json)
 	{
-		std::vector<SyntaxPattern> res;
+		PatternArray res = {};
 
 		for (json::const_iterator it = json.begin(); it != json.end(); it++)
 		{
 			SyntaxPattern pattern = parsePattern(*it);
 			if (pattern.type != PatternType::Invalid)
 			{
-				res.emplace_back(pattern);
+				res.patterns.emplace_back(pattern);
 			}
 			else
 			{
@@ -934,6 +976,12 @@ namespace MathAnim
 		options |= ONIG_OPTION_CAPTURE_GROUP;
 		options |= ONIG_OPTION_MULTILINE;
 
+		// Enable capture history for Oniguruma
+		OnigSyntaxType syn;
+		onig_copy_syntax(&syn, ONIG_SYNTAX_DEFAULT);
+		onig_set_syntax_op2(&syn,
+			onig_get_syntax_op2(&syn) | ONIG_SYN_OP2_ATMARK_CAPTURE_HISTORY);
+
 		regex_t* reg;
 		OnigErrorInfo error;
 		int parseRes = onig_new(
@@ -942,7 +990,7 @@ namespace MathAnim
 			(uint8*)patternEnd,
 			options,
 			ONIG_ENCODING_ASCII,
-			ONIG_SYNTAX_DEFAULT,
+			&syn,
 			&error
 		);
 
@@ -1002,9 +1050,67 @@ namespace MathAnim
 		return res;
 	}
 
-	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures)
+	struct CaptureCallbackData
+	{
+		const CaptureList& captures;
+		std::vector<GrammarMatch>* matches;
+		const std::string& str;
+		const PatternRepository& repo;
+	};
+
+	//static int traverseCaptureList(int groupIndex, int beg, int end, int /*level*/, int at, void* arg)
+	//{
+	//	if (at != ONIG_TRAVERSE_CALLBACK_AT_FIRST)
+	//		return -1; /* error */
+
+	//	CaptureCallbackData* callbackData = (CaptureCallbackData*)arg;
+
+	//	for (auto capture : callbackData->captures.captures)
+	//	{
+	//		if (groupIndex == capture.index)
+	//		{
+	//			// Only accept valid matches
+	//			if (beg >= 0 && end > beg)
+	//			{
+	//				size_t captureBegin = (size_t)beg;
+	//				size_t captureEnd = (size_t)end;
+	//				if (capture.scope.has_value())
+	//				{
+	//					GrammarMatch match = {};
+	//					match.start = captureBegin;
+	//					match.end = captureEnd;
+	//					match.scope = *capture.scope;
+	//					callbackData->matches->emplace_back(match);
+	//				}
+	//				else if (capture.patternArray.has_value())
+	//				{
+	//					OnigRegion* region = onig_region_new();
+	//					capture.patternArray->match(
+	//						callbackData->str,
+	//						captureBegin,
+	//						captureEnd,
+	//						callbackData->repo,
+	//						region,
+	//						callbackData->matches
+	//					);
+	//					onig_region_free(region, 1);
+	//				}
+	//				else
+	//				{
+	//					g_logger_error("Capture group in Onigiruma expression did not have a scoped name or a pattern array.");
+	//				}
+	//			}
+	//		}
+	//	}
+
+	//	return 0;
+	//}
+
+	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t startOffset, size_t endOffset, const PatternRepository& repo, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures)
 	{
 		std::vector<GrammarMatch> res = {};
+
+		onig_region_clear(region);
 
 		const char* cstr = str.c_str();
 		const char* start = cstr + startOffset;
@@ -1024,6 +1130,21 @@ namespace MathAnim
 		{
 			if (captures.has_value())
 			{
+				//CaptureCallbackData callbackData = {
+				//	captures.value(),
+				//	&res,
+				//	str,
+				//	repo
+				//};
+
+				//// Traverse the capture list and add relevant captures to our info
+				//searchRes = onig_capture_tree_traverse(
+				//	region,
+				//	ONIG_TRAVERSE_CALLBACK_AT_FIRST,
+				//	traverseCaptureList,
+				//	(void*)&callbackData
+				//);
+
 				for (auto capture : captures->captures)
 				{
 					if (region->num_regs > capture.index)
@@ -1031,11 +1152,26 @@ namespace MathAnim
 						// Only accept valid matches
 						if (region->beg[capture.index] >= 0 && region->end[capture.index] > region->beg[capture.index])
 						{
-							GrammarMatch match = {};
-							match.start = (size_t)region->beg[capture.index];
-							match.end = (size_t)region->end[capture.index];
-							match.scope = capture.scope;
-							res.emplace_back(match);
+							size_t captureBegin = (size_t)region->beg[capture.index];
+							size_t captureEnd = (size_t)region->end[capture.index];
+							if (capture.scope.has_value())
+							{
+								GrammarMatch match = {};
+								match.start = captureBegin;
+								match.end = captureEnd;
+								match.scope = *capture.scope;
+								res.emplace_back(match);
+							}
+							else if (capture.patternArray.has_value())
+							{
+								OnigRegion* subRegion = onig_region_new();
+								capture.patternArray->match(str, captureBegin, captureEnd, repo, subRegion, &res);
+								onig_region_free(subRegion, 1);
+							}
+							else
+							{
+								g_logger_error("Capture group in Onigiruma expression did not have a scoped name or a pattern array.");
+							}
 						}
 					}
 				}
