@@ -10,7 +10,7 @@ namespace MathAnim
 		}
 		else if (capture.has_value())
 		{
-			return "<" + std::to_string(capture->captureIndex) + ":" + capture->capture + ">";
+			return capture->capture + "[$" + std::to_string(capture->captureIndex) + "]";
 		}
 
 		static std::string undefined = "UNDEFINED";
