@@ -1025,7 +1025,7 @@ namespace MathAnim
 			if (region->num_regs > 0)
 			{
 				// Only accept valid matches
-				if (region->beg[0] >= 0 && region->end[0] > region->beg[0])
+				if (region->beg[0] >= 0 && region->end[0] >= region->beg[0])
 				{
 					GrammarMatch match = {};
 					match.start = (size_t)region->beg[0];
