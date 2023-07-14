@@ -56,7 +56,8 @@ namespace MathAnim
 			}
 			else
 			{
-				g_logger_warning("Invalid capture list. Capture '{}' does not contain a 'name' key.", key);
+				std::string stringifiedJson = val.dump(4);
+				g_logger_warning("Invalid capture list. Capture '{}' does not contain a 'name' key for val, '{}'.", key, stringifiedJson);
 			}
 		}
 

@@ -11,9 +11,29 @@ namespace MathAnim
 		size_t cursor;
 	};
 
+	struct ScopeCapture
+	{
+		int captureIndex;
+		std::string capture;
+	};
+
+	struct Scope
+	{
+		std::optional<std::string> name;
+		std::optional<ScopeCapture> capture;
+
+		std::string getFriendlyName() const;
+		const std::string& getScopeName() const;
+
+		bool operator==(const Scope& other) const;
+		bool operator!=(const Scope& other) const;
+
+		static MathAnim::Scope from(const std::string& string);
+	};
+
 	struct ScopedName
 	{
-		std::vector<std::string> dotSeparatedScopes;
+		std::vector<Scope> dotSeparatedScopes;
 
 		bool matches(const ScopedName& other, int* levelMatched, float* levelMatchPercent) const;
 		std::string getFriendlyName() const;

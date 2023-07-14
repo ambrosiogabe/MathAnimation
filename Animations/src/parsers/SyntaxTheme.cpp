@@ -181,7 +181,7 @@ namespace MathAnim
 			for (size_t i = 0; i < match.levelMatched; i++)
 			{
 				g_logger_assert(i < matchedScope.dotSeparatedScopes.size(), "How did that happen?");
-				matchedOnStr += matchedScope.dotSeparatedScopes[i];
+				matchedOnStr += matchedScope.dotSeparatedScopes[i].getScopeName();
 				if (i < match.levelMatched - 1)
 				{
 					matchedOnStr += ".";

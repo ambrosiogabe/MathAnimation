@@ -2,6 +2,107 @@
 
 namespace MathAnim
 {
+	std::string Scope::getFriendlyName() const
+	{
+		if (name.has_value())
+		{
+			return name.value();
+		}
+		else if (capture.has_value())
+		{
+			return "<" + std::to_string(capture->captureIndex) + ":" + capture->capture + ">";
+		}
+
+		static std::string undefined = "UNDEFINED";
+		return undefined;
+	}
+
+	const std::string& Scope::getScopeName() const
+	{
+		if (name.has_value())
+		{
+			return name.value();
+		}
+		else if (capture.has_value())
+		{
+			return capture->capture;
+		}
+
+		static std::string undefined = "UNDEFINED";
+		return undefined;
+	}
+
+	Scope Scope::from(const std::string& string)
+	{
+		Scope res;
+		res.capture = std::nullopt;
+		res.name = std::nullopt;
+
+		if (string.length() == 0)
+		{
+			return res;
+		}
+
+		// This is a capture scope
+		if (string[0] == '$')
+		{
+			for (size_t i = 1; i < string.length(); i++)
+			{
+				if (!Parser::isDigit(string[i]))
+				{
+					g_logger_error("Invalid scope '{}' encountered while parsing scoped name. Capture scopes must start with '$' and consist of only digits after the '$'.", string);
+					return res;
+				}
+			}
+
+			int captureIndex = std::stoi(string.substr(1));
+			res.capture = {
+				captureIndex,
+				""
+			};
+		}
+		else
+		{
+			// NOTE: Apparently textmate allows wildcards in scopes, so *url* is a valid selector even though
+			//       it's not a valid CSS selector.
+
+			// NOTE: I will ignore any unicode in my matching
+			// Valid scopes are any valid CSS name which follows this grammar:
+			// 
+			// nmstart      [_a-z]
+			// nmchar       [_a-z0-9-]
+			// ident        -?{nmstart}{nmchar}*
+			if (!Parser::isAlpha(string[0]) && string[0] != '_' && string[0] != '-' && string[0] != '*')
+			{
+				g_logger_error("Invalid scope '{}' encountered while parsing scoped name. Scope must start with '_', '-', or alpha character", string);
+				return res;
+			}
+
+			for (size_t i = 1; i < string.length(); i++)
+			{
+				if (!Parser::isAlpha(string[i]) && !Parser::isDigit(string[i]) && string[i] != '-' && string[i] != '_' && string[i] != '*')
+				{
+					g_logger_error("Invalid scope '{}' encountered while parsing scoped name. Scope can only consist of alpha characters, digits, and dashes.", string);
+					return res;
+				}
+			}
+
+			res.name = string;
+		}
+
+		return res;
+	}
+
+	bool Scope::operator==(const Scope& other) const
+	{
+		return this->getScopeName() == other.getScopeName();
+	}
+
+	bool Scope::operator!=(const Scope& other) const
+	{
+		return this->getScopeName() != other.getScopeName();
+	}
+
 	bool ScopedName::matches(const ScopedName& other, int* levelMatched, float* levelMatchPercent) const
 	{
 		*levelMatched = 0;
@@ -33,7 +134,7 @@ namespace MathAnim
 		for (size_t i = 0; i < dotSeparatedScopes.size(); i++)
 		{
 			const auto& scope = dotSeparatedScopes[i];
-			res += scope;
+			res += scope.getFriendlyName();
 			if (i < dotSeparatedScopes.size() - 1)
 			{
 				res += ".";
@@ -49,15 +150,10 @@ namespace MathAnim
 		ScopedName scope = {};
 		for (size_t i = 0; i < str.length(); i++)
 		{
-			if (str[i] != '.' && str[i] != '-' && str[i] != '_' && !Parser::isAlpha(str[i]))
-			{
-				g_logger_error("Invalid scope name encountered. Scope name '{}' contains invalid characters.", str);
-			}
-
 			if (str[i] == '.')
 			{
 				std::string scopeStr = str.substr(scopeStart, i - scopeStart);
-				scope.dotSeparatedScopes.emplace_back(scopeStr);
+				scope.dotSeparatedScopes.emplace_back(Scope::from(scopeStr));
 				scopeStart = i + 1;
 			}
 		}
@@ -66,7 +162,7 @@ namespace MathAnim
 		{
 			// Add the last scope
 			std::string scopeStr = str.substr(scopeStart, str.length() - scopeStart);
-			scope.dotSeparatedScopes.emplace_back(scopeStr);
+			scope.dotSeparatedScopes.emplace_back(Scope::from(scopeStr));
 		}
 
 		return scope;
@@ -130,7 +226,7 @@ namespace MathAnim
 			{
 				if ((descendantMatchedLocal > *descendantMatched) ||
 					(descendantMatchedLocal == *descendantMatched && levelMatchPercentLocal > *levelMatchPercent) ||
-					(descendantMatchedLocal == *descendantMatched && levelMatchPercentLocal == *levelMatchPercent 
+					(descendantMatchedLocal == *descendantMatched && levelMatchPercentLocal == *levelMatchPercent
 						&& levelMatchedLocal > *levelMatched))
 				{
 					*scopeMatched = scopeMatchedLocal;
@@ -157,14 +253,24 @@ namespace MathAnim
 		ScopedName currentScope = {};
 		for (size_t i = 0; i < str.length(); i++)
 		{
-			if (str[i] == '.' || str[i] == ' ' || str[i] == ',')
+			if (str[i] == '.' || str[i] == ' ' || str[i] == ',' || str[i] == '>')
 			{
 				std::string scope = str.substr(scopeStart, i - scopeStart);
 				if (scope != "")
 				{
-					currentScope.dotSeparatedScopes.emplace_back(scope);
+					currentScope.dotSeparatedScopes.emplace_back(Scope::from(scope));
 				}
 				scopeStart = i + 1;
+
+				if (str[i] == '>')
+				{
+					static bool shouldWarn = true;
+					if (shouldWarn)
+					{
+						g_logger_warning("No support for child selectors yet '>' in SyntaxTheme's.");
+						shouldWarn = false;
+					}
+				}
 			}
 
 			// NOTE: Important that this is a separate if-stmt. This means the last dotted scope
@@ -190,7 +296,7 @@ namespace MathAnim
 		// Don't forget about the final scope in the string
 		if (scopeStart < str.length())
 		{
-			currentScope.dotSeparatedScopes.emplace_back(str.substr(scopeStart, str.length() - scopeStart));
+			currentScope.dotSeparatedScopes.emplace_back(Scope::from(str.substr(scopeStart, str.length() - scopeStart)));
 		}
 
 		if (currentScope.dotSeparatedScopes.size() > 0)
