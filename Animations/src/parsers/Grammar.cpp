@@ -131,6 +131,7 @@ namespace MathAnim
 		GrammarMatch res = {};
 		res.subMatches.insert(res.subMatches.end(), beginMatches.begin(), beginMatches.end());
 
+		size_t trueEndBlockPosition = endBlockMatch->end;
 		if (this->patterns.has_value())
 		{
 			size_t inBetweenStart = beginBlockMatch->end;
@@ -151,6 +152,11 @@ namespace MathAnim
 					}
 				}
 			}
+
+			if (inBetweenStart > trueEndBlockPosition)
+			{
+				trueEndBlockPosition = inBetweenStart;
+			}
 		}
 
 		res.subMatches.insert(res.subMatches.end(), endMatches.begin(), endMatches.end());
@@ -158,7 +164,7 @@ namespace MathAnim
 		if (this->scope.has_value())
 		{
 			res.start = beginBlockMatch->start;
-			res.end = endBlockMatch->end;
+			res.end = trueEndBlockPosition;
 			res.scope = *this->scope;
 			outMatches->push_back(res);
 			return true;
