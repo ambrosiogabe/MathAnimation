@@ -160,18 +160,22 @@ namespace MathAnim
 		}
 
 		res.subMatches.insert(res.subMatches.end(), endMatches.begin(), endMatches.end());
+		res.start = beginBlockMatch->start;
+		res.end = trueEndBlockPosition;
 
 		if (this->scope.has_value())
 		{
-			res.start = beginBlockMatch->start;
-			res.end = trueEndBlockPosition;
 			res.scope = *this->scope;
-			outMatches->push_back(res);
-			return true;
+		}
+		else
+		{
+			res.scope = std::nullopt;
 		}
 
-		outMatches->insert(outMatches->end(), res.subMatches.begin(), res.subMatches.end());
-		return res.subMatches.size() > 0;
+		//outMatches->insert(outMatches->end(), res.subMatches.begin(), res.subMatches.end());
+		//return res.subMatches.size() > 0;
+		outMatches->push_back(res);
+		return true;
 	}
 
 	void ComplexSyntaxPattern::free()
@@ -527,22 +531,31 @@ namespace MathAnim
 				bufferSizeLeft -= numBytesWritten;
 			}
 
-			const std::optional<ScopedName>& scope = tree[i].scope;
-			if (scope)
-			{
-				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s': ", scope->getFriendlyName().c_str());
-				bufferPtr += numBytesWritten;
-				bufferSizeLeft -= numBytesWritten;
-			}
-			else
+			if (tree[i].isAtomicNode)
 			{
 				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'ATOM': ");
 				bufferPtr += numBytesWritten;
 				bufferSizeLeft -= numBytesWritten;
 			}
+			else
+			{
+				if (tree[i].scope)
+				{
+					const std::optional<ScopedName>& scope = tree[i].scope;
+					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s': ", scope->getFriendlyName().c_str());
+					bufferPtr += numBytesWritten;
+					bufferSizeLeft -= numBytesWritten;
+				}
+				else
+				{
+					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'NULL_SCOPE': ");
+					bufferPtr += numBytesWritten;
+					bufferSizeLeft -= numBytesWritten;
+				}
+			}
 
 			{
-				if (scope)
+				if (!tree[i].isAtomicNode)
 				{
 					std::string offsetVal =
 						std::string("<")
@@ -649,6 +662,7 @@ namespace MathAnim
 			newNode.sourceSpan.size = match.end - match.start;
 			newNode.nextNodeDelta = 1;
 			newNode.scope = match.scope;
+			newNode.isAtomicNode = false;
 
 			tree.insertNode(newNode, match.start);
 
@@ -666,6 +680,7 @@ namespace MathAnim
 					gapNode.sourceSpan.size = match.end - cursorIndex;
 					gapNode.nextNodeDelta = 1;
 					gapNode.scope = std::nullopt;
+					gapNode.isAtomicNode = true;
 					tree.insertNode(gapNode, cursorIndex);
 					cursorIndex += gapNode.sourceSpan.size;
 				}
@@ -680,6 +695,7 @@ namespace MathAnim
 					gapNode.sourceSpan.size = match.start - cursorIndex;
 					gapNode.nextNodeDelta = 1;
 					gapNode.scope = std::nullopt;
+					gapNode.isAtomicNode = true;
 					tree.insertNode(gapNode, cursorIndex);
 					cursorIndex += gapNode.sourceSpan.size;
 				}
@@ -694,6 +710,7 @@ namespace MathAnim
 				atomicNode.sourceSpan = newNode.sourceSpan;
 				atomicNode.nextNodeDelta = 1;
 				atomicNode.scope = std::nullopt;
+				atomicNode.isAtomicNode = true;
 				tree.insertNode(atomicNode, cursorIndex);
 				cursorIndex += atomicNode.sourceSpan.size;
 			}
@@ -1074,19 +1091,22 @@ namespace MathAnim
 					}
 
 					// If the scope name needs any captures, assign them here
-					for (auto& dotSeparatedScope : match.scope.dotSeparatedScopes)
+					if (match.scope.has_value())
 					{
-						// Assign the capture if necessary
-						if (dotSeparatedScope.capture.has_value() &&
-							dotSeparatedScope.capture->captureIndex < region->num_regs &&
-							dotSeparatedScope.capture->captureIndex >= 0)
+						for (auto& dotSeparatedScope : match.scope->dotSeparatedScopes)
 						{
-							int captureIndex = dotSeparatedScope.capture->captureIndex;
-							if (region->beg[captureIndex] >= 0 && region->end[captureIndex] > region->beg[captureIndex])
+							// Assign the capture if necessary
+							if (dotSeparatedScope.capture.has_value() &&
+								dotSeparatedScope.capture->captureIndex < region->num_regs &&
+								dotSeparatedScope.capture->captureIndex >= 0)
 							{
-								size_t captureStart = region->beg[captureIndex];
-								size_t captureLength = region->end[captureIndex] - captureStart;
-								dotSeparatedScope.capture->capture = str.substr(captureStart, captureLength);
+								int captureIndex = dotSeparatedScope.capture->captureIndex;
+								if (region->beg[captureIndex] >= 0 && region->end[captureIndex] > region->beg[captureIndex])
+								{
+									size_t captureStart = region->beg[captureIndex];
+									size_t captureLength = region->end[captureIndex] - captureStart;
+									dotSeparatedScope.capture->capture = str.substr(captureStart, captureLength);
+								}
 							}
 						}
 					}

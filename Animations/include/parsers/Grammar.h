@@ -96,7 +96,7 @@ namespace MathAnim
 	{
 		size_t start;
 		size_t end;
-		ScopedName scope;
+		std::optional<ScopedName> scope;
 		std::vector<GrammarMatch> subMatches;
 	};
 
@@ -112,9 +112,8 @@ namespace MathAnim
 		size_t nextNodeDelta;
 		size_t parentDelta;
 		Span sourceSpan;
-		// If no scope rule is specified, then this is a leaf node and represents an atomic
-		// value. So this would be representative of direct text that gets highlighted.
 		std::optional<ScopedName> scope;
+		bool isAtomicNode;
 	};
 
 	// This corresponds to the tree represented here: https://macromates.com/blog/2005/introduction-to-scopes/#htmlxml-analogy

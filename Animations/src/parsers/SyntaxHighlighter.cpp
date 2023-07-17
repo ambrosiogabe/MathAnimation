@@ -38,8 +38,7 @@ namespace MathAnim
 		size_t highlightCursor = 0;
 		for (size_t child = 0; child < grammarTree.tree.size(); child++)
 		{
-			// Any nodes without a scope are an ATOM node
-			if (!grammarTree.tree[child].scope)
+			if (grammarTree.tree[child].isAtomicNode)
 			{
 				std::vector<ScopedName> ancestorScopes = grammarTree.getAllAncestorScopes(child);
 				const ThemeSetting* setting = theme.match(ancestorScopes, ThemeSettingType::ForegroundColor);
