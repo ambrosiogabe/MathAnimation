@@ -1,6 +1,7 @@
 #ifdef _MATH_ANIM_TESTS
 #include "AnimationManagerTests.h"
-#include "core/Testing.h"
+
+using namespace CppUtils;
 
 namespace MathAnim
 {
@@ -19,7 +20,7 @@ namespace MathAnim
 
 		void setupTestSuite()
 		{
-			TestSuite& testSuite = Tests::addTestSuite("AnimationManager");
+			Tests::TestSuite& testSuite = Tests::addTestSuite("AnimationManager");
 
 			ADD_TEST(testSuite, dummyOne);
 			ADD_TEST(testSuite, dummyTwo);

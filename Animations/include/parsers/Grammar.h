@@ -10,6 +10,7 @@ namespace MathAnim
 	struct GrammarMatch;
 	struct ParserInfo;
 	struct PatternRepository;
+	struct Grammar;
 
 	struct SyntaxPattern; // Forward declare since this is a recursive type
 	struct PatternArray
@@ -35,7 +36,7 @@ namespace MathAnim
 		// Map from capture index to the scoped name for that capture
 		std::vector<Capture> captures;
 
-		static CaptureList from(const nlohmann::json& j);
+		static CaptureList from(const nlohmann::json& j, const Grammar* self);
 	};
 
 	struct SimpleSyntaxPattern
@@ -79,6 +80,7 @@ namespace MathAnim
 		std::optional<ComplexSyntaxPattern> complexPattern;
 		std::optional<PatternArray> patternArray;
 		std::optional<std::string> patternInclude;
+		const Grammar* self;
 
 		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 
@@ -127,6 +129,9 @@ namespace MathAnim
 
 		std::vector<ScopedName> getAllAncestorScopes(size_t node) const;
 		std::vector<ScopedName> getAllAncestorScopesAtChar(size_t cursorPos) const;
+
+		// Default buffer size of 1MB
+		std::string getStringifiedTree(size_t bufferSize = 1024 * 10) const;
 	};
 
 	// This loosely follows the rules set out by TextMate grammars.

@@ -9,13 +9,13 @@ namespace MathAnim
 
 	// ----------- Internal Functions -----------
 	static Grammar* importGrammarFromJson(const json& j);
-	static SyntaxPattern parsePattern(const json& json);
-	static PatternArray parsePatternsArray(const json& json);
+	static SyntaxPattern parsePattern(const json& json, const Grammar* self);
+	static PatternArray parsePatternsArray(const json& json, const Grammar* self);
 	static regex_t* onigFromString(const std::string& str);
 	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, const std::optional<ScopedName>& scope);
 	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t startOffset, size_t endOffset, const PatternRepository& repo, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures);
 
-	CaptureList CaptureList::from(const json& j)
+	CaptureList CaptureList::from(const json& j, const Grammar* self)
 	{
 		CaptureList res = {};
 
@@ -51,7 +51,7 @@ namespace MathAnim
 				Capture cap = {};
 				cap.index = captureNumber;
 				cap.scope = std::nullopt;
-				cap.patternArray = parsePatternsArray(val["patterns"]);
+				cap.patternArray = parsePatternsArray(val["patterns"], self);
 				res.captures.emplace_back(cap);
 			}
 			else
@@ -278,6 +278,12 @@ namespace MathAnim
 				{
 					return iter->second.match(str, start, end, repo, region, outMatches);
 				}
+				// NOTE: $self means to include a self-reference to our own grammar
+				else if (*patternInclude == "$self")
+				{
+					return this->self->patterns.match(str, start, end, repo, region, outMatches);
+
+				}
 				g_logger_warning("Unable to resolve pattern reference '{}'.", patternInclude.value());
 			}
 		}
@@ -499,6 +505,114 @@ namespace MathAnim
 		return ancestorScopes;
 	}
 
+	std::string SourceGrammarTree::getStringifiedTree(size_t bufferSize) const
+	{
+		char* buffer = (char*)g_memory_allocate(bufferSize * sizeof(char));
+
+		char* bufferPtr = buffer;
+		size_t bufferSizeLeft = bufferSize;
+		size_t indentationLevel = 0;
+		for (size_t i = 0; i < tree.size(); i++)
+		{
+			if (tree[i].parentDelta == 1)
+			{
+				// We've gone down a level
+				indentationLevel++;
+			}
+
+			for (size_t indent = 0; indent < indentationLevel; indent++)
+			{
+				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "  ");
+				bufferPtr += numBytesWritten;
+				bufferSizeLeft -= numBytesWritten;
+			}
+
+			const std::optional<ScopedName>& scope = tree[i].scope;
+			if (scope)
+			{
+				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s': ", scope->getFriendlyName().c_str());
+				bufferPtr += numBytesWritten;
+				bufferSizeLeft -= numBytesWritten;
+			}
+			else
+			{
+				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'ATOM': ");
+				bufferPtr += numBytesWritten;
+				bufferSizeLeft -= numBytesWritten;
+			}
+
+			{
+				if (scope)
+				{
+					std::string offsetVal =
+						std::string("<")
+						+ std::to_string(tree[i].sourceSpan.relativeStart)
+						+ ", "
+						+ std::to_string(tree[i].sourceSpan.size)
+						+ ">";
+					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s'\n", offsetVal.c_str());
+					bufferPtr += numBytesWritten;
+					bufferSizeLeft -= numBytesWritten;
+				}
+				else
+				{
+					// Only print atoms
+					size_t absStart = tree[i].sourceSpan.relativeStart;
+					size_t parentIndex = i;
+					while (parentIndex != 0)
+					{
+						parentIndex = parentIndex - tree[parentIndex].parentDelta;
+						absStart += tree[parentIndex].sourceSpan.relativeStart;
+					}
+
+					std::string val = codeBlock.substr(absStart, tree[i].sourceSpan.size);
+					for (size_t cIndex = 0; cIndex < val.length(); cIndex++)
+					{
+						if (val[cIndex] == '\n')
+						{
+							val[cIndex] = '\\';
+							val.insert(cIndex + 1, "n");
+							cIndex++;
+						}
+					}
+					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s'\n", val.c_str());
+					bufferPtr += numBytesWritten;
+					bufferSizeLeft -= numBytesWritten;
+				}
+			}
+
+			// If next node's parent is < our parent then we're going up 1 or more levels
+			if (i + 1 < tree.size())
+			{
+				const SourceGrammarTreeNode& nextNode = tree[i + 1];
+				size_t nextNodesParentIndex = (i + 1) - nextNode.parentDelta;
+				size_t thisNodesParentIndex = i - tree[i].parentDelta;
+				while (nextNodesParentIndex < thisNodesParentIndex && indentationLevel > 0)
+				{
+					// We're going up a level
+					indentationLevel--;
+					thisNodesParentIndex = thisNodesParentIndex - tree[thisNodesParentIndex].parentDelta;
+				}
+			}
+		}
+
+		if ((size_t)(bufferPtr - buffer) < bufferSize)
+		{
+			bufferPtr[0] = '\0';
+		}
+		else
+		{
+			buffer[bufferSize - 1] = '\0';
+		}
+
+		std::string res = std::string(buffer);
+		g_memory_free(buffer);
+
+		return res;
+	}
+
+	// NOTE: Some help on how this tree should end up looking
+	// 
 	// For the source code looking like this (and the rules defined here https://macromates.com/blog/2005/introduction-to-scopes/#htmlxml-analogy):
 	// 
 	//   `char const* str = "Hello world\n";`
@@ -570,6 +684,11 @@ namespace MathAnim
 					cursorIndex += gapNode.sourceSpan.size;
 				}
 
+				if (cursorIndex > match.start)
+				{
+					g_logger_error("How did this happen?");
+				}
+
 				// Insert an atomic node as a child of the current node
 				SourceGrammarTreeNode atomicNode = {};
 				atomicNode.sourceSpan = newNode.sourceSpan;
@@ -581,102 +700,6 @@ namespace MathAnim
 		}
 
 		return cursorIndex;
-	}
-
-	// NOTE: This is for debugging the syntax highligher
-	static void printTree(const SourceGrammarTree& tree)
-	{
-		constexpr size_t bufferSize = 1024 * 10;
-		static char buffer[bufferSize];
-
-		char* bufferPtr = buffer;
-		size_t bufferSizeLeft = bufferSize;
-		size_t indentationLevel = 0;
-		for (size_t i = 0; i < tree.tree.size(); i++)
-		{
-			if (tree.tree[i].parentDelta == 1)
-			{
-				// We've gone down a level
-				indentationLevel++;
-			}
-
-			for (size_t indent = 0; indent < indentationLevel; indent++)
-			{
-				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "  ");
-				bufferPtr += numBytesWritten;
-				bufferSizeLeft -= numBytesWritten;
-			}
-
-			const std::optional<ScopedName>& scope = tree.tree[i].scope;
-			if (scope)
-			{
-				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s': ", scope->getFriendlyName().c_str());
-				bufferPtr += numBytesWritten;
-				bufferSizeLeft -= numBytesWritten;
-			}
-			else
-			{
-				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'ATOM': ");
-				bufferPtr += numBytesWritten;
-				bufferSizeLeft -= numBytesWritten;
-			}
-
-			{
-				if (scope)
-				{
-					std::string offsetVal =
-						std::string("<")
-						+ std::to_string(tree.tree[i].sourceSpan.relativeStart)
-						+ ", "
-						+ std::to_string(tree.tree[i].sourceSpan.size)
-						+ ">";
-					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s'\n", offsetVal.c_str());
-					bufferPtr += numBytesWritten;
-					bufferSizeLeft -= numBytesWritten;
-				}
-				else
-				{
-					// Only print atoms
-					size_t absStart = tree.tree[i].sourceSpan.relativeStart;
-					size_t parentIndex = i;
-					while (parentIndex != 0)
-					{
-						parentIndex = parentIndex - tree.tree[parentIndex].parentDelta;
-						absStart += tree.tree[parentIndex].sourceSpan.relativeStart;
-					}
-
-					std::string val = tree.codeBlock.substr(absStart, tree.tree[i].sourceSpan.size);
-					for (size_t cIndex = 0; cIndex < val.length(); cIndex++)
-					{
-						if (val[cIndex] == '\n')
-						{
-							val[cIndex] = '\\';
-							val.insert(cIndex + 1, "n");
-							cIndex++;
-						}
-					}
-					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s'\n", val.c_str());
-					bufferPtr += numBytesWritten;
-					bufferSizeLeft -= numBytesWritten;
-				}
-			}
-
-			// If next node's parent is < our parent then we're going up 1 or more levels
-			if (i + 1 < tree.tree.size())
-			{
-				const SourceGrammarTreeNode& nextNode = tree.tree[i + 1];
-				size_t nextNodesParentIndex = (i + 1) - nextNode.parentDelta;
-				size_t thisNodesParentIndex = i - tree.tree[i].parentDelta;
-				while (nextNodesParentIndex < thisNodesParentIndex && indentationLevel > 0)
-				{
-					// We're going up a level
-					indentationLevel--;
-					thisNodesParentIndex = thisNodesParentIndex - tree.tree[thisNodesParentIndex].parentDelta;
-				}
-			}
-		}
-
-		g_logger_info("SourceGrammarTree:\n{}", buffer);
 	}
 
 	SourceGrammarTree Grammar::parseCodeBlock(const std::string& code, bool printDebugStuff) const
@@ -706,7 +729,8 @@ namespace MathAnim
 
 		if (printDebugStuff)
 		{
-			printTree(res);
+			std::string stringifiedTree = res.getStringifiedTree();
+			g_logger_info("Stringified Tree: {}\n", stringifiedTree);
 		}
 
 		return res;
@@ -811,7 +835,7 @@ namespace MathAnim
 		{
 			for (auto& [key, val] : j["repository"].items())
 			{
-				SyntaxPattern pattern = parsePattern(val);
+				SyntaxPattern pattern = parsePattern(val, res);
 				if (pattern.type != PatternType::Invalid)
 				{
 					res->repository.patterns[key] = pattern;
@@ -826,16 +850,17 @@ namespace MathAnim
 		if (j.contains("patterns"))
 		{
 			const json& patternsArray = j["patterns"];
-			res->patterns = parsePatternsArray(patternsArray);
+			res->patterns = parsePatternsArray(patternsArray, res);
 		}
 
 		return res;
 	}
 
-	static SyntaxPattern parsePattern(const json& json)
+	static SyntaxPattern parsePattern(const json& json, const Grammar* self)
 	{
 		SyntaxPattern dummy = {};
 		dummy.type = PatternType::Invalid;
+		dummy.self = nullptr;
 
 		// Include patterns are the easiest... So do those first
 		if (json.contains("include"))
@@ -849,6 +874,7 @@ namespace MathAnim
 			SyntaxPattern patternRef;
 			patternRef.type = PatternType::Include;
 			patternRef.patternInclude = includeMatch;
+			patternRef.self = self;
 
 			return patternRef;
 		}
@@ -857,6 +883,7 @@ namespace MathAnim
 		{
 			SyntaxPattern res;
 			res.type = PatternType::Simple;
+			res.self = self;
 
 			SimpleSyntaxPattern p = {};
 			p.regMatch = onigFromString(json["match"]);
@@ -872,7 +899,7 @@ namespace MathAnim
 
 			if (json.contains("captures"))
 			{
-				p.captures = CaptureList::from(json["captures"]);
+				p.captures = CaptureList::from(json["captures"], self);
 			}
 			else
 			{
@@ -887,6 +914,7 @@ namespace MathAnim
 		{
 			SyntaxPattern res;
 			res.type = PatternType::Complex;
+			res.self = self;
 
 			if (!json.contains("end"))
 			{
@@ -909,7 +937,7 @@ namespace MathAnim
 
 			if (json.contains("beginCaptures"))
 			{
-				c.beginCaptures = CaptureList::from(json["beginCaptures"]);
+				c.beginCaptures = CaptureList::from(json["beginCaptures"], self);
 			}
 			else
 			{
@@ -918,7 +946,7 @@ namespace MathAnim
 
 			if (json.contains("endCaptures"))
 			{
-				c.endCaptures = CaptureList::from(json["endCaptures"]);
+				c.endCaptures = CaptureList::from(json["endCaptures"], self);
 			}
 			else
 			{
@@ -927,7 +955,7 @@ namespace MathAnim
 
 			if (json.contains("patterns"))
 			{
-				c.patterns = parsePatternsArray(json["patterns"]);
+				c.patterns = parsePatternsArray(json["patterns"], self);
 			}
 			else
 			{
@@ -943,20 +971,20 @@ namespace MathAnim
 		{
 			SyntaxPattern res = {};
 			res.type = PatternType::Array;
-			res.patternArray = parsePatternsArray(json["patterns"]);
+			res.patternArray = parsePatternsArray(json["patterns"], self);
 			return res;
 		}
 
 		return dummy;
 	}
 
-	static PatternArray parsePatternsArray(const json& json)
+	static PatternArray parsePatternsArray(const json& json, const Grammar* self)
 	{
 		PatternArray res = {};
 
 		for (json::const_iterator it = json.begin(); it != json.end(); it++)
 		{
-			SyntaxPattern pattern = parsePattern(*it);
+			SyntaxPattern pattern = parsePattern(*it, self);
 			if (pattern.type != PatternType::Invalid)
 			{
 				res.patterns.emplace_back(pattern);
@@ -1150,6 +1178,43 @@ namespace MathAnim
 			onig_error_code_to_str((UChar*)s, searchRes);
 			g_logger_error("Oniguruma Error: '{}'", s);
 			onig_region_free(region, 1 /* 1:free self, 0:free contents only */);
+		}
+
+		// NOTE: Sometimes capture groups should really be children of other capture groups, so 
+		//       we do one final pass here and make sure if a capture group should be a child of
+		//       another group in here, that's how it actually gets represented
+		size_t potentialParentIndex = 0;
+		while (potentialParentIndex < res.size())
+		{
+			for (size_t potentialChildIndex = 0; potentialChildIndex < res.size();)
+			{
+				// Skip ourself
+				if (potentialChildIndex == potentialParentIndex)
+				{
+					potentialChildIndex++;
+					continue;
+				}
+
+				auto& potentialChild = res[potentialChildIndex];
+				auto& potentialParent = res[potentialParentIndex];
+				// This is really a child of the parent capture
+				if (potentialChild.start >= potentialParent.start && potentialChild.end <= potentialParent.end)
+				{
+					potentialParent.subMatches.push_back(potentialChild);
+					if (potentialChildIndex < potentialParentIndex)
+					{
+						potentialParentIndex--;
+					}
+
+					res.erase(res.begin() + potentialChildIndex);
+				}
+				else
+				{
+					potentialChildIndex++;
+				}
+			}
+
+			potentialParentIndex++;
 		}
 
 		return res;

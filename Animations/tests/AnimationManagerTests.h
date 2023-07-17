@@ -1,7 +1,7 @@
 #ifdef _MATH_ANIM_TESTS
 #ifndef MATH_ANIM_ANIMATION_MANAGER_TESTS_H
 #define MATH_ANIM_ANIMATION_MANAGER_TESTS_H
-#include "core/Testing.h"
+#include <cppUtils/cppTests.hpp>
 
 namespace MathAnim
 {

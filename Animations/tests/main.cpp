@@ -1,7 +1,12 @@
 #ifdef _MATH_ANIM_TESTS
-#include "core/Testing.h"
 #include "LRUCacheTests.h"
 #include "AnimationManagerTests.h"
+#include "SyntaxHighlighterTests.h"
+
+#include <cppUtils/cppTests.hpp>
+#include <cppUtils/cppUtils.hpp>
+
+using namespace CppUtils;
 
 int main()
 {
@@ -12,6 +17,7 @@ int main()
 
 	LRUCacheTests::setupTestSuite();
 	AnimationManagerTests::setupTestSuite();
+	SyntaxHighlighterTests::setupTestSuite();
 
 	Tests::runTests();
 	Tests::free();

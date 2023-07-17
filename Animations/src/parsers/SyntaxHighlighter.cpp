@@ -84,6 +84,17 @@ namespace MathAnim
 		return res;
 	}
 
+	std::string SyntaxHighlighter::getStringifiedParseTreeFor(const std::string& code) const
+	{
+		if (!this->grammar)
+		{
+			return {};
+		}
+
+		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code);
+		return grammarTree.getStringifiedTree();
+	}
+
 	void SyntaxHighlighter::free()
 	{
 		if (grammar)
