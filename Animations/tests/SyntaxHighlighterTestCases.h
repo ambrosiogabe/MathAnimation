@@ -88,6 +88,11 @@ R"_('source.glsl': '<0, 63>'
     'ATOM': '}'
 )_";
 
+// NOTE: This covers a test case where I wasn't setting capture groups that
+//       were defined as siblings as children when they end up becoming a child.
+//       In this case, the decimal '.' should become a child of it's sibling capture
+//       group 'constant.numeric.decimal.js' even though the rule that defines them
+//       defines them as siblings.
 constexpr const char* JS_NUMBER_LITERAL_TEST_SRC = "3.14";
 
 constexpr const char* JS_NUMBER_LITERAL_TEST_EXPECTED = \
@@ -97,6 +102,64 @@ R"_('source.js': '<0, 4>'
     'meta.delimiter.decimal.period.js': '<1, 1>'
       'ATOM': '.'
     'ATOM': '14'
+)_";
+
+// NOTE: This covers a test case where I was incorrectly continuing to parse a document after 
+//       a submatch extended to the end of the document. This led to an incorrect parse tree.
+constexpr const char* CPP_STRAY_BRACKET_TEST_SRC = \
+R"_(#include <stdio.h>
+#include <
+
+int main()
+{
+  printf("Hello world!\n");
+}
+)_";
+
+constexpr const char* CPP_STRAY_BRACKET_TEST_EXPECTED = \
+R"_('source.cpp': '<0, 74>'
+  'meta.preprocessor.include.cpp': '<0, 19>'
+    'keyword.control.directive.include.cpp': '<0, 8>'
+      'ATOM': '#include'
+    'ATOM': ' '
+    'string.quoted.other.ltgt.cpp': '<9, 9>'
+      'punctuation.definition.string.begin.cpp': '<0, 1>'
+        'ATOM': '<'
+      'ATOM': 'stdio.h'
+      'punctuation.definition.string.end.cpp': '<8, 1>'
+        'ATOM': '>'
+    'ATOM': '\n'
+  'meta.preprocessor.include.cpp': '<19, 55>'
+    'keyword.control.directive.include.cpp': '<0, 8>'
+      'ATOM': '#include'
+    'ATOM': ' '
+    'string.quoted.other.ltgt.cpp': '<9, 46>'
+      'punctuation.definition.string.begin.cpp': '<0, 1>'
+        'ATOM': '<'
+      'ATOM': '\n\nint main()\n{\n  printf("Hello world!\n");\n}\n'
+)_";
+
+// NOTE: This tests a rule I had where the comment continued parsing until the end of the document
+//       because I didn't capture the end of the line correctly
+constexpr const char* CPP_SINGLE_LINE_COMMENT_TEST_SRC = \
+R"_(// Comments
+int foo;
+)_";
+
+constexpr const char* CPP_SINGLE_LINE_COMMENT_TEST_EXPECTED = \
+R"_('source.cpp': '<0, 21>'
+  'comment.line.cpp': '<0, 11>'
+    'punctuation.definition.comment.cpp': '<0, 2>'
+      'ATOM': '//'
+    'ATOM': ' Comments'
+  'ATOM': '\n'
+  'keyword.other.type.cpp': '<12, 3>'
+    'ATOM': 'int'
+  'ATOM': ' '
+  'entity.name.other.unknown.cpp': '<16, 3>'
+    'ATOM': 'foo'
+  'punctuation.terminator.statement.cpp': '<19, 1>'
+    'ATOM': ';'
 )_";
 
 #endif

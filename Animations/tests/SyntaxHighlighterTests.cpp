@@ -63,6 +63,26 @@ namespace MathAnim
 			END_TEST;
 		}
 
+		DEFINE_TEST(withCpp_strayBracketParsesCorrectly)
+		{
+			const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(HighlighterLanguage::Cpp);
+			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(CPP_STRAY_BRACKET_TEST_SRC);
+
+			ASSERT_EQUAL(stringifiedParseTree, CPP_STRAY_BRACKET_TEST_EXPECTED);
+
+			END_TEST;
+		}
+
+		DEFINE_TEST(withCpp_singleLineCommentParsesCorrectly)
+		{
+			const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(HighlighterLanguage::Cpp);
+			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(CPP_SINGLE_LINE_COMMENT_TEST_SRC);
+
+			ASSERT_EQUAL(stringifiedParseTree, CPP_SINGLE_LINE_COMMENT_TEST_EXPECTED);
+
+			END_TEST;
+		}
+
 		void setupTestSuite()
 		{
 			Tests::TestSuite& testSuite = Tests::addTestSuite("SyntaxHighlighterTests");
@@ -74,6 +94,8 @@ namespace MathAnim
 			ADD_TEST(testSuite, withCppLang_CppHelloWorldParsesCorrectly);
 			ADD_TEST(testSuite, withGlslLang_CppHelloWorldParsesCorrectly);
 			ADD_TEST(testSuite, withJsLang_JavaScriptNumberLiteralParsesCorrectly_NestedCaptureTest);
+			ADD_TEST(testSuite, withCpp_strayBracketParsesCorrectly);
+			ADD_TEST(testSuite, withCpp_singleLineCommentParsesCorrectly);
 		}
 
 		// -------------------- Private functions --------------------
