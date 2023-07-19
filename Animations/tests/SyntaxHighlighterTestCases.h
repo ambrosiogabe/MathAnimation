@@ -1,3 +1,4 @@
+#ifdef _MATH_ANIM_TESTS
 #ifndef MATH_ANIM_SYNTAX_HIGHLIGHTER_TEST_CASES_H
 #define MATH_ANIM_SYNTAX_HIGHLIGHTER_TEST_CASES_H
 
@@ -225,3 +226,4 @@ R"_('source.js': '<0, 47>'
 )_";
 
 #endif
+#endif // _MATH_ANIM_TESTS
