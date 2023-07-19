@@ -118,6 +118,7 @@ namespace MathAnim
 			OnigEncoding use_encs[1];
 			use_encs[0] = ONIG_ENCODING_ASCII;
 			onig_initialize(use_encs, sizeof(use_encs) / sizeof(use_encs[0]));
+			onig_set_warn_func([](const char* s) { g_logger_warning("Onig Warning: {}", s); });
 
 			Fonts::init();
 			Renderer::init();

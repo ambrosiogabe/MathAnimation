@@ -123,45 +123,104 @@ namespace MathAnim
 			endBlockMatch = eof;
 		}
 
-		// If the begin/end pair *does* have a match, then get all grammar matches for the begin/end blocks and
-		// run the extra patterns against the text between begin/end
-		std::vector<GrammarMatch> beginMatches = checkForMatches(str, beginBlockMatch->start, beginBlockMatch->end, repo, this->begin, region, this->beginCaptures);
-		std::vector<GrammarMatch> endMatches = checkForMatches(str, endBlockMatch->start, endBlockMatch->end, repo, this->end, region, this->endCaptures);
-
 		GrammarMatch res = {};
+		std::vector<GrammarMatch> beginMatches = checkForMatches(str, beginBlockMatch->start, beginBlockMatch->end, repo, this->begin, region, this->beginCaptures);
 		res.subMatches.insert(res.subMatches.end(), beginMatches.begin(), beginMatches.end());
 
-		size_t trueEndBlockPosition = endBlockMatch->end;
 		if (this->patterns.has_value())
 		{
 			size_t inBetweenStart = beginBlockMatch->end;
 			size_t inBetweenEnd = endBlockMatch->start;
+
+			// We want to consider the rest of the line when matching
+			size_t endOfLine = inBetweenEnd;
+			for (; endOfLine < str.length(); endOfLine++)
+			{
+				if (str[endOfLine] == '\n')
+				{
+					break;
+				}
+			}
+
 			while (inBetweenStart < inBetweenEnd)
 			{
 				size_t lastSubMatchesSize = res.subMatches.size();
-				if (!patterns->match(str, inBetweenStart, inBetweenEnd, repo, region, &res.subMatches))
+				if (!patterns->match(str, inBetweenStart, endOfLine, repo, region, &res.subMatches))
 				{
 					break;
 				}
 
+				// Discard any matches that began outside of our inBetweenBlock
+				bool anyMatchesBeganBeforeInBetweenScopeEnded = false;
 				for (size_t i = lastSubMatchesSize; i < res.subMatches.size(); i++)
 				{
-					if (res.subMatches[i].end > inBetweenStart)
+					if (res.subMatches[i].start >= inBetweenEnd)
 					{
-						inBetweenStart = res.subMatches[i].end;
+						res.subMatches.erase(res.subMatches.begin() + i);
+						i--;
+					}
+					else
+					{
+						anyMatchesBeganBeforeInBetweenScopeEnded = true;
 					}
 				}
-			}
 
-			if (inBetweenStart > trueEndBlockPosition)
-			{
-				trueEndBlockPosition = inBetweenStart;
+				for (size_t i = lastSubMatchesSize; i < res.subMatches.size(); i++)
+				{
+					if (res.subMatches[i].end >= inBetweenStart)
+					{
+						if (res.subMatches[i].start == res.subMatches[i].end && res.subMatches[i].start != endBlockMatch->end)
+						{
+							inBetweenStart = res.subMatches[i].end + 1;
+						}
+						else
+						{
+							inBetweenStart = res.subMatches[i].end;
+						}
+					}
+				}
+
+				// NOTE: If a match in between exceeds the current end of our match, we have to try to find
+				//       a new end that satisfies this match
+				if (inBetweenStart > endBlockMatch->start)
+				{
+					endBlockMatch = getFirstMatch(str, inBetweenStart, str.length(), this->end, region, std::nullopt);
+					if (!endBlockMatch.has_value())
+					{
+						GrammarMatch eof;
+						eof.start = str.length();
+						eof.end = str.length();
+						eof.scope = ScopedName::from("source.ERROR_EOF_NO_CLOSING_MATCH");
+
+						// If there was no end group matched, then automatically use the end of the file as the end block
+						// which is specified in the rules for textmates
+						endBlockMatch = eof;
+					}
+
+					inBetweenEnd = endBlockMatch->start;
+
+					// Consider whole line
+					endOfLine = inBetweenEnd;
+					for (; endOfLine < str.length(); endOfLine++)
+					{
+						if (str[endOfLine] == '\n')
+						{
+							break;
+						}
+					}
+				}
+				else if (inBetweenStart == endBlockMatch->end || !anyMatchesBeganBeforeInBetweenScopeEnded)
+				{
+					break;
+				}
 			}
 		}
 
+		std::vector<GrammarMatch> endMatches = checkForMatches(str, endBlockMatch->start, endBlockMatch->end, repo, this->end, region, this->endCaptures);
 		res.subMatches.insert(res.subMatches.end(), endMatches.begin(), endMatches.end());
+
 		res.start = beginBlockMatch->start;
-		res.end = trueEndBlockPosition;
+		res.end = endBlockMatch->end;
 
 		if (this->scope.has_value())
 		{
@@ -172,8 +231,6 @@ namespace MathAnim
 			res.scope = std::nullopt;
 		}
 
-		//outMatches->insert(outMatches->end(), res.subMatches.begin(), res.subMatches.end());
-		//return res.subMatches.size() > 0;
 		outMatches->push_back(res);
 		return true;
 	}
@@ -199,8 +256,15 @@ namespace MathAnim
 		std::vector<GrammarMatch> tmpRes = {};
 		size_t tmpResMin = SIZE_MAX;
 		size_t tmpResMax = 0;
+		//size_t tmpFooI = 0;
 		for (const auto& pattern : patterns)
 		{
+			//if (tmpFooI == 10)
+			//{
+			//	g_logger_info("HERE");
+			//}
+			//tmpFooI++;
+
 			std::vector<GrammarMatch> currentRes = {};
 			if (pattern.match(str, start, end, repo, region, &currentRes))
 			{
@@ -224,10 +288,9 @@ namespace MathAnim
 				size_t currentSurfaceArea = currentResMax - currentResMin;
 				size_t tmpSurfaceArea = tmpResMax - tmpResMin;
 				if (tmpRes.size() == 0 ||
-					currentResMin < tmpResMin || (
-						currentResMin == tmpResMin &&
-						currentSurfaceArea > tmpSurfaceArea
-						))
+					(currentResMin < tmpResMin && currentSurfaceArea > 0) || 
+					(currentResMin == tmpResMin && currentSurfaceArea > tmpSurfaceArea)
+					)
 				{
 					tmpRes = currentRes;
 					tmpResMin = currentResMin;
@@ -668,6 +731,19 @@ namespace MathAnim
 
 			if (match.subMatches.size() > 0)
 			{
+				if (cursorIndex < match.start)
+				{
+					// Fill in the gap
+					SourceGrammarTreeNode gapNode = {};
+					gapNode.sourceSpan.relativeStart = 0;
+					gapNode.sourceSpan.size = match.start - cursorIndex;
+					gapNode.nextNodeDelta = 1;
+					gapNode.scope = std::nullopt;
+					gapNode.isAtomicNode = true;
+					tree.insertNode(gapNode, cursorIndex);
+					cursorIndex += gapNode.sourceSpan.size;
+				}
+
 				// Recursively add sub-matches
 				cursorIndex = addMatchesToTree(tree, match.subMatches, cursorIndex);
 
@@ -1046,7 +1122,7 @@ namespace MathAnim
 		{
 			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
 			onig_error_code_to_str((UChar*)s, parseRes, &error);
-			g_logger_error("Oniguruma Error: '{}'", s);
+			g_logger_error("Oniguruma Error: '{}'", &s[0]);
 			return nullptr;
 		}
 
