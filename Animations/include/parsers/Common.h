@@ -31,11 +31,16 @@ namespace MathAnim
 		static MathAnim::Scope from(const std::string& string);
 	};
 
+	struct ScopedNameMatch
+	{
+		int levelMatched;
+	};
+
 	struct ScopedName
 	{
 		std::vector<Scope> dotSeparatedScopes;
 
-		bool matches(const ScopedName& other, int* levelMatched, float* levelMatchPercent) const;
+		std::optional<ScopedNameMatch> matches(const ScopedName& other) const;
 		std::string getFriendlyName() const;
 
 		static ScopedName from(const std::string& string);
@@ -50,12 +55,25 @@ namespace MathAnim
 	// An empty scope matches all scopes, but has the lowest ranking.
 	//
 	// Descendants also work like CSS descendants. See the link above for more info.
+
+	struct ScopeRuleMatch
+	{
+		int deepestScopeMatched;
+		std::vector<ScopedNameMatch> ancestorMatches;
+		std::vector<ScopedName> ancestorNames;
+	};
 	
 	struct ScopeRule
 	{
 		std::vector<ScopedName> scopes;
 
-		bool matches(const std::vector<ScopedName>& ancestors, int* scopeMatched, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const;
+		std::optional<ScopeRuleMatch> matches(const std::vector<ScopedName>& ancestors) const;
+	};
+
+	struct ScopeRuleCollectionMatch
+	{
+		int ruleIndexMatched;
+		ScopeRuleMatch scopeRule;
 	};
 
 	struct ScopeRuleCollection
@@ -63,7 +81,7 @@ namespace MathAnim
 		std::vector<ScopeRule> scopeRules;
 		std::string friendlyName;
 
-		bool matches(const std::vector<ScopedName>& ancestors, int* ruleMatched, int* scopeMatched, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const;
+		std::optional<ScopeRuleCollectionMatch> matches(const std::vector<ScopedName>& ancestors) const;
 
 		static ScopeRuleCollection from(const std::string& str);
 	};

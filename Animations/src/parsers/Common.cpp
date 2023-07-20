@@ -103,11 +103,10 @@ namespace MathAnim
 		return this->getScopeName() != other.getScopeName();
 	}
 
-	bool ScopedName::matches(const ScopedName& other, int* levelMatched, float* levelMatchPercent) const
+	std::optional<ScopedNameMatch> ScopedName::matches(const ScopedName& other) const
 	{
-		*levelMatched = 0;
-
 		bool matched = true;
+		int levelMatched = 0;
 		for (size_t index = 0; index < dotSeparatedScopes.size(); index++)
 		{
 			if (index >= other.dotSeparatedScopes.size())
@@ -120,12 +119,16 @@ namespace MathAnim
 				break;
 			}
 
-			*levelMatched = (*levelMatched) + 1;
+			levelMatched = (levelMatched)+1;
 		}
 
-		*levelMatchPercent = (float)(*levelMatched) / (float)dotSeparatedScopes.size();
+		//*levelMatchPercent = (float)(*levelMatched) / (float)dotSeparatedScopes.size();
+		if (matched)
+		{
+			return ScopedNameMatch{ levelMatched };
+		}
 
-		return matched;
+		return std::nullopt;
 	}
 
 	std::string ScopedName::getFriendlyName() const
@@ -168,74 +171,103 @@ namespace MathAnim
 		return scope;
 	}
 
-	bool ScopeRule::matches(const std::vector<ScopedName>& ancestors, int* scopeMatched, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const
+	std::optional<ScopeRuleMatch> ScopeRule::matches(const std::vector<ScopedName>& ancestors) const
 	{
-		*descendantMatched = 0;
-		*levelMatched = 0;
-
 		if (scopes.size() == 0)
 		{
-			return false;
+			return std::nullopt;
 		}
 
-		for (size_t i = 0; i < ancestors.size(); i++)
+		ScopeRuleMatch res = {};
+		size_t scopeIndex = 0;
+		for (size_t ancestorIndex = 0; ancestorIndex < ancestors.size(); ancestorIndex++)
 		{
-			if (scopes[*descendantMatched].matches(ancestors[i], levelMatched, levelMatchPercent))
+			auto scopeNameMatch = scopes[scopeIndex].matches(ancestors[ancestorIndex]);
+			if (scopeNameMatch.has_value())
 			{
-				*descendantMatched = (*descendantMatched + 1);
-				i = (i + 1);
-				while (*descendantMatched < scopes.size() && i < ancestors.size())
+				res.ancestorMatches.emplace_back(scopeNameMatch.value());
+				res.ancestorNames.push_back(ancestors[ancestorIndex]);
+				res.deepestScopeMatched = (int)ancestorIndex + 1;
+
+				ancestorIndex = (ancestorIndex + 1);
+				scopeIndex = (scopeIndex + 1);
+				while (scopeIndex < scopes.size() && ancestorIndex < ancestors.size())
 				{
 					// Didn't get a full match on the rule, so this doesn't count as a match
-					if (!scopes[*descendantMatched].matches(ancestors[i], levelMatched, levelMatchPercent))
+					auto nextScopeNameMatch = scopes[scopeIndex].matches(ancestors[ancestorIndex]);
+					if (!nextScopeNameMatch.has_value())
 					{
-						*descendantMatched = 0;
-						*levelMatched = 0;
-						return false;
+						ancestorIndex++;
 					}
-
-					*descendantMatched = (*descendantMatched) + 1;
+					else
+					{
+						res.ancestorMatches.emplace_back(nextScopeNameMatch.value());
+						res.ancestorNames.push_back(ancestors[ancestorIndex]);
+						res.deepestScopeMatched = (int)ancestorIndex + 1;
+						scopeIndex++;
+					}
 				}
 
-				// We matched as much as we could, which means this rule matches this ancestor hiearchy
-				// The deepest level we matched is i (0-indexed)
-				*scopeMatched = *descendantMatched - 1;
-				*descendantMatched = ((int)i + 1);
-				return true;
+				// Must match all scopes in the descendant heirarchy otherwise this isn't
+				// actually a match
+				if (scopeIndex != scopes.size())
+				{
+					return std::nullopt;
+				}
+				else
+				{
+					return res;
+				}
 			}
 		}
 
-		return false;
+		return std::nullopt;
 	}
 
-	bool ScopeRuleCollection::matches(const std::vector<ScopedName>& ancestors, int* ruleMatched, int* scopeMatched, int* descendantMatched, int* levelMatched, float* levelMatchPercent) const
+	std::optional<ScopeRuleCollectionMatch> ScopeRuleCollection::matches(const std::vector<ScopedName>& ancestors) const
 	{
-		bool matched = false;
-		int descendantMatchedLocal = 0;
-		int levelMatchedLocal = 0;
-		float levelMatchPercentLocal = 0.0f;
-		int scopeMatchedLocal = 0;
+		std::optional<ScopeRuleCollectionMatch> res = std::nullopt;
+
+		int deepestScopeMatched = 0;
 		for (size_t i = 0; i < scopeRules.size(); i++)
 		{
 			const auto& scopeRule = scopeRules[i];
-			if (scopeRule.matches(ancestors, &scopeMatchedLocal, &descendantMatchedLocal, &levelMatchedLocal, &levelMatchPercentLocal))
+			auto scopeRuleMatch = scopeRule.matches(ancestors);
+			if (!scopeRuleMatch.has_value())
 			{
-				if ((descendantMatchedLocal > *descendantMatched) ||
-					(descendantMatchedLocal == *descendantMatched && levelMatchPercentLocal > *levelMatchPercent) ||
-					(descendantMatchedLocal == *descendantMatched && levelMatchPercentLocal == *levelMatchPercent
-						&& levelMatchedLocal > *levelMatched))
+				continue;
+			}
+
+			if (scopeRuleMatch->deepestScopeMatched > deepestScopeMatched)
+			{
+				res = ScopeRuleCollectionMatch{
+					(int)i,
+					scopeRuleMatch.value()
+				};
+			}
+			else if (scopeRuleMatch->deepestScopeMatched > 0 && scopeRuleMatch->deepestScopeMatched == deepestScopeMatched)
+			{
+				if (scopeRuleMatch->ancestorMatches.size() > res->scopeRule.ancestorMatches.size())
 				{
-					*scopeMatched = scopeMatchedLocal;
-					*descendantMatched = descendantMatchedLocal;
-					*levelMatched = levelMatchedLocal;
-					*levelMatchPercent = levelMatchPercentLocal;
-					*ruleMatched = (int)i;
+					res = ScopeRuleCollectionMatch{
+						(int)i,
+						scopeRuleMatch.value()
+					};
 				}
-				matched = true;
+				else if (scopeRuleMatch->ancestorMatches.size() == res->scopeRule.ancestorMatches.size())
+				{
+					if (scopeRuleMatch->ancestorMatches[0].levelMatched > res->scopeRule.ancestorMatches[0].levelMatched)
+					{
+						res = ScopeRuleCollectionMatch{
+							(int)i,
+							scopeRuleMatch.value()
+						};
+					}
+				}
 			}
 		}
 
-		return matched;
+		return res;
 	}
 
 	ScopeRuleCollection ScopeRuleCollection::from(const std::string& str)

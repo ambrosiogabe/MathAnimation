@@ -49,6 +49,10 @@ namespace MathAnim
 					g_logger_assert(setting->foregroundColor.has_value(), "Something bad happened here.");
 					settingForeground = setting->foregroundColor.value().color;
 				}
+				else if (theme.defaultForeground.styleType == CssStyleType::Value)
+				{
+					settingForeground = theme.defaultForeground.color;
+				}
 
 				size_t absStart = highlightCursor;
 				size_t nodeSize = grammarTree.tree[child].sourceSpan.size;

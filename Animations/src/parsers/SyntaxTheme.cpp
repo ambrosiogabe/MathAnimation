@@ -10,15 +10,10 @@ namespace MathAnim
 {
 	using namespace nlohmann;
 
-	struct ScopeMatch
+	struct InternalScopeMatch
 	{
-		size_t ruleIndex;
-		int collectionMatched;
-		int ruleMatched;
-		int scopeMatched;
-		int maxDescendantMatched;
-		int levelMatched;
-		float levelMatchPercent;
+		size_t globalRuleIndex;
+		ScopeRuleCollectionMatch match;
 	};
 
 	// -------------- Internal Functions --------------
@@ -52,38 +47,27 @@ namespace MathAnim
 		*    (in the case of a tie), e.g. "text source string" wins over "source string".
 		*/
 
-		std::vector<ScopeMatch> potentialMatches = {};
+		std::vector<InternalScopeMatch> potentialMatches = {};
 
-		int maxDescendantMatched = 0;
+		int deepestScopeMatched = 0;
 		for (size_t ruleIndex = 0; ruleIndex < tokenColors.size(); ruleIndex++)
 		{
 			const auto& rule = tokenColors[ruleIndex];
-			for (size_t scopeRuleIndex = 0; scopeRuleIndex < rule.scopeCollection.size(); scopeRuleIndex++)
+			for (size_t collectionIndex = 0; collectionIndex < rule.scopeCollection.size(); collectionIndex++)
 			{
-				const auto& scopeRule = rule.scopeCollection[scopeRuleIndex];
-				int descendantMatched = 0;
-				int levelMatched = 0;
-				float levelMatchPercent = 0.0f;
-				int ruleMatched = 0;
-				int scopeMatched = 0;
-				if (scopeRule.matches(ancestorScopes, &ruleMatched, &scopeMatched , &descendantMatched, &levelMatched, &levelMatchPercent))
+				const auto& scopeRule = rule.scopeCollection[collectionIndex];
+				auto match = scopeRule.matches(ancestorScopes);
+				if (match.has_value())
 				{
-					int collectionMatched = (int)scopeRuleIndex;
-					potentialMatches.push_back({
-						ruleIndex,
-						collectionMatched,
-						ruleMatched,
-						scopeMatched,
-						descendantMatched,
-						levelMatched,
-						levelMatchPercent
-						});
-
-					if (descendantMatched > maxDescendantMatched)
+					if (match->scopeRule.deepestScopeMatched > deepestScopeMatched)
 					{
-						maxDescendantMatched = descendantMatched;
+						deepestScopeMatched = match->scopeRule.deepestScopeMatched;
 					}
 
+					potentialMatches.emplace_back(InternalScopeMatch{
+						ruleIndex,
+						match.value()
+						});
 					break;
 				}
 			}
@@ -98,7 +82,7 @@ namespace MathAnim
 
 		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
 		{
-			if (iter->maxDescendantMatched < maxDescendantMatched)
+			if (iter->match.scopeRule.deepestScopeMatched < deepestScopeMatched)
 			{
 				iter = potentialMatches.erase(iter);
 			}
@@ -112,7 +96,9 @@ namespace MathAnim
 		* Second pass to cull the list, follow this rule to cull more potential matches:
 		*
 		*  2. Match most of the deepest element e.g. "string.quoted" wins over "string".
-		* 
+		*
+		*  NOTE (Deprecated?): I think the note below this one no longer applies. I've removed the code
+		*                      that used to do what the note below said and it still works alright /shrug.
 		*  NOTE:
 		*  This is kind of vague. What happens if you get "string.quoted.at.json" vs "string.quoted" for the pattern "string.quoted"
 		*  I believe "string.quoted" should win since it matches 100%, but the spec doesn't specify this. So
@@ -120,19 +106,18 @@ namespace MathAnim
 		*  would match 0.5 and "string.quoted" would match 1.0, so "string.quoted" would win. Then, if you have
 		*  "string.quoted" vs "string", "string.quoted" would win since it goes two levels deep and is more specific.
 		*/
-
-		float maxLevelPercentMatched = 0;
+		int maxLevelMatched = 0;
 		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end(); iter++)
 		{
-			if (iter->levelMatchPercent > maxLevelPercentMatched)
+			if (iter->match.scopeRule.ancestorMatches[0].levelMatched > maxLevelMatched)
 			{
-				maxLevelPercentMatched = iter->levelMatchPercent;
+				maxLevelMatched = iter->match.scopeRule.ancestorMatches[0].levelMatched;
 			}
 		}
 
 		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
 		{
-			if (iter->levelMatchPercent < maxLevelPercentMatched)
+			if (iter->match.scopeRule.ancestorMatches[0].levelMatched < maxLevelMatched)
 			{
 				iter = potentialMatches.erase(iter);
 			}
@@ -142,24 +127,23 @@ namespace MathAnim
 			}
 		}
 
-
-		/**
-		* Third pass, cull any ambiguous ones from above.
-		*
-		*  2.3 See note above, this does the level matching after percentage matching has already culled matches.
+		/*
+		* 3. Rules 1 and 2 applied again to the scope selector when removing the deepest element
+		*    (in the case of a tie), e.g. "text source string" wins over "source string".
+		* 
+		* NOTE: Right now I'm just culling whichever matches have less ancestors matched.
 		*/
-		int maxLevelMatched = 0;
-		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end(); iter++)
-		{
-			if (iter->levelMatched > maxLevelMatched)
+		size_t maxAncestorsMatched = 0;
+		for (size_t i = 0; i < potentialMatches.size(); i++) {
+			if (potentialMatches[i].match.scopeRule.ancestorMatches.size() > maxAncestorsMatched)
 			{
-				maxLevelMatched = iter->levelMatched;
+				maxAncestorsMatched = potentialMatches[i].match.scopeRule.ancestorMatches.size();
 			}
 		}
 
 		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
 		{
-			if (iter->levelMatched < maxLevelMatched)
+			if (iter->match.scopeRule.ancestorMatches.size() < maxAncestorsMatched)
 			{
 				iter = potentialMatches.erase(iter);
 			}
@@ -172,22 +156,29 @@ namespace MathAnim
 		if (potentialMatches.size() > 0)
 		{
 			const auto& match = potentialMatches[0];
-			const auto& tokenRuleMatch = tokenColors[match.ruleIndex];
+			const auto& tokenRuleMatch = tokenColors[match.globalRuleIndex];
 
-			const auto& matchedCollection = tokenRuleMatch.scopeCollection[match.collectionMatched];
-			const auto& matchedScopeRule = matchedCollection.scopeRules[match.ruleMatched];
-			const auto& matchedScope = matchedScopeRule.scopes[match.scopeMatched];
 			std::string matchedOnStr = "";
-			for (size_t i = 0; i < match.levelMatched; i++)
+			for (size_t i = 0; i < match.match.scopeRule.ancestorMatches.size(); i++)
 			{
-				g_logger_assert(i < matchedScope.dotSeparatedScopes.size(), "How did that happen?");
-				matchedOnStr += matchedScope.dotSeparatedScopes[i].getScopeName();
-				if (i < match.levelMatched - 1)
+				const auto& ancestor = match.match.scopeRule.ancestorMatches[i];
+				const auto& ancestorName = match.match.scopeRule.ancestorNames[i];
+				for (size_t j = 0; j < ancestor.levelMatched; j++)
 				{
-					matchedOnStr += ".";
+					g_logger_assert(j < ancestorName.dotSeparatedScopes.size(), "How did that happen?");
+					matchedOnStr += ancestorName.dotSeparatedScopes[j].getScopeName();
+					if (j < ancestor.levelMatched - 1)
+					{
+						matchedOnStr += ".";
+					}
+				}
+
+				if (i < match.match.scopeRule.ancestorMatches.size() - 1)
+				{
+					matchedOnStr += " ";
 				}
 			}
-			
+
 			return {
 				&tokenRuleMatch,
 				matchedOnStr
