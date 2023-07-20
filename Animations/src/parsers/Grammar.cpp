@@ -307,6 +307,47 @@ namespace MathAnim
 					tmpResMin = currentResMin;
 					tmpResMax = currentResMax;
 				}
+
+				//tmpRes = currentRes;
+				//break;
+			}
+		}
+
+		if (tmpRes.size() > 0)
+		{
+			outMatches->insert(outMatches->end(), tmpRes.begin(), tmpRes.end());
+			return true;
+		}
+
+		return false;
+	}
+
+	bool PatternArray::matchAll(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
+	{
+		size_t cursor = start;
+
+		std::vector<GrammarMatch> tmpRes = {};
+		while (cursor < end)
+		{
+			if (this->match(str, anchor, cursor, end, repo, region, &tmpRes))
+			{
+				size_t oldStart = cursor;
+				for (size_t i = 0; i < tmpRes.size(); i++)
+				{
+					if (tmpRes[i].end > cursor)
+					{
+						cursor = tmpRes[i].end;
+					}
+				}
+
+				if (cursor == oldStart)
+				{
+					cursor++;
+				}
+			}
+			else
+			{
+				cursor++;
 			}
 		}
 
@@ -1186,16 +1227,21 @@ namespace MathAnim
 						// This match is good
 						break;
 					}
-					else if (region->end[0] <= startOffset)
+					else if (region->end[0] <= startOffset && anchor != (size_t)region->end[0])
 					{
 						// This match is bad, but there might be a good match later on,
 						// increase the startOffset if we can
 						anchor = (size_t)region->end[0];
 					}
-					else
+					else if (anchor != startOffset)
 					{
 						// No good matches, try from the actual startOffset
 						anchor = startOffset;
+					}
+					else
+					{
+						// No good matches
+						break;
 					}
 				}
 				else
@@ -1313,7 +1359,7 @@ namespace MathAnim
 							else if (capture.patternArray.has_value())
 							{
 								OnigRegion* subRegion = onig_region_new();
-								capture.patternArray->match(str, captureBegin, captureBegin, captureEnd, repo, subRegion, &res);
+								capture.patternArray->matchAll(str, captureBegin, captureBegin, captureEnd, repo, subRegion, &res);
 								onig_region_free(subRegion, 1);
 							}
 							else
