@@ -178,10 +178,6 @@ namespace MathAnim
 			return false;
 		}
 
-		// ScopeRule: "string"
-		// ScopeRule: "source string"
-		// ScopeRule: "source"
-		// Scope:     "foo source.php string.quoted"
 		for (size_t i = 0; i < ancestors.size(); i++)
 		{
 			if (scopes[*descendantMatched].matches(ancestors[i], levelMatched, levelMatchPercent))

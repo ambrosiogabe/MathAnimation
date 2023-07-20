@@ -274,15 +274,8 @@ namespace MathAnim
 		std::vector<GrammarMatch> tmpRes = {};
 		size_t tmpResMin = SIZE_MAX;
 		size_t tmpResMax = 0;
-		//size_t tmpFooI = 0;
 		for (const auto& pattern : patterns)
 		{
-			//if (tmpFooI == 10)
-			//{
-			//	g_logger_info("HERE");
-			//}
-			//tmpFooI++;
-
 			std::vector<GrammarMatch> currentRes = {};
 			if (pattern.match(str, anchor, start, end, repo, region, &currentRes))
 			{
@@ -1147,10 +1140,8 @@ namespace MathAnim
 		return reg;
 	}
 
-	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, const std::optional<ScopedName>& scope)
+	static int getFirstValidMatchInRange(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region)
 	{
-		std::optional<GrammarMatch> res = std::nullopt;
-
 		g_logger_assert(startOffset <= str.size(), "Invalid startOffset: startOffset > str.size(): '{}' > '{}'", startOffset, str.size());
 		g_logger_assert(endOffset <= str.size(), "Invalid endOffset: endOffset > str.size(): '{}' > '{}'", endOffset, str.size());
 
@@ -1212,6 +1203,14 @@ namespace MathAnim
 			options = ONIG_OPTION_NOT_BEGIN_POSITION;
 		}
 
+		return searchRes;
+	}
+
+	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, const std::optional<ScopedName>& scope)
+	{
+		std::optional<GrammarMatch> res = std::nullopt;
+
+		int searchRes = getFirstValidMatchInRange(str, anchor, startOffset, endOffset, reg, region);
 		if (searchRes >= 0)
 		{
 			if (region->num_regs > 0)
@@ -1280,67 +1279,7 @@ namespace MathAnim
 	{
 		std::vector<GrammarMatch> res = {};
 
-		g_logger_assert(startOffset <= str.size(), "Invalid startOffset: startOffset > str.size(): '{}' > '{}'", startOffset, str.size());
-		g_logger_assert(endOffset <= str.size(), "Invalid endOffset: endOffset > str.size(): '{}' > '{}'", endOffset, str.size());
-
-		const char* cstr = str.c_str();
-		const char* end = cstr + str.length();
-		const char* range = cstr + endOffset;
-		int searchRes = ONIG_MISMATCH;
-
-		// Find the first result that's within our search range
-		int options = ONIG_OPTION_NONE;
-		while (true)
-		{
-			g_logger_assert(anchor <= str.size(), "Invalid anchor: anchor > str.size(): '{}' > '{}'", anchor, str.size());
-			const char* start = cstr + anchor;
-
-			onig_region_clear(region);
-			searchRes = onig_search(
-				reg,
-				(uint8*)cstr,
-				(uint8*)end,
-				(uint8*)start,
-				(uint8*)range,
-				region,
-				options
-			);
-
-			if (searchRes >= 0 && region->num_regs > 0)
-			{
-				if (region->beg[0] >= 0 && region->end[0] >= region->beg[0])
-				{
-					if (region->beg[0] >= startOffset)
-					{
-						// This match is good
-						break;
-					}
-					else if (region->end[0] <= startOffset)
-					{
-						// This match is bad, but there might be a good match later on,
-						// increase the startOffset if we can
-						anchor = (size_t)region->end[0];
-					}
-					else
-					{
-						// No good matches, try from the actual startOffset
-						anchor = startOffset;
-					}
-				}
-				else
-				{
-					break;
-				}
-			}
-			else
-			{
-				break;
-			}
-
-			// If the first search fails, then we won't consider subsequent searches as the beginning of the line
-			options = ONIG_OPTION_NOT_BEGIN_POSITION;
-		}
-
+		int searchRes = getFirstValidMatchInRange(str, anchor, startOffset, endOffset, reg, region);
 		if (searchRes >= 0)
 		{
 			if (captures.has_value())
