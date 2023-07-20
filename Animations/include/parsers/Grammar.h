@@ -16,6 +16,8 @@ namespace MathAnim
 	struct PatternArray
 	{
 		std::vector<SyntaxPattern> patterns;
+		std::unordered_map<size_t, size_t> onigIndexMap;
+		OnigRegSet* regset;
 
 		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 		bool matchAll(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
@@ -43,7 +45,7 @@ namespace MathAnim
 	struct SimpleSyntaxPattern
 	{
 		std::optional<ScopedName> scope;
-		regex_t* regMatch;
+		OnigRegex regMatch;
 		std::optional<CaptureList> captures;
 
 		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
@@ -54,8 +56,8 @@ namespace MathAnim
 	struct ComplexSyntaxPattern
 	{
 		std::optional<ScopedName> scope;
-		regex_t* begin;
-		regex_t* end;
+		OnigRegex begin;
+		OnigRegex end;
 		std::optional<CaptureList> beginCaptures;
 		std::optional<CaptureList> endCaptures;
 		std::optional<PatternArray> patterns;

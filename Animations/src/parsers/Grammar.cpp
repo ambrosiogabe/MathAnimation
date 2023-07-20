@@ -11,9 +11,11 @@ namespace MathAnim
 	static Grammar* importGrammarFromJson(const json& j);
 	static SyntaxPattern parsePattern(const json& json, const Grammar* self);
 	static PatternArray parsePatternsArray(const json& json, const Grammar* self);
-	static regex_t* onigFromString(const std::string& str);
-	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, const std::optional<ScopedName>& scope);
-	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternRepository& repo, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures);
+	static OnigRegex onigFromString(const std::string& str, bool multiLine);
+	static void getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternArray& pattern, int* patternMatched);
+	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, OnigRegex reg, OnigRegion* region, const std::optional<ScopedName>& scope);
+	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternRepository& repo, OnigRegex reg, OnigRegion* region, std::optional<CaptureList> captures);
+	static void constructRegsetsFromPatterns(Grammar* self);
 
 	CaptureList CaptureList::from(const json& j, const Grammar* self)
 	{
@@ -272,54 +274,81 @@ namespace MathAnim
 	bool PatternArray::match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
 	{
 		std::vector<GrammarMatch> tmpRes = {};
-		size_t tmpResMin = SIZE_MAX;
-		size_t tmpResMax = 0;
-		for (const auto& pattern : patterns)
+		int onigPatternMatched = -1;
+		getFirstMatch(str, anchor, start, end, *this, &onigPatternMatched);
+		if (onigPatternMatched != -1)
 		{
-			std::vector<GrammarMatch> currentRes = {};
-			if (pattern.match(str, anchor, start, end, repo, region, &currentRes))
+			auto patternIndexIter = this->onigIndexMap.find(onigPatternMatched);
+			if (patternIndexIter != this->onigIndexMap.end() && patternIndexIter->second < this->patterns.size())
 			{
-				// Find the "surface area" this pattern matches.
-				// Where "surface area" is the (begin-end) substring that it matches
-				size_t currentResMin = SIZE_MAX;
-				size_t currentResMax = 0;
-				for (const auto& match : currentRes)
+				size_t lastOutMatchesSize = outMatches->size();
+				patterns[patternIndexIter->second].match(str, anchor, start, end, repo, region, outMatches);
+				return outMatches->size() != lastOutMatchesSize;
+			}
+		}
+		else
+		{
+			// See if there's a $self pattern that we can try to match on
+			for (auto& pattern : this->patterns)
+			{
+				if (pattern.type == PatternType::Include && pattern.patternInclude.has_value() &&
+					*pattern.patternInclude == "$self")
 				{
-					if (match.start < currentResMin)
-					{
-						currentResMin = match.start;
-					}
-					if (match.end > currentResMax)
-					{
-						currentResMax = match.end;
-					}
+					return pattern.self->patterns.match(str, anchor, start, end, repo, region, outMatches);
 				}
-
-				// The largest surface area that occurs the earliest wins out of all matches
-				size_t currentSurfaceArea = currentResMax - currentResMin;
-				size_t tmpSurfaceArea = tmpResMax - tmpResMin;
-				if (tmpRes.size() == 0 ||
-					(currentResMin < tmpResMin && currentSurfaceArea > 0) ||
-					(currentResMin == tmpResMin && currentSurfaceArea > tmpSurfaceArea)
-					)
-				{
-					tmpRes = currentRes;
-					tmpResMin = currentResMin;
-					tmpResMax = currentResMax;
-				}
-
-				//tmpRes = currentRes;
-				//break;
 			}
 		}
 
-		if (tmpRes.size() > 0)
-		{
-			outMatches->insert(outMatches->end(), tmpRes.begin(), tmpRes.end());
-			return true;
-		}
-
 		return false;
+
+		//size_t tmpResMin = SIZE_MAX;
+		//size_t tmpResMax = 0;
+		//for (const auto& pattern : patterns)
+		//{
+		//	std::vector<GrammarMatch> currentRes = {};
+		//	if (pattern.match(str, anchor, start, end, repo, region, &currentRes))
+		//	{
+		//		// Find the "surface area" this pattern matches.
+		//		// Where "surface area" is the (begin-end) substring that it matches
+		//		//size_t currentResMin = SIZE_MAX;
+		//		//size_t currentResMax = 0;
+		//		//for (const auto& match : currentRes)
+		//		//{
+		//		//	if (match.start < currentResMin)
+		//		//	{
+		//		//		currentResMin = match.start;
+		//		//	}
+		//		//	if (match.end > currentResMax)
+		//		//	{
+		//		//		currentResMax = match.end;
+		//		//	}
+		//		//}
+
+		//		//// The largest surface area that occurs the earliest wins out of all matches
+		//		//size_t currentSurfaceArea = currentResMax - currentResMin;
+		//		//size_t tmpSurfaceArea = tmpResMax - tmpResMin;
+		//		//if (tmpRes.size() == 0 ||
+		//		//	(currentResMin < tmpResMin && currentSurfaceArea > 0) ||
+		//		//	(currentResMin == tmpResMin && currentSurfaceArea > tmpSurfaceArea)
+		//		//	)
+		//		//{
+		//		//	tmpRes = currentRes;
+		//		//	tmpResMin = currentResMin;
+		//		//	tmpResMax = currentResMax;
+		//		//}
+
+		//		tmpRes = currentRes;
+		//		break;
+		//	}
+		//}
+
+		//if (tmpRes.size() > 0)
+		//{
+		//	outMatches->insert(outMatches->end(), tmpRes.begin(), tmpRes.end());
+		//	return true;
+		//}
+
+		//return false;
 	}
 
 	bool PatternArray::matchAll(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
@@ -998,6 +1027,8 @@ namespace MathAnim
 			res->patterns = parsePatternsArray(patternsArray, res);
 		}
 
+		constructRegsetsFromPatterns(res);
+
 		return res;
 	}
 
@@ -1031,7 +1062,7 @@ namespace MathAnim
 			res.self = self;
 
 			SimpleSyntaxPattern p = {};
-			p.regMatch = onigFromString(json["match"]);
+			p.regMatch = onigFromString(json["match"], false);
 
 			if (json.contains("name"))
 			{
@@ -1068,8 +1099,8 @@ namespace MathAnim
 			}
 
 			ComplexSyntaxPattern c = {};
-			c.begin = onigFromString(json["begin"]);
-			c.end = onigFromString(json["end"]);
+			c.begin = onigFromString(json["begin"], false);
+			c.end = onigFromString(json["end"], true);
 
 			if (json.contains("name"))
 			{
@@ -1132,6 +1163,166 @@ namespace MathAnim
 		return dummy;
 	}
 
+	static void addPatternArrayToRegset(OnigRegSet* regset, PatternArray& ogPatternArray, const PatternArray& patternArray, const Grammar* self, size_t index);
+	static void addPatternToRegset(OnigRegSet* regset, PatternArray& ogPatternArray, const SyntaxPattern& pattern, const Grammar* self, size_t index);
+
+	static void addPatternToRegset(OnigRegSet* regset, PatternArray& ogPatternArray, const SyntaxPattern& pattern, const Grammar* self, size_t index)
+	{
+		int addRegToSetErr = ONIG_NORMAL;
+		bool addedRegex = true;
+		size_t onigIndex = (size_t)onig_regset_number_of_regex(regset);
+
+		switch (pattern.type)
+		{
+		case PatternType::Simple:
+			if (pattern.simplePattern.has_value())
+			{
+				addRegToSetErr = onig_regset_add(regset, pattern.simplePattern->regMatch);
+			}
+			break;
+		case PatternType::Complex:
+			if (pattern.complexPattern.has_value())
+			{
+				addRegToSetErr = onig_regset_add(regset, pattern.complexPattern->begin);
+			}
+			break;
+		case PatternType::Include:
+			if (pattern.patternInclude.has_value())
+			{
+				const auto& includeName = *pattern.patternInclude;
+				auto iter = self->repository.patterns.find(includeName);
+				if (iter != self->repository.patterns.end())
+				{
+					addPatternToRegset(regset, ogPatternArray, iter->second, self, index);
+				}
+			}
+			break;
+		case PatternType::Array:
+			if (pattern.patternArray.has_value())
+			{
+				addPatternArrayToRegset(regset, ogPatternArray, pattern.patternArray.value(), self, index);
+				addedRegex = false;
+			}
+			break;
+		case PatternType::Invalid:
+			break;
+		}
+
+		if (addRegToSetErr != ONIG_NORMAL)
+		{
+			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
+			onig_error_code_to_str((UChar*)s, addRegToSetErr);
+			g_logger_error("Oniguruma Regset::Add Error: '{}'", &s[0]);
+		}
+		else if (addedRegex)
+		{
+			ogPatternArray.onigIndexMap[onigIndex] = index;
+		}
+	}
+
+	static void addPatternArrayToRegset(OnigRegSet* regset, PatternArray& ogPatternArray, const PatternArray& patternArray, const Grammar* self, size_t )
+	{
+		size_t i = 0;
+		for (const auto& pattern : patternArray.patterns)
+		{
+			addPatternToRegset(regset, ogPatternArray, pattern, self, i);
+			i++;
+		}
+	}
+
+	static void constructRegsetFromPattern(SyntaxPattern& pattern, Grammar* self);
+	static void constructRegsetsFromPatterns(PatternArray& patternArray, Grammar* self);
+	static void constructRegsetsFromPatterns(Grammar* self);
+
+	static void constructRegsetFromPattern(SyntaxPattern& pattern, Grammar* self)
+	{
+		switch (pattern.type)
+		{
+		case PatternType::Array:
+			if (pattern.patternArray.has_value())
+			{
+				constructRegsetsFromPatterns(pattern.patternArray.value(), self);
+			}
+			break;
+		case PatternType::Simple:
+			if (pattern.simplePattern.has_value() && pattern.simplePattern->captures.has_value())
+			{
+				for (auto& capture : pattern.simplePattern->captures.value().captures)
+				{
+					if (capture.patternArray.has_value())
+					{
+						constructRegsetsFromPatterns(capture.patternArray.value(), self);
+					}
+				}
+			}
+			break;
+		case PatternType::Complex:
+			if (pattern.complexPattern.has_value())
+			{
+				if (pattern.complexPattern->beginCaptures.has_value())
+				{
+					for (auto& capture : pattern.complexPattern->beginCaptures->captures)
+					{
+						if (capture.patternArray.has_value())
+						{
+							constructRegsetsFromPatterns(capture.patternArray.value(), self);
+						}
+					}
+				}
+
+				if (pattern.complexPattern->endCaptures.has_value())
+				{
+					for (auto& capture : pattern.complexPattern->endCaptures->captures)
+					{
+						if (capture.patternArray.has_value())
+						{
+							constructRegsetsFromPatterns(capture.patternArray.value(), self);
+						}
+					}
+				}
+
+				if (pattern.complexPattern->patterns.has_value())
+				{
+					constructRegsetsFromPatterns(pattern.complexPattern->patterns.value(), self);
+				}
+			}
+			break;
+		case PatternType::Include:
+		case PatternType::Invalid:
+			break;
+		}
+	}
+
+	static void constructRegsetsFromPatterns(PatternArray& patternArray, Grammar* self)
+	{
+		// Create regset that contains all patterns/include_patterns in this array
+		int parseRes = onig_regset_new(&patternArray.regset, 0, NULL);
+		if (parseRes != ONIG_NORMAL)
+		{
+			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
+			onig_error_code_to_str((UChar*)s, parseRes);
+			g_logger_error("Oniguruma Regset::Create Error: '{}'", &s[0]);
+			return;
+		}
+
+		addPatternArrayToRegset(patternArray.regset, patternArray, patternArray, self, 0);
+
+		for (auto& pattern : patternArray.patterns)
+		{
+			constructRegsetFromPattern(pattern, self);
+		}
+	}
+
+	static void constructRegsetsFromPatterns(Grammar* self)
+	{
+		constructRegsetsFromPatterns(self->patterns, self);
+
+		for (auto& pattern : self->repository.patterns)
+		{
+			constructRegsetFromPattern(pattern.second, self);
+		}
+	}
+
 	static PatternArray parsePatternsArray(const json& json, const Grammar* self)
 	{
 		PatternArray res = {};
@@ -1152,14 +1343,17 @@ namespace MathAnim
 		return res;
 	}
 
-	static regex_t* onigFromString(const std::string& str)
+	static OnigRegex onigFromString(const std::string& str, bool multiLine)
 	{
 		const char* pattern = str.c_str();
 		const char* patternEnd = pattern + str.length();
 
 		int options = ONIG_OPTION_NONE;
 		options |= ONIG_OPTION_CAPTURE_GROUP;
-		options |= ONIG_OPTION_MULTILINE;
+		if (multiLine)
+		{
+			options |= ONIG_OPTION_MULTILINE;
+		}
 
 		// Enable capture history for Oniguruma
 		OnigSyntaxType syn;
@@ -1167,7 +1361,7 @@ namespace MathAnim
 		onig_set_syntax_op2(&syn,
 			onig_get_syntax_op2(&syn) | ONIG_SYN_OP2_ATMARK_CAPTURE_HISTORY);
 
-		regex_t* reg;
+		OnigRegex reg;
 		OnigErrorInfo error;
 		int parseRes = onig_new(
 			&reg,
@@ -1190,7 +1384,7 @@ namespace MathAnim
 		return reg;
 	}
 
-	static int getFirstValidMatchInRange(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region)
+	static int getFirstValidMatchInRange(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, OnigRegex reg, OnigRegion* region)
 	{
 		g_logger_assert(startOffset <= str.size(), "Invalid startOffset: startOffset > str.size(): '{}' > '{}'", startOffset, str.size());
 		g_logger_assert(endOffset <= str.size(), "Invalid endOffset: endOffset > str.size(): '{}' > '{}'", endOffset, str.size());
@@ -1261,7 +1455,44 @@ namespace MathAnim
 		return searchRes;
 	}
 
-	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, const std::optional<ScopedName>& scope)
+	static void getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternArray& pattern, int* patternMatched)
+	{
+		std::optional<GrammarMatch> res = std::nullopt;
+
+		anchor *= -1;
+
+		const char* cstr = str.c_str();
+		const char* range = cstr + endOffset;
+		const char* start = cstr + startOffset;
+		const char* end = cstr + str.length();
+
+		int strMatchPos;
+		int searchRes = onig_regset_search(
+			pattern.regset,
+			(uint8*)cstr,
+			(uint8*)end,
+			(uint8*)start,
+			(uint8*)range,
+			ONIG_REGSET_POSITION_LEAD,
+			ONIG_OPTION_NONE,
+			&strMatchPos
+		);
+
+		if (searchRes != ONIG_MISMATCH && searchRes < 0)
+		{
+			// Error
+			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
+			onig_error_code_to_str((UChar*)s, searchRes);
+			g_logger_error("Oniguruma Error: '{}'", &s[0]);
+			*patternMatched = -1;
+		}
+		else
+		{
+			*patternMatched = searchRes;
+		}
+	}
+
+	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, OnigRegex reg, OnigRegion* region, const std::optional<ScopedName>& scope)
 	{
 		std::optional<GrammarMatch> res = std::nullopt;
 
@@ -1330,7 +1561,7 @@ namespace MathAnim
 		const PatternRepository& repo;
 	};
 
-	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternRepository& repo, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures)
+	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternRepository& repo, OnigRegex reg, OnigRegion* region, std::optional<CaptureList> captures)
 	{
 		std::vector<GrammarMatch> res = {};
 
