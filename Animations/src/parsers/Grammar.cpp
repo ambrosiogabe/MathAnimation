@@ -1039,22 +1039,31 @@ namespace MathAnim
 				c.scope = std::nullopt;
 			}
 
-			if (json.contains("beginCaptures"))
+			// Using captures key is shorthand for begin/end captures both using this ruleset.
+			// See here https://macromates.com/manual/en/language_grammars#rule_keys
+			if (json.contains("captures"))
 			{
-				c.beginCaptures = CaptureList::from(json["beginCaptures"], self);
+				CaptureList captureList = CaptureList::from(json["captures"], self);
+				c.beginCaptures = captureList;
+				c.endCaptures = captureList;
 			}
 			else
 			{
 				c.beginCaptures = std::nullopt;
+				c.endCaptures = std::nullopt;
+			}
+
+			// NOTE: I'm not completely sure, but I feel like if you specify both captures
+			//       and a begin/end captures, then the begin/end captures should take precedence.
+			//       So that's what happens here.
+			if (json.contains("beginCaptures"))
+			{
+				c.beginCaptures = CaptureList::from(json["beginCaptures"], self);
 			}
 
 			if (json.contains("endCaptures"))
 			{
 				c.endCaptures = CaptureList::from(json["endCaptures"], self);
-			}
-			else
-			{
-				c.endCaptures = std::nullopt;
 			}
 
 			if (json.contains("patterns"))

@@ -288,5 +288,39 @@ R"_('source.js': '<0, 57>'
         'ATOM': '}'
 )_";
 
+constexpr const char* JS_INTERPOLATED_STRING_SRC = "`${this.a + this.b}`;";
+
+constexpr const char* JS_INTERPOLATED_STRING_EXPECTED = \
+R"_('source.js': '<0, 21>'
+  'string.quoted.template.js': '<0, 20>'
+    'punctuation.definition.string.begin.js': '<0, 1>'
+      'ATOM': '`'
+    'source.js.embedded.source': '<1, 18>'
+      'punctuation.section.embedded.js': '<0, 2>'
+        'ATOM': '${'
+      'variable.language.js': '<2, 4>'
+        'ATOM': 'this'
+      'meta.delimiter.property.period.js': '<6, 1>'
+        'ATOM': '.'
+      'variable.other.property.js': '<7, 1>'
+        'ATOM': 'a'
+      'ATOM': ' '
+      'keyword.operator.js': '<9, 1>'
+        'ATOM': '+'
+      'ATOM': ' '
+      'variable.language.js': '<11, 4>'
+        'ATOM': 'this'
+      'meta.delimiter.property.period.js': '<15, 1>'
+        'ATOM': '.'
+      'variable.other.property.js': '<16, 1>'
+        'ATOM': 'b'
+      'punctuation.section.embedded.js': '<17, 1>'
+        'ATOM': '}'
+    'punctuation.definition.string.end.js': '<19, 1>'
+      'ATOM': '`'
+  'punctuation.terminator.statement.js': '<20, 1>'
+    'ATOM': ';'
+)_";
+
 #endif
 #endif // _MATH_ANIM_TESTS
