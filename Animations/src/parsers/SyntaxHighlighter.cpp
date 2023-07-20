@@ -29,8 +29,6 @@ namespace MathAnim
 			return {};
 		}
 
-		printDebugInfo = true;
-
 		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code, printDebugInfo);
 		CodeHighlights res = {};
 		res.codeBlock = code;
