@@ -225,5 +225,68 @@ R"_('source.js': '<0, 47>'
         'ATOM': '}'
 )_";
 
+// NOTE: This test case found an area where patterns that use anchors (stuff like \G or \A)
+//       were not anchoring at the correct points.
+constexpr const char* JS_ANCHORED_MATCHES_SRC = \
+R"_(var sum = async function () {
+  await this.a + this.b;
+}
+)_";
+
+constexpr const char* JS_ANCHORED_MATCHES_EXPECTED = \
+R"_('source.js': '<0, 57>'
+  'storage.type.var.js': '<0, 3>'
+    'ATOM': 'var'
+  'ATOM': ' '
+  'NULL_SCOPE': '<4, 52>'
+    'meta.function.js': '<0, 23>'
+      'entity.name.function.js': '<0, 3>'
+        'ATOM': 'sum'
+      'ATOM': ' '
+      'keyword.operator.assignment.js': '<4, 1>'
+        'ATOM': '='
+      'ATOM': ' '
+      'storage.modifier.async.js': '<6, 5>'
+        'ATOM': 'async'
+      'ATOM': ' '
+      'storage.type.function.js': '<12, 8>'
+        'ATOM': 'function'
+      'ATOM': ' '
+      'meta.parameters.js': '<21, 2>'
+        'punctuation.definition.parameters.begin.bracket.round.js': '<0, 1>'
+          'ATOM': '('
+        'punctuation.definition.parameters.end.bracket.round.js': '<1, 1>'
+          'ATOM': ')'
+    'ATOM': ' '
+    'NULL_SCOPE': '<24, 28>'
+      'punctuation.definition.function.body.begin.bracket.curly.js': '<0, 1>'
+        'ATOM': '{'
+      'ATOM': '\n  '
+      'keyword.control.js': '<4, 5>'
+        'ATOM': 'await'
+      'ATOM': ' '
+      'variable.language.js': '<10, 4>'
+        'ATOM': 'this'
+      'meta.delimiter.property.period.js': '<14, 1>'
+        'ATOM': '.'
+      'variable.other.property.js': '<15, 1>'
+        'ATOM': 'a'
+      'ATOM': ' '
+      'keyword.operator.js': '<17, 1>'
+        'ATOM': '+'
+      'ATOM': ' '
+      'variable.language.js': '<19, 4>'
+        'ATOM': 'this'
+      'meta.delimiter.property.period.js': '<23, 1>'
+        'ATOM': '.'
+      'variable.other.property.js': '<24, 1>'
+        'ATOM': 'b'
+      'punctuation.terminator.statement.js': '<25, 1>'
+        'ATOM': ';'
+      'ATOM': '\n'
+      'punctuation.definition.function.body.end.bracket.curly.js': '<27, 1>'
+        'ATOM': '}'
+)_";
+
 #endif
 #endif // _MATH_ANIM_TESTS

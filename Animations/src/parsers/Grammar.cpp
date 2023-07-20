@@ -12,8 +12,8 @@ namespace MathAnim
 	static SyntaxPattern parsePattern(const json& json, const Grammar* self);
 	static PatternArray parsePatternsArray(const json& json, const Grammar* self);
 	static regex_t* onigFromString(const std::string& str);
-	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, const std::optional<ScopedName>& scope);
-	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t startOffset, size_t endOffset, const PatternRepository& repo, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures);
+	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, const std::optional<ScopedName>& scope);
+	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternRepository& repo, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures);
 
 	CaptureList CaptureList::from(const json& j, const Grammar* self)
 	{
@@ -64,15 +64,25 @@ namespace MathAnim
 		return res;
 	}
 
-	bool SimpleSyntaxPattern::match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
+	bool SimpleSyntaxPattern::match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
 	{
-		std::vector<GrammarMatch> subMatches = checkForMatches(str, start, end, repo, this->regMatch, region, this->captures);
+		std::vector<GrammarMatch> subMatches = checkForMatches(str, anchor, start, end, repo, this->regMatch, region, this->captures);
+
+		// Discard any sub-matches that didn't begin at 'start'
+		for (size_t i = 0; i < subMatches.size(); i++)
+		{
+			if (subMatches[i].start < start)
+			{
+				subMatches.erase(subMatches.begin() + i);
+				i--;
+			}
+		}
 
 		bool captureWholePattern = false;
 		if (this->scope.has_value())
 		{
-			std::optional<GrammarMatch> match = getFirstMatch(str, start, end, this->regMatch, region, this->scope);
-			if (match.has_value() && match->start < end && match->end <= end)
+			std::optional<GrammarMatch> match = getFirstMatch(str, anchor, start, end, this->regMatch, region, this->scope);
+			if (match.has_value() && match->start < end && match->start >= start && match->end <= end)
 			{
 				match->subMatches.insert(match->subMatches.end(), subMatches.begin(), subMatches.end());
 				// match->scope = (*this->scope);
@@ -100,17 +110,17 @@ namespace MathAnim
 		regMatch = nullptr;
 	}
 
-	bool ComplexSyntaxPattern::match(const std::string& str, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
+	bool ComplexSyntaxPattern::match(const std::string& str, size_t anchor, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
 	{
 		// If the begin/end pair doesn't have a match, then this rule isn't a success
-		std::optional<GrammarMatch> beginBlockMatch = getFirstMatch(str, start, endOffset, this->begin, region, std::nullopt);
-		if (!beginBlockMatch.has_value() || beginBlockMatch->start >= endOffset)
+		std::optional<GrammarMatch> beginBlockMatch = getFirstMatch(str, anchor, start, endOffset, this->begin, region, std::nullopt);
+		if (!beginBlockMatch.has_value() || beginBlockMatch->start >= endOffset || beginBlockMatch->start < start)
 		{
 			return false;
 		}
 
 		// This match can go to the end of the string
-		std::optional<GrammarMatch> endBlockMatch = getFirstMatch(str, beginBlockMatch->end, str.length(), this->end, region, std::nullopt);
+		std::optional<GrammarMatch> endBlockMatch = getFirstMatch(str, beginBlockMatch->end, beginBlockMatch->end, str.length(), this->end, region, std::nullopt);
 		if (!endBlockMatch.has_value())
 		{
 			GrammarMatch eof;
@@ -124,7 +134,7 @@ namespace MathAnim
 		}
 
 		GrammarMatch res = {};
-		std::vector<GrammarMatch> beginMatches = checkForMatches(str, beginBlockMatch->start, beginBlockMatch->end, repo, this->begin, region, this->beginCaptures);
+		std::vector<GrammarMatch> beginMatches = checkForMatches(str, beginBlockMatch->start, beginBlockMatch->start, beginBlockMatch->end, repo, this->begin, region, this->beginCaptures);
 		res.subMatches.insert(res.subMatches.end(), beginMatches.begin(), beginMatches.end());
 
 		if (this->patterns.has_value())
@@ -144,14 +154,16 @@ namespace MathAnim
 
 			while (inBetweenStart < inBetweenEnd)
 			{
+				// NOTE: We start searching at `beginBlockMatch->end` so that if any patterns are using anchors in
+				//       their regexes, the anchor will appropriately start at the beginning of the `inBetween` span
 				size_t lastSubMatchesSize = res.subMatches.size();
-				if (!patterns->match(str, inBetweenStart, endOfLine, repo, region, &res.subMatches))
+				if (!patterns->match(str, beginBlockMatch->end, inBetweenStart, endOfLine, repo, region, &res.subMatches))
 				{
 					break;
 				}
 
-				// Discard any matches that began outside of our inBetweenBlock
-				bool anyMatchesBeganBeforeInBetweenScopeEnded = false;
+				// Discard any matches that begin outside of our inBetweenBlock
+				bool anyMatchesBeganInBetweenScope = false;
 				for (size_t i = lastSubMatchesSize; i < res.subMatches.size(); i++)
 				{
 					if (res.subMatches[i].start >= inBetweenEnd)
@@ -159,12 +171,18 @@ namespace MathAnim
 						res.subMatches.erase(res.subMatches.begin() + i);
 						i--;
 					}
+					else if (res.subMatches[i].start < inBetweenStart)
+					{
+						res.subMatches.erase(res.subMatches.begin() + i);
+						i--;
+					}
 					else
 					{
-						anyMatchesBeganBeforeInBetweenScopeEnded = true;
+						anyMatchesBeganInBetweenScope = true;
 					}
 				}
 
+				// Figure out the new inBetweenStart
 				for (size_t i = lastSubMatchesSize; i < res.subMatches.size(); i++)
 				{
 					if (res.subMatches[i].end >= inBetweenStart)
@@ -184,7 +202,7 @@ namespace MathAnim
 				//       a new end that satisfies this match
 				if (inBetweenStart > endBlockMatch->start)
 				{
-					endBlockMatch = getFirstMatch(str, inBetweenStart, str.length(), this->end, region, std::nullopt);
+					endBlockMatch = getFirstMatch(str, inBetweenStart, inBetweenStart, str.length(), this->end, region, std::nullopt);
 					if (!endBlockMatch.has_value())
 					{
 						GrammarMatch eof;
@@ -209,14 +227,14 @@ namespace MathAnim
 						}
 					}
 				}
-				else if (inBetweenStart == endBlockMatch->end || !anyMatchesBeganBeforeInBetweenScopeEnded)
+				else if (inBetweenStart == endBlockMatch->end || !anyMatchesBeganInBetweenScope)
 				{
 					break;
 				}
 			}
 		}
 
-		std::vector<GrammarMatch> endMatches = checkForMatches(str, endBlockMatch->start, endBlockMatch->end, repo, this->end, region, this->endCaptures);
+		std::vector<GrammarMatch> endMatches = checkForMatches(str, endBlockMatch->start, endBlockMatch->start, endBlockMatch->end, repo, this->end, region, this->endCaptures);
 		res.subMatches.insert(res.subMatches.end(), endMatches.begin(), endMatches.end());
 
 		res.start = beginBlockMatch->start;
@@ -251,7 +269,7 @@ namespace MathAnim
 		end = nullptr;
 	}
 
-	bool PatternArray::match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
+	bool PatternArray::match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
 	{
 		std::vector<GrammarMatch> tmpRes = {};
 		size_t tmpResMin = SIZE_MAX;
@@ -266,7 +284,7 @@ namespace MathAnim
 			//tmpFooI++;
 
 			std::vector<GrammarMatch> currentRes = {};
-			if (pattern.match(str, start, end, repo, region, &currentRes))
+			if (pattern.match(str, anchor, start, end, repo, region, &currentRes))
 			{
 				// Find the "surface area" this pattern matches.
 				// Where "surface area" is the (begin-end) substring that it matches
@@ -288,7 +306,7 @@ namespace MathAnim
 				size_t currentSurfaceArea = currentResMax - currentResMin;
 				size_t tmpSurfaceArea = tmpResMax - tmpResMin;
 				if (tmpRes.size() == 0 ||
-					(currentResMin < tmpResMin && currentSurfaceArea > 0) || 
+					(currentResMin < tmpResMin && currentSurfaceArea > 0) ||
 					(currentResMin == tmpResMin && currentSurfaceArea > tmpSurfaceArea)
 					)
 				{
@@ -316,7 +334,7 @@ namespace MathAnim
 		}
 	}
 
-	bool SyntaxPattern::match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
+	bool SyntaxPattern::match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const
 	{
 		switch (type)
 		{
@@ -324,7 +342,7 @@ namespace MathAnim
 		{
 			if (patternArray.has_value())
 			{
-				return patternArray->match(str, start, end, repo, region, outMatches);
+				return patternArray->match(str, anchor, start, end, repo, region, outMatches);
 			}
 		}
 		break;
@@ -332,7 +350,7 @@ namespace MathAnim
 		{
 			if (complexPattern.has_value())
 			{
-				return complexPattern->match(str, start, end, repo, region, outMatches);
+				return complexPattern->match(str, anchor, start, end, repo, region, outMatches);
 			}
 		}
 		break;
@@ -343,12 +361,12 @@ namespace MathAnim
 				auto iter = repo.patterns.find(patternInclude.value());
 				if (iter != repo.patterns.end())
 				{
-					return iter->second.match(str, start, end, repo, region, outMatches);
+					return iter->second.match(str, anchor, start, end, repo, region, outMatches);
 				}
 				// NOTE: $self means to include a self-reference to our own grammar
 				else if (*patternInclude == "$self")
 				{
-					return this->self->patterns.match(str, start, end, repo, region, outMatches);
+					return this->self->patterns.match(str, anchor, start, end, repo, region, outMatches);
 
 				}
 				g_logger_warning("Unable to resolve pattern reference '{}'.", patternInclude.value());
@@ -359,7 +377,7 @@ namespace MathAnim
 		{
 			if (simplePattern.has_value())
 			{
-				return simplePattern->match(str, start, end, repo, region, outMatches);
+				return simplePattern->match(str, anchor, start, end, repo, region, outMatches);
 			}
 		}
 		case PatternType::Invalid:
@@ -853,7 +871,7 @@ namespace MathAnim
 			}
 
 			std::vector<GrammarMatch> tmpRes = {};
-			if (this->patterns.match(code, start, lineEnd, this->repository, region, outMatches))
+			if (this->patterns.match(code, start, start, lineEnd, this->repository, region, outMatches))
 			{
 				return true;
 			}
@@ -1129,23 +1147,70 @@ namespace MathAnim
 		return reg;
 	}
 
-	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, const std::optional<ScopedName>& scope)
+	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, regex_t* reg, OnigRegion* region, const std::optional<ScopedName>& scope)
 	{
 		std::optional<GrammarMatch> res = std::nullopt;
 
+		g_logger_assert(startOffset <= str.size(), "Invalid startOffset: startOffset > str.size(): '{}' > '{}'", startOffset, str.size());
+		g_logger_assert(endOffset <= str.size(), "Invalid endOffset: endOffset > str.size(): '{}' > '{}'", endOffset, str.size());
+
 		const char* cstr = str.c_str();
-		const char* start = cstr + startOffset;
 		const char* end = cstr + str.length();
 		const char* range = cstr + endOffset;
-		int searchRes = onig_search(
-			reg,
-			(uint8*)cstr,
-			(uint8*)end,
-			(uint8*)start,
-			(uint8*)range,
-			region,
-			ONIG_OPTION_NONE
-		);
+		int searchRes = ONIG_MISMATCH;
+
+		// Find the first result that's within our search range
+		int options = ONIG_OPTION_NONE;
+		while (true)
+		{
+			g_logger_assert(anchor <= str.size(), "Invalid anchor: anchor > str.size(): '{}' > '{}'", anchor, str.size());
+			const char* start = cstr + anchor;
+
+			onig_region_clear(region);
+			searchRes = onig_search(
+				reg,
+				(uint8*)cstr,
+				(uint8*)end,
+				(uint8*)start,
+				(uint8*)range,
+				region,
+				options
+			);
+
+			if (searchRes >= 0 && region->num_regs > 0)
+			{
+				if (region->beg[0] >= 0 && region->end[0] >= region->beg[0])
+				{
+					if (region->beg[0] >= startOffset)
+					{
+						// This match is good
+						break;
+					}
+					else if (region->end[0] <= startOffset)
+					{
+						// This match is bad, but there might be a good match later on,
+						// increase the startOffset if we can
+						anchor = (size_t)region->end[0];
+					}
+					else
+					{
+						// No good matches, try from the actual startOffset
+						anchor = startOffset;
+					}
+				}
+				else
+				{
+					break;
+				}
+			}
+			else
+			{
+				break;
+			}
+
+			// If the first search fails, then we won't consider subsequent searches as the beginning of the line
+			options = ONIG_OPTION_NOT_BEGIN_POSITION;
+		}
 
 		if (searchRes >= 0)
 		{
@@ -1211,25 +1276,70 @@ namespace MathAnim
 		const PatternRepository& repo;
 	};
 
-	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t startOffset, size_t endOffset, const PatternRepository& repo, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures)
+	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternRepository& repo, regex_t* reg, OnigRegion* region, std::optional<CaptureList> captures)
 	{
 		std::vector<GrammarMatch> res = {};
 
-		onig_region_clear(region);
+		g_logger_assert(startOffset <= str.size(), "Invalid startOffset: startOffset > str.size(): '{}' > '{}'", startOffset, str.size());
+		g_logger_assert(endOffset <= str.size(), "Invalid endOffset: endOffset > str.size(): '{}' > '{}'", endOffset, str.size());
 
 		const char* cstr = str.c_str();
-		const char* start = cstr + startOffset;
 		const char* end = cstr + str.length();
 		const char* range = cstr + endOffset;
-		int searchRes = onig_search(
-			reg,
-			(uint8*)cstr,
-			(uint8*)end,
-			(uint8*)start,
-			(uint8*)range,
-			region,
-			ONIG_OPTION_NONE
-		);
+		int searchRes = ONIG_MISMATCH;
+
+		// Find the first result that's within our search range
+		int options = ONIG_OPTION_NONE;
+		while (true)
+		{
+			g_logger_assert(anchor <= str.size(), "Invalid anchor: anchor > str.size(): '{}' > '{}'", anchor, str.size());
+			const char* start = cstr + anchor;
+
+			onig_region_clear(region);
+			searchRes = onig_search(
+				reg,
+				(uint8*)cstr,
+				(uint8*)end,
+				(uint8*)start,
+				(uint8*)range,
+				region,
+				options
+			);
+
+			if (searchRes >= 0 && region->num_regs > 0)
+			{
+				if (region->beg[0] >= 0 && region->end[0] >= region->beg[0])
+				{
+					if (region->beg[0] >= startOffset)
+					{
+						// This match is good
+						break;
+					}
+					else if (region->end[0] <= startOffset)
+					{
+						// This match is bad, but there might be a good match later on,
+						// increase the startOffset if we can
+						anchor = (size_t)region->end[0];
+					}
+					else
+					{
+						// No good matches, try from the actual startOffset
+						anchor = startOffset;
+					}
+				}
+				else
+				{
+					break;
+				}
+			}
+			else
+			{
+				break;
+			}
+
+			// If the first search fails, then we won't consider subsequent searches as the beginning of the line
+			options = ONIG_OPTION_NOT_BEGIN_POSITION;
+		}
 
 		if (searchRes >= 0)
 		{
@@ -1255,7 +1365,7 @@ namespace MathAnim
 							else if (capture.patternArray.has_value())
 							{
 								OnigRegion* subRegion = onig_region_new();
-								capture.patternArray->match(str, captureBegin, captureEnd, repo, subRegion, &res);
+								capture.patternArray->match(str, captureBegin, captureBegin, captureEnd, repo, subRegion, &res);
 								onig_region_free(subRegion, 1);
 							}
 							else

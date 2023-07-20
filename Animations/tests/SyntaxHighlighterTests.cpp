@@ -93,6 +93,16 @@ namespace MathAnim
 			END_TEST;
 		}
 
+		DEFINE_TEST(withJs_matchesWithAnchorsParseCorrectly)
+		{
+			const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(HighlighterLanguage::Javascript);
+			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(JS_ANCHORED_MATCHES_SRC);
+
+			ASSERT_EQUAL(stringifiedParseTree, JS_ANCHORED_MATCHES_EXPECTED);
+
+			END_TEST;
+		}
+
 		void setupTestSuite()
 		{
 			Tests::TestSuite& testSuite = Tests::addTestSuite("SyntaxHighlighterTests");
@@ -107,6 +117,7 @@ namespace MathAnim
 			ADD_TEST(testSuite, withCpp_strayBracketParsesCorrectly);
 			ADD_TEST(testSuite, withCpp_singleLineCommentParsesCorrectly);
 			ADD_TEST(testSuite, withJs_basicArrowFunctionParsesCorrectly);
+			ADD_TEST(testSuite, withJs_matchesWithAnchorsParseCorrectly);
 		}
 
 		// -------------------- Private functions --------------------

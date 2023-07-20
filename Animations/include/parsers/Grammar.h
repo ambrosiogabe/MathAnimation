@@ -17,7 +17,7 @@ namespace MathAnim
 	{
 		std::vector<SyntaxPattern> patterns;
 
-		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 
 		void free();
 	};
@@ -45,7 +45,7 @@ namespace MathAnim
 		regex_t* regMatch;
 		std::optional<CaptureList> captures;
 
-		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 
 		void free();
 	};
@@ -59,7 +59,7 @@ namespace MathAnim
 		std::optional<CaptureList> endCaptures;
 		std::optional<PatternArray> patterns;
 
-		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 
 		void free();
 	};
@@ -82,7 +82,7 @@ namespace MathAnim
 		std::optional<std::string> patternInclude;
 		const Grammar* self;
 
-		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 
 		void free();
 	};
