@@ -21,6 +21,7 @@ namespace MathAnim
 	{
 		std::vector<SyntaxPattern*> patterns;
 		std::unordered_map<uint64, GrammarPatternGid> onigIndexMap;
+		uint64 firstSelfPatternArrayIndex;
 		OnigRegSet* regset;
 
 		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
@@ -93,6 +94,7 @@ namespace MathAnim
 		std::optional<std::string> patternInclude;
 		const Grammar* self;
 		GrammarPatternGid gid;
+		uint64 patternArrayIndex;
 
 		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 
