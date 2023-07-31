@@ -7,20 +7,24 @@
 
 namespace MathAnim
 {
-	struct GrammarMatch;
-	struct ParserInfo;
-	struct PatternRepository;
+	// Internal forward decls
 	struct Grammar;
+	struct PatternRepository;
+	struct GrammarMatch;
+	struct SyntaxPattern;
 
-	struct SyntaxPattern; // Forward declare since this is a recursive type
+	// Typedefs
+	typedef uint64 GrammarPatternGid;
+
+	// Structs
 	struct PatternArray
 	{
-		std::vector<SyntaxPattern> patterns;
-		std::unordered_map<size_t, size_t> onigIndexMap;
+		std::vector<SyntaxPattern*> patterns;
+		std::unordered_map<uint64, GrammarPatternGid> onigIndexMap;
 		OnigRegSet* regset;
 
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
-		bool matchAll(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
+		bool matchAll(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
 
 		void free();
 	};
@@ -39,7 +43,7 @@ namespace MathAnim
 		// Map from capture index to the scoped name for that capture
 		std::vector<Capture> captures;
 
-		static CaptureList from(const nlohmann::json& j, const Grammar* self);
+		static CaptureList from(const nlohmann::json& j, Grammar* self);
 	};
 
 	struct SimpleSyntaxPattern
@@ -48,7 +52,7 @@ namespace MathAnim
 		OnigRegex regMatch;
 		std::optional<CaptureList> captures;
 
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
 
 		void free();
 	};
@@ -62,7 +66,7 @@ namespace MathAnim
 		std::optional<CaptureList> endCaptures;
 		std::optional<PatternArray> patterns;
 
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
 
 		void free();
 	};
@@ -84,6 +88,7 @@ namespace MathAnim
 		std::optional<PatternArray> patternArray;
 		std::optional<std::string> patternInclude;
 		const Grammar* self;
+		GrammarPatternGid gid;
 
 		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 
@@ -92,7 +97,7 @@ namespace MathAnim
 
 	struct PatternRepository
 	{
-		std::unordered_map<std::string, SyntaxPattern> patterns;
+		std::unordered_map<std::string, SyntaxPattern*> patterns;
 	};
 
 	struct GrammarMatch
@@ -146,6 +151,8 @@ namespace MathAnim
 		PatternArray patterns;
 		PatternRepository repository;
 		OnigRegion* region;
+		std::unordered_map<GrammarPatternGid, SyntaxPattern const *const> globalPatternIndex;
+		GrammarPatternGid gidCounter;
 
 		SourceGrammarTree parseCodeBlock(const std::string& code, bool printDebugStuff = false) const;
 		bool getNextMatch(const std::string& code, std::vector<GrammarMatch>* outMatches) const;
