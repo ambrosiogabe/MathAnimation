@@ -18,6 +18,24 @@ namespace MathAnim
 	static void constructRegsetsFromPatterns(Grammar* self);
 	static void freePattern(SyntaxPattern* const pattern);
 
+	void Capture::free()
+	{
+		if (patternArray.has_value())
+		{
+			patternArray->free();
+		}
+	}
+
+	void CaptureList::free()
+	{
+		for (auto& capture : captures)
+		{
+			capture.free();
+		}
+
+		captures.clear();
+	}
+
 	CaptureList CaptureList::from(const json& j, Grammar* self)
 	{
 		CaptureList res = {};
@@ -108,6 +126,11 @@ namespace MathAnim
 		if (regMatch)
 		{
 			onig_free(regMatch);
+		}
+
+		if (captures.has_value())
+		{
+			captures->free();
 		}
 
 		regMatch = nullptr;
@@ -266,6 +289,21 @@ namespace MathAnim
 		if (end)
 		{
 			onig_free(end);
+		}
+
+		if (beginCaptures.has_value())
+		{
+			beginCaptures->free();
+		}
+
+		if (endCaptures.has_value())
+		{
+			endCaptures->free();
+		}
+
+		if (patterns.has_value())
+		{
+			patterns->free();
 		}
 
 		begin = nullptr;
@@ -452,6 +490,7 @@ namespace MathAnim
 				return simplePattern->match(str, anchor, start, end, repo, region, outMatches, self);
 			}
 		}
+		break;
 		case PatternType::Invalid:
 			break;
 		}
@@ -982,6 +1021,11 @@ namespace MathAnim
 		if (grammar)
 		{
 			grammar->patterns.free();
+			for (auto [k, v] : grammar->repository.patterns)
+			{
+				freePattern(v);
+			}
+			grammar->repository.patterns = {};
 
 			if (grammar->region)
 			{

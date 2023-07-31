@@ -36,12 +36,16 @@ namespace MathAnim
 		std::optional<ScopedName> scope;
 		// If this is set, then the capture scope name is based on the best match in the pattern array
 		std::optional<PatternArray> patternArray;
+
+		void free();
 	};
 
 	struct CaptureList
 	{
 		// Map from capture index to the scoped name for that capture
 		std::vector<Capture> captures;
+
+		void free();
 
 		static CaptureList from(const nlohmann::json& j, Grammar* self);
 	};
