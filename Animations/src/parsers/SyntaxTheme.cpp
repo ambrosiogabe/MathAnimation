@@ -155,6 +155,46 @@ namespace MathAnim
 
 		if (potentialMatches.size() > 0)
 		{
+			// Take the best ancestor match
+			std::vector<ScopedNameMatch> deepestAncestorLevelMatches = potentialMatches[0].match.scopeRule.ancestorMatches;
+			for (size_t i = 0; i < potentialMatches.size(); i++)
+			{
+				for (size_t j = 0; j < potentialMatches[i].match.scopeRule.ancestorMatches.size(); j++)
+				{
+					if (j < deepestAncestorLevelMatches.size() && 
+						potentialMatches[i].match.scopeRule.ancestorMatches[j].levelMatched >
+						deepestAncestorLevelMatches[j].levelMatched)
+					{
+						deepestAncestorLevelMatches[j].levelMatched = potentialMatches[i].match.scopeRule.ancestorMatches[j].levelMatched;
+					}
+					else if (j >= deepestAncestorLevelMatches.size())
+					{
+						deepestAncestorLevelMatches.push_back(potentialMatches[i].match.scopeRule.ancestorMatches[j]);
+					}
+				}
+			}
+
+			for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
+			{
+				bool erased = false;
+				for (size_t j = 0; j < iter->match.scopeRule.ancestorMatches.size(); j++)
+				{
+					if (j < deepestAncestorLevelMatches.size() &&
+						iter->match.scopeRule.ancestorMatches[j].levelMatched <
+						deepestAncestorLevelMatches[j].levelMatched)
+					{
+						iter = potentialMatches.erase(iter);
+						erased = true;
+						break;
+					}
+				}
+
+				if (!erased)
+				{
+					iter++;
+				}
+			}
+
 			const auto& match = potentialMatches[0];
 			const auto& tokenRuleMatch = tokenColors[match.globalRuleIndex];
 
