@@ -12,9 +12,9 @@ namespace MathAnim
 	static SyntaxPattern* const parsePattern(const json& json, Grammar* self);
 	static PatternArray parsePatternsArray(const json& json, Grammar* self);
 	static OnigRegex onigFromString(const std::string& str, bool multiLine);
-	static void getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternArray& pattern, int* patternMatched);
+	static void getFirstMatchInRegset(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternArray& pattern, int* patternMatched);
 	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, OnigRegex reg, OnigRegion* region, const std::optional<ScopedName>& scope);
-	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternRepository& repo, OnigRegex reg, OnigRegion* region, std::optional<CaptureList> captures, Grammar const* self);
+	static std::vector<GrammarMatch> getCaptures(const std::string& str, const PatternRepository& repo, OnigRegion* region, std::optional<CaptureList> captures, Grammar const* self);
 	static void freePattern(SyntaxPattern* const pattern);
 
 	// --- Construct Regset Helpers ---
@@ -91,37 +91,28 @@ namespace MathAnim
 
 	bool SimpleSyntaxPattern::match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const
 	{
-		std::vector<GrammarMatch> subMatches = checkForMatches(str, anchor, start, end, repo, this->regMatch, region, this->captures, self);
+		std::optional<GrammarMatch> match = getFirstMatch(str, anchor, start, end, this->regMatch, region, this->scope);
+		if (match.has_value() && match->start < end && match->start >= start && match->end <= end)
+		{			
+			// `region` now contains any potential captures, so we'll search for any captures now
+			std::vector<GrammarMatch> subMatches = getCaptures(str, repo, region, this->captures, self);
 
-		// Discard any sub-matches that didn't begin at 'start'
-		for (size_t i = 0; i < subMatches.size(); i++)
-		{
-			if (subMatches[i].start < start)
-			{
-				subMatches.erase(subMatches.begin() + i);
-				i--;
-			}
-		}
-
-		bool captureWholePattern = false;
-		if (this->scope.has_value())
-		{
-			std::optional<GrammarMatch> match = getFirstMatch(str, anchor, start, end, this->regMatch, region, this->scope);
-			if (match.has_value() && match->start < end && match->start >= start && match->end <= end)
+			// If this simple pattern has a scope name, just add the match with submatches as children
+			if (scope.has_value())
 			{
 				match->subMatches.insert(match->subMatches.end(), subMatches.begin(), subMatches.end());
 				outMatches->push_back(*match);
-				captureWholePattern = true;
+				return true;
+			}
+			// Otherwise, just add the children to the out matches
+			else
+			{
+				outMatches->insert(outMatches->end(), subMatches.begin(), subMatches.end());
+				return subMatches.size() > 0;
 			}
 		}
 
-		if (!captureWholePattern)
-		{
-			// If this rule has no scoped name, then add all the submatches by themselves
-			outMatches->insert(outMatches->end(), subMatches.begin(), subMatches.end());
-		}
-
-		return subMatches.size() > 0 || captureWholePattern;
+		return false;
 	}
 
 	void SimpleSyntaxPattern::free()
@@ -148,8 +139,12 @@ namespace MathAnim
 			return false;
 		}
 
+		// If beginBlockMatch is valid, then we'll use the result stored in `region` to find any captures
+		std::vector<GrammarMatch> beginMatches = getCaptures(str, repo, region, this->beginCaptures, self);
+
 		// This match can go to the end of the string
 		std::optional<GrammarMatch> endBlockMatch = getFirstMatch(str, beginBlockMatch->end, beginBlockMatch->end, str.length(), this->end, region, std::nullopt);
+		std::vector<GrammarMatch> endMatches = {};
 		if (!endBlockMatch.has_value())
 		{
 			GrammarMatch eof;
@@ -161,9 +156,13 @@ namespace MathAnim
 			// which is specified in the rules for textmates
 			endBlockMatch = eof;
 		}
+		else
+		{
+			// Check for any captures in the endBlock if it was valid
+			endMatches = getCaptures(str, repo, region, this->endCaptures, self);
+		}
 
 		GrammarMatch res = {};
-		std::vector<GrammarMatch> beginMatches = checkForMatches(str, beginBlockMatch->start, beginBlockMatch->start, beginBlockMatch->end, repo, this->begin, region, this->beginCaptures, self);
 		res.subMatches.insert(res.subMatches.end(), beginMatches.begin(), beginMatches.end());
 
 		if (this->patterns.has_value())
@@ -242,6 +241,12 @@ namespace MathAnim
 						// If there was no end group matched, then automatically use the end of the file as the end block
 						// which is specified in the rules for textmates
 						endBlockMatch = eof;
+						endMatches = {};
+					}
+					else
+					{
+						// Check for any captures in the endBlock if it was valid
+						endMatches = getCaptures(str, repo, region, this->endCaptures, self);
 					}
 
 					inBetweenEnd = endBlockMatch->start;
@@ -263,7 +268,6 @@ namespace MathAnim
 			}
 		}
 
-		std::vector<GrammarMatch> endMatches = checkForMatches(str, endBlockMatch->start, endBlockMatch->start, endBlockMatch->end, repo, this->end, region, this->endCaptures, self);
 		res.subMatches.insert(res.subMatches.end(), endMatches.begin(), endMatches.end());
 
 		res.start = beginBlockMatch->start;
@@ -317,7 +321,7 @@ namespace MathAnim
 	{
 		std::vector<GrammarMatch> tmpRes = {};
 		int onigPatternMatched = -1;
-		getFirstMatch(str, anchor, start, end, *this, &onigPatternMatched);
+		getFirstMatchInRegset(str, anchor, start, end, *this, &onigPatternMatched);
 
 		// See if there's a $self pattern that we can try to match on
 		bool selfPatternExists = this->firstSelfPatternArrayIndex != UINT64_MAX;
@@ -325,7 +329,7 @@ namespace MathAnim
 		if (selfPatternExists)
 		{
 			int onigSelfPatternMatched = -1;
-			getFirstMatch(str, anchor, start, end, self->patterns, &onigSelfPatternMatched);
+			getFirstMatchInRegset(str, anchor, start, end, self->patterns, &onigSelfPatternMatched);
 
 			if (onigSelfPatternMatched != -1)
 			{
@@ -1415,27 +1419,32 @@ namespace MathAnim
 		g_logger_assert(startOffset <= str.size(), "Invalid startOffset: startOffset > str.size(): '{}' > '{}'", startOffset, str.size());
 		g_logger_assert(endOffset <= str.size(), "Invalid endOffset: endOffset > str.size(): '{}' > '{}'", endOffset, str.size());
 
-		const char* cstr = str.c_str();
-		const char* end = cstr + str.length();
-		const char* range = cstr + endOffset;
+		const char* targetStr = str.c_str();
+		const char* targetStrEnd = targetStr + str.length();
+
+		const char* searchEnd = targetStr + endOffset;
+
 		int searchRes = ONIG_MISMATCH;
 
 		// Find the first result that's within our search range
-		int options = ONIG_OPTION_NONE;
 		while (true)
 		{
 			g_logger_assert(anchor <= str.size(), "Invalid anchor: anchor > str.size(): '{}' > '{}'", anchor, str.size());
-			const char* start = cstr + anchor;
+			const char* searchStart = targetStr + anchor;
+
+			bool startIsAnchorPos = anchor == startOffset;
 
 			onig_region_clear(region);
 			searchRes = onig_search(
 				reg,
-				(uint8*)cstr,
-				(uint8*)end,
-				(uint8*)start,
-				(uint8*)range,
+				(uint8*)targetStr,
+				(uint8*)targetStrEnd,
+				(uint8*)searchStart,
+				(uint8*)searchEnd,
 				region,
-				options
+				startIsAnchorPos
+				? ONIG_OPTION_NONE
+				: ONIG_OPTION_NOT_BEGIN_POSITION
 			);
 
 			if (searchRes >= 0 && region->num_regs > 0)
@@ -1473,15 +1482,12 @@ namespace MathAnim
 			{
 				break;
 			}
-
-			// If the first search fails, then we won't consider subsequent searches as the beginning of the line
-			options = ONIG_OPTION_NOT_BEGIN_POSITION;
 		}
 
 		return searchRes;
 	}
 
-	static void getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternArray& pattern, int* patternMatched)
+	static void getFirstMatchInRegset(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternArray& pattern, int* patternMatched)
 	{
 		std::optional<GrammarMatch> res = std::nullopt;
 
@@ -1501,7 +1507,7 @@ namespace MathAnim
 			(uint8*)searchStart,
 			(uint8*)searchEnd,
 			ONIG_REGSET_POSITION_LEAD,
-			startIsAnchorPos 
+			startIsAnchorPos
 			? ONIG_OPTION_NONE
 			: ONIG_OPTION_NOT_BEGIN_POSITION,
 			&strMatchPos
@@ -1582,62 +1588,42 @@ namespace MathAnim
 		return res;
 	}
 
-	struct CaptureCallbackData
-	{
-		const CaptureList& captures;
-		std::vector<GrammarMatch>* matches;
-		const std::string& str;
-		const PatternRepository& repo;
-	};
-
-	static std::vector<GrammarMatch> checkForMatches(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternRepository& repo, OnigRegex reg, OnigRegion* region, std::optional<CaptureList> captures, Grammar const* self)
+	static std::vector<GrammarMatch> getCaptures(const std::string& str, const PatternRepository& repo, OnigRegion* region, std::optional<CaptureList> captures, Grammar const* self)
 	{
 		std::vector<GrammarMatch> res = {};
 
-		int searchRes = getFirstValidMatchInRange(str, anchor, startOffset, endOffset, reg, region);
-		if (searchRes >= 0)
+		if (captures.has_value())
 		{
-			if (captures.has_value())
+			for (auto capture : captures->captures)
 			{
-				for (auto capture : captures->captures)
+				if (region->num_regs > capture.index)
 				{
-					if (region->num_regs > capture.index)
+					// Only accept valid matches
+					if (region->beg[capture.index] >= 0 && region->end[capture.index] > region->beg[capture.index])
 					{
-						// Only accept valid matches
-						if (region->beg[capture.index] >= 0 && region->end[capture.index] > region->beg[capture.index])
+						size_t captureBegin = (size_t)region->beg[capture.index];
+						size_t captureEnd = (size_t)region->end[capture.index];
+						if (capture.scope.has_value())
 						{
-							size_t captureBegin = (size_t)region->beg[capture.index];
-							size_t captureEnd = (size_t)region->end[capture.index];
-							if (capture.scope.has_value())
-							{
-								GrammarMatch match = {};
-								match.start = captureBegin;
-								match.end = captureEnd;
-								match.scope = *capture.scope;
-								res.emplace_back(match);
-							}
-							else if (capture.patternArray.has_value())
-							{
-								OnigRegion* subRegion = onig_region_new();
-								capture.patternArray->matchAll(str, captureBegin, captureBegin, captureEnd, repo, subRegion, &res, self);
-								onig_region_free(subRegion, 1);
-							}
-							else
-							{
-								g_logger_error("Capture group in Onigiruma expression did not have a scoped name or a pattern array.");
-							}
+							GrammarMatch match = {};
+							match.start = captureBegin;
+							match.end = captureEnd;
+							match.scope = *capture.scope;
+							res.emplace_back(match);
+						}
+						else if (capture.patternArray.has_value())
+						{
+							OnigRegion* subRegion = onig_region_new();
+							capture.patternArray->matchAll(str, captureBegin, captureBegin, captureEnd, repo, subRegion, &res, self);
+							onig_region_free(subRegion, 1);
+						}
+						else
+						{
+							g_logger_error("Capture group in Onigiruma expression did not have a scoped name or a pattern array.");
 						}
 					}
 				}
 			}
-		}
-		else if (searchRes != ONIG_MISMATCH)
-		{
-			// Error
-			char s[ONIG_MAX_ERROR_MESSAGE_LEN];
-			onig_error_code_to_str((UChar*)s, searchRes);
-			g_logger_error("Oniguruma Error: '{}'", s);
-			onig_region_free(region, 1 /* 1:free self, 0:free contents only */);
 		}
 
 		// NOTE: Sometimes capture groups should really be children of other capture groups, so 
