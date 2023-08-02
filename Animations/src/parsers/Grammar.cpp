@@ -12,6 +12,7 @@ namespace MathAnim
 	static SyntaxPattern* const parsePattern(const json& json, Grammar* self);
 	static PatternArray parsePatternsArray(const json& json, Grammar* self);
 	static OnigRegex onigFromString(const std::string& str, bool multiLine);
+	static ScopedName getScopeWithCaptures(const std::string& str, const ScopedName& originalScope, const OnigRegion* region);
 	static void getFirstMatchInRegset(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternArray& pattern, int* patternMatched);
 	static std::optional<GrammarMatch> getFirstMatch(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, OnigRegex reg, OnigRegion* region, const std::optional<ScopedName>& scope);
 	static std::vector<GrammarMatch> getCaptures(const std::string& str, const PatternRepository& repo, OnigRegion* region, std::optional<CaptureList> captures, Grammar const* self);
@@ -1487,6 +1488,30 @@ namespace MathAnim
 		return searchRes;
 	}
 
+	static ScopedName getScopeWithCaptures(const std::string& str, const ScopedName& originalScope, const OnigRegion* region)
+	{
+		ScopedName res = originalScope;
+
+		for (auto& dotSeparatedScope : res.dotSeparatedScopes)
+		{
+			// Assign the capture if necessary
+			if (dotSeparatedScope.capture.has_value() &&
+				dotSeparatedScope.capture->captureIndex < region->num_regs &&
+				dotSeparatedScope.capture->captureIndex >= 0)
+			{
+				int captureIndex = dotSeparatedScope.capture->captureIndex;
+				if (region->beg[captureIndex] >= 0 && region->end[captureIndex] > region->beg[captureIndex])
+				{
+					size_t captureStart = region->beg[captureIndex];
+					size_t captureLength = region->end[captureIndex] - captureStart;
+					dotSeparatedScope.capture->capture = str.substr(captureStart, captureLength);
+				}
+			}
+		}
+
+		return res;
+	}
+
 	static void getFirstMatchInRegset(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternArray& pattern, int* patternMatched)
 	{
 		std::optional<GrammarMatch> res = std::nullopt;
@@ -1548,28 +1573,7 @@ namespace MathAnim
 					}
 					else
 					{
-						match.scope = scope.value();
-					}
-
-					// If the scope name needs any captures, assign them here
-					if (match.scope.has_value())
-					{
-						for (auto& dotSeparatedScope : match.scope->dotSeparatedScopes)
-						{
-							// Assign the capture if necessary
-							if (dotSeparatedScope.capture.has_value() &&
-								dotSeparatedScope.capture->captureIndex < region->num_regs &&
-								dotSeparatedScope.capture->captureIndex >= 0)
-							{
-								int captureIndex = dotSeparatedScope.capture->captureIndex;
-								if (region->beg[captureIndex] >= 0 && region->end[captureIndex] > region->beg[captureIndex])
-								{
-									size_t captureStart = region->beg[captureIndex];
-									size_t captureLength = region->end[captureIndex] - captureStart;
-									dotSeparatedScope.capture->capture = str.substr(captureStart, captureLength);
-								}
-							}
-						}
+						match.scope = getScopeWithCaptures(str, *scope, region);
 					}
 
 					res = match;
@@ -1603,12 +1607,14 @@ namespace MathAnim
 					{
 						size_t captureBegin = (size_t)region->beg[capture.index];
 						size_t captureEnd = (size_t)region->end[capture.index];
+
+						// Assign any captures that exist in the scope
 						if (capture.scope.has_value())
 						{
 							GrammarMatch match = {};
 							match.start = captureBegin;
 							match.end = captureEnd;
-							match.scope = *capture.scope;
+							match.scope = getScopeWithCaptures(str, *capture.scope, region);
 							res.emplace_back(match);
 						}
 						else if (capture.patternArray.has_value())
