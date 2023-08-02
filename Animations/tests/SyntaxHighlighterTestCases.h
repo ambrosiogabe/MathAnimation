@@ -322,5 +322,32 @@ R"_('source.js': '<0, 21>'
     'ATOM': ';'
 )_";
 
+constexpr const char* JS_TEST_BEGIN_CAPTURE_EXTENDING_BEYOND_MATCH_SRC = "console.log(\"Hello World!\");";
+
+constexpr const char* JS_TEST_BEGIN_CAPTURE_EXTENDING_BEYOND_MATCH_EXPECTED = \
+R"_('source.js': '<0, 28>'
+  'NULL_SCOPE': '<0, 27>'
+    'entity.name.type.object.console.js': '<0, 7>'
+      'ATOM': 'console'
+    'meta.method-call.js': '<7, 20>'
+      'meta.delimiter.method.period.js': '<0, 1>'
+        'ATOM': '.'
+      'support.function.console.js': '<1, 3>'
+        'ATOM': 'log'
+      'meta.arguments.js': '<4, 16>'
+        'punctuation.definition.arguments.begin.bracket.round.js': '<0, 1>'
+          'ATOM': '('
+        'string.quoted.double.js': '<1, 14>'
+          'punctuation.definition.string.begin.js': '<0, 1>'
+            'ATOM': '"'
+          'ATOM': 'Hello World!'
+          'punctuation.definition.string.end.js': '<13, 1>'
+            'ATOM': '"'
+        'punctuation.definition.arguments.end.bracket.round.js': '<15, 1>'
+          'ATOM': ')'
+  'punctuation.terminator.statement.js': '<27, 1>'
+    'ATOM': ';'
+)_";
+
 #endif
 #endif // _MATH_ANIM_TESTS
