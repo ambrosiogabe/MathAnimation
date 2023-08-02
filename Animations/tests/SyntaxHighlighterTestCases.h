@@ -417,5 +417,34 @@ R"_('source.js': '<0, 59>'
       'ATOM': '}'
 )_";
 
+constexpr const char* JS_CAPTURE_IN_CAPTURE_SRC = "for (const foo in blah) {}";
+
+constexpr const char* JS_CAPTURE_IN_CAPTURE_EXPECTED = \
+R"_('source.js': '<0, 26>'
+  'keyword.control.js': '<0, 3>'
+    'ATOM': 'for'
+  'ATOM': ' '
+  'NULL_SCOPE': '<4, 19>'
+    'meta.brace.round.js': '<0, 1>'
+      'ATOM': '('
+    'NULL_SCOPE': '<1, 12>'
+      'storage.type.const.js': '<0, 5>'
+        'ATOM': 'const'
+      'ATOM': ' '
+      'constant.other.js': '<6, 3>'
+        'ATOM': 'foo'
+      'ATOM': ' '
+      'keyword.operator.in[$1].js': '<10, 2>'
+        'ATOM': 'in'
+    'ATOM': ' blah'
+    'meta.brace.round.js': '<18, 1>'
+      'ATOM': ')'
+  'ATOM': ' '
+  'punctuation.section.scope.begin.js': '<24, 1>'
+    'ATOM': '{'
+  'punctuation.section.scope.end.js': '<25, 1>'
+    'ATOM': '}'
+)_";
+
 #endif
 #endif // _MATH_ANIM_TESTS
