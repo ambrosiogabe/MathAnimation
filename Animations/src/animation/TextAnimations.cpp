@@ -18,6 +18,25 @@ namespace MathAnim
 	// Number of spaces for tabs. Make this configurable
 	constexpr int tabDepth = 2;
 
+	static void setTextHelper(char** ogText, int32* ogTextLength, const char* newText, size_t newTextLength)
+	{
+		*ogText = (char*)g_memory_realloc(*ogText, sizeof(char) * (newTextLength + 1));
+		*ogTextLength = (int32_t)newTextLength;
+		g_memory_copyMem(*ogText, (void*)newText, newTextLength * sizeof(char));
+		(*ogText)[newTextLength] = '\0';
+	}
+
+	static void setTextHelper(char** ogText, int32* ogTextLength, const char* newText)
+	{
+		size_t newTextLength = std::strlen(newText);
+		return setTextHelper(ogText, ogTextLength, newText, newTextLength);
+	}
+
+	static void setTextHelper(char** ogText, int32* ogTextLength, const std::string& newText)
+	{
+		return setTextHelper(ogText, ogTextLength, newText.c_str(), newText.length());
+	}
+
 	void TextObject::init(AnimationManagerData* am, AnimObjId parentId)
 	{
 		if (font == nullptr)
@@ -137,25 +156,17 @@ namespace MathAnim
 
 	void TextObject::setText(const std::string& newText)
 	{
-		size_t newLength = newText.length();
-		text = (char*)g_memory_realloc(text, sizeof(char) * (newLength + 1));
-		textLength = (int32_t)newLength;
-		g_memory_copyMem(text, (void*)newText.c_str(), newLength * sizeof(char));
-		text[newLength] = '\0';
+		setTextHelper(&text, &textLength, newText);
 	}
 
 	void TextObject::setText(const char* newText, size_t newTextSize)
 	{
-		size_t newLength = newTextSize;
-		if (newLength == 0)
-		{
-			newLength = std::strlen(newText);
-		}
+		setTextHelper(&text, &textLength, newText, newTextSize);
+	}
 
-		text = (char*)g_memory_realloc(text, sizeof(char) * (newLength + 1));
-		textLength = (int32_t)newLength;
-		g_memory_copyMem(text, (void*)newText, newLength * sizeof(char));
-		text[newLength] = '\0';
+	void TextObject::setText(const char* newText)
+	{
+		setTextHelper(&text, &textLength, newText);
 	}
 
 	TextObject TextObject::deserialize(const nlohmann::json& j, uint32 version)
@@ -295,23 +306,12 @@ namespace MathAnim
 
 	void LaTexObject::setText(const std::string& str)
 	{
-		if (text)
-		{
-			g_memory_free(text);
-			text = nullptr;
-			textLength = 0;
-		}
-
-		this->text = (char*)g_memory_allocate(sizeof(char) * (str.length() + 1));
-		this->textLength = (int32)str.length();
-
-		g_memory_copyMem(this->text, (void*)str.c_str(), sizeof(char) * str.length());
-		this->text[this->textLength] = '\0';
+		setTextHelper(&text, &textLength, str);
 	}
 
 	void LaTexObject::setText(const char* cStr)
 	{
-		setText(std::string(cStr));
+		setTextHelper(&text, &textLength, cStr);
 	}
 
 	void LaTexObject::parseLaTex()
@@ -541,6 +541,16 @@ namespace MathAnim
 
 		// Next init again which should regenerate the children
 		this->init(am, obj->id);
+	}
+
+	void CodeBlock::setText(const char* newText)
+	{
+		setTextHelper(&text, &textLength, newText);
+	}
+
+	void CodeBlock::setText(const std::string& newText)
+	{
+		setTextHelper(&text, &textLength, newText);
 	}
 
 	void CodeBlock::serialize(nlohmann::json& memory) const

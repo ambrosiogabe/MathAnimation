@@ -23,7 +23,8 @@ namespace MathAnim
 		void free();
 
 		void setText(const std::string& newText);
-		void setText(const char* newText, size_t newTextSize = 0);
+		void setText(const char* newText, size_t newTextSize);
+		void setText(const char* newText);
 
 		void serialize(nlohmann::json& j) const;
 		static TextObject deserialize(const nlohmann::json& j, uint32 version);
@@ -74,6 +75,10 @@ namespace MathAnim
 
 		void init(AnimationManagerData* am, AnimObjId parentId);
 		void reInit(AnimationManagerData* am, AnimObject* obj);
+
+		void setText(const char* newText);
+		void setText(const std::string& newText);
+
 		void free();
 
 		void serialize(nlohmann::json& j) const;

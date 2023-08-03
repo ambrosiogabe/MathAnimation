@@ -642,6 +642,11 @@ namespace MathAnim
 				obj->as.textObject.setText(newString);
 				obj->as.textObject.reInit(am, obj);
 				break;
+			case StringPropType::CodeBlockText:
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
+				obj->as.codeBlock.setText(newString);
+				obj->as.codeBlock.reInit(am, obj);
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
 		}
@@ -661,6 +666,11 @@ namespace MathAnim
 				g_logger_assert(obj->objectType == AnimObjectTypeV1::TextObject, "How did this happen?");
 				obj->as.textObject.setText(oldString);
 				obj->as.textObject.reInit(am, obj);
+				break;
+			case StringPropType::CodeBlockText:
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
+				obj->as.codeBlock.setText(oldString);
+				obj->as.codeBlock.reInit(am, obj);
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);

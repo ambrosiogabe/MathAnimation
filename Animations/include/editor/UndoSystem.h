@@ -25,6 +25,7 @@ namespace MathAnim
 	{
 		Name = 0,
 		TextObjectText,
+		CodeBlockText,
 	};
 
 	enum class FloatPropType : uint8
