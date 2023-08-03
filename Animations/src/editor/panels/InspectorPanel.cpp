@@ -742,8 +742,6 @@ namespace MathAnim
 
 		static void handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object)
 		{
-			bool shouldRegenerate = false;
-
 			constexpr int scratchLength = 512;
 			char scratch[scratchLength] = {};
 			if (object->as.codeBlock.textLength >= scratchLength)
@@ -766,11 +764,16 @@ namespace MathAnim
 			}
 
 			int currentTheme = (int)object->as.codeBlock.theme - 1;
-			if (ImGui::Combo(": Theme", &currentTheme, _highlighterThemeNames.data() + 1, (int)HighlighterTheme::Length - 1))
+			if (auto res = ImGuiExtended::ComboEx(": Theme", &currentTheme, _highlighterThemeNames.data() + 1, (int)HighlighterTheme::Length - 1);
+				res.editState == EditState::FinishedEditing)
 			{
-				g_logger_assert(currentTheme >= 0 && currentTheme < (int)HighlighterTheme::Length - 1, "How did this happen?");
-				object->as.codeBlock.theme = (HighlighterTheme)(currentTheme + 1);
-				shouldRegenerate = true;
+				UndoSystem::setEnumProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData + 1,
+					currentTheme + 1,
+					EnumPropType::HighlighterTheme
+				);
 			}
 
 			// Debug struct/info
@@ -864,11 +867,6 @@ namespace MathAnim
 				}
 
 				ImGui::EndChild();
-			}
-
-			if (shouldRegenerate)
-			{
-				object->as.codeBlock.reInit(am, object);
 			}
 		}
 

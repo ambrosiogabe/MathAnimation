@@ -40,6 +40,7 @@ namespace MathAnim
 		EaseDirection,
 		PlaybackType,
 		HighlighterLanguage,
+		HighlighterTheme,
 	};
 
 	namespace UndoSystem

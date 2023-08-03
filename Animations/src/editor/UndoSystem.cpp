@@ -460,7 +460,9 @@ namespace MathAnim
 				g_logger_assert(this->newEnum >= 0 && this->newEnum < (int)PlaybackType::Length, "How did this happen?");
 				anim->playbackType = (PlaybackType)this->newEnum;
 				break;
+			// NOTE: These are animObjects, so they go in the if-block below
 			case EnumPropType::HighlighterLanguage:
+			case EnumPropType::HighlighterTheme:
 				break;
 			}
 		}
@@ -476,6 +478,13 @@ namespace MathAnim
 				obj->as.codeBlock.language = (HighlighterLanguage)newEnum;
 				obj->as.codeBlock.reInit(am, obj);
 				break;
+			case EnumPropType::HighlighterTheme:
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
+				g_logger_assert(newEnum >= 0 && newEnum < (int)HighlighterTheme::Length, "How did this happen?");
+				obj->as.codeBlock.theme = (HighlighterTheme)newEnum;
+				obj->as.codeBlock.reInit(am, obj);
+				break;
+			// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
 			case EnumPropType::EaseDirection:
 			case EnumPropType::PlaybackType:
@@ -502,7 +511,9 @@ namespace MathAnim
 			case EnumPropType::PlaybackType:
 				anim->playbackType = (PlaybackType)this->oldEnum;
 				break;
+			// NOTE: These are animObjects, so they go in the if-block below
 			case EnumPropType::HighlighterLanguage:
+			case EnumPropType::HighlighterTheme:
 				break;
 			}
 		}
@@ -517,6 +528,13 @@ namespace MathAnim
 				obj->as.codeBlock.language = (HighlighterLanguage)oldEnum;
 				obj->as.codeBlock.reInit(am, obj);
 				break;
+			case EnumPropType::HighlighterTheme:
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
+				g_logger_assert(oldEnum >= 0 && oldEnum < (int)HighlighterTheme::Length, "How did this happen?");
+				obj->as.codeBlock.theme = (HighlighterTheme)oldEnum;
+				obj->as.codeBlock.reInit(am, obj);
+				break;
+			// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
 			case EnumPropType::EaseDirection:
 			case EnumPropType::PlaybackType:
