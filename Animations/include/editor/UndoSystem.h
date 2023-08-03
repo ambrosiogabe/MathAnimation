@@ -26,6 +26,8 @@ namespace MathAnim
 		Name = 0,
 		TextObjectText,
 		CodeBlockText,
+		LaTexText,
+		SvgFilepath,
 	};
 
 	enum class FloatPropType : uint8

@@ -33,12 +33,9 @@ namespace MathAnim
 
 		static constexpr float slowDragSpeed = 0.02f;
 		static constexpr float indentationDepth = 25.0f;
-		static bool svgErrorPopupOpen = false;
-		static const char* ERROR_IMPORTING_SVG_POPUP = "Error Importing SVG##ERROR_IMPORTING_SVG";
 		static const char* ANIM_OBJECT_DROP_TARGET_ID = "ANIM_OBJECT_DROP_TARGET_ID";
 
 		// ---------------------- Internal Functions ----------------------
-		static void checkSvgErrorPopup();
 		static bool applySettingToChildren(const char* id);
 
 		// ---------------------- Inspector functions ----------------------
@@ -47,7 +44,7 @@ namespace MathAnim
 		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleLaTexObjectInspector(AnimObject* object);
-		static void handleSvgFileObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static void handleSvgFileObjectInspector(AnimObject* object);
 		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation);
 		static void handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation);
@@ -97,8 +94,6 @@ namespace MathAnim
 			}
 
 			ImGui::End();
-
-			checkSvgErrorPopup();
 		}
 
 		void free()
@@ -151,35 +146,6 @@ namespace MathAnim
 		}
 
 		// ---------------------- Internal Functions ----------------------
-		static void checkSvgErrorPopup()
-		{
-			if (svgErrorPopupOpen)
-			{
-				ImGui::OpenPopup(ERROR_IMPORTING_SVG_POPUP);
-				svgErrorPopupOpen = false;
-			}
-
-			// Always center this window when appearing
-			ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-			ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-			if (ImGui::BeginPopupModal(ERROR_IMPORTING_SVG_POPUP, NULL, ImGuiWindowFlags_AlwaysAutoResize))
-			{
-				ImGui::TextColored(Colors::AccentRed[3], "Error:");
-				ImGui::SameLine();
-				ImGui::Text("%s", SvgParser::getLastError());
-				ImGui::NewLine();
-				ImGui::Separator();
-
-				if (ImGui::Button("OK", ImVec2(120, 0)))
-				{
-					ImGui::CloseCurrentPopup();
-				}
-				ImGui::SetItemDefaultFocus();
-				ImGui::EndPopup();
-			}
-		}
-
 		static bool applySettingToChildren(const char* id)
 		{
 			bool res = false;
@@ -393,7 +359,7 @@ namespace MathAnim
 					handleAxisInspector(animObject);
 					break;
 				case AnimObjectTypeV1::SvgFileObject:
-					handleSvgFileObjectInspector(am, animObject);
+					handleSvgFileObjectInspector(animObject);
 					break;
 				case AnimObjectTypeV1::Camera:
 					handleCameraObjectInspector(am, animObject);
@@ -870,6 +836,7 @@ namespace MathAnim
 			}
 		}
 
+		// TODO: LaTeX objects are pretty broken, fix them!
 		static void handleLaTexObjectInspector(AnimObject* object)
 		{
 			constexpr int scratchLength = 2048;
@@ -881,36 +848,32 @@ namespace MathAnim
 			}
 			g_memory_copyMem(scratch, object->as.laTexObject.text, object->as.laTexObject.textLength * sizeof(char));
 			scratch[object->as.laTexObject.textLength] = '\0';
-			if (ImGui::InputTextMultiline(": LaTeX", scratch, scratchLength * sizeof(char)))
+			if (auto res = ImGuiExtended::InputTextMultilineEx(": LaTeX##LaTeXEditor", scratch, scratchLength * sizeof(char));
+				res.editState != EditState::NotEditing)
 			{
-				size_t newLength = std::strlen(scratch);
-				object->as.laTexObject.text = (char*)g_memory_realloc(object->as.laTexObject.text, sizeof(char) * (newLength + 1));
-				object->as.laTexObject.textLength = (int32_t)newLength;
-				g_memory_copyMem(object->as.laTexObject.text, scratch, newLength * sizeof(char));
-				object->as.laTexObject.text[newLength] = '\0';
+				if (res.editState == EditState::FinishedEditing)
+				{
+					UndoSystem::setStringProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						scratch,
+						StringPropType::LaTexText
+					);
+				}
+				else
+				{
+					if (strcmp(scratch, object->as.codeBlock.text) != 0)
+					{
+						object->as.laTexObject.setText(scratch);
+					}
+				}
 			}
 
 			ImGui::Checkbox(": Is Equation", &object->as.laTexObject.isEquation);
-
-			// Disable the generate button if it's currently parsing some SVG
-			bool disableButton = object->as.laTexObject.isParsingLaTex;
-			if (disableButton)
-			{
-				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
-			}
-			if (ImGui::Button("Generate LaTeX"))
-			{
-				object->as.laTexObject.parseLaTex();
-			}
-			if (disableButton)
-			{
-				ImGui::PopItemFlag();
-				ImGui::PopStyleVar();
-			}
 		}
 
-		static void handleSvgFileObjectInspector(AnimationManagerData* am, AnimObject* object)
+		static void handleSvgFileObjectInspector(AnimObject* object)
 		{
 			ImGui::BeginDisabled();
 			char* filepathStr = object->as.svgFile.filepath;
@@ -930,8 +893,6 @@ namespace MathAnim
 			ImGui::EndDisabled();
 			ImGui::SameLine();
 
-			bool shouldRegenerate = false;
-
 			if (ImGui::Button(ICON_FA_FILE_UPLOAD))
 			{
 				nfdchar_t* outPath = NULL;
@@ -939,15 +900,13 @@ namespace MathAnim
 
 				if (result == NFD_OKAY)
 				{
-					if (!object->as.svgFile.setFilepath(outPath))
-					{
-						g_logger_info("Opening error popup");
-						svgErrorPopupOpen = true;
-					}
-					else
-					{
-						shouldRegenerate = true;
-					}
+					UndoSystem::setStringProp(
+						Application::getUndoSystem(),
+						object->id,
+						filepathStr ? std::string(filepathStr) : "",
+						std::string(outPath),
+						StringPropType::SvgFilepath
+					);
 					std::free(outPath);
 				}
 				else if (result == NFD_CANCEL)
@@ -958,11 +917,6 @@ namespace MathAnim
 				{
 					g_logger_error("Error opening SVGFileObject:\n\t'{}'", NFD_GetError());
 				}
-			}
-
-			if (shouldRegenerate)
-			{
-				object->as.svgFile.reInit(am, object);
 			}
 		}
 

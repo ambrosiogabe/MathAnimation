@@ -6,6 +6,7 @@
 #include "editor/panels/AssetManagerPanel.h"
 #include "editor/panels/InspectorPanel.h"
 #include "editor/panels/ConsoleLog.h"
+#include "editor/panels/ErrorPopups.h"
 #include "editor/timeline/Timeline.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/imgui/ImGuiExtended.h"
@@ -159,6 +160,7 @@ namespace MathAnim
 			ConsoleLog::update();
 			Timeline::update(timeline, am);
 			InspectorPanel::update(am);
+			ErrorPopups::update(am);
 		}
 
 		void onGizmo(AnimationManagerData* am)

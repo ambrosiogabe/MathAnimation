@@ -1,7 +1,9 @@
 #include "editor/UndoSystem.h"
+#include "editor/panels/ErrorPopups.h"
 #include "animation/AnimationManager.h"
 #include "animation/Animation.h"
 #include "renderer/Fonts.h"
+#include "platform/Platform.h"
 
 namespace MathAnim
 {
@@ -460,7 +462,7 @@ namespace MathAnim
 				g_logger_assert(this->newEnum >= 0 && this->newEnum < (int)PlaybackType::Length, "How did this happen?");
 				anim->playbackType = (PlaybackType)this->newEnum;
 				break;
-			// NOTE: These are animObjects, so they go in the if-block below
+				// NOTE: These are animObjects, so they go in the if-block below
 			case EnumPropType::HighlighterLanguage:
 			case EnumPropType::HighlighterTheme:
 				break;
@@ -484,7 +486,7 @@ namespace MathAnim
 				obj->as.codeBlock.theme = (HighlighterTheme)newEnum;
 				obj->as.codeBlock.reInit(am, obj);
 				break;
-			// NOTE: These are animation types, so they go in the if-block above
+				// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
 			case EnumPropType::EaseDirection:
 			case EnumPropType::PlaybackType:
@@ -511,7 +513,7 @@ namespace MathAnim
 			case EnumPropType::PlaybackType:
 				anim->playbackType = (PlaybackType)this->oldEnum;
 				break;
-			// NOTE: These are animObjects, so they go in the if-block below
+				// NOTE: These are animObjects, so they go in the if-block below
 			case EnumPropType::HighlighterLanguage:
 			case EnumPropType::HighlighterTheme:
 				break;
@@ -534,7 +536,7 @@ namespace MathAnim
 				obj->as.codeBlock.theme = (HighlighterTheme)oldEnum;
 				obj->as.codeBlock.reInit(am, obj);
 				break;
-			// NOTE: These are animation types, so they go in the if-block above
+				// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
 			case EnumPropType::EaseDirection:
 			case EnumPropType::PlaybackType:
@@ -665,7 +667,32 @@ namespace MathAnim
 				obj->as.codeBlock.setText(newString);
 				obj->as.codeBlock.reInit(am, obj);
 				break;
+			case StringPropType::LaTexText:
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::LaTexObject, "How did this happen?");
+				obj->as.laTexObject.setText(newString);
+				obj->as.laTexObject.parseLaTex();
+				break;
+			case StringPropType::SvgFilepath:
+			{
+				if (Platform::fileExists(newString.c_str()))
+				{
+					if (obj->as.svgFile.setFilepath(newString))
+					{
+						obj->as.svgFile.reInit(am, obj);
+					}
+					else
+					{
+						ErrorPopups::popupSvgImportError();
+					}
+				}
+				else if (newString != "")
+				{
+					ErrorPopups::popupMissingFileError(newString);
+				}
 			}
+			break;
+			}
+
 			AnimationManager::updateObjectState(am, this->objId);
 		}
 	}
@@ -690,6 +717,30 @@ namespace MathAnim
 				obj->as.codeBlock.setText(oldString);
 				obj->as.codeBlock.reInit(am, obj);
 				break;
+			case StringPropType::LaTexText:
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::LaTexObject, "How did this happen?");
+				obj->as.laTexObject.setText(oldString);
+				obj->as.laTexObject.parseLaTex();
+				break;
+			case StringPropType::SvgFilepath:
+			{
+				if (Platform::fileExists(oldString.c_str()))
+				{
+					if (obj->as.svgFile.setFilepath(oldString))
+					{
+						obj->as.svgFile.reInit(am, obj);
+					}
+					else
+					{
+						ErrorPopups::popupSvgImportError();
+					}
+				}
+				else if (newString != "")
+				{
+					ErrorPopups::popupMissingFileError(oldString);
+				}
+			}
+			break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
 		}

@@ -447,10 +447,13 @@ namespace MathAnim
 					createAndAddAnimObject(am, AnimObjectTypeV1::TextObject);
 				}
 
+				// TODO: FIXME, LaTeX objects are very broken right now
+				ImGui::BeginDisabled();
 				if (ImGui::MenuItem("LaTeX"))
 				{
 					createAndAddAnimObject(am, AnimObjectTypeV1::LaTexObject);
 				}
+				ImGui::EndDisabled();
 
 				if (ImGui::MenuItem("Code Block"))
 				{

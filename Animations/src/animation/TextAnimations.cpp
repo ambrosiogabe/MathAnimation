@@ -306,18 +306,27 @@ namespace MathAnim
 
 	void LaTexObject::setText(const std::string& str)
 	{
-		setTextHelper(&text, &textLength, str);
+		if (!isParsingLaTex)
+		{
+			setTextHelper(&text, &textLength, str);
+		}
 	}
 
 	void LaTexObject::setText(const char* cStr)
 	{
-		setTextHelper(&text, &textLength, cStr);
+		if (!isParsingLaTex)
+		{
+			setTextHelper(&text, &textLength, cStr);
+		}
 	}
 
 	void LaTexObject::parseLaTex()
 	{
-		LaTexLayer::laTexToSvg(text, isEquation);
-		isParsingLaTex = true;
+		if (!isParsingLaTex)
+		{
+			LaTexLayer::laTexToSvg(text, isEquation);
+			isParsingLaTex = true;
+		}
 	}
 
 	void LaTexObject::serialize(nlohmann::json& memory) const
