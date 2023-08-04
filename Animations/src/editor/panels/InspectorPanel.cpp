@@ -1063,7 +1063,7 @@ namespace MathAnim
 				);
 			}
 
-			if (auto res = ImGuiExtended::DragFloat2Ex(": Target Position", &animation->as.moveTo.target, slowDragSpeed);
+			if (auto res = ImGuiExtended::DragFloat2Ex(": Target Position##MoveToAnimation", &animation->as.moveTo.target, slowDragSpeed);
 				res.editState == EditState::FinishedEditing)
 			{
 				UndoSystem::setVec2Prop(
@@ -1090,7 +1090,7 @@ namespace MathAnim
 				);
 			}
 
-			if (auto res = ImGuiExtended::DragFloat2Ex(": Target Scale", &animation->as.animateScale.target, slowDragSpeed);
+			if (auto res = ImGuiExtended::DragFloat2Ex(": Target Scale##ScaleAnimation", &animation->as.animateScale.target, slowDragSpeed);
 				res.editState == EditState::FinishedEditing)
 			{
 				UndoSystem::setVec2Prop(
@@ -1105,7 +1105,18 @@ namespace MathAnim
 
 		static void handleShiftInspector(Animation* animation)
 		{
-			ImGui::DragFloat3(": Shift Amount", &animation->as.modifyVec3.target.x, slowDragSpeed);
+			if (auto res = ImGuiExtended::DragFloat3Ex(": Shift Amount##ShiftAnimation", &animation->as.modifyVec3.target, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec3Prop(
+					Application::getUndoSystem(),
+					animation->id,
+					res.ogData,
+					animation->as.modifyVec3.target,
+					Vec3PropType::ModifyAnimationVec3Target
+				);
+			}
+			
 		}
 
 		static void handleRotateToAnimationInspector(Animation* animation)

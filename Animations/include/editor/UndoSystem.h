@@ -31,7 +31,8 @@ namespace MathAnim
 	{
 		Position = 0,
 		Scale,
-		Rotation
+		Rotation,
+		ModifyAnimationVec3Target,
 	};
 
 	enum class Vec4PropType : uint8

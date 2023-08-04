@@ -17,6 +17,19 @@ namespace MathAnim
 		g_logger_assert(anim->type == expectedType, "Animation is invalid type. Expected '{}', got '{}'.", expectedType, anim->type);
 	}
 
+	static inline bool assertAnimIsModifyVec3Type(Animation const* anim)
+	{
+		switch (anim->type)
+		{
+		case AnimTypeV1::Shift:
+			return true;
+		default:
+			break;
+		}
+
+		return false;
+	}
+
 	template<typename T>
 	static inline void assertEnumInRange(int value)
 	{
@@ -945,8 +958,28 @@ namespace MathAnim
 			case Vec3PropType::Rotation:
 				obj->_rotationStart = this->newVec;
 				break;
+			// NOTE: These are animations
+			case Vec3PropType::ModifyAnimationVec3Target:
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case Vec3PropType::ModifyAnimationVec3Target:
+				assertAnimIsModifyVec3Type(anim);
+				anim->as.modifyVec3.target = this->newVec;
+				break;
+			// NOTE: These are anim objects
+			case Vec3PropType::Position:
+			case Vec3PropType::Scale:
+			case Vec3PropType::Rotation:
+				break;
+			}
 		}
 	}
 
@@ -966,8 +999,28 @@ namespace MathAnim
 			case Vec3PropType::Rotation:
 				obj->_rotationStart = this->oldVec;
 				break;
+			// NOTE: These are animations
+			case Vec3PropType::ModifyAnimationVec3Target:
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case Vec3PropType::ModifyAnimationVec3Target:
+				assertAnimIsModifyVec3Type(anim);
+				anim->as.modifyVec3.target = this->oldVec;
+				break;
+			// NOTE: These are anim objects
+			case Vec3PropType::Position:
+			case Vec3PropType::Scale:
+			case Vec3PropType::Rotation:
+				break;
+			}
 		}
 	}
 
