@@ -35,6 +35,7 @@ namespace MathAnim
 		switch (anim->type)
 		{
 		case AnimTypeV1::AnimateStrokeColor:
+		case AnimTypeV1::AnimateFillColor:
 			return true;
 		default:
 			break;
