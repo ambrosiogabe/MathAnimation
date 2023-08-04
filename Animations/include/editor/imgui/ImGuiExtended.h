@@ -41,7 +41,8 @@ namespace MathAnim
 		bool VerticalIconButton(const char* icon, const char* buttonText, float width);
 
 		const AnimObjectPayload* AnimObjectDragDropTarget();
-		bool AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation = NULL_ANIM);
+		EditState AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation = NULL_ANIM);
+		ImGuiDataEx<AnimObjId> AnimObjDragDropInputBoxEx(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation = NULL_ANIM);
 
 		const FilePayload* FileDragDropTarget();
 		bool FileDragDropInputBox(const char* label, char* outBuffer, size_t outBufferSize);

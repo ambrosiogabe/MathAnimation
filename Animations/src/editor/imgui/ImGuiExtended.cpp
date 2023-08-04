@@ -136,6 +136,7 @@ namespace MathAnim
 		};
 
 		// ------------ Extra State Vars ------------
+		static ImGuiStateEx<AnimObjId> animObjDragDropData;
 		static ImGuiStateEx<glm::u8vec4> colorEditU84Data;
 		static ImGuiStateEx<Vec4> colorEdit4Data;
 		static ImGuiStateEx<int> comboData;
@@ -314,7 +315,7 @@ namespace MathAnim
 			return res;
 		}
 
-		bool AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation)
+		EditState AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation)
 		{
 			const AnimObject* srcObj = AnimationManager::getObject(am, *output);
 
@@ -351,10 +352,21 @@ namespace MathAnim
 					}
 				}
 				*output = objPayload->animObjectId;
-				return true;
+				return EditState::FinishedEditing;
 			}
 
-			return false;
+			return EditState::NotEditing;
+		}
+
+		ImGuiDataEx<AnimObjId> AnimObjDragDropInputBoxEx(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation)
+		{
+			return animObjDragDropData.undoableImGuiFunctionEx(
+				label,
+				*output,
+				[&]()
+				{
+					return AnimObjDragDropInputBox(label, am, output, animation);
+				});
 		}
 
 		const FilePayload* FileDragDropTarget()

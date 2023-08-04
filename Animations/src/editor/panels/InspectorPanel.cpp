@@ -1024,8 +1024,29 @@ namespace MathAnim
 
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation)
 		{
-			ImGuiExtended::AnimObjDragDropInputBox(": Source##ReplacementTransformSrcTarget", am, &animation->as.replacementTransform.srcAnimObjectId, animation->id);
-			ImGuiExtended::AnimObjDragDropInputBox(": Replace To##ReplacementTransformDstTarget", am, &animation->as.replacementTransform.dstAnimObjectId, animation->id);
+			if (auto res = ImGuiExtended::AnimObjDragDropInputBoxEx(": Source##ReplacementTransformSrcTarget", am, &animation->as.replacementTransform.srcAnimObjectId, animation->id);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::animDragDropInput(
+					Application::getUndoSystem(),
+					res.ogData,
+					animation->as.replacementTransform.srcAnimObjectId,
+					animation->id,
+					AnimDragDropType::ReplacementTransformSrc
+				);
+			}
+
+			if (auto res = ImGuiExtended::AnimObjDragDropInputBoxEx(": Replace To##ReplacementTransformDstTarget", am, &animation->as.replacementTransform.dstAnimObjectId, animation->id);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::animDragDropInput(
+					Application::getUndoSystem(),
+					res.ogData,
+					animation->as.replacementTransform.srcAnimObjectId,
+					animation->id,
+					AnimDragDropType::ReplacementTransformDst
+				);
+			}
 		}
 
 		static void handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation)

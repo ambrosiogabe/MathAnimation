@@ -7,9 +7,14 @@
 
 namespace MathAnim
 {
-	static inline void assertCorrectType(AnimObject* obj, AnimObjectTypeV1 expectedType)
+	static inline void assertCorrectType(AnimObject const* obj, AnimObjectTypeV1 expectedType)
 	{
 		g_logger_assert(obj->objectType == expectedType, "AnimObject is invalid type. Expected '{}', got '{}'.", expectedType, obj->objectType);
+	}
+
+	static inline void assertCorrectType(Animation const* anim, AnimTypeV1 expectedType)
+	{
+		g_logger_assert(anim->type == expectedType, "Animation is invalid type. Expected '{}', got '{}'.", expectedType, anim->type);
 	}
 
 	template<typename T>
@@ -221,6 +226,24 @@ namespace MathAnim
 		std::string newFont;
 	};
 
+	class AnimDragDropInputCommand : public Command
+	{
+	public:
+		AnimDragDropInputCommand(AnimObjId oldTarget, AnimObjId newTarget, AnimId animToAddTo, AnimDragDropType type)
+			: oldTarget(oldTarget), newTarget(newTarget), animToAddTo(animToAddTo), type(type)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId oldTarget;
+		AnimObjId newTarget;
+		AnimId animToAddTo;
+		AnimDragDropType type;
+	};
+
 	class ApplyU8Vec4ToChildrenCommand : public Command
 	{
 	public:
@@ -311,14 +334,14 @@ namespace MathAnim
 			us->undoCursorTail = (us->undoCursorTail + 1) % us->maxHistorySize;
 		}
 
-		void applyU8Vec4ToChildren(UndoSystemData* us, AnimObjId id, U8Vec4PropType propType)
+		void applyU8Vec4ToChildren(UndoSystemData* us, ObjOrAnimId id, U8Vec4PropType propType)
 		{
 			auto* newCommand = (ApplyU8Vec4ToChildrenCommand*)g_memory_allocate(sizeof(ApplyU8Vec4ToChildrenCommand));
 			new(newCommand)ApplyU8Vec4ToChildrenCommand(id, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-		void setU8Vec4Prop(UndoSystemData* us, AnimObjId objId, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType)
+		void setU8Vec4Prop(UndoSystemData* us, ObjOrAnimId objId, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType)
 		{
 			// Don't add this to the undo history if they don't actually change the stuff
 			if (oldVec == newVec)
@@ -331,7 +354,7 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-		void setEnumProp(UndoSystemData* us, AnimObjId id, int oldEnum, int newEnum, EnumPropType propType)
+		void setEnumProp(UndoSystemData* us, ObjOrAnimId id, int oldEnum, int newEnum, EnumPropType propType)
 		{
 			// Don't add this to the undo history if they don't actually change the enum
 			if (oldEnum == newEnum)
@@ -372,7 +395,7 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-		void setFloatProp(UndoSystemData* us, AnimObjId objId, float oldValue, float newValue, FloatPropType propType)
+		void setFloatProp(UndoSystemData* us, ObjOrAnimId objId, float oldValue, float newValue, FloatPropType propType)
 		{
 			// Don't add this to the undo history if they don't actually change the stuff
 			if (oldValue == newValue)
@@ -385,7 +408,7 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-		void setVec2iProp(UndoSystemData* us, AnimObjId objId, const Vec2i& oldVec, const Vec2i& newVec, Vec2iPropType propType)
+		void setVec2iProp(UndoSystemData* us, ObjOrAnimId objId, const Vec2i& oldVec, const Vec2i& newVec, Vec2iPropType propType)
 		{
 			// Don't add this to the undo history if they don't actually change the stuff
 			if (oldVec == newVec)
@@ -398,7 +421,7 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-		void setVec3Prop(UndoSystemData* us, AnimObjId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType)
+		void setVec3Prop(UndoSystemData* us, ObjOrAnimId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType)
 		{
 			// Don't add this to the undo history if they don't actually change the stuff
 			if (oldVec == newVec)
@@ -411,7 +434,7 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-		void setVec4Prop(UndoSystemData* us, AnimObjId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType)
+		void setVec4Prop(UndoSystemData* us, ObjOrAnimId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType)
 		{
 			// Don't add this to the undo history if they don't actually change the stuff
 			if (oldVec == newVec)
@@ -424,7 +447,7 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-		void setStringProp(UndoSystemData* us, AnimObjId objId, const std::string& oldString, const std::string& newString, StringPropType propType)
+		void setStringProp(UndoSystemData* us, ObjOrAnimId objId, const std::string& oldString, const std::string& newString, StringPropType propType)
 		{
 			// Don't add this to the undo history if they don't actually change the stuff
 			if (oldString == newString)
@@ -437,7 +460,7 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-		void setFont(UndoSystemData* us, AnimObjId objId, const std::string& oldFont, const std::string& newFont)
+		void setFont(UndoSystemData* us, ObjOrAnimId objId, const std::string& oldFont, const std::string& newFont)
 		{
 			// Don't add this to the undo history if they don't actually change the stuff
 			if (oldFont == newFont)
@@ -447,6 +470,13 @@ namespace MathAnim
 
 			auto* newCommand = (SetFontCommand*)g_memory_allocate(sizeof(SetFontCommand));
 			new(newCommand)SetFontCommand(objId, oldFont, newFont);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
+		void animDragDropInput(UndoSystemData* us, AnimObjId oldTarget, AnimObjId newTarget, AnimId animToAddTo, AnimDragDropType type)
+		{
+			auto* newCommand = (AnimDragDropInputCommand*)g_memory_allocate(sizeof(AnimDragDropInputCommand));
+			new(newCommand)AnimDragDropInputCommand(oldTarget, newTarget, animToAddTo, type);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -1038,6 +1068,60 @@ namespace MathAnim
 			object->as.textObject.reInit(am, object);
 
 			AnimationManager::updateObjectState(am, objId);
+		}
+	}
+
+	void AnimDragDropInputCommand::execute(AnimationManagerData* const am)
+	{
+		Animation* anim = AnimationManager::getMutableAnimation(am, animToAddTo);
+		if (anim)
+		{
+			switch (type)
+			{
+			case AnimDragDropType::ReplacementTransformSrc:
+				assertCorrectType(anim, AnimTypeV1::Transform);
+				anim->as.replacementTransform.srcAnimObjectId = newTarget;
+				break;
+			case AnimDragDropType::ReplacementTransformDst:
+				assertCorrectType(anim, AnimTypeV1::Transform);
+				anim->as.replacementTransform.dstAnimObjectId = newTarget;
+				break;
+			case AnimDragDropType::MoveToTarget:
+				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				anim->as.moveTo.object = newTarget;
+				break;
+			case AnimDragDropType::AnimateScaleTarget:
+				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				anim->as.animateScale.object = newTarget;
+				break;
+			}
+		}
+	}
+
+	void AnimDragDropInputCommand::undo(AnimationManagerData* const am)
+	{
+		Animation* anim = AnimationManager::getMutableAnimation(am, animToAddTo);
+		if (anim)
+		{
+			switch (type)
+			{
+			case AnimDragDropType::ReplacementTransformSrc:
+				assertCorrectType(anim, AnimTypeV1::Transform);
+				anim->as.replacementTransform.srcAnimObjectId = oldTarget;
+				break;
+			case AnimDragDropType::ReplacementTransformDst:
+				assertCorrectType(anim, AnimTypeV1::Transform);
+				anim->as.replacementTransform.dstAnimObjectId = oldTarget;
+				break;
+			case AnimDragDropType::MoveToTarget:
+				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				anim->as.moveTo.object = oldTarget;
+				break;
+			case AnimDragDropType::AnimateScaleTarget:
+				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				anim->as.animateScale.object = oldTarget;
+				break;
+			}
 		}
 	}
 

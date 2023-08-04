@@ -8,6 +8,8 @@ namespace MathAnim
 	struct UndoSystemData;
 	struct AnimObject;
 
+	typedef AnimObjId ObjOrAnimId;
+
 	enum class U8Vec4PropType : uint8
 	{
 		FillColor = 0,
@@ -61,6 +63,14 @@ namespace MathAnim
 		CameraMode,
 	};
 
+	enum class AnimDragDropType : uint8
+	{
+		ReplacementTransformSrc = 0,
+		ReplacementTransformDst,
+		MoveToTarget,
+		AnimateScaleTarget
+	};
+
 	namespace UndoSystem
 	{
 		UndoSystemData* init(AnimationManagerData* const am, int maxHistory);
@@ -69,15 +79,17 @@ namespace MathAnim
 		void undo(UndoSystemData* us);
 		void redo(UndoSystemData* us);
 
-		void applyU8Vec4ToChildren(UndoSystemData* us, AnimObjId id, U8Vec4PropType propType);
-		void setU8Vec4Prop(UndoSystemData* us, AnimObjId objId, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType);
-		void setEnumProp(UndoSystemData* us, AnimObjId id, int oldEnum, int newEnum, EnumPropType propType);
-		void setFloatProp(UndoSystemData* us, AnimObjId objId, float oldValue, float newValue, FloatPropType propType);
-		void setVec2iProp(UndoSystemData* us, AnimObjId objId, const Vec2i& oldVec, const Vec2i& newVec, Vec2iPropType propType);
-		void setVec3Prop(UndoSystemData* us, AnimObjId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType);
-		void setVec4Prop(UndoSystemData* us, AnimObjId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType);
-		void setStringProp(UndoSystemData* us, AnimObjId objId, const std::string& oldString, const std::string& newString, StringPropType propType);
-		void setFont(UndoSystemData* us, AnimObjId objId, const std::string& oldFont, const std::string& newFont);
+		void applyU8Vec4ToChildren(UndoSystemData* us, ObjOrAnimId id, U8Vec4PropType propType);
+		void setU8Vec4Prop(UndoSystemData* us, ObjOrAnimId objId, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType);
+		void setEnumProp(UndoSystemData* us, ObjOrAnimId id, int oldEnum, int newEnum, EnumPropType propType);
+		void setFloatProp(UndoSystemData* us, ObjOrAnimId objId, float oldValue, float newValue, FloatPropType propType);
+		void setVec2iProp(UndoSystemData* us, ObjOrAnimId objId, const Vec2i& oldVec, const Vec2i& newVec, Vec2iPropType propType);
+		void setVec3Prop(UndoSystemData* us, ObjOrAnimId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType);
+		void setVec4Prop(UndoSystemData* us, ObjOrAnimId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType);
+		void setStringProp(UndoSystemData* us, ObjOrAnimId objId, const std::string& oldString, const std::string& newString, StringPropType propType);
+		void setFont(UndoSystemData* us, ObjOrAnimId objId, const std::string& oldFont, const std::string& newFont);
+
+		void animDragDropInput(UndoSystemData* us, AnimObjId oldTarget, AnimObjId newTarget, AnimId animToAddTo, AnimDragDropType type);
 
 		void addObjectToAnim(UndoSystemData* us, AnimObjId objToAdd, AnimId animToAddTo);
 		void removeObjectFromAnim(UndoSystemData* us, AnimObjId objToAdd, AnimId animToAddTo);
