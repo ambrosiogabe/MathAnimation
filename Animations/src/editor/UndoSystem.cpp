@@ -132,6 +132,24 @@ namespace MathAnim
 		FloatPropType propType;
 	};
 
+	class ModifyVec2iCommand : public Command
+	{
+	public:
+		ModifyVec2iCommand(AnimObjId objId, const Vec2i& oldVec, const Vec2i& newVec, Vec2iPropType propType)
+			: objId(objId), oldVec(oldVec), newVec(newVec), propType(propType)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId objId;
+		Vec2i oldVec;
+		Vec2i newVec;
+		Vec2iPropType propType;
+	};
+
 	class ModifyVec3Command : public Command
 	{
 	public:
@@ -346,6 +364,19 @@ namespace MathAnim
 
 			auto* newCommand = (ModifyFloatCommand*)g_memory_allocate(sizeof(ModifyFloatCommand));
 			new(newCommand)ModifyFloatCommand(objId, oldValue, newValue, propType);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
+		void setVec2iProp(UndoSystemData* us, AnimObjId objId, const Vec2i& oldVec, const Vec2i& newVec, Vec2iPropType propType)
+		{
+			// Don't add this to the undo history if they don't actually change the stuff
+			if (oldVec == newVec)
+			{
+				return;
+			}
+
+			auto* newCommand = (ModifyVec2iCommand*)g_memory_allocate(sizeof(ModifyVec2iCommand));
+			new(newCommand)ModifyVec2iCommand(objId, oldVec, newVec, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -733,6 +764,38 @@ namespace MathAnim
 			case FloatPropType::CameraOrthoZoomLevel:
 				break;
 			}
+		}
+	}
+
+	void ModifyVec2iCommand::execute(AnimationManagerData* const am)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case Vec2iPropType::AspectRatio:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.aspectRatioFraction = this->newVec;
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyVec2iCommand::undo(AnimationManagerData* const am)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case Vec2iPropType::AspectRatio:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.aspectRatioFraction = this->oldVec;
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
 		}
 	}
 

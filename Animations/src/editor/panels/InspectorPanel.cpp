@@ -947,7 +947,17 @@ namespace MathAnim
 				);
 			}
 
-			ImGui::DragInt2(": Aspect Ratio", &object->as.camera.aspectRatioFraction.x);
+			if (auto res = ImGuiExtended::DragInt2Ex(": Aspect Ratio", &object->as.camera.aspectRatioFraction);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec2iProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.camera.aspectRatioFraction,
+					Vec2iPropType::AspectRatio
+				);
+			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Near", &object->as.camera.nearFarRange.min);
 				res.editState == EditState::FinishedEditing)

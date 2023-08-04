@@ -138,6 +138,7 @@ namespace MathAnim
 		// ------------ Extra State Vars ------------
 		static ImGuiStateEx<glm::u8vec4> colorEditU84Data;
 		static ImGuiStateEx<int> comboData;
+		static ImGuiStateEx<Vec2i> dragInt2Data;
 		static ImGuiStateEx<float> dragFloatData;
 		static ImGuiStateEx<Vec3> dragFloat3Data;
 		static ImGuiStateEx<std::string> inputTextData;
@@ -753,6 +754,28 @@ namespace MathAnim
 				[&]()
 				{
 					return InputTextMultiline(label, buf, buf_size, size, flags, callback, user_data);
+				});
+		}
+
+		EditState DragInt2(const char* label, Vec2i* v, float v_speed, int v_min, int v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			std::string fullLabel = label + std::string("##DragInt2");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::DragInt2(label, v->values, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		ImGuiDataEx<Vec2i> DragInt2Ex(const char* label, Vec2i* v, float v_speed, int v_min, int v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			return dragInt2Data.undoableImGuiFunctionEx(
+				label,
+				*v,
+				[&]()
+				{
+					return DragInt2(label, v, v_speed, v_min, v_max, format, flags);
 				});
 		}
 
