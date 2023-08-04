@@ -935,15 +935,70 @@ namespace MathAnim
 				);
 			}
 
-			ImGui::DragFloat(": Field Of View", &object->as.camera.fov, 1.0f, 360.0f);
+			if (auto res = ImGuiExtended::DragFloatEx(": Field Of View", &object->as.camera.fov, 1.0f, 360.0f);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.camera.fov,
+					FloatPropType::CameraFieldOfView
+				);
+			}
+
 			ImGui::DragFloat3(": Position", &object->as.camera.position.x);
 			ImGui::DragFloat3(": Orientation", &object->as.camera.orientation.x);
 			ImGui::DragInt2(": Aspect Ratio", &object->as.camera.aspectRatioFraction.x);
-			ImGui::DragFloat(": Near", &object->as.camera.nearFarRange.min);
-			ImGui::DragFloat(": Far", &object->as.camera.nearFarRange.max);
-			ImGui::DragFloat(": Focal Distance", &object->as.camera.focalDistance);
+
+			if (auto res = ImGuiExtended::DragFloatEx(": Near", &object->as.camera.nearFarRange.min);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.camera.nearFarRange.min,
+					FloatPropType::CameraNearPlane
+				);
+			}
+
+			if (auto res = ImGuiExtended::DragFloatEx(": Far", &object->as.camera.nearFarRange.max);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.camera.nearFarRange.max,
+					FloatPropType::CameraFarPlane
+				);
+			}
+			
+			if (auto res = ImGuiExtended::DragFloatEx(": Focal Distance", &object->as.camera.focalDistance);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.camera.focalDistance,
+					FloatPropType::CameraFocalDistance
+				);
+			}
+			
 			ImGui::BeginDisabled(object->as.camera.mode != CameraMode::Orthographic);
-			ImGui::DragFloat(": Ortho Zoom Level", &object->as.camera.orthoZoomLevel);
+			if (auto res = ImGuiExtended::DragFloatEx(": Ortho Zoom Level", &object->as.camera.orthoZoomLevel);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.camera.orthoZoomLevel,
+					FloatPropType::CameraOrthoZoomLevel
+				);
+			}
 			ImGui::EndDisabled();
 
 			ImGui::ColorEdit4(": Background Color", &object->as.camera.fillColor.r);

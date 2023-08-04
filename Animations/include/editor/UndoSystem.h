@@ -34,6 +34,11 @@ namespace MathAnim
 	{
 		StrokeWidth = 0,
 		LagRatio,
+		CameraFieldOfView,
+		CameraNearPlane,
+		CameraFarPlane,
+		CameraFocalDistance,
+		CameraOrthoZoomLevel,
 	};
 
 	enum class EnumPropType : uint8

@@ -7,6 +7,17 @@
 
 namespace MathAnim
 {
+	static inline void assertCorrectType(AnimObject* obj, AnimObjectTypeV1 expectedType)
+	{
+		g_logger_assert(obj->objectType == expectedType, "AnimObject is invalid type. Expected '{}', got '{}'.", expectedType, obj->objectType);
+	}
+
+	template<typename T>
+	static inline void assertEnumInRange(int value)
+	{
+		g_logger_assert(value >= 0 && value < (int)T::Length, "Invalid enum, out of range. Got '{}', and enum range goes from [{}, {}).", value, 0, (int)T::Length);
+	}
+
 	class Command
 	{
 	public:
@@ -292,6 +303,34 @@ namespace MathAnim
 				return;
 			}
 
+			switch (propType)
+			{
+			case EnumPropType::EaseType:
+				assertEnumInRange<EaseType>(newEnum);
+				assertEnumInRange<EaseType>(oldEnum);
+				break;
+			case EnumPropType::EaseDirection:
+				assertEnumInRange<EaseDirection>(newEnum);
+				assertEnumInRange<EaseDirection>(oldEnum);
+				break;
+			case EnumPropType::PlaybackType:
+				assertEnumInRange<PlaybackType>(newEnum);
+				assertEnumInRange<PlaybackType>(oldEnum);
+				break;
+			case EnumPropType::HighlighterLanguage:
+				assertEnumInRange<HighlighterLanguage>(newEnum);
+				assertEnumInRange<HighlighterLanguage>(oldEnum);
+				break;
+			case EnumPropType::HighlighterTheme:
+				assertEnumInRange<HighlighterTheme>(newEnum);
+				assertEnumInRange<HighlighterTheme>(oldEnum);
+				break;
+			case EnumPropType::CameraMode:
+				assertEnumInRange<CameraMode>(newEnum);
+				assertEnumInRange<CameraMode>(oldEnum);
+				break;
+			}
+
 			auto* newCommand = (ModifyEnumCommand*)g_memory_allocate(sizeof(ModifyEnumCommand));
 			new(newCommand)ModifyEnumCommand(id, oldEnum, newEnum, propType);
 			pushAndExecuteCommand(us, newCommand);
@@ -484,15 +523,12 @@ namespace MathAnim
 			switch (propType)
 			{
 			case EnumPropType::EaseType:
-				g_logger_assert(this->newEnum >= 0 && this->newEnum < (int)EaseType::Length, "How did this happen?");
 				anim->easeType = (EaseType)this->newEnum;
 				break;
 			case EnumPropType::EaseDirection:
-				g_logger_assert(this->newEnum >= 0 && this->newEnum < (int)EaseDirection::Length, "How did this happen?");
 				anim->easeDirection = (EaseDirection)this->newEnum;
 				break;
 			case EnumPropType::PlaybackType:
-				g_logger_assert(this->newEnum >= 0 && this->newEnum < (int)PlaybackType::Length, "How did this happen?");
 				anim->playbackType = (PlaybackType)this->newEnum;
 				break;
 				// NOTE: These are animObjects, so they go in the if-block below
@@ -509,20 +545,17 @@ namespace MathAnim
 			switch (propType)
 			{
 			case EnumPropType::HighlighterLanguage:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
-				g_logger_assert(newEnum >= 0 && newEnum < (int)HighlighterLanguage::Length, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::CodeBlock);
 				obj->as.codeBlock.language = (HighlighterLanguage)newEnum;
 				obj->as.codeBlock.reInit(am, obj);
 				break;
 			case EnumPropType::HighlighterTheme:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
-				g_logger_assert(newEnum >= 0 && newEnum < (int)HighlighterTheme::Length, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::CodeBlock);
 				obj->as.codeBlock.theme = (HighlighterTheme)newEnum;
 				obj->as.codeBlock.reInit(am, obj);
 				break;
 			case EnumPropType::CameraMode:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::Camera, "How did this happen?");
-				g_logger_assert(newEnum >= 0 && newEnum < (int)CameraMode::Length, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.mode = (CameraMode)newEnum;
 				break;
 				// NOTE: These are animation types, so they go in the if-block above
@@ -566,19 +599,17 @@ namespace MathAnim
 			switch (propType)
 			{
 			case EnumPropType::HighlighterLanguage:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::CodeBlock);
 				obj->as.codeBlock.language = (HighlighterLanguage)oldEnum;
 				obj->as.codeBlock.reInit(am, obj);
 				break;
 			case EnumPropType::HighlighterTheme:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
-				g_logger_assert(oldEnum >= 0 && oldEnum < (int)HighlighterTheme::Length, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::CodeBlock);
 				obj->as.codeBlock.theme = (HighlighterTheme)oldEnum;
 				obj->as.codeBlock.reInit(am, obj);
 				break;
 			case EnumPropType::CameraMode:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::Camera, "How did this happen?");
-				g_logger_assert(oldEnum >= 0 && oldEnum < (int)CameraMode::Length, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.mode = (CameraMode)oldEnum;
 				break;
 				// NOTE: These are animation types, so they go in the if-block above
@@ -602,6 +633,27 @@ namespace MathAnim
 			case FloatPropType::StrokeWidth:
 				obj->_strokeWidthStart = this->newValue;
 				break;
+			case FloatPropType::CameraFieldOfView:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.fov = this->newValue;
+				break;
+			case FloatPropType::CameraNearPlane:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.nearFarRange.min = this->newValue;
+				break;
+			case FloatPropType::CameraFarPlane:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.nearFarRange.max = this->newValue;
+				break;
+			case FloatPropType::CameraFocalDistance:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.focalDistance = this->newValue;
+				break;
+			case FloatPropType::CameraOrthoZoomLevel:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.orthoZoomLevel = this->newValue;
+				break;
+			// Animation types
 			case FloatPropType::LagRatio:
 				break;
 			}
@@ -616,7 +668,13 @@ namespace MathAnim
 			case FloatPropType::LagRatio:
 				anim->lagRatio = this->newValue;
 				break;
+			// AnimObject types
 			case FloatPropType::StrokeWidth:
+			case FloatPropType::CameraFieldOfView:
+			case FloatPropType::CameraNearPlane:
+			case FloatPropType::CameraFarPlane:
+			case FloatPropType::CameraFocalDistance:
+			case FloatPropType::CameraOrthoZoomLevel:
 				break;
 			}
 		}
@@ -632,6 +690,29 @@ namespace MathAnim
 			case FloatPropType::StrokeWidth:
 				obj->_strokeWidthStart = this->oldValue;
 				break;
+			case FloatPropType::CameraFieldOfView:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.fov = this->oldValue;
+				break;
+			case FloatPropType::CameraNearPlane:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.nearFarRange.min = this->oldValue;
+				break;
+			case FloatPropType::CameraFarPlane:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.nearFarRange.max = this->oldValue;
+				break;
+			case FloatPropType::CameraFocalDistance:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.focalDistance = this->oldValue;
+				break;
+			case FloatPropType::CameraOrthoZoomLevel:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.orthoZoomLevel = this->oldValue;
+				break;
+			// Animation types
+			case FloatPropType::LagRatio:
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
 		}
@@ -645,6 +726,11 @@ namespace MathAnim
 				anim->lagRatio = this->oldValue;
 				break;
 			case FloatPropType::StrokeWidth:
+			case FloatPropType::CameraFieldOfView:
+			case FloatPropType::CameraNearPlane:
+			case FloatPropType::CameraFarPlane:
+			case FloatPropType::CameraFocalDistance:
+			case FloatPropType::CameraOrthoZoomLevel:
 				break;
 			}
 		}

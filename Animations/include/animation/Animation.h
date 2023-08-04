@@ -549,4 +549,17 @@ namespace MathAnim
 	inline bool isNull(const AnimObject& animObject) { return animObject.id == NULL_ANIM_OBJECT; }
 }
 
+// TODO: Dumb logging doesn't work unless it's in global namespace. I should fix this
+inline CppUtils::Stream& operator<<(CppUtils::Stream& ostream, MathAnim::AnimObjectTypeV1 const& t)
+{
+	ostream << MathAnim::_animationObjectTypeNames[(int)t];
+	return ostream;
+}
+
+inline CppUtils::Stream& operator<<(CppUtils::Stream& ostream, MathAnim::AnimTypeV1 const& t)
+{
+	ostream << MathAnim::_animationTypeNames[(int)t];
+	return ostream;
+}
+
 #endif
