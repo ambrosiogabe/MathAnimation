@@ -789,22 +789,23 @@ namespace MathAnim
 				obj->setName(this->newString.c_str(), this->newString.length());
 				break;
 			case StringPropType::TextObjectText:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::TextObject, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::TextObject);
 				obj->as.textObject.setText(newString);
 				obj->as.textObject.reInit(am, obj);
 				break;
 			case StringPropType::CodeBlockText:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::CodeBlock);
 				obj->as.codeBlock.setText(newString);
 				obj->as.codeBlock.reInit(am, obj);
 				break;
 			case StringPropType::LaTexText:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::LaTexObject, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::LaTexObject);
 				obj->as.laTexObject.setText(newString);
 				obj->as.laTexObject.parseLaTex();
 				break;
 			case StringPropType::SvgFilepath:
 			{
+				assertCorrectType(obj, AnimObjectTypeV1::SvgFileObject);
 				if (Platform::fileExists(newString.c_str()))
 				{
 					if (obj->as.svgFile.setFilepath(newString))
@@ -839,22 +840,23 @@ namespace MathAnim
 				obj->setName(this->oldString.c_str(), this->oldString.length());
 				break;
 			case StringPropType::TextObjectText:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::TextObject, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::TextObject);
 				obj->as.textObject.setText(oldString);
 				obj->as.textObject.reInit(am, obj);
 				break;
 			case StringPropType::CodeBlockText:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::CodeBlock, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::CodeBlock);
 				obj->as.codeBlock.setText(oldString);
 				obj->as.codeBlock.reInit(am, obj);
 				break;
 			case StringPropType::LaTexText:
-				g_logger_assert(obj->objectType == AnimObjectTypeV1::LaTexObject, "How did this happen?");
+				assertCorrectType(obj, AnimObjectTypeV1::LaTexObject);
 				obj->as.laTexObject.setText(oldString);
 				obj->as.laTexObject.parseLaTex();
 				break;
 			case StringPropType::SvgFilepath:
 			{
+				assertCorrectType(obj, AnimObjectTypeV1::SvgFileObject);
 				if (Platform::fileExists(oldString.c_str()))
 				{
 					if (obj->as.svgFile.setFilepath(oldString))
@@ -882,6 +884,8 @@ namespace MathAnim
 		AnimObject* object = AnimationManager::getMutableObject(am, objId);
 		if (object)
 		{
+			assertCorrectType(object, AnimObjectTypeV1::TextObject);
+
 			if (object->as.textObject.font)
 			{
 				Fonts::unloadFont(object->as.textObject.font);
@@ -898,6 +902,8 @@ namespace MathAnim
 		AnimObject* object = AnimationManager::getMutableObject(am, objId);
 		if (object && oldFont != "")
 		{
+			assertCorrectType(object, AnimObjectTypeV1::TextObject);
+
 			if (object->as.textObject.font)
 			{
 				Fonts::unloadFont(object->as.textObject.font);
