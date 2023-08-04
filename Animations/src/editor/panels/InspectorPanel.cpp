@@ -947,8 +947,6 @@ namespace MathAnim
 				);
 			}
 
-			ImGui::DragFloat3(": Position", &object->as.camera.position.x);
-			ImGui::DragFloat3(": Orientation", &object->as.camera.orientation.x);
 			ImGui::DragInt2(": Aspect Ratio", &object->as.camera.aspectRatioFraction.x);
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Near", &object->as.camera.nearFarRange.min);

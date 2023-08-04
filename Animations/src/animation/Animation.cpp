@@ -1416,6 +1416,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 		{
 			this->as.camera.position = this->_globalPositionStart;
+			this->as.camera.orientation = CMath::quatFromEulerAngles(this->_rotationStart);
 		}
 		break;
 		case AnimObjectTypeV1::Length:

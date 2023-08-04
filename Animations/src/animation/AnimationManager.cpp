@@ -323,6 +323,7 @@ namespace MathAnim
 					else if (objectIter->objectType == AnimObjectTypeV1::Camera)
 					{
 						objectIter->as.camera.position = objectIter->globalPosition;
+						objectIter->as.camera.orientation = CMath::quatFromEulerAngles(objectIter->rotation);
 					}
 				}
 			}
