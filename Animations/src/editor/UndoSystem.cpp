@@ -870,6 +870,10 @@ namespace MathAnim
 				assertCorrectType(anim, AnimTypeV1::MoveTo);
 				anim->as.moveTo.target = this->newVec;
 				break;
+			case Vec2PropType::AnimateScaleTarget:
+				assertCorrectType(anim, AnimTypeV1::AnimateScale);
+				anim->as.animateScale.target = this->newVec;
+				break;
 			}
 		}
 	}
@@ -884,6 +888,10 @@ namespace MathAnim
 			case Vec2PropType::MoveToTargetPos:
 				assertCorrectType(anim, AnimTypeV1::MoveTo);
 				anim->as.moveTo.target = this->oldVec;
+				break;
+			case Vec2PropType::AnimateScaleTarget:
+				assertCorrectType(anim, AnimTypeV1::AnimateScale);
+				anim->as.animateScale.target = this->oldVec;
 				break;
 			}
 		}
@@ -1152,7 +1160,7 @@ namespace MathAnim
 				anim->as.moveTo.object = newTarget;
 				break;
 			case AnimDragDropType::AnimateScaleTarget:
-				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				assertCorrectType(anim, AnimTypeV1::AnimateScale);
 				anim->as.animateScale.object = newTarget;
 				break;
 			}
@@ -1179,7 +1187,7 @@ namespace MathAnim
 				anim->as.moveTo.object = oldTarget;
 				break;
 			case AnimDragDropType::AnimateScaleTarget:
-				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				assertCorrectType(anim, AnimTypeV1::AnimateScale);
 				anim->as.animateScale.object = oldTarget;
 				break;
 			}

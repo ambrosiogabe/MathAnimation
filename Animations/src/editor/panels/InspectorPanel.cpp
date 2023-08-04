@@ -1078,8 +1078,29 @@ namespace MathAnim
 
 		static void handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation)
 		{
-			ImGuiExtended::AnimObjDragDropInputBox(": Object##AnimateScaleObjectTarget", am, &animation->as.animateScale.object, animation->id);
-			ImGui::DragFloat2(": Target Scale", &animation->as.animateScale.target.x, slowDragSpeed);
+			if (auto res = ImGuiExtended::AnimObjDragDropInputBoxEx(": Object##AnimateScaleObjectTarget", am, &animation->as.animateScale.object, animation->id);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::animDragDropInput(
+					Application::getUndoSystem(),
+					res.ogData,
+					animation->as.animateScale.object,
+					animation->id,
+					AnimDragDropType::AnimateScaleTarget
+				);
+			}
+
+			if (auto res = ImGuiExtended::DragFloat2Ex(": Target Scale", &animation->as.animateScale.target, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec2Prop(
+					Application::getUndoSystem(),
+					animation->id,
+					res.ogData,
+					animation->as.animateScale.target,
+					Vec2PropType::AnimateScaleTarget
+				);
+			}
 		}
 
 		static void handleShiftInspector(Animation* animation)

@@ -19,6 +19,7 @@ namespace MathAnim
 	enum class Vec2PropType : uint8
 	{
 		MoveToTargetPos = 0,
+		AnimateScaleTarget,
 	};
 
 	enum class Vec2iPropType : uint8
