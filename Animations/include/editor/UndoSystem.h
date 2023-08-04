@@ -13,7 +13,8 @@ namespace MathAnim
 	enum class U8Vec4PropType : uint8
 	{
 		FillColor = 0,
-		StrokeColor
+		StrokeColor,
+		AnimateU8Vec4Target,
 	};
 
 	enum class Vec2PropType : uint8

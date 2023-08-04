@@ -1137,18 +1137,16 @@ namespace MathAnim
 
 		static void handleAnimateStrokeColorAnimationInspector(Animation* animation)
 		{
-			float strokeColor[4] = {
-				(float)animation->as.modifyU8Vec4.target.r / 255.0f,
-				(float)animation->as.modifyU8Vec4.target.g / 255.0f,
-				(float)animation->as.modifyU8Vec4.target.b / 255.0f,
-				(float)animation->as.modifyU8Vec4.target.a / 255.0f,
-			};
-			if (ImGui::ColorEdit4(": Stroke Color", strokeColor))
+			if (auto res = ImGuiExtended::ColorEdit4Ex(": Stroke Color##AnimateStrokeColor", &animation->as.modifyU8Vec4.target);
+				res.editState == EditState::FinishedEditing)
 			{
-				animation->as.modifyU8Vec4.target.r = (uint8)(strokeColor[0] * 255.0f);
-				animation->as.modifyU8Vec4.target.g = (uint8)(strokeColor[1] * 255.0f);
-				animation->as.modifyU8Vec4.target.b = (uint8)(strokeColor[2] * 255.0f);
-				animation->as.modifyU8Vec4.target.a = (uint8)(strokeColor[3] * 255.0f);
+				UndoSystem::setU8Vec4Prop(
+					Application::getUndoSystem(),
+					animation->id,
+					res.ogData,
+					animation->as.modifyU8Vec4.target,
+					U8Vec4PropType::AnimateU8Vec4Target
+				);
 			}
 		}
 

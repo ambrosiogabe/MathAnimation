@@ -30,6 +30,19 @@ namespace MathAnim
 		return false;
 	}
 
+	static inline bool assertAnimIsModifyU8Vec4Type(Animation const* anim)
+	{
+		switch (anim->type)
+		{
+		case AnimTypeV1::AnimateStrokeColor:
+			return true;
+		default:
+			break;
+		}
+
+		return false;
+	}
+
 	template<typename T>
 	static inline void assertEnumInRange(int value)
 	{
@@ -628,8 +641,27 @@ namespace MathAnim
 			case U8Vec4PropType::StrokeColor:
 				obj->_strokeColorStart = this->newVec;
 				break;
+			// NOTE: These are animations
+			case U8Vec4PropType::AnimateU8Vec4Target:
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case U8Vec4PropType::AnimateU8Vec4Target:
+				assertAnimIsModifyU8Vec4Type(anim);
+				anim->as.modifyU8Vec4.target = this->newVec;
+				break;
+			// NOTE: These are anim objects
+			case U8Vec4PropType::FillColor:
+			case U8Vec4PropType::StrokeColor:
+				break;
+			}
 		}
 	}
 
@@ -646,8 +678,27 @@ namespace MathAnim
 			case U8Vec4PropType::StrokeColor:
 				obj->_strokeColorStart = this->oldVec;
 				break;
+			// NOTE: These are animations
+			case U8Vec4PropType::AnimateU8Vec4Target:
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case U8Vec4PropType::AnimateU8Vec4Target:
+				assertAnimIsModifyU8Vec4Type(anim);
+				anim->as.modifyU8Vec4.target = this->oldVec;
+				break;
+				// NOTE: These are anim objects
+			case U8Vec4PropType::FillColor:
+			case U8Vec4PropType::StrokeColor:
+				break;
+			}
 		}
 	}
 
