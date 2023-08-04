@@ -1121,7 +1121,17 @@ namespace MathAnim
 
 		static void handleRotateToAnimationInspector(Animation* animation)
 		{
-			ImGui::DragFloat3(": Target Rotation", &animation->as.modifyVec3.target.x);
+			if (auto res = ImGuiExtended::DragFloat3Ex(": Target Rotation##AnimateRotation", &animation->as.modifyVec3.target);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec3Prop(
+					Application::getUndoSystem(),
+					animation->id,
+					res.ogData,
+					animation->as.modifyVec3.target,
+					Vec3PropType::ModifyAnimationVec3Target
+				);
+			}
 		}
 
 
