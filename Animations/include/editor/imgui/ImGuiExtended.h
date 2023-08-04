@@ -77,8 +77,11 @@ namespace MathAnim
 		EditState Combo(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items = -1);
 		ImGuiDataEx<int> ComboEx(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items = -1);
 
-		EditState ColorEdit4(const char* label, glm::u8vec4* color);
-		ImGuiDataEx<glm::u8vec4> ColorEdit4Ex(const char* label, glm::u8vec4* color);
+		EditState ColorEdit4(const char* label, glm::u8vec4* color, ImGuiColorEditFlags flags = 0);
+		ImGuiDataEx<glm::u8vec4> ColorEdit4Ex(const char* label, glm::u8vec4* color, ImGuiColorEditFlags flags = 0);
+
+		EditState ColorEdit4(const char* label, Vec4* color, ImGuiColorEditFlags flags = 0);
+		ImGuiDataEx<Vec4> ColorEdit4Ex(const char* label, Vec4* col, ImGuiColorEditFlags flags = 0);
 	}
 }
 

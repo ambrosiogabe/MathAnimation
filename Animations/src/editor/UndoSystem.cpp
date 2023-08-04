@@ -168,6 +168,24 @@ namespace MathAnim
 		Vec3PropType propType;
 	};
 
+	class ModifyVec4Command : public Command
+	{
+	public:
+		ModifyVec4Command(AnimObjId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType)
+			: objId(objId), oldVec(oldVec), newVec(newVec), propType(propType)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId objId;
+		Vec4 oldVec;
+		Vec4 newVec;
+		Vec4PropType propType;
+	};
+
 	class ModifyStringCommand : public Command
 	{
 	public:
@@ -390,6 +408,19 @@ namespace MathAnim
 
 			auto* newCommand = (ModifyVec3Command*)g_memory_allocate(sizeof(ModifyVec3Command));
 			new(newCommand)ModifyVec3Command(objId, oldVec, newVec, propType);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
+		void setVec4Prop(UndoSystemData* us, AnimObjId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType)
+		{
+			// Don't add this to the undo history if they don't actually change the stuff
+			if (oldVec == newVec)
+			{
+				return;
+			}
+
+			auto* newCommand = (ModifyVec4Command*)g_memory_allocate(sizeof(ModifyVec4Command));
+			new(newCommand)ModifyVec4Command(objId, oldVec, newVec, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -835,6 +866,38 @@ namespace MathAnim
 				break;
 			case Vec3PropType::Rotation:
 				obj->_rotationStart = this->oldVec;
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyVec4Command::execute(AnimationManagerData* const am)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case Vec4PropType::CameraBackgroundColor:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.fillColor = this->newVec;
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyVec4Command::undo(AnimationManagerData* const am)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case Vec4PropType::CameraBackgroundColor:
+				assertCorrectType(obj, AnimObjectTypeV1::Camera);
+				obj->as.camera.fillColor = this->oldVec;
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);

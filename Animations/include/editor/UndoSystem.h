@@ -26,6 +26,11 @@ namespace MathAnim
 		Rotation
 	};
 
+	enum class Vec4PropType : uint8
+	{
+		CameraBackgroundColor = 0,
+	};
+
 	enum class StringPropType : uint8
 	{
 		Name = 0,
@@ -70,6 +75,7 @@ namespace MathAnim
 		void setFloatProp(UndoSystemData* us, AnimObjId objId, float oldValue, float newValue, FloatPropType propType);
 		void setVec2iProp(UndoSystemData* us, AnimObjId objId, const Vec2i& oldVec, const Vec2i& newVec, Vec2iPropType propType);
 		void setVec3Prop(UndoSystemData* us, AnimObjId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType);
+		void setVec4Prop(UndoSystemData* us, AnimObjId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType);
 		void setStringProp(UndoSystemData* us, AnimObjId objId, const std::string& oldString, const std::string& newString, StringPropType propType);
 		void setFont(UndoSystemData* us, AnimObjId objId, const std::string& oldFont, const std::string& newFont);
 

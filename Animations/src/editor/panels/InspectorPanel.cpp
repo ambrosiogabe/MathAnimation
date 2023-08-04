@@ -1009,7 +1009,17 @@ namespace MathAnim
 			}
 			ImGui::EndDisabled();
 
-			ImGui::ColorEdit4(": Background Color", &object->as.camera.fillColor.r);
+			if (auto res = ImGuiExtended::ColorEdit4Ex(": Background Color", &object->as.camera.fillColor);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec4Prop(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.camera.fillColor,
+					Vec4PropType::CameraBackgroundColor
+				);
+			}
 		}
 
 		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation)

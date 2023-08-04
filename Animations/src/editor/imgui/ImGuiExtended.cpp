@@ -137,6 +137,7 @@ namespace MathAnim
 
 		// ------------ Extra State Vars ------------
 		static ImGuiStateEx<glm::u8vec4> colorEditU84Data;
+		static ImGuiStateEx<Vec4> colorEdit4Data;
 		static ImGuiStateEx<int> comboData;
 		static ImGuiStateEx<Vec2i> dragInt2Data;
 		static ImGuiStateEx<float> dragFloatData;
@@ -841,7 +842,7 @@ namespace MathAnim
 				});
 		}
 
-		EditState ColorEdit4(const char* label, glm::u8vec4* color)
+		EditState ColorEdit4(const char* label, glm::u8vec4* color, ImGuiColorEditFlags flags)
 		{
 			std::string fullLabel = label + std::string("##ColorEdit4");
 			AdditionalEditState& state = additionalEditStates.findOrDefault(fullLabel, { false });
@@ -853,7 +854,7 @@ namespace MathAnim
 				(float)color->a / 255.0f,
 			};
 
-			bool editRes = ImGui::ColorEdit4(label, fillColor);
+			bool editRes = ImGui::ColorEdit4(label, fillColor, flags);
 			editRes = editRes || ImGui::IsItemActive();
 			if (editRes)
 			{
@@ -876,14 +877,48 @@ namespace MathAnim
 				: EditState::NotEditing;
 		}
 
-		ImGuiDataEx<glm::u8vec4> ColorEdit4Ex(const char* label, glm::u8vec4* color)
+		ImGuiDataEx<glm::u8vec4> ColorEdit4Ex(const char* label, glm::u8vec4* color, ImGuiColorEditFlags flags)
 		{
 			return colorEditU84Data.undoableImGuiFunctionEx(
 				label,
 				*color,
 				[&]()
 				{
-					return ColorEdit4(label, color);
+					return ColorEdit4(label, color, flags);
+				});
+		}
+
+		EditState ColorEdit4(const char* label, Vec4* color, ImGuiColorEditFlags flags)
+		{
+			std::string fullLabel = label + std::string("##ColorEdit4");
+			AdditionalEditState& state = additionalEditStates.findOrDefault(fullLabel, { false });
+
+			bool editRes = ImGui::ColorEdit4(label, color->values, flags);
+			editRes = editRes || ImGui::IsItemActive();
+			if (editRes)
+			{
+				state.isBeingEdited = true;
+			}
+
+			if (ImGui::IsItemDeactivatedAfterEdit())
+			{
+				state.isBeingEdited = false;
+				return EditState::FinishedEditing;
+			}
+
+			return editRes
+				? EditState::BeingEdited
+				: EditState::NotEditing;
+		}
+
+		ImGuiDataEx<Vec4> ColorEdit4Ex(const char* label, Vec4* col, ImGuiColorEditFlags flags)
+		{
+			return colorEdit4Data.undoableImGuiFunctionEx(
+				label,
+				*col,
+				[&]()
+				{
+					return ColorEdit4(label, col, flags);
 				});
 		}
 	}
