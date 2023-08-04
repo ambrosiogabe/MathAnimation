@@ -923,10 +923,16 @@ namespace MathAnim
 		static void handleCameraObjectInspector(AnimationManagerData*, AnimObject* object)
 		{
 			int currentMode = (int)object->as.camera.mode;
-			if (ImGui::Combo(": Projection", &currentMode, _cameraModeNames.data(), (int)CameraMode::Length))
+			if (auto res = ImGuiExtended::ComboEx(": Projection", &currentMode, _cameraModeNames.data(), (int)CameraMode::Length);
+				res.editState == EditState::FinishedEditing)
 			{
-				g_logger_assert(currentMode >= 0 && currentMode < (int)CameraMode::Length, "How did this happen?");
-				object->as.camera.mode = (CameraMode)currentMode;
+				UndoSystem::setEnumProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					currentMode,
+					EnumPropType::CameraMode
+				);
 			}
 
 			ImGui::DragFloat(": Field Of View", &object->as.camera.fov, 1.0f, 360.0f);

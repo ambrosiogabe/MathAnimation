@@ -43,6 +43,7 @@ namespace MathAnim
 		PlaybackType,
 		HighlighterLanguage,
 		HighlighterTheme,
+		CameraMode,
 	};
 
 	namespace UndoSystem

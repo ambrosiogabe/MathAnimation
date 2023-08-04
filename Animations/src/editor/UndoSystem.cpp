@@ -273,6 +273,12 @@ namespace MathAnim
 
 		void setU8Vec4Prop(UndoSystemData* us, AnimObjId objId, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType)
 		{
+			// Don't add this to the undo history if they don't actually change the stuff
+			if (oldVec == newVec)
+			{
+				return;
+			}
+
 			auto* newCommand = (ModifyU8Vec4Command*)g_memory_allocate(sizeof(ModifyU8Vec4Command));
 			new(newCommand)ModifyU8Vec4Command(objId, oldVec, newVec, propType);
 			pushAndExecuteCommand(us, newCommand);
@@ -280,6 +286,12 @@ namespace MathAnim
 
 		void setEnumProp(UndoSystemData* us, AnimObjId id, int oldEnum, int newEnum, EnumPropType propType)
 		{
+			// Don't add this to the undo history if they don't actually change the enum
+			if (oldEnum == newEnum)
+			{
+				return;
+			}
+
 			auto* newCommand = (ModifyEnumCommand*)g_memory_allocate(sizeof(ModifyEnumCommand));
 			new(newCommand)ModifyEnumCommand(id, oldEnum, newEnum, propType);
 			pushAndExecuteCommand(us, newCommand);
@@ -287,6 +299,12 @@ namespace MathAnim
 
 		void setFloatProp(UndoSystemData* us, AnimObjId objId, float oldValue, float newValue, FloatPropType propType)
 		{
+			// Don't add this to the undo history if they don't actually change the stuff
+			if (oldValue == newValue)
+			{
+				return;
+			}
+
 			auto* newCommand = (ModifyFloatCommand*)g_memory_allocate(sizeof(ModifyFloatCommand));
 			new(newCommand)ModifyFloatCommand(objId, oldValue, newValue, propType);
 			pushAndExecuteCommand(us, newCommand);
@@ -294,6 +312,12 @@ namespace MathAnim
 
 		void setVec3Prop(UndoSystemData* us, AnimObjId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType)
 		{
+			// Don't add this to the undo history if they don't actually change the stuff
+			if (oldVec == newVec)
+			{
+				return;
+			}
+
 			auto* newCommand = (ModifyVec3Command*)g_memory_allocate(sizeof(ModifyVec3Command));
 			new(newCommand)ModifyVec3Command(objId, oldVec, newVec, propType);
 			pushAndExecuteCommand(us, newCommand);
@@ -301,16 +325,25 @@ namespace MathAnim
 
 		void setStringProp(UndoSystemData* us, AnimObjId objId, const std::string& oldString, const std::string& newString, StringPropType propType)
 		{
-			if (oldString != newString)
+			// Don't add this to the undo history if they don't actually change the stuff
+			if (oldString == newString)
 			{
-				auto* newCommand = (ModifyStringCommand*)g_memory_allocate(sizeof(ModifyStringCommand));
-				new(newCommand)ModifyStringCommand(objId, oldString, newString, propType);
-				pushAndExecuteCommand(us, newCommand);
+				return;
 			}
+
+			auto* newCommand = (ModifyStringCommand*)g_memory_allocate(sizeof(ModifyStringCommand));
+			new(newCommand)ModifyStringCommand(objId, oldString, newString, propType);
+			pushAndExecuteCommand(us, newCommand);
 		}
 
 		void setFont(UndoSystemData* us, AnimObjId objId, const std::string& oldFont, const std::string& newFont)
 		{
+			// Don't add this to the undo history if they don't actually change the stuff
+			if (oldFont == newFont)
+			{
+				return;
+			}
+
 			auto* newCommand = (SetFontCommand*)g_memory_allocate(sizeof(SetFontCommand));
 			new(newCommand)SetFontCommand(objId, oldFont, newFont);
 			pushAndExecuteCommand(us, newCommand);
@@ -465,6 +498,7 @@ namespace MathAnim
 				// NOTE: These are animObjects, so they go in the if-block below
 			case EnumPropType::HighlighterLanguage:
 			case EnumPropType::HighlighterTheme:
+			case EnumPropType::CameraMode:
 				break;
 			}
 		}
@@ -485,6 +519,11 @@ namespace MathAnim
 				g_logger_assert(newEnum >= 0 && newEnum < (int)HighlighterTheme::Length, "How did this happen?");
 				obj->as.codeBlock.theme = (HighlighterTheme)newEnum;
 				obj->as.codeBlock.reInit(am, obj);
+				break;
+			case EnumPropType::CameraMode:
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::Camera, "How did this happen?");
+				g_logger_assert(newEnum >= 0 && newEnum < (int)CameraMode::Length, "How did this happen?");
+				obj->as.camera.mode = (CameraMode)newEnum;
 				break;
 				// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
@@ -516,6 +555,7 @@ namespace MathAnim
 				// NOTE: These are animObjects, so they go in the if-block below
 			case EnumPropType::HighlighterLanguage:
 			case EnumPropType::HighlighterTheme:
+			case EnumPropType::CameraMode:
 				break;
 			}
 		}
@@ -535,6 +575,11 @@ namespace MathAnim
 				g_logger_assert(oldEnum >= 0 && oldEnum < (int)HighlighterTheme::Length, "How did this happen?");
 				obj->as.codeBlock.theme = (HighlighterTheme)oldEnum;
 				obj->as.codeBlock.reInit(am, obj);
+				break;
+			case EnumPropType::CameraMode:
+				g_logger_assert(obj->objectType == AnimObjectTypeV1::Camera, "How did this happen?");
+				g_logger_assert(oldEnum >= 0 && oldEnum < (int)CameraMode::Length, "How did this happen?");
+				obj->as.camera.mode = (CameraMode)oldEnum;
 				break;
 				// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
