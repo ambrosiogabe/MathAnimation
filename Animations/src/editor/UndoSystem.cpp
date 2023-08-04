@@ -137,6 +137,24 @@ namespace MathAnim
 		FloatPropType propType;
 	};
 
+	class ModifyVec2Command : public Command
+	{
+	public:
+		ModifyVec2Command(AnimObjId id, const Vec2& oldVec, const Vec2& newVec, Vec2PropType propType)
+			: id(id), oldVec(oldVec), newVec(newVec), propType(propType)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId id;
+		Vec2 oldVec;
+		Vec2 newVec;
+		Vec2PropType propType;
+	};
+
 	class ModifyVec2iCommand : public Command
 	{
 	public:
@@ -405,6 +423,19 @@ namespace MathAnim
 
 			auto* newCommand = (ModifyFloatCommand*)g_memory_allocate(sizeof(ModifyFloatCommand));
 			new(newCommand)ModifyFloatCommand(objId, oldValue, newValue, propType);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
+		void setVec2Prop(UndoSystemData* us, ObjOrAnimId objId, const Vec2& oldVec, const Vec2& newVec, Vec2PropType propType)
+		{
+			// Don't add this to the undo history if they don't actually change the stuff
+			if (oldVec == newVec)
+			{
+				return;
+			}
+
+			auto* newCommand = (ModifyVec2Command*)g_memory_allocate(sizeof(ModifyVec2Command));
+			new(newCommand)ModifyVec2Command(objId, oldVec, newVec, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -823,6 +854,36 @@ namespace MathAnim
 			case FloatPropType::CameraFarPlane:
 			case FloatPropType::CameraFocalDistance:
 			case FloatPropType::CameraOrthoZoomLevel:
+				break;
+			}
+		}
+	}
+
+	void ModifyVec2Command::execute(AnimationManagerData* const am)
+	{
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->id);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case Vec2PropType::MoveToTargetPos:
+				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				anim->as.moveTo.target = this->newVec;
+				break;
+			}
+		}
+	}
+
+	void ModifyVec2Command::undo(AnimationManagerData* const am)
+	{
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->id);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case Vec2PropType::MoveToTargetPos:
+				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				anim->as.moveTo.target = this->oldVec;
 				break;
 			}
 		}

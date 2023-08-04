@@ -1042,7 +1042,7 @@ namespace MathAnim
 				UndoSystem::animDragDropInput(
 					Application::getUndoSystem(),
 					res.ogData,
-					animation->as.replacementTransform.srcAnimObjectId,
+					animation->as.replacementTransform.dstAnimObjectId,
 					animation->id,
 					AnimDragDropType::ReplacementTransformDst
 				);
@@ -1051,8 +1051,29 @@ namespace MathAnim
 
 		static void handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation)
 		{
-			ImGuiExtended::AnimObjDragDropInputBox(": Object##MoveToObjectTarget", am, &animation->as.moveTo.object, animation->id);
-			ImGui::DragFloat2(": Target Position", &animation->as.moveTo.target.x, slowDragSpeed);
+			if (auto res = ImGuiExtended::AnimObjDragDropInputBoxEx(": Object##MoveToObjectTarget", am, &animation->as.moveTo.object, animation->id);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::animDragDropInput(
+					Application::getUndoSystem(),
+					res.ogData,
+					animation->as.moveTo.object,
+					animation->id,
+					AnimDragDropType::MoveToTarget
+				);
+			}
+
+			if (auto res = ImGuiExtended::DragFloat2Ex(": Target Position", &animation->as.moveTo.target, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec2Prop(
+					Application::getUndoSystem(),
+					animation->id,
+					res.ogData,
+					animation->as.moveTo.target,
+					Vec2PropType::MoveToTargetPos
+				);
+			}
 		}
 
 		static void handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation)

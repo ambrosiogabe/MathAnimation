@@ -16,6 +16,11 @@ namespace MathAnim
 		StrokeColor
 	};
 
+	enum class Vec2PropType : uint8
+	{
+		MoveToTargetPos = 0,
+	};
+
 	enum class Vec2iPropType : uint8
 	{
 		AspectRatio = 0,
@@ -83,6 +88,7 @@ namespace MathAnim
 		void setU8Vec4Prop(UndoSystemData* us, ObjOrAnimId objId, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType);
 		void setEnumProp(UndoSystemData* us, ObjOrAnimId id, int oldEnum, int newEnum, EnumPropType propType);
 		void setFloatProp(UndoSystemData* us, ObjOrAnimId objId, float oldValue, float newValue, FloatPropType propType);
+		void setVec2Prop(UndoSystemData* us, ObjOrAnimId id, const Vec2& oldVec, const Vec2& newVec, Vec2PropType propType);
 		void setVec2iProp(UndoSystemData* us, ObjOrAnimId objId, const Vec2i& oldVec, const Vec2i& newVec, Vec2iPropType propType);
 		void setVec3Prop(UndoSystemData* us, ObjOrAnimId objId, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType);
 		void setVec4Prop(UndoSystemData* us, ObjOrAnimId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType);

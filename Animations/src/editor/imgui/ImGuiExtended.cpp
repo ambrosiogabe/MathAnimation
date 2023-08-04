@@ -33,12 +33,12 @@ namespace MathAnim
 		}
 
 		/**
-		 * @brief Finds the element indexed by key. If the element doesn't exist, it gets 
+		 * @brief Finds the element indexed by key. If the element doesn't exist, it gets
 		 *        initialized with `defaultValue` and returns a reference to the newly created
 		 *        item.
-		 * 
+		 *
 		 * @param key
-		 * @param defaultValue 
+		 * @param defaultValue
 		 * @return Reference to the item in the unordered_map
 		*/
 		T& findOrDefault(const std::string& label, const T& defaultValue)
@@ -53,7 +53,7 @@ namespace MathAnim
 				return iter->second;
 			}
 		}
-		
+
 		void clear()
 		{
 			states.clear();
@@ -142,6 +142,7 @@ namespace MathAnim
 		static ImGuiStateEx<int> comboData;
 		static ImGuiStateEx<Vec2i> dragInt2Data;
 		static ImGuiStateEx<float> dragFloatData;
+		static ImGuiStateEx<Vec2> dragFloat2Data;
 		static ImGuiStateEx<Vec3> dragFloat3Data;
 		static ImGuiStateEx<std::string> inputTextData;
 		static ImGuiStateEx<std::string> inputTextMultilineData;
@@ -814,12 +815,35 @@ namespace MathAnim
 				});
 		}
 
+		EditState DragFloat2(const char* label, Vec2* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			std::string fullLabel = label + std::string("##DragFloat2");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::DragFloat2(label, (float*)v->values, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		ImGuiDataEx<Vec2> DragFloat2Ex(const char* label, Vec2* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			return dragFloat2Data.undoableImGuiFunctionEx(
+				label,
+				*v,
+				[&]()
+				{
+					return DragFloat2(label, v, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
 		EditState DragFloat3(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
 		{
 			std::string fullLabel = label + std::string("##DragFloat3");
 			return undoableImGuiFunction(
 				fullLabel,
-				[&]() {
+				[&]()
+				{
 					return ImGui::DragFloat3(label, (float*)vec3->values, v_speed, v_min, v_max, format, flags);
 				});
 		}

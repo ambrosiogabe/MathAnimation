@@ -72,8 +72,10 @@ namespace MathAnim
 
 		EditState DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
 		ImGuiDataEx<float> DragFloatEx(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
-		EditState DragFloat3(const char* label, Vec3* vec3, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
-		ImGuiDataEx<Vec3> DragFloat3Ex(const char* label, Vec3* vec3, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+		EditState DragFloat2(const char* label, Vec2* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+		ImGuiDataEx<Vec2> DragFloat2Ex(const char* label, Vec2* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+		EditState DragFloat3(const char* label, Vec3* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+		ImGuiDataEx<Vec3> DragFloat3Ex(const char* label, Vec3* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
 
 		EditState Combo(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items = -1);
 		ImGuiDataEx<int> ComboEx(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items = -1);
