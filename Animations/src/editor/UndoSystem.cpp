@@ -869,6 +869,16 @@ namespace MathAnim
 				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.orthoZoomLevel = this->newValue;
 				break;
+			case FloatPropType::SquareSideLength:
+				assertCorrectType(obj, AnimObjectTypeV1::Square);
+				obj->as.square.sideLength = this->newValue;
+				obj->as.square.reInit(obj);
+				break;
+			case FloatPropType::CircleRadius:
+				assertCorrectType(obj, AnimObjectTypeV1::Circle);
+				obj->as.circle.radius = this->newValue;
+				obj->as.circle.reInit(obj);
+				break;
 			// Animation types
 			case FloatPropType::LagRatio:
 			case FloatPropType::CircumscribeTimeWidth:
@@ -901,6 +911,8 @@ namespace MathAnim
 			case FloatPropType::CameraFarPlane:
 			case FloatPropType::CameraFocalDistance:
 			case FloatPropType::CameraOrthoZoomLevel:
+			case FloatPropType::SquareSideLength:
+			case FloatPropType::CircleRadius:
 				break;
 			}
 		}
@@ -936,6 +948,16 @@ namespace MathAnim
 				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.orthoZoomLevel = this->oldValue;
 				break;
+			case FloatPropType::SquareSideLength:
+				assertCorrectType(obj, AnimObjectTypeV1::Square);
+				obj->as.square.sideLength = this->oldValue;
+				obj->as.square.reInit(obj);
+				break;
+			case FloatPropType::CircleRadius:
+				assertCorrectType(obj, AnimObjectTypeV1::Circle);
+				obj->as.circle.radius = this->oldValue;
+				obj->as.circle.reInit(obj);
+				break;
 			// Animation types
 			case FloatPropType::LagRatio:
 			case FloatPropType::CircumscribeTimeWidth:
@@ -967,6 +989,8 @@ namespace MathAnim
 			case FloatPropType::CameraFarPlane:
 			case FloatPropType::CameraFocalDistance:
 			case FloatPropType::CameraOrthoZoomLevel:
+			case FloatPropType::SquareSideLength:
+			case FloatPropType::CircleRadius:
 				break;
 			}
 		}

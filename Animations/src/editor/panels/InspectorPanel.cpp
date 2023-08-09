@@ -1246,7 +1246,18 @@ namespace MathAnim
 
 		static void handleSquareInspector(AnimObject* object)
 		{
-			if (ImGui::DragFloat(": Side Length", &object->as.square.sideLength, slowDragSpeed))
+			if (auto res = ImGuiExtended::DragFloatEx(": Side Length", &object->as.square.sideLength, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.square.sideLength,
+					FloatPropType::SquareSideLength
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
 			{
 				object->as.square.reInit(object);
 			}
@@ -1254,7 +1265,18 @@ namespace MathAnim
 
 		static void handleCircleInspector(AnimObject* object)
 		{
-			if (ImGui::DragFloat(": Radius", &object->as.circle.radius, slowDragSpeed))
+			if (auto res = ImGuiExtended::DragFloatEx(": Radius", &object->as.circle.radius, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.circle.radius,
+					FloatPropType::CircleRadius
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
 			{
 				object->as.circle.reInit(object);
 			}

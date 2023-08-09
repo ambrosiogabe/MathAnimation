@@ -62,6 +62,8 @@ namespace MathAnim
 		CameraOrthoZoomLevel,
 		CircumscribeTimeWidth,
 		CircumscribeBufferSize,
+		SquareSideLength,
+		CircleRadius,
 	};
 
 	enum class EnumPropType : uint8
