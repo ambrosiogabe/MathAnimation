@@ -39,6 +39,7 @@ namespace MathAnim
 	enum class Vec4PropType : uint8
 	{
 		CameraBackgroundColor = 0,
+		CircumscribeColor,
 	};
 
 	enum class StringPropType : uint8
@@ -59,6 +60,8 @@ namespace MathAnim
 		CameraFarPlane,
 		CameraFocalDistance,
 		CameraOrthoZoomLevel,
+		CircumscribeTimeWidth,
+		CircumscribeBufferSize,
 	};
 
 	enum class EnumPropType : uint8
@@ -69,6 +72,8 @@ namespace MathAnim
 		HighlighterLanguage,
 		HighlighterTheme,
 		CameraMode,
+		CircumscribeShape,
+		CircumscribeFade,
 	};
 
 	enum class AnimDragDropType : uint8
@@ -76,7 +81,8 @@ namespace MathAnim
 		ReplacementTransformSrc = 0,
 		ReplacementTransformDst,
 		MoveToTarget,
-		AnimateScaleTarget
+		AnimateScaleTarget,
+		CircumscribeTarget,
 	};
 
 	namespace UndoSystem

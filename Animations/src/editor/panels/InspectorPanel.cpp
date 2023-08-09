@@ -1167,26 +1167,81 @@ namespace MathAnim
 
 		static void handleCircumscribeInspector(AnimationManagerData* am, Animation* animation)
 		{
-			ImGuiExtended::AnimObjDragDropInputBox(": Object", am, &animation->as.circumscribe.obj, animation->id);
+			if (auto res = ImGuiExtended::AnimObjDragDropInputBoxEx(": Object##CircumscribeAnimationTarget", am, &animation->as.circumscribe.obj, animation->id);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::animDragDropInput(
+					Application::getUndoSystem(),
+					res.ogData,
+					animation->as.circumscribe.obj,
+					animation->id,
+					AnimDragDropType::CircumscribeTarget
+				);
+			}
 
 			int currentShape = (int)animation->as.circumscribe.shape;
-			if (ImGui::Combo(": Shape", &currentShape, _circumscribeShapeNames.data(), (int)CircumscribeShape::Length))
+			if (auto res = ImGuiExtended::ComboEx(": Shape##CircumscribeAnimation", &currentShape, _circumscribeShapeNames.data(), (int)CircumscribeShape::Length);
+				res.editState == EditState::FinishedEditing)
 			{
-				g_logger_assert(currentShape >= 0 && currentShape < (int)CircumscribeShape::Length, "How did this happen?");
-				animation->as.circumscribe.shape = (CircumscribeShape)currentShape;
+				UndoSystem::setEnumProp(
+					Application::getUndoSystem(),
+					animation->id,
+					res.ogData,
+					currentShape,
+					EnumPropType::CircumscribeShape
+				);
 			}
 
 			int currentFade = (int)animation->as.circumscribe.fade;
-			if (ImGui::Combo(": Fade Type", &currentFade, _circumscribeFadeNames.data(), (int)CircumscribeFade::Length))
+			if (auto res = ImGuiExtended::ComboEx(": Fade Type##CircumscribeAnimation", &currentFade, _circumscribeFadeNames.data(), (int)CircumscribeFade::Length);
+				res.editState == EditState::FinishedEditing)
 			{
-				g_logger_assert(currentFade >= 0 && currentFade < (int)CircumscribeFade::Length, "How did this happen?");
-				animation->as.circumscribe.fade = (CircumscribeFade)currentFade;
+				UndoSystem::setEnumProp(
+					Application::getUndoSystem(),
+					animation->id,
+					res.ogData,
+					currentFade,
+					EnumPropType::CircumscribeFade
+				);
 			}
+
 			ImGui::BeginDisabled(animation->as.circumscribe.fade != CircumscribeFade::FadeNone);
-			ImGui::DragFloat(": Time Width", &animation->as.circumscribe.timeWidth, slowDragSpeed, 0.1f, 1.0f, "%2.3f");
+			if (auto res = ImGuiExtended::DragFloatEx(": Time Width##CircumscribeAnimation", &animation->as.circumscribe.timeWidth, slowDragSpeed, 0.1f, 1.0f, "%2.3f");
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					animation->id,
+					res.ogData,
+					animation->as.circumscribe.timeWidth,
+					FloatPropType::CircumscribeTimeWidth
+				);
+			}
 			ImGui::EndDisabled();
-			ImGui::ColorEdit4(": Color", &animation->as.circumscribe.color.x);
-			ImGui::DragFloat(": Buffer Size", &animation->as.circumscribe.bufferSize, slowDragSpeed, 0.0f, 10.0f, "%2.3f");
+
+			if (auto res = ImGuiExtended::ColorEdit4Ex(": Color##CircumscribeAnimation", &animation->as.circumscribe.color);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec4Prop(
+					Application::getUndoSystem(),
+					animation->id,
+					res.ogData,
+					animation->as.circumscribe.color,
+					Vec4PropType::CircumscribeColor
+				);
+			}
+			
+			if (auto res = ImGuiExtended::DragFloatEx(": Buffer Size##CircumscribeAnimation", &animation->as.circumscribe.bufferSize, slowDragSpeed, 0.0f, 10.0f, "%2.3f");
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					animation->id,
+					res.ogData,
+					animation->as.circumscribe.bufferSize,
+					FloatPropType::CircumscribeBufferSize
+				);
+			}
 		}
 
 		static void handleSquareInspector(AnimObject* object)

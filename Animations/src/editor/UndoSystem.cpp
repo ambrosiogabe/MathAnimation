@@ -433,6 +433,14 @@ namespace MathAnim
 				assertEnumInRange<CameraMode>(newEnum);
 				assertEnumInRange<CameraMode>(oldEnum);
 				break;
+			case EnumPropType::CircumscribeShape:
+				assertEnumInRange<CircumscribeShape>(newEnum);
+				assertEnumInRange<CircumscribeShape>(oldEnum);
+				break;
+			case EnumPropType::CircumscribeFade:
+				assertEnumInRange<CircumscribeFade>(newEnum);
+				assertEnumInRange<CircumscribeFade>(oldEnum);
+				break;
 			}
 
 			auto* newCommand = (ModifyEnumCommand*)g_memory_allocate(sizeof(ModifyEnumCommand));
@@ -719,6 +727,14 @@ namespace MathAnim
 			case EnumPropType::PlaybackType:
 				anim->playbackType = (PlaybackType)this->newEnum;
 				break;
+			case EnumPropType::CircumscribeFade:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.fade = (CircumscribeFade)this->newEnum;
+				break;
+			case EnumPropType::CircumscribeShape:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.shape = (CircumscribeShape)this->newEnum;
+				break;
 				// NOTE: These are animObjects, so they go in the if-block below
 			case EnumPropType::HighlighterLanguage:
 			case EnumPropType::HighlighterTheme:
@@ -750,6 +766,8 @@ namespace MathAnim
 			case EnumPropType::EaseType:
 			case EnumPropType::EaseDirection:
 			case EnumPropType::PlaybackType:
+			case EnumPropType::CircumscribeFade:
+			case EnumPropType::CircumscribeShape:
 				break;
 			}
 
@@ -772,6 +790,14 @@ namespace MathAnim
 				break;
 			case EnumPropType::PlaybackType:
 				anim->playbackType = (PlaybackType)this->oldEnum;
+				break;
+			case EnumPropType::CircumscribeFade:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.fade = (CircumscribeFade)this->oldEnum;
+				break;
+			case EnumPropType::CircumscribeShape:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.shape = (CircumscribeShape)this->oldEnum;
 				break;
 				// NOTE: These are animObjects, so they go in the if-block below
 			case EnumPropType::HighlighterLanguage:
@@ -804,6 +830,8 @@ namespace MathAnim
 			case EnumPropType::EaseType:
 			case EnumPropType::EaseDirection:
 			case EnumPropType::PlaybackType:
+			case EnumPropType::CircumscribeFade:
+			case EnumPropType::CircumscribeShape:
 				break;
 			}
 
@@ -843,6 +871,8 @@ namespace MathAnim
 				break;
 			// Animation types
 			case FloatPropType::LagRatio:
+			case FloatPropType::CircumscribeTimeWidth:
+			case FloatPropType::CircumscribeBufferSize:
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
@@ -855,6 +885,14 @@ namespace MathAnim
 			{
 			case FloatPropType::LagRatio:
 				anim->lagRatio = this->newValue;
+				break;
+			case FloatPropType::CircumscribeTimeWidth:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.timeWidth = this->newValue;
+				break;
+			case FloatPropType::CircumscribeBufferSize:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.bufferSize = this->newValue;
 				break;
 			// AnimObject types
 			case FloatPropType::StrokeWidth:
@@ -900,6 +938,8 @@ namespace MathAnim
 				break;
 			// Animation types
 			case FloatPropType::LagRatio:
+			case FloatPropType::CircumscribeTimeWidth:
+			case FloatPropType::CircumscribeBufferSize:
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
@@ -912,6 +952,14 @@ namespace MathAnim
 			{
 			case FloatPropType::LagRatio:
 				anim->lagRatio = this->oldValue;
+				break;
+			case FloatPropType::CircumscribeTimeWidth:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.timeWidth = this->oldValue;
+				break;
+			case FloatPropType::CircumscribeBufferSize:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.bufferSize = this->oldValue;
 				break;
 			case FloatPropType::StrokeWidth:
 			case FloatPropType::CameraFieldOfView:
@@ -1087,8 +1135,26 @@ namespace MathAnim
 				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.fillColor = this->newVec;
 				break;
+				// NOTE: The following are animations
+			case Vec4PropType::CircumscribeColor:
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case Vec4PropType::CircumscribeColor:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.color = this->newVec;
+				break;
+				// NOTE: The following are anim objects
+			case Vec4PropType::CameraBackgroundColor:
+				break;
+			}
 		}
 	}
 
@@ -1103,8 +1169,26 @@ namespace MathAnim
 				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.fillColor = this->oldVec;
 				break;
+				// NOTE: The following are animations
+			case Vec4PropType::CircumscribeColor:
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case Vec4PropType::CircumscribeColor:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.color = this->oldVec;
+				break;
+				// NOTE: The following are anim objects
+			case Vec4PropType::CameraBackgroundColor:
+				break;
+			}
 		}
 	}
 
@@ -1268,6 +1352,10 @@ namespace MathAnim
 				assertCorrectType(anim, AnimTypeV1::AnimateScale);
 				anim->as.animateScale.object = newTarget;
 				break;
+			case AnimDragDropType::CircumscribeTarget:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.obj = newTarget;
+				break;
 			}
 		}
 	}
@@ -1294,6 +1382,10 @@ namespace MathAnim
 			case AnimDragDropType::AnimateScaleTarget:
 				assertCorrectType(anim, AnimTypeV1::AnimateScale);
 				anim->as.animateScale.object = oldTarget;
+				break;
+			case AnimDragDropType::CircumscribeTarget:
+				assertCorrectType(anim, AnimTypeV1::Circumscribe);
+				anim->as.circumscribe.obj = oldTarget;
 				break;
 			}
 		}
