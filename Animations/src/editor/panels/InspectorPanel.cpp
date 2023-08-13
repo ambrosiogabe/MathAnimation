@@ -58,7 +58,7 @@ namespace MathAnim
 		static void handleCircleInspector(AnimObject* object);
 		static void handleArrowInspector(AnimObject* object);
 		static void handleCubeInspector(AnimationManagerData* am, AnimObject* object);
-		static void handleAxisInspector(AnimObject* object);
+		static void handleAxisInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
 		static void handleImageObjectInspector(AnimationManagerData* am, AnimObject* object);
 
@@ -356,7 +356,7 @@ namespace MathAnim
 					handleCubeInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::Axis:
-					handleAxisInspector(animObject);
+					handleAxisInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::SvgFileObject:
 					handleSvgFileObjectInspector(animObject);
@@ -982,7 +982,7 @@ namespace MathAnim
 					FloatPropType::CameraFarPlane
 				);
 			}
-			
+
 			if (auto res = ImGuiExtended::DragFloatEx(": Focal Distance", &object->as.camera.focalDistance);
 				res.editState == EditState::FinishedEditing)
 			{
@@ -994,7 +994,7 @@ namespace MathAnim
 					FloatPropType::CameraFocalDistance
 				);
 			}
-			
+
 			ImGui::BeginDisabled(object->as.camera.mode != CameraMode::Orthographic);
 			if (auto res = ImGuiExtended::DragFloatEx(": Ortho Zoom Level", &object->as.camera.orthoZoomLevel);
 				res.editState == EditState::FinishedEditing)
@@ -1116,7 +1116,7 @@ namespace MathAnim
 					Vec3PropType::ModifyAnimationVec3Target
 				);
 			}
-			
+
 		}
 
 		static void handleRotateToAnimationInspector(Animation* animation)
@@ -1230,7 +1230,7 @@ namespace MathAnim
 					Vec4PropType::CircumscribeColor
 				);
 			}
-			
+
 			if (auto res = ImGuiExtended::DragFloatEx(": Buffer Size##CircumscribeAnimation", &animation->as.circumscribe.bufferSize, slowDragSpeed, 0.0f, 10.0f, "%2.3f");
 				res.editState == EditState::FinishedEditing)
 			{
@@ -1285,22 +1285,66 @@ namespace MathAnim
 		static void handleArrowInspector(AnimObject* object)
 		{
 			bool shouldRegenerate = false;
-			if (ImGui::DragFloat(": Stem Length##ArrowShape", &object->as.arrow.stemLength, slowDragSpeed))
+			if (auto res = ImGuiExtended::DragFloatEx(": Stem Length##ArrowShape", &object->as.arrow.stemLength, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.arrow.stemLength,
+					FloatPropType::ArrowStemLength
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
 			{
 				shouldRegenerate = true;
 			}
 
-			if (ImGui::DragFloat(": Stem Width##ArrowShape", &object->as.arrow.stemWidth, slowDragSpeed))
+			if (auto res = ImGuiExtended::DragFloatEx(": Stem Width##ArrowShape", &object->as.arrow.stemWidth, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.arrow.stemWidth,
+					FloatPropType::ArrowStemWidth
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
 			{
 				shouldRegenerate = true;
 			}
 
-			if (ImGui::DragFloat(": Tip Length##ArrowShape", &object->as.arrow.tipLength, slowDragSpeed))
+			if (auto res = ImGuiExtended::DragFloatEx(": Tip Length##ArrowShape", &object->as.arrow.tipLength, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.arrow.tipLength,
+					FloatPropType::ArrowTipLength
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
 			{
 				shouldRegenerate = true;
 			}
 
-			if (ImGui::DragFloat(": Tip Width##ArrowShape", &object->as.arrow.tipWidth, slowDragSpeed))
+			if (auto res = ImGuiExtended::DragFloatEx(": Tip Width##ArrowShape", &object->as.arrow.tipWidth, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.arrow.tipWidth,
+					FloatPropType::ArrowTipWidth
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
 			{
 				shouldRegenerate = true;
 			}
@@ -1313,64 +1357,249 @@ namespace MathAnim
 
 		static void handleCubeInspector(AnimationManagerData* am, AnimObject* object)
 		{
-			if (ImGui::DragFloat(": Side Length", &object->as.cube.sideLength, slowDragSpeed))
+			if (auto res = ImGuiExtended::DragFloatEx(": Side Length", &object->as.cube.sideLength, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.cube.sideLength,
+					FloatPropType::CubeSideLength
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
 			{
 				object->as.cube.reInit(am, object);
 			}
 		}
 
-		static void handleAxisInspector(AnimObject* object)
+		static void handleAxisInspector(AnimationManagerData* am, AnimObject* object)
 		{
 			bool reInitObject = false;
 
-			reInitObject = ImGui::DragFloat3(": Axes Length", object->as.axis.axesLength.values, slowDragSpeed) || reInitObject;
-
-			int xVals[2] = { object->as.axis.xRange.min, object->as.axis.xRange.max };
-			if (ImGui::DragInt2(": X-Range", xVals, slowDragSpeed))
+			if (auto res = ImGuiExtended::DragFloat3Ex(": Axes Length##Axis", &object->as.axis.axesLength, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
 			{
-				// Make sure it's in strictly increasing order
-				if (xVals[0] < xVals[1])
-				{
-					object->as.axis.xRange.min = xVals[0];
-					object->as.axis.xRange.max = xVals[1];
-					reInitObject = true;
-				}
+				UndoSystem::setVec3Prop(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.axis.axesLength,
+					Vec3PropType::AxisAxesLength
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
+			{
+				reInitObject = true;
 			}
 
-			int yVals[2] = { object->as.axis.yRange.min, object->as.axis.yRange.max };
-			if (ImGui::DragInt2(": Y-Range", yVals, slowDragSpeed))
+			if (auto res = ImGuiExtended::DragInt2Ex(": X-Range##Axis", &object->as.axis.xRange, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
 			{
 				// Make sure it's in strictly increasing order
-				if (yVals[0] < yVals[1])
+				if (object->as.axis.xRange.min > object->as.axis.xRange.max)
 				{
-					object->as.axis.yRange.min = yVals[0];
-					object->as.axis.yRange.max = yVals[1];
-					reInitObject = true;
+					object->as.axis.xRange.min = object->as.axis.xRange.max;
 				}
-			}
 
-			int zVals[2] = { object->as.axis.zRange.min, object->as.axis.zRange.max };
-			if (ImGui::DragInt2(": Z-Range", zVals, slowDragSpeed))
+				UndoSystem::setVec2iProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.axis.xRange,
+					Vec2iPropType::AxisXRange
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
 			{
 				// Make sure it's in strictly increasing order
-				if (zVals[0] < zVals[1])
+				if (object->as.axis.xRange.min > object->as.axis.xRange.max)
 				{
-					object->as.axis.zRange.min = zVals[0];
-					object->as.axis.zRange.max = zVals[1];
-					reInitObject = true;
+					object->as.axis.xRange.min = object->as.axis.xRange.max;
 				}
+				reInitObject = true;
 			}
 
-			reInitObject = ImGui::DragFloat(": X-Increment", &object->as.axis.xStep, slowDragSpeed) || reInitObject;
-			reInitObject = ImGui::DragFloat(": Y-Increment", &object->as.axis.yStep, slowDragSpeed) || reInitObject;
-			reInitObject = ImGui::DragFloat(": Z-Increment", &object->as.axis.zStep, slowDragSpeed) || reInitObject;
-			reInitObject = ImGui::DragFloat(": Tick Width", &object->as.axis.tickWidth, slowDragSpeed) || reInitObject;
-			reInitObject = ImGui::Checkbox(": Draw Labels", &object->as.axis.drawNumbers) || reInitObject;
+			if (auto res = ImGuiExtended::DragInt2Ex(": Y-Range##Axis", &object->as.axis.yRange, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{				
+				// Make sure it's in strictly increasing order
+				if (object->as.axis.yRange.min > object->as.axis.yRange.max)
+				{
+					object->as.axis.yRange.min = object->as.axis.yRange.max;
+				}
+				UndoSystem::setVec2iProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.axis.yRange,
+					Vec2iPropType::AxisYRange
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
+			{
+				if (object->as.axis.yRange.min > object->as.axis.yRange.max)
+				{
+					object->as.axis.yRange.min = object->as.axis.yRange.max;
+				}
+				reInitObject = true;
+			}
+
+			if (auto res = ImGuiExtended::DragInt2Ex(": Z-Range##Axis", &object->as.axis.zRange, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				// Make sure it's in strictly increasing order
+				if (object->as.axis.zRange.min > object->as.axis.zRange.max)
+				{
+					object->as.axis.zRange.min = object->as.axis.zRange.max;
+				}
+				UndoSystem::setVec2iProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.axis.zRange,
+					Vec2iPropType::AxisZRange
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
+			{
+				if (object->as.axis.zRange.min > object->as.axis.zRange.max)
+				{
+					object->as.axis.zRange.min = object->as.axis.zRange.max;
+				}
+				reInitObject = true;
+			}
+
+			if (auto res = ImGuiExtended::DragFloatEx(": X-Increment##Axis", &object->as.axis.xStep, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.axis.xStep,
+					FloatPropType::AxisXStep
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
+			{
+				reInitObject = true;
+			}
+
+			if (auto res = ImGuiExtended::DragFloatEx(": Y-Increment##Axis", &object->as.axis.yStep, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.axis.yStep,
+					FloatPropType::AxisYStep
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
+			{
+				reInitObject = true;
+			}
+
+			if (auto res = ImGuiExtended::DragFloatEx(": Z-Increment##Axis", &object->as.axis.zStep, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.axis.zStep,
+					FloatPropType::AxisZStep
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
+			{
+				reInitObject = true;
+			}
+
+			if (auto res = ImGuiExtended::DragFloatEx(": Tick Width##Axis", &object->as.axis.tickWidth, slowDragSpeed);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setFloatProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.axis.tickWidth,
+					FloatPropType::AxisTickWidth
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
+			{
+				reInitObject = true;
+			}
+
+			if (auto res = ImGuiExtended::CheckboxEx(": Draw Labels##Axis", &object->as.axis.drawNumbers);
+				res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setBoolProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					object->as.axis.drawNumbers,
+					BoolPropType::AxisDrawNumbers
+				);
+			}
+			else if (res.editState == EditState::BeingEdited)
+			{
+				reInitObject = true;
+			}
+
 			if (object->as.axis.drawNumbers)
 			{
-				reInitObject = ImGui::DragFloat(": Font Size Pixels", &object->as.axis.fontSizePixels, slowDragSpeed, 0.0f, 300.0f) || reInitObject;
-				reInitObject = ImGui::DragFloat(": Label Padding", &object->as.axis.labelPadding, slowDragSpeed, 0.0f, 500.0f) || reInitObject;
-				reInitObject = ImGui::DragFloat(": Label Stroke Width", &object->as.axis.labelStrokeWidth, slowDragSpeed, 0.0f, 200.0f) || reInitObject;
+				if (auto res = ImGuiExtended::DragFloatEx(": Font Size Pixels##Axis", &object->as.axis.fontSizePixels, slowDragSpeed, 0.0f, 300.0f);
+					res.editState == EditState::FinishedEditing)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.fontSizePixels,
+						FloatPropType::AxisFontSizePixels
+					);
+				}
+				else if (res.editState == EditState::BeingEdited)
+				{
+					reInitObject = true;
+				}
+
+				if (auto res = ImGuiExtended::DragFloatEx(": Label Padding##Axis", &object->as.axis.labelPadding, slowDragSpeed, 0.0f, 500.0f);
+					res.editState == EditState::FinishedEditing)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.labelPadding,
+						FloatPropType::AxisLabelPadding
+					);
+				}
+				else if (res.editState == EditState::BeingEdited)
+				{
+					reInitObject = true;
+				}
+
+				if (auto res = ImGuiExtended::DragFloatEx(": Label Stroke Width##Axis", &object->as.axis.labelStrokeWidth, slowDragSpeed, 0.0f, 200.0f);
+					res.editState == EditState::FinishedEditing)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.labelStrokeWidth,
+						FloatPropType::AxisLabelStrokeWidth
+					);
+				}
+				else if (res.editState == EditState::BeingEdited)
+				{
+					reInitObject = true;
+				}
 			}
 
 			//if (ImGui::Checkbox(": Is 3D", &object->as.axis.is3D))
@@ -1402,14 +1631,7 @@ namespace MathAnim
 
 			if (reInitObject)
 			{
-				//for (int i = 0; i < object->children.size(); i++)
-				//{
-				//	object->children[i].free();
-				//}
-				//object->children.clear();
-				g_logger_warning("TODO: Fix me");
-
-				object->as.axis.init(object);
+				object->as.axis.reInit(am, object);
 			}
 		}
 
@@ -1425,12 +1647,16 @@ namespace MathAnim
 				buffer[script.scriptFilepathLength] = '\0';
 			}
 
-			if (ImGuiExtended::FileDragDropInputBox(": Script File##ScriptFileTarget", buffer, bufferSize))
+			if (auto res = ImGuiExtended::FileDragDropInputBoxEx(": Script File##ScriptFileTarget", buffer, bufferSize);
+				res.editState == EditState::FinishedEditing)
 			{
-				size_t newFilepathLength = std::strlen(buffer);
-				script.scriptFilepath = (char*)g_memory_realloc(script.scriptFilepath, sizeof(char) * (newFilepathLength + 1));
-				script.scriptFilepathLength = newFilepathLength;
-				g_memory_copyMem((void*)script.scriptFilepath, buffer, sizeof(char) * (newFilepathLength + 1));
+				UndoSystem::setStringProp(
+					Application::getUndoSystem(),
+					obj->id,
+					res.ogData,
+					std::string(buffer),
+					StringPropType::ScriptFile
+				);
 			}
 
 			if (ImGui::Button("Generate"))
@@ -1486,7 +1712,7 @@ namespace MathAnim
 			}
 		}
 
-		static void handleImageObjectInspector(AnimationManagerData* am, AnimObject* object)
+		static void handleImageObjectInspector(AnimationManagerData*, AnimObject* object)
 		{
 			ImGui::BeginDisabled();
 			char* filepathStr = object->as.image.imageFilepath;
@@ -1498,15 +1724,13 @@ namespace MathAnim
 				filepathStrLength = sizeof("Select a File");
 			}
 			ImGui::InputText(
-				": Filepath",
+				": Filepath##ImageObject",
 				filepathStr,
 				filepathStrLength,
 				ImGuiInputTextFlags_ReadOnly
 			);
 			ImGui::EndDisabled();
 			ImGui::SameLine();
-
-			bool shouldRegenerate = false;
 
 			if (ImGui::Button(ICON_FA_FILE_UPLOAD))
 			{
@@ -1515,9 +1739,13 @@ namespace MathAnim
 
 				if (result == NFD_OKAY)
 				{
-					size_t strLength = std::strlen(outPath);
-					object->as.image.setFilepath(outPath, strLength);
-					shouldRegenerate = true;
+					UndoSystem::setStringProp(
+						Application::getUndoSystem(),
+						object->id,
+						filepathStr ? std::string(filepathStr) : "",
+						std::string(outPath),
+						StringPropType::ImageFilepath
+					);
 					std::free(outPath);
 				}
 				else if (result == NFD_CANCEL)
@@ -1531,24 +1759,29 @@ namespace MathAnim
 			}
 
 			int currentFilterMode = (int)object->as.image.filterMode;
-			if (ImGui::Combo(": Sample Mode", &currentFilterMode, _imageFilterModeNames.data(), (int)ImageFilterMode::Length))
+			if (auto res = ImGuiExtended::ComboEx(": Sample Mode##ImageObject", &currentFilterMode, _imageFilterModeNames.data(), (int)ImageFilterMode::Length);
+				res.editState == EditState::FinishedEditing)
 			{
-				g_logger_assert(currentFilterMode >= 0 && currentFilterMode < (int)ImageFilterMode::Length, "How did this happen?");
-				object->as.image.filterMode = (ImageFilterMode)currentFilterMode;
-				shouldRegenerate = true;
+				UndoSystem::setEnumProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					currentFilterMode,
+					EnumPropType::ImageSampleMode
+				);
 			}
 
 			int currentRepeatMode = (int)object->as.image.repeatMode;
-			if (ImGui::Combo(": Repeat", &currentRepeatMode, _imageRepeatModeNames.data(), (int)ImageRepeatMode::Length))
+			if (auto res = ImGuiExtended::ComboEx(": Repeat##ImageObject", &currentRepeatMode, _imageRepeatModeNames.data(), (int)ImageRepeatMode::Length);
+				res.editState == EditState::FinishedEditing)
 			{
-				g_logger_assert(currentRepeatMode >= 0 && currentRepeatMode < (int)ImageRepeatMode::Length, "How did this happen?");
-				object->as.image.repeatMode = (ImageRepeatMode)currentFilterMode;
-				shouldRegenerate = true;
-			}
-
-			if (shouldRegenerate)
-			{
-				object->as.image.reInit(am, object, true);
+				UndoSystem::setEnumProp(
+					Application::getUndoSystem(),
+					object->id,
+					res.ogData,
+					currentRepeatMode,
+					EnumPropType::ImageRepeat
+				);
 			}
 		}
 	}

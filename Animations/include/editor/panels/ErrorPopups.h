@@ -12,7 +12,7 @@ namespace MathAnim
 
 		void popupSvgImportError();
 
-		void popupMissingFileError(const std::string& filename);
+		void popupMissingFileError(const std::string& filename, const std::string& additionalMessage = "");
 	}
 }
 

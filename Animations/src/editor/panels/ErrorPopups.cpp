@@ -12,6 +12,7 @@ namespace MathAnim
 		static bool missingFilePopupOpen = false;
 		static const char* ERROR_MISSING_FILE_POPUP = "Error Missing File##ERROR_MISSING_FILE";
 		static std::string missingFilename = "";
+		static std::string missingFilenameAdditionalMsg = "";
 
 		// ------- Internal Funcs -------
 		static void handleSvgErrorPopup();
@@ -57,10 +58,11 @@ namespace MathAnim
 			}
 		}
 
-		void popupMissingFileError(const std::string& filename)
+		void popupMissingFileError(const std::string& filename, const std::string& additionalMessage)
 		{
 			missingFilePopupOpen = true;
 			missingFilename = filename;
+			missingFilenameAdditionalMsg = additionalMessage;
 		}
 
 		static void handleMissingFilePopup()
@@ -77,6 +79,10 @@ namespace MathAnim
 
 			if (ImGui::BeginPopupModal(ERROR_MISSING_FILE_POPUP, NULL, ImGuiWindowFlags_AlwaysAutoResize))
 			{
+				if (missingFilenameAdditionalMsg != "")
+				{
+					ImGui::Text("%s", missingFilenameAdditionalMsg.c_str());
+				}
 				ImGui::TextColored(Colors::AccentRed[3], "Error: ");
 				ImGui::SameLine();
 				ImGui::Text("File '%s' does not exist.", missingFilename.c_str());

@@ -144,8 +144,10 @@ namespace MathAnim
 		static ImGuiStateEx<float> dragFloatData;
 		static ImGuiStateEx<Vec2> dragFloat2Data;
 		static ImGuiStateEx<Vec3> dragFloat3Data;
+		static ImGuiStateEx<bool> checkboxData;
 		static ImGuiStateEx<std::string> inputTextData;
 		static ImGuiStateEx<std::string> inputTextMultilineData;
+		static ImGuiStateEx<std::string> fileDragDropData;
 
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size)
 		{
@@ -390,7 +392,7 @@ namespace MathAnim
 			return res;
 		}
 
-		bool FileDragDropInputBox(const char* label, char* outBuffer, size_t outBufferSize)
+		EditState FileDragDropInputBox(const char* label, char* outBuffer, size_t outBufferSize)
 		{
 			ImGui::BeginDisabled();
 			ImGui::InputText(label, outBuffer, outBufferSize, ImGuiInputTextFlags_ReadOnly);
@@ -405,14 +407,26 @@ namespace MathAnim
 				}
 				else
 				{
-					g_logger_error("File drag drop target got filepath of length '{}' that was too long to fit into buffer of length '{}'.", objPayload->filepathLength, outBufferSize);
-					return false;
+					g_memory_copyMem((void*)outBuffer, (void*)objPayload->filepath, sizeof(char) * outBufferSize);
+					outBuffer[outBufferSize - 1] = '\0';
+					g_logger_warning("File drag drop target got filepath of length '{}' that was too long to fit into buffer of length '{}'. Truncating filename.", objPayload->filepathLength, outBufferSize);
 				}
 
-				return true;
+				return EditState::FinishedEditing;
 			}
 
-			return false;
+			return EditState::NotEditing;
+		}
+
+		ImGuiDataEx<std::string> FileDragDropInputBoxEx(const char* label, char* outBuffer, size_t outBufferSize)
+		{
+			return fileDragDropData.undoableImGuiFunctionEx(
+				label,
+				outBuffer,
+				[&]()
+				{
+					return InputText(label, outBuffer, outBufferSize);
+				});
 		}
 
 		const char* getFileDragDropPayloadId()
@@ -727,6 +741,28 @@ namespace MathAnim
 			return false;
 		}
 
+		EditState Checkbox(const char* label, bool* v)
+		{
+			std::string fullLabel = label + std::string("##Checkbox");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::Checkbox(label, v);
+				});
+		}
+
+		ImGuiDataEx<bool> CheckboxEx(const char* label, bool* v)
+		{
+			return checkboxData.undoableImGuiFunctionEx(
+				label,
+				*v,
+				[&]()
+				{
+					return Checkbox(label, v);
+				});
+		}
+
 		EditState InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
 		{
 			std::string fullLabel = label + std::string("##InputText");
@@ -762,7 +798,7 @@ namespace MathAnim
 
 		ImGuiDataEx<std::string> InputTextMultilineEx(const char* label, char* buf, size_t buf_size, const ImVec2& size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
 		{
-			return inputTextData.undoableImGuiFunctionEx(
+			return inputTextMultilineData.undoableImGuiFunctionEx(
 				label,
 				buf,
 				[&]()

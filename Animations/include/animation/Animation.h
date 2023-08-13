@@ -373,6 +373,9 @@ namespace MathAnim
 		char* scriptFilepath;
 		size_t scriptFilepathLength;
 
+		void setFilepath(const char* str, size_t strLength);
+		void setFilepath(const std::string& str);
+
 		void serialize(nlohmann::json& j) const;
 		void free();
 
@@ -417,6 +420,7 @@ namespace MathAnim
 		ImageRepeatMode repeatMode;
 
 		void setFilepath(const char* str, size_t strLength);
+		void setFilepath(const std::string& str);
 		void serialize(nlohmann::json& j) const;
 		void free();
 

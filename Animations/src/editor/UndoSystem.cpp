@@ -110,6 +110,24 @@ namespace MathAnim
 		AnimId animToAddTo;
 	};
 
+	class ModifyBoolCommand : public Command
+	{
+	public:
+		ModifyBoolCommand(AnimObjId objId, bool oldBool, bool newBool, BoolPropType propType)
+			: objId(objId), oldBool(oldBool), newBool(newBool), propType(propType)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimObjId objId;
+		bool oldBool;
+		bool newBool;
+		BoolPropType propType;
+	};
+
 	class ModifyU8Vec4Command : public Command
 	{
 	public:
@@ -379,6 +397,13 @@ namespace MathAnim
 			us->undoCursorTail = (us->undoCursorTail + 1) % us->maxHistorySize;
 		}
 
+		void setBoolProp(UndoSystemData* us, ObjOrAnimId id, bool oldBool, bool newBool, BoolPropType propType)
+		{
+			auto* newCommand = (ModifyBoolCommand*)g_memory_allocate(sizeof(ModifyBoolCommand));
+			new(newCommand)ModifyBoolCommand(id, oldBool, newBool, propType);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
 		void applyU8Vec4ToChildren(UndoSystemData* us, ObjOrAnimId id, U8Vec4PropType propType)
 		{
 			auto* newCommand = (ApplyU8Vec4ToChildrenCommand*)g_memory_allocate(sizeof(ApplyU8Vec4ToChildrenCommand));
@@ -440,6 +465,14 @@ namespace MathAnim
 			case EnumPropType::CircumscribeFade:
 				assertEnumInRange<CircumscribeFade>(newEnum);
 				assertEnumInRange<CircumscribeFade>(oldEnum);
+				break;
+			case EnumPropType::ImageSampleMode:
+				assertEnumInRange<ImageFilterMode>(newEnum);
+				assertEnumInRange<ImageFilterMode>(oldEnum);
+				break;
+			case EnumPropType::ImageRepeat:
+				assertEnumInRange<ImageRepeatMode>(newEnum);
+				assertEnumInRange<ImageRepeatMode>(oldEnum);
 				break;
 			}
 
@@ -637,6 +670,40 @@ namespace MathAnim
 		AnimationManager::addObjectToAnim(am, objToAdd, animToAddTo);
 	}
 
+	void ModifyBoolCommand::execute(AnimationManagerData* const am)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case BoolPropType::AxisDrawNumbers:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.drawNumbers = newBool;
+				obj->as.axis.reInit(am, obj);
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
+	void ModifyBoolCommand::undo(AnimationManagerData* const am)
+	{
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case BoolPropType::AxisDrawNumbers:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.drawNumbers = oldBool;
+				obj->as.axis.reInit(am, obj);
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+	}
+
 	void ModifyU8Vec4Command::execute(AnimationManagerData* const am)
 	{
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
@@ -650,7 +717,7 @@ namespace MathAnim
 			case U8Vec4PropType::StrokeColor:
 				obj->_strokeColorStart = this->newVec;
 				break;
-			// NOTE: These are animations
+				// NOTE: These are animations
 			case U8Vec4PropType::AnimateU8Vec4Target:
 				break;
 			}
@@ -666,7 +733,7 @@ namespace MathAnim
 				assertAnimIsModifyU8Vec4Type(anim);
 				anim->as.modifyU8Vec4.target = this->newVec;
 				break;
-			// NOTE: These are anim objects
+				// NOTE: These are anim objects
 			case U8Vec4PropType::FillColor:
 			case U8Vec4PropType::StrokeColor:
 				break;
@@ -687,7 +754,7 @@ namespace MathAnim
 			case U8Vec4PropType::StrokeColor:
 				obj->_strokeColorStart = this->oldVec;
 				break;
-			// NOTE: These are animations
+				// NOTE: These are animations
 			case U8Vec4PropType::AnimateU8Vec4Target:
 				break;
 			}
@@ -739,6 +806,8 @@ namespace MathAnim
 			case EnumPropType::HighlighterLanguage:
 			case EnumPropType::HighlighterTheme:
 			case EnumPropType::CameraMode:
+			case EnumPropType::ImageRepeat:
+			case EnumPropType::ImageSampleMode:
 				break;
 			}
 		}
@@ -761,6 +830,14 @@ namespace MathAnim
 			case EnumPropType::CameraMode:
 				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.mode = (CameraMode)newEnum;
+				break;
+			case EnumPropType::ImageRepeat:
+				assertCorrectType(obj, AnimObjectTypeV1::Image);
+				obj->as.image.repeatMode = (ImageRepeatMode)newEnum;
+				break;
+			case EnumPropType::ImageSampleMode:
+				assertCorrectType(obj, AnimObjectTypeV1::Image);
+				obj->as.image.filterMode = (ImageFilterMode)newEnum;
 				break;
 				// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
@@ -803,6 +880,8 @@ namespace MathAnim
 			case EnumPropType::HighlighterLanguage:
 			case EnumPropType::HighlighterTheme:
 			case EnumPropType::CameraMode:
+			case EnumPropType::ImageRepeat:
+			case EnumPropType::ImageSampleMode:
 				break;
 			}
 		}
@@ -825,6 +904,14 @@ namespace MathAnim
 			case EnumPropType::CameraMode:
 				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.mode = (CameraMode)oldEnum;
+				break;
+			case EnumPropType::ImageRepeat:
+				assertCorrectType(obj, AnimObjectTypeV1::Image);
+				obj->as.image.repeatMode = (ImageRepeatMode)oldEnum;
+				break;
+			case EnumPropType::ImageSampleMode:
+				assertCorrectType(obj, AnimObjectTypeV1::Image);
+				obj->as.image.filterMode = (ImageFilterMode)oldEnum;
 				break;
 				// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
@@ -879,7 +966,67 @@ namespace MathAnim
 				obj->as.circle.radius = this->newValue;
 				obj->as.circle.reInit(obj);
 				break;
-			// Animation types
+			case FloatPropType::ArrowStemLength:
+				assertCorrectType(obj, AnimObjectTypeV1::Arrow);
+				obj->as.arrow.stemLength = this->newValue;
+				obj->as.arrow.reInit(obj);
+				break;
+			case FloatPropType::ArrowStemWidth:
+				assertCorrectType(obj, AnimObjectTypeV1::Arrow);
+				obj->as.arrow.stemWidth = this->newValue;
+				obj->as.arrow.reInit(obj);
+				break;
+			case FloatPropType::ArrowTipLength:
+				assertCorrectType(obj, AnimObjectTypeV1::Arrow);
+				obj->as.arrow.tipLength = this->newValue;
+				obj->as.arrow.reInit(obj);
+				break;
+			case FloatPropType::ArrowTipWidth:
+				assertCorrectType(obj, AnimObjectTypeV1::Arrow);
+				obj->as.arrow.tipWidth = this->newValue;
+				obj->as.arrow.reInit(obj);
+				break;
+			case FloatPropType::CubeSideLength:
+				assertCorrectType(obj, AnimObjectTypeV1::Cube);
+				obj->as.cube.sideLength = this->newValue;
+				obj->as.cube.reInit(am, obj);
+				break;
+			case FloatPropType::AxisXStep:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.xStep = this->newValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisYStep:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.yStep = this->newValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisZStep:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.zStep = this->newValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisTickWidth:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.tickWidth = this->newValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisFontSizePixels:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.fontSizePixels = this->newValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisLabelPadding:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.labelPadding = this->newValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisLabelStrokeWidth:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.labelStrokeWidth = this->newValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+				// Animation types
 			case FloatPropType::LagRatio:
 			case FloatPropType::CircumscribeTimeWidth:
 			case FloatPropType::CircumscribeBufferSize:
@@ -904,7 +1051,7 @@ namespace MathAnim
 				assertCorrectType(anim, AnimTypeV1::Circumscribe);
 				anim->as.circumscribe.bufferSize = this->newValue;
 				break;
-			// AnimObject types
+				// AnimObject types
 			case FloatPropType::StrokeWidth:
 			case FloatPropType::CameraFieldOfView:
 			case FloatPropType::CameraNearPlane:
@@ -913,6 +1060,18 @@ namespace MathAnim
 			case FloatPropType::CameraOrthoZoomLevel:
 			case FloatPropType::SquareSideLength:
 			case FloatPropType::CircleRadius:
+			case FloatPropType::ArrowStemLength:
+			case FloatPropType::ArrowStemWidth:
+			case FloatPropType::ArrowTipLength:
+			case FloatPropType::ArrowTipWidth:
+			case FloatPropType::CubeSideLength:
+			case FloatPropType::AxisXStep:
+			case FloatPropType::AxisYStep:
+			case FloatPropType::AxisZStep:
+			case FloatPropType::AxisTickWidth:
+			case FloatPropType::AxisFontSizePixels:
+			case FloatPropType::AxisLabelPadding:
+			case FloatPropType::AxisLabelStrokeWidth:
 				break;
 			}
 		}
@@ -958,7 +1117,67 @@ namespace MathAnim
 				obj->as.circle.radius = this->oldValue;
 				obj->as.circle.reInit(obj);
 				break;
-			// Animation types
+			case FloatPropType::ArrowStemLength:
+				assertCorrectType(obj, AnimObjectTypeV1::Arrow);
+				obj->as.arrow.stemLength = this->oldValue;
+				obj->as.arrow.reInit(obj);
+				break;
+			case FloatPropType::ArrowStemWidth:
+				assertCorrectType(obj, AnimObjectTypeV1::Arrow);
+				obj->as.arrow.stemWidth = this->oldValue;
+				obj->as.arrow.reInit(obj);
+				break;
+			case FloatPropType::ArrowTipLength:
+				assertCorrectType(obj, AnimObjectTypeV1::Arrow);
+				obj->as.arrow.tipLength = this->oldValue;
+				obj->as.arrow.reInit(obj);
+				break;
+			case FloatPropType::ArrowTipWidth:
+				assertCorrectType(obj, AnimObjectTypeV1::Arrow);
+				obj->as.arrow.tipWidth = this->oldValue;
+				obj->as.arrow.reInit(obj);
+				break;
+			case FloatPropType::CubeSideLength:
+				assertCorrectType(obj, AnimObjectTypeV1::Cube);
+				obj->as.cube.sideLength = this->oldValue;
+				obj->as.cube.reInit(am, obj);
+				break;
+			case FloatPropType::AxisXStep:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.xStep = this->oldValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisYStep:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.yStep = this->oldValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisZStep:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.zStep = this->oldValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisTickWidth:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.tickWidth = this->oldValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisFontSizePixels:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.fontSizePixels = this->oldValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisLabelPadding:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.labelPadding = this->oldValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case FloatPropType::AxisLabelStrokeWidth:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.labelStrokeWidth = this->oldValue;
+				obj->as.axis.reInit(am, obj);
+				break;
+				// Animation types
 			case FloatPropType::LagRatio:
 			case FloatPropType::CircumscribeTimeWidth:
 			case FloatPropType::CircumscribeBufferSize:
@@ -991,6 +1210,18 @@ namespace MathAnim
 			case FloatPropType::CameraOrthoZoomLevel:
 			case FloatPropType::SquareSideLength:
 			case FloatPropType::CircleRadius:
+			case FloatPropType::ArrowStemLength:
+			case FloatPropType::ArrowStemWidth:
+			case FloatPropType::ArrowTipLength:
+			case FloatPropType::ArrowTipWidth:
+			case FloatPropType::CubeSideLength:
+			case FloatPropType::AxisXStep:
+			case FloatPropType::AxisYStep:
+			case FloatPropType::AxisZStep:
+			case FloatPropType::AxisTickWidth:
+			case FloatPropType::AxisFontSizePixels:
+			case FloatPropType::AxisLabelPadding:
+			case FloatPropType::AxisLabelStrokeWidth:
 				break;
 			}
 		}
@@ -1045,6 +1276,21 @@ namespace MathAnim
 				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.aspectRatioFraction = this->newVec;
 				break;
+			case Vec2iPropType::AxisXRange:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.xRange = this->newVec;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case Vec2iPropType::AxisYRange:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.yRange = this->newVec;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case Vec2iPropType::AxisZRange:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.zRange = this->newVec;
+				obj->as.axis.reInit(am, obj);
+				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
 		}
@@ -1060,6 +1306,21 @@ namespace MathAnim
 			case Vec2iPropType::AspectRatio:
 				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.aspectRatioFraction = this->oldVec;
+				break;
+			case Vec2iPropType::AxisXRange:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.xRange = this->oldVec;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case Vec2iPropType::AxisYRange:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.yRange = this->oldVec;
+				obj->as.axis.reInit(am, obj);
+				break;
+			case Vec2iPropType::AxisZRange:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.zRange = this->oldVec;
+				obj->as.axis.reInit(am, obj);
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
@@ -1082,7 +1343,11 @@ namespace MathAnim
 			case Vec3PropType::Rotation:
 				obj->_rotationStart = this->newVec;
 				break;
-			// NOTE: These are animations
+			case Vec3PropType::AxisAxesLength:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.axesLength = this->newVec;
+				break;
+				// NOTE: These are animations
 			case Vec3PropType::ModifyAnimationVec3Target:
 				break;
 			}
@@ -1098,10 +1363,11 @@ namespace MathAnim
 				assertAnimIsModifyVec3Type(anim);
 				anim->as.modifyVec3.target = this->newVec;
 				break;
-			// NOTE: These are anim objects
+				// NOTE: These are anim objects
 			case Vec3PropType::Position:
 			case Vec3PropType::Scale:
 			case Vec3PropType::Rotation:
+			case Vec3PropType::AxisAxesLength:
 				break;
 			}
 		}
@@ -1123,7 +1389,11 @@ namespace MathAnim
 			case Vec3PropType::Rotation:
 				obj->_rotationStart = this->oldVec;
 				break;
-			// NOTE: These are animations
+			case Vec3PropType::AxisAxesLength:
+				assertCorrectType(obj, AnimObjectTypeV1::Axis);
+				obj->as.axis.axesLength = this->oldVec;
+				break;
+				// NOTE: These are animations
 			case Vec3PropType::ModifyAnimationVec3Target:
 				break;
 			}
@@ -1139,10 +1409,11 @@ namespace MathAnim
 				assertAnimIsModifyVec3Type(anim);
 				anim->as.modifyVec3.target = this->oldVec;
 				break;
-			// NOTE: These are anim objects
+				// NOTE: These are anim objects
 			case Vec3PropType::Position:
 			case Vec3PropType::Scale:
 			case Vec3PropType::Rotation:
+			case Vec3PropType::AxisAxesLength:
 				break;
 			}
 		}
@@ -1257,7 +1528,34 @@ namespace MathAnim
 				}
 				else if (newString != "")
 				{
-					ErrorPopups::popupMissingFileError(newString);
+					ErrorPopups::popupMissingFileError(newString, "Cannot redo set SVG file object.");
+				}
+			}
+			break;
+			case StringPropType::ImageFilepath:
+			{
+				assertCorrectType(obj, AnimObjectTypeV1::Image);
+				if (Platform::fileExists(newString.c_str()))
+				{
+					obj->as.image.setFilepath(newString);
+					obj->as.image.reInit(am, obj, true);
+				}
+				else if (newString != "")
+				{
+					ErrorPopups::popupMissingFileError(newString, "Cannot redo set image file.");
+				}
+			}
+			break;
+			case StringPropType::ScriptFile: 
+			{
+				assertCorrectType(obj, AnimObjectTypeV1::ScriptObject);
+				if (Platform::fileExists(newString.c_str()))
+				{
+					obj->as.script.setFilepath(newString);
+				}
+				else if (newString != "")
+				{
+					ErrorPopups::popupMissingFileError(newString, "Cannot redo set script file.");
 				}
 			}
 			break;
@@ -1308,7 +1606,34 @@ namespace MathAnim
 				}
 				else if (newString != "")
 				{
-					ErrorPopups::popupMissingFileError(oldString);
+					ErrorPopups::popupMissingFileError(oldString, "Cannot undo set SVG file object.");
+				}
+			}
+			break;
+			case StringPropType::ImageFilepath:
+			{
+				assertCorrectType(obj, AnimObjectTypeV1::Image);
+				if (Platform::fileExists(oldString.c_str()))
+				{
+					obj->as.image.setFilepath(oldString);
+					obj->as.image.reInit(am, obj, true);
+				}
+				else if (newString != "")
+				{
+					ErrorPopups::popupMissingFileError(oldString, "Cannot undo set image file.");
+				}
+			}
+			break;
+			case StringPropType::ScriptFile:
+			{
+				assertCorrectType(obj, AnimObjectTypeV1::ScriptObject);
+				if (Platform::fileExists(oldString.c_str()))
+				{
+					obj->as.script.setFilepath(oldString);
+				}
+				else if (newString != "")
+				{
+					ErrorPopups::popupMissingFileError(oldString, "Cannot undo set script file.");
 				}
 			}
 			break;

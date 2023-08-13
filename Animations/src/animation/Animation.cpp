@@ -1053,6 +1053,24 @@ namespace MathAnim
 		return res;
 	}
 
+	void ScriptObject::setFilepath(const char* str, size_t strLength)
+	{
+		if (strLength != this->scriptFilepathLength)
+		{
+			this->scriptFilepath = (char*)g_memory_realloc(this->scriptFilepath, sizeof(char) * (strLength + 1));
+			g_logger_assert(this->scriptFilepath != nullptr, "Allocation failed. Out of memory.");
+		}
+
+		g_memory_copyMem((void*)this->scriptFilepathLength, (void*)str, sizeof(char) * strLength);
+		this->scriptFilepath[strLength] = '\0';
+		this->scriptFilepathLength = strLength;
+	}
+
+	void ScriptObject::setFilepath(const std::string& str)
+	{
+		setFilepath(str.c_str(), str.length());
+	}
+
 	void ScriptObject::serialize(nlohmann::json& memory) const
 	{
 		SERIALIZE_NULLABLE_CSTRING(memory, this, scriptFilepath, "Undefined");
@@ -1130,6 +1148,11 @@ namespace MathAnim
 		g_memory_copyMem((void*)this->imageFilepath, (void*)str, sizeof(char) * strLength);
 		this->imageFilepath[strLength] = '\0';
 		this->imageFilepathLength = strLength;
+	}
+
+	void ImageObject::setFilepath(const std::string& str)
+	{
+		setFilepath(str.c_str(), str.length());
 	}
 
 	void ImageObject::serialize(nlohmann::json& j) const

@@ -4,6 +4,7 @@
 #include "core/Serialization.hpp"
 #include "svg/Svg.h"
 #include "math/CMath.h"
+#include "editor/panels/SceneHierarchyPanel.h"
 
 #include <nlohmann/json.hpp>
 
@@ -11,6 +12,7 @@ namespace MathAnim
 {
 	void Axis::init(AnimObject*)
 	{
+		g_logger_warning("TODO: FIXME");
 		//g_logger_assert(parent->_svgObjectStart == nullptr && parent->svgObject == nullptr, "Axis object initialized twice.");
 		//g_logger_assert(parent->children.size() == 0, "Axis object initialized twice.");
 
@@ -148,6 +150,26 @@ namespace MathAnim
 		//	}
 		//	Svg::closeContour(parent->_svgObjectStart);
 		//}
+	}
+
+	void Axis::reInit(AnimationManagerData* am, AnimObject* obj)
+	{
+		// First remove all generated children, which were generated as a result
+		// of this object (presumably)
+		// NOTE: This is direct descendants, no recursive children here
+		for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
+			if (child)
+			{
+				SceneHierarchyPanel::deleteAnimObject(*child);
+				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
+			}
+		}
+		obj->generatedChildrenIds.clear();
+
+		// Next init again which should regenerate the children
+		init(obj);
 	}
 
 	void Axis::serialize(nlohmann::json& memory) const
