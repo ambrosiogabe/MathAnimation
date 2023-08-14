@@ -233,15 +233,14 @@ namespace MathAnim
 				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
 				{
 					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
-					if (//AnimationManager::hasActive2DCamera(am) && 
-						AnimationManager::hasActive3DCamera(am))
+					if (AnimationManager::hasActiveCamera(am))
 					{
-						// TODO: Either come up with multi-camera scenes or get rid of the idea of 2D cameras altogether
-						Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am));
-						Renderer::pushCamera3D(&AnimationManager::getActiveCamera3D(am));
+						// TODO: Do we even need 2D cameras anymore?
+						//Renderer::pushCamera2D(&AnimationManager::getActiveCamera(am));
+						Renderer::pushCamera3D(&AnimationManager::getActiveCamera(am));
 						AnimationManager::render(am, deltaFrame);
-						Renderer::popCamera2D();
 						Renderer::popCamera3D();
+						//Renderer::popCamera2D();
 
 						Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
 						Renderer::renderToFramebuffer(mainFramebuffer, am, "OutputVP_Main_Framebuffer_Pass");
@@ -340,14 +339,14 @@ namespace MathAnim
 			// If the window is closing, save the last rendered frame to a preview image
 			// TODO: Do this a better way
 			//       Like no hard coded image path here and hard coded number of components
-			if (//AnimationManager::hasActive2DCamera(am) && 
-				AnimationManager::hasActive3DCamera(am))
+			if (AnimationManager::hasActiveCamera(am))
 			{
-				Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am));
-				Renderer::pushCamera3D(&AnimationManager::getActiveCamera3D(am));
+				// TODO: Do we even need 2D cameras anymore?
+				//Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am));
+				Renderer::pushCamera3D(&AnimationManager::getActiveCamera(am));
 				AnimationManager::render(am, 0);
-				Renderer::popCamera2D();
 				Renderer::popCamera3D();
+				//Renderer::popCamera2D();
 
 				Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
 				Renderer::renderToFramebuffer(mainFramebuffer, am, "AppClosing_Screenshot");

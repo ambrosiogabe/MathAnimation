@@ -1,5 +1,8 @@
 #include "editor/UndoSystem.h"
+#include "editor/Clipboard.h"
 #include "editor/panels/ErrorPopups.h"
+#include "editor/panels/InspectorPanel.h"
+#include "editor/panels/SceneHierarchyPanel.h"
 #include "animation/AnimationManager.h"
 #include "animation/Animation.h"
 #include "renderer/Fonts.h"
@@ -108,6 +111,31 @@ namespace MathAnim
 	private:
 		AnimObjId objToAdd;
 		AnimId animToAddTo;
+	};
+
+	class AddObjectToSceneCommand : public Command
+	{
+	public:
+		AddObjectToSceneCommand(AnimObjectTypeV1 type)
+			: type(type), objCreated(NULL_ANIM_OBJECT)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+		virtual ~AddObjectToSceneCommand() override
+		{
+			if (!isNull(objCreated))
+			{
+				animObj.free();
+			}
+		}
+
+	private:
+		AnimObjectTypeV1 type;
+		AnimObjId objCreated;
+		AnimObject animObj;
 	};
 
 	class ModifyBoolCommand : public Command
@@ -595,9 +623,14 @@ namespace MathAnim
 
 #pragma warning( push )
 #pragma warning( disable : 4100 )
-		void addNewObjToScene(UndoSystemData* us, const AnimObject& obj)
+		void addNewObjToScene(UndoSystemData* us, int animObjType)
 		{
+			assertEnumInRange<AnimObjectTypeV1>(animObjType);
+			g_logger_assert((AnimObjectTypeV1)animObjType != AnimObjectTypeV1::None, "Cannot create AnimObject of type 'None'");
 
+			auto* newCommand = (AddObjectToSceneCommand*)g_memory_allocate(sizeof(AddObjectToSceneCommand));
+			new(newCommand)AddObjectToSceneCommand((AnimObjectTypeV1)animObjType);
+			pushAndExecuteCommand(us, newCommand);
 		}
 
 		void removeObjFromScene(UndoSystemData* us, AnimObjId objId)
@@ -668,6 +701,37 @@ namespace MathAnim
 	void RemoveObjectFromAnimCommand::undo(AnimationManagerData* const am)
 	{
 		AnimationManager::addObjectToAnim(am, objToAdd, animToAddTo);
+	}
+
+	void AddObjectToSceneCommand::execute(AnimationManagerData* const am)
+	{
+		if (this->objCreated == NULL_ANIM_OBJECT)
+		{
+			this->animObj = AnimObject::createDefault(am, type);
+			this->objCreated = animObj.id;
+		}
+
+		AnimObject deepCopy = this->animObj.createDeepCopy();
+		// NOTE: This is safe because we know that only this object will ever have this ID
+		deepCopy.id = this->animObj.id;
+		AnimationManager::addAnimObject(am, deepCopy);
+		SceneHierarchyPanel::addNewAnimObject(deepCopy);
+
+		if (type == AnimObjectTypeV1::Camera)
+		{
+			AnimationManager::setActiveCamera(am, deepCopy.id);
+		}
+	}
+
+	void AddObjectToSceneCommand::undo(AnimationManagerData* const am)
+	{
+		if (!isNull(this->objCreated))
+		{
+			const AnimObject* animObject = AnimationManager::getObject(am, this->objCreated);
+			SceneHierarchyPanel::deleteAnimObject(*animObject);
+			AnimationManager::removeAnimObject(am, animObject->id);
+			InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
+		}
 	}
 
 	void ModifyBoolCommand::execute(AnimationManagerData* const am)
@@ -1546,7 +1610,7 @@ namespace MathAnim
 				}
 			}
 			break;
-			case StringPropType::ScriptFile: 
+			case StringPropType::ScriptFile:
 			{
 				assertCorrectType(obj, AnimObjectTypeV1::ScriptObject);
 				if (Platform::fileExists(newString.c_str()))

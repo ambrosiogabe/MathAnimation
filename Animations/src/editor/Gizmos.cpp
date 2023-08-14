@@ -420,9 +420,9 @@ namespace MathAnim
 
 			// Draw animation manager camera frustum/billboards
 			{
-				if (AnimationManager::hasActive2DCamera(am))
+				if (AnimationManager::hasActiveCamera(am))
 				{
-					const Camera& orthoCamera = AnimationManager::getActiveCamera2D(am);
+					const Camera& orthoCamera = AnimationManager::getActiveCamera(am);
 
 					Renderer::pushStrokeWidth(0.05f);
 					Renderer::pushColor(Colors::Neutral[0]);

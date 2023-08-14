@@ -514,7 +514,7 @@ namespace MathAnim
 
 		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am, const char* debugName)
 		{
-			if (!AnimationManager::hasActive2DCamera(am))
+			if (!AnimationManager::hasActiveCamera(am))
 			{
 				// Don't render anything if no camera is active
 				// TODO: Maybe render a texture in the future that says something like "No Active Camera in Scene"
@@ -522,8 +522,8 @@ namespace MathAnim
 				return;
 			}
 
-			const Camera& camera2D = AnimationManager::getActiveCamera2D(am);
-			Renderer::clearColor(camera2D.fillColor);
+			const Camera& camera = AnimationManager::getActiveCamera(am);
+			Renderer::clearColor(camera.fillColor);
 			renderToFramebuffer(framebuffer, debugName);
 		}
 

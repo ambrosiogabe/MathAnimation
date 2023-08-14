@@ -39,7 +39,6 @@ namespace MathAnim
 		// each frame we actually need to reset the camera position to its start position. I really
 		// need to figure out a better architecture for this haha
 		AnimObjId activeCamera;
-		AnimObjId activeCamera3D;
 		int currentFrame;
 	};
 
@@ -64,7 +63,6 @@ namespace MathAnim
 			AnimationManagerData* res = new (animManagerMemory) AnimationManagerData();
 
 			res->activeCamera = NULL_ANIM_OBJECT;
-			res->activeCamera3D = NULL_ANIM_OBJECT;
 			res->currentFrame = 0;
 
 			return res;
@@ -133,12 +131,6 @@ namespace MathAnim
 			if (activeCamera)
 			{
 				activeCamera->as.camera.endFrame();
-			}
-
-			AnimObject* activeCamera3D = getMutableObject(am, am->activeCamera3D);
-			if (activeCamera3D)
-			{
-				activeCamera3D->as.camera.endFrame();
 			}
 		}
 
@@ -214,10 +206,6 @@ namespace MathAnim
 			// pointers are stable for at least the duration of one frame
 			am->queuedRemoveObjects.push_back(animObj);
 			if (animObj == am->activeCamera)
-			{
-				am->activeCamera = NULL_ANIM_OBJECT;
-			}
-			else if (animObj == am->activeCamera3D)
 			{
 				am->activeCamera = NULL_ANIM_OBJECT;
 			}
@@ -349,52 +337,29 @@ namespace MathAnim
 			return am->currentFrame >= AnimationManager::lastAnimatedFrame(am);
 		}
 
-		const Camera& getActiveCamera2D(const AnimationManagerData* am)
+		const Camera& getActiveCamera(const AnimationManagerData* am)
 		{
-			g_logger_assert(hasActive2DCamera(am), "No Camera2D set on the scene, cannot retrieve it.");
+			g_logger_assert(hasActiveCamera(am), "No Camera set on the scene, cannot retrieve it.");
 			const AnimObject* obj = getObject(am, am->activeCamera);
 			return obj->as.camera;
 		}
 
-		const Camera& getActiveCamera3D(const AnimationManagerData* am)
-		{
-			g_logger_assert(hasActive3DCamera(am), "No Camera3D set on the scene, cannot retrieve it.");
-			const AnimObject* obj = getObject(am, am->activeCamera3D);
-			return obj->as.camera;
-		}
-
-		bool hasActive2DCamera(const AnimationManagerData* am)
+		bool hasActiveCamera(const AnimationManagerData* am)
 		{
 			return am->activeCamera != NULL_ANIM_OBJECT;
 		}
 
-		bool hasActive3DCamera(const AnimationManagerData* am)
-		{
-			return am->activeCamera3D != NULL_ANIM_OBJECT;
-		}
-
-		void setActiveCamera2D(AnimationManagerData* am, AnimObjId cameraObj)
+		void setActiveCamera(AnimationManagerData* am, AnimObjId cameraObj)
 		{
 			am->activeCamera = cameraObj;
 		}
 
-		void setActiveCamera3D(AnimationManagerData* am, AnimObjId cameraObj)
-		{
-			am->activeCamera3D = cameraObj;
-		}
-
 		void calculateCameraMatrices(AnimationManagerData* am)
 		{
-			AnimObject* camera2D = getMutableObject(am, am->activeCamera);
-			if (camera2D)
+			AnimObject* camera = getMutableObject(am, am->activeCamera);
+			if (camera)
 			{
-				camera2D->as.camera.calculateMatrices();
-			}
-
-			AnimObject* camera3D = getMutableObject(am, am->activeCamera3D);
-			if (camera3D)
-			{
-				camera3D->as.camera.calculateMatrices();
+				camera->as.camera.calculateMatrices();
 			}
 		}
 
@@ -552,7 +517,6 @@ namespace MathAnim
 
 			// Custom data starts here. Subject to change from version to version
 			writeIdToJson("ActiveCamera", am->activeCamera, output);
-			writeIdToJson("ActiveCamera3D", am->activeCamera3D, output);
 			output["Animations"] = nlohmann::json::array();
 
 			// Write out each animation
@@ -583,19 +547,16 @@ namespace MathAnim
 			}
 
 			// TODO: Deprecate 2D cameras. All cameras will be 3D from here on out.
-			am->activeCamera3D = readIdFromJson(j, "StartingActiveCamera");
-			am->activeCamera = am->activeCamera3D;
+			am->activeCamera = readIdFromJson(j, "StartingActiveCamera");
 			// NOTE: This is for legacy projects. It would be better to bump the serialized file version
 			//       but that's too much work. And this hack works fine.
-			if (isNull(am->activeCamera3D))
+			if (isNull(am->activeCamera))
 			{
-				am->activeCamera3D = readIdFromJson(j, "ActiveCamera");
-				am->activeCamera = am->activeCamera3D;
+				am->activeCamera = readIdFromJson(j, "ActiveCamera");
 			}
-			if (isNull(am->activeCamera3D))
+			if (isNull(am->activeCamera))
 			{
-				am->activeCamera3D = readIdFromJson(j, "ActiveCamera3D");
-				am->activeCamera = am->activeCamera3D;
+				am->activeCamera = readIdFromJson(j, "ActiveCamera3D");
 			}
 
 			// Read each animation followed by 0xDEADBEEF
