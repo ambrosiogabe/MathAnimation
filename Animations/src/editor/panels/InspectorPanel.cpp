@@ -168,7 +168,7 @@ namespace MathAnim
 			AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectId);
 			if (!animObject)
 			{
-				g_logger_error("No anim object with id '{}' exists", animObject);
+				g_logger_error("No anim object with id '{}' exists", animObjectId);
 				activeAnimObjectId = NULL_ANIM_OBJECT;
 				return;
 			}

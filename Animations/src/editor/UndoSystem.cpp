@@ -138,6 +138,31 @@ namespace MathAnim
 		AnimObject animObj;
 	};
 
+	class RemoveObjectFromSceneCommand : public Command
+	{
+	public:
+		RemoveObjectFromSceneCommand(AnimObjId objToDelete)
+			: objToDelete(objToDelete), parentAndChildren({})
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+		virtual ~RemoveObjectFromSceneCommand() override
+		{
+			for (auto& obj : parentAndChildren)
+			{
+				obj.free();
+			}
+		}
+
+	private:
+		AnimObjId objToDelete;
+		std::vector<AnimObject> parentAndChildren;
+		std::unordered_map<AnimObjId, std::vector<AnimId>> correlatedAnimations;
+	};
+
 	class ModifyBoolCommand : public Command
 	{
 	public:
@@ -635,7 +660,9 @@ namespace MathAnim
 
 		void removeObjFromScene(UndoSystemData* us, AnimObjId objId)
 		{
-
+			auto* newCommand = (RemoveObjectFromSceneCommand*)g_memory_allocate(sizeof(RemoveObjectFromSceneCommand));
+			new(newCommand)RemoveObjectFromSceneCommand(objId);
+			pushAndExecuteCommand(us, newCommand);
 		}
 #pragma warning( pop )
 
@@ -732,6 +759,62 @@ namespace MathAnim
 			AnimationManager::removeAnimObject(am, animObject->id);
 			InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
 		}
+	}
+
+	void RemoveObjectFromSceneCommand::execute(AnimationManagerData* const am)
+	{
+		const AnimObject* objToDeletePtr = AnimationManager::getObject(am, this->objToDelete);
+		if (!objToDeletePtr)
+		{
+			return;
+		}
+
+		if (this->parentAndChildren.size() == 0)
+		{
+			constexpr bool keepOriginalIds = true;
+			parentAndChildren = objToDeletePtr->createDeepCopyWithChildren(am, *objToDeletePtr, keepOriginalIds);
+			
+			// NOTE: Find any correlated animations that we need to reassign this anim object to if this action is
+			// undone.
+			for (const auto& obj : parentAndChildren) 
+			{
+				std::vector<AnimId> anims = AnimationManager::getAssociatedAnimations(am, obj.id);
+				if (anims.size() > 0)
+				{
+					this->correlatedAnimations[obj.id] = anims;
+				}
+			}
+		}
+
+		SceneHierarchyPanel::deleteAnimObject(*objToDeletePtr);
+		AnimationManager::removeAnimObject(am, objToDelete);
+		InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
+	}
+
+	void RemoveObjectFromSceneCommand::undo(AnimationManagerData* const am)
+	{
+		for (const auto& obj : parentAndChildren)
+		{
+			AnimObject copy = obj.createDeepCopy(true);
+			AnimationManager::addAnimObject(am, copy);
+			SceneHierarchyPanel::addNewAnimObject(copy);
+
+			if (obj.objectType == AnimObjectTypeV1::Camera)
+			{
+				AnimationManager::setActiveCamera(am, obj.id);
+			}
+
+			if (auto iter = this->correlatedAnimations.find(copy.id);
+				iter != this->correlatedAnimations.end())
+			{
+				for (AnimId anim : iter->second)
+				{
+					AnimationManager::addObjectToAnim(am, copy.id, anim);
+				}
+			}
+		}
+
+		InspectorPanel::setActiveAnimObject(am, objToDelete);
 	}
 
 	void ModifyBoolCommand::execute(AnimationManagerData* const am)

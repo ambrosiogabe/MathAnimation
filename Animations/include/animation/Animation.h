@@ -537,8 +537,8 @@ namespace MathAnim
 		 * @param from The object to copy from.
 		 * @return A deep copy of `from` and all its children in breadth-first traversal order
 		*/
-		static std::vector<AnimObject> createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from);
-		AnimObject createDeepCopy() const;
+		static std::vector<AnimObject> createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from, bool keepOriginalIds = false);
+		AnimObject createDeepCopy(bool keepOriginalId = false) const;
 
 		static inline bool isInternalObjectOnly(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _isInternalObjectOnly[(size_t)type]; }
 		static inline const char* getAnimObjectName(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _animationObjectTypeNames[(size_t)type]; }

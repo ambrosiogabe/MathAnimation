@@ -231,9 +231,10 @@ namespace MathAnim
 					//    EVENT --- DeleteAnimObject
 					// That way I don't have to worry about who's responsibility it is to remove
 					// the anim objects from the animation manager and the timeline
-					deleteAnimObject(*animObject);
-					AnimationManager::removeAnimObject(am, animObject->id);
-					InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
+					UndoSystem::removeObjFromScene(
+						Application::getUndoSystem(),
+						animObject->id
+					);
 				}
 			}
 
@@ -357,6 +358,14 @@ namespace MathAnim
 			if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
 			{
 				EditorGui::duplicateObject(am, elementClicked->animObjectId);
+			}
+
+			if (ImGui::MenuItem("Delete", "Del"))
+			{
+				UndoSystem::removeObjFromScene(
+					Application::getUndoSystem(),
+					elementClicked->animObjectId
+				);
 			}
 			ImGui::EndDisabled();
 

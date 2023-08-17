@@ -2435,13 +2435,13 @@ namespace MathAnim
 		return res;
 	}
 
-	std::vector<AnimObject> AnimObject::createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from)
+	std::vector<AnimObject> AnimObject::createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from, bool keepOriginalIds)
 	{
 		std::vector<AnimObject> res = {};
 		std::unordered_map<AnimObjId, AnimObjId> copyIdMap = {};
 
 		{
-			AnimObject copy = from.createDeepCopy();
+			AnimObject copy = from.createDeepCopy(keepOriginalIds);
 			copyIdMap[from.id] = copy.id;
 			res.emplace_back(copy);
 		}
@@ -2451,7 +2451,7 @@ namespace MathAnim
 			const AnimObject* obj = AnimationManager::getObject(am, *it);
 			if (obj)
 			{
-				AnimObject copy = obj->createDeepCopy();
+				AnimObject copy = obj->createDeepCopy(keepOriginalIds);
 				copyIdMap[obj->id] = copy.id;
 				if (!isNull(copy.parentId))
 				{
@@ -2476,14 +2476,21 @@ namespace MathAnim
 		return res;
 	}
 
-	AnimObject AnimObject::createDeepCopy() const
+	AnimObject AnimObject::createDeepCopy(bool keepOriginalId) const
 	{
 		// TODO: Do some performance checking on this. I have a feeling it will be slow, but 
 		//       double check this if copy/paste becomes laggy.
 		nlohmann::json j = {};
 		this->serialize(j);
 		AnimObject res = AnimObject::deserialize(j, SERIALIZER_VERSION_MAJOR);
-		res.id = getNextUid();
+		if (keepOriginalId)
+		{
+			res.id = this->id;
+		}
+		else
+		{
+			res.id = getNextUid();
+		}
 		return res;
 	}
 
