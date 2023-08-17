@@ -17,20 +17,18 @@ namespace MathAnim
 	enum _ImGuiTimelineResultFlags
 	{
 		ImGuiTimelineResultFlags_None                = 0x0,
-		ImGuiTimelineResultFlags_FirstFrameChanged   = 0x1,
-		ImGuiTimelineResultFlags_CurrentFrameChanged = 0x2,
-		ImGuiTimelineResultFlags_AddTrackClicked     = 0x4,
-		ImGuiTimelineResultFlags_DeleteTrackClicked  = 0x8,
-		ImGuiTimelineResultFlags_SegmentTimeChanged  = 0x10,
-		ImGuiTimelineResultFlags_SegmentTrackChanged = 0x20,
-		ImGuiTimelineResultFlags_SubSegmentTimeChanged  = 0x40,
-		ImGuiTimelineResultFlags_SubSegmentTrackChanged = 0x80,
-		ImGuiTimelineResultFlags_ActiveObjectChanged = 0x100,
-		ImGuiTimelineResultFlags_DragDropPayloadHit  = 0x200,
-		ImGuiTimelineResultFlags_DeleteActiveObject  = 0x400,
-		ImGuiTimelineResultFlags_AddAudioSource      = 0x800,
-		ImGuiTimelineResultFlags_DeleteAudioSource   = 0x1000,
-		ImGuiTimelineResultFlags_ActiveObjectDeselected = 0x2000
+		ImGuiTimelineResultFlags_FirstFrameChanged   = 1,
+		ImGuiTimelineResultFlags_CurrentFrameChanged = ImGuiTimelineResultFlags_FirstFrameChanged << 1,
+		ImGuiTimelineResultFlags_AddTrackClicked     = ImGuiTimelineResultFlags_CurrentFrameChanged << 1,
+		ImGuiTimelineResultFlags_DeleteTrackClicked  = ImGuiTimelineResultFlags_AddTrackClicked << 1,
+		ImGuiTimelineResultFlags_SegmentTimeChanged  = ImGuiTimelineResultFlags_DeleteTrackClicked << 1,
+		ImGuiTimelineResultFlags_SegmentTrackChanged = ImGuiTimelineResultFlags_SegmentTimeChanged << 1,
+		ImGuiTimelineResultFlags_ActiveObjectChanged = ImGuiTimelineResultFlags_SegmentTrackChanged << 1,
+		ImGuiTimelineResultFlags_DragDropPayloadHit  = ImGuiTimelineResultFlags_ActiveObjectChanged << 1,
+		ImGuiTimelineResultFlags_DeleteActiveObject  = ImGuiTimelineResultFlags_DragDropPayloadHit << 1,
+		ImGuiTimelineResultFlags_AddAudioSource      = ImGuiTimelineResultFlags_DeleteActiveObject << 1,
+		ImGuiTimelineResultFlags_DeleteAudioSource   = ImGuiTimelineResultFlags_AddAudioSource << 1,
+		ImGuiTimelineResultFlags_ActiveObjectDeselected = ImGuiTimelineResultFlags_DeleteAudioSource << 1
 	};
 
 	struct ImGuiTimelineResult
@@ -40,17 +38,7 @@ namespace MathAnim
 		int dragDropPayloadFirstFrame;
 		int trackIndex;
 		int segmentIndex;
-		int subSegmentIndex;
-		bool activeObjectIsSubSegment;
 		ImGuiTimelineResultFlags flags;
-	};
-
-	struct ImGuiTimeline_SubSegment
-	{
-		int frameStart;
-		int frameDuration;
-		const char* segmentName;
-		void* userData;
 	};
 
 	struct ImGuiTimeline_Segment
@@ -66,11 +54,6 @@ namespace MathAnim
 				int intData;
 			} as;
 		} userData;
-
-		// TODO: Should I allow this to also be a track and recurse through all subtracks?
-		// If this is nullptr, then the expanded track is empty
-		ImGuiTimeline_SubSegment* subSegments;
-		int numSubSegments;
 	};
 
 	struct ImGuiTimeline_Track
@@ -78,7 +61,6 @@ namespace MathAnim
 		int numSegments;
 		ImGuiTimeline_Segment* segments;
 		const char* trackName;
-		bool isExpanded;
 	};
 
 	struct ImGuiTimeline_AudioData

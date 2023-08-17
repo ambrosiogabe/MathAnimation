@@ -10,9 +10,7 @@ namespace MathAnim
 
 	struct TimelinePayload
 	{
-		AnimObjectTypeV1 objectType;
 		AnimTypeV1 animType;
-		bool isAnimObject;
 	};
 
 	struct TimelineData
