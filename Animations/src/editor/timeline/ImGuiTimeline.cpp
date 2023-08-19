@@ -115,6 +115,8 @@ namespace MathAnim
 	static int lengthAudioCache = 0;
 	static int maxLengthAudioCache = 0;
 
+	static ImGuiID activeSegmentID = UINT32_MAX;
+
 	// ----------- Internal Functions -----------
 	static bool handleLegendSplitter(float* legendWidth, bool mouseHovering);
 	static bool handleResizeElement(float* currentValue, DragState* state, const ImVec2& valueBounds, const ImVec2& mouseBounds, const ImVec2& hoverRectStart, const ImVec2& hoverRectEnd, ResizeFlags flags);
@@ -141,6 +143,13 @@ namespace MathAnim
 	static inline float calculateCursorOffset(int currentFrame, int firstFrame, float amountOfTimeVisibleInTimeline)
 	{
 		return (timelineRulerEnd.x - timelineRulerBegin.x) * (((float)currentFrame - (float)firstFrame) / amountOfTimeVisibleInTimeline);
+	}
+
+	void ImGuiTimeline_SetActiveSegment(int trackIndex, int segmentIndex)
+	{
+		std::string strId = "Track_" + std::to_string(trackIndex) + "Segment_" + std::to_string(segmentIndex);
+		ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
+		activeSegmentID = segmentID;
 	}
 
 	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* inZoom, const ImGuiTimeline_AudioData* audioData, ImGuiTimelineFlags flags)
@@ -435,7 +444,6 @@ namespace MathAnim
 
 					std::string strId = "Track_" + std::to_string(i) + "Segment_" + std::to_string(si);
 					ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
-					static ImGuiID activeSegmentID = UINT32_MAX;
 
 					float offsetX = calculateSegmentOffset(segment.frameStart, *firstFrame, amountOfTimeVisibleInTimeline);
 					float width = calculateSegmentWidth(segment.frameDuration, amountOfTimeVisibleInTimeline);

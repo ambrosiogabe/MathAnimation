@@ -68,7 +68,6 @@ namespace MathAnim
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 			if (ImGui::Begin("Timeline"))
 			{
-
 				timelineData.currentFrame = Application::getFrameIndex();
 
 				ImGuiTimelineFlags flags = ImGuiTimelineFlags_None;
@@ -180,22 +179,17 @@ namespace MathAnim
 				if (res.flags & ImGuiTimelineResultFlags_DeleteActiveObject)
 				{
 					ImGuiTimeline_Track& track = tracks[res.trackIndex];
-					deleteSegment(track, res.segmentIndex, am);
 
-					//UndoSystem::removeAnimationFromTimeline(
-					//	Application::getUndoSystem(),
-					//	track.segments[res.segmentIndex].userData.as.idData
-					//);
+					UndoSystem::removeAnimationFromTimeline(
+						Application::getUndoSystem(),
+						track.segments[res.segmentIndex].userData.as.idData
+					);
 				}
 
 				if (res.flags & ImGuiTimelineResultFlags_DragDropPayloadHit)
 				{
 					g_logger_assert(res.dragDropPayloadDataSize == sizeof(TimelinePayload), "Invalid payload.");
 					TimelinePayload* payloadData = (TimelinePayload*)res.dragDropPayloadData;
-					//Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 60);
-					//animation.timelineTrack = res.trackIndex;
-					//AnimationManager::addAnimation(am, animation);
-					//addAnimation(animation);
 
 					UndoSystem::addNewAnimationToTimeline(
 						Application::getUndoSystem(),
@@ -301,6 +295,8 @@ namespace MathAnim
 			track.segments[track.numSegments - 1].frameStart = animation.frameStart;
 			track.segments[track.numSegments - 1].segmentName = Animation::getAnimationName(animation.type);
 			track.segments[track.numSegments - 1].userData.as.idData = animation.id;
+
+			ImGuiTimeline_SetActiveSegment(animation.timelineTrack, track.numSegments - 1);
 		}
 
 		void removeAnimation(AnimationManagerData* am, AnimId anim)

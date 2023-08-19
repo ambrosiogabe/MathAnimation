@@ -212,6 +212,28 @@ namespace MathAnim
 		Animation anim;
 	};
 
+	class RemoveAnimationFromTimelineCommand : public Command
+	{
+	public:
+		RemoveAnimationFromTimelineCommand(AnimId animToDelete)
+			: animToDelete(animToDelete), needToCreateCopy(true)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+		virtual ~RemoveAnimationFromTimelineCommand() override
+		{
+			anim.free();
+		}
+
+	private:
+		AnimId animToDelete;
+		Animation anim;
+		bool needToCreateCopy;
+	};
+
 	class ModifyBoolCommand : public Command
 	{
 	public:
@@ -736,10 +758,12 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-		//void removeAnimationFromTimeline(UndoSystemData* us, AnimId animId)
-		//{
-
-		//}
+		void removeAnimationFromTimeline(UndoSystemData* us, AnimId animId)
+		{
+			auto* newCommand = (RemoveAnimationFromTimelineCommand*)g_memory_allocate(sizeof(RemoveAnimationFromTimelineCommand));
+			new(newCommand)RemoveAnimationFromTimelineCommand(animId);
+			pushAndExecuteCommand(us, newCommand);
+		}
 
 		// ----------------------------------------
 		// Internal Implementations
@@ -923,6 +947,7 @@ namespace MathAnim
 
 		Animation deepCopy = this->anim.createDeepCopy(true);
 		AnimationManager::addAnimation(am, deepCopy);
+		InspectorPanel::setActiveAnimation(deepCopy.id);
 		Timeline::addAnimation(deepCopy);
 	}
 
@@ -932,6 +957,31 @@ namespace MathAnim
 		{
 			Timeline::removeAnimation(am, this->animCreated);
 		}
+	}
+
+	void RemoveAnimationFromTimelineCommand::execute(AnimationManagerData* const am)
+	{
+		const Animation* animToDeletePtr = AnimationManager::getAnimation(am, this->animToDelete);
+		if (!animToDeletePtr)
+		{
+			return;
+		}
+
+		if (needToCreateCopy)
+		{
+			this->anim = animToDeletePtr->createDeepCopy(true);
+			needToCreateCopy = false;
+		}
+
+		Timeline::removeAnimation(am, this->animToDelete);
+	}
+
+	void RemoveAnimationFromTimelineCommand::undo(AnimationManagerData* const am)
+	{
+		Animation deepCopy = this->anim.createDeepCopy(true);
+		AnimationManager::addAnimation(am, deepCopy);
+		InspectorPanel::setActiveAnimation(deepCopy.id);
+		Timeline::addAnimation(deepCopy);
 	}
 
 	void ModifyBoolCommand::execute(AnimationManagerData* const am)

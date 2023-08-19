@@ -443,6 +443,20 @@ namespace MathAnim
 				}
 			}
 
+			{
+				// Check if the object is queued for addition
+				if (am->queuedAddAnimations.size() > 0)
+				{
+					for (int i = 0; i < am->queuedAddAnimations.size(); i++)
+					{
+						if (am->queuedAddAnimations[i].id == anim)
+						{
+							return &am->queuedAddAnimations[i];
+						}
+					}
+				}
+			}
+
 			return nullptr;
 		}
 
