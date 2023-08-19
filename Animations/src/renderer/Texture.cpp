@@ -2,6 +2,7 @@
 #include "renderer/GLApi.h"
 #include "core/Application.h"
 #include "multithreading/GlobalThreadPool.h"
+#include "editor/panels/ErrorPopups.h"
 
 #include <stb/stb_image.h>
 
@@ -14,6 +15,7 @@ namespace MathAnim
 		Texture texture;
 		TextureLoadedCallback callback;
 		unsigned char* decodedPixels;
+		char* errorMessage;
 	};
 
 	static void bindTextureParameters(const Texture& texture);
@@ -531,6 +533,12 @@ namespace MathAnim
 			if (lazyLoad.decodedPixels == nullptr)
 			{
 				g_logger_error("STB failed to load image: '{}'\n-> STB Failure Reason: '{}'", texture.path, stbi_failure_reason());
+				const char* errorMessage = stbi_failure_reason();
+				size_t errorMessageLength = std::strlen(errorMessage);
+				lazyLoad.errorMessage = (char*)g_memory_allocate(sizeof(char) * (errorMessageLength + 1));
+				g_memory_copyMem(lazyLoad.errorMessage, (void*)errorMessage, sizeof(char) * errorMessageLength);
+				lazyLoad.errorMessage[errorMessageLength] = '\0';
+				return;
 			}
 
 			int bytesPerPixel = channels;
@@ -561,6 +569,12 @@ namespace MathAnim
 
 			if (texture.format == ByteFormat::None || lazyLoad.decodedPixels == nullptr)
 			{
+				ErrorPopups::popupTextureLoadError(lazyLoad.texture.path.string(), lazyLoad.errorMessage);
+				g_memory_free(lazyLoad.errorMessage);
+				lazyLoad.errorMessage = nullptr;
+
+				lazyLoad.~LazyLoadData();
+				g_memory_free(data);
 				return;
 			}
 
