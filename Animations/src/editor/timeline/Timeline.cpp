@@ -1,6 +1,7 @@
 #include "editor/timeline/Timeline.h"
 #include "editor/timeline/ImGuiTimeline.h"
 #include "editor/panels/InspectorPanel.h"
+#include "editor/UndoSystem.h"
 #include "core.h"
 #include "core/Application.h"
 #include "core/Serialization.hpp"
@@ -193,11 +194,43 @@ namespace MathAnim
 					addAnimation(animation);
 				}
 
+				static bool resetSegmentTime = true;
+				static int ogFrameStart = 0;
+				static int ogFrameDuration = 0;
 				if (res.flags & ImGuiTimelineResultFlags_SegmentTimeChanged)
 				{
 					const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-					int animationId = segment.userData.as.intData;
-					AnimationManager::setAnimationTime(am, animationId, segment.frameStart, segment.frameDuration);
+					AnimId animationId = segment.userData.as.idData;
+
+					if (resetSegmentTime)
+					{
+						ogFrameStart = segment.frameStart;
+						ogFrameDuration = segment.frameDuration;
+						resetSegmentTime = false;
+					}
+
+					AnimationManager::setAnimationTime(
+						am,
+						animationId,
+						segment.frameStart,
+						segment.frameDuration
+					);
+				}
+
+				if (res.flags & ImGuiTimelineResultFlags_SegmentTimeDragEnded)
+				{
+					resetSegmentTime = true;
+
+					const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
+					AnimId animationId = segment.userData.as.idData;
+					UndoSystem::setAnimationTime(
+						Application::getUndoSystem(),
+						animationId,
+						ogFrameStart,
+						ogFrameDuration,
+						segment.frameStart,
+						segment.frameDuration
+					);
 				}
 
 				if (res.flags & ImGuiTimelineResultFlags_ActiveObjectDeselected)
@@ -208,12 +241,30 @@ namespace MathAnim
 				if (res.flags & ImGuiTimelineResultFlags_ActiveObjectChanged)
 				{
 					const ImGuiTimeline_Segment& segment = tracks[res.trackIndex].segments[res.segmentIndex];
-					InspectorPanel::setActiveAnimation(segment.userData.as.intData);
+					InspectorPanel::setActiveAnimation(segment.userData.as.idData);
 				}
 			}
 
 			ImGui::End();
 			ImGui::PopStyleVar();
+		}
+
+		void updateAnimation(AnimId anim, int frameStart, int frameDuration) 
+		{
+			for (size_t i = 0; i < numTracks; i++)
+			{
+				ImGuiTimeline_Track& track = tracks[i];
+				for (size_t segI = 0; segI < track.numSegments; segI++) 
+				{
+					ImGuiTimeline_Segment& segment = track.segments[segI];
+					if (segment.userData.as.idData == anim) 
+					{
+						segment.frameStart = frameStart;
+						segment.frameDuration = frameDuration;
+						return;
+					}
+				}
+			}
 		}
 
 		void freeInstance(TimelineData& timelineData)
@@ -376,7 +427,7 @@ namespace MathAnim
 				for (int i = 0; i < track.numSegments; i++)
 				{
 					// Free all the animations and anim objects associated with this track
-					int animId = track.segments[i].userData.as.intData;
+					AnimId animId = track.segments[i].userData.as.idData;
 
 					if (animId == currentActiveAnimationId)
 					{
@@ -421,7 +472,7 @@ namespace MathAnim
 			{
 				for (int segment = 0; segment < tracks[track].numSegments; segment++)
 				{
-					int animationId = tracks[track].segments[segment].userData.as.intData;
+					AnimId animationId = tracks[track].segments[segment].userData.as.idData;
 					AnimationManager::setAnimationTrack(am, animationId, track);
 				}
 			}
@@ -449,7 +500,7 @@ namespace MathAnim
 			{
 				for (int segment = 0; segment < tracks[track].numSegments; segment++)
 				{
-					int animationId = tracks[track].segments[segment].userData.as.intData;
+					AnimId animationId = tracks[track].segments[segment].userData.as.idData;
 					AnimationManager::setAnimationTrack(am, animationId, track);
 				}
 			}
@@ -523,7 +574,7 @@ namespace MathAnim
 					{
 						tracks[track].segments[segment].frameStart = animations[i].frameStart;
 						tracks[track].segments[segment].frameDuration = animations[i].duration;
-						tracks[track].segments[segment].userData.as.ptrData = (void*)animations[i].id;
+						tracks[track].segments[segment].userData.as.idData = animations[i].id;
 						tracks[track].segments[segment].segmentName = Animation::getAnimationName(animations[i].type);
 
 						segment++;
@@ -553,17 +604,17 @@ namespace MathAnim
 			track.segments[track.numSegments - 1].frameDuration = animation.duration;
 			track.segments[track.numSegments - 1].frameStart = animation.frameStart;
 			track.segments[track.numSegments - 1].segmentName = Animation::getAnimationName(animation.type);
-			track.segments[track.numSegments - 1].userData.as.ptrData = (void*)animation.id;
+			track.segments[track.numSegments - 1].userData.as.idData = animation.id;
 		}
 
 		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex, AnimationManagerData* am)
 		{
 			// First delete it from our animations
 			ImGuiTimeline_Segment& segment = track.segments[segmentIndex];
-			AnimationManager::removeAnimation(am, segment.userData.as.intData);
+			AnimationManager::removeAnimation(am, segment.userData.as.idData);
 
 			// Unset active object if needed
-			if (segment.userData.as.intData == InspectorPanel::getActiveAnimObject())
+			if (segment.userData.as.idData == InspectorPanel::getActiveAnimObject())
 			{
 				InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
 			}

@@ -235,12 +235,11 @@ namespace MathAnim
 					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
 					if (AnimationManager::hasActiveCamera(am))
 					{
-						// TODO: Do we even need 2D cameras anymore?
-						//Renderer::pushCamera2D(&AnimationManager::getActiveCamera(am));
+						Renderer::pushCamera2D(&AnimationManager::getActiveCamera(am));
 						Renderer::pushCamera3D(&AnimationManager::getActiveCamera(am));
 						AnimationManager::render(am, deltaFrame);
 						Renderer::popCamera3D();
-						//Renderer::popCamera2D();
+						Renderer::popCamera2D();
 
 						Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
 						Renderer::renderToFramebuffer(mainFramebuffer, am, "OutputVP_Main_Framebuffer_Pass");
@@ -341,12 +340,11 @@ namespace MathAnim
 			//       Like no hard coded image path here and hard coded number of components
 			if (AnimationManager::hasActiveCamera(am))
 			{
-				// TODO: Do we even need 2D cameras anymore?
-				//Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am));
+				Renderer::pushCamera2D(&AnimationManager::getActiveCamera(am));
 				Renderer::pushCamera3D(&AnimationManager::getActiveCamera(am));
 				AnimationManager::render(am, 0);
 				Renderer::popCamera3D();
-				//Renderer::popCamera2D();
+				Renderer::popCamera2D();
 
 				Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
 				Renderer::renderToFramebuffer(mainFramebuffer, am, "AppClosing_Screenshot");
@@ -564,6 +562,8 @@ namespace MathAnim
 		void loadScene(const std::string& sceneName)
 		{
 			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
+			g_logger_log("Loading scene: {}", filepath);
+
 			if (!Platform::fileExists(filepath.c_str()))
 			{
 				// Check if a legacy project exists and try to load that, if loading fails

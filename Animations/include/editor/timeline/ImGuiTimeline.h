@@ -16,18 +16,19 @@ namespace MathAnim
 	typedef int ImGuiTimelineResultFlags;
 	enum _ImGuiTimelineResultFlags
 	{
-		ImGuiTimelineResultFlags_None                = 0x0,
-		ImGuiTimelineResultFlags_FirstFrameChanged   = 1,
-		ImGuiTimelineResultFlags_CurrentFrameChanged = ImGuiTimelineResultFlags_FirstFrameChanged << 1,
-		ImGuiTimelineResultFlags_AddTrackClicked     = ImGuiTimelineResultFlags_CurrentFrameChanged << 1,
-		ImGuiTimelineResultFlags_DeleteTrackClicked  = ImGuiTimelineResultFlags_AddTrackClicked << 1,
-		ImGuiTimelineResultFlags_SegmentTimeChanged  = ImGuiTimelineResultFlags_DeleteTrackClicked << 1,
-		ImGuiTimelineResultFlags_SegmentTrackChanged = ImGuiTimelineResultFlags_SegmentTimeChanged << 1,
-		ImGuiTimelineResultFlags_ActiveObjectChanged = ImGuiTimelineResultFlags_SegmentTrackChanged << 1,
-		ImGuiTimelineResultFlags_DragDropPayloadHit  = ImGuiTimelineResultFlags_ActiveObjectChanged << 1,
-		ImGuiTimelineResultFlags_DeleteActiveObject  = ImGuiTimelineResultFlags_DragDropPayloadHit << 1,
-		ImGuiTimelineResultFlags_AddAudioSource      = ImGuiTimelineResultFlags_DeleteActiveObject << 1,
-		ImGuiTimelineResultFlags_DeleteAudioSource   = ImGuiTimelineResultFlags_AddAudioSource << 1,
+		ImGuiTimelineResultFlags_None                   = 0x0,
+		ImGuiTimelineResultFlags_FirstFrameChanged      = 1,
+		ImGuiTimelineResultFlags_CurrentFrameChanged    = ImGuiTimelineResultFlags_FirstFrameChanged << 1,
+		ImGuiTimelineResultFlags_AddTrackClicked        = ImGuiTimelineResultFlags_CurrentFrameChanged << 1,
+		ImGuiTimelineResultFlags_DeleteTrackClicked     = ImGuiTimelineResultFlags_AddTrackClicked << 1,
+		ImGuiTimelineResultFlags_SegmentTimeChanged     = ImGuiTimelineResultFlags_DeleteTrackClicked << 1,
+		ImGuiTimelineResultFlags_SegmentTimeDragEnded   = ImGuiTimelineResultFlags_SegmentTimeChanged << 1,
+		ImGuiTimelineResultFlags_SegmentTrackChanged    = ImGuiTimelineResultFlags_SegmentTimeDragEnded << 1,
+		ImGuiTimelineResultFlags_ActiveObjectChanged    = ImGuiTimelineResultFlags_SegmentTrackChanged << 1,
+		ImGuiTimelineResultFlags_DragDropPayloadHit     = ImGuiTimelineResultFlags_ActiveObjectChanged << 1,
+		ImGuiTimelineResultFlags_DeleteActiveObject     = ImGuiTimelineResultFlags_DragDropPayloadHit << 1,
+		ImGuiTimelineResultFlags_AddAudioSource         = ImGuiTimelineResultFlags_DeleteActiveObject << 1,
+		ImGuiTimelineResultFlags_DeleteAudioSource      = ImGuiTimelineResultFlags_AddAudioSource << 1,
 		ImGuiTimelineResultFlags_ActiveObjectDeselected = ImGuiTimelineResultFlags_DeleteAudioSource << 1
 	};
 
@@ -52,6 +53,7 @@ namespace MathAnim
 			{
 				void* ptrData;
 				int intData;
+				AnimId idData;
 			} as;
 		} userData;
 	};

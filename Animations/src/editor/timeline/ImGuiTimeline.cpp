@@ -13,13 +13,16 @@ enum class DragState : uint8
 	None,
 	Hover,
 	Active,
+	Finished
 };
 
 enum class SegmentChangeType : uint8
 {
 	None,
 	Resized,
-	Moved
+	FinishedResize,
+	Moved,
+	FinishedMove
 };
 
 enum class ResizeFlags : uint8
@@ -494,7 +497,9 @@ namespace MathAnim
 							// ------------ End Magnet handling stuff ------------
 
 							g_logger_assert(res.segmentIndex == -1, "Invalid result. User somehow modified two segments at once.");
-							res.flags |= ImGuiTimelineResultFlags_SegmentTimeChanged;
+							res.flags |= changeType == SegmentChangeType::Moved || changeType == SegmentChangeType::Resized
+								? ImGuiTimelineResultFlags_SegmentTimeChanged
+								: ImGuiTimelineResultFlags_SegmentTimeDragEnded;
 							res.segmentIndex = si;
 							res.trackIndex = i;
 							if (activeSegmentID != segmentID)
@@ -1198,12 +1203,14 @@ namespace MathAnim
 					ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
 				}
 
-				if (dragState == DragState::Active)
+				if (dragState == DragState::Active || dragState == DragState::Finished)
 				{
 					segment->frameStart = ogFrameStart + frameChange;
 					segment->frameStart = glm::max(segment->frameStart, 0);
 					changed = true;
-					*changeType = SegmentChangeType::Moved;
+					*changeType = dragState == DragState::Active 
+						? SegmentChangeType::Moved
+						: SegmentChangeType::FinishedMove;
 				}
 			}
 			// Handle left/right resize cursors
@@ -1215,7 +1222,7 @@ namespace MathAnim
 					ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 				}
 
-				if (leftResizeState == DragState::Active)
+				if (leftResizeState == DragState::Active || leftResizeState == DragState::Finished)
 				{
 					segment->frameStart = ogFrameStart + frameChange;
 					segment->frameDuration = ogFrameDuration - frameChange;
@@ -1232,10 +1239,12 @@ namespace MathAnim
 					}
 
 					changed = true;
-					*changeType = SegmentChangeType::Resized;
+					*changeType = leftResizeState == DragState::Active
+						? SegmentChangeType::Resized
+						: SegmentChangeType::FinishedResize;
 				}
 
-				if (rightResizeState == DragState::Active)
+				if (rightResizeState == DragState::Active || rightResizeState == DragState::Finished)
 				{
 					segment->frameDuration = ogFrameDuration + frameChange;
 
@@ -1245,7 +1254,9 @@ namespace MathAnim
 					}
 
 					changed = true;
-					*changeType = SegmentChangeType::Resized;
+					*changeType = rightResizeState == DragState::Active
+						? SegmentChangeType::Resized
+						: SegmentChangeType::FinishedResize;
 				}
 			}
 		}
@@ -1310,9 +1321,15 @@ namespace MathAnim
 			changed = true;
 		}
 
-		if (*state == DragState::Active && !ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
+		if (*state == DragState::Finished && !ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
 		{
 			*state = DragState::None;
+			changed = false;
+		}
+
+		if (*state == DragState::Active && !ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
+		{
+			*state = DragState::Finished;
 			changed = true;
 		}
 

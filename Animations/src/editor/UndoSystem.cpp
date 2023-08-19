@@ -3,6 +3,7 @@
 #include "editor/panels/ErrorPopups.h"
 #include "editor/panels/InspectorPanel.h"
 #include "editor/panels/SceneHierarchyPanel.h"
+#include "editor/timeline/Timeline.h"
 #include "animation/AnimationManager.h"
 #include "animation/Animation.h"
 #include "renderer/Fonts.h"
@@ -161,6 +162,26 @@ namespace MathAnim
 		AnimObjId objToDelete;
 		std::vector<AnimObject> parentAndChildren;
 		std::unordered_map<AnimObjId, std::vector<AnimId>> correlatedAnimations;
+	};
+
+	class SetAnimationTimeCommand : public Command
+	{
+	public:
+		SetAnimationTimeCommand(AnimId anim, int oldFrameStart, int oldFrameDuration, int newFrameStart, int newFrameDuration)
+			: anim(anim), oldFrameStart(oldFrameStart), oldFrameDuration(oldFrameDuration), newFrameStart(newFrameStart),
+			newFrameDuration(newFrameDuration)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+	private:
+		AnimId anim;
+		int oldFrameStart;
+		int oldFrameDuration;
+		int newFrameStart;
+		int newFrameDuration;
 	};
 
 	class ModifyBoolCommand : public Command
@@ -646,8 +667,6 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-#pragma warning( push )
-#pragma warning( disable : 4100 )
 		void addNewObjToScene(UndoSystemData* us, int animObjType)
 		{
 			assertEnumInRange<AnimObjectTypeV1>(animObjType);
@@ -664,7 +683,20 @@ namespace MathAnim
 			new(newCommand)RemoveObjectFromSceneCommand(objId);
 			pushAndExecuteCommand(us, newCommand);
 		}
-#pragma warning( pop )
+
+		void setAnimationTime(UndoSystemData* us, AnimId id, int oldFrameStart, int oldFrameDuration, int newFrameStart, int newFrameDuration)
+		{
+			const Animation* anim = AnimationManager::getAnimation(us->am, id);
+			if (anim)
+			{
+				if (oldFrameStart != newFrameStart || newFrameDuration != oldFrameDuration)
+				{
+					auto* newCommand = (SetAnimationTimeCommand*)g_memory_allocate(sizeof(SetAnimationTimeCommand));
+					new(newCommand)SetAnimationTimeCommand(id, oldFrameStart, oldFrameDuration, newFrameStart, newFrameDuration);
+					pushAndExecuteCommand(us, newCommand);
+				}
+			}
+		}
 
 		// ----------------------------------------
 		// Internal Implementations
@@ -773,10 +805,10 @@ namespace MathAnim
 		{
 			constexpr bool keepOriginalIds = true;
 			parentAndChildren = objToDeletePtr->createDeepCopyWithChildren(am, *objToDeletePtr, keepOriginalIds);
-			
+
 			// NOTE: Find any correlated animations that we need to reassign this anim object to if this action is
 			// undone.
-			for (const auto& obj : parentAndChildren) 
+			for (const auto& obj : parentAndChildren)
 			{
 				std::vector<AnimId> anims = AnimationManager::getAssociatedAnimations(am, obj.id);
 				if (anims.size() > 0)
@@ -815,6 +847,28 @@ namespace MathAnim
 		}
 
 		InspectorPanel::setActiveAnimObject(am, objToDelete);
+	}
+
+	void SetAnimationTimeCommand::execute(AnimationManagerData* const am)
+	{
+		AnimationManager::setAnimationTime(
+			am,
+			this->anim,
+			this->newFrameStart,
+			this->newFrameDuration
+		);
+		Timeline::updateAnimation(this->anim, this->newFrameStart, this->newFrameDuration);
+	}
+
+	void SetAnimationTimeCommand::undo(AnimationManagerData* const am)
+	{
+		AnimationManager::setAnimationTime(
+			am,
+			this->anim,
+			this->oldFrameStart,
+			this->oldFrameDuration
+		);
+		Timeline::updateAnimation(this->anim, this->oldFrameStart, this->oldFrameDuration);
 	}
 
 	void ModifyBoolCommand::execute(AnimationManagerData* const am)
