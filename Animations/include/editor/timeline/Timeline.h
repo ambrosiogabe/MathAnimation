@@ -29,6 +29,8 @@ namespace MathAnim
 
 		void update(TimelineData& data, AnimationManagerData* am);
 		void updateAnimation(AnimId anim, int frameStart, int frameDuration);
+		void addAnimation(const Animation& animation);
+		void removeAnimation(AnimationManagerData* am, AnimId anim);
 
 		void freeInstance(TimelineData& data);
 		void free(AnimationManagerData* am);

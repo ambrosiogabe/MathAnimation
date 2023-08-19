@@ -177,6 +177,8 @@ namespace MathAnim
 		void removeObjFromScene(UndoSystemData* us, AnimObjId objId);
 
 		void setAnimationTime(UndoSystemData* us, AnimId id, int oldFrameStart, int oldFrameDuration, int newFrameStart, int newFrameDuration);
+		void addNewAnimationToTimeline(UndoSystemData* us, int animType, int frameStart, int frameDuration, int trackIndex);
+		void removeAnimationFromTimeline(UndoSystemData* us, AnimId animId);
 	}
 }
 

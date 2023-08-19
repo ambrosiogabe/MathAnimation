@@ -922,8 +922,7 @@ namespace MathAnim
 	Animation Animation::createDefault(AnimTypeV1 type, int32 frameStart, int32 duration)
 	{
 		Animation res;
-		res.id = animationUidCounter++;
-		g_logger_assert(animationUidCounter < UINT64_MAX, "Somehow our UID counter reached {}. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 65'000 animations in the scene.", UINT64_MAX);
+		res.id = getNextUid();
 		res.frameStart = frameStart;
 		res.duration = duration;
 		res.animObjectIds.clear();
@@ -2494,10 +2493,35 @@ namespace MathAnim
 		return res;
 	}
 
+	Animation Animation::createDeepCopy(bool keepOriginalId) const
+	{
+		// TODO: Do some performance checking on this. I have a feeling it will be slow, but 
+		//       double check this if copy/paste becomes laggy.
+		nlohmann::json j = {};
+		this->serialize(j);
+		Animation res = Animation::deserialize(j, SERIALIZER_VERSION_MAJOR);
+		if (keepOriginalId)
+		{
+			res.id = this->id;
+		}
+		else
+		{
+			res.id = getNextUid();
+		}
+		return res;
+	}
+
 	AnimObjId AnimObject::getNextUid()
 	{
 		AnimObjId res = animObjectUidCounter++;
 		g_logger_assert(animObjectUidCounter < UINT64_MAX, "Somehow our UID counter reached '{}'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", UINT64_MAX);
+		return res;
+	}
+
+	AnimId Animation::getNextUid()
+	{
+		AnimId res = animationUidCounter++;
+		g_logger_assert(animationUidCounter < UINT64_MAX, "Somehow our UID counter reached '{}'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually bazillion animations in the scene.", UINT64_MAX);
 		return res;
 	}
 

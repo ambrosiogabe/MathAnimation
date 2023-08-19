@@ -35,7 +35,6 @@ namespace MathAnim
 		static void deleteTrack(AnimationManagerData* am, int index);
 
 		static void setupImGuiTimelineDataFromAnimations(AnimationManagerData* am, int numTracksToCreate = INT32_MAX);
-		static void addAnimation(const Animation& animation);
 		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex, AnimationManagerData* am);
 
 		TimelineData initInstance()
@@ -182,16 +181,29 @@ namespace MathAnim
 				{
 					ImGuiTimeline_Track& track = tracks[res.trackIndex];
 					deleteSegment(track, res.segmentIndex, am);
+
+					//UndoSystem::removeAnimationFromTimeline(
+					//	Application::getUndoSystem(),
+					//	track.segments[res.segmentIndex].userData.as.idData
+					//);
 				}
 
 				if (res.flags & ImGuiTimelineResultFlags_DragDropPayloadHit)
 				{
 					g_logger_assert(res.dragDropPayloadDataSize == sizeof(TimelinePayload), "Invalid payload.");
 					TimelinePayload* payloadData = (TimelinePayload*)res.dragDropPayloadData;
-					Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 30);
-					animation.timelineTrack = res.trackIndex;
-					AnimationManager::addAnimation(am, animation);
-					addAnimation(animation);
+					//Animation animation = Animation::createDefault(payloadData->animType, res.dragDropPayloadFirstFrame, 60);
+					//animation.timelineTrack = res.trackIndex;
+					//AnimationManager::addAnimation(am, animation);
+					//addAnimation(animation);
+
+					UndoSystem::addNewAnimationToTimeline(
+						Application::getUndoSystem(),
+						(int)payloadData->animType,
+						res.dragDropPayloadFirstFrame,
+						60 * 1,
+						res.trackIndex
+					);
 				}
 
 				static bool resetSegmentTime = true;
@@ -261,6 +273,47 @@ namespace MathAnim
 					{
 						segment.frameStart = frameStart;
 						segment.frameDuration = frameDuration;
+						return;
+					}
+				}
+			}
+		}
+
+		void addAnimation(const Animation& animation)
+		{
+			g_logger_assert(animation.timelineTrack < numTracks, "This shouldn't be happening");
+
+			ImGuiTimeline_Track& track = tracks[animation.timelineTrack];
+
+			track.numSegments++;
+			if (track.segments != nullptr)
+			{
+				track.segments = (ImGuiTimeline_Segment*)g_memory_realloc(track.segments, sizeof(ImGuiTimeline_Segment) * track.numSegments);
+			}
+			else
+			{
+				g_logger_assert(track.numSegments == 1, "Should not have had null segments if there was a non-zero number of segments.");
+				track.segments = (ImGuiTimeline_Segment*)g_memory_allocate(sizeof(ImGuiTimeline_Segment) * track.numSegments);
+			}
+			g_logger_assert(track.segments != nullptr, "Ran out of RAM.");
+
+			track.segments[track.numSegments - 1].frameDuration = animation.duration;
+			track.segments[track.numSegments - 1].frameStart = animation.frameStart;
+			track.segments[track.numSegments - 1].segmentName = Animation::getAnimationName(animation.type);
+			track.segments[track.numSegments - 1].userData.as.idData = animation.id;
+		}
+
+		void removeAnimation(AnimationManagerData* am, AnimId anim)
+		{
+			for (int i = 0; i < numTracks; i++)
+			{
+				ImGuiTimeline_Track& track = tracks[i];
+				for (int segI = 0; segI < track.numSegments; segI++)
+				{
+					ImGuiTimeline_Segment& segment = track.segments[segI];
+					if (segment.userData.as.idData == anim)
+					{
+						deleteSegment(track, segI, am);
 						return;
 					}
 				}
@@ -583,31 +636,7 @@ namespace MathAnim
 			}
 		}
 
-		static void addAnimation(const Animation& animation)
-		{
-			g_logger_assert(animation.timelineTrack < numTracks, "This shouldn't be happening");
-
-			ImGuiTimeline_Track& track = tracks[animation.timelineTrack];
-
-			track.numSegments++;
-			if (track.segments != nullptr)
-			{
-				track.segments = (ImGuiTimeline_Segment*)g_memory_realloc(track.segments, sizeof(ImGuiTimeline_Segment) * track.numSegments);
-			}
-			else
-			{
-				g_logger_assert(track.numSegments == 1, "Should not have had null segments if there was a non-zero number of segments.");
-				track.segments = (ImGuiTimeline_Segment*)g_memory_allocate(sizeof(ImGuiTimeline_Segment) * track.numSegments);
-			}
-			g_logger_assert(track.segments != nullptr, "Ran out of RAM.");
-
-			track.segments[track.numSegments - 1].frameDuration = animation.duration;
-			track.segments[track.numSegments - 1].frameStart = animation.frameStart;
-			track.segments[track.numSegments - 1].segmentName = Animation::getAnimationName(animation.type);
-			track.segments[track.numSegments - 1].userData.as.idData = animation.id;
-		}
-
-		static void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex, AnimationManagerData* am)
+		void deleteSegment(ImGuiTimeline_Track& track, int segmentIndex, AnimationManagerData* am)
 		{
 			// First delete it from our animations
 			ImGuiTimeline_Segment& segment = track.segments[segmentIndex];

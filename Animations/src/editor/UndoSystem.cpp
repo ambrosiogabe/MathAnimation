@@ -184,6 +184,34 @@ namespace MathAnim
 		int newFrameDuration;
 	};
 
+	class AddAnimationToTimelineCommand : public Command
+	{
+	public:
+		AddAnimationToTimelineCommand(AnimTypeV1 type, int frameStart, int frameDuration, int trackIndex)
+			: type(type), frameStart(frameStart), frameDuration(frameDuration), animCreated(NULL_ANIM), trackIndex(trackIndex)
+		{
+		}
+
+		virtual void execute(AnimationManagerData* const am) override;
+		virtual void undo(AnimationManagerData* const am) override;
+
+		virtual ~AddAnimationToTimelineCommand() override
+		{
+			if (!isNull(animCreated))
+			{
+				anim.free();
+			}
+		}
+
+	private:
+		AnimTypeV1 type;
+		int frameStart;
+		int frameDuration;
+		int trackIndex;
+		AnimObjId animCreated;
+		Animation anim;
+	};
+
 	class ModifyBoolCommand : public Command
 	{
 	public:
@@ -698,6 +726,21 @@ namespace MathAnim
 			}
 		}
 
+		void addNewAnimationToTimeline(UndoSystemData* us, int animType, int frameStart, int frameDuration, int trackIndex)
+		{
+			assertEnumInRange<AnimTypeV1>(animType);
+			g_logger_assert((AnimTypeV1)animType != AnimTypeV1::None, "Cannot create Animation of type 'None'");
+
+			auto* newCommand = (AddAnimationToTimelineCommand*)g_memory_allocate(sizeof(AddAnimationToTimelineCommand));
+			new(newCommand)AddAnimationToTimelineCommand((AnimTypeV1)animType, frameStart, frameDuration, trackIndex);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
+		//void removeAnimationFromTimeline(UndoSystemData* us, AnimId animId)
+		//{
+
+		//}
+
 		// ----------------------------------------
 		// Internal Implementations
 		// ----------------------------------------
@@ -770,9 +813,7 @@ namespace MathAnim
 			this->objCreated = animObj.id;
 		}
 
-		AnimObject deepCopy = this->animObj.createDeepCopy();
-		// NOTE: This is safe because we know that only this object will ever have this ID
-		deepCopy.id = this->animObj.id;
+		AnimObject deepCopy = this->animObj.createDeepCopy(true);
 		AnimationManager::addAnimObject(am, deepCopy);
 		SceneHierarchyPanel::addNewAnimObject(deepCopy);
 
@@ -869,6 +910,28 @@ namespace MathAnim
 			this->oldFrameDuration
 		);
 		Timeline::updateAnimation(this->anim, this->oldFrameStart, this->oldFrameDuration);
+	}
+
+	void AddAnimationToTimelineCommand::execute(AnimationManagerData* const am)
+	{
+		if (this->animCreated == NULL_ANIM)
+		{
+			this->anim = Animation::createDefault(type, frameStart, frameDuration);
+			this->anim.timelineTrack = this->trackIndex;
+			this->animCreated = anim.id;
+		}
+
+		Animation deepCopy = this->anim.createDeepCopy(true);
+		AnimationManager::addAnimation(am, deepCopy);
+		Timeline::addAnimation(deepCopy);
+	}
+
+	void AddAnimationToTimelineCommand::undo(AnimationManagerData* const am)
+	{
+		if (!isNull(this->animCreated))
+		{
+			Timeline::removeAnimation(am, this->animCreated);
+		}
 	}
 
 	void ModifyBoolCommand::execute(AnimationManagerData* const am)

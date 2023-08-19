@@ -308,6 +308,17 @@ namespace MathAnim
 		void calculateKeyframes(AnimationManagerData* am);
 		void calculateKeyframesForObj(AnimationManagerData* am, AnimObjId animObj);
 
+		/**
+		 * @brief EXPENSIVE. This should not be run often. It creates a deep copy of `this` and returns
+		 *        a copy of the animation.
+		 *
+		 * @param keepOriginalId This means that the copy will maintain the original ID if it's true. If it's false,
+		 *                       it will generate a new ID.
+		 * @return A deep copy of `animation`
+		*/
+		Animation createDeepCopy(bool keepOriginalId = false) const;
+		static AnimId getNextUid();
+
 		// Render the gizmo with relation to this object
 		void onGizmo(const AnimObject* obj);
 		// Render the gizmo for this animation with no relation to it's child objects
@@ -535,6 +546,8 @@ namespace MathAnim
 		 *        a copy of the parent object and all the children in breadth-first traversal order.
 		 * 
 		 * @param from The object to copy from.
+		 * @param keepOriginalId This means that the copy will maintain the original ID if it's true. If it's false,
+		 *                       it will generate a new ID.
 		 * @return A deep copy of `from` and all its children in breadth-first traversal order
 		*/
 		static std::vector<AnimObject> createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from, bool keepOriginalIds = false);
