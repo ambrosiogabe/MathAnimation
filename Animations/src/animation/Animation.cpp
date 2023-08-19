@@ -1373,10 +1373,11 @@ namespace MathAnim
 
 			if (res.editState == EditState::FinishedEditing)
 			{
+				glm::vec4 ogLocal = inverseParentTransform * glm::vec4(CMath::convert(res.ogData), 1.0f);
 				UndoSystem::setVec3Prop(
 					Application::getUndoSystem(),
 					this->id,
-					res.ogData,
+					Vec3{ ogLocal.x, ogLocal.y, ogLocal.z },
 					this->_positionStart,
 					Vec3PropType::Position
 				);
