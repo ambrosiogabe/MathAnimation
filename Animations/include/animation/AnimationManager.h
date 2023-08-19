@@ -47,12 +47,9 @@ namespace MathAnim
 		int lastAnimatedFrame(const AnimationManagerData* am);
 		bool isPastLastFrame(const AnimationManagerData* am);
 
-		const Camera& getActiveCamera2D(const AnimationManagerData* am);
-		const Camera& getActiveCamera3D(const AnimationManagerData* am);
-		bool hasActive2DCamera(const AnimationManagerData* am);
-		bool hasActive3DCamera(const AnimationManagerData* am);
-		void setActiveCamera2D(AnimationManagerData* am, AnimObjId cameraObj);
-		void setActiveCamera3D(AnimationManagerData* am, AnimObjId cameraObj);
+		const Camera& getActiveCamera(const AnimationManagerData* am);
+		bool hasActiveCamera(const AnimationManagerData* am);
+		void setActiveCamera(AnimationManagerData* am, AnimObjId cameraObj);
 		void calculateCameraMatrices(AnimationManagerData* am);
 
 		// NOTE: This function is slow, only use this as a backup if getObject fails

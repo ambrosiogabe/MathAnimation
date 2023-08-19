@@ -28,6 +28,12 @@ namespace MathAnim
 		}
 	};
 
+	struct StringView
+	{
+		size_t offset;
+		size_t length;
+	};
+
 	// Internal Variables
 	static auto mAllShaderVariableLocations = std::unordered_map<ShaderVariable, GLint, hashShaderVar>();
 
@@ -48,14 +54,12 @@ namespace MathAnim
 			return;
 		}
 
-		compileRaw(fileSource.c_str());
+		compileRaw(fileSource);
 	}
 
-	void Shader::compileRaw(const char* rawSource)
+	void Shader::compileRaw(const std::string& fileSource)
 	{
-		std::string fileSource = std::string(rawSource);
-
-		std::unordered_map<GLenum, std::string> shaderSources;
+		std::unordered_map<GLenum, StringView> shaderSources;
 
 		const char* typeToken = "#type";
 		size_t typeTokenLength = strlen(typeToken);
@@ -70,7 +74,11 @@ namespace MathAnim
 
 			size_t nextLinePos = fileSource.find_first_not_of("\r\n", eol);
 			pos = fileSource.find(typeToken, nextLinePos);
-			shaderSources[ShaderTypeFromString(type)] = fileSource.substr(nextLinePos, pos - (nextLinePos == std::string::npos ? fileSource.size() - 1 : nextLinePos));
+			
+			shaderSources[ShaderTypeFromString(type)] = {
+				nextLinePos, 
+				pos - (nextLinePos == std::string::npos ? fileSource.size() - 1 : nextLinePos)
+			};
 		}
 
 		GLuint program = GL::createProgram();
@@ -81,15 +89,14 @@ namespace MathAnim
 		for (auto& kv : shaderSources)
 		{
 			GLenum shaderType = kv.first;
-			const std::string& source = kv.second;
 
 			// Create an empty vertex shader handle
 			GLuint shader = GL::createShader(shaderType);
 
 			// Send the vertex shader source code to GL
-			// Note that std::string's .c_str is NULL character terminated.
-			const GLchar* sourceCStr = source.c_str();
-			GL::shaderSource(shader, 1, &sourceCStr, 0);
+			const GLchar* sourceCStr = fileSource.data() + kv.second.offset;
+			GLint sourceLengths[1] = { (GLint)kv.second.length };
+			GL::shaderSource(shader, 1, &sourceCStr, sourceLengths);
 
 			// Compile the vertex shader
 			GL::compileShader(shader);

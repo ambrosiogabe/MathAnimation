@@ -12,6 +12,7 @@
 #include "multithreading/GlobalThreadPool.h"
 #include "math/CMath.h"
 #include "platform/Platform.h" 
+#include "utils/base64.h"
 
 #include <plutovg.h>
 #include <nlohmann/json.hpp>
@@ -1148,6 +1149,7 @@ namespace MathAnim
 	static void fillWithPluto(plutovg_t* pluto, float scale, const SvgObject* obj);
 	static void renderOutline2D(float t, const AnimObject* parent, const SvgObject* obj);
 	static void writeBuffer(uint8** buffer, size_t* capacity, size_t* numElements, const char* string, size_t stringLength = 0);
+	static void writeBufferBin(uint8** buffer, size_t* capacity, size_t* numElements, const uint8* data, size_t numBytes);
 	static void growBufferIfNeeded(uint8** buffer, size_t* capacity, size_t numElements, size_t numElementsToAdd);
 
 	void SvgObject::normalize()
@@ -1465,11 +1467,9 @@ namespace MathAnim
 		}
 	}
 
-	void SvgObject::calculateMd5()
+	void SvgObject::calculateMd5(const RawMemory& b64Path)
 	{
-		std::string pathAsStr = getPathAsString();
-		std::string md5Str = Platform::md5FromString(pathAsStr);
-
+		std::string md5Str = Platform::md5FromString((const char*)b64Path.data, b64Path.size - 1);
 		md5Length = md5Str.length();
 		md5 = (uint8*)g_memory_allocate(sizeof(uint8) * (md5Length + 1));
 		g_memory_copyMem(md5, (void*)md5Str.c_str(), sizeof(uint8) * md5Length);
@@ -1480,7 +1480,28 @@ namespace MathAnim
 	{
 		this->calculateApproximatePerimeter();
 		this->calculateBBox();
-		this->calculateMd5();
+		RawMemory b64String = getPathAsBinaryString();
+		this->calculateMd5(b64String);
+		b64String.free();
+	}
+
+	void SvgObject::finalizeWithB64(const RawMemory& b64Path)
+	{
+		this->calculateApproximatePerimeter();
+		this->calculateBBox();
+		this->calculateMd5(b64Path);
+	}
+
+	void SvgObject::finalizeWithB64(const std::string& b64String) 
+	{
+		this->calculateApproximatePerimeter();
+		this->calculateBBox();
+
+		RawMemory fakeMemory = {};
+		fakeMemory.data = (uint8*)b64String.c_str();
+		fakeMemory.size = b64String.length() + 1;
+		this->calculateMd5(fakeMemory);
+
 	}
 
 	std::string SvgObject::getPathAsString() const
@@ -1559,6 +1580,87 @@ namespace MathAnim
 		std::string pathAsString = std::string((char*)buffer, numElements);
 		g_memory_free(buffer);
 		return pathAsString;
+	}
+
+	RawMemory SvgObject::getPathAsBinaryString() const
+	{
+		size_t numElements = 0;
+		// Have initial capacity set to 10KB to reduce realloc calls
+		size_t capacity = 1'024 * 10;
+		uint8* buffer = (uint8*)g_memory_allocate(sizeof(uint8) * capacity);
+		constexpr size_t tmpBufferSize = 256;
+		char tmpBuffer[tmpBufferSize];
+		tmpBuffer[0] = '\0';
+
+		for (int pathi = 0; pathi < numPaths; pathi++)
+		{
+			// Move to the first path point
+			Path& path = paths[pathi];
+			if (path.numCurves > 0)
+			{
+				constexpr auto pathType = BinaryPathCommandType::MoveTo;
+				writeBufferBin(&buffer, &capacity, &numElements, (uint8*)&pathType, sizeof(BinaryPathCommandType));
+				const int32 p0AsInt[2] = {
+					(int32)(path.curves[0].p0.x * 1e6),
+					(int32)(path.curves[0].p0.y * 1e6)
+				};
+				writeBufferBin(&buffer, &capacity, &numElements, (uint8*)p0AsInt, sizeof(p0AsInt));
+			}
+
+			for (int curvei = 0; curvei < path.numCurves; curvei++)
+			{
+				Curve& curve = path.curves[curvei];
+				switch (curve.type)
+				{
+				case CurveType::Line:
+				{
+					constexpr auto pathType = BinaryPathCommandType::LineTo;
+					writeBufferBin(&buffer, &capacity, &numElements, (uint8*)&pathType, sizeof(BinaryPathCommandType));
+					const int32 p1AsInt[2] = {
+						(int32)(curve.as.line.p1.x * 1e6),
+						(int32)(curve.as.line.p1.y * 1e6)
+					};
+					writeBufferBin(&buffer, &capacity, &numElements, (uint8*)p1AsInt, sizeof(p1AsInt));
+				}
+				break;
+				case CurveType::Bezier2:
+				{
+					constexpr auto pathType = BinaryPathCommandType::QuadTo;
+					writeBufferBin(&buffer, &capacity, &numElements, (uint8*)&pathType, sizeof(BinaryPathCommandType));
+					const int32 p1AndP2AsInt[4] = {
+						(int32)(curve.as.bezier2.p1.x * 1e6),
+						(int32)(curve.as.bezier2.p1.y * 1e6),
+						(int32)(curve.as.bezier2.p2.x * 1e6),
+						(int32)(curve.as.bezier2.p2.y * 1e6)
+					};
+					writeBufferBin(&buffer, &capacity, &numElements, (uint8*)p1AndP2AsInt, sizeof(p1AndP2AsInt));
+				}
+				break;
+				case CurveType::Bezier3:
+				{
+					constexpr auto pathType = BinaryPathCommandType::CurveTo;
+					writeBufferBin(&buffer, &capacity, &numElements, (uint8*)&pathType, sizeof(BinaryPathCommandType));
+					const int32 p1AndP2AsInt[6] = {
+						(int32)(curve.as.bezier3.p1.x * 1e6),
+						(int32)(curve.as.bezier3.p1.y * 1e6),
+						(int32)(curve.as.bezier3.p2.x * 1e6),
+						(int32)(curve.as.bezier3.p2.y * 1e6),
+						(int32)(curve.as.bezier3.p3.x * 1e6),
+						(int32)(curve.as.bezier3.p3.y * 1e6)
+					};
+					writeBufferBin(&buffer, &capacity, &numElements, (uint8*)p1AndP2AsInt, sizeof(p1AndP2AsInt));
+				}
+				break;
+				case CurveType::None:
+					break;
+				}
+			}
+		}
+
+		RawMemory pathAsRawMemoryString = Base64::encode(buffer, numElements);
+		g_memory_free(buffer);
+
+		return pathAsRawMemoryString;
 	}
 
 	float SvgObject::calculateSvgScale(float targetWidth) const
@@ -1662,7 +1764,10 @@ namespace MathAnim
 		SERIALIZE_ENUM(memory, this, fillType, _fillTypeNames);
 		// TODO: This is not type-checked. Add 'path' as a property to SVGs or 
 		// a filepath or something to make this type-safe
-		SERIALIZE_VALUE_INLINE(memory, path, getPathAsString());
+		RawMemory binStringMemory = getPathAsBinaryString();
+		std::string binString = std::string((const char*)binStringMemory.data, (binStringMemory.size - 1));
+		SERIALIZE_VALUE_INLINE(memory, binPath, binString);
+		binStringMemory.free();
 	}
 
 	SvgObject* SvgObject::deserialize(const nlohmann::json& j, uint32 version)
@@ -1676,20 +1781,39 @@ namespace MathAnim
 
 			DESERIALIZE_ENUM(res, fillType, _fillTypeNames, FillType, j);
 			DESERIALIZE_VEC4(res, fillColor, j, "#e303fc"_hex);
-			const std::string& pathStr = DESERIALIZE_VALUE_INLINE(j, path, "");
 
-			if (pathStr.size() > 0)
+			// Try to parse binary base64 encoded path string first if possible
+			const std::string& binPathStr = DESERIALIZE_VALUE_INLINE(j, binPath, "");
+			if (binPathStr.size() > 0)
 			{
-				if (!SvgParser::parseSvgPath((const char*)pathStr.c_str(), pathStr.length(), res))
+				if (SvgParser::parseB64BinSvgPath(binPathStr, res))
 				{
-					g_logger_error("Error deserializing SVG. Bad path data: '{}'", pathStr);
+					return res;
 				}
+
+				g_logger_error("Error deserializing SVG. Bad binary path data.");
 			}
 			else
 			{
-				*res = Svg::createDefault();
+				// If the base64 string doesn't exist, try to parse the path as a string if it exists
+				const std::string& pathStr = DESERIALIZE_VALUE_INLINE(j, path, "");
+
+				if (pathStr.size() > 0)
+				{
+					if (SvgParser::parseSvgPath((const char*)pathStr.c_str(), pathStr.length(), res))
+					{
+						return res;
+					}
+
+					g_logger_error("Error deserializing SVG. Bad path data: '{}'", pathStr);
+				}
+				else
+				{
+					g_logger_warning("Path string was empty while deserializing svg path.");
+				}
 			}
 
+			*res = Svg::createDefault();
 			return res;
 		}
 		break;
@@ -2302,10 +2426,10 @@ namespace MathAnim
 #ifdef _DEBUG
 						g_logger_warning("Failed to end path for object: {}<{}>", parent->id, parent->name);
 #endif
-					}
+				}
 					Renderer::free(context);
 					break;
-				}
+			}
 				else
 				{
 					MP_PROFILE_EVENT("Svg_RenderOutline2D_EndPath");
@@ -2314,11 +2438,11 @@ namespace MathAnim
 #ifdef _DEBUG
 						g_logger_warning("Failed to end path for object: {}<{}>", parent->id, parent->name);
 #endif
-					}
-					Renderer::free(context);
 				}
-			}
+					Renderer::free(context);
 		}
+	}
+}
 	}
 
 	static void growBufferIfNeeded(uint8** buffer, size_t* capacity, size_t numElements, size_t numElementsToAdd)
@@ -2341,5 +2465,12 @@ namespace MathAnim
 		growBufferIfNeeded(buffer, capacity, *numElements, stringLength);
 		g_memory_copyMem(*buffer + *numElements, (void*)string, stringLength * sizeof(uint8));
 		*numElements += stringLength;
+	}
+
+	static void writeBufferBin(uint8** buffer, size_t* capacity, size_t* numElements, const uint8* data, size_t numBytes)
+	{
+		growBufferIfNeeded(buffer, capacity, *numElements, numBytes);
+		g_memory_copyMem(*buffer + *numElements, (void*)data, numBytes * sizeof(uint8));
+		*numElements += numBytes;
 	}
 }

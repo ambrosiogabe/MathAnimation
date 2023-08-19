@@ -35,9 +35,7 @@ namespace MathAnim
 				if (ImGui::BeginDragDropSource())
 				{
 					static TimelinePayload payloadData;
-					payloadData.objectType = AnimObjectTypeV1::None;
 					payloadData.animType = (AnimTypeV1)i;
-					payloadData.isAnimObject = false;
 					ImGui::SetDragDropPayload(ImGuiTimeline_DragDropSegmentPayloadId(), &payloadData, sizeof(payloadData), ImGuiCond_Once);
 					ImGuiExtended::IconButton(ICON_FA_BOOK_DEAD, name, ImVec2(availableRegion.x - animPreviewIconWidth, 0.0f));
 					ImGui::EndDragDropSource();

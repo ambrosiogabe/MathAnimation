@@ -31,6 +31,7 @@
 #include "editor/panels/InspectorPanel.h"
 #include "editor/panels/MenuBar.h"
 #include "editor/panels/ExportPanel.h"
+#include "editor/UndoSystem.h"
 #include "parsers/SyntaxHighlighter.h"
 #include "audio/Audio.h"
 #include "latex/LaTexLayer.h"
@@ -49,6 +50,7 @@ namespace MathAnim
 {
 	namespace Application
 	{
+		static uint32 MAX_UNDO_HISTORY = 300;
 		static AnimState animState = AnimState::Pause;
 
 		static int outputWidth = 3840;
@@ -62,6 +64,7 @@ namespace MathAnim
 		static Framebuffer mainFramebuffer;
 		static Framebuffer editorFramebuffer;
 		static EditorCamera* editorCamera = nullptr;
+		static UndoSystemData* undoSystem = nullptr;
 		static int absoluteCurrentFrame = -1;
 		static int absolutePrevFrame = -1;
 		static float accumulatedTime = 0.0f;
@@ -92,6 +95,8 @@ namespace MathAnim
 
 		void init(const char* projectFile)
 		{
+			auto begin = std::chrono::high_resolution_clock::now();
+
 			// Initialize these just in case this is a new project
 			editorCamera = EditorCameraController::init(Camera::createDefault());
 
@@ -99,15 +104,21 @@ namespace MathAnim
 			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
 			//globalThreadPool = new GlobalThreadPool(true);
 
-			// Initiaize GLFW/Glad
-			GlVersion glVersion = GladLayer::init();
+			// Initialize GLFW
+			GladLayer::initGlfw();
+
+			// Create the window
 			window = new Window(1920, 1080, winTitle, WindowFlags::OpenMaximized);
 			window->setVSync(true);
 
-			// Initialize Onigiruma
+			// Initialize OpenGL functions
+			GlVersion glVersion = GladLayer::init();
+
+			// Initialize Oniguruma
 			OnigEncoding use_encs[1];
 			use_encs[0] = ONIG_ENCODING_ASCII;
 			onig_initialize(use_encs, sizeof(use_encs) / sizeof(use_encs[0]));
+			onig_set_warn_func([](const char* s) { g_logger_warning("Onig Warning: {}", s); });
 
 			Fonts::init();
 			Renderer::init();
@@ -141,6 +152,25 @@ namespace MathAnim
 
 			GL::enable(GL_BLEND);
 			GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			auto end = std::chrono::high_resolution_clock::now();
+			auto numMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+			CppUtils::IO::printf("|> Initialization took: ");
+			if (numMs < 400)
+			{
+				CppUtils::IO::setForegroundColor(CppUtils::GREEN);
+			}
+			else if (numMs < 500)
+			{
+				CppUtils::IO::setForegroundColor(CppUtils::YELLOW);
+			}
+			else
+			{
+				CppUtils::IO::setForegroundColor(CppUtils::RED);
+			}
+
+			CppUtils::IO::printf("{}ms\n", numMs);
+			CppUtils::IO::resetColor();
 		}
 
 		void run()
@@ -203,15 +233,13 @@ namespace MathAnim
 				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
 				{
 					MP_PROFILE_EVENT("MainLoop_RenderToMainViewport");
-					if (//AnimationManager::hasActive2DCamera(am) && 
-						AnimationManager::hasActive3DCamera(am))
+					if (AnimationManager::hasActiveCamera(am))
 					{
-						// TODO: Either come up with multi-camera scenes or get rid of the idea of 2D cameras altogether
-						Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am));
-						Renderer::pushCamera3D(&AnimationManager::getActiveCamera3D(am));
+						Renderer::pushCamera2D(&AnimationManager::getActiveCamera(am));
+						Renderer::pushCamera3D(&AnimationManager::getActiveCamera(am));
 						AnimationManager::render(am, deltaFrame);
-						Renderer::popCamera2D();
 						Renderer::popCamera3D();
+						Renderer::popCamera2D();
 
 						Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
 						Renderer::renderToFramebuffer(mainFramebuffer, am, "OutputVP_Main_Framebuffer_Pass");
@@ -310,14 +338,13 @@ namespace MathAnim
 			// If the window is closing, save the last rendered frame to a preview image
 			// TODO: Do this a better way
 			//       Like no hard coded image path here and hard coded number of components
-			if (//AnimationManager::hasActive2DCamera(am) && 
-				AnimationManager::hasActive3DCamera(am))
+			if (AnimationManager::hasActiveCamera(am))
 			{
-				Renderer::pushCamera2D(&AnimationManager::getActiveCamera2D(am));
-				Renderer::pushCamera3D(&AnimationManager::getActiveCamera3D(am));
+				Renderer::pushCamera2D(&AnimationManager::getActiveCamera(am));
+				Renderer::pushCamera3D(&AnimationManager::getActiveCamera(am));
 				AnimationManager::render(am, 0);
-				Renderer::popCamera2D();
 				Renderer::popCamera3D();
+				Renderer::popCamera2D();
 
 				Renderer::bindAndUpdateViewportForFramebuffer(mainFramebuffer);
 				Renderer::renderToFramebuffer(mainFramebuffer, am, "AppClosing_Screenshot");
@@ -388,6 +415,7 @@ namespace MathAnim
 			LuauLayer::free();
 			SceneManagementPanel::free();
 			EditorGui::free(am);
+			UndoSystem::free(undoSystem);
 			AnimationManager::free(am);
 			Fonts::unloadAllFonts();
 			Renderer::free();
@@ -400,6 +428,7 @@ namespace MathAnim
 			delete globalThreadPool;
 
 			GladLayer::deinit();
+			Platform::free();
 		}
 
 		void saveProject()
@@ -533,6 +562,8 @@ namespace MathAnim
 		void loadScene(const std::string& sceneName)
 		{
 			std::string filepath = (currentProjectSceneDir / sceneToFilename(sceneName, ".json")).string();
+			g_logger_log("Loading scene: {}", filepath);
+
 			if (!Platform::fileExists(filepath.c_str()))
 			{
 				// Check if a legacy project exists and try to load that, if loading fails
@@ -778,6 +809,11 @@ namespace MathAnim
 			return svgCache;
 		}
 
+		UndoSystemData* getUndoSystem()
+		{
+			return undoSystem;
+		}
+
 		GlobalThreadPool* threadPool()
 		{
 			return globalThreadPool;
@@ -808,7 +844,7 @@ namespace MathAnim
 			case 2:
 			{
 				// Upgrading legacy projects will default to the orthographic camera
-				Camera newCamera = editorCamera != nullptr 
+				Camera newCamera = editorCamera != nullptr
 					? EditorCameraController::getCamera(editorCamera)
 					: Camera::createDefault();
 				if (cameraData.contains("EditorCamera2D"))
@@ -865,6 +901,7 @@ namespace MathAnim
 
 		static void freeSceneSystems()
 		{
+			UndoSystem::free(undoSystem);
 			AnimationManager::free(am);
 			EditorSettings::free();
 		}
@@ -872,6 +909,7 @@ namespace MathAnim
 		static void initializeSceneSystems()
 		{
 			am = AnimationManager::create();
+			undoSystem = UndoSystem::init(am, MAX_UNDO_HISTORY);
 			EditorSettings::init();
 		}
 	}

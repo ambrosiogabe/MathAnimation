@@ -77,8 +77,8 @@ MathAnim::Vec4 operator""_hex(const char* hexColor, size_t length);
 MathAnim::Vec4 toHex(const std::string& str);
 MathAnim::Vec4 toHex(const char* hex, size_t length);
 MathAnim::Vec4 toHex(const char* hex);
-MathAnim::Vec4 fromCssColor(const char* cssColorStr);
-MathAnim::Vec4 fromCssColor(const std::string& cssColorStr);
+
+std::string toHexString(const MathAnim::Vec4& color);
 
 // SIMD intrinsics
 #include <xmmintrin.h>

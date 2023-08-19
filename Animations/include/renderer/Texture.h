@@ -72,6 +72,8 @@ namespace MathAnim
 		bool isNull() const;
 	};
 
+	typedef void (*TextureLoadedCallback)(const Texture& loadedTexture);
+
 	class TextureBuilder
 	{
 	public:
@@ -87,11 +89,21 @@ namespace MathAnim
 		TextureBuilder& setHeight(uint32 height);
 		TextureBuilder& setSwizzle(std::initializer_list<ColorChannel> swizzleMask);
 
-		Texture generate(bool generateFromFilepath = false);
+		Texture generateEmpty();
+		Texture generateFromFile();
+
+		/**
+		 * @brief Generates a texture in a background thread. The callback is called
+		 * on the main thread once the texture is finally generated and it passes
+		 * the finalized texture details.
+		*/
+		Texture generateLazyFromFile(TextureLoadedCallback callback);
+
 		Texture build();
 
 	private:
 		Texture texture;
+		TextureLoadedCallback textureLoadedCallback = nullptr;
 	};
 
 	namespace TextureUtil
@@ -109,6 +121,7 @@ namespace MathAnim
 		bool byteFormatIsUint64(const Texture& texture);
 
 		void generateFromFile(Texture& texture);
+		void generateFromFileLazy(TextureLoadedCallback callback, const Texture& texture);
 		void generateEmptyTexture(Texture& texture);
 	}
 }

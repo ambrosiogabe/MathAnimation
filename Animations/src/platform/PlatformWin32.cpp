@@ -29,6 +29,15 @@ namespace MathAnim
 		static bool stringsEqualIgnoreCase(const char* str1, const char* str2);
 		static std::vector<std::string> availableFonts = {};
 		static bool availableFontsCached = false;
+		static HCRYPTPROV hCryptoProvider = 0;
+
+		void free()
+		{
+			if (hCryptoProvider != 0)
+			{
+				CryptReleaseContext(hCryptoProvider, 0);
+			}
+		}
 
 		const std::vector<std::string>& getAvailableFonts()
 		{
@@ -539,24 +548,26 @@ namespace MathAnim
 			g_logger_assert(md5Length < maxMd5Length, "Cannot generate md5 greater than '{}' characters.", maxMd5Length);
 
 			// Get handle to the crypto provider
-			HCRYPTPROV hProv = 0;
-			if (!CryptAcquireContext(&hProv,
-				NULL,
-				NULL,
-				PROV_RSA_FULL,
-				CRYPT_VERIFYCONTEXT))
+			if (hCryptoProvider == 0)
 			{
-				DWORD dwStatus = GetLastError();
-				g_logger_error("CryptAcquireContext failed: '{}'", dwStatus);
-				return "";
+				if (!CryptAcquireContext(&hCryptoProvider,
+					NULL,
+					NULL,
+					PROV_RSA_FULL,
+					CRYPT_VERIFYCONTEXT))
+				{
+					DWORD dwStatus = GetLastError();
+					g_logger_error("CryptAcquireContext failed: '{}'", dwStatus);
+					return "";
+				}
 			}
 
 			HCRYPTHASH hHash = 0;
-			if (!CryptCreateHash(hProv, CALG_MD5, 0, 0, &hHash))
+			if (!CryptCreateHash(hCryptoProvider, CALG_MD5, 0, 0, &hHash))
 			{
 				DWORD dwStatus = GetLastError();
 				g_logger_error("CryptAcquireContext failed: '{}'", dwStatus);
-				CryptReleaseContext(hProv, 0);
+				CryptReleaseContext(hCryptoProvider, 0);
 				return "";
 			}
 
@@ -567,7 +578,7 @@ namespace MathAnim
 			{
 				DWORD dwStatus = GetLastError();
 				g_logger_error("CryptHashData failed: '{}'", dwStatus);
-				CryptReleaseContext(hProv, 0);
+				CryptReleaseContext(hCryptoProvider, 0);
 				CryptDestroyHash(hHash);
 				return "";
 			}
@@ -591,7 +602,6 @@ namespace MathAnim
 			}
 
 			CryptDestroyHash(hHash);
-			CryptReleaseContext(hProv, 0);
 
 			return hashRes;
 		}

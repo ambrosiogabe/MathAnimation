@@ -7,14 +7,38 @@
 
 namespace MathAnim
 {
-	struct GrammarMatch;
-	struct ParserInfo;
+	// Internal forward decls
+	struct Grammar;
 	struct PatternRepository;
+	struct GrammarMatch;
+	struct SyntaxPattern;
+
+	// Typedefs
+	typedef uint64 GrammarPatternGid;
+
+	// Structs
+	struct PatternArray
+	{
+		std::vector<SyntaxPattern*> patterns;
+		std::unordered_map<uint64, GrammarPatternGid> onigIndexMap;
+		uint64 firstSelfPatternArrayIndex;
+		OnigRegSet* regset;
+
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
+		bool matchAll(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
+
+		void free();
+	};
 
 	struct Capture
 	{
 		size_t index;
-		ScopeRule scope;
+		// If this is set, this is a simple capture and the scope name is just used as the captured name
+		std::optional<ScopedName> scope;
+		// If this is set, then the capture scope name is based on the best match in the pattern array
+		std::optional<PatternArray> patternArray;
+
+		void free();
 	};
 
 	struct CaptureList
@@ -22,38 +46,32 @@ namespace MathAnim
 		// Map from capture index to the scoped name for that capture
 		std::vector<Capture> captures;
 
-		static CaptureList from(const nlohmann::json& j);
+		void free();
+
+		static CaptureList from(const nlohmann::json& j, Grammar* self);
 	};
 
 	struct SimpleSyntaxPattern
 	{
-		std::optional<ScopeRule> scope;
-		regex_t* regMatch;
+		std::optional<ScopedName> scope;
+		OnigRegex regMatch;
 		std::optional<CaptureList> captures;
 
-		bool match(const std::string& str, size_t start, size_t end, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
 
 		void free();
 	};
 
-	struct SyntaxPattern; // Forward declare since this is a recursive type
 	struct ComplexSyntaxPattern
 	{
-		std::optional<ScopeRule> scope;
-		regex_t* begin;
-		regex_t* end;
+		std::optional<ScopedName> scope;
+		OnigRegex begin;
+		OnigRegex end;
 		std::optional<CaptureList> beginCaptures;
 		std::optional<CaptureList> endCaptures;
-		std::optional<std::vector<SyntaxPattern>> patterns;
+		std::optional<PatternArray> patterns;
 
-		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
-
-		void free();
-	};
-
-	struct PatternArray
-	{
-		std::vector<SyntaxPattern> patterns;
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
 
 		void free();
 	};
@@ -74,23 +92,59 @@ namespace MathAnim
 		std::optional<ComplexSyntaxPattern> complexPattern;
 		std::optional<PatternArray> patternArray;
 		std::optional<std::string> patternInclude;
+		const Grammar* self;
+		GrammarPatternGid gid;
+		uint64 patternArrayIndex;
 
-		bool match(const std::string& str, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
 
 		void free();
 	};
 
 	struct PatternRepository
 	{
-		std::unordered_map<std::string, SyntaxPattern> patterns;
+		std::unordered_map<std::string, SyntaxPattern*> patterns;
 	};
 
 	struct GrammarMatch
 	{
 		size_t start;
 		size_t end;
-		ScopeRule scope;
+		std::optional<ScopedName> scope;
 		std::vector<GrammarMatch> subMatches;
+	};
+
+	// Data for source grammar trees
+	struct Span
+	{
+		size_t relativeStart;
+		size_t size;
+	};
+
+	struct SourceGrammarTreeNode
+	{
+		size_t nextNodeDelta;
+		size_t parentDelta;
+		Span sourceSpan;
+		std::optional<ScopedName> scope;
+		bool isAtomicNode;
+	};
+
+	// This corresponds to the tree represented here: https://macromates.com/blog/2005/introduction-to-scopes/#htmlxml-analogy
+	struct SourceGrammarTree
+	{
+		std::vector<SourceGrammarTreeNode> tree;
+		ScopedName rootScope;
+		std::string codeBlock;
+
+		void insertNode(const SourceGrammarTreeNode& node, size_t sourceSpanOffset);
+		void removeNode(size_t nodeIndex);
+
+		std::vector<ScopedName> getAllAncestorScopes(size_t node) const;
+		std::vector<ScopedName> getAllAncestorScopesAtChar(size_t cursorPos) const;
+
+		// Default buffer size of 1MB
+		std::string getStringifiedTree(size_t bufferSize = 1024 * 10) const;
 	};
 
 	// This loosely follows the rules set out by TextMate grammars.
@@ -98,12 +152,15 @@ namespace MathAnim
 	struct Grammar
 	{
 		std::string name;
-		ScopeRule scope;
+		ScopedName scope;
 		std::string fileTypes;
-		std::vector<SyntaxPattern> patterns;
+		PatternArray patterns;
 		PatternRepository repository;
 		OnigRegion* region;
+		std::unordered_map<GrammarPatternGid, SyntaxPattern const *const> globalPatternIndex;
+		GrammarPatternGid gidCounter;
 
+		SourceGrammarTree parseCodeBlock(const std::string& code, bool printDebugStuff = false) const;
 		bool getNextMatch(const std::string& code, std::vector<GrammarMatch>* outMatches) const;
 
 		static Grammar* importGrammar(const char* filepath);

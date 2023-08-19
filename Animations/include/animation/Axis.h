@@ -7,6 +7,7 @@
 namespace MathAnim
 {
 	struct AnimObject;
+	struct AnimationManagerData;
 
 	struct Axis
 	{
@@ -24,6 +25,7 @@ namespace MathAnim
 		float labelStrokeWidth;
 
 		void init(AnimObject* parent);
+		void reInit(AnimationManagerData* am, AnimObject* self);
 
 		void serialize(nlohmann::json& j) const;
 		static Axis deserialize(const nlohmann::json& j, uint32 version);

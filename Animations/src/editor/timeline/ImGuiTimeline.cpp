@@ -13,13 +13,16 @@ enum class DragState : uint8
 	None,
 	Hover,
 	Active,
+	Finished
 };
 
 enum class SegmentChangeType : uint8
 {
 	None,
 	Resized,
-	Moved
+	FinishedResize,
+	Moved,
+	FinishedMove
 };
 
 enum class ResizeFlags : uint8
@@ -99,8 +102,7 @@ namespace MathAnim
 	const ImU32 segmentColor = U32Color(Colors::Primary[5]);
 	const ImU32 segmentDarkColor = U32Color(Colors::Primary[6]);
 	const ImU32 segmentBoldColor = U32Color(Colors::Primary[8]);
-	const ImU32 subSegmentColor = U32Color(Colors::AccentGreen[3]);
-	const ImU32 subSegmentDarkColor = U32Color(Colors::AccentGreen[4]);
+	const ImU32 audioWaveformColor = U32Color(Colors::AccentGreen[3]);
 
 	// Commonly used vars
 	static ImVec2 timelineRulerEnd;
@@ -113,16 +115,16 @@ namespace MathAnim
 	static int lengthAudioCache = 0;
 	static int maxLengthAudioCache = 0;
 
+	static ImGuiID activeSegmentID = UINT32_MAX;
+
 	// ----------- Internal Functions -----------
 	static bool handleLegendSplitter(float* legendWidth, bool mouseHovering);
 	static bool handleResizeElement(float* currentValue, DragState* state, const ImVec2& valueBounds, const ImVec2& mouseBounds, const ImVec2& hoverRectStart, const ImVec2& hoverRectEnd, ResizeFlags flags);
 	static bool handleSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_Segment* segment, SegmentChangeType* changeType, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
-	static bool handleSubSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_SubSegment* segment, SegmentChangeType* changeType, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline);
 	static void framesToTimeStr(char* strBuffer, size_t strBufferLength, int frame);
 	static float getScrollFromFrame(float amountOfTimeVisibleInTimeline, int firstFrame);
 	static bool handleDragState(const ImVec2& start, const ImVec2& end, DragState* state);
 	static bool beginPopupContextTimelineItem(const char* str_id, const ImVec2& rectBegin, const ImVec2& rectEnd, ImGuiPopupFlags popup_flags = 1);
-	static int findSegmentFromFrame(const ImGuiTimeline_Track* tracks, int trackIndex, int firstAbsoluteFrame);
 	static void snapToCursor(int* currentFrame, int* firstFrame, int* segmentFrameStart, int* segmentFrameDuration, float* offsetX, float* width, float amountOfTimeVisibleInTimeline, SegmentChangeType changeType);
 	static void snapToPreviousSegment(int* firstFrame, float* offsetX, int* segmentFrameStart, int* segmentFrameDuration, int lastSegmentFrameStart, int lastSegmentFrameDuration, SegmentChangeType changeType, float amountOfTimeVisibleInTimeline);
 	static void snapToNextSegment(int* firstFrame, float* offsetX, float* width, int* segmentFrameStart, int* segmentFrameDuration, int nextSegmentFrameStart, int nextSegmentFrameDuration, SegmentChangeType changeType, float amountOfTimeVisibleInTimeline);
@@ -141,6 +143,13 @@ namespace MathAnim
 	static inline float calculateCursorOffset(int currentFrame, int firstFrame, float amountOfTimeVisibleInTimeline)
 	{
 		return (timelineRulerEnd.x - timelineRulerBegin.x) * (((float)currentFrame - (float)firstFrame) / amountOfTimeVisibleInTimeline);
+	}
+
+	void ImGuiTimeline_SetActiveSegment(int trackIndex, int segmentIndex)
+	{
+		std::string strId = "Track_" + std::to_string(trackIndex) + "Segment_" + std::to_string(segmentIndex);
+		ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
+		activeSegmentID = segmentID;
 	}
 
 	ImGuiTimelineResult ImGuiTimeline(ImGuiTimeline_Track* tracks, int numTracks, int* currentFrame, int* firstFrame, float* inZoom, const ImGuiTimeline_AudioData* audioData, ImGuiTimelineFlags flags)
@@ -230,8 +239,6 @@ namespace MathAnim
 		res.flags = ImGuiTimelineResultFlags_None;
 		res.segmentIndex = -1;
 		res.trackIndex = -1;
-		res.subSegmentIndex = -1;
-		res.activeObjectIsSubSegment = false;
 
 		ImGuiIO& io = ImGui::GetIO();
 		ImGuiStyle& style = ImGui::GetStyle();
@@ -388,31 +395,6 @@ namespace MathAnim
 		// ---------------------- End Handle horizontal/vertical scrolling ----------------------
 
 		// ---------------------- Draw Timeline Elements ------------------------------
-		// Draw all the track backgrounds giving a darker background to any sub-tracks
-		{
-			float absTracksTop = canvasPos.y + timelineRulerHeight;
-			float currentTrackTop = canvasPos.y + timelineRulerHeight - scrollOffsetY;
-			for (int i = 0; i < numTracks; i++)
-			{
-				currentTrackTop += trackHeight;
-
-				if (tracks[i].isExpanded)
-				{
-					if (currentTrackTop + trackHeight > absTracksTop)
-					{
-						float realTop = glm::max(currentTrackTop, absTracksTop);
-						drawList->AddRectFilled(
-							ImVec2(canvasPos.x + legendSize.x, realTop),
-							ImVec2(canvasPos.x + canvasSize.x, currentTrackTop + trackHeight),
-							timelineTrackDark
-						);
-					}
-
-					currentTrackTop += trackHeight;
-				}
-			}
-		}
-
 		for (int i = 0; i <= numTimecodesThatFit; i++)
 		{
 			ImVec2 tickStart = ImVec2(firstTimecodePosition + i * minDistanceBetweenRulerTimecodes, 0.0f);
@@ -462,7 +444,6 @@ namespace MathAnim
 
 					std::string strId = "Track_" + std::to_string(i) + "Segment_" + std::to_string(si);
 					ImGuiID segmentID = ImHashStr(strId.c_str(), strId.size());
-					static ImGuiID activeSegmentID = UINT32_MAX;
 
 					float offsetX = calculateSegmentOffset(segment.frameStart, *firstFrame, amountOfTimeVisibleInTimeline);
 					float width = calculateSegmentWidth(segment.frameDuration, amountOfTimeVisibleInTimeline);
@@ -524,13 +505,14 @@ namespace MathAnim
 							// ------------ End Magnet handling stuff ------------
 
 							g_logger_assert(res.segmentIndex == -1, "Invalid result. User somehow modified two segments at once.");
-							res.flags |= ImGuiTimelineResultFlags_SegmentTimeChanged;
+							res.flags |= changeType == SegmentChangeType::Moved || changeType == SegmentChangeType::Resized
+								? ImGuiTimelineResultFlags_SegmentTimeChanged
+								: ImGuiTimelineResultFlags_SegmentTimeDragEnded;
 							res.segmentIndex = si;
 							res.trackIndex = i;
 							if (activeSegmentID != segmentID)
 							{
 								res.flags |= ImGuiTimelineResultFlags_ActiveObjectChanged;
-								res.activeObjectIsSubSegment = false;
 								activeSegmentID = segmentID;
 							}
 
@@ -556,7 +538,6 @@ namespace MathAnim
 							{
 								res.flags |= ImGuiTimelineResultFlags_DeleteActiveObject;
 								res.flags |= ImGuiTimelineResultFlags_ActiveObjectDeselected;
-								res.activeObjectIsSubSegment = false;
 								res.segmentIndex = si;
 								res.trackIndex = i;
 								activeSegmentID = UINT32_MAX;
@@ -572,154 +553,7 @@ namespace MathAnim
 						textPosition.y += (segmentTextAreaHeight - segmentTextSize.y - segmentTextAreaPadding.y * 2.0f) / 2.0f;
 						drawList->AddText(textPosition, ImColor(fontColor), segment.segmentName);
 					} // End segment intersects with timeline check
-
-					if (tracks[i].isExpanded)
-					{
-						float subTrackTopY = trackTopY + (float)realTrackHeight;
-						float subTrackBottomY = subTrackTopY + (float)trackHeight;
-
-						bool shouldDrawSubtrack = true;
-						if (subTrackBottomY <= absTracksTop)
-						{
-							shouldDrawSubtrack = false;
-						}
-						else if (subTrackTopY < absTracksTop)
-						{
-							subTrackTopY = absTracksTop;
-						}
-
-						float realSubTrackHeight = subTrackBottomY - subTrackTopY;
-
-						// Draw/handle the expanded segments and their logic
-						for (int subSegmenti = 0; subSegmenti < segment.numSubSegments; subSegmenti++)
-						{
-							ImGuiTimeline_SubSegment& subSegment = segment.subSegments[subSegmenti];
-
-							int subSegmentAbsFrameStart = subSegment.frameStart + segment.frameStart;
-							float subOffsetX = calculateSegmentOffset(subSegmentAbsFrameStart, *firstFrame, amountOfTimeVisibleInTimeline);
-							float subWidth = calculateSegmentWidth(subSegment.frameDuration, amountOfTimeVisibleInTimeline);
-							// Check if segment intersects with the timeline
-							// We can check if:
-							//    segmentEnd >= timelineBegin && segmentBegin <= timelineEnd
-							if (shouldDrawSubtrack &&
-								subSegmentAbsFrameStart <= ((int)amountOfTimeVisibleInTimeline + *firstFrame) &&
-								subSegmentAbsFrameStart + subSegment.frameDuration >= *firstFrame)
-							{
-								// Clamp values as necessary
-								if (subOffsetX < 0.0f)
-								{
-									subWidth = subWidth + subOffsetX;
-									subOffsetX = 0.0f;
-								}
-
-								// Calculate the width, and truncate if necessary
-								if (subOffsetX + subWidth > canvasSize.x - legendSize.x)
-								{
-									subWidth = canvasSize.x - legendSize.x - subOffsetX;
-								}
-
-								ImVec2 subSegmentStart = ImVec2(canvasPos.x + legendSize.x + subOffsetX, subTrackTopY);
-								ImVec2 subSegmentEnd = ImVec2(subSegmentStart.x + subWidth, subTrackBottomY);
-
-								std::string subStrId = std::string("Track_") + std::to_string(i) + "_SubSegment_" + std::to_string(si) + "_" + std::to_string(subSegmenti);
-								ImGuiID subSegmentID = ImHashStr(subStrId.c_str(), subStrId.size());
-								SegmentChangeType subChangeType;
-
-								// Same as above: Only handleSubSegment logic if the mouse is over the window
-								if (mouseHoveringOverTimelineWindow && handleSubSegment(subSegmentStart, subSegmentEnd, &subSegment, &subChangeType, subSegmentID, timelineSize, amountOfTimeVisibleInTimeline))
-								{
-									// ------------ Handle magnet snapping segments ------------
-									if (magnetEnabled && subSegmenti > 0)
-									{
-										const ImGuiTimeline_SubSegment& lastSubSegment = tracks[i].segments[si].subSegments[subSegmenti - 1];
-										snapToPreviousSegment(firstFrame, &subOffsetX,
-											&subSegment.frameStart, &subSegment.frameDuration,
-											lastSubSegment.frameStart, lastSubSegment.frameDuration,
-											subChangeType, amountOfTimeVisibleInTimeline);
-									}
-
-									if (magnetEnabled && subSegmenti < tracks[i].segments[si].numSubSegments - 1)
-									{
-										const ImGuiTimeline_SubSegment& nextSubSegment = tracks[i].segments[si].subSegments[subSegmenti + 1];
-										snapToNextSegment(firstFrame, &subOffsetX, &subWidth,
-											&subSegment.frameStart, &subSegment.frameDuration,
-											nextSubSegment.frameStart, nextSubSegment.frameDuration,
-											subChangeType, amountOfTimeVisibleInTimeline);
-									}
-
-									if (magnetEnabled)
-									{
-										snapToCursor(currentFrame, firstFrame,
-											&subSegment.frameStart, &subSegment.frameDuration,
-											&subOffsetX, &subWidth, amountOfTimeVisibleInTimeline, subChangeType);
-									}
-									// ------------ End Magnet handling stuff ------------
-
-									// If subsegment is dragged beyond the end of it's parent segment, re-adjust the start
-									// so that it clamps it to the end
-									if (subSegment.frameStart + subSegment.frameDuration > segment.frameDuration)
-									{
-										subSegment.frameStart = segment.frameDuration - subSegment.frameDuration;
-									}
-
-									g_logger_assert(res.segmentIndex == -1, "Invalid result. User somehow modified two segments at once.");
-									res.flags |= ImGuiTimelineResultFlags_SubSegmentTimeChanged;
-									res.segmentIndex = si;
-									res.subSegmentIndex = subSegmenti;
-									res.trackIndex = i;
-									if (activeSegmentID != subSegmentID)
-									{
-										res.flags |= ImGuiTimelineResultFlags_ActiveObjectChanged;
-										res.activeObjectIsSubSegment = true;
-										activeSegmentID = subSegmentID;
-									}
-								}
-								else if (activeSegmentID == subSegmentID && mouseClickedSomewhereOnTimeline)
-								{
-									res.flags |= ImGuiTimelineResultFlags_ActiveObjectDeselected;
-									activeSegmentID = UINT32_MAX;
-								}
-
-								if (shouldDrawSubtrack)
-								{
-									// Draw the segment
-									drawList->AddRectFilled(subSegmentStart, subSegmentEnd, subSegmentColor, 10.0f);
-									drawList->AddRect(subSegmentStart, subSegmentEnd, subSegmentDarkColor, 10.0f);
-									if (activeSegmentID == subSegmentID)
-									{
-										drawList->AddRect(subSegmentStart, subSegmentEnd, cursorColor, 10.0f, 0, 4.0f);
-
-										if (mouseHoveringOverTimelineWindow && ImGui::IsKeyPressed(ImGuiKey_Delete))
-										{
-											res.flags |= ImGuiTimelineResultFlags_DeleteActiveObject;
-											res.flags |= ImGuiTimelineResultFlags_ActiveObjectDeselected;
-											res.activeObjectIsSubSegment = true;
-											res.segmentIndex = si;
-											res.subSegmentIndex = subSegmenti;
-											res.trackIndex = i;
-											activeSegmentID = UINT32_MAX;
-											segmentDragID = UINT32_MAX;
-										}
-									}
-									ImVec2 borderStart = subSegmentStart + ImVec2(0.0f, realSubTrackHeight - segmentTextAreaHeight);
-									ImVec2 borderEnd = ImVec2(subSegmentEnd.x, borderStart.y + 3.0f);
-									drawList->AddRectFilled(borderStart, borderEnd, subSegmentDarkColor);
-									ImVec2 textPosition = subSegmentStart + ImVec2(0.0f, realSubTrackHeight - segmentTextAreaHeight) + segmentTextAreaPadding;
-									// Vertically center the text
-									ImVec2 segmentTextSize = ImGui::CalcTextSize(subSegment.segmentName);
-									textPosition.y += (segmentTextAreaHeight - segmentTextSize.y - segmentTextAreaPadding.y * 2.0f) / 2.0f;
-									drawList->AddText(textPosition, ImColor(fontColor), subSegment.segmentName);
-								}
-							} // End sub-segment intersects with timeline check
-						} // End sub-segment loop
-					} // End segment.isExpanded check
 				} // End segment loop
-
-				if (tracks[i].isExpanded)
-				{
-					// Draw/handle the expanded segments and their logic
-					currentTrackTop += trackHeight;
-				}
 
 				currentTrackTop += trackHeight;
 			} // End track loop
@@ -900,7 +734,7 @@ namespace MathAnim
 					audioTrackPos + audioCache[audioi],
 					audioTrackPos + audioCache[audioi + 1],
 					audioTrackPos + audioCache[audioi + 2],
-					subSegmentColor
+					audioWaveformColor
 				);
 			}
 		}
@@ -1072,43 +906,6 @@ namespace MathAnim
 					);
 				}
 
-				// Handle dropdown arrow logic
-				float legendTrackNameWidth = legendTrackNameBottom.x - legendTrackNameTop.x;
-				ImVec2 expandArrowRectStart = legendTrackNameTop + ImVec2(legendTrackNameWidth, 0.0f);
-				ImVec2 expandArrowRectEnd = legendTrackNameTop + ImVec2(legendSize.x, trackHeight);
-				ImVec2 expandArrowRectSize = expandArrowRectEnd - expandArrowRectStart;
-				ImVec2 expandButtonStart = expandArrowRectStart + (expandArrowRectSize - expandButtonSize) / 2.0f;
-				if (tracks[i].isExpanded)
-				{
-					drawList->AddTriangleFilled(
-						expandButtonStart + ImVec2(0.0f, expandButtonSize.y),
-						expandButtonStart + expandButtonSize,
-						expandButtonStart + ImVec2(expandButtonSize.x / 2.0f, 0.0f),
-						dropdownArrowColor
-					);
-				}
-				else
-				{
-					drawList->AddTriangleFilled(
-						expandButtonStart,
-						expandButtonStart + ImVec2(expandButtonSize.x, 0.0f),
-						expandButtonStart + ImVec2(expandButtonSize.x / 2.0f, expandButtonSize.y),
-						dropdownArrowColor
-					);
-				}
-
-				// Check if the user clicked the segment arrow to expand or un-expand it
-				if (mouseHoveringOverTimelineWindow && ImGui::IsMouseHoveringRect(legendTrackNameTop, fullTracknameBottom) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-				{
-					tracks[i].isExpanded = !tracks[i].isExpanded;
-				}
-
-				// Do this check *after* handling logic so there's no frame lagging when you click
-				if (tracks[i].isExpanded)
-				{
-					currentTrackTop += trackHeight;
-				}
-
 				currentTrackTop += trackHeight;
 
 				// Handle right clicking on the legend by popping up context menu
@@ -1207,60 +1004,11 @@ namespace MathAnim
 							float normalizedMousePos = (ImGui::GetMousePos().x - canvasPos.x - legendSize.x) / (timelineRulerEnd.x - timelineRulerBegin.x);
 							res.dragDropPayloadFirstFrame = (int)(amountOfTimeVisibleInTimeline * normalizedMousePos) + *firstFrame;
 							res.trackIndex = i;
-							res.activeObjectIsSubSegment = false;
 						}
 						ImGui::EndDragDropTarget();
 					}
 				}
 				ImGui::PopID();
-
-				if (tracks[i].isExpanded)
-				{
-					// Draw/handle the expanded segments and their logic
-					currentTrackTop += trackHeight;
-
-					float subTrackTopY = currentTrackTop;
-					float subTrackBottomY = subTrackTopY + (float)trackHeight;
-
-					if (subTrackTopY < absTracksTop)
-					{
-						subTrackTopY = absTracksTop;
-					}
-
-					// TODO: Figure out a way to de-duplicate logic for sub-segments and segments
-					std::string subTrackStr = std::string("ImGuiTimelineSubTrack_ID_") + std::to_string(i);
-					ImGuiID subTrackId = ImGui::GetID(subTrackStr.c_str());
-					ImVec2 subTrackTopLeft = ImVec2(canvasPos.x + legendSize.x, subTrackTopY);
-					ImVec2 subTrackBottomRight = ImVec2(canvasPos.x + canvasSize.x, subTrackBottomY);
-					ImGui::PushID(subTrackId);
-					if (ImGui::IsMouseHoveringRect(subTrackTopLeft, subTrackBottomRight))
-					{
-						ImGui::SetLastItemData(id, ImGuiItemFlags_None, ImGuiItemStatusFlags_HoveredRect, ImRect(subTrackTopLeft, subTrackBottomRight));
-						if (ImGui::BeginDragDropTarget())
-						{
-							if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(TIMELINE_DRAG_DROP_SUB_SEGMENT_PAYLOAD_ID))
-							{
-								res.flags |= ImGuiTimelineResultFlags_DragDropPayloadHit;
-								res.dragDropPayloadData = payload->Data;
-								res.dragDropPayloadDataSize = payload->DataSize;
-								float normalizedMousePos = (ImGui::GetMousePos().x - canvasPos.x - legendSize.x) / (timelineRulerEnd.x - timelineRulerBegin.x);
-								int firstAbsoluteFrame = (int)(amountOfTimeVisibleInTimeline * normalizedMousePos) + *firstFrame;
-
-								// Find the segment this is a part of
-								res.trackIndex = i;
-								int segmentIndex = findSegmentFromFrame(tracks, res.trackIndex, firstAbsoluteFrame);
-								if (segmentIndex != -1)
-								{
-									res.segmentIndex = segmentIndex;
-									res.dragDropPayloadFirstFrame = firstAbsoluteFrame - tracks[i].segments[segmentIndex].frameStart;
-								}
-								res.activeObjectIsSubSegment = true;
-							}
-							ImGui::EndDragDropTarget();
-						}
-					}
-					ImGui::PopID();
-				}
 
 				currentTrackTop += trackHeight;
 			}
@@ -1463,12 +1211,14 @@ namespace MathAnim
 					ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
 				}
 
-				if (dragState == DragState::Active)
+				if (dragState == DragState::Active || dragState == DragState::Finished)
 				{
 					segment->frameStart = ogFrameStart + frameChange;
 					segment->frameStart = glm::max(segment->frameStart, 0);
 					changed = true;
-					*changeType = SegmentChangeType::Moved;
+					*changeType = dragState == DragState::Active 
+						? SegmentChangeType::Moved
+						: SegmentChangeType::FinishedMove;
 				}
 			}
 			// Handle left/right resize cursors
@@ -1480,7 +1230,7 @@ namespace MathAnim
 					ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 				}
 
-				if (leftResizeState == DragState::Active)
+				if (leftResizeState == DragState::Active || leftResizeState == DragState::Finished)
 				{
 					segment->frameStart = ogFrameStart + frameChange;
 					segment->frameDuration = ogFrameDuration - frameChange;
@@ -1497,10 +1247,12 @@ namespace MathAnim
 					}
 
 					changed = true;
-					*changeType = SegmentChangeType::Resized;
+					*changeType = leftResizeState == DragState::Active
+						? SegmentChangeType::Resized
+						: SegmentChangeType::FinishedResize;
 				}
 
-				if (rightResizeState == DragState::Active)
+				if (rightResizeState == DragState::Active || rightResizeState == DragState::Finished)
 				{
 					segment->frameDuration = ogFrameDuration + frameChange;
 
@@ -1510,153 +1262,9 @@ namespace MathAnim
 					}
 
 					changed = true;
-					*changeType = SegmentChangeType::Resized;
-				}
-			}
-		}
-
-		return changed;
-	}
-
-	static bool handleSubSegment(const ImVec2& segmentStart, const ImVec2& segmentEnd, ImGuiTimeline_SubSegment* segment, SegmentChangeType* changeType, ImGuiID segmentID, const ImVec2& timelineSize, float amountOfTimeVisibleInTimeline)
-	{
-		static DragState dragState = DragState::None;
-		static DragState leftResizeState = DragState::None;
-		static DragState rightResizeState = DragState::None;
-		constexpr float resizeDragWidth = 15.0f;
-		constexpr float halfResizeDragWidth = resizeDragWidth / 2.0f;
-		static ImGuiID dragID = UINT32_MAX;
-		static ImVec2 startDragPos = ImVec2();
-		static int ogFrameStart = 0;
-		static int ogFrameDuration = 0;
-
-		bool changed = false;
-		*changeType = SegmentChangeType::None;
-		ImVec2 segmentStart_ = segmentStart + ImVec2(halfResizeDragWidth + 0.1f, 0.0f);
-		ImVec2 segmentEnd_ = segmentEnd - ImVec2(halfResizeDragWidth - 0.1f, 0.0f);
-		ImVec2 leftResizeStart = segmentStart - ImVec2(halfResizeDragWidth, 0.0f);
-		ImVec2 leftResizeEnd = ImVec2(segmentStart_.x, segmentEnd_.y);
-		ImVec2 rightResizeStart = ImVec2(segmentEnd_.x, segmentStart.y);
-		ImVec2 rightResizeEnd = segmentEnd + ImVec2(halfResizeDragWidth, 0.0f);
-
-		// Subtract the height of the text area at the bottom of the segment so
-		// that you can click there without moving the segment
-		segmentEnd_.y -= segmentTextAreaHeight;
-
-		if (dragID == UINT32_MAX || dragID == segmentID)
-		{
-			handleDragState(segmentStart_, segmentEnd_, &dragState);
-			handleDragState(leftResizeStart, leftResizeEnd, &leftResizeState);
-			handleDragState(rightResizeStart, rightResizeEnd, &rightResizeState);
-		}
-
-		const ImGuiIO& io = ImGui::GetIO();
-
-		// If nothing is being dragged, then check all segments
-		if (dragID == UINT32_MAX)
-		{
-			if (dragState != DragState::None)
-			{
-				dragID = segmentID;
-			}
-			else if (leftResizeState != DragState::None)
-			{
-				dragID = segmentID;
-			}
-			else if (rightResizeState != DragState::None)
-			{
-				dragID = segmentID;
-			}
-		}
-
-		if (dragID != segmentID)
-		{
-			return false;
-		}
-
-		if (dragState == DragState::Hover)
-		{
-			startDragPos = io.MousePos;
-			ogFrameStart = segment->frameStart;
-		}
-
-		if (leftResizeState == DragState::Hover || rightResizeState == DragState::Hover)
-		{
-			startDragPos = io.MousePos;
-			ogFrameStart = segment->frameStart;
-			ogFrameDuration = segment->frameDuration;
-		}
-
-		// Then handle based on the appropriate drag states
-		if (dragID != UINT32_MAX && dragID == segmentID)
-		{
-			if (dragState == DragState::None && leftResizeState == DragState::None && rightResizeState == DragState::None)
-			{
-				dragID = UINT32_MAX;
-				return false;
-			}
-
-			// Get the mouse delta
-			float delta = io.MousePos.x - startDragPos.x;
-			float normalizedMouseDelta = delta / timelineSize.x;
-			int frameChange = (int)(normalizedMouseDelta * amountOfTimeVisibleInTimeline);
-
-			// Handle drag move cursor
-			if (dragState != DragState::None)
-			{
-				if (dragState == DragState::Hover || dragState == DragState::Active)
-				{
-					ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
-				}
-
-				if (dragState == DragState::Active)
-				{
-					segment->frameStart = ogFrameStart + frameChange;
-					segment->frameStart = glm::max(segment->frameStart, 0);
-					changed = true;
-					*changeType = SegmentChangeType::Moved;
-				}
-			}
-			// Handle left/right resize cursors
-			else if (leftResizeState != DragState::None || rightResizeState != DragState::None)
-			{
-				if (leftResizeState == DragState::Hover || leftResizeState == DragState::Active ||
-					rightResizeState == DragState::Hover || rightResizeState == DragState::Active)
-				{
-					ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-				}
-
-				if (leftResizeState == DragState::Active)
-				{
-					segment->frameStart = ogFrameStart + frameChange;
-					segment->frameDuration = ogFrameDuration - frameChange;
-					if (segment->frameStart < 0)
-					{
-						segment->frameDuration += segment->frameStart;
-						segment->frameStart = 0;
-					}
-
-					if (segment->frameDuration <= 0)
-					{
-						segment->frameStart += segment->frameDuration;
-						segment->frameDuration = 1;
-					}
-
-					changed = true;
-					*changeType = SegmentChangeType::Resized;
-				}
-
-				if (rightResizeState == DragState::Active)
-				{
-					segment->frameDuration = ogFrameDuration + frameChange;
-
-					if (segment->frameDuration <= 0)
-					{
-						segment->frameDuration = 1;
-					}
-
-					changed = true;
-					*changeType = SegmentChangeType::Resized;
+					*changeType = rightResizeState == DragState::Active
+						? SegmentChangeType::Resized
+						: SegmentChangeType::FinishedResize;
 				}
 			}
 		}
@@ -1721,9 +1329,15 @@ namespace MathAnim
 			changed = true;
 		}
 
-		if (*state == DragState::Active && !ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
+		if (*state == DragState::Finished && !ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
 		{
 			*state = DragState::None;
+			changed = false;
+		}
+
+		if (*state == DragState::Active && !ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
+		{
+			*state = DragState::Finished;
 			changed = true;
 		}
 
@@ -1742,21 +1356,6 @@ namespace MathAnim
 		if (ImGui::IsMouseReleased(mouse_button) && ImGui::IsMouseHoveringRect(rectBegin, rectEnd))
 			ImGui::OpenPopupEx(id, popup_flags);
 		return ImGui::BeginPopupEx(id, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings);
-	}
-
-	static int findSegmentFromFrame(const ImGuiTimeline_Track* tracks, int trackIndex, int firstAbsoluteFrame)
-	{
-		for (int si = 0; si < tracks[trackIndex].numSegments; si++)
-		{
-			const ImGuiTimeline_Segment& segment = tracks[trackIndex].segments[si];
-			if (firstAbsoluteFrame >= segment.frameStart &&
-				segment.frameStart + segment.frameDuration > firstAbsoluteFrame)
-			{
-				return si;
-			}
-		}
-
-		return -1;
 	}
 
 	static void snapToCursor(int* currentFrame, int* firstFrame, int* segmentFrameStart, int* segmentFrameDuration, float* offsetX, float* width, float amountOfTimeVisibleInTimeline, SegmentChangeType changeType)

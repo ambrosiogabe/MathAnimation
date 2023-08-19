@@ -1,5 +1,6 @@
 #include "core/ProjectApp.h"
 #include "core/Window.h"
+#include "core/Profiling.h"
 #include "editor/ProjectScreen.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "multithreading/GlobalThreadPool.h"
@@ -21,23 +22,34 @@ namespace MathAnim
 
 		void init()
 		{
-			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
-			GlVersion glVersion = GladLayer::init();
+			MP_PROFILE_FRAME("ProjectApp::Init");
 
-			// Initialize GLFW/Glad
+			globalThreadPool = new GlobalThreadPool(std::thread::hardware_concurrency());
+
+			// Initialize GLFW
+			GladLayer::initGlfw();
+
+			// Create the window
 			window = new Window(1920, 1080, winTitle, WindowFlags::None);
 			window->setVSync(true);
 
+			// Setup OpenGL functions
+			GlVersion glVersion = GladLayer::init();
+
 			ImGuiLayer::init(*window, nullptr, ImGuiLayerFlags::None);
 
-			GL::enable(GL_BLEND);
-			GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			{
+				MP_PROFILE_EVENT("ProjectApp::init::special");
 
-			std::string specialAppDirectory = Platform::getSpecialAppDir();
-			g_logger_info("Special app directory: '{}'", specialAppDirectory);
-			appRoot = std::filesystem::path(specialAppDirectory) / "MathAnimationEditor";
-			g_logger_info("App root: '{}'", appRoot);
-			Platform::createDirIfNotExists(appRoot.string().c_str());
+				GL::enable(GL_BLEND);
+				GL::blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+				std::string specialAppDirectory = Platform::getSpecialAppDir();
+				g_logger_info("Special app directory: '{}'", specialAppDirectory);
+				appRoot = std::filesystem::path(specialAppDirectory) / "MathAnimationEditor";
+				g_logger_info("App root: '{}'", appRoot);
+				Platform::createDirIfNotExists(appRoot.string().c_str());
+			}
 
 			ProjectScreen::init(appRoot);
 		}
@@ -53,7 +65,7 @@ namespace MathAnim
 				{
 					return lastSelected.projectFilepath;
 				}
-			}
+	}
 #endif
 
 			// Run game loop
@@ -86,7 +98,7 @@ namespace MathAnim
 			}
 
 			return "";
-		}
+}
 
 		void free()
 		{
@@ -95,6 +107,7 @@ namespace MathAnim
 			Window::cleanup();
 			globalThreadPool->free();
 			GladLayer::deinit();
+			Platform::free();
 		}
 
 		Window* getWindow()

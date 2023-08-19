@@ -1,11 +1,13 @@
 #include "editor/EditorGui.h"
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/panels/InspectorPanel.h"
+#include "editor/UndoSystem.h"
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "utils/IconsFontAwesome5.h"
 #include "renderer/Colors.h"
 #include "core/Input.h"
+#include "core/Application.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -55,13 +57,6 @@ namespace MathAnim
 		static void updateLevel(int parentIndex, int newLevel);
 		static int getNumChildren(int parentIndex);
 		static void addExistingAnimObject(AnimationManagerData* am, const AnimObject& obj, int level);
-
-		static inline void createAndAddAnimObject(AnimationManagerData* am, AnimObjectTypeV1 type)
-		{
-			AnimObject animObject = AnimObject::createDefault(am, type);
-			AnimationManager::addAnimObject(am, animObject);
-			addNewAnimObject(animObject);
-		}
 
 		void init(AnimationManagerData* am)
 		{
@@ -236,9 +231,10 @@ namespace MathAnim
 					//    EVENT --- DeleteAnimObject
 					// That way I don't have to worry about who's responsibility it is to remove
 					// the anim objects from the animation manager and the timeline
-					deleteAnimObject(*animObject);
-					AnimationManager::removeAnimObject(am, animObject->id);
-					InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
+					UndoSystem::removeObjFromScene(
+						Application::getUndoSystem(),
+						animObject->id
+					);
 				}
 			}
 
@@ -363,45 +359,31 @@ namespace MathAnim
 			{
 				EditorGui::duplicateObject(am, elementClicked->animObjectId);
 			}
+
+			if (ImGui::MenuItem("Delete", "Del"))
+			{
+				UndoSystem::removeObjFromScene(
+					Application::getUndoSystem(),
+					elementClicked->animObjectId
+				);
+			}
 			ImGui::EndDisabled();
 
 			ImGui::Separator();
 
-			if (ImGui::BeginMenu("Cameras"))
+			if (ImGui::MenuItem("Camera"))
 			{
-				if (ImGui::MenuItem("2D Camera"))
+				if (AnimationManager::hasActiveCamera(am))
 				{
-					if (AnimationManager::hasActive2DCamera(am))
-					{
-						g_logger_error("Already an active 2D camera in the scene, cannot add another.");
-					}
-					else
-					{
-						AnimObject animObject = AnimObject::createDefault(am, AnimObjectTypeV1::Camera);
-						animObject.as.camera.mode = CameraMode::Orthographic;
-						AnimationManager::addAnimObject(am, animObject);
-						addNewAnimObject(animObject);
-						AnimationManager::setActiveCamera2D(am, animObject.id);
-					}
+					g_logger_error("Already an active camera in the scene, cannot add another.");
 				}
-
-				if (ImGui::MenuItem("3D Camera"))
+				else
 				{
-					if (AnimationManager::hasActive3DCamera(am))
-					{
-						g_logger_error("Already an active 3D camera in the scene, cannot add another.");
-					}
-					else
-					{
-						AnimObject animObject = AnimObject::createDefault(am, AnimObjectTypeV1::Camera);
-						animObject.as.camera.mode = CameraMode::Perspective;
-						AnimationManager::addAnimObject(am, animObject);
-						addNewAnimObject(animObject);
-						AnimationManager::setActiveCamera2D(am, animObject.id);
-					}
+					UndoSystem::addNewObjToScene(
+						Application::getUndoSystem(),
+						(int)AnimObjectTypeV1::Camera
+					);
 				}
-
-				ImGui::EndMenu();
 			}
 
 			if (ImGui::BeginMenu("Shapes"))
@@ -411,22 +393,34 @@ namespace MathAnim
 
 				if (ImGui::MenuItem("Square"))
 				{
-					createAndAddAnimObject(am, AnimObjectTypeV1::Square);
+					UndoSystem::addNewObjToScene(
+						Application::getUndoSystem(),
+						(int)AnimObjectTypeV1::Square
+					);
 				}
 
 				if (ImGui::MenuItem("Circle"))
 				{
-					createAndAddAnimObject(am, AnimObjectTypeV1::Circle);
+					UndoSystem::addNewObjToScene(
+						Application::getUndoSystem(),
+						(int)AnimObjectTypeV1::Circle
+					);
 				}
 
 				if (ImGui::MenuItem("Arrow"))
 				{
-					createAndAddAnimObject(am, AnimObjectTypeV1::Arrow);
+					UndoSystem::addNewObjToScene(
+						Application::getUndoSystem(),
+						(int)AnimObjectTypeV1::Arrow
+					);
 				}
 
 				if (ImGui::MenuItem("Axis"))
 				{
-					createAndAddAnimObject(am, AnimObjectTypeV1::Axis);
+					UndoSystem::addNewObjToScene(
+						Application::getUndoSystem(),
+						(int)AnimObjectTypeV1::Axis
+					);
 				}
 
 				ImGui::TextColored(grayedTextColor, "3D Shapes");
@@ -434,7 +428,10 @@ namespace MathAnim
 
 				if (ImGui::MenuItem("Cube"))
 				{
-					createAndAddAnimObject(am, AnimObjectTypeV1::Cube);
+					UndoSystem::addNewObjToScene(
+						Application::getUndoSystem(),
+						(int)AnimObjectTypeV1::Cube
+					);
 				}
 
 				ImGui::EndMenu();
@@ -444,17 +441,29 @@ namespace MathAnim
 			{
 				if (ImGui::MenuItem("Text Object"))
 				{
-					createAndAddAnimObject(am, AnimObjectTypeV1::TextObject);
+					UndoSystem::addNewObjToScene(
+						Application::getUndoSystem(),
+						(int)AnimObjectTypeV1::TextObject
+					);
 				}
 
+				// TODO: FIXME, LaTeX objects are very broken right now
+				ImGui::BeginDisabled();
 				if (ImGui::MenuItem("LaTeX"))
 				{
-					createAndAddAnimObject(am, AnimObjectTypeV1::LaTexObject);
+					UndoSystem::addNewObjToScene(
+						Application::getUndoSystem(),
+						(int)AnimObjectTypeV1::LaTexObject
+					);
 				}
+				ImGui::EndDisabled();
 
 				if (ImGui::MenuItem("Code Block"))
 				{
-					createAndAddAnimObject(am, AnimObjectTypeV1::CodeBlock);
+					UndoSystem::addNewObjToScene(
+						Application::getUndoSystem(),
+						(int)AnimObjectTypeV1::CodeBlock
+					);
 				}
 
 				ImGui::EndMenu();
@@ -464,17 +473,26 @@ namespace MathAnim
 
 			if (ImGui::MenuItem("SVG File"))
 			{
-				createAndAddAnimObject(am, AnimObjectTypeV1::SvgFileObject);
+				UndoSystem::addNewObjToScene(
+					Application::getUndoSystem(),
+					(int)AnimObjectTypeV1::SvgFileObject
+				);
 			}
 
 			if (ImGui::MenuItem("Image"))
 			{
-				createAndAddAnimObject(am, AnimObjectTypeV1::Image);
+				UndoSystem::addNewObjToScene(
+					Application::getUndoSystem(),
+					(int)AnimObjectTypeV1::Image
+				);
 			}
 
 			if (ImGui::MenuItem("Script"))
 			{
-				createAndAddAnimObject(am, AnimObjectTypeV1::ScriptObject);
+				UndoSystem::addNewObjToScene(
+					Application::getUndoSystem(),
+					(int)AnimObjectTypeV1::ScriptObject
+				);
 			}
 
 		}

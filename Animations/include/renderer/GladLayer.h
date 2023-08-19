@@ -11,6 +11,8 @@ namespace MathAnim
 
 	namespace GladLayer
 	{
+		void initGlfw();
+
 		GlVersion init();
 
 		void deinit();

@@ -143,7 +143,7 @@
                 "id": "0x0000000A",
                 "indentationLevel": 10,
                 "parent": "0x00000004",
-                "selected": "0xD29D6272",
+                "selected": "0x21BEBADD",
                 "sizeRef": {
                     "X": 500.0,
                     "Y": 561.0
@@ -156,10 +156,36 @@
                 "id": "0x0000000E",
                 "indentationLevel": 6,
                 "parent": "0x0000000C",
-                "selected": "0x5AC5330E",
+                "selected": "0xDD83D5A9",
                 "sizeRef": {
                     "X": 657.0,
                     "Y": 1424.0
+                },
+                "split": "Y",
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000005",
+                "indentationLevel": 8,
+                "parent": "0x0000000E",
+                "selected": "0x4117C304",
+                "sizeRef": {
+                    "X": 657.0,
+                    "Y": 1424.0
+                },
+                "split": null,
+                "type": "DockNode"
+            },
+            {
+                "centralNode": null,
+                "id": "0x00000006",
+                "indentationLevel": 8,
+                "parent": "0x0000000E",
+                "selected": "0xD9BA0F36",
+                "sizeRef": {
+                    "X": 657.0,
+                    "Y": 562.0
                 },
                 "split": null,
                 "type": "DockNode"
@@ -207,7 +233,7 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x0000000E,2",
+            "dockId": "0x00000005,2",
             "name": "Dear ImGui Demo",
             "pos": {
                 "X": 3183.0,
@@ -215,7 +241,7 @@
             },
             "size": {
                 "X": 657.0,
-                "Y": 1988.0
+                "Y": 1424.0
             },
             "viewportId": null,
             "viewportPos": null
@@ -366,7 +392,7 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x0000000E,3",
+            "dockId": "0x00000005,3",
             "name": "Debug",
             "pos": {
                 "X": 3183.0,
@@ -374,7 +400,7 @@
             },
             "size": {
                 "X": 657.0,
-                "Y": 1988.0
+                "Y": 1424.0
             },
             "viewportId": null,
             "viewportPos": null
@@ -471,7 +497,7 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x0000000E,1",
+            "dockId": "0x00000005,1",
             "name": "Editor Settings",
             "pos": {
                 "X": 3183.0,
@@ -479,7 +505,7 @@
             },
             "size": {
                 "X": 657.0,
-                "Y": 1988.0
+                "Y": 1424.0
             },
             "viewportId": null,
             "viewportPos": null
@@ -576,7 +602,7 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x0000000E,4",
+            "dockId": "0x00000005,4",
             "name": "App Metrics",
             "pos": {
                 "X": 3183.0,
@@ -584,7 +610,7 @@
             },
             "size": {
                 "X": 657.0,
-                "Y": 1988.0
+                "Y": 1424.0
             },
             "viewportId": null,
             "viewportPos": null
@@ -666,7 +692,7 @@
         },
         {
             "collapsed": "0",
-            "dockId": "0x0000000E,0",
+            "dockId": "0x00000005,0",
             "name": " Inspector",
             "pos": {
                 "X": 3183.0,
@@ -720,6 +746,36 @@
             "size": {
                 "X": 720.0,
                 "Y": 200.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000005,0",
+            "name": " Animation Object Inspector",
+            "pos": {
+                "X": 3183.0,
+                "Y": 46.0
+            },
+            "size": {
+                "X": 657.0,
+                "Y": 1424.0
+            },
+            "viewportId": null,
+            "viewportPos": null
+        },
+        {
+            "collapsed": "0",
+            "dockId": "0x00000006,0",
+            "name": " Animation Inspector",
+            "pos": {
+                "X": 3183.0,
+                "Y": 1472.0
+            },
+            "size": {
+                "X": 657.0,
+                "Y": 562.0
             },
             "viewportId": null,
             "viewportPos": null

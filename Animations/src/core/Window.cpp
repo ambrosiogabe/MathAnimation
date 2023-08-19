@@ -1,6 +1,7 @@
 #include "core.h"
 #include "core/Window.h"
 #include "core/Input.h"
+#include "core/Profiling.h"
 #include "renderer/GLApi.h"
 #include "platform/Platform.h"
 
@@ -17,18 +18,24 @@ namespace MathAnim
 	Window::Window(int inWidth, int inHeight, const char* inTitle, WindowFlags flags)
 		: width(inWidth), height(inHeight), title(inTitle)
 	{
-		// Minimum required version
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+		// Specifying 1.0 here will make sure GLFW tries to get the highest supported profile 
+		// for us automatically
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 1);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 		glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 		glfwWindowHint(GLFW_SAMPLES, 4);
+
 		if (flags & WindowFlags::OpenMaximized)
 		{
 			glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 		}
 
-		windowPtr = (void*)glfwCreateWindow(width, height, title, nullptr, nullptr);
+		{
+			auto begin = std::chrono::high_resolution_clock::now();
+			windowPtr = (void*)glfwCreateWindow(width, height, title, nullptr, nullptr);
+			auto end = std::chrono::high_resolution_clock::now();
+			g_logger_info("glfwCreateWindow took {}ms", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
+		}
 		if (windowPtr == nullptr)
 		{
 			glfwTerminate();
@@ -66,7 +73,7 @@ namespace MathAnim
 
 	bool Window::setCursorPos(const Vec2i& screenCoordinates) const
 	{
-		if (screenCoordinates.x > this->width || screenCoordinates.x < 0) 
+		if (screenCoordinates.x > this->width || screenCoordinates.x < 0)
 		{
 			return false;
 		}

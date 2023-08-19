@@ -34,6 +34,15 @@ namespace MathAnim
 			});
 		void unloadTexture(TextureHandle handle);
 
+		TextureHandle lazyLoadTexture(
+			const std::string& imageFilepath,
+			const TextureLoadOptions& options = {
+					FilterMode::Linear,
+					FilterMode::Linear,
+					WrapMode::None,
+					WrapMode::None
+		});
+
 		const Texture& getTexture(TextureHandle textureHandle);
 
 		void free();

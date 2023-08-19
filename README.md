@@ -23,14 +23,16 @@ This is a small GIF showcasing some of the capabilities of this tool:
 First clone the repository and the submodules by running:
 
 ```batch
-git clone --recursive https://github.com/ambrosiogabe/MathAnimation
+git clone --recurse-submodules -j8 https://github.com/ambrosiogabe/MathAnimation
 ```
+
+> _NOTE_: Depending on what version of Git you have installed, the command above may or may not initialize all the submodules correctly. If you run into errors when running CMake, make sure each submodule has been cloned properly, and if not try running `git submodule update --init --recursive`.
 
 ### Compiling
 
 > _NOTE:_ Make sure that you have installed the requirements listed above.
 
-Run the following commands:
+Run the following commands in the project root:
 
 ```batch
 mkdir build 
@@ -40,6 +42,8 @@ popd
 ```
 
 Then open the project `build/MathAnimationsPrj.sln` or compile it from the command line using the MSVC developer's prompt.
+
+> _NOTE_: If you want to build the project without launching Visual Studio run `msbuild MathAnimationsPrj.sln` in a command prompt for Visual Studio.
 
 ## Current Features
 

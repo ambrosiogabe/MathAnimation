@@ -308,6 +308,17 @@ namespace MathAnim
 		void calculateKeyframes(AnimationManagerData* am);
 		void calculateKeyframesForObj(AnimationManagerData* am, AnimObjId animObj);
 
+		/**
+		 * @brief EXPENSIVE. This should not be run often. It creates a deep copy of `this` and returns
+		 *        a copy of the animation.
+		 *
+		 * @param keepOriginalId This means that the copy will maintain the original ID if it's true. If it's false,
+		 *                       it will generate a new ID.
+		 * @return A deep copy of `animation`
+		*/
+		Animation createDeepCopy(bool keepOriginalId = false) const;
+		static AnimId getNextUid();
+
 		// Render the gizmo with relation to this object
 		void onGizmo(const AnimObject* obj);
 		// Render the gizmo for this animation with no relation to it's child objects
@@ -373,6 +384,9 @@ namespace MathAnim
 		char* scriptFilepath;
 		size_t scriptFilepathLength;
 
+		void setFilepath(const char* str, size_t strLength);
+		void setFilepath(const std::string& str);
+
 		void serialize(nlohmann::json& j) const;
 		void free();
 
@@ -417,6 +431,7 @@ namespace MathAnim
 		ImageRepeatMode repeatMode;
 
 		void setFilepath(const char* str, size_t strLength);
+		void setFilepath(const std::string& str);
 		void serialize(nlohmann::json& j) const;
 		void free();
 
@@ -531,10 +546,12 @@ namespace MathAnim
 		 *        a copy of the parent object and all the children in breadth-first traversal order.
 		 * 
 		 * @param from The object to copy from.
+		 * @param keepOriginalId This means that the copy will maintain the original ID if it's true. If it's false,
+		 *                       it will generate a new ID.
 		 * @return A deep copy of `from` and all its children in breadth-first traversal order
 		*/
-		static std::vector<AnimObject> createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from);
-		AnimObject createDeepCopy() const;
+		static std::vector<AnimObject> createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from, bool keepOriginalIds = false);
+		AnimObject createDeepCopy(bool keepOriginalId = false) const;
 
 		static inline bool isInternalObjectOnly(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _isInternalObjectOnly[(size_t)type]; }
 		static inline const char* getAnimObjectName(AnimObjectTypeV1 type) { g_logger_assert((size_t)type < (size_t)AnimObjectTypeV1::Length, "Name out of bounds."); return _animationObjectTypeNames[(size_t)type]; }
@@ -547,6 +564,19 @@ namespace MathAnim
 	// Helpers
 	inline bool isNull(const Animation& anim) { return anim.id == NULL_ANIM; }
 	inline bool isNull(const AnimObject& animObject) { return animObject.id == NULL_ANIM_OBJECT; }
+}
+
+// TODO: Dumb logging doesn't work unless it's in global namespace. I should fix this
+inline CppUtils::Stream& operator<<(CppUtils::Stream& ostream, MathAnim::AnimObjectTypeV1 const& t)
+{
+	ostream << MathAnim::_animationObjectTypeNames[(int)t];
+	return ostream;
+}
+
+inline CppUtils::Stream& operator<<(CppUtils::Stream& ostream, MathAnim::AnimTypeV1 const& t)
+{
+	ostream << MathAnim::_animationTypeNames[(int)t];
+	return ostream;
 }
 
 #endif

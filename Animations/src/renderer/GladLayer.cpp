@@ -1,5 +1,6 @@
 #include "renderer/GladLayer.h"
 #include "core.h"
+#include "core/Profiling.h"
 #include "renderer/GLApi.h"
 
 #ifdef _WIN32
@@ -15,27 +16,15 @@ namespace MathAnim
 
 		static void APIENTRY messageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 
-		GlVersion init()
+		void initGlfw()
 		{
 			// Initialize glfw first
 			glfwInit();
 			g_logger_info("GLFW initialized.");
+		}
 
-			// Create dummy window to figure out what GL version we have
-			glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 1);
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-
-			GLFWwindow* windowPtr = glfwCreateWindow(1, 1, "Dummy", nullptr, nullptr);
-			if (windowPtr == nullptr)
-			{
-				glfwTerminate();
-				g_logger_error("Dummy window creation failed, cannot determine OpenGL version.");
-				return {0, 0};
-			}
-			glfwMakeContextCurrent((GLFWwindow*)windowPtr);
-			glfwSetWindowShouldClose((GLFWwindow*)windowPtr, true);
-
+		GlVersion init()
+		{
 			// Load OpenGL functions using Glad
             int version = gladLoadGL(static_cast<GLADloadfunc>(glfwGetProcAddress));
 
@@ -49,9 +38,6 @@ namespace MathAnim
 			res.major = GLAD_VERSION_MAJOR(version);
 			res.minor = GLAD_VERSION_MINOR(version);
 			GL::init(res.major, res.minor);
-
-			// Destroy the dummy window now that we've patched the function pointers
-			glfwDestroyWindow(windowPtr);
 
 #ifdef _DEBUG
 			GL::enable(GL_DEBUG_OUTPUT);

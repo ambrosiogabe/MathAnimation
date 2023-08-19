@@ -18,33 +18,146 @@ namespace MathAnim
 		bool isToggled;
 	};
 
-	namespace ImGuiExtended
+	struct AdditionalEditState
 	{
-		// -------- Internal Vars --------
-		static std::unordered_map<std::string, RenamableState> renamableStates;
-		static std::unordered_map<std::string, ToggleState> toggleStates;
-		static constexpr bool drawDebugBoxes = false;
-		static const char* filePayloadId = "DRAG_DROP_FILE_PAYLOAD";
+		bool isBeingEdited;
+	};
 
-		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size)
+	template<typename T>
+	class ImGuiState
+	{
+	public:
+		ImGuiState()
 		{
-			auto toggleIter = toggleStates.find(string);
-			ToggleState* state = nullptr;
-			if (toggleIter == toggleStates.end())
+			this->states = {};
+		}
+
+		/**
+		 * @brief Finds the element indexed by key. If the element doesn't exist, it gets
+		 *        initialized with `defaultValue` and returns a reference to the newly created
+		 *        item.
+		 *
+		 * @param key
+		 * @param defaultValue
+		 * @return Reference to the item in the unordered_map
+		*/
+		T& findOrDefault(const std::string& label, const T& defaultValue)
+		{
+			if (auto iter = states.find(label); iter == states.end())
 			{
-				toggleStates[string] = { false };
-				state = &toggleStates[string];
+				states[label] = defaultValue;
+				return states[label];
 			}
 			else
 			{
-				state = &toggleIter->second;
+				return iter->second;
 			}
+		}
+
+		void clear()
+		{
+			states.clear();
+		}
+
+	private:
+		std::unordered_map<std::string, T> states;
+	};
+
+	namespace ImGuiExtended
+	{
+		// -------- Internal Vars --------
+		static ImGuiState<AdditionalEditState> additionalEditStates;
+		static ImGuiState<RenamableState> renamableStates;
+		static ImGuiState<ToggleState> toggleStates;
+
+		static constexpr bool drawDebugBoxes = false;
+		static const char* filePayloadId = "DRAG_DROP_FILE_PAYLOAD";
+
+		// Helper functions to wrap around ImGui function calls and return a tri-state instead of true/false
+		template<typename Closure>
+		static EditState undoableImGuiFunction(
+			const std::string& label,
+			Closure&& closure)
+		{
+			AdditionalEditState& state = additionalEditStates.findOrDefault(label, { false });
+
+			bool editRes = closure();
+			editRes = editRes || ImGui::IsItemActive();
+			if (editRes)
+			{
+				state.isBeingEdited = true;
+			}
+
+			if (ImGui::IsItemDeactivatedAfterEdit())
+			{
+				state.isBeingEdited = false;
+				return EditState::FinishedEditing;
+			}
+
+			return editRes
+				? EditState::BeingEdited
+				: EditState::NotEditing;
+		}
+
+		template<typename T>
+		class ImGuiStateEx
+		{
+		public:
+			ImGuiStateEx()
+			{
+				this->states = {};
+			}
+
+			template<typename Closure>
+			ImGuiDataEx<T> undoableImGuiFunctionEx(const std::string& label, const T& defaultValue, Closure&& closure)
+			{
+				ImGuiDataEx<T>& state = states.findOrDefault(label, { defaultValue, EditState::NotEditing });
+
+				if (state.editState == EditState::NotEditing)
+				{
+					state.ogData = defaultValue;
+				}
+
+				state.editState = closure();
+
+				return {
+					state.ogData,
+					state.editState
+				};
+			}
+
+			void clear()
+			{
+				states.clear();
+			}
+
+		private:
+			ImGuiState<ImGuiDataEx<T>> states;
+		};
+
+		// ------------ Extra State Vars ------------
+		static ImGuiStateEx<AnimObjId> animObjDragDropData;
+		static ImGuiStateEx<glm::u8vec4> colorEditU84Data;
+		static ImGuiStateEx<Vec4> colorEdit4Data;
+		static ImGuiStateEx<int> comboData;
+		static ImGuiStateEx<Vec2i> dragInt2Data;
+		static ImGuiStateEx<float> dragFloatData;
+		static ImGuiStateEx<Vec2> dragFloat2Data;
+		static ImGuiStateEx<Vec3> dragFloat3Data;
+		static ImGuiStateEx<bool> checkboxData;
+		static ImGuiStateEx<std::string> inputTextData;
+		static ImGuiStateEx<std::string> inputTextMultilineData;
+		static ImGuiStateEx<std::string> fileDragDropData;
+
+		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size)
+		{
+			ToggleState& state = toggleStates.findOrDefault(string, { false });
 
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2.0f);
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
 			ImGui::PushStyleColor(
 				ImGuiCol_Button,
-				state->isToggled
+				state.isToggled
 				? Colors::Neutral[6]
 				: Colors::Neutral[8]
 			);
@@ -57,9 +170,9 @@ namespace MathAnim
 
 			if (clicked)
 			{
-				state->isToggled = !state->isToggled;
+				state.isToggled = !state.isToggled;
 			}
-			*enabled = state->isToggled;
+			*enabled = state.isToggled;
 
 			return clicked;
 		}
@@ -123,24 +236,14 @@ namespace MathAnim
 		{
 			std::string iconName = std::string(buttonText);
 			std::string mapName = "Button_" + iconName;
-			auto renamableIter = renamableStates.find(mapName);
-			RenamableState* state = nullptr;
-			if (renamableIter == renamableStates.end())
-			{
-				renamableStates[mapName] = { false, Vec2{0, 0} };
-				state = &renamableStates[mapName];
-			}
-			else
-			{
-				state = &renamableIter->second;
-			}
+			RenamableState& state = renamableStates.findOrDefault(mapName, { false, Vec2{0, 0} });
 
 			ImGui::PushID(mapName.c_str());
 			ImVec2 cursor = ImGui::GetCursorScreenPos();
 			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
 			bool buttonClicked = ImGui::Button(
 				"##Selectable",
-				ImVec2(state->groupSize.x, state->groupSize.y)
+				ImVec2(state.groupSize.x, state.groupSize.y)
 			);
 			ImGui::PopStyleColor();
 			ImGui::PopID();
@@ -190,7 +293,7 @@ namespace MathAnim
 			ImGui::SetCursorScreenPos(cursor + ImVec2(size));
 			ImGui::EndGroup();
 
-			state->groupSize = Vec2{ size.x, size.y };
+			state.groupSize = Vec2{ size.x, size.y };
 
 			return buttonClicked;
 		}
@@ -215,7 +318,7 @@ namespace MathAnim
 			return res;
 		}
 
-		bool AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation)
+		EditState AnimObjDragDropInputBox(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation)
 		{
 			const AnimObject* srcObj = AnimationManager::getObject(am, *output);
 
@@ -252,10 +355,21 @@ namespace MathAnim
 					}
 				}
 				*output = objPayload->animObjectId;
-				return true;
+				return EditState::FinishedEditing;
 			}
 
-			return false;
+			return EditState::NotEditing;
+		}
+
+		ImGuiDataEx<AnimObjId> AnimObjDragDropInputBoxEx(const char* label, AnimationManagerData* am, AnimObjId* output, AnimId animation)
+		{
+			return animObjDragDropData.undoableImGuiFunctionEx(
+				label,
+				*output,
+				[&]()
+				{
+					return AnimObjDragDropInputBox(label, am, output, animation);
+				});
 		}
 
 		const FilePayload* FileDragDropTarget()
@@ -278,7 +392,7 @@ namespace MathAnim
 			return res;
 		}
 
-		bool FileDragDropInputBox(const char* label, char* outBuffer, size_t outBufferSize)
+		EditState FileDragDropInputBox(const char* label, char* outBuffer, size_t outBufferSize)
 		{
 			ImGui::BeginDisabled();
 			ImGui::InputText(label, outBuffer, outBufferSize, ImGuiInputTextFlags_ReadOnly);
@@ -293,14 +407,26 @@ namespace MathAnim
 				}
 				else
 				{
-					g_logger_error("File drag drop target got filepath of length '{}' that was too long to fit into buffer of length '{}'.", objPayload->filepathLength, outBufferSize);
-					return false;
+					g_memory_copyMem((void*)outBuffer, (void*)objPayload->filepath, sizeof(char) * outBufferSize);
+					outBuffer[outBufferSize - 1] = '\0';
+					g_logger_warning("File drag drop target got filepath of length '{}' that was too long to fit into buffer of length '{}'. Truncating filename.", objPayload->filepathLength, outBufferSize);
 				}
 
-				return true;
+				return EditState::FinishedEditing;
 			}
 
-			return false;
+			return EditState::NotEditing;
+		}
+
+		ImGuiDataEx<std::string> FileDragDropInputBoxEx(const char* label, char* outBuffer, size_t outBufferSize)
+		{
+			return fileDragDropData.undoableImGuiFunctionEx(
+				label,
+				outBuffer,
+				[&]()
+				{
+					return InputText(label, outBuffer, outBufferSize);
+				});
 		}
 
 		const char* getFileDragDropPayloadId()
@@ -370,17 +496,7 @@ namespace MathAnim
 		bool RenamableIconSelectable(const char* icon, char* stringBuffer, size_t stringBufferSize, bool isSelected, float width)
 		{
 			std::string iconName = std::string(stringBuffer);
-			auto renamableIter = renamableStates.find(iconName);
-			RenamableState* state = nullptr;
-			if (renamableIter == renamableStates.end())
-			{
-				renamableStates[iconName] = { false, Vec2{0, 0} };
-				state = &renamableStates[iconName];
-			}
-			else
-			{
-				state = &renamableIter->second;
-			}
+			RenamableState& state = renamableStates.findOrDefault(iconName, { false, Vec2{0, 0} });
 
 			ImGui::PushID(iconName.c_str());
 			ImVec2 cursor = ImGui::GetCursorScreenPos();
@@ -389,7 +505,7 @@ namespace MathAnim
 				"##Selectable",
 				&isSelected,
 				0,
-				ImVec2(state->groupSize.x, state->groupSize.y)
+				ImVec2(state.groupSize.x, state.groupSize.y)
 			);
 			bool selectableIsClicked = ImGui::IsItemClicked();
 			ImGuiItemStatusFlags itemStatusFlags = ImGui::GetItemStatusFlags();
@@ -401,14 +517,14 @@ namespace MathAnim
 
 			if (isAlreadySelected)
 			{
-				if (selectableIsClicked && !state->isBeingRenamed)
+				if (selectableIsClicked && !state.isBeingRenamed)
 				{
-					state->isBeingRenamed = true;
+					state.isBeingRenamed = true;
 				}
 			}
 			else
 			{
-				state->isBeingRenamed = false;
+				state.isBeingRenamed = false;
 			}
 
 			ImGui::PopID();
@@ -448,7 +564,7 @@ namespace MathAnim
 				iconEndY + ImGui::GetStyle().FramePadding.y
 			);
 			ImGui::SetCursorScreenPos(textPosition);
-			if (!state->isBeingRenamed)
+			if (!state.isBeingRenamed)
 			{
 				CenteredWrappedText(textPosition, fontColor, stringBuffer, wrapWidth);
 				if (drawDebugBoxes)
@@ -469,20 +585,20 @@ namespace MathAnim
 					| ImGuiInputTextFlags_AutoSelectAll
 				))
 				{
-					state->isBeingRenamed = false;
+					state.isBeingRenamed = false;
 					selectionChanged = true;
 				}
 
 				if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !selectableIsClicked)
 				{
-					state->isBeingRenamed = false;
+					state.isBeingRenamed = false;
 				}
 			}
 
 			ImGui::SetCursorScreenPos(cursor + ImVec2(size));
 			ImGui::EndGroup();
 
-			state->groupSize = Vec2{ size.x, size.y };
+			state.groupSize = Vec2{ size.x, size.y };
 
 			ImGui::SetLastItemData(itemId, itemFlags, itemStatusFlags, itemRect);
 
@@ -623,6 +739,259 @@ namespace MathAnim
 			ImGui::Text(label);
 
 			return false;
+		}
+
+		EditState Checkbox(const char* label, bool* v)
+		{
+			std::string fullLabel = label + std::string("##Checkbox");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::Checkbox(label, v);
+				});
+		}
+
+		ImGuiDataEx<bool> CheckboxEx(const char* label, bool* v)
+		{
+			return checkboxData.undoableImGuiFunctionEx(
+				label,
+				*v,
+				[&]()
+				{
+					return Checkbox(label, v);
+				});
+		}
+
+		EditState InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+		{
+			std::string fullLabel = label + std::string("##InputText");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::InputText(label, buf, buf_size, flags, callback, user_data);
+				});
+		}
+
+		ImGuiDataEx<std::string> InputTextEx(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+		{
+			return inputTextData.undoableImGuiFunctionEx(
+				label,
+				buf,
+				[&]()
+				{
+					return InputText(label, buf, buf_size, flags, callback, user_data);
+				});
+		}
+
+		EditState InputTextMultiline(const char* label, char* buf, size_t buf_size, const ImVec2& size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+		{
+			std::string fullLabel = label + std::string("##InputTextMultiline");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::InputTextMultiline(label, buf, buf_size, size, flags, callback, user_data);
+				});
+		}
+
+		ImGuiDataEx<std::string> InputTextMultilineEx(const char* label, char* buf, size_t buf_size, const ImVec2& size, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+		{
+			return inputTextMultilineData.undoableImGuiFunctionEx(
+				label,
+				buf,
+				[&]()
+				{
+					return InputTextMultiline(label, buf, buf_size, size, flags, callback, user_data);
+				});
+		}
+
+		EditState DragInt2(const char* label, Vec2i* v, float v_speed, int v_min, int v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			std::string fullLabel = label + std::string("##DragInt2");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::DragInt2(label, v->values, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		ImGuiDataEx<Vec2i> DragInt2Ex(const char* label, Vec2i* v, float v_speed, int v_min, int v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			return dragInt2Data.undoableImGuiFunctionEx(
+				label,
+				*v,
+				[&]()
+				{
+					return DragInt2(label, v, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		EditState DragFloat(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			std::string fullLabel = label + std::string("##DragFloat");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::DragFloat(label, v, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		ImGuiDataEx<float> DragFloatEx(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			return dragFloatData.undoableImGuiFunctionEx(
+				label,
+				*v,
+				[&]()
+				{
+					return DragFloat(label, v, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		EditState DragFloat2(const char* label, Vec2* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			std::string fullLabel = label + std::string("##DragFloat2");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::DragFloat2(label, (float*)v->values, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		ImGuiDataEx<Vec2> DragFloat2Ex(const char* label, Vec2* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			return dragFloat2Data.undoableImGuiFunctionEx(
+				label,
+				*v,
+				[&]()
+				{
+					return DragFloat2(label, v, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		EditState DragFloat3(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			std::string fullLabel = label + std::string("##DragFloat3");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::DragFloat3(label, (float*)vec3->values, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		ImGuiDataEx<Vec3> DragFloat3Ex(const char* label, Vec3* vec3, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+		{
+			return dragFloat3Data.undoableImGuiFunctionEx(
+				label,
+				*vec3,
+				[&]()
+				{
+					return DragFloat3(label, vec3, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		EditState Combo(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items)
+		{
+			std::string fullLabel = label + std::string("##Combo");
+			return ImGui::Combo(label, current_item, items, items_count, popup_max_height_in_items)
+				? EditState::FinishedEditing
+				: EditState::NotEditing;
+		}
+
+		ImGuiDataEx<int> ComboEx(const char* label, int* current_item, const char* const items[], int items_count, int popup_max_height_in_items)
+		{
+			return comboData.undoableImGuiFunctionEx(
+				label,
+				*current_item,
+				[&]()
+				{
+					return Combo(label, current_item, items, items_count, popup_max_height_in_items);
+				});
+		}
+
+		EditState ColorEdit4(const char* label, glm::u8vec4* color, ImGuiColorEditFlags flags)
+		{
+			std::string fullLabel = label + std::string("##ColorEdit4");
+			AdditionalEditState& state = additionalEditStates.findOrDefault(fullLabel, { false });
+
+			float fillColor[4] = {
+				(float)color->r / 255.0f,
+				(float)color->g / 255.0f,
+				(float)color->b / 255.0f,
+				(float)color->a / 255.0f,
+			};
+
+			bool editRes = ImGui::ColorEdit4(label, fillColor, flags);
+			editRes = editRes || ImGui::IsItemActive();
+			if (editRes)
+			{
+				state.isBeingEdited = true;
+
+				color->r = (uint8)(fillColor[0] * 255.0f);
+				color->g = (uint8)(fillColor[1] * 255.0f);
+				color->b = (uint8)(fillColor[2] * 255.0f);
+				color->a = (uint8)(fillColor[3] * 255.0f);
+			}
+
+			if (ImGui::IsItemDeactivatedAfterEdit())
+			{
+				state.isBeingEdited = false;
+				return EditState::FinishedEditing;
+			}
+
+			return editRes
+				? EditState::BeingEdited
+				: EditState::NotEditing;
+		}
+
+		ImGuiDataEx<glm::u8vec4> ColorEdit4Ex(const char* label, glm::u8vec4* color, ImGuiColorEditFlags flags)
+		{
+			return colorEditU84Data.undoableImGuiFunctionEx(
+				label,
+				*color,
+				[&]()
+				{
+					return ColorEdit4(label, color, flags);
+				});
+		}
+
+		EditState ColorEdit4(const char* label, Vec4* color, ImGuiColorEditFlags flags)
+		{
+			std::string fullLabel = label + std::string("##ColorEdit4");
+			AdditionalEditState& state = additionalEditStates.findOrDefault(fullLabel, { false });
+
+			bool editRes = ImGui::ColorEdit4(label, color->values, flags);
+			editRes = editRes || ImGui::IsItemActive();
+			if (editRes)
+			{
+				state.isBeingEdited = true;
+			}
+
+			if (ImGui::IsItemDeactivatedAfterEdit())
+			{
+				state.isBeingEdited = false;
+				return EditState::FinishedEditing;
+			}
+
+			return editRes
+				? EditState::BeingEdited
+				: EditState::NotEditing;
+		}
+
+		ImGuiDataEx<Vec4> ColorEdit4Ex(const char* label, Vec4* col, ImGuiColorEditFlags flags)
+		{
+			return colorEdit4Data.undoableImGuiFunctionEx(
+				label,
+				*col,
+				[&]()
+				{
+					return ColorEdit4(label, col, flags);
+				});
 		}
 	}
 }

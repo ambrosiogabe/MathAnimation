@@ -18,6 +18,8 @@ namespace MathAnim
 
 	namespace Platform
 	{
+		void free();
+
 		const std::vector<std::string>& getAvailableFonts();
 
 		bool isProgramInstalled(const char* displayName);

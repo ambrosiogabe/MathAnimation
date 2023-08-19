@@ -10,9 +10,7 @@ namespace MathAnim
 
 	struct TimelinePayload
 	{
-		AnimObjectTypeV1 objectType;
 		AnimTypeV1 animType;
-		bool isAnimObject;
 	};
 
 	struct TimelineData
@@ -30,6 +28,9 @@ namespace MathAnim
 		void init(AnimationManagerData* am);
 
 		void update(TimelineData& data, AnimationManagerData* am);
+		void updateAnimation(AnimId anim, int frameStart, int frameDuration);
+		void addAnimation(const Animation& animation);
+		void removeAnimation(AnimationManagerData* am, AnimId anim);
 
 		void freeInstance(TimelineData& data);
 		void free(AnimationManagerData* am);

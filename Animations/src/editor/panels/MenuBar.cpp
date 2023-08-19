@@ -1,6 +1,7 @@
 #include "editor/panels/MenuBar.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/EditorLayout.h"
+#include "editor/UndoSystem.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
 #include "renderer/Colors.h"
@@ -56,6 +57,16 @@ namespace MathAnim
 
 				if (ImGui::BeginMenu("Edit"))
 				{
+					if (ImGui::MenuItem("Undo", "Ctrl+Z"))
+					{
+						UndoSystem::undo(Application::getUndoSystem());
+					}
+
+					if (ImGui::MenuItem("Redo", "Ctrl+Shift+Z"))
+					{
+						UndoSystem::redo(Application::getUndoSystem());
+					}
+
 					ImGui::EndMenu();
 				}
 

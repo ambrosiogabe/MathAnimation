@@ -13,7 +13,7 @@ namespace MathAnim
 		std::filesystem::path filepath;
 
 		void compile(const std::filesystem::path& shaderFilepath);
-		void compileRaw(const char* rawSource);
+		void compileRaw(const std::string& rawSource);
 		void bind() const;
 		void unbind() const;
 		void destroy();

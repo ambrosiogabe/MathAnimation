@@ -1,8 +1,8 @@
 #ifdef _MATH_ANIM_TESTS
 #include "LRUCacheTests.h"
-#include "core/Testing.h"
 #include "utils/LRUCache.hpp"
 
+using namespace CppUtils;
 
 namespace MathAnim
 {
@@ -25,7 +25,6 @@ namespace MathAnim
 
 namespace std
 {
-
 	template <>
 	struct hash<MathAnim::DummyData>
 	{
@@ -358,7 +357,7 @@ namespace MathAnim
 
 		void setupTestSuite()
 		{
-			TestSuite& testSuite = Tests::addTestSuite("LRUCache");
+			Tests::TestSuite& testSuite = Tests::addTestSuite("LRUCache");
 
 			ADD_TEST(testSuite, existsShouldReturnTrueForExistingItem);
 

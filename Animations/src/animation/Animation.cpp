@@ -18,6 +18,7 @@
 #include "editor/EditorSettings.h"
 #include "editor/EditorGui.h"
 #include "editor/panels/SceneHierarchyPanel.h"
+#include "editor/UndoSystem.h"
 
 #include <nlohmann/json.hpp>
 
@@ -921,8 +922,7 @@ namespace MathAnim
 	Animation Animation::createDefault(AnimTypeV1 type, int32 frameStart, int32 duration)
 	{
 		Animation res;
-		res.id = animationUidCounter++;
-		g_logger_assert(animationUidCounter < UINT64_MAX, "Somehow our UID counter reached {}. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 65'000 animations in the scene.", UINT64_MAX);
+		res.id = getNextUid();
 		res.frameStart = frameStart;
 		res.duration = duration;
 		res.animObjectIds.clear();
@@ -1052,6 +1052,24 @@ namespace MathAnim
 		return res;
 	}
 
+	void ScriptObject::setFilepath(const char* str, size_t strLength)
+	{
+		if (strLength != this->scriptFilepathLength)
+		{
+			this->scriptFilepath = (char*)g_memory_realloc(this->scriptFilepath, sizeof(char) * (strLength + 1));
+			g_logger_assert(this->scriptFilepath != nullptr, "Allocation failed. Out of memory.");
+		}
+
+		g_memory_copyMem((void*)this->scriptFilepathLength, (void*)str, sizeof(char) * strLength);
+		this->scriptFilepath[strLength] = '\0';
+		this->scriptFilepathLength = strLength;
+	}
+
+	void ScriptObject::setFilepath(const std::string& str)
+	{
+		setFilepath(str.c_str(), str.length());
+	}
+
 	void ScriptObject::serialize(nlohmann::json& memory) const
 	{
 		SERIALIZE_NULLABLE_CSTRING(memory, this, scriptFilepath, "Undefined");
@@ -1131,6 +1149,11 @@ namespace MathAnim
 		this->imageFilepathLength = strLength;
 	}
 
+	void ImageObject::setFilepath(const std::string& str)
+	{
+		setFilepath(str.c_str(), str.length());
+	}
+
 	void ImageObject::serialize(nlohmann::json& j) const
 	{
 		SERIALIZE_NULLABLE_CSTRING(j, this, imageFilepath, "Undefined");
@@ -1162,7 +1185,7 @@ namespace MathAnim
 			return;
 		}
 
-		TextureHandle handle = TextureCache::loadTexture(imageFilepath, getLoadOptions());
+		TextureHandle handle = TextureCache::lazyLoadTexture(imageFilepath, getLoadOptions());
 		const Texture& texture = TextureCache::getTexture(handle);
 
 		size.x = size.x == 0.0f ? (float)texture.width / Application::getOutputSize().x * Application::getViewportSize().x : size.x;
@@ -1281,7 +1304,7 @@ namespace MathAnim
 
 			if (res.imageFilepath > 0)
 			{
-				res.textureHandle = TextureCache::loadTexture(res.imageFilepath, res.getLoadOptions());
+				res.textureHandle = TextureCache::lazyLoadTexture(res.imageFilepath, res.getLoadOptions());
 			}
 
 			return res;
@@ -1328,7 +1351,8 @@ namespace MathAnim
 		// It's important to render the gizmo at the global location, and then transform
 		// the result back to local coordinates since the user is editing with gizmos in global
 		// space
-		if (GizmoManager::translateGizmo(gizmoName.c_str(), &this->_globalPositionStart))
+		if (auto res = GizmoManager::translateGizmo(gizmoName.c_str(), &this->_globalPositionStart);
+			res.editState != EditState::NotEditing)
 		{
 			glm::mat4 parentsTransform = glm::mat4(1.0f);
 			if (!isNull(this->parentId))
@@ -1346,16 +1370,52 @@ namespace MathAnim
 			// Then get local position
 			this->_positionStart = Vec3{ newLocal.x, newLocal.y, newLocal.z };
 			AnimationManager::updateObjectState(am, this->id);
+
+			if (res.editState == EditState::FinishedEditing)
+			{
+				glm::vec4 ogLocal = inverseParentTransform * glm::vec4(CMath::convert(res.ogData), 1.0f);
+				UndoSystem::setVec3Prop(
+					Application::getUndoSystem(),
+					this->id,
+					Vec3{ ogLocal.x, ogLocal.y, ogLocal.z },
+					this->_positionStart,
+					Vec3PropType::Position
+				);
+			}
 		}
 
-		if (GizmoManager::scaleGizmo(gizmoName.c_str(), this->globalPosition, &this->_scaleStart))
+		if (auto res = GizmoManager::scaleGizmo(gizmoName.c_str(), this->globalPosition, &this->_scaleStart);
+			res.editState != EditState::NotEditing)
 		{
 			AnimationManager::updateObjectState(am, this->id);
+
+			if (res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec3Prop(
+					Application::getUndoSystem(),
+					this->id,
+					res.ogData,
+					this->_scaleStart,
+					Vec3PropType::Scale
+				);
+			}
 		}
 
-		if (GizmoManager::rotateGizmo(gizmoName.c_str(), this->globalPosition, &this->_rotationStart))
+		if (auto res = GizmoManager::rotateGizmo(gizmoName.c_str(), this->globalPosition, &this->_rotationStart);
+			res.editState != EditState::NotEditing)
 		{
 			AnimationManager::updateObjectState(am, this->id);
+
+			if (res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec3Prop(
+					Application::getUndoSystem(),
+					this->id,
+					res.ogData,
+					this->_rotationStart,
+					Vec3PropType::Rotation
+				);
+			}
 		}
 
 		switch (objectType)
@@ -1379,6 +1439,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Camera:
 		{
 			this->as.camera.position = this->_globalPositionStart;
+			this->as.camera.orientation = CMath::quatFromEulerAngles(this->_rotationStart);
 		}
 		break;
 		case AnimObjectTypeV1::Length:
@@ -2374,13 +2435,13 @@ namespace MathAnim
 		return res;
 	}
 
-	std::vector<AnimObject> AnimObject::createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from)
+	std::vector<AnimObject> AnimObject::createDeepCopyWithChildren(const AnimationManagerData* am, const AnimObject& from, bool keepOriginalIds)
 	{
 		std::vector<AnimObject> res = {};
 		std::unordered_map<AnimObjId, AnimObjId> copyIdMap = {};
 
 		{
-			AnimObject copy = from.createDeepCopy();
+			AnimObject copy = from.createDeepCopy(keepOriginalIds);
 			copyIdMap[from.id] = copy.id;
 			res.emplace_back(copy);
 		}
@@ -2390,7 +2451,7 @@ namespace MathAnim
 			const AnimObject* obj = AnimationManager::getObject(am, *it);
 			if (obj)
 			{
-				AnimObject copy = obj->createDeepCopy();
+				AnimObject copy = obj->createDeepCopy(keepOriginalIds);
 				copyIdMap[obj->id] = copy.id;
 				if (!isNull(copy.parentId))
 				{
@@ -2415,14 +2476,39 @@ namespace MathAnim
 		return res;
 	}
 
-	AnimObject AnimObject::createDeepCopy() const
+	AnimObject AnimObject::createDeepCopy(bool keepOriginalId) const
 	{
 		// TODO: Do some performance checking on this. I have a feeling it will be slow, but 
 		//       double check this if copy/paste becomes laggy.
 		nlohmann::json j = {};
 		this->serialize(j);
 		AnimObject res = AnimObject::deserialize(j, SERIALIZER_VERSION_MAJOR);
-		res.id = getNextUid();
+		if (keepOriginalId)
+		{
+			res.id = this->id;
+		}
+		else
+		{
+			res.id = getNextUid();
+		}
+		return res;
+	}
+
+	Animation Animation::createDeepCopy(bool keepOriginalId) const
+	{
+		// TODO: Do some performance checking on this. I have a feeling it will be slow, but 
+		//       double check this if copy/paste becomes laggy.
+		nlohmann::json j = {};
+		this->serialize(j);
+		Animation res = Animation::deserialize(j, SERIALIZER_VERSION_MAJOR);
+		if (keepOriginalId)
+		{
+			res.id = this->id;
+		}
+		else
+		{
+			res.id = getNextUid();
+		}
 		return res;
 	}
 
@@ -2433,13 +2519,33 @@ namespace MathAnim
 		return res;
 	}
 
+	AnimId Animation::getNextUid()
+	{
+		AnimId res = animationUidCounter++;
+		g_logger_assert(animationUidCounter < UINT64_MAX, "Somehow our UID counter reached '{}'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually bazillion animations in the scene.", UINT64_MAX);
+		return res;
+	}
+
 	// ----------------------------- Internal Functions -----------------------------
 	static void onMoveToGizmo(AnimationManagerData*, Animation* anim)
 	{
 		// TODO: Render and handle 2D gizmo logic based on edit mode
 		std::string gizmoName = "Move_To_" + std::to_string(anim->id);
 		Vec3 tmp = CMath::vector3From2(anim->as.moveTo.target);
-		GizmoManager::translateGizmo(gizmoName.c_str(), &tmp);
-		anim->as.moveTo.target = CMath::vector2From3(tmp);
+		if (auto res = GizmoManager::translateGizmo(gizmoName.c_str(), &tmp);
+			res.editState != EditState::NotEditing) 
+		{
+			anim->as.moveTo.target = CMath::vector2From3(tmp);
+			if (res.editState == EditState::FinishedEditing)
+			{
+				UndoSystem::setVec2Prop(
+					Application::getUndoSystem(),
+					anim->id,
+					CMath::vector2From3(res.ogData),
+					anim->as.moveTo.target,
+					Vec2PropType::MoveToTargetPos
+				);
+			}
+		}
 	}
 }

@@ -2,6 +2,7 @@
 #include "core/ProjectApp.h"
 #include "core/Serialization.hpp"
 #include "core/Window.h"
+#include "core/Profiling.h"
 #include "renderer/Colors.h"
 #include "renderer/Texture.h"
 #include "platform/Platform.h"
@@ -53,6 +54,8 @@ namespace MathAnim
 
 		void init(const std::filesystem::path& appRoot)
 		{
+			MP_PROFILE_EVENT("ProjectScreen::init");
+
 			createNewProject = false;
 
 			float dpiScale = ProjectApp::getWindow()->getContentScale();
@@ -96,7 +99,7 @@ namespace MathAnim
 				{
 					projects[i].texture = TextureBuilder()
 						.setFilepath(projects[i].previewImageFilepath.c_str())
-						.generate(true);
+						.generateFromFile();
 				}
 				else
 				{

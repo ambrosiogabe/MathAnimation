@@ -514,7 +514,7 @@ namespace MathAnim
 
 		void renderToFramebuffer(Framebuffer& framebuffer, AnimationManagerData* am, const char* debugName)
 		{
-			if (!AnimationManager::hasActive2DCamera(am))
+			if (!AnimationManager::hasActiveCamera(am))
 			{
 				// Don't render anything if no camera is active
 				// TODO: Maybe render a texture in the future that says something like "No Active Camera in Scene"
@@ -522,8 +522,8 @@ namespace MathAnim
 				return;
 			}
 
-			const Camera& camera2D = AnimationManager::getActiveCamera2D(am);
-			Renderer::clearColor(camera2D.fillColor);
+			const Camera& camera = AnimationManager::getActiveCamera(am);
+			Renderer::clearColor(camera.fillColor);
 			renderToFramebuffer(framebuffer, debugName);
 		}
 
@@ -1047,7 +1047,8 @@ namespace MathAnim
 		{
 			glm::vec4 translated = glm::vec4(vert.x, vert.y, 0.0f, 1.0f);
 			translated = transform * translated;
-			return Vec3{ translated.x, translated.y, translated.z };
+			// NOTE: Add a small offset to the z-coord to avoid z-fighting
+			return Vec3{ translated.x, translated.y, translated.z + 0.0001f };
 		}
 
 		bool endPath(Path2DContext* path, bool closePath, AnimObjId objId)
@@ -1908,7 +1909,7 @@ namespace MathAnim
 				.setMagFilter(FilterMode::Nearest)
 				.setMinFilter(FilterMode::Nearest)
 				.setFormat(ByteFormat::RGBA8_UI)
-				.generate();
+				.generateEmpty();
 			uint32 whitePixel = 0xFFFFFFFF;
 			defaultWhiteTexture.uploadSubImage(0, 0, 1, 1, (uint8*)&whitePixel, sizeof(uint32));
 		}

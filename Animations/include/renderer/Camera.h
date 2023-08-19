@@ -32,8 +32,8 @@ namespace MathAnim
 		bool matricesAreCached;
 
 		// Parameters
-		glm::quat orientation;
-		Vec3 position;
+		glm::quat orientation; // NOEDIT: This is for internal stuff only, the user should modify camera rotation using gizmos or base object
+		Vec3 position; // NOEDIT: This is for internal stuff only, the user should modify camera rotation using gizmos or base object
 		CameraMode mode;
 		Vec2i aspectRatioFraction;
 		Vec2 nearFarRange;

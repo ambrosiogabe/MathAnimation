@@ -1,6 +1,7 @@
 #ifndef MATH_ANIM_SYNTAX_HIGHLIGHTER_H
 #define MATH_ANIM_SYNTAX_HIGHLIGHTER_H
 #include "core.h"
+#include "parsers/Common.h"
 
 namespace MathAnim
 {
@@ -27,7 +28,7 @@ namespace MathAnim
 		"None",
 		"assets/grammars/cpp.tmLanguage.json",
 		"assets/grammars/glsl.tmLanguage.json",
-		"assets/grammars/javascript.tmLanguage.json"
+		"assets/grammars/javascript.json"
 		);
 
 	enum class HighlighterTheme : uint8
@@ -82,7 +83,11 @@ namespace MathAnim
 	public:
 		SyntaxHighlighter(const std::filesystem::path& grammar);
 
+		std::vector<ScopedName> getAncestorsFor(const std::string& code, size_t cursorPos) const;
+
 		CodeHighlights parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo = false) const;
+
+		std::string getStringifiedParseTreeFor(const std::string& code) const;
 
 		void free();
 
