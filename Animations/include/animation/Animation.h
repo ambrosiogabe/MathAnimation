@@ -429,13 +429,18 @@ namespace MathAnim
 		Vec2 size;
 		ImageFilterMode filterMode;
 		ImageRepeatMode repeatMode;
+		bool isLoadingImage;
 
 		void setFilepath(const char* str, size_t strLength);
 		void setFilepath(const std::string& str);
 		void serialize(nlohmann::json& j) const;
 		void free();
 
-		void init(AnimationManagerData* am, AnimObjId parentId);
+		// NOTE: This update function is just used to check if it's
+		// in the middle of parsing loading the image.
+		void update(AnimationManagerData* am, AnimObjId parentId);
+
+		void init();
 		void reInit(AnimationManagerData* am, AnimObject* obj, bool resetSize = false);
 
 		TextureLoadOptions getLoadOptions() const;

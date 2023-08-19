@@ -1178,43 +1178,53 @@ namespace MathAnim
 		imageFilepathLength = 0;
 	}
 
-	void ImageObject::init(AnimationManagerData* am, AnimObjId parentId)
+	void ImageObject::update(AnimationManagerData* am, AnimObjId parentId)
+	{
+		if (isLoadingImage && TextureCache::isTextureLoaded(textureHandle))
+		{
+			const Texture& texture = TextureCache::getTexture(this->textureHandle);
+
+			size.x = size.x == 0.0f ? (float)texture.width / Application::getOutputSize().x * Application::getViewportSize().x : size.x;
+			size.y = size.y == 0.0f ? (float)texture.height / Application::getOutputSize().y * Application::getViewportSize().y : size.y;
+
+			// Generate child for the actual image
+			AnimObject imageChildObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::_ImageObject, parentId, true);
+			imageChildObj._positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
+			imageChildObj.setName("Image");
+
+			// Generate child for the square/border that will be drawn in around the image
+			AnimObject squareChildObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::Square, parentId, true);
+			squareChildObj.as.square.sideLength = 1.0f;
+			squareChildObj._positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
+			squareChildObj._scaleStart.x = (float)size.x;
+			squareChildObj._scaleStart.y = (float)size.y;
+			squareChildObj._fillColorStart.a = 0;
+			squareChildObj.fillColor.a = 0;
+			squareChildObj.setName("Square Border");
+			squareChildObj.as.square.reInit(&squareChildObj);
+
+			AnimationManager::addAnimObject(am, squareChildObj);
+			// TODO: Ugly what do I do???
+			SceneHierarchyPanel::addNewAnimObject(squareChildObj);
+
+			AnimationManager::addAnimObject(am, imageChildObj);
+			// TODO: Ugly what do I do???
+			SceneHierarchyPanel::addNewAnimObject(imageChildObj);
+
+			AnimationManager::updateObjectState(am, parentId);
+			isLoadingImage = false;
+		}
+	}
+
+	void ImageObject::init()
 	{
 		if (imageFilepath == nullptr || imageFilepathLength == 0)
 		{
 			return;
 		}
 
-		TextureHandle handle = TextureCache::lazyLoadTexture(imageFilepath, getLoadOptions());
-		const Texture& texture = TextureCache::getTexture(handle);
-
-		size.x = size.x == 0.0f ? (float)texture.width / Application::getOutputSize().x * Application::getViewportSize().x : size.x;
-		size.y = size.y == 0.0f ? (float)texture.height / Application::getOutputSize().y * Application::getViewportSize().y : size.y;
-		textureHandle = handle;
-
-		// Generate child for the actual image
-		AnimObject imageChildObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::_ImageObject, parentId, true);
-		imageChildObj._positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
-		imageChildObj.setName("Image");
-
-		// Generate child for the square/border that will be drawn in around the image
-		AnimObject squareChildObj = AnimObject::createDefaultFromParent(am, AnimObjectTypeV1::Square, parentId, true);
-		squareChildObj.as.square.sideLength = 1.0f;
-		squareChildObj._positionStart = Vec3{ 0.0f, 0.0f, 0.0f };
-		squareChildObj._scaleStart.x = (float)size.x;
-		squareChildObj._scaleStart.y = (float)size.y;
-		squareChildObj._fillColorStart.a = 0;
-		squareChildObj.fillColor.a = 0;
-		squareChildObj.setName("Square Border");
-		squareChildObj.as.square.reInit(&squareChildObj);
-
-		AnimationManager::addAnimObject(am, squareChildObj);
-		// TODO: Ugly what do I do???
-		SceneHierarchyPanel::addNewAnimObject(squareChildObj);
-
-		AnimationManager::addAnimObject(am, imageChildObj);
-		// TODO: Ugly what do I do???
-		SceneHierarchyPanel::addNewAnimObject(imageChildObj);
+		this->textureHandle = TextureCache::lazyLoadTexture(imageFilepath, getLoadOptions());
+		this->isLoadingImage = true;
 	}
 
 	void ImageObject::reInit(AnimationManagerData* am, AnimObject* obj, bool resetSize)
@@ -1244,7 +1254,7 @@ namespace MathAnim
 		}
 
 		// Next init again which should regenerate the children
-		init(am, obj->id);
+		init();
 	}
 
 	TextureLoadOptions ImageObject::getLoadOptions() const
@@ -2414,7 +2424,7 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::Image:
 			res.as.image = ImageObject::createDefault();
-			res.as.image.init(am, res.id);
+			res.as.image.init();
 			break;
 		case AnimObjectTypeV1::CodeBlock:
 			res.as.codeBlock = CodeBlock::createDefault();
@@ -2533,7 +2543,7 @@ namespace MathAnim
 		std::string gizmoName = "Move_To_" + std::to_string(anim->id);
 		Vec3 tmp = CMath::vector3From2(anim->as.moveTo.target);
 		if (auto res = GizmoManager::translateGizmo(gizmoName.c_str(), &tmp);
-			res.editState != EditState::NotEditing) 
+			res.editState != EditState::NotEditing)
 		{
 			anim->as.moveTo.target = CMath::vector2From3(tmp);
 			if (res.editState == EditState::FinishedEditing)

@@ -304,14 +304,16 @@ namespace MathAnim
 					}
 
 					// Update any updateable objects
-					if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
+					switch (objectIter->objectType)
 					{
-						objectIter->as.laTexObject.update(am, objectIter->id);
-					}
-					else if (objectIter->objectType == AnimObjectTypeV1::Camera)
-					{
+					case AnimObjectTypeV1::Image: objectIter->as.image.update(am, objectIter->id); break;
+					case AnimObjectTypeV1::LaTexObject: objectIter->as.laTexObject.update(am, objectIter->id); break;
+					case AnimObjectTypeV1::Camera:
 						objectIter->as.camera.position = objectIter->globalPosition;
 						objectIter->as.camera.orientation = CMath::quatFromEulerAngles(objectIter->rotation);
+						break;
+					default:
+						break;
 					}
 				}
 			}
@@ -492,11 +494,19 @@ namespace MathAnim
 		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId animObj)
 		{
 			std::vector<AnimObjId> res;
-			for (int i = 0; i < am->objects.size(); i++)
+			for (size_t i = 0; i < am->objects.size(); i++)
 			{
 				if (am->objects[i].parentId == animObj)
 				{
 					res.push_back(am->objects[i].id);
+				}
+			}
+
+			for (size_t i = 0; i < am->queuedAddObjects.size(); i++)
+			{
+				if (am->queuedAddObjects[i].parentId == animObj)
+				{
+					res.push_back(am->queuedAddObjects[i].id);
 				}
 			}
 
@@ -736,6 +746,14 @@ namespace MathAnim
 					// Then append all direct children to the queue so they are
 					// recursively updated
 					for (auto childIter = am->objects.begin(); childIter != am->objects.end(); childIter++)
+					{
+						if (childIter->parentId == nextObj->id)
+						{
+							objects.push(childIter->id);
+						}
+					}
+
+					for (auto childIter = am->queuedAddObjects.begin(); childIter != am->queuedAddObjects.end(); childIter++)
 					{
 						if (childIter->parentId == nextObj->id)
 						{

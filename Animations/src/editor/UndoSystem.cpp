@@ -1148,10 +1148,12 @@ namespace MathAnim
 			case EnumPropType::ImageRepeat:
 				assertCorrectType(obj, AnimObjectTypeV1::Image);
 				obj->as.image.repeatMode = (ImageRepeatMode)newEnum;
+				obj->as.image.reInit(am, obj, true);
 				break;
 			case EnumPropType::ImageSampleMode:
 				assertCorrectType(obj, AnimObjectTypeV1::Image);
 				obj->as.image.filterMode = (ImageFilterMode)newEnum;
+				obj->as.image.reInit(am, obj, true);
 				break;
 				// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
@@ -1222,10 +1224,12 @@ namespace MathAnim
 			case EnumPropType::ImageRepeat:
 				assertCorrectType(obj, AnimObjectTypeV1::Image);
 				obj->as.image.repeatMode = (ImageRepeatMode)oldEnum;
+				obj->as.image.reInit(am, obj, true);
 				break;
 			case EnumPropType::ImageSampleMode:
 				assertCorrectType(obj, AnimObjectTypeV1::Image);
 				obj->as.image.filterMode = (ImageFilterMode)oldEnum;
+				obj->as.image.reInit(am, obj, true);
 				break;
 				// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
