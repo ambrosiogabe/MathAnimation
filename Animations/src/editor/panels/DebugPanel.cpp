@@ -6,6 +6,7 @@
 #include "renderer/Colors.h"
 #include "renderer/Texture.h"
 #include "renderer/Renderer.h"
+#include "animation/AnimationManager.h"
 
 namespace MathAnim
 {
@@ -21,7 +22,7 @@ namespace MathAnim
 
 		}
 
-		void update()
+		void update(AnimationManagerData* am)
 		{
 			ImGui::Begin("Debug");
 
@@ -189,6 +190,12 @@ namespace MathAnim
 				}
 
 				ImGui::TreePop();
+			}
+
+			{
+				static bool drawAllBoundingBoxes = false;
+				ImGui::Checkbox(": Draw All Bounding Boxes", &drawAllBoundingBoxes);
+				AnimationManager::setRenderAllBoundingBoxes(am, drawAllBoundingBoxes);
 			}
 
 			ImGui::End();

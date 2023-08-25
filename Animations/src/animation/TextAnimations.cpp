@@ -46,13 +46,42 @@ namespace MathAnim
 
 		std::string textStr = std::string(text);
 
-		// Generate children that represent each character of the text object `obj`
-		Vec2 cursorPos = Vec2{ 0, 0 };
+		// First figure out the total size of the text so we can center it around the origin
+		Vec2 size = Vec2{ 0.0f, 0.0f };
 		for (int i = 0; i < textStr.length(); i++)
 		{
 			if (textStr[i] == '\n')
 			{
-				cursorPos = Vec2{ 0.0f, cursorPos.y - font->lineHeight };
+				size.y += font->lineHeight;
+				continue;
+			}
+
+			uint8 codepoint = (uint8)textStr[i];
+			const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
+			if (!glyphOutline.svg)
+			{
+				continue;
+			}
+
+			float halfGlyphHeight = glyphOutline.glyphHeight / 2.0f;
+			float halfGlyphWidth = glyphOutline.glyphWidth / 2.0f;
+			Vec2 offset = Vec2{
+				glyphOutline.bearingX + halfGlyphWidth,
+				halfGlyphHeight - glyphOutline.descentY
+			};
+
+			// TODO: I may have to add kerning info here
+			size.x += glyphOutline.advanceX;
+		}
+
+		// Generate children that represent each character of the text object `obj`
+		Vec2 halfSize = size / 2.0f;
+		Vec2 cursorPos = Vec2{ -halfSize.x, halfSize.y };
+		for (int i = 0; i < textStr.length(); i++)
+		{
+			if (textStr[i] == '\n')
+			{
+				cursorPos = Vec2{ -halfSize.x, cursorPos.y - font->lineHeight };
 				continue;
 			}
 

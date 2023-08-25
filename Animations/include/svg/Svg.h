@@ -88,6 +88,7 @@ namespace MathAnim
 		Path* paths;
 		int numPaths;
 		float approximatePerimeter;
+		Vec2 size;
 		BBox bbox;
 		Vec2 _cursor;
 		Vec4 fillColor;
@@ -97,7 +98,7 @@ namespace MathAnim
 
 		void normalize();
 		void calculateApproximatePerimeter();
-		void calculateBBox();
+		void calculateSize();
 		void calculateMd5(const RawMemory& b64Path);
 		void finalize();
 		void finalizeWithB64(const RawMemory& b64String);
@@ -127,6 +128,7 @@ namespace MathAnim
 		SvgObject* objects;
 		Vec2* objectOffsets;
 		int numObjects;
+		Vec2 size;
 		BBox bbox;
 
 		void normalize();

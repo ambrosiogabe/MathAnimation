@@ -39,8 +39,7 @@ namespace MathAnim
 			// TODO: Fix the dang memory allocation library so I don't have to do this!
 			res.paths = (Path*)g_memory_allocate(sizeof(Path));
 			res.numPaths = 0;
-			res.bbox.min = Vec2{ 0, 0 };
-			res.bbox.max = Vec2{ 0, 0 };
+			res.size = Vec2{ 0, 0 };
 			res._cursor = Vec2{ 0, 0 };
 			res.fillColor = Vec4{ 1, 1, 1, 1 };
 			res.fillType = FillType::NonZeroFillType;
@@ -589,6 +588,7 @@ namespace MathAnim
 			dest->fillType = src->fillType;
 			dest->fillColor = src->fillColor;
 			dest->approximatePerimeter = src->approximatePerimeter;
+			dest->size = src->size;
 			dest->bbox = src->bbox;
 
 			dest->md5Length = src->md5Length;
@@ -1421,7 +1421,7 @@ namespace MathAnim
 		}
 	}
 
-	void SvgObject::calculateBBox()
+	void SvgObject::calculateSize()
 	{
 		bbox.min.x = FLT_MAX;
 		bbox.min.y = FLT_MAX;
@@ -1465,6 +1465,8 @@ namespace MathAnim
 				}
 			}
 		}
+
+		this->size = bbox.max - bbox.min;
 	}
 
 	void SvgObject::calculateMd5(const RawMemory& b64Path)
@@ -1479,7 +1481,7 @@ namespace MathAnim
 	void SvgObject::finalize()
 	{
 		this->calculateApproximatePerimeter();
-		this->calculateBBox();
+		this->calculateSize();
 		RawMemory b64String = getPathAsBinaryString();
 		this->calculateMd5(b64String);
 		b64String.free();
@@ -1488,14 +1490,14 @@ namespace MathAnim
 	void SvgObject::finalizeWithB64(const RawMemory& b64Path)
 	{
 		this->calculateApproximatePerimeter();
-		this->calculateBBox();
+		this->calculateSize();
 		this->calculateMd5(b64Path);
 	}
 
 	void SvgObject::finalizeWithB64(const std::string& b64String) 
 	{
 		this->calculateApproximatePerimeter();
-		this->calculateBBox();
+		this->calculateSize();
 
 		RawMemory fakeMemory = {};
 		fakeMemory.data = (uint8*)b64String.c_str();
@@ -1665,7 +1667,7 @@ namespace MathAnim
 
 	float SvgObject::calculateSvgScale(float targetWidth) const
 	{
-		float maxSize = glm::max(CMath::abs(bbox.max.x - bbox.min.x), CMath::abs(bbox.max.y - bbox.min.y));
+		float maxSize = glm::max(size.x, size.y);
 		if (maxSize != 0.0f)
 		{
 			return targetWidth / maxSize;
@@ -1677,7 +1679,7 @@ namespace MathAnim
 	void SvgObject::render(float svgScale, const Texture& texture, const Vec2& textureOffset) const
 	{
 		MP_PROFILE_EVENT("Svg_RenderWithPluto");
-		Vec2 bboxSize = (bbox.max - bbox.min) * svgScale;
+		Vec2 bboxSize = size * svgScale;
 
 		// Setup pluto context to render SVG to
 		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
@@ -1866,7 +1868,6 @@ namespace MathAnim
 	{
 		calculateBBox();
 
-		Vec2 svgGroupSize = bbox.max - bbox.min;
 		for (int i = 0; i < numObjects; i++)
 		{
 			SvgObject& obj = objects[i];
@@ -1876,10 +1877,10 @@ namespace MathAnim
 
 			// Map everything to [0.0, 1.0] range except it needs to be scaled
 			// relative to the size in the overall svg group
-			Vec2 hzInputRange = Vec2{ obj.bbox.min.x, obj.bbox.max.x };
-			Vec2 vtInputRange = Vec2{ obj.bbox.min.y, obj.bbox.max.y };
-			float outputWidth = (obj.bbox.max.x - obj.bbox.min.x) / svgGroupSize.x;
-			float outputHeight = (obj.bbox.max.y - obj.bbox.min.y) / svgGroupSize.y * (svgGroupSize.y / svgGroupSize.x);
+			Vec2 hzInputRange = Vec2{ 0.0f, obj.size.x };
+			Vec2 vtInputRange = Vec2{ 0.0f, obj.size.y };
+			float outputWidth = obj.size.x / size.x;
+			float outputHeight = obj.size.y / size.y * (size.y / size.x);
 			Vec2 hzOutputRange = Vec2{ 0.0f, outputWidth };
 			Vec2 vtOutputRange = Vec2{ 0.0f, outputHeight };
 			for (int pathi = 0; pathi < obj.numPaths; pathi++)
@@ -1927,11 +1928,11 @@ namespace MathAnim
 
 			Vec2 originalBboxMin = obj.bbox.min;
 			// Calculate the boundaries using the new ranges
-			obj.calculateBBox();
+			obj.calculateSize();
 			obj.calculateApproximatePerimeter();
 
 			float outputGroupWidth = 1.0f;
-			float outputGroupHeight = (svgGroupSize.y / svgGroupSize.x);
+			float outputGroupHeight = (size.y / size.x);
 
 			// If no offset was provided, then just use the minimum
 			// coordinates as the natural offset
@@ -1945,25 +1946,23 @@ namespace MathAnim
 				offset.y = originalBboxMin.y;
 			}
 
-			offset.x = CMath::mapRange(Vec2{ this->bbox.min.x, this->bbox.max.x }, Vec2{ 0.0f, outputGroupWidth }, offset.x);
-			offset.y = CMath::mapRange(Vec2{ this->bbox.min.y, this->bbox.max.y }, Vec2{ 0.0f, outputGroupHeight }, offset.y);
+			offset.x = CMath::mapRange(Vec2{ 0.0f, this->size.x }, Vec2{ 0.0f, outputGroupWidth }, offset.x);
+			offset.y = CMath::mapRange(Vec2{ 0.0f, this->size.y }, Vec2{ 0.0f, outputGroupHeight }, offset.y);
 			offset.y = outputGroupHeight - offset.y;
 			Vec2 centerOffset = Vec2{
-				(obj.bbox.max.x - obj.bbox.min.x) / 2.0f,
-				-(obj.bbox.max.y - obj.bbox.min.y) / 2.0f
+				obj.size.x / 2.0f,
+				-obj.size.y / 2.0f
 			};
 			offset += centerOffset;
 			// Center the whole object
 			offset -= Vec2{ outputGroupWidth / 2.0f, outputGroupHeight / 2.0f };
 		}
+
 		calculateBBox();
 	}
 
 	void SvgGroup::calculateBBox()
 	{
-		bbox.min = Vec2{ NAN, NAN };
-		bbox.max = Vec2{ NAN, NAN };
-
 		for (int i = 0; i < numObjects; i++)
 		{
 			SvgObject& obj = objects[i];
@@ -1979,9 +1978,10 @@ namespace MathAnim
 				absOffset.y = 0.0f;
 			}
 
-			obj.calculateBBox();
+			obj.calculateSize();
 			bbox.min = CMath::min(obj.bbox.min + absOffset, bbox.min);
 			bbox.max = CMath::max(obj.bbox.max + absOffset, bbox.max);
+			size = CMath::max(bbox.max - bbox.min, size);
 		}
 	}
 
@@ -2039,10 +2039,10 @@ namespace MathAnim
 		g_logger_assert(dataSize == sizeof(RenderAsyncData), "Invalid data passed to renderAsyncCallback");
 
 		RenderAsyncData* data = (RenderAsyncData*)renderAsyncData;
-		Vec2 bboxSize = (data->obj->bbox.max - data->obj->bbox.min) * data->svgScale;
+		Vec2 scaledSize = data->obj->size * data->svgScale;
 
 		// Setup pluto context to render SVG to
-		plutovg_surface_t* surface = plutovg_surface_create((int)bboxSize.x, (int)bboxSize.y);
+		plutovg_surface_t* surface = plutovg_surface_create((int)scaledSize.x, (int)scaledSize.y);
 		plutovg_t* pluto = plutovg_create(surface);
 		data->surface = surface;
 		data->pluto = pluto;
@@ -2092,11 +2092,8 @@ namespace MathAnim
 		Vec2 inXRange = Vec2{ obj->bbox.min.x, obj->bbox.max.x };
 		Vec2 inYRange = Vec2{ obj->bbox.min.y, obj->bbox.max.y };
 
-		Vec2 bboxSize = obj->bbox.max - obj->bbox.min;
-		Vec2 minCoord = Vec2{ 0, 0 };
-		Vec2 maxCoord = minCoord + (bboxSize * scale);
-		Vec2 outXRange = Vec2{ minCoord.x, maxCoord.x };
-		Vec2 outYRange = Vec2{ minCoord.y, maxCoord.y };
+		Vec2 outXRange = Vec2{ 0.0f, obj->size.x * scale };
+		Vec2 outYRange = Vec2{ 0.0f, obj->size.y * scale };
 
 		plutovg_new_path(pluto);
 
@@ -2206,12 +2203,11 @@ namespace MathAnim
 
 		// Start the fade in after 80% of the svg object is drawn
 		float lengthToDraw = t * (float)obj->approximatePerimeter;
-		Vec2 svgSize = obj->bbox.max - obj->bbox.min;
 
 		Vec2 inXRange = Vec2{ obj->bbox.min.x, obj->bbox.max.x };
 		Vec2 inYRange = Vec2{ obj->bbox.min.y, obj->bbox.max.y };
-		Vec2 outXRange = Vec2{ -svgSize.x / 2.0f, svgSize.x / 2.0f };
-		Vec2 outYRange = Vec2{ svgSize.y / 2.0f, -svgSize.y / 2.0f };
+		Vec2 outXRange = Vec2{ -obj->size.x / 2.0f, obj->size.x / 2.0f };
+		Vec2 outYRange = Vec2{ obj->size.y / 2.0f, -obj->size.y / 2.0f };
 
 		if (lengthToDraw > 0 && obj->numPaths > 0)
 		{

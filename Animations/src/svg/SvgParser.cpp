@@ -397,7 +397,7 @@ namespace MathAnim
 							std::string idStr = std::string(id->Value());
 							auto iter = objIds.find(idStr);
 							g_logger_assert(iter == objIds.end(), "Tried to insert duplicate ID '{}' in SVG object map", idStr);
-							obj.calculateBBox();
+							obj.calculateSize();
 							objIds[idStr] = obj;
 						}
 					}
@@ -489,7 +489,8 @@ namespace MathAnim
 							// the bottom-left
 							// NOTE: I'm not exactly sure why I have to "flip" the coordinate like this
 							// but it works and that's good enough for me...
-							y = y + iter->second.bbox.min.y - viewbox.values[3];
+							//y = y + iter->second.bbox.min.y - viewbox.values[3];
+							y = y - viewbox.values[3];
 							Svg::pushSvgToGroup(group, iter->second, iter->first, Vec2{ x, y });
 						}
 					}

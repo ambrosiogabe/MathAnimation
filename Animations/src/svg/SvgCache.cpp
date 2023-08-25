@@ -93,8 +93,8 @@ namespace MathAnim
 			int colorAttachmentToRenderTo = this->cacheCurrentColorAttachment;
 
 			// Check if the SVG cache needs to regenerate
-			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale);
-			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);
+			float svgTotalWidth = (svg->size.x * parent->svgScale);
+			float svgTotalHeight = (svg->size.y * parent->svgScale);
 			if (svgTotalWidth <= 0.0f || svgTotalHeight <= 0.0f)
 			{
 				return;
@@ -239,15 +239,12 @@ namespace MathAnim
 		if (parent)
 		{
 			SvgCacheEntry metadata = getOrCreateIfNotExist(am, svg, obj);
-			// TODO: See if I can get rid of this duplication, see the function above
-			float svgTotalWidth = ((svg->bbox.max.x - svg->bbox.min.x) * parent->svgScale);
-			float svgTotalHeight = ((svg->bbox.max.y - svg->bbox.min.y) * parent->svgScale);
 
 			// Everything is 3D now... Good or bad? Who knows?
 			Renderer::pushColor(parent->fillColor);
 			Renderer::drawTexturedQuad3D(
 				metadata.textureRef,
-				Vec2{ svgTotalWidth / parent->svgScale, svgTotalHeight / parent->svgScale },
+				svg->size,
 				metadata.texCoordsMin,
 				metadata.texCoordsMax,
 				parent->id,

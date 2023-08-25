@@ -587,13 +587,24 @@ namespace MathAnim
 		return res;
 	}
 
-	void Circumscribe::render(const BBox& bbox) const
+	void Circumscribe::render(const AnimObject& parent) const
 	{
-		Vec2 size = (bbox.max - bbox.min) + ((bbox.max - bbox.min) * bufferSize);
+		// Invalid bbox
+		if (parent.bbox.max.x < parent.bbox.min.x || parent.bbox.max.y < parent.bbox.min.y)
+		{
+			g_logger_warning("Object '{}' had an invalid bbox '{}'. Can't render circumscribe animation.", parent.name, parent.bbox);
+			return;
+		}
+
+		Vec2 bboxSize = (parent.bbox.max - parent.bbox.min);
+		Vec2 size = bboxSize + ((parent.bbox.max - parent.bbox.min) * bufferSize);
 		float radius = CMath::length(size) / 2.0f;
-		Vec2 translation = ((bbox.max - bbox.min) / 2.0f) + bbox.min;
-		glm::mat4 transformation = glm::identity<glm::mat4>();
-		transformation = glm::translate(transformation, glm::vec3(translation.x, translation.y, 0.0f));
+		Vec2 translation = parent.bbox.min;
+		glm::mat4 transformation = glm::translate(glm::identity<glm::mat4>(), glm::vec3(
+			translation.x + bboxSize.x / 2.0f,
+			translation.y + bboxSize.y / 2.0f,
+			parent.globalPosition.z)
+		);
 
 		if (fade != CircumscribeFade::FadeNone)
 		{
@@ -1469,9 +1480,10 @@ namespace MathAnim
 			{
 				if (circumscribeAnim->type == AnimTypeV1::Circumscribe)
 				{
-					if (bbox.max.x >= bbox.min.x && bbox.max.y >= bbox.min.y)
+					const AnimObject* parent = AnimationManager::getObject(am, circumscribeAnim->as.circumscribe.obj);
+					if (parent)
 					{
-						circumscribeAnim->as.circumscribe.render(bbox);
+						circumscribeAnim->as.circumscribe.render(*parent);
 					}
 				}
 			}

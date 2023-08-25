@@ -139,7 +139,7 @@ namespace MathAnim
 			ImGui::PopStyleVar();
 
 			AnimObjectPanel::update();
-			DebugPanel::update();
+			DebugPanel::update(am);
 			ExportPanel::update(am);
 			SceneHierarchyPanel::update(am);
 			AssetManagerPanel::update();

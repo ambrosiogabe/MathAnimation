@@ -3,11 +3,13 @@
 
 namespace MathAnim
 {
+	struct AnimationManagerData;
+
 	namespace DebugPanel
 	{
 		void init();
 
-		void update();
+		void update(AnimationManagerData* am);
 
 		void free();
 	}

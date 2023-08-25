@@ -4,6 +4,7 @@
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Camera.h"
+#include "renderer/Colors.h"
 #include "editor/EditorSettings.h"
 #include "editor/panels/InspectorPanel.h"
 #include "svg/Svg.h"
@@ -40,6 +41,7 @@ namespace MathAnim
 		// need to figure out a better architecture for this haha
 		AnimObjId activeCamera;
 		int currentFrame;
+		bool shouldRenderBoundingBoxes;
 	};
 
 	namespace AnimationManager
@@ -317,6 +319,14 @@ namespace MathAnim
 					}
 				}
 			}
+
+			{
+				MP_PROFILE_EVENT("AnimationManager_RenderAllBoundingBoxes");
+				if (am->shouldRenderBoundingBoxes)
+				{
+					renderAllBoundingBoxes(am);
+				}
+			}
 		}
 
 		int lastAnimatedFrame(const AnimationManagerData* am)
@@ -533,6 +543,31 @@ namespace MathAnim
 			}
 
 			return objId;
+		}
+
+		void setRenderAllBoundingBoxes(AnimationManagerData* am, bool shouldRender)
+		{
+			am->shouldRenderBoundingBoxes = shouldRender;
+		}
+
+		void renderAllBoundingBoxes(const AnimationManagerData* am)
+		{
+			for (const auto& obj : am->objects)
+			{
+				if (obj.status == AnimObjectStatus::Active)
+				{
+					const BBox& bbox = obj.bbox;
+					glm::mat4 transform = glm::translate(glm::identity<glm::mat4>(), glm::vec3(0, 0, obj.position.z));
+					Renderer::pushColor(Colors::AccentGreen[2]);
+					Path2DContext* path = Renderer::beginPath(bbox.min, transform);
+					Renderer::lineTo(path, Vec2{ bbox.min.x, bbox.max.y });
+					Renderer::lineTo(path, bbox.max);
+					Renderer::lineTo(path, Vec2{ bbox.max.x, bbox.min.y });
+					Renderer::renderOutline(path, 0.0f, 1.0f);
+					Renderer::popColor();
+					Renderer::free(path);
+				}
+			}
 		}
 
 		void serialize(const AnimationManagerData* am, nlohmann::json& output)
@@ -807,8 +842,10 @@ namespace MathAnim
 				BBox finalBoundingBox = BBox{};
 				if (nextObj->svgObject)
 				{
-					nextObj->svgObject->calculateBBox();
-					finalBoundingBox = nextObj->svgObject->bbox;
+					nextObj->svgObject->calculateSize();
+
+					finalBoundingBox.max = nextObj->svgObject->size / 2.0f;
+					finalBoundingBox.min = nextObj->svgObject->size / -2.0f;
 
 					finalBoundingBox.min.x *= scaleFactor.x;
 					finalBoundingBox.max.x *= scaleFactor.x;
@@ -816,9 +853,6 @@ namespace MathAnim
 					finalBoundingBox.max.y *= scaleFactor.y;
 					finalBoundingBox.min += CMath::vector2From3(nextObj->globalPosition);
 					finalBoundingBox.max += CMath::vector2From3(nextObj->globalPosition);
-					Vec2 halfSize = (finalBoundingBox.max - finalBoundingBox.min) / 2.0f;
-					finalBoundingBox.min -= halfSize;
-					finalBoundingBox.max -= halfSize;
 				}
 				else
 				{

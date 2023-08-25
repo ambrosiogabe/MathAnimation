@@ -263,7 +263,7 @@ namespace MathAnim
 		float timeWidth;
 		float tValue;
 
-		void render(const BBox& bbox) const;
+		void render(const AnimObject& parent) const;
 		void serialize(nlohmann::json& memory) const;
 		static Circumscribe deserialize(const nlohmann::json& j, uint32 version);
 		static Circumscribe createDefault();

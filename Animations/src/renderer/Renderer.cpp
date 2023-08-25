@@ -1249,7 +1249,7 @@ namespace MathAnim
 						Renderer::pushColor(path->data[curvei].color);
 						if (currentT >= startT)
 						{
-							context = Renderer::beginPath(path->rawCurves[curvei].p0);
+							context = Renderer::beginPath(path->rawCurves[curvei].p0, path->transform);
 						}
 						else if (currentT + approxLengthTVal >= startT)
 						{
@@ -1259,7 +1259,7 @@ namespace MathAnim
 							approxLength = curve.calculateApproximatePerimeter();
 							approxLengthTVal = approxLength / (float)path->approximateLength;
 
-							context = Renderer::beginPath(curve.p0);
+							context = Renderer::beginPath(curve.p0, path->transform);
 						}
 						Renderer::popColor();
 					}
