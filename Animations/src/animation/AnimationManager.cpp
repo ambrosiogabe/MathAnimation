@@ -557,7 +557,7 @@ namespace MathAnim
 				if (obj.status == AnimObjectStatus::Active)
 				{
 					const BBox& bbox = obj.bbox;
-					glm::mat4 transform = glm::translate(glm::identity<glm::mat4>(), glm::vec3(0, 0, obj.position.z));
+					glm::mat4 transform = glm::translate(glm::identity<glm::mat4>(), glm::vec3(0, 0, obj.globalPosition.z));
 					Renderer::pushColor(Colors::AccentGreen[2]);
 					Path2DContext* path = Renderer::beginPath(bbox.min, transform);
 					Renderer::lineTo(path, Vec2{ bbox.min.x, bbox.max.y });
