@@ -402,12 +402,12 @@ namespace MathAnim
 			{
 				if (outBufferSize >= (objPayload->filepathLength + 1))
 				{
-					g_memory_copyMem((void*)outBuffer, (void*)objPayload->filepath, sizeof(char) * objPayload->filepathLength);
+					g_memory_copyMem((void*)outBuffer, outBufferSize,(void*)objPayload->filepath, sizeof(char) * objPayload->filepathLength);
 					outBuffer[objPayload->filepathLength] = '\0';
 				}
 				else
 				{
-					g_memory_copyMem((void*)outBuffer, (void*)objPayload->filepath, sizeof(char) * outBufferSize);
+					g_memory_copyMem((void*)outBuffer, outBufferSize,(void*)objPayload->filepath, sizeof(char) * outBufferSize);
 					outBuffer[outBufferSize - 1] = '\0';
 					g_logger_warning("File drag drop target got filepath of length '{}' that was too long to fit into buffer of length '{}'. Truncating filename.", objPayload->filepathLength, outBufferSize);
 				}

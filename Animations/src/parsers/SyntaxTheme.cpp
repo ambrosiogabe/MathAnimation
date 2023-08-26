@@ -283,8 +283,7 @@ namespace MathAnim
 	{
 		if (theme)
 		{
-			theme->~SyntaxTheme();
-			g_memory_free(theme);
+			g_memory_delete(theme);
 		}
 	}
 
@@ -303,8 +302,7 @@ namespace MathAnim
 			g_logger_warning("Syntax theme is malformed. The property 'tokenColors' is not an array in file: '{}'", filepath);
 		}
 
-		SyntaxTheme* theme = (SyntaxTheme*)g_memory_allocate(sizeof(SyntaxTheme));
-		new(theme)SyntaxTheme();
+		SyntaxTheme* theme = g_memory_new SyntaxTheme();
 
 		if (j.contains("colors"))
 		{
@@ -488,8 +486,7 @@ namespace MathAnim
 			return nullptr;
 		}
 
-		SyntaxTheme* theme = (SyntaxTheme*)g_memory_allocate(sizeof(SyntaxTheme));
-		new(theme)SyntaxTheme();
+		SyntaxTheme* theme = g_memory_new SyntaxTheme();
 
 		const XMLElement* setting = arrayElement->FirstChildElement();
 		while (setting != nullptr)

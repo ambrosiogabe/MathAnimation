@@ -130,7 +130,7 @@ namespace MathAnim
 					size_t pathLength = std::strlen(outPath);
 					if (pathLength < filenameBufferSize)
 					{
-						g_memory_copyMem(filenameBuffer, outPath, pathLength);
+						g_memory_copyMem(filenameBuffer, filenameBufferSize, outPath, pathLength);
 						filenameBuffer[pathLength] = '\0';
 					}
 

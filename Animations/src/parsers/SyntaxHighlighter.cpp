@@ -119,8 +119,7 @@ namespace MathAnim
 			{
 				if (Platform::fileExists(_highlighterLanguageFilenames[i]))
 				{
-					SyntaxHighlighter* highlighter = (SyntaxHighlighter*)g_memory_allocate(sizeof(SyntaxHighlighter));
-					new(highlighter)SyntaxHighlighter(_highlighterLanguageFilenames[i]);
+					SyntaxHighlighter* highlighter = g_memory_new SyntaxHighlighter(_highlighterLanguageFilenames[i]);
 					grammars[(HighlighterLanguage)i] = highlighter;
 				}
 			}
@@ -163,8 +162,7 @@ namespace MathAnim
 			for (auto [k, v] : grammars)
 			{
 				v->free();
-				v->~SyntaxHighlighter();
-				g_memory_free(v);
+				g_memory_delete(v);
 			}
 			grammars.clear();
 

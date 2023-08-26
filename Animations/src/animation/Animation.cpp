@@ -1068,12 +1068,12 @@ namespace MathAnim
 		if (strLength != this->scriptFilepathLength)
 		{
 			this->scriptFilepath = (char*)g_memory_realloc(this->scriptFilepath, sizeof(char) * (strLength + 1));
+			this->scriptFilepathLength = strLength;
 			g_logger_assert(this->scriptFilepath != nullptr, "Allocation failed. Out of memory.");
 		}
 
-		g_memory_copyMem((void*)this->scriptFilepathLength, (void*)str, sizeof(char) * strLength);
+		g_memory_copyMem((void*)this->scriptFilepath, sizeof(char) * this->scriptFilepathLength, (void*)str, sizeof(char) * strLength);
 		this->scriptFilepath[strLength] = '\0';
-		this->scriptFilepathLength = strLength;
 	}
 
 	void ScriptObject::setFilepath(const std::string& str)
@@ -1155,7 +1155,7 @@ namespace MathAnim
 			g_logger_assert(this->imageFilepath != nullptr, "Allocation failed. Out of memory.");
 		}
 
-		g_memory_copyMem((void*)this->imageFilepath, (void*)str, sizeof(char) * strLength);
+		g_memory_copyMem((void*)this->imageFilepath, sizeof(char) * (strLength + 1), (void*)str, sizeof(char) * strLength);
 		this->imageFilepath[strLength] = '\0';
 		this->imageFilepathLength = strLength;
 	}
@@ -1359,9 +1359,13 @@ namespace MathAnim
 			newNameLength = std::strlen(newName);
 		}
 
-		name = (uint8*)g_memory_realloc(name, sizeof(char) * (newNameLength + 1));
-		nameLength = (int32_t)newNameLength;
-		g_memory_copyMem(name, (void*)newName, newNameLength * sizeof(char));
+		if (newNameLength != nameLength)
+		{
+			name = (uint8*)g_memory_realloc(name, sizeof(char) * (newNameLength + 1));
+			nameLength = (int32_t)newNameLength;
+		}
+
+		g_memory_copyMem(name, sizeof(char) * (newNameLength + 1), (void*)newName, newNameLength * sizeof(char));
 		name[newNameLength] = '\0';
 	}
 
@@ -2341,7 +2345,7 @@ namespace MathAnim
 		const char* newObjName = "New Object";
 		res.nameLength = (uint32)std::strlen(newObjName);
 		res.name = (uint8*)g_memory_allocate(sizeof(uint8) * (res.nameLength + 1));
-		g_memory_copyMem(res.name, (void*)newObjName, sizeof(uint8) * (res.nameLength + 1));
+		g_memory_copyMem(res.name, sizeof(uint8) * (res.nameLength + 1), (void*)newObjName, sizeof(uint8) * (res.nameLength + 1));
 
 		res.status = AnimObjectStatus::Active;
 		res.objectType = type;

@@ -352,8 +352,7 @@ namespace MathAnim
 
 		void init()
 		{
-			void* gMemory = g_memory_allocate(sizeof(GlobalContext));
-			gGizmoManager = new(gMemory)GlobalContext();
+			gGizmoManager = g_memory_new GlobalContext();
 			gGizmoManager->hoveredGizmo = NullGizmo;
 			gGizmoManager->activeGizmo = NullGizmo;
 			gGizmoManager->mouseWorldPos3f = Vec3{ 0.0f, 0.0f, 0.0f };
@@ -554,8 +553,7 @@ namespace MathAnim
 					iter = gGizmoManager->gizmos.erase(iter);
 				}
 
-				gGizmoManager->~GlobalContext();
-				g_memory_free(gGizmoManager);
+				g_memory_delete(gGizmoManager);
 				gGizmoManager = nullptr;
 			}
 

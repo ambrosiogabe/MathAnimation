@@ -1019,8 +1019,7 @@ namespace MathAnim
 		// ----------- 2D Line stuff ----------- 
 		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform)
 		{
-			Path2DContext* context = (Path2DContext*)g_memory_allocate(sizeof(Path2DContext));
-			new(context)Path2DContext();
+			Path2DContext* context = g_memory_new Path2DContext();
 
 			float strokeWidth = strokeWidthStackPtr > 0
 				? strokeWidthStack[strokeWidthStackPtr - 1]
@@ -1039,8 +1038,7 @@ namespace MathAnim
 
 		void free(Path2DContext* path)
 		{
-			path->~Path2DContext();
-			g_memory_free(path);
+			g_memory_delete(path);
 		}
 
 		static Vec3 transformVertVec3(const Vec2& vert, const glm::mat4& transform)

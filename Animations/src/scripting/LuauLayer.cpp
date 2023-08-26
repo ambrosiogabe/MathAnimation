@@ -53,8 +53,7 @@ namespace MathAnim
 			ScriptApi::registerGlobalFunctions(luaState, am);
 			scriptDirectory = inScriptDirectory;
 
-			analyzer = (ScriptAnalyzer*)g_memory_allocate(sizeof(ScriptAnalyzer));
-			new(analyzer)ScriptAnalyzer(inScriptDirectory);
+			analyzer = g_memory_new ScriptAnalyzer(inScriptDirectory);
 		}
 
 		void update()
@@ -296,8 +295,7 @@ namespace MathAnim
 			if (analyzer)
 			{
 				analyzer->free();
-				analyzer->~ScriptAnalyzer();
-				g_memory_free(analyzer);
+				g_memory_delete(analyzer);
 			}
 
 			if (luaState)

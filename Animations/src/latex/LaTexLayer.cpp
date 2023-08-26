@@ -97,8 +97,8 @@ namespace MathAnim
 				size_t latexExeNameLength = std::strlen(latexExeName);
 				if (latexInstallLocationLength + latexExeNameLength + 1 <= MATH_ANIMATIONS_MAX_PATH)
 				{
-					g_memory_copyMem(latexProgram, latexInstallLocation, sizeof(char) * latexInstallLocationLength);
-					g_memory_copyMem(latexProgram + latexInstallLocationLength, (void*)latexExeName, sizeof(char) * latexExeNameLength);
+					g_memory_copyMem(latexProgram, MATH_ANIMATIONS_MAX_PATH, latexInstallLocation, sizeof(char) * latexInstallLocationLength);
+					g_memory_copyMem(latexProgram + latexInstallLocationLength, MATH_ANIMATIONS_MAX_PATH - latexInstallLocationLength, (void*)latexExeName, sizeof(char) * latexExeNameLength);
 					latexProgram[latexInstallLocationLength + latexExeNameLength] = '\0';
 
 					if (Platform::fileExists(latexProgram))
@@ -121,8 +121,8 @@ namespace MathAnim
 				size_t dvisvgmExeLength = std::strlen(dvisvgmExeName);
 				if (latexInstallLocationLength + dvisvgmExeLength + 1 <= MATH_ANIMATIONS_MAX_PATH)
 				{
-					g_memory_copyMem(dvisvgmProgram, latexInstallLocation, sizeof(char) * latexInstallLocationLength);
-					g_memory_copyMem(dvisvgmProgram + latexInstallLocationLength, (void*)dvisvgmExeName, sizeof(char) * dvisvgmExeLength);
+					g_memory_copyMem(dvisvgmProgram, MATH_ANIMATIONS_MAX_PATH, latexInstallLocation, sizeof(char) * latexInstallLocationLength);
+					g_memory_copyMem(dvisvgmProgram + latexInstallLocationLength, MATH_ANIMATIONS_MAX_PATH - latexInstallLocationLength, (void*)dvisvgmExeName, sizeof(char) * dvisvgmExeLength);
 					dvisvgmProgram[latexInstallLocationLength + dvisvgmExeLength] = '\0';
 
 					if (Platform::fileExists(dvisvgmProgram))
@@ -158,7 +158,7 @@ namespace MathAnim
 			{
 				LaTexTask* taskData = (LaTexTask*)g_memory_allocate(sizeof(LaTexTask));
 				taskData->laTex = (char*)g_memory_allocate(sizeof(char) * latex.length() + 1);
-				g_memory_copyMem(taskData->laTex, (void*)latex.c_str(), sizeof(char) * latex.length());
+				g_memory_copyMem(taskData->laTex, sizeof(char) * latex.length() + 1, (void*)latex.c_str(), sizeof(char) * latex.length());
 				taskData->laTex[latex.length()] = '\0';
 				taskData->isMathTex = isMathTex;
 

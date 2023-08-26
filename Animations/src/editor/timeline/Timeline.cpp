@@ -161,8 +161,8 @@ namespace MathAnim
 
 						size_t pathLength = std::strlen(outPath);
 						timelineData.audioSourceFile = (uint8*)g_memory_realloc(timelineData.audioSourceFile, sizeof(uint8) * (pathLength + 1));
-						g_memory_copyMem(timelineData.audioSourceFile, outPath, sizeof(uint8) * (pathLength + 1));
 						timelineData.audioSourceFileLength = pathLength;
+						g_memory_copyMem(timelineData.audioSourceFile, sizeof(uint8) * (timelineData.audioSourceFileLength + 1), outPath, sizeof(uint8) * (pathLength + 1));
 
 						std::free(outPath);
 					}
@@ -457,7 +457,7 @@ namespace MathAnim
 			{
 				constexpr size_t defaultTrackNameLength = sizeof(defaultTrackName) / sizeof(defaultTrackName[0]);
 				char* trackName = (char*)g_memory_allocate(sizeof(char) * defaultTrackNameLength);
-				g_memory_copyMem(trackName, (void*)defaultTrackName, sizeof(char) * defaultTrackNameLength);
+				g_memory_copyMem(trackName, sizeof(char) * defaultTrackNameLength, (void*)defaultTrackName, sizeof(char) * defaultTrackNameLength);
 				trackName[defaultTrackNameLength - 3] = counterString[0];
 				trackName[defaultTrackNameLength - 2] = counterString[1];
 				defaultTrack.trackName = trackName;

@@ -40,8 +40,7 @@ namespace MathAnim
 			scriptsRoot = assetsRoot/"scripts";
 
 			// Initialize the script watcher
-			scriptWatcher = (FileSystemWatcher*)g_memory_allocate(sizeof(FileSystemWatcher));
-			new(scriptWatcher)FileSystemWatcher();
+			scriptWatcher = g_memory_new FileSystemWatcher();
 			scriptWatcher->path = scriptsRoot;
 			scriptWatcher->onChanged = onScriptChanged;
 			scriptWatcher->onRenamed = onScriptRenamed;
@@ -75,8 +74,7 @@ namespace MathAnim
 		{
 			if (scriptWatcher)
 			{
-				scriptWatcher->~FileSystemWatcher();
-				g_memory_free(scriptWatcher);
+				g_memory_delete(scriptWatcher);
 			}
 
 			scriptWatcher = nullptr;
@@ -108,7 +106,7 @@ namespace MathAnim
 				{
 					filename = filename.substr(0, stringBufferSize - 1);
 				}
-				g_memory_copyMem(stringBuffer, (void*)filename.c_str(), filename.length());
+				g_memory_copyMem(stringBuffer, stringBufferSize,(void*)filename.c_str(), filename.length());
 				stringBuffer[filename.length()] = '\0';
 
 				if (ImGuiExtended::RenamableIconSelectable(icon, stringBuffer, stringBufferSize, lastSelectedFile == fileIndex, 132.0f))
@@ -150,7 +148,7 @@ namespace MathAnim
 					{
 						payload.filepathLength = filepath.length();
 						payload.filepath = buffer;
-						g_memory_copyMem((void*)buffer, (void*)filepath.c_str(), sizeof(char) * filepath.length());
+						g_memory_copyMem((void*)buffer, bufferSize, (void*)filepath.c_str(), sizeof(char) * filepath.length());
 						buffer[payload.filepathLength] = '\0';
 						ImGui::Text("%s", buffer);
 					}

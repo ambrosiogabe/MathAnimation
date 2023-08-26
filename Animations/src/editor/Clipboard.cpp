@@ -20,17 +20,14 @@ namespace MathAnim
 
 		ClipboardData* create()
 		{
-			ClipboardData* data = (ClipboardData*)g_memory_allocate(sizeof(ClipboardData));
-			new(data)ClipboardData();
+			auto* data = g_memory_new ClipboardData();
 			return data;
 		}
 
 		void free(ClipboardData* data)
 		{
 			freeContents(data);
-			data->~ClipboardData();
-			g_memory_zeroMem(data, sizeof(ClipboardData));
-			g_memory_free(data);
+			g_memory_delete(data);
 		}
 
 		ClipboardContents getType(const ClipboardData* data)

@@ -164,10 +164,13 @@ namespace MathAnim
 		if (flipVertically)
 		{
 			int stride = (int)(subWidth * componentsSize);
-			uint8* newBuffer = (uint8*)g_memory_allocate(stride * subHeight);
+			size_t newBufferSize = stride * subHeight;
+			uint8* newBuffer = (uint8*)g_memory_allocate(newBufferSize);
 			for (int i = 0; i < subHeight; i++)
 			{
-				g_memory_copyMem(newBuffer + (i * stride), buffer + ((subHeight - i - 1) * stride), stride);
+				uint8* dst = newBuffer + (i * stride);
+				size_t newBufferSizeLeft = newBufferSize - (dst - newBuffer);
+				g_memory_copyMem(dst, newBufferSizeLeft, buffer + ((subHeight - i - 1) * stride), stride);
 			}
 			buffer = newBuffer;
 		}
@@ -536,7 +539,7 @@ namespace MathAnim
 				const char* errorMessage = stbi_failure_reason();
 				size_t errorMessageLength = std::strlen(errorMessage);
 				lazyLoad.errorMessage = (char*)g_memory_allocate(sizeof(char) * (errorMessageLength + 1));
-				g_memory_copyMem(lazyLoad.errorMessage, (void*)errorMessage, sizeof(char) * errorMessageLength);
+				g_memory_copyMem(lazyLoad.errorMessage, sizeof(char) * (errorMessageLength + 1), (void*)errorMessage, sizeof(char) * errorMessageLength);
 				lazyLoad.errorMessage[errorMessageLength] = '\0';
 				return;
 			}
@@ -573,8 +576,7 @@ namespace MathAnim
 				g_memory_free(lazyLoad.errorMessage);
 				lazyLoad.errorMessage = nullptr;
 
-				lazyLoad.~LazyLoadData();
-				g_memory_free(data);
+				g_memory_delete((LazyLoadData*)data);
 				return;
 			}
 
@@ -593,14 +595,12 @@ namespace MathAnim
 
 			lazyLoad.callback(texture);
 
-			lazyLoad.~LazyLoadData();
-			g_memory_free(data);
+			g_memory_delete((LazyLoadData*)data);
 		}
 
 		void generateFromFileLazy(TextureLoadedCallback textureLoadedCallback, const Texture& texture)
 		{
-			LazyLoadData* lazyLoad = (LazyLoadData*)g_memory_allocate(sizeof(LazyLoadData));
-			new(lazyLoad)LazyLoadData();
+			LazyLoadData* lazyLoad = g_memory_new LazyLoadData();
 
 			lazyLoad->callback = textureLoadedCallback;
 			lazyLoad->texture = texture;

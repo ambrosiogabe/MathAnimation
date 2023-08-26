@@ -102,7 +102,7 @@ namespace MathAnim
 				group->uniqueObjects[group->numUniqueObjects - 1] = Svg::createDefault();
 				Svg::copy(group->uniqueObjects + (group->numUniqueObjects - 1), &obj);
 				group->uniqueObjectNames[group->numUniqueObjects - 1] = (char*)g_memory_allocate(sizeof(char) * (id.length() + 1));
-				g_memory_copyMem(group->uniqueObjectNames[group->numUniqueObjects - 1], (void*)id.c_str(), id.length() * sizeof(char));
+				g_memory_copyMem(group->uniqueObjectNames[group->numUniqueObjects - 1], sizeof(char) * (id.length() + 1), (void*)id.c_str(), id.length() * sizeof(char));
 				group->uniqueObjectNames[group->numUniqueObjects - 1][id.length()] = '\0';
 			}
 		}
@@ -595,7 +595,7 @@ namespace MathAnim
 			if (dest->md5Length > 0)
 			{
 				dest->md5 = (uint8*)g_memory_realloc(dest->md5, sizeof(uint8) * (src->md5Length + 1));
-				g_memory_copyMem(dest->md5, (void*)src->md5, sizeof(uint8) * (src->md5Length + 1));
+				g_memory_copyMem(dest->md5, sizeof(uint8) * (src->md5Length + 1), (void*)src->md5, sizeof(uint8) * (src->md5Length + 1));
 			}
 			else
 			{
@@ -1474,7 +1474,7 @@ namespace MathAnim
 		std::string md5Str = Platform::md5FromString((const char*)b64Path.data, b64Path.size - 1);
 		md5Length = md5Str.length();
 		md5 = (uint8*)g_memory_allocate(sizeof(uint8) * (md5Length + 1));
-		g_memory_copyMem(md5, (void*)md5Str.c_str(), sizeof(uint8) * md5Length);
+		g_memory_copyMem(md5, sizeof(uint8) * (md5Length + 1), (void*)md5Str.c_str(), sizeof(uint8) * md5Length);
 		md5[md5Length] = '\0';
 	}
 
@@ -2459,14 +2459,18 @@ namespace MathAnim
 		}
 
 		growBufferIfNeeded(buffer, capacity, *numElements, stringLength);
-		g_memory_copyMem(*buffer + *numElements, (void*)string, stringLength * sizeof(uint8));
+		uint8* dst = *buffer + *numElements;
+		size_t sizeLeft = *capacity - (dst - *buffer);
+		g_memory_copyMem(*buffer + *numElements, sizeLeft, (void*)string, stringLength * sizeof(uint8));
 		*numElements += stringLength;
 	}
 
 	static void writeBufferBin(uint8** buffer, size_t* capacity, size_t* numElements, const uint8* data, size_t numBytes)
 	{
 		growBufferIfNeeded(buffer, capacity, *numElements, numBytes);
-		g_memory_copyMem(*buffer + *numElements, (void*)data, numBytes * sizeof(uint8));
+		uint8* dst = *buffer + *numElements;
+		size_t sizeLeft = *capacity - (dst - *buffer);
+		g_memory_copyMem(*buffer + *numElements, sizeLeft, (void*)data, numBytes * sizeof(uint8));
 		*numElements += numBytes;
 	}
 }

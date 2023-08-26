@@ -112,7 +112,7 @@ namespace MathAnim
 			DumbString res = {};
 			res.text = (char*)g_memory_allocate(sizeof(char) * (textLength + 1));
 			res.textLength = textLength;
-			g_memory_copyMem(res.text, text, (textLength + 1) * sizeof(char));
+			g_memory_copyMem(res.text, sizeof(char) * (textLength + 1), text, (textLength + 1) * sizeof(char));
 			return res;
 		}
 
@@ -2118,7 +2118,7 @@ namespace MathAnim
 
 			string->textLength = (stringEndIndex - stringStartIndex);
 			string->text = (char*)g_memory_allocate(sizeof(char) * (string->textLength + 1));
-			g_memory_copyMem(string->text, (void*)(parserInfo.text + stringStartIndex), sizeof(char) * string->textLength);
+			g_memory_copyMem(string->text, sizeof(char) * (string->textLength + 1), (void*)(parserInfo.text + stringStartIndex), sizeof(char) * string->textLength);
 			string->text[string->textLength] = '\0';
 
 			return true;
@@ -2157,7 +2157,7 @@ namespace MathAnim
 
 			string->textLength = (stringEndIndex - stringStartIndex);
 			string->text = (char*)g_memory_allocate(sizeof(char) * (string->textLength + 1));
-			g_memory_copyMem(string->text, (void*)(parserInfo.text + stringStartIndex), sizeof(char) * string->textLength);
+			g_memory_copyMem(string->text, sizeof(char) * (string->textLength + 1), (void*)(parserInfo.text + stringStartIndex), sizeof(char) * string->textLength);
 			string->text[string->textLength] = '\0';
 
 			return true;

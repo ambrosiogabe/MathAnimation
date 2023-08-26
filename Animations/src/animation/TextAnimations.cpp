@@ -22,7 +22,7 @@ namespace MathAnim
 	{
 		*ogText = (char*)g_memory_realloc(*ogText, sizeof(char) * (newTextLength + 1));
 		*ogTextLength = (int32_t)newTextLength;
-		g_memory_copyMem(*ogText, (void*)newText, newTextLength * sizeof(char));
+		g_memory_copyMem(*ogText, sizeof(char) * (newTextLength + 1), (void*)newText, newTextLength * sizeof(char));
 		(*ogText)[newTextLength] = '\0';
 	}
 
@@ -273,7 +273,7 @@ namespace MathAnim
 		res.font = nullptr;
 		static const char defaultText[] = "Text Object";
 		res.text = (char*)g_memory_allocate(sizeof(defaultText) / sizeof(char));
-		g_memory_copyMem(res.text, (void*)defaultText, sizeof(defaultText) / sizeof(char));
+		g_memory_copyMem(res.text, sizeof(defaultText) / sizeof(char), (void*)defaultText, sizeof(defaultText) / sizeof(char));
 		res.textLength = (sizeof(defaultText) / sizeof(char)) - 1;
 		res.text[res.textLength] = '\0';
 		return res;
@@ -431,7 +431,7 @@ namespace MathAnim
 		// Alternating harmonic series
 		static const char defaultLatex[] = R"raw(\sum _{k=1}^{\infty }{\frac {(-1)^{k+1}}{k}}={\frac {1}{1}}-{\frac {1}{2}}+{\frac {1}{3}}-{\frac {1}{4}}+\cdots =\ln 2)raw";
 		res.text = (char*)g_memory_allocate(sizeof(defaultLatex) / sizeof(char));
-		g_memory_copyMem(res.text, (void*)defaultLatex, sizeof(defaultLatex) / sizeof(char));
+		g_memory_copyMem(res.text, sizeof(defaultLatex) / sizeof(char), (void*)defaultLatex, sizeof(defaultLatex) / sizeof(char));
 		res.textLength = (sizeof(defaultLatex) / sizeof(char)) - 1;
 		res.text[res.textLength] = '\0';
 		res.isEquation = true;
@@ -674,7 +674,7 @@ int main()
 }
 )DEFAULT_LANG";
 		res.text = (char*)g_memory_allocate(sizeof(defaultText) / sizeof(char));
-		g_memory_copyMem(res.text, (void*)defaultText, sizeof(defaultText) / sizeof(char));
+		g_memory_copyMem(res.text, sizeof(defaultText) / sizeof(char), (void*)defaultText, sizeof(defaultText) / sizeof(char));
 		res.textLength = (sizeof(defaultText) / sizeof(char)) - 1;
 		res.text[res.textLength] = '\0';
 		return res;

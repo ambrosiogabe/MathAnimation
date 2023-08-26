@@ -59,10 +59,7 @@ namespace MathAnim
 
 		AnimationManagerData* create()
 		{
-			void* animManagerMemory = g_memory_allocate(sizeof(AnimationManagerData));
-			// Placement new to ensure the vectors and stuff are appropriately constructed
-			// but I can still use my memory tracker
-			AnimationManagerData* res = new (animManagerMemory) AnimationManagerData();
+			AnimationManagerData* res = g_memory_new AnimationManagerData();
 
 			res->activeCamera = NULL_ANIM_OBJECT;
 			res->currentFrame = 0;
@@ -86,9 +83,7 @@ namespace MathAnim
 					am->animations[i].free();
 				}
 
-				// Call destructor to properly destruct vector objects
-				am->~AnimationManagerData();
-				g_memory_free(am);
+				g_memory_delete(am);
 			}
 		}
 

@@ -109,7 +109,7 @@ namespace MathAnim
 		uint8* gpuPixelData = (uint8*)GL::mapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
 		if (gpuPixelData)
 		{
-			g_memory_copyMem(this->currentOutputPixels.yColorBuffer, gpuPixelData, this->data->pboSize);
+			g_memory_copyMem(this->currentOutputPixels.yColorBuffer, this->data->pboSize, gpuPixelData, this->data->pboSize);
 		}
 		else
 		{

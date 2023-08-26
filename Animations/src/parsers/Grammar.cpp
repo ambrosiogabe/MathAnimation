@@ -1009,16 +1009,14 @@ namespace MathAnim
 			}
 			grammar->region = nullptr;
 
-			grammar->~Grammar();
-			g_memory_free(grammar);
+			g_memory_delete(grammar);
 		}
 	}
 
 	// ----------- Internal Functions -----------
 	static Grammar* importGrammarFromJson(const json& j)
 	{
-		Grammar* res = (Grammar*)g_memory_allocate(sizeof(Grammar));
-		new(res)Grammar();
+		Grammar* res = g_memory_new Grammar();
 
 		res->region = onig_region_new();
 
@@ -1072,8 +1070,7 @@ namespace MathAnim
 
 	static SyntaxPattern* const parsePattern(const json& json, Grammar* self)
 	{
-		SyntaxPattern* const res = (SyntaxPattern*)g_memory_allocate(sizeof(SyntaxPattern));
-		new(res)SyntaxPattern();
+		SyntaxPattern* const res = g_memory_new SyntaxPattern();
 		res->type = PatternType::Invalid;
 		res->self = self;
 
@@ -1675,7 +1672,6 @@ namespace MathAnim
 	static void freePattern(SyntaxPattern* const pattern)
 	{
 		pattern->free();
-		pattern->~SyntaxPattern();
-		g_memory_free(pattern);
+		g_memory_delete(pattern);
 	}
 }

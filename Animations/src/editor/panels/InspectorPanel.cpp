@@ -180,7 +180,7 @@ namespace MathAnim
 				char scratch[scratchLength] = {};
 				if (animObject->nameLength < scratchLength - 1)
 				{
-					g_memory_copyMem(scratch, animObject->name, animObject->nameLength * sizeof(char));
+					g_memory_copyMem(scratch, scratchLength, animObject->name, animObject->nameLength * sizeof(char));
 					scratch[animObject->nameLength] = '\0';
 					if (auto res = ImGuiExtended::InputTextEx(": Name", scratch, scratchLength * sizeof(char));
 						res.editState != EditState::NotEditing)
@@ -644,7 +644,7 @@ namespace MathAnim
 				g_logger_error("Text object has more than 256 characters. Tell Gabe to increase scratch length for text objects.");
 				return;
 			}
-			g_memory_copyMem(scratch, object->as.textObject.text, object->as.textObject.textLength * sizeof(char));
+			g_memory_copyMem(scratch, scratchLength, object->as.textObject.text, object->as.textObject.textLength * sizeof(char));
 			scratch[object->as.textObject.textLength] = '\0';
 			if (auto res = ImGuiExtended::InputTextMultilineEx(": Text##TextObject", scratch, scratchLength * sizeof(char));
 				res.editState != EditState::NotEditing)
@@ -752,7 +752,7 @@ namespace MathAnim
 				codeEditUserData.tokenMatch = {};
 			}
 
-			g_memory_copyMem(scratch, object->as.codeBlock.text, object->as.codeBlock.textLength * sizeof(char));
+			g_memory_copyMem(scratch, scratchLength, object->as.codeBlock.text, object->as.codeBlock.textLength * sizeof(char));
 			scratch[object->as.codeBlock.textLength] = '\0';
 			if (auto res = ImGuiExtended::InputTextMultilineEx(": Code##CodeBlockData", scratch, scratchLength * sizeof(char), ImVec2(0, 0), ImGuiInputTextFlags_CallbackAlways, codeEditCallback, &codeEditUserData);
 				res.editState != EditState::NotEditing)
@@ -846,7 +846,7 @@ namespace MathAnim
 				g_logger_error("Text object has more than '{}' characters. Tell Gabe to increase scratch length for LaTex objects.", scratchLength);
 				return;
 			}
-			g_memory_copyMem(scratch, object->as.laTexObject.text, object->as.laTexObject.textLength * sizeof(char));
+			g_memory_copyMem(scratch, scratchLength, object->as.laTexObject.text, object->as.laTexObject.textLength * sizeof(char));
 			scratch[object->as.laTexObject.textLength] = '\0';
 			if (auto res = ImGuiExtended::InputTextMultilineEx(": LaTeX##LaTeXEditor", scratch, scratchLength * sizeof(char));
 				res.editState != EditState::NotEditing)
@@ -1643,7 +1643,7 @@ namespace MathAnim
 			char buffer[bufferSize] = "Drag File Here";
 			if (bufferSize >= script.scriptFilepathLength + 1 && script.scriptFilepathLength > 0)
 			{
-				g_memory_copyMem((void*)buffer, script.scriptFilepath, sizeof(char) * script.scriptFilepathLength);
+				g_memory_copyMem((void*)buffer, bufferSize, script.scriptFilepath, sizeof(char) * script.scriptFilepathLength);
 				buffer[script.scriptFilepathLength] = '\0';
 			}
 

@@ -76,8 +76,7 @@ namespace MathAnim
 
 		void insert(const Key& key, const Value& value)
 		{
-			LRUCacheEntry<Key, Value>* newEntry = (LRUCacheEntry<Key, Value>*)g_memory_allocate(sizeof(LRUCacheEntry<Key, Value>));
-			new(newEntry)LRUCacheEntry<Key, Value>();
+			auto* newEntry = g_memory_new LRUCacheEntry<Key, Value>();
 
 			*newEntry = {};
 			newEntry->data = value;
@@ -135,8 +134,7 @@ namespace MathAnim
 
 				// Free the memory now and get rid of this entry
 				indexLookup.erase(entryToEvictIter);
-				entryToEvict->~LRUCacheEntry<Key, Value>();
-				g_memory_free(entryToEvict);
+				g_memory_delete(entryToEvict);
 				return true;
 			}
 			else

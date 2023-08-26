@@ -288,7 +288,8 @@ namespace MathAnim
 				.generateEmpty();
 
 			// Generate the texture and upload it to the GPU
-			uint8* textureMemory = (uint8*)g_memory_allocate(sizeof(uint8) * textureWidth * textureHeight);
+			size_t textureMemorySize = sizeof(uint8) * textureWidth * textureHeight;
+			uint8* textureMemory = (uint8*)g_memory_allocate(textureMemorySize);
 			g_memory_zeroMem(textureMemory, sizeof(uint8) * textureWidth * textureHeight);
 			uint32 cursorX = 0;
 			uint32 cursorY = 0;
@@ -329,7 +330,8 @@ namespace MathAnim
 				{
 					uint8* dst = textureMemory + cursorX + ((cursorY + y) * textureWidth);
 					uint8* src = bitmap.buffer + (y * bitmap.width);
-					g_memory_copyMem(dst, src, sizeof(uint8) * bitmap.width);
+					size_t textureMemorySizeLeft = textureMemorySize - (dst - textureMemory);
+					g_memory_copyMem(dst, textureMemorySizeLeft, src, sizeof(uint8) * bitmap.width);
 				}
 
 				// Add normalized glyph position
@@ -796,7 +798,7 @@ namespace MathAnim
 				freeBuffer = true;
 			}
 
-			g_memory_copyMem(buffer, (void*)filepath, sizeof(char) * filepathSize);
+			g_memory_copyMem(buffer, sizeof(char) * filepathSize + 1, (void*)filepath, sizeof(char) * filepathSize);
 			buffer[filepathSize] = '\0';
 
 			for (int i = 0; i < filepathSize; i++)
