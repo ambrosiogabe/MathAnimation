@@ -1963,6 +1963,9 @@ namespace MathAnim
 
 	void SvgGroup::calculateBBox()
 	{
+		bbox.min = { FLT_MAX, FLT_MAX };
+		bbox.max = { -FLT_MAX, -FLT_MAX };
+
 		for (int i = 0; i < numObjects; i++)
 		{
 			SvgObject& obj = objects[i];
@@ -1981,8 +1984,9 @@ namespace MathAnim
 			obj.calculateSize();
 			bbox.min = CMath::min(obj.bbox.min + absOffset, bbox.min);
 			bbox.max = CMath::max(obj.bbox.max + absOffset, bbox.max);
-			size = CMath::max(bbox.max - bbox.min, size);
 		}
+
+		size = bbox.max - bbox.min;
 	}
 
 	void SvgGroup::free()

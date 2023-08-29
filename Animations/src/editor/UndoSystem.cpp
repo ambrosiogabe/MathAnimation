@@ -2055,7 +2055,7 @@ namespace MathAnim
 						break;
 					case U8Vec4PropType::StrokeColor:
 						this->oldProps[childId] = childObj->_strokeColorStart;
-						childObj->_fillColorStart = obj->_strokeColorStart;
+						childObj->_strokeColorStart = obj->_strokeColorStart;
 						break;
 					}
 				}
