@@ -1530,10 +1530,6 @@ namespace MathAnim
 		{
 			switch (propType)
 			{
-			case Vec2PropType::MoveToTargetPos:
-				assertCorrectType(anim, AnimTypeV1::MoveTo);
-				anim->as.moveTo.target = this->newVec;
-				break;
 			case Vec2PropType::AnimateScaleTarget:
 				assertCorrectType(anim, AnimTypeV1::AnimateScale);
 				anim->as.animateScale.target = this->newVec;
@@ -1549,10 +1545,6 @@ namespace MathAnim
 		{
 			switch (propType)
 			{
-			case Vec2PropType::MoveToTargetPos:
-				assertCorrectType(anim, AnimTypeV1::MoveTo);
-				anim->as.moveTo.target = this->oldVec;
-				break;
 			case Vec2PropType::AnimateScaleTarget:
 				assertCorrectType(anim, AnimTypeV1::AnimateScale);
 				anim->as.animateScale.target = this->oldVec;
@@ -1645,6 +1637,7 @@ namespace MathAnim
 				break;
 				// NOTE: These are animations
 			case Vec3PropType::ModifyAnimationVec3Target:
+			case Vec3PropType::MoveToTargetPos:
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
@@ -1658,6 +1651,10 @@ namespace MathAnim
 			case Vec3PropType::ModifyAnimationVec3Target:
 				assertAnimIsModifyVec3Type(anim);
 				anim->as.modifyVec3.target = this->newVec;
+				break;
+			case Vec3PropType::MoveToTargetPos:
+				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				anim->as.moveTo.target = this->newVec;
 				break;
 				// NOTE: These are anim objects
 			case Vec3PropType::Position:
@@ -1691,6 +1688,7 @@ namespace MathAnim
 				break;
 				// NOTE: These are animations
 			case Vec3PropType::ModifyAnimationVec3Target:
+			case Vec3PropType::MoveToTargetPos:
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
@@ -1704,6 +1702,10 @@ namespace MathAnim
 			case Vec3PropType::ModifyAnimationVec3Target:
 				assertAnimIsModifyVec3Type(anim);
 				anim->as.modifyVec3.target = this->oldVec;
+				break;
+			case Vec3PropType::MoveToTargetPos:
+				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				anim->as.moveTo.target = this->oldVec;
 				break;
 				// NOTE: These are anim objects
 			case Vec3PropType::Position:

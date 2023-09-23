@@ -161,12 +161,12 @@ namespace MathAnim
 			AnimObject* moveToObj = AnimationManager::getMutableObject(am, this->as.moveTo.object);
 			if (moveToObj)
 			{
-				const Vec2& target = this->as.moveTo.target;
-				const Vec2& source = this->as.moveTo.source;
+				const Vec3& target = this->as.moveTo.target;
+				const Vec3& source = this->as.moveTo.source;
 				moveToObj->position = Vec3{
 					((target.x - source.x) * t) + source.x,
 					((target.y - source.y) * t) + source.y,
-					moveToObj->position.z
+					((target.z - source.z) * t) + source.z
 				};
 			}
 		}
@@ -302,7 +302,7 @@ namespace MathAnim
 			AnimObject* moveToObj = AnimationManager::getMutableObject(am, this->as.moveTo.object);
 			if (moveToObj)
 			{
-				this->as.moveTo.source = CMath::vector2From3(moveToObj->position);
+				this->as.moveTo.source = moveToObj->position;
 			}
 		}
 		break;
@@ -520,8 +520,8 @@ namespace MathAnim
 		case 3:
 		{
 			MoveToData res = {};
-			DESERIALIZE_VEC2(&res, source, memory, (Vec2{ 0, 0 }));
-			DESERIALIZE_VEC2(&res, target, memory, (Vec2{ 0, 0 }));
+			DESERIALIZE_VEC3(&res, source, memory, (Vec3{ 0, 0, 0 }));
+			DESERIALIZE_VEC3(&res, target, memory, (Vec3{ 0, 0, 0 }));
 			DESERIALIZE_ID(&res, object, memory);
 			return res;
 		}
@@ -540,8 +540,8 @@ namespace MathAnim
 		// target -> Vec2
 		// object -> AnimObjId
 		MoveToData res;
-		res.source = CMath::legacy_deserializeVec2(memory);
-		res.target = CMath::legacy_deserializeVec2(memory);
+		res.source = CMath::vector3From2(CMath::legacy_deserializeVec2(memory));
+		res.target = CMath::vector3From2(CMath::legacy_deserializeVec2(memory));
 		memory.read<AnimObjId>(&res.object);
 		return res;
 	}
@@ -953,8 +953,8 @@ namespace MathAnim
 			// NOP
 			break;
 		case AnimTypeV1::MoveTo:
-			res.as.moveTo.source = Vec2{ 0, 0 };
-			res.as.moveTo.target = Vec2{ Application::getViewportSize().x / 3.0f, Application::getViewportSize().y / 3.0f };
+			res.as.moveTo.source = Vec3{ 0, 0, 0 };
+			res.as.moveTo.target = Vec3{ Application::getViewportSize().x / 3.0f, Application::getViewportSize().y / 3.0f, 0.0f };
 			break;
 		case AnimTypeV1::AnimateScale:
 			res.as.animateScale.source = Vec2{ 1.0f, 1.0f };
@@ -2557,19 +2557,19 @@ namespace MathAnim
 	{
 		// TODO: Render and handle 2D gizmo logic based on edit mode
 		std::string gizmoName = "Move_To_" + std::to_string(anim->id);
-		Vec3 tmp = CMath::vector3From2(anim->as.moveTo.target);
+		Vec3 tmp = anim->as.moveTo.target;
 		if (auto res = GizmoManager::translateGizmo(gizmoName.c_str(), &tmp);
 			res.editState != EditState::NotEditing)
 		{
-			anim->as.moveTo.target = CMath::vector2From3(tmp);
+			anim->as.moveTo.target = tmp;
 			if (res.editState == EditState::FinishedEditing)
 			{
-				UndoSystem::setVec2Prop(
+				UndoSystem::setVec3Prop(
 					Application::getUndoSystem(),
 					anim->id,
-					CMath::vector2From3(res.ogData),
+					res.ogData,
 					anim->as.moveTo.target,
-					Vec2PropType::MoveToTargetPos
+					Vec3PropType::MoveToTargetPos
 				);
 			}
 		}

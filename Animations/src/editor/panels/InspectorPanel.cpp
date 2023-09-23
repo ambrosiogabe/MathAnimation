@@ -1063,15 +1063,15 @@ namespace MathAnim
 				);
 			}
 
-			if (auto res = ImGuiExtended::DragFloat2Ex(": Target Position##MoveToAnimation", &animation->as.moveTo.target, slowDragSpeed);
+			if (auto res = ImGuiExtended::DragFloat3Ex(": Target Position##MoveToAnimation", &animation->as.moveTo.target, slowDragSpeed);
 				res.editState == EditState::FinishedEditing)
 			{
-				UndoSystem::setVec2Prop(
+				UndoSystem::setVec3Prop(
 					Application::getUndoSystem(),
 					animation->id,
 					res.ogData,
 					animation->as.moveTo.target,
-					Vec2PropType::MoveToTargetPos
+					Vec3PropType::MoveToTargetPos
 				);
 			}
 		}

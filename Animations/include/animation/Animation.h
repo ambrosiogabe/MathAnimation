@@ -201,8 +201,8 @@ namespace MathAnim
 
 	struct MoveToData
 	{
-		Vec2 source;
-		Vec2 target;
+		Vec3 source;
+		Vec3 target;
 		AnimObjId object;
 
 		void serialize(nlohmann::json& j) const;
