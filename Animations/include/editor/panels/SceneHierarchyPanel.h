@@ -19,7 +19,7 @@ namespace MathAnim
 		void deleteAnimObject(const AnimObject& animObject);
 
 		void serialize(nlohmann::json& memory);
-		void deserialize(RawMemory& memory);
+		void deserialize(const nlohmann::json& memory);
 
 		bool mouseIsHovered();
 	};
