@@ -75,7 +75,7 @@ namespace MathAnim
 		// ----------- 2D stuff ----------- 
 		// TODO: Switch to using this when drawing completed objects to potentially
 		// batch draw calls together and improve performance
-		void drawSquare(const Vec2& start, const Vec2& size);
+		void drawSquare(const Vec2& start, const Vec2& size, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void drawFilledQuad(const Vec2& start, const Vec2& size, AnimObjId objId = NULL_ANIM_OBJECT);
 		void drawTexturedQuad(const Texture& texture, const Vec2& size, const Vec2& uvMin, const Vec2& uvMax, const Vec4& color, AnimObjId objId, const glm::mat4& transform = glm::identity<glm::mat4>());
 		void drawFilledTri(const Vec2& p0, const Vec2& p1, const Vec2& p2, AnimObjId objId = NULL_ANIM_OBJECT);

@@ -424,13 +424,17 @@ namespace MathAnim
 					const Camera& orthoCamera = AnimationManager::getActiveCamera(am);
 
 					Renderer::pushStrokeWidth(0.05f);
+					
 					Renderer::pushColor(Colors::Neutral[0]);
 					Vec4 leftRightBottomTop = orthoCamera.getLeftRightBottomTop();
 					Vec2 projectionSize = CMath::abs(Vec2{
 						leftRightBottomTop.values[1] - leftRightBottomTop.values[0],
 						leftRightBottomTop.values[3] - leftRightBottomTop.values[2]
-						});
-					Renderer::drawSquare(CMath::vector2From3(orthoCamera.position) - projectionSize / 2.0f, projectionSize);
+					});
+					Vec2 camera2DPos = CMath::vector2From3(orthoCamera.position) - projectionSize / 2.0f;
+					glm::mat4 transform = glm::identity<glm::mat4>();
+					transform = glm::translate(transform, CMath::convert(Vec3{camera2DPos.x, camera2DPos.y, orthoCamera.position.z}));
+					Renderer::drawSquare(Vec2{0, 0}, projectionSize, transform);
 					Renderer::popColor();
 					Renderer::popStrokeWidth();
 				}

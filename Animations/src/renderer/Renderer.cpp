@@ -836,7 +836,7 @@ namespace MathAnim
 		}
 
 		// ----------- 2D stuff ----------- 
-		void drawSquare(const Vec2& start, const Vec2& size)
+		void drawSquare(const Vec2& start, const Vec2& size, const glm::mat4& transform)
 		{
 			// Don't draw squares with non-negative sizes since that's an invalid input
 			if (size.x <= 0.0f || size.y <= 0.0f)
@@ -844,7 +844,7 @@ namespace MathAnim
 				return;
 			}
 
-			Path2DContext* path = beginPath(start);
+			Path2DContext* path = beginPath(start, transform);
 			lineTo(path, start + Vec2{ size.x, 0 });
 			lineTo(path, start + size);
 			lineTo(path, start + Vec2{ 0, size.y });
