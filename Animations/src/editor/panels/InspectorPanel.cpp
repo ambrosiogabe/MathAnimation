@@ -22,6 +22,11 @@
 
 #include <nfd.h>
 
+#define NO_EDIT res.editState == EditState::NotEditing
+#define BEING_EDITED res.editState == EditState::BeingEdited
+#define FINISHED_EDITING res.editState == EditState::FinishedEditing
+#define ANY_EDIT res.editState != EditState::NotEditing
+
 namespace MathAnim
 {
 	namespace InspectorPanel
@@ -39,28 +44,28 @@ namespace MathAnim
 		static bool applySettingToChildren(const char* id);
 
 		// ---------------------- Inspector functions ----------------------
-		static void handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId);
-		static void handleAnimationInspector(AnimationManagerData* am, AnimId animationId);
-		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
-		static void handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object);
-		static void handleLaTexObjectInspector(AnimObject* object);
-		static void handleSvgFileObjectInspector(AnimObject* object);
-		static void handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object);
-		static void handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation);
-		static void handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation);
-		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation);
-		static void handleShiftInspector(Animation* animation);
-		static void handleRotateToAnimationInspector(Animation* animation);
-		static void handleAnimateStrokeColorAnimationInspector(Animation* animation);
-		static void handleAnimateFillColorAnimationInspector(Animation* animation);
-		static void handleCircumscribeInspector(AnimationManagerData* am, Animation* animation);
-		static void handleSquareInspector(AnimObject* object);
-		static void handleCircleInspector(AnimObject* object);
-		static void handleArrowInspector(AnimObject* object);
-		static void handleCubeInspector(AnimationManagerData* am, AnimObject* object);
-		static void handleAxisInspector(AnimationManagerData* am, AnimObject* object);
-		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
-		static void handleImageObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static bool handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId);
+		static bool handleAnimationInspector(AnimationManagerData* am, AnimId animationId);
+		static bool handleTextObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static bool handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object);
+		static bool handleLaTexObjectInspector(AnimObject* object);
+		static bool handleSvgFileObjectInspector(AnimObject* object);
+		static bool handleCameraObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static bool handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation);
+		static bool handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation);
+		static bool handleTransformAnimation(AnimationManagerData* am, Animation* animation);
+		static bool handleShiftInspector(Animation* animation);
+		static bool handleRotateToAnimationInspector(Animation* animation);
+		static bool handleAnimateStrokeColorAnimationInspector(Animation* animation);
+		static bool handleAnimateFillColorAnimationInspector(Animation* animation);
+		static bool handleCircumscribeInspector(AnimationManagerData* am, Animation* animation);
+		static bool handleSquareInspector(AnimObject* object);
+		static bool handleCircleInspector(AnimObject* object);
+		static bool handleArrowInspector(AnimObject* object);
+		static bool handleCubeInspector(AnimationManagerData* am, AnimObject* object);
+		static bool handleAxisInspector(AnimationManagerData* am, AnimObject* object);
+		static bool handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static bool handleImageObjectInspector(AnimationManagerData* am, AnimObject* object);
 
 		void update(AnimationManagerData* am)
 		{
@@ -69,11 +74,11 @@ namespace MathAnim
 				ImGui::Indent(indentationDepth);
 				if (!isNull(activeAnimObjectId))
 				{
-					handleAnimObjectInspector(am, activeAnimObjectId);
+					bool anyAnimObjectPropertyChanged = handleAnimObjectInspector(am, activeAnimObjectId);
 					// NOTE: Don't update object state while the animation is playing because
 					//       it messes up the playback
 					// TODO: Investigate the root cause of this issue and fix that instead (why don't ya?)
-					if (Application::getEditorPlayState() == AnimState::Pause)
+					if (anyAnimObjectPropertyChanged && Application::getEditorPlayState() == AnimState::Pause)
 					{
 						// TODO: This slows stuff down a lot. Optimize the heck out of it
 						AnimationManager::updateObjectState(am, activeAnimObjectId);
@@ -163,15 +168,17 @@ namespace MathAnim
 		}
 
 		// ---------------------- Inspector functions ----------------------
-		static void handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId)
+		static bool handleAnimObjectInspector(AnimationManagerData* am, AnimObjId animObjectId)
 		{
 			AnimObject* animObject = AnimationManager::getMutableObject(am, animObjectId);
 			if (!animObject)
 			{
 				g_logger_error("No anim object with id '{}' exists", animObjectId);
 				activeAnimObjectId = NULL_ANIM_OBJECT;
-				return;
+				return false;
 			}
+
+			bool anyPropertyChanged = false;
 
 			std::string transformComponentName = "Transform##" + std::to_string(animObjectId);
 			if (ImGui::CollapsingHeader(transformComponentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
@@ -183,9 +190,11 @@ namespace MathAnim
 					g_memory_copyMem(scratch, scratchLength, animObject->name, animObject->nameLength * sizeof(char));
 					scratch[animObject->nameLength] = '\0';
 					if (auto res = ImGuiExtended::InputTextEx(": Name", scratch, scratchLength * sizeof(char));
-						res.editState != EditState::NotEditing)
+						ANY_EDIT)
 					{
-						if (res.editState == EditState::FinishedEditing)
+						anyPropertyChanged = true;
+
+						if (FINISHED_EDITING)
 						{
 							UndoSystem::setStringProp(
 								Application::getUndoSystem(),
@@ -208,41 +217,56 @@ namespace MathAnim
 
 				// Position
 				if (auto res = ImGuiExtended::DragFloat3Ex(": Position", &animObject->_positionStart, slowDragSpeed);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setVec3Prop(
-						Application::getUndoSystem(),
-						animObject->id,
-						res.ogData,
-						animObject->_positionStart,
-						Vec3PropType::Position
-					);
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setVec3Prop(
+							Application::getUndoSystem(),
+							animObject->id,
+							res.ogData,
+							animObject->_positionStart,
+							Vec3PropType::Position
+						);
+					}
 				}
 
 				// Rotation
 				if (auto res = ImGuiExtended::DragFloat3Ex(": Rotation", &animObject->_rotationStart);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setVec3Prop(
-						Application::getUndoSystem(),
-						animObject->id,
-						res.ogData,
-						animObject->_rotationStart,
-						Vec3PropType::Rotation
-					);
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setVec3Prop(
+							Application::getUndoSystem(),
+							animObject->id,
+							res.ogData,
+							animObject->_rotationStart,
+							Vec3PropType::Rotation
+						);
+					}
 				}
 
 				// Scale
 				if (auto res = ImGuiExtended::DragFloat3Ex(": Scale", &animObject->_scaleStart, slowDragSpeed);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setVec3Prop(
-						Application::getUndoSystem(),
-						animObject->id,
-						res.ogData,
-						animObject->_scaleStart,
-						Vec3PropType::Scale
-					);
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setVec3Prop(
+							Application::getUndoSystem(),
+							animObject->id,
+							res.ogData,
+							animObject->_scaleStart,
+							Vec3PropType::Scale
+						);
+					}
 				}
 			}
 
@@ -252,40 +276,53 @@ namespace MathAnim
 				// TODO: Remove this once you get auto SVG stuff working good
 				if (ImGui::DragFloat(": SVG Scale", &animObject->svgScale, slowDragSpeed))
 				{
+					anyPropertyChanged = true;
 				}
 
 				// NanoVG only allows stroke width between [0-200] so we reflect that here
 				if (auto res = ImGuiExtended::DragFloatEx(": Stroke Width", (float*)&animObject->_strokeWidthStart, 1.0f, 0.0f, 200.0f);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setFloatProp(
-						Application::getUndoSystem(),
-						animObject->id,
-						res.ogData,
-						animObject->_strokeWidthStart,
-						FloatPropType::StrokeWidth
-					);
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setFloatProp(
+							Application::getUndoSystem(),
+							animObject->id,
+							res.ogData,
+							animObject->_strokeWidthStart,
+							FloatPropType::StrokeWidth
+						);
+					}
 				}
 				if (applySettingToChildren("##StrokeWidthChildrenApply"))
 				{
-
+					anyPropertyChanged = true;
 				}
 
 				// Stroke Color
 				if (auto res = ImGuiExtended::ColorEdit4Ex(": Stroke Color", &animObject->_strokeColorStart);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setU8Vec4Prop(
-						Application::getUndoSystem(),
-						animObject->id,
-						res.ogData,
-						animObject->_strokeColorStart,
-						U8Vec4PropType::StrokeColor
-					);
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setU8Vec4Prop(
+							Application::getUndoSystem(),
+							animObject->id,
+							res.ogData,
+							animObject->_strokeColorStart,
+							U8Vec4PropType::StrokeColor
+						);
+					}
 				}
 
 				if (applySettingToChildren("##StrokeColorChildrenApply"))
 				{
+					anyPropertyChanged = true;
+
 					UndoSystem::applyU8Vec4ToChildren(
 						Application::getUndoSystem(),
 						animObject->id,
@@ -295,19 +332,26 @@ namespace MathAnim
 
 				// Fill Color
 				if (auto res = ImGuiExtended::ColorEdit4Ex(": Fill Color", &animObject->_fillColorStart);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setU8Vec4Prop(
-						Application::getUndoSystem(),
-						animObject->id,
-						res.ogData,
-						animObject->_fillColorStart,
-						U8Vec4PropType::FillColor
-					);
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setU8Vec4Prop(
+							Application::getUndoSystem(),
+							animObject->id,
+							res.ogData,
+							animObject->_fillColorStart,
+							U8Vec4PropType::FillColor
+						);
+					}
 				}
 
 				if (applySettingToChildren("##FillColorChildrenApply"))
 				{
+					anyPropertyChanged = true;
+
 					UndoSystem::applyU8Vec4ToChildren(
 						Application::getUndoSystem(),
 						animObject->id,
@@ -338,114 +382,137 @@ namespace MathAnim
 				switch (animObject->objectType)
 				{
 				case AnimObjectTypeV1::TextObject:
-					handleTextObjectInspector(am, animObject);
+					anyPropertyChanged = anyPropertyChanged || handleTextObjectInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::CodeBlock:
-					handleCodeBlockInspector(am, animObject);
+					anyPropertyChanged = anyPropertyChanged || handleCodeBlockInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::LaTexObject:
-					handleLaTexObjectInspector(animObject);
+					anyPropertyChanged = anyPropertyChanged || handleLaTexObjectInspector(animObject);
 					break;
 				case AnimObjectTypeV1::Square:
-					handleSquareInspector(animObject);
+					anyPropertyChanged = anyPropertyChanged || handleSquareInspector(animObject);
 					break;
 				case AnimObjectTypeV1::Circle:
-					handleCircleInspector(animObject);
+					anyPropertyChanged = anyPropertyChanged || handleCircleInspector(animObject);
 					break;
 				case AnimObjectTypeV1::Cube:
-					handleCubeInspector(am, animObject);
+					anyPropertyChanged = anyPropertyChanged || handleCubeInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::Axis:
-					handleAxisInspector(am, animObject);
+					anyPropertyChanged = anyPropertyChanged || handleAxisInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::SvgFileObject:
-					handleSvgFileObjectInspector(animObject);
+					anyPropertyChanged = anyPropertyChanged || handleSvgFileObjectInspector(animObject);
 					break;
 				case AnimObjectTypeV1::Camera:
-					handleCameraObjectInspector(am, animObject);
+					anyPropertyChanged = anyPropertyChanged || handleCameraObjectInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::SvgObject:
 					// NOP
 					break;
 				case AnimObjectTypeV1::ScriptObject:
-					handleScriptObjectInspector(am, animObject);
+					anyPropertyChanged = anyPropertyChanged || handleScriptObjectInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::Image:
-					handleImageObjectInspector(am, animObject);
+					anyPropertyChanged = anyPropertyChanged || handleImageObjectInspector(am, animObject);
 					break;
 				case AnimObjectTypeV1::Arrow:
-					handleArrowInspector(animObject);
+					anyPropertyChanged = anyPropertyChanged || handleArrowInspector(animObject);
 					break;
 				case AnimObjectTypeV1::Length:
 				case AnimObjectTypeV1::None:
 					break;
 				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleAnimationInspector(AnimationManagerData* am, AnimId animationId)
+		static bool handleAnimationInspector(AnimationManagerData* am, AnimId animationId)
 		{
 			Animation* animation = AnimationManager::getMutableAnimation(am, animationId);
 			if (!animation)
 			{
 				g_logger_error("No animation with id '{}' exists", animationId);
 				activeAnimationId = NULL_ANIM;
-				return;
+				return false;
 			}
+
+			bool anyPropertyChanged = false;
 
 			std::string animPropsComponentName = "Animation Properties##" + std::to_string(animationId);
 			if (ImGui::CollapsingHeader(animPropsComponentName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				int currentType = (int)(animation->easeType) - 1;
 				if (auto res = ImGuiExtended::ComboEx(": Ease Type", &currentType, &easeTypeNames[1], (int)EaseType::Length - 1);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setEnumProp(
-						Application::getUndoSystem(),
-						animation->id,
-						res.ogData + 1,
-						currentType + 1,
-						EnumPropType::EaseType
-					);
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setEnumProp(
+							Application::getUndoSystem(),
+							animation->id,
+							res.ogData + 1,
+							currentType + 1,
+							EnumPropType::EaseType
+						);
+					}
 				}
 
 				int currentDirection = (int)(animation->easeDirection) - 1;
 				if (auto res = ImGuiExtended::ComboEx(": Ease Direction", &currentDirection, &easeDirectionNames[1], (int)EaseDirection::Length - 1);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setEnumProp(
-						Application::getUndoSystem(),
-						animation->id,
-						res.ogData + 1,
-						currentDirection + 1,
-						EnumPropType::EaseDirection
-					);
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setEnumProp(
+							Application::getUndoSystem(),
+							animation->id,
+							res.ogData + 1,
+							currentDirection + 1,
+							EnumPropType::EaseDirection
+						);
+					}
 				}
 
 				int currentPlaybackType = (int)(animation->playbackType) - 1;
 				if (auto res = ImGuiExtended::ComboEx(": Playback Type", &currentPlaybackType, &_playbackTypeNames[1], (int)PlaybackType::Length - 1);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setEnumProp(
-						Application::getUndoSystem(),
-						animation->id,
-						res.ogData + 1,
-						currentPlaybackType + 1,
-						EnumPropType::PlaybackType
-					);
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setEnumProp(
+							Application::getUndoSystem(),
+							animation->id,
+							res.ogData + 1,
+							currentPlaybackType + 1,
+							EnumPropType::PlaybackType
+						);
+					}
 				}
 
 				ImGui::BeginDisabled(animation->playbackType == PlaybackType::Synchronous);
 				if (auto res = ImGuiExtended::DragFloatEx(": Lag Ratio", &animation->lagRatio, slowDragSpeed, 0.0f, 1.0f);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setFloatProp(
-						Application::getUndoSystem(),
-						animation->id,
-						res.ogData,
-						animation->lagRatio,
-						FloatPropType::LagRatio
-					);
+					anyPropertyChanged = true;
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setFloatProp(
+							Application::getUndoSystem(),
+							animation->id,
+							res.ogData,
+							animation->lagRatio,
+							FloatPropType::LagRatio
+						);
+					}
 				}
 				ImGui::EndDisabled();
 
@@ -487,6 +554,8 @@ namespace MathAnim
 								ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonSize.x);
 								if (ImGui::Button(ICON_FA_MINUS "##RemoveAnimObjectFromAnim"))
 								{
+									anyPropertyChanged = true;
+
 									// This will invalidate our iterator, so instead of continuing to loop
 									// we break out. This will cause the GUI to break for a single frame,
 									// but it's worth it in order to avoid the undefined behavior otherwise.
@@ -514,6 +583,8 @@ namespace MathAnim
 					// Handle drag drop for anim object
 					if (auto objPayload = ImGuiExtended::AnimObjectDragDropTarget(); objPayload != nullptr)
 					{
+						anyPropertyChanged = true;
+
 						UndoSystem::addObjectToAnim(
 							Application::getUndoSystem(),
 							objPayload->animObjectId,
@@ -539,42 +610,46 @@ namespace MathAnim
 					// NOP
 					break;
 				case AnimTypeV1::Transform:
-					handleTransformAnimation(am, animation);
+					anyPropertyChanged = anyPropertyChanged || handleTransformAnimation(am, animation);
 					break;
 				case AnimTypeV1::MoveTo:
-					handleMoveToAnimationInspector(am, animation);
+					anyPropertyChanged = anyPropertyChanged || handleMoveToAnimationInspector(am, animation);
 					break;
 				case AnimTypeV1::AnimateScale:
-					handleAnimateScaleInspector(am, animation);
+					anyPropertyChanged = anyPropertyChanged || handleAnimateScaleInspector(am, animation);
 					break;
 				case AnimTypeV1::Shift:
-					handleShiftInspector(animation);
+					anyPropertyChanged = anyPropertyChanged || handleShiftInspector(animation);
 					break;
 				case AnimTypeV1::RotateTo:
-					handleRotateToAnimationInspector(animation);
+					anyPropertyChanged = anyPropertyChanged || handleRotateToAnimationInspector(animation);
 					break;
 				case AnimTypeV1::AnimateFillColor:
-					handleAnimateFillColorAnimationInspector(animation);
+					anyPropertyChanged = anyPropertyChanged || handleAnimateFillColorAnimationInspector(animation);
 					break;
 				case AnimTypeV1::AnimateStrokeColor:
-					handleAnimateStrokeColorAnimationInspector(animation);
+					anyPropertyChanged = anyPropertyChanged || handleAnimateStrokeColorAnimationInspector(animation);
 					break;
 				case AnimTypeV1::AnimateStrokeWidth:
 					//handleAnimateStrokeWidthInspector(animation);
 					g_logger_warning("TODO: Implement me.");
 					break;
 				case AnimTypeV1::Circumscribe:
-					handleCircumscribeInspector(am, animation);
+					anyPropertyChanged = anyPropertyChanged || handleCircumscribeInspector(am, animation);
 					break;
 				case AnimTypeV1::Length:
 				case AnimTypeV1::None:
 					break;
 				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleTextObjectInspector(AnimationManagerData* am, AnimObject* object)
+		static bool handleTextObjectInspector(AnimationManagerData* am, AnimObject* object)
 		{
+			bool anyPropertyChanged = false;
+
 			const std::vector<std::string>& fonts = Platform::getAvailableFonts();
 			int fontIndex = -1;
 			if (object->as.textObject.font != nullptr)
@@ -620,6 +695,8 @@ namespace MathAnim
 							oldFont = object->as.textObject.font->fontFilepath;
 						}
 
+						anyPropertyChanged = true;
+
 						UndoSystem::setFont(
 							Application::getUndoSystem(),
 							object->id,
@@ -642,14 +719,16 @@ namespace MathAnim
 			if (object->as.textObject.textLength >= scratchLength)
 			{
 				g_logger_error("Text object has more than 256 characters. Tell Gabe to increase scratch length for text objects.");
-				return;
+				return false;
 			}
 			g_memory_copyMem(scratch, scratchLength, object->as.textObject.text, object->as.textObject.textLength * sizeof(char));
 			scratch[object->as.textObject.textLength] = '\0';
 			if (auto res = ImGuiExtended::InputTextMultilineEx(": Text##TextObject", scratch, scratchLength * sizeof(char));
-				res.editState != EditState::NotEditing)
+				ANY_EDIT)
 			{
-				if (res.editState == EditState::FinishedEditing)
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
 				{
 					UndoSystem::setStringProp(
 						Application::getUndoSystem(),
@@ -668,6 +747,8 @@ namespace MathAnim
 					}
 				}
 			}
+
+			return anyPropertyChanged;
 		}
 
 		struct CodeEditUserData
@@ -706,40 +787,52 @@ namespace MathAnim
 			return 0;
 		}
 
-		static void handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object)
+		static bool handleCodeBlockInspector(AnimationManagerData* am, AnimObject* object)
 		{
+			bool anyPropertyChanged = false;
+
 			constexpr int scratchLength = 512;
 			char scratch[scratchLength] = {};
 			if (object->as.codeBlock.textLength >= scratchLength)
 			{
 				g_logger_error("Text object has more than 512 characters. Tell Gabe to increase scratch length for code blocks.");
-				return;
+				return false;
 			}
 
 			int currentLang = (int)object->as.codeBlock.language - 1;
 			if (auto res = ImGuiExtended::ComboEx(": Language", &currentLang, _highlighterLanguageNames.data() + 1, (int)HighlighterLanguage::Length - 1);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setEnumProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData + 1,
-					currentLang + 1,
-					EnumPropType::HighlighterLanguage
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setEnumProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData + 1,
+						currentLang + 1,
+						EnumPropType::HighlighterLanguage
+					);
+				}
 			}
 
 			int currentTheme = (int)object->as.codeBlock.theme - 1;
 			if (auto res = ImGuiExtended::ComboEx(": Theme", &currentTheme, _highlighterThemeNames.data() + 1, (int)HighlighterTheme::Length - 1);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setEnumProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData + 1,
-					currentTheme + 1,
-					EnumPropType::HighlighterTheme
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setEnumProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData + 1,
+						currentTheme + 1,
+						EnumPropType::HighlighterTheme
+					);
+				}
 			}
 
 			// Debug struct/info
@@ -755,9 +848,11 @@ namespace MathAnim
 			g_memory_copyMem(scratch, scratchLength, object->as.codeBlock.text, object->as.codeBlock.textLength * sizeof(char));
 			scratch[object->as.codeBlock.textLength] = '\0';
 			if (auto res = ImGuiExtended::InputTextMultilineEx(": Code##CodeBlockData", scratch, scratchLength * sizeof(char), ImVec2(0, 0), ImGuiInputTextFlags_CallbackAlways, codeEditCallback, &codeEditUserData);
-				res.editState != EditState::NotEditing)
+				ANY_EDIT)
 			{
-				if (res.editState == EditState::FinishedEditing)
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
 				{
 					UndoSystem::setStringProp(
 						Application::getUndoSystem(),
@@ -834,24 +929,31 @@ namespace MathAnim
 
 				ImGui::EndChild();
 			}
+
+			return anyPropertyChanged;
 		}
 
 		// TODO: LaTeX objects are pretty broken, fix them!
-		static void handleLaTexObjectInspector(AnimObject* object)
+		static bool handleLaTexObjectInspector(AnimObject* object)
 		{
 			constexpr int scratchLength = 2048;
 			char scratch[scratchLength] = {};
 			if (object->as.laTexObject.textLength >= scratchLength)
 			{
 				g_logger_error("Text object has more than '{}' characters. Tell Gabe to increase scratch length for LaTex objects.", scratchLength);
-				return;
+				return false;
 			}
+
+			bool anyPropertyChanged = false;
+
 			g_memory_copyMem(scratch, scratchLength, object->as.laTexObject.text, object->as.laTexObject.textLength * sizeof(char));
 			scratch[object->as.laTexObject.textLength] = '\0';
 			if (auto res = ImGuiExtended::InputTextMultilineEx(": LaTeX##LaTeXEditor", scratch, scratchLength * sizeof(char));
-				res.editState != EditState::NotEditing)
+				ANY_EDIT)
 			{
-				if (res.editState == EditState::FinishedEditing)
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
 				{
 					UndoSystem::setStringProp(
 						Application::getUndoSystem(),
@@ -870,10 +972,13 @@ namespace MathAnim
 				}
 			}
 
-			ImGui::Checkbox(": Is Equation", &object->as.laTexObject.isEquation);
+			anyPropertyChanged = anyPropertyChanged
+				|| ImGui::Checkbox(": Is Equation", &object->as.laTexObject.isEquation);
+
+			return anyPropertyChanged;
 		}
 
-		static void handleSvgFileObjectInspector(AnimObject* object)
+		static bool handleSvgFileObjectInspector(AnimObject* object)
 		{
 			ImGui::BeginDisabled();
 			char* filepathStr = object->as.svgFile.filepath;
@@ -893,6 +998,8 @@ namespace MathAnim
 			ImGui::EndDisabled();
 			ImGui::SameLine();
 
+			bool anyPropertyChanged = false;
+
 			if (ImGui::Button(ICON_FA_FILE_UPLOAD))
 			{
 				nfdchar_t* outPath = NULL;
@@ -900,6 +1007,8 @@ namespace MathAnim
 
 				if (result == NFD_OKAY)
 				{
+					anyPropertyChanged = true;
+
 					UndoSystem::setStringProp(
 						Application::getUndoSystem(),
 						object->id,
@@ -918,687 +1027,944 @@ namespace MathAnim
 					g_logger_error("Error opening SVGFileObject:\n\t'{}'", NFD_GetError());
 				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleCameraObjectInspector(AnimationManagerData*, AnimObject* object)
+		static bool handleCameraObjectInspector(AnimationManagerData*, AnimObject* object)
 		{
+			bool anyPropertyChanged = false;
+
 			int currentMode = (int)object->as.camera.mode;
 			if (auto res = ImGuiExtended::ComboEx(": Projection", &currentMode, _cameraModeNames.data(), (int)CameraMode::Length);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setEnumProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					currentMode,
-					EnumPropType::CameraMode
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setEnumProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						currentMode,
+						EnumPropType::CameraMode
+					);
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Field Of View", &object->as.camera.fov, 1.0f, 360.0f);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.camera.fov,
-					FloatPropType::CameraFieldOfView
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.camera.fov,
+						FloatPropType::CameraFieldOfView
+					);
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragInt2Ex(": Aspect Ratio", &object->as.camera.aspectRatioFraction);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setVec2iProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.camera.aspectRatioFraction,
-					Vec2iPropType::AspectRatio
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setVec2iProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.camera.aspectRatioFraction,
+						Vec2iPropType::AspectRatio
+					);
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Near", &object->as.camera.nearFarRange.min);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.camera.nearFarRange.min,
-					FloatPropType::CameraNearPlane
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.camera.nearFarRange.min,
+						FloatPropType::CameraNearPlane
+					);
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Far", &object->as.camera.nearFarRange.max);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.camera.nearFarRange.max,
-					FloatPropType::CameraFarPlane
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.camera.nearFarRange.max,
+						FloatPropType::CameraFarPlane
+					);
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Focal Distance", &object->as.camera.focalDistance);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.camera.focalDistance,
-					FloatPropType::CameraFocalDistance
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.camera.focalDistance,
+						FloatPropType::CameraFocalDistance
+					);
+				}
 			}
 
 			ImGui::BeginDisabled(object->as.camera.mode != CameraMode::Orthographic);
 			if (auto res = ImGuiExtended::DragFloatEx(": Ortho Zoom Level", &object->as.camera.orthoZoomLevel);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.camera.orthoZoomLevel,
-					FloatPropType::CameraOrthoZoomLevel
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.camera.orthoZoomLevel,
+						FloatPropType::CameraOrthoZoomLevel
+					);
+				}
 			}
 			ImGui::EndDisabled();
 
 			if (auto res = ImGuiExtended::ColorEdit4Ex(": Background Color", &object->as.camera.fillColor);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setVec4Prop(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.camera.fillColor,
-					Vec4PropType::CameraBackgroundColor
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setVec4Prop(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.camera.fillColor,
+						Vec4PropType::CameraBackgroundColor
+					);
+				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleTransformAnimation(AnimationManagerData* am, Animation* animation)
+		static bool handleTransformAnimation(AnimationManagerData* am, Animation* animation)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::AnimObjDragDropInputBoxEx(": Source##ReplacementTransformSrcTarget", am, &animation->as.replacementTransform.srcAnimObjectId, animation->id);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::animDragDropInput(
-					Application::getUndoSystem(),
-					res.ogData,
-					animation->as.replacementTransform.srcAnimObjectId,
-					animation->id,
-					AnimDragDropType::ReplacementTransformSrc
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::animDragDropInput(
+						Application::getUndoSystem(),
+						res.ogData,
+						animation->as.replacementTransform.srcAnimObjectId,
+						animation->id,
+						AnimDragDropType::ReplacementTransformSrc
+					);
+				}
 			}
 
 			if (auto res = ImGuiExtended::AnimObjDragDropInputBoxEx(": Replace To##ReplacementTransformDstTarget", am, &animation->as.replacementTransform.dstAnimObjectId, animation->id);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::animDragDropInput(
-					Application::getUndoSystem(),
-					res.ogData,
-					animation->as.replacementTransform.dstAnimObjectId,
-					animation->id,
-					AnimDragDropType::ReplacementTransformDst
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::animDragDropInput(
+						Application::getUndoSystem(),
+						res.ogData,
+						animation->as.replacementTransform.dstAnimObjectId,
+						animation->id,
+						AnimDragDropType::ReplacementTransformDst
+					);
+				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation)
+		static bool handleMoveToAnimationInspector(AnimationManagerData* am, Animation* animation)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::AnimObjDragDropInputBoxEx(": Object##MoveToObjectTarget", am, &animation->as.moveTo.object, animation->id);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::animDragDropInput(
-					Application::getUndoSystem(),
-					res.ogData,
-					animation->as.moveTo.object,
-					animation->id,
-					AnimDragDropType::MoveToTarget
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::animDragDropInput(
+						Application::getUndoSystem(),
+						res.ogData,
+						animation->as.moveTo.object,
+						animation->id,
+						AnimDragDropType::MoveToTarget
+					);
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloat3Ex(": Target Position##MoveToAnimation", &animation->as.moveTo.target, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setVec3Prop(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					animation->as.moveTo.target,
-					Vec3PropType::MoveToTargetPos
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setVec3Prop(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						animation->as.moveTo.target,
+						Vec3PropType::MoveToTargetPos
+					);
+				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation)
+		static bool handleAnimateScaleInspector(AnimationManagerData* am, Animation* animation)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::AnimObjDragDropInputBoxEx(": Object##AnimateScaleObjectTarget", am, &animation->as.animateScale.object, animation->id);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::animDragDropInput(
-					Application::getUndoSystem(),
-					res.ogData,
-					animation->as.animateScale.object,
-					animation->id,
-					AnimDragDropType::AnimateScaleTarget
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::animDragDropInput(
+						Application::getUndoSystem(),
+						res.ogData,
+						animation->as.animateScale.object,
+						animation->id,
+						AnimDragDropType::AnimateScaleTarget
+					);
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloat2Ex(": Target Scale##ScaleAnimation", &animation->as.animateScale.target, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setVec2Prop(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					animation->as.animateScale.target,
-					Vec2PropType::AnimateScaleTarget
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setVec2Prop(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						animation->as.animateScale.target,
+						Vec2PropType::AnimateScaleTarget
+					);
+				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleShiftInspector(Animation* animation)
+		static bool handleShiftInspector(Animation* animation)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::DragFloat3Ex(": Shift Amount##ShiftAnimation", &animation->as.modifyVec3.target, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setVec3Prop(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					animation->as.modifyVec3.target,
-					Vec3PropType::ModifyAnimationVec3Target
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setVec3Prop(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						animation->as.modifyVec3.target,
+						Vec3PropType::ModifyAnimationVec3Target
+					);
+				}
 			}
 
+			return anyPropertyChanged;
 		}
 
-		static void handleRotateToAnimationInspector(Animation* animation)
+		static bool handleRotateToAnimationInspector(Animation* animation)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::DragFloat3Ex(": Target Rotation##AnimateRotation", &animation->as.modifyVec3.target);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setVec3Prop(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					animation->as.modifyVec3.target,
-					Vec3PropType::ModifyAnimationVec3Target
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setVec3Prop(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						animation->as.modifyVec3.target,
+						Vec3PropType::ModifyAnimationVec3Target
+					);
+				}
 			}
+
+			return anyPropertyChanged;
 		}
 
 
-		static void handleAnimateStrokeColorAnimationInspector(Animation* animation)
+		static bool handleAnimateStrokeColorAnimationInspector(Animation* animation)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::ColorEdit4Ex(": Stroke Color##AnimateStrokeColor", &animation->as.modifyU8Vec4.target);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setU8Vec4Prop(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					animation->as.modifyU8Vec4.target,
-					U8Vec4PropType::AnimateU8Vec4Target
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setU8Vec4Prop(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						animation->as.modifyU8Vec4.target,
+						U8Vec4PropType::AnimateU8Vec4Target
+					);
+				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleAnimateFillColorAnimationInspector(Animation* animation)
+		static bool handleAnimateFillColorAnimationInspector(Animation* animation)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::ColorEdit4Ex(": Fill Color##AnimateFillColor", &animation->as.modifyU8Vec4.target);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setU8Vec4Prop(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					animation->as.modifyU8Vec4.target,
-					U8Vec4PropType::AnimateU8Vec4Target
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setU8Vec4Prop(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						animation->as.modifyU8Vec4.target,
+						U8Vec4PropType::AnimateU8Vec4Target
+					);
+				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleCircumscribeInspector(AnimationManagerData* am, Animation* animation)
+		static bool handleCircumscribeInspector(AnimationManagerData* am, Animation* animation)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::AnimObjDragDropInputBoxEx(": Object##CircumscribeAnimationTarget", am, &animation->as.circumscribe.obj, animation->id);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::animDragDropInput(
-					Application::getUndoSystem(),
-					res.ogData,
-					animation->as.circumscribe.obj,
-					animation->id,
-					AnimDragDropType::CircumscribeTarget
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::animDragDropInput(
+						Application::getUndoSystem(),
+						res.ogData,
+						animation->as.circumscribe.obj,
+						animation->id,
+						AnimDragDropType::CircumscribeTarget
+					);
+				}
 			}
 
 			int currentShape = (int)animation->as.circumscribe.shape;
 			if (auto res = ImGuiExtended::ComboEx(": Shape##CircumscribeAnimation", &currentShape, _circumscribeShapeNames.data(), (int)CircumscribeShape::Length);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setEnumProp(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					currentShape,
-					EnumPropType::CircumscribeShape
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setEnumProp(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						currentShape,
+						EnumPropType::CircumscribeShape
+					);
+				}
 			}
 
 			int currentFade = (int)animation->as.circumscribe.fade;
 			if (auto res = ImGuiExtended::ComboEx(": Fade Type##CircumscribeAnimation", &currentFade, _circumscribeFadeNames.data(), (int)CircumscribeFade::Length);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setEnumProp(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					currentFade,
-					EnumPropType::CircumscribeFade
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setEnumProp(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						currentFade,
+						EnumPropType::CircumscribeFade
+					);
+				}
 			}
 
 			ImGui::BeginDisabled(animation->as.circumscribe.fade != CircumscribeFade::FadeNone);
 			if (auto res = ImGuiExtended::DragFloatEx(": Time Width##CircumscribeAnimation", &animation->as.circumscribe.timeWidth, slowDragSpeed, 0.1f, 1.0f, "%2.3f");
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					animation->as.circumscribe.timeWidth,
-					FloatPropType::CircumscribeTimeWidth
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						animation->as.circumscribe.timeWidth,
+						FloatPropType::CircumscribeTimeWidth
+					);
+				}
 			}
 			ImGui::EndDisabled();
 
 			if (auto res = ImGuiExtended::ColorEdit4Ex(": Color##CircumscribeAnimation", &animation->as.circumscribe.color);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setVec4Prop(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					animation->as.circumscribe.color,
-					Vec4PropType::CircumscribeColor
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setVec4Prop(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						animation->as.circumscribe.color,
+						Vec4PropType::CircumscribeColor
+					);
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Buffer Size##CircumscribeAnimation", &animation->as.circumscribe.bufferSize, slowDragSpeed, 0.0f, 10.0f, "%2.3f");
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					animation->id,
-					res.ogData,
-					animation->as.circumscribe.bufferSize,
-					FloatPropType::CircumscribeBufferSize
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						animation->id,
+						res.ogData,
+						animation->as.circumscribe.bufferSize,
+						FloatPropType::CircumscribeBufferSize
+					);
+				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleSquareInspector(AnimObject* object)
+		static bool handleSquareInspector(AnimObject* object)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::DragFloatEx(": Side Length", &object->as.square.sideLength, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.square.sideLength,
-					FloatPropType::SquareSideLength
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.square.sideLength,
+						FloatPropType::SquareSideLength
+					);
+				}
+				else
+				{
+					object->as.square.reInit(object);
+				}
 			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				object->as.square.reInit(object);
-			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleCircleInspector(AnimObject* object)
+		static bool handleCircleInspector(AnimObject* object)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::DragFloatEx(": Radius", &object->as.circle.radius, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.circle.radius,
-					FloatPropType::CircleRadius
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.circle.radius,
+						FloatPropType::CircleRadius
+					);
+				}
+				else
+				{
+					object->as.circle.reInit(object);
+				}
 			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				object->as.circle.reInit(object);
-			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleArrowInspector(AnimObject* object)
+		static bool handleArrowInspector(AnimObject* object)
 		{
 			bool shouldRegenerate = false;
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::DragFloatEx(": Stem Length##ArrowShape", &object->as.arrow.stemLength, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.arrow.stemLength,
-					FloatPropType::ArrowStemLength
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				shouldRegenerate = true;
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.arrow.stemLength,
+						FloatPropType::ArrowStemLength
+					);
+				}
+				else
+				{
+					shouldRegenerate = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Stem Width##ArrowShape", &object->as.arrow.stemWidth, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.arrow.stemWidth,
-					FloatPropType::ArrowStemWidth
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				shouldRegenerate = true;
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.arrow.stemWidth,
+						FloatPropType::ArrowStemWidth
+					);
+				}
+				else
+				{
+					shouldRegenerate = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Tip Length##ArrowShape", &object->as.arrow.tipLength, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.arrow.tipLength,
-					FloatPropType::ArrowTipLength
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				shouldRegenerate = true;
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.arrow.tipLength,
+						FloatPropType::ArrowTipLength
+					);
+				}
+				else
+				{
+					shouldRegenerate = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Tip Width##ArrowShape", &object->as.arrow.tipWidth, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.arrow.tipWidth,
-					FloatPropType::ArrowTipWidth
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				shouldRegenerate = true;
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.arrow.tipWidth,
+						FloatPropType::ArrowTipWidth
+					);
+				}
+				else
+				{
+					shouldRegenerate = true;
+				}
 			}
 
 			if (shouldRegenerate)
 			{
 				object->as.arrow.reInit(object);
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleCubeInspector(AnimationManagerData* am, AnimObject* object)
+		static bool handleCubeInspector(AnimationManagerData* am, AnimObject* object)
 		{
+			bool anyPropertyChanged = false;
+
 			if (auto res = ImGuiExtended::DragFloatEx(": Side Length", &object->as.cube.sideLength, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.cube.sideLength,
-					FloatPropType::CubeSideLength
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.cube.sideLength,
+						FloatPropType::CubeSideLength
+					);
+				}
+				else
+				{
+					object->as.cube.reInit(am, object);
+				}
 			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				object->as.cube.reInit(am, object);
-			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleAxisInspector(AnimationManagerData* am, AnimObject* object)
+		static bool handleAxisInspector(AnimationManagerData* am, AnimObject* object)
 		{
+			bool anyPropertyChanged = false;
 			bool reInitObject = false;
 
 			if (auto res = ImGuiExtended::DragFloat3Ex(": Axes Length##Axis", &object->as.axis.axesLength, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setVec3Prop(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.axis.axesLength,
-					Vec3PropType::AxisAxesLength
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				reInitObject = true;
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setVec3Prop(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.axesLength,
+						Vec3PropType::AxisAxesLength
+					);
+				}
+				else
+				{
+					reInitObject = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragInt2Ex(": X-Range##Axis", &object->as.axis.xRange, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
+				anyPropertyChanged = true;
+
 				// Make sure it's in strictly increasing order
 				if (object->as.axis.xRange.min > object->as.axis.xRange.max)
 				{
 					object->as.axis.xRange.min = object->as.axis.xRange.max;
 				}
 
-				UndoSystem::setVec2iProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.axis.xRange,
-					Vec2iPropType::AxisXRange
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				// Make sure it's in strictly increasing order
-				if (object->as.axis.xRange.min > object->as.axis.xRange.max)
+				if (FINISHED_EDITING)
 				{
-					object->as.axis.xRange.min = object->as.axis.xRange.max;
+					UndoSystem::setVec2iProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.xRange,
+						Vec2iPropType::AxisXRange
+					);
 				}
-				reInitObject = true;
+				else
+				{
+					reInitObject = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragInt2Ex(": Y-Range##Axis", &object->as.axis.yRange, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
-			{				
+				ANY_EDIT)
+			{
+				anyPropertyChanged = true;
+
 				// Make sure it's in strictly increasing order
 				if (object->as.axis.yRange.min > object->as.axis.yRange.max)
 				{
 					object->as.axis.yRange.min = object->as.axis.yRange.max;
 				}
-				UndoSystem::setVec2iProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.axis.yRange,
-					Vec2iPropType::AxisYRange
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				if (object->as.axis.yRange.min > object->as.axis.yRange.max)
+
+				if (FINISHED_EDITING)
 				{
-					object->as.axis.yRange.min = object->as.axis.yRange.max;
+					UndoSystem::setVec2iProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.yRange,
+						Vec2iPropType::AxisYRange
+					);
 				}
-				reInitObject = true;
+				else
+				{
+					reInitObject = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragInt2Ex(": Z-Range##Axis", &object->as.axis.zRange, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				// Make sure it's in strictly increasing order
+				anyPropertyChanged = true;
+
 				if (object->as.axis.zRange.min > object->as.axis.zRange.max)
 				{
 					object->as.axis.zRange.min = object->as.axis.zRange.max;
 				}
-				UndoSystem::setVec2iProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.axis.zRange,
-					Vec2iPropType::AxisZRange
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				if (object->as.axis.zRange.min > object->as.axis.zRange.max)
+
+				if (FINISHED_EDITING)
 				{
-					object->as.axis.zRange.min = object->as.axis.zRange.max;
+					UndoSystem::setVec2iProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.zRange,
+						Vec2iPropType::AxisZRange
+					);
 				}
-				reInitObject = true;
+				else
+				{
+					reInitObject = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": X-Increment##Axis", &object->as.axis.xStep, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.axis.xStep,
-					FloatPropType::AxisXStep
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				reInitObject = true;
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.xStep,
+						FloatPropType::AxisXStep
+					);
+				}
+				else
+				{
+					reInitObject = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Y-Increment##Axis", &object->as.axis.yStep, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.axis.yStep,
-					FloatPropType::AxisYStep
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				reInitObject = true;
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.yStep,
+						FloatPropType::AxisYStep
+					);
+				}
+				else
+				{
+					reInitObject = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Z-Increment##Axis", &object->as.axis.zStep, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.axis.zStep,
-					FloatPropType::AxisZStep
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				reInitObject = true;
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.zStep,
+						FloatPropType::AxisZStep
+					);
+				}
+				else
+				{
+					reInitObject = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::DragFloatEx(": Tick Width##Axis", &object->as.axis.tickWidth, slowDragSpeed);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setFloatProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.axis.tickWidth,
-					FloatPropType::AxisTickWidth
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				reInitObject = true;
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setFloatProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.tickWidth,
+						FloatPropType::AxisTickWidth
+					);
+				}
+				else
+				{
+					reInitObject = true;
+				}
 			}
 
 			if (auto res = ImGuiExtended::CheckboxEx(": Draw Labels##Axis", &object->as.axis.drawNumbers);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setBoolProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					object->as.axis.drawNumbers,
-					BoolPropType::AxisDrawNumbers
-				);
-			}
-			else if (res.editState == EditState::BeingEdited)
-			{
-				reInitObject = true;
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setBoolProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						object->as.axis.drawNumbers,
+						BoolPropType::AxisDrawNumbers
+					);
+				}
+				else
+				{
+					reInitObject = true;
+				}
 			}
 
 			if (object->as.axis.drawNumbers)
 			{
 				if (auto res = ImGuiExtended::DragFloatEx(": Font Size Pixels##Axis", &object->as.axis.fontSizePixels, slowDragSpeed, 0.0f, 300.0f);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setFloatProp(
-						Application::getUndoSystem(),
-						object->id,
-						res.ogData,
-						object->as.axis.fontSizePixels,
-						FloatPropType::AxisFontSizePixels
-					);
-				}
-				else if (res.editState == EditState::BeingEdited)
-				{
-					reInitObject = true;
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setFloatProp(
+							Application::getUndoSystem(),
+							object->id,
+							res.ogData,
+							object->as.axis.fontSizePixels,
+							FloatPropType::AxisFontSizePixels
+						);
+					}
+					else
+					{
+						reInitObject = true;
+					}
 				}
 
 				if (auto res = ImGuiExtended::DragFloatEx(": Label Padding##Axis", &object->as.axis.labelPadding, slowDragSpeed, 0.0f, 500.0f);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setFloatProp(
-						Application::getUndoSystem(),
-						object->id,
-						res.ogData,
-						object->as.axis.labelPadding,
-						FloatPropType::AxisLabelPadding
-					);
-				}
-				else if (res.editState == EditState::BeingEdited)
-				{
-					reInitObject = true;
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setFloatProp(
+							Application::getUndoSystem(),
+							object->id,
+							res.ogData,
+							object->as.axis.labelPadding,
+							FloatPropType::AxisLabelPadding
+						);
+					}
+					else
+					{
+						reInitObject = true;
+					}
 				}
 
 				if (auto res = ImGuiExtended::DragFloatEx(": Label Stroke Width##Axis", &object->as.axis.labelStrokeWidth, slowDragSpeed, 0.0f, 200.0f);
-					res.editState == EditState::FinishedEditing)
+					ANY_EDIT)
 				{
-					UndoSystem::setFloatProp(
-						Application::getUndoSystem(),
-						object->id,
-						res.ogData,
-						object->as.axis.labelStrokeWidth,
-						FloatPropType::AxisLabelStrokeWidth
-					);
-				}
-				else if (res.editState == EditState::BeingEdited)
-				{
-					reInitObject = true;
+					anyPropertyChanged = true;
+
+					if (FINISHED_EDITING)
+					{
+						UndoSystem::setFloatProp(
+							Application::getUndoSystem(),
+							object->id,
+							res.ogData,
+							object->as.axis.labelStrokeWidth,
+							FloatPropType::AxisLabelStrokeWidth
+						);
+					}
+					else
+					{
+						reInitObject = true;
+					}
 				}
 			}
 
@@ -1633,10 +1999,14 @@ namespace MathAnim
 			{
 				object->as.axis.reInit(am, object);
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleScriptObjectInspector(AnimationManagerData* am, AnimObject* obj)
+		static bool handleScriptObjectInspector(AnimationManagerData* am, AnimObject* obj)
 		{
+			bool anyPropertyChanged = false;
+
 			ScriptObject& script = obj->as.script;
 
 			constexpr size_t bufferSize = 512;
@@ -1648,19 +2018,26 @@ namespace MathAnim
 			}
 
 			if (auto res = ImGuiExtended::FileDragDropInputBoxEx(": Script File##ScriptFileTarget", buffer, bufferSize);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setStringProp(
-					Application::getUndoSystem(),
-					obj->id,
-					res.ogData,
-					std::string(buffer),
-					StringPropType::ScriptFile
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setStringProp(
+						Application::getUndoSystem(),
+						obj->id,
+						res.ogData,
+						std::string(buffer),
+						StringPropType::ScriptFile
+					);
+				}
 			}
 
 			if (ImGui::Button("Generate"))
 			{
+				anyPropertyChanged = true;
+
 				if (script.scriptFilepathLength > 0 && Platform::fileExists(script.scriptFilepath))
 				{
 					// First remove all generated children, which were generated as a result
@@ -1710,10 +2087,14 @@ namespace MathAnim
 					}
 				}
 			}
+
+			return anyPropertyChanged;
 		}
 
-		static void handleImageObjectInspector(AnimationManagerData*, AnimObject* object)
+		static bool handleImageObjectInspector(AnimationManagerData*, AnimObject* object)
 		{
+			bool anyPropertyChanged = false;
+
 			ImGui::BeginDisabled();
 			char* filepathStr = object->as.image.imageFilepath;
 			size_t filepathStrLength = object->as.image.imageFilepathLength * sizeof(char);
@@ -1739,6 +2120,8 @@ namespace MathAnim
 
 				if (result == NFD_OKAY)
 				{
+					anyPropertyChanged = true;
+
 					UndoSystem::setStringProp(
 						Application::getUndoSystem(),
 						object->id,
@@ -1760,29 +2143,41 @@ namespace MathAnim
 
 			int currentFilterMode = (int)object->as.image.filterMode;
 			if (auto res = ImGuiExtended::ComboEx(": Sample Mode##ImageObject", &currentFilterMode, _imageFilterModeNames.data(), (int)ImageFilterMode::Length);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setEnumProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					currentFilterMode,
-					EnumPropType::ImageSampleMode
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setEnumProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						currentFilterMode,
+						EnumPropType::ImageSampleMode
+					);
+				}
 			}
 
 			int currentRepeatMode = (int)object->as.image.repeatMode;
 			if (auto res = ImGuiExtended::ComboEx(": Repeat##ImageObject", &currentRepeatMode, _imageRepeatModeNames.data(), (int)ImageRepeatMode::Length);
-				res.editState == EditState::FinishedEditing)
+				ANY_EDIT)
 			{
-				UndoSystem::setEnumProp(
-					Application::getUndoSystem(),
-					object->id,
-					res.ogData,
-					currentRepeatMode,
-					EnumPropType::ImageRepeat
-				);
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
+				{
+					UndoSystem::setEnumProp(
+						Application::getUndoSystem(),
+						object->id,
+						res.ogData,
+						currentRepeatMode,
+						EnumPropType::ImageRepeat
+					);
+				}
 			}
+
+			return anyPropertyChanged;
 		}
 	}
 }
