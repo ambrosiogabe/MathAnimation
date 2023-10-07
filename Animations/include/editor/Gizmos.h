@@ -34,7 +34,7 @@ namespace MathAnim
 		const char* getVisualModeStr();
 		GizmoType getVisualMode();
 
-		ImGuiDataEx<Vec3> translateGizmo(const char* gizmoName, Vec3* position);
+		ImGuiDataEx<Vec3> translateGizmo(const char* gizmoName, Vec3* position, bool drawCubeVisualization = false);
 		ImGuiDataEx<Vec3> rotateGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* rotation);
 		ImGuiDataEx<Vec3> scaleGizmo(const char* gizmoName, const Vec3& gizmoPosition, Vec3* scale);
 	}
