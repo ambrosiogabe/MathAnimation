@@ -1,4 +1,5 @@
 #include "editor/panels/AssetManagerPanel.h"
+#include "editor/panels/CodeEditorPanelManager.h"
 #include "editor/imgui/ImGuiExtended.h"
 #include "utils/FontAwesome.h"
 #include "platform/Platform.h"
@@ -12,6 +13,7 @@ namespace MathAnim
 		typedef void (*AddButtonCallbackFn)(const char* filename);
 		typedef void (*FileRenamedCallbackFn)(const char* oldFilename, const char* newFilename);
 		typedef void (*FileSelectedFn)(const char* filename);
+		typedef void (*FileDeletedFn)(const char* filename);
 
 		// -------------- Internal Functions --------------
 		static void iterateDirectory(
@@ -19,6 +21,7 @@ namespace MathAnim
 			AddButtonCallbackFn callback = nullptr,
 			FileRenamedCallbackFn renameCallback = nullptr,
 			FileSelectedFn fileSelectedCallback = nullptr,
+			FileDeletedFn fileDeletedCallback = nullptr,
 			const char* defaultNewFilename = nullptr,
 			const char* addButtonText = nullptr
 		);
@@ -26,8 +29,10 @@ namespace MathAnim
 		static void onScriptRenamed(const std::filesystem::path& scriptPath);
 		static void onScriptCreated(const std::filesystem::path& scriptPath);
 		static void onScriptDeleted(const std::filesystem::path& scriptPath);
+		static void scriptRenamedCallback(const char* oldFilename, const char* newFilename);
 		static void newScriptAddedCallback(const char* filename);
 		static void scriptSelectedCallback(const char* filename);
+		static void scriptDeletedCallback(const char* filename);
 
 		// -------------- Internal Variables --------------
 		static std::filesystem::path assetsRoot;
@@ -61,8 +66,9 @@ namespace MathAnim
 			iterateDirectory(
 				scriptsRoot, 
 				newScriptAddedCallback,
-				nullptr, 
-				scriptSelectedCallback, 
+				scriptRenamedCallback,
+				scriptSelectedCallback,
+				scriptDeletedCallback,
 				"Script.luau", 
 				"Add Script"
 			);
@@ -86,6 +92,7 @@ namespace MathAnim
 			AddButtonCallbackFn callback,
 			FileRenamedCallbackFn fileRenamedCallback,
 			FileSelectedFn fileSelectedCallback,
+			FileDeletedFn fileDeletedCallback,
 			const char* defaultNewFilename,
 			const char* addButtonText
 		)
@@ -163,6 +170,10 @@ namespace MathAnim
 						// Delete the current file
 						std::filesystem::path filepath = std::filesystem::path(directory) / filename;
 						std::remove(filepath.string().c_str());
+						if (fileDeletedCallback)
+						{
+							fileDeletedCallback(filepath.string().c_str());
+						}
 					}
 					ImGui::EndPopup();
 				}
@@ -206,11 +217,13 @@ namespace MathAnim
 		static void onScriptDeleted(const std::filesystem::path& scriptPath)
 		{
 			LuauLayer::remove(scriptPath.filename().string());
+			CodeEditorPanelManager::closeFile(scriptPath.string());
 		}
 
 		static void onScriptCreated(const std::filesystem::path& scriptPath)
 		{
 			LuauLayer::remove(scriptPath.filename().string());
+			CodeEditorPanelManager::openFile(scriptPath.string());
 		}
 
 		static void onScriptRenamed(const std::filesystem::path& scriptPath)
@@ -218,14 +231,31 @@ namespace MathAnim
 			LuauLayer::remove(scriptPath.filename().string());
 		}
 
+		static void scriptRenamedCallback(const char* oldFilename, const char* newFilename)
+		{
+			CodeEditorPanelManager::closeFile(oldFilename);
+			CodeEditorPanelManager::openFile(newFilename);
+		}
+
 		static void newScriptAddedCallback(const char* filename)
 		{
-			Platform::openFileWithVsCode(filename);
+			// TODO: Add custom options if people want to use something else as their
+			//       editor. An example would be something like VSCode
+			// Platform::openFileWithVsCode(filename);
+			CodeEditorPanelManager::openFile(filename);
 		}
 
 		static void scriptSelectedCallback(const char* filename)
 		{
-			Platform::openFileWithVsCode(filename);
+			// TODO: Add custom options if people want to use something else as their
+			//       editor. An example would be something like VSCode
+			// Platform::openFileWithVsCode(filename);
+			CodeEditorPanelManager::openFile(filename);
+		}
+
+		static void scriptDeletedCallback(const char* filename)
+		{
+			CodeEditorPanelManager::closeFile(filename);
 		}
 	}
 }

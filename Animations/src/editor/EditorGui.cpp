@@ -1,12 +1,13 @@
 #include "editor/EditorGui.h"
 #include "editor/panels/AnimObjectPanel.h"
-#include "editor/panels/DebugPanel.h"
-#include "editor/panels/ExportPanel.h"
-#include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/panels/AssetManagerPanel.h"
-#include "editor/panels/InspectorPanel.h"
+#include "editor/panels/CodeEditorPanelManager.h"
 #include "editor/panels/ConsoleLog.h"
+#include "editor/panels/DebugPanel.h"
 #include "editor/panels/ErrorPopups.h"
+#include "editor/panels/ExportPanel.h"
+#include "editor/panels/InspectorPanel.h"
+#include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/timeline/Timeline.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/imgui/ImGuiExtended.h"
@@ -37,6 +38,7 @@ namespace MathAnim
 	namespace EditorGui
 	{
 		// ------------- Internal Functions -------------
+		static void handleNewCodeEditor();
 		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime);
 		static void getLargestSizeForViewport(ImVec2* imageSize, ImVec2* offset);
 		static void checkHotKeys(AnimationManagerData* am);
@@ -55,6 +57,7 @@ namespace MathAnim
 		static std::vector<ActionText> actionTextQueue;
 		static ClipboardData* clipboard;
 		static Texture gizmoPreviewTexture;
+		static ImGuiID editorViewportDockId = {};
 
 		static bool openActiveObjectSelectionContextMenu = false;
 		static const char* openActiveObjectSelectionContextMenuId = "##ACTIVE_OBJECT_SELECTION_CTX_MENU";
@@ -147,6 +150,7 @@ namespace MathAnim
 			ConsoleLog::update();
 			Timeline::update(timeline, am);
 			InspectorPanel::update(am);
+			CodeEditorPanelManager::update(am, editorViewportDockId);
 			ErrorPopups::update(am);
 		}
 
@@ -211,6 +215,7 @@ namespace MathAnim
 			AnimObjectPanel::free();
 			Timeline::freeInstance(timeline);
 			Timeline::free(am);
+			CodeEditorPanelManager::free();
 			timelineLoaded = false;
 
 			Clipboard::free(clipboard);
@@ -286,6 +291,7 @@ namespace MathAnim
 		static void drawEditorViewport(const Framebuffer& editorFramebuffer, float deltaTime)
 		{
 			editorViewportIsActive = ImGui::Begin("Animation Editor View", nullptr);
+			editorViewportDockId = ImGui::GetWindowDockID();
 
 			ImVec2 editorViewportRelativeOffset;
 			getLargestSizeForViewport(&viewportSize, &editorViewportRelativeOffset);
