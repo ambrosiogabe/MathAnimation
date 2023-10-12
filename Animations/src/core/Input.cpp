@@ -77,14 +77,14 @@ namespace MathAnim
 		void endFrame()
 		{
 			// Copy the mouse button down states to mouse button down last frame
-			g_memory_copyMem(mouseButtonDownLastFrame, mouseButtonDown, sizeof(bool) * (uint8)MouseButton::Length);
+			g_memory_copyMem(mouseButtonDownLastFrame, sizeof(bool) * (uint8)MouseButton::Length, mouseButtonDown, sizeof(bool) * (uint8)MouseButton::Length);
 
 			// Copy key down states
-			g_memory_copyMem(keyDownLastFrame, keyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
-			g_memory_copyMem(shiftKeyDownLastFrame, shiftKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
-			g_memory_copyMem(superKeyDownLastFrame, superKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
-			g_memory_copyMem(ctrlKeyDownLastFrame, ctrlKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
-			g_memory_copyMem(altKeyDownLastFrame, altKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
+			g_memory_copyMem(keyDownLastFrame, sizeof(bool) * (GLFW_KEY_LAST + 1), keyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
+			g_memory_copyMem(shiftKeyDownLastFrame, sizeof(bool) * (GLFW_KEY_LAST + 1), shiftKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
+			g_memory_copyMem(superKeyDownLastFrame, sizeof(bool) * (GLFW_KEY_LAST + 1), superKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
+			g_memory_copyMem(ctrlKeyDownLastFrame, sizeof(bool) * (GLFW_KEY_LAST + 1), ctrlKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
+			g_memory_copyMem(altKeyDownLastFrame, sizeof(bool) * (GLFW_KEY_LAST + 1), altKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
 
 			// Reset mouse states
 			deltaMouseX = 0;

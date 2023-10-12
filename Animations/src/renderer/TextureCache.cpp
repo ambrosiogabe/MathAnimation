@@ -7,6 +7,7 @@ namespace MathAnim
 		Texture texture;
 		uint32 refCount;
 		std::filesystem::path absPath;
+		bool isLoading;
 	};
 
 	namespace TextureCache
@@ -20,7 +21,7 @@ namespace MathAnim
 		// -------------------- Internal Functions --------------------
 		static inline std::filesystem::path stringToAbsPath(const std::string& path) { return std::filesystem::absolute(path).make_preferred(); }
 		static TextureHandle getCachedTextureFor(const std::filesystem::path& absPath);
-		static TextureHandle cacheTexture(const std::filesystem::path& absolutePath, const Texture& texture);
+		static TextureHandle cacheTexture(const std::filesystem::path& absolutePath, const Texture& texture, bool isLoading);
 
 		void init()
 		{
@@ -49,7 +50,7 @@ namespace MathAnim
 				.setWrapT(options.wrapT)
 				.generateFromFile();
 
-			return cacheTexture(absolutePath, texture);
+			return cacheTexture(absolutePath, texture, false);
 		}
 
 		static void finishLoadingTexture(const Texture& texture)
@@ -58,7 +59,8 @@ namespace MathAnim
 			{
 				if (value.texture.path == texture.path)
 				{
-					value.texture.graphicsId = texture.graphicsId;
+					value.isLoading = false;
+					value.texture = texture;
 					return;
 				}
 			}
@@ -83,7 +85,7 @@ namespace MathAnim
 				.setWrapT(options.wrapT)
 				.generateLazyFromFile(finishLoadingTexture);
 
-			return cacheTexture(absolutePath, texture);
+			return cacheTexture(absolutePath, texture, true);
 		}
 
 		void unloadTexture(TextureHandle handle)
@@ -142,17 +144,34 @@ namespace MathAnim
 		const Texture& getTexture(TextureHandle textureHandle)
 		{
 			auto textureHandleIter = cachedTextures.find(textureHandle);
-			if (textureHandleIter != cachedTextures.end())
+			if (textureHandleIter != cachedTextures.end() && !textureHandleIter->second.isLoading)
 			{
 				return textureHandleIter->second.texture;
 			}
 
 			if (!isNull(textureHandle))
 			{
-				g_logger_error("Texture with handle '{}' not cached!", textureHandle);
+				g_logger_error("Texture with handle '{}' not cached.", textureHandle);
 			}
+
 			static Texture dummy = {};
 			return dummy;
+		}
+
+		bool isTextureLoaded(TextureHandle textureHandle)
+		{
+			auto textureHandleIter = cachedTextures.find(textureHandle);
+			if (textureHandleIter != cachedTextures.end())
+			{
+				return !textureHandleIter->second.isLoading;
+			}
+
+			if (!isNull(textureHandle))
+			{
+				g_logger_error("Texture with handle '{}' not cached.", textureHandle);
+			}
+
+			return false;
 		}
 
 		void free()
@@ -187,7 +206,7 @@ namespace MathAnim
 			return NULL_TEXTURE_HANDLE;
 		}
 
-		static TextureHandle cacheTexture(const std::filesystem::path& absolutePath, const Texture& texture)
+		static TextureHandle cacheTexture(const std::filesystem::path& absolutePath, const Texture& texture, bool isLoading)
 		{
 			CachedTexture newEntry;
 			newEntry.texture = texture;
@@ -200,6 +219,7 @@ namespace MathAnim
 			// Cache the texture data
 			newEntry.absPath = absolutePath;
 			newEntry.refCount = 1;
+			newEntry.isLoading = isLoading;
 			cachedTextures[handle] = newEntry;
 
 			return handle;

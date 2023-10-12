@@ -406,7 +406,7 @@ namespace MathAnim
 				constexpr int maxSmallBufferSize = 32;
 				char smallBuffer[maxSmallBufferSize];
 				g_logger_assert(numberEnd - numberStart <= maxSmallBufferSize, "Cannot parse number greater than '{}' characters big.", maxSmallBufferSize);
-				g_memory_copyMem(smallBuffer, (void*)(parserInfo.text + numberStart), sizeof(char) * (numberEnd - numberStart));
+				g_memory_copyMem(smallBuffer, maxSmallBufferSize,(void*)(parserInfo.text + numberStart), sizeof(char) * (numberEnd - numberStart));
 				smallBuffer[numberEnd - numberStart] = '\0';
 				// TODO: atof is not safe use a safer modern alternative
 				*out = (float)atof(smallBuffer);

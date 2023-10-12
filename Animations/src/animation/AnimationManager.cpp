@@ -4,6 +4,7 @@
 #include "renderer/Texture.h"
 #include "renderer/Framebuffer.h"
 #include "renderer/Camera.h"
+#include "renderer/Colors.h"
 #include "editor/EditorSettings.h"
 #include "editor/panels/InspectorPanel.h"
 #include "svg/Svg.h"
@@ -40,6 +41,7 @@ namespace MathAnim
 		// need to figure out a better architecture for this haha
 		AnimObjId activeCamera;
 		int currentFrame;
+		bool shouldRenderBoundingBoxes;
 	};
 
 	namespace AnimationManager
@@ -57,10 +59,7 @@ namespace MathAnim
 
 		AnimationManagerData* create()
 		{
-			void* animManagerMemory = g_memory_allocate(sizeof(AnimationManagerData));
-			// Placement new to ensure the vectors and stuff are appropriately constructed
-			// but I can still use my memory tracker
-			AnimationManagerData* res = new (animManagerMemory) AnimationManagerData();
+			AnimationManagerData* res = g_memory_new AnimationManagerData();
 
 			res->activeCamera = NULL_ANIM_OBJECT;
 			res->currentFrame = 0;
@@ -84,9 +83,7 @@ namespace MathAnim
 					am->animations[i].free();
 				}
 
-				// Call destructor to properly destruct vector objects
-				am->~AnimationManagerData();
-				g_memory_free(am);
+				g_memory_delete(am);
 			}
 		}
 
@@ -304,15 +301,25 @@ namespace MathAnim
 					}
 
 					// Update any updateable objects
-					if (objectIter->objectType == AnimObjectTypeV1::LaTexObject)
+					switch (objectIter->objectType)
 					{
-						objectIter->as.laTexObject.update(am, objectIter->id);
-					}
-					else if (objectIter->objectType == AnimObjectTypeV1::Camera)
-					{
+					case AnimObjectTypeV1::Image: objectIter->as.image.update(am, objectIter->id); break;
+					case AnimObjectTypeV1::LaTexObject: objectIter->as.laTexObject.update(am, objectIter->id); break;
+					case AnimObjectTypeV1::Camera:
 						objectIter->as.camera.position = objectIter->globalPosition;
 						objectIter->as.camera.orientation = CMath::quatFromEulerAngles(objectIter->rotation);
+						break;
+					default:
+						break;
 					}
+				}
+			}
+
+			{
+				MP_PROFILE_EVENT("AnimationManager_RenderAllBoundingBoxes");
+				if (am->shouldRenderBoundingBoxes)
+				{
+					renderAllBoundingBoxes(am);
 				}
 			}
 		}
@@ -492,11 +499,19 @@ namespace MathAnim
 		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId animObj)
 		{
 			std::vector<AnimObjId> res;
-			for (int i = 0; i < am->objects.size(); i++)
+			for (size_t i = 0; i < am->objects.size(); i++)
 			{
 				if (am->objects[i].parentId == animObj)
 				{
 					res.push_back(am->objects[i].id);
+				}
+			}
+
+			for (size_t i = 0; i < am->queuedAddObjects.size(); i++)
+			{
+				if (am->queuedAddObjects[i].parentId == animObj)
+				{
+					res.push_back(am->queuedAddObjects[i].id);
 				}
 			}
 
@@ -523,6 +538,31 @@ namespace MathAnim
 			}
 
 			return objId;
+		}
+
+		void setRenderAllBoundingBoxes(AnimationManagerData* am, bool shouldRender)
+		{
+			am->shouldRenderBoundingBoxes = shouldRender;
+		}
+
+		void renderAllBoundingBoxes(const AnimationManagerData* am)
+		{
+			for (const auto& obj : am->objects)
+			{
+				if (obj.status == AnimObjectStatus::Active)
+				{
+					const BBox& bbox = obj.bbox;
+					glm::mat4 transform = glm::translate(glm::identity<glm::mat4>(), glm::vec3(0, 0, obj.globalPosition.z));
+					Renderer::pushColor(Colors::AccentGreen[2]);
+					Path2DContext* path = Renderer::beginPath(bbox.min, transform);
+					Renderer::lineTo(path, Vec2{ bbox.min.x, bbox.max.y });
+					Renderer::lineTo(path, bbox.max);
+					Renderer::lineTo(path, Vec2{ bbox.max.x, bbox.min.y });
+					Renderer::renderOutline(path, 0.0f, 1.0f);
+					Renderer::popColor();
+					Renderer::free(path);
+				}
+			}
 		}
 
 		void serialize(const AnimationManagerData* am, nlohmann::json& output)
@@ -742,6 +782,14 @@ namespace MathAnim
 							objects.push(childIter->id);
 						}
 					}
+
+					for (auto childIter = am->queuedAddObjects.begin(); childIter != am->queuedAddObjects.end(); childIter++)
+					{
+						if (childIter->parentId == nextObj->id)
+						{
+							objects.push(childIter->id);
+						}
+					}
 				}
 			}
 		}
@@ -789,8 +837,10 @@ namespace MathAnim
 				BBox finalBoundingBox = BBox{};
 				if (nextObj->svgObject)
 				{
-					nextObj->svgObject->calculateBBox();
-					finalBoundingBox = nextObj->svgObject->bbox;
+					nextObj->svgObject->calculateSize();
+
+					finalBoundingBox.max = nextObj->svgObject->size / 2.0f;
+					finalBoundingBox.min = nextObj->svgObject->size / -2.0f;
 
 					finalBoundingBox.min.x *= scaleFactor.x;
 					finalBoundingBox.max.x *= scaleFactor.x;
@@ -798,9 +848,6 @@ namespace MathAnim
 					finalBoundingBox.max.y *= scaleFactor.y;
 					finalBoundingBox.min += CMath::vector2From3(nextObj->globalPosition);
 					finalBoundingBox.max += CMath::vector2From3(nextObj->globalPosition);
-					Vec2 halfSize = (finalBoundingBox.max - finalBoundingBox.min) / 2.0f;
-					finalBoundingBox.min -= halfSize;
-					finalBoundingBox.max -= halfSize;
 				}
 				else
 				{

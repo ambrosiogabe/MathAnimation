@@ -59,8 +59,7 @@ namespace MathAnim
 		size_t totalNumFramesInVideo,
 		VideoEncoderFlags flags)
 	{
-		VideoEncoder* output = (VideoEncoder*)g_memory_allocate(sizeof(VideoEncoder));
-		new(output)VideoEncoder();
+		VideoEncoder* output = g_memory_new VideoEncoder();
 
 		output->width = outputWidth;
 		output->height = outputHeight;
@@ -73,7 +72,7 @@ namespace MathAnim
 		size_t outputFilenameLength = std::strlen(outputFilename);
 		output->filename = (uint8*)g_memory_allocate(sizeof(uint8) * (outputFilenameLength + 1));
 		output->filenameLength = outputFilenameLength;
-		g_memory_copyMem(output->filename, (void*)outputFilename, (output->filenameLength + 1) * sizeof(uint8));
+		g_memory_copyMem(output->filename, sizeof(uint8) * (outputFilenameLength + 1), (void*)outputFilename, (output->filenameLength + 1) * sizeof(uint8));
 		output->filename[output->filenameLength] = '\0';
 
 		output->outputFile = fopen((const char*)output->filename, "wb");
@@ -185,7 +184,7 @@ namespace MathAnim
 			else
 			{
 				encoder->destroy();
-				g_memory_free(encoder);
+				g_memory_delete(encoder);
 			}
 		}
 	}
@@ -234,8 +233,6 @@ namespace MathAnim
 		logProgress = false;
 		videoFrameCache = nullptr;
 		numPushedFrames = 0;
-
-		this->~VideoEncoder();
 	}
 
 	void VideoEncoder::pushYuvFrame(uint8* pixels, size_t pixelsSize)
@@ -254,7 +251,8 @@ namespace MathAnim
 		
 		VideoFrame frame;
 		frame.pixels = this->videoFrameCache->data + pixelOffset;
-		g_memory_copyMem(frame.pixels, pixels, pixelsSize);
+		size_t framePixelsSizeLeft = this->videoFrameCache->dataSize - (frame.pixels - this->videoFrameCache->data);
+		g_memory_copyMem(frame.pixels, framePixelsSizeLeft, pixels, pixelsSize);
 		frame.pixelsSize = pixelsSize;
 
 		// Push frame onto queue
@@ -276,7 +274,7 @@ namespace MathAnim
 
 		VideoEncoder* encoder = (VideoEncoder*)data;
 		encoder->destroy();
-		g_memory_free(encoder);
+		g_memory_delete(encoder);
 	}
 
 	void VideoEncoder::threadSafeFinalize()
@@ -463,9 +461,9 @@ static void sendFrame(
 	const uint8_t* y = pic->luma;
 	const uint8_t* u = pic->cb;
 	const uint8_t* v = pic->cr;
-	g_memory_copyMem((void*)y, (void*)yChannel, yChannelSize);
-	g_memory_copyMem((void*)u, (void*)uChannel, uChannelSize);
-	g_memory_copyMem((void*)v, (void*)vChannel, vChannelSize);
+	g_memory_copyMem((void*)y, yChannelSize, (void*)yChannel, yChannelSize);
+	g_memory_copyMem((void*)u, uChannelSize, (void*)uChannel, uChannelSize);
+	g_memory_copyMem((void*)v, vChannelSize, (void*)vChannel, vChannelSize);
 
 	// send the frame to the encoder
 	svt_av1_enc_send_picture(c->svtHandle, sendBuffer);

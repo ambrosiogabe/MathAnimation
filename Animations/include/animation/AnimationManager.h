@@ -66,6 +66,9 @@ namespace MathAnim
 		std::vector<AnimObjId> getChildren(const AnimationManagerData* am, AnimObjId obj);
 		AnimObjId getNextSibling(const AnimationManagerData* am, AnimObjId obj);
 
+		void setRenderAllBoundingBoxes(AnimationManagerData* am, bool shouldRender);
+		void renderAllBoundingBoxes(const AnimationManagerData* am);
+
 		void serialize(const AnimationManagerData* am, nlohmann::json& j);
 		void deserialize(AnimationManagerData* am, const nlohmann::json& j, int currentFrame, uint32 versionMajor, uint32 versionMinor);
 		void sortAnimations(AnimationManagerData* am);

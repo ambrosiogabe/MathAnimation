@@ -126,7 +126,12 @@ do { \
   const std::string& str = j.contains(#prop) && !j[#prop].is_null() ? j[#prop] : "Undefined"; \
   (obj)->##prop##Length = (uint32)str.length(); \
   (obj)->prop = (char*)g_memory_allocate(sizeof(char) * ((obj)->##prop##Length + 1)); \
-  g_memory_copyMem((obj)->prop, (void*)str.c_str(), sizeof(char) * ((obj)->##prop##Length + 1)); \
+  g_memory_copyMem(\
+    (obj)->prop,\
+    sizeof(char) * ((obj)->##prop##Length + 1),\
+    (void*)str.c_str(),\
+    sizeof(char) * ((obj)->##prop##Length + 1)\
+  ); \
 } while(false)
 
 #define DESERIALIZE_NULLABLE_U8_CSTRING(obj, prop, j) \
@@ -134,7 +139,12 @@ do { \
   const std::string& str = j.contains(#prop) && !j[#prop].is_null() ? j[#prop] : "Undefined"; \
   (obj)->##prop##Length = (uint32)str.length(); \
   (obj)->prop = (uint8*)g_memory_allocate(sizeof(uint8) * ((obj)->##prop##Length + 1)); \
-  g_memory_copyMem((obj)->prop, (void*)str.c_str(), sizeof(uint8) * ((obj)->##prop##Length + 1)); \
+  g_memory_copyMem(\
+    (obj)->prop,\
+    sizeof(uint8) * ((obj)->##prop##Length + 1),\
+    (void*)str.c_str(),\
+    sizeof(uint8) * ((obj)->##prop##Length + 1)\
+  ); \
 } while(false)
 
 #define DESERIALIZE_PROP(obj, prop, j, defaultValue) \

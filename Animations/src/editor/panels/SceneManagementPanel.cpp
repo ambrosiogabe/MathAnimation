@@ -39,7 +39,7 @@ namespace MathAnim
 				{
 					sd.sceneNames[i] = sd.sceneNames[i].substr(0, stringBufferSize - 1);
 				}
-				g_memory_copyMem(stringBuffer, (void*)sd.sceneNames[i].c_str(), sd.sceneNames[i].length());
+				g_memory_copyMem(stringBuffer, stringBufferSize,(void*)sd.sceneNames[i].c_str(), sd.sceneNames[i].length());
 				stringBuffer[sd.sceneNames[i].length()] = '\0';
 
 				if (i == sd.currentScene)

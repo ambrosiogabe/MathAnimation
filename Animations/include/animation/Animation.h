@@ -201,8 +201,8 @@ namespace MathAnim
 
 	struct MoveToData
 	{
-		Vec2 source;
-		Vec2 target;
+		Vec3 source;
+		Vec3 target;
 		AnimObjId object;
 
 		void serialize(nlohmann::json& j) const;
@@ -263,7 +263,7 @@ namespace MathAnim
 		float timeWidth;
 		float tValue;
 
-		void render(const BBox& bbox) const;
+		void render(const AnimObject& parent) const;
 		void serialize(nlohmann::json& memory) const;
 		static Circumscribe deserialize(const nlohmann::json& j, uint32 version);
 		static Circumscribe createDefault();
@@ -429,13 +429,18 @@ namespace MathAnim
 		Vec2 size;
 		ImageFilterMode filterMode;
 		ImageRepeatMode repeatMode;
+		bool isLoadingImage;
 
 		void setFilepath(const char* str, size_t strLength);
 		void setFilepath(const std::string& str);
 		void serialize(nlohmann::json& j) const;
 		void free();
 
-		void init(AnimationManagerData* am, AnimObjId parentId);
+		// NOTE: This update function is just used to check if it's
+		// in the middle of parsing loading the image.
+		void update(AnimationManagerData* am, AnimObjId parentId);
+
+		void init();
 		void reInit(AnimationManagerData* am, AnimObject* obj, bool resetSize = false);
 
 		TextureLoadOptions getLoadOptions() const;

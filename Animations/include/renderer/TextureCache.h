@@ -44,6 +44,7 @@ namespace MathAnim
 		});
 
 		const Texture& getTexture(TextureHandle textureHandle);
+		bool isTextureLoaded(TextureHandle textureHandle);
 
 		void free();
 	}

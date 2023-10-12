@@ -480,8 +480,7 @@ namespace MathAnim
 				// Don't free the tail, nothing ever gets placed there
 				if (i == ((us->undoCursorHead + us->numCommands) % us->maxHistorySize)) break;
 
-				us->history[i]->~Command();
-				g_memory_free(us->history[i]);
+				g_memory_delete(us->history[i]);
 			}
 
 			g_memory_free(us->history);
@@ -523,15 +522,13 @@ namespace MathAnim
 
 		void setBoolProp(UndoSystemData* us, ObjOrAnimId id, bool oldBool, bool newBool, BoolPropType propType)
 		{
-			auto* newCommand = (ModifyBoolCommand*)g_memory_allocate(sizeof(ModifyBoolCommand));
-			new(newCommand)ModifyBoolCommand(id, oldBool, newBool, propType);
+			auto* newCommand = g_memory_new ModifyBoolCommand(id, oldBool, newBool, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
 		void applyU8Vec4ToChildren(UndoSystemData* us, ObjOrAnimId id, U8Vec4PropType propType)
 		{
-			auto* newCommand = (ApplyU8Vec4ToChildrenCommand*)g_memory_allocate(sizeof(ApplyU8Vec4ToChildrenCommand));
-			new(newCommand)ApplyU8Vec4ToChildrenCommand(id, propType);
+			auto* newCommand = g_memory_new ApplyU8Vec4ToChildrenCommand(id, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -543,8 +540,7 @@ namespace MathAnim
 				return;
 			}
 
-			auto* newCommand = (ModifyU8Vec4Command*)g_memory_allocate(sizeof(ModifyU8Vec4Command));
-			new(newCommand)ModifyU8Vec4Command(objId, oldVec, newVec, propType);
+			auto* newCommand = g_memory_new ModifyU8Vec4Command(objId, oldVec, newVec, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -600,8 +596,7 @@ namespace MathAnim
 				break;
 			}
 
-			auto* newCommand = (ModifyEnumCommand*)g_memory_allocate(sizeof(ModifyEnumCommand));
-			new(newCommand)ModifyEnumCommand(id, oldEnum, newEnum, propType);
+			auto* newCommand = g_memory_new ModifyEnumCommand(id, oldEnum, newEnum, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -613,8 +608,7 @@ namespace MathAnim
 				return;
 			}
 
-			auto* newCommand = (ModifyFloatCommand*)g_memory_allocate(sizeof(ModifyFloatCommand));
-			new(newCommand)ModifyFloatCommand(objId, oldValue, newValue, propType);
+			auto* newCommand = g_memory_new ModifyFloatCommand(objId, oldValue, newValue, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -626,8 +620,7 @@ namespace MathAnim
 				return;
 			}
 
-			auto* newCommand = (ModifyVec2Command*)g_memory_allocate(sizeof(ModifyVec2Command));
-			new(newCommand)ModifyVec2Command(objId, oldVec, newVec, propType);
+			auto* newCommand = g_memory_new ModifyVec2Command(objId, oldVec, newVec, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -639,8 +632,7 @@ namespace MathAnim
 				return;
 			}
 
-			auto* newCommand = (ModifyVec2iCommand*)g_memory_allocate(sizeof(ModifyVec2iCommand));
-			new(newCommand)ModifyVec2iCommand(objId, oldVec, newVec, propType);
+			auto* newCommand = g_memory_new ModifyVec2iCommand(objId, oldVec, newVec, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -652,8 +644,7 @@ namespace MathAnim
 				return;
 			}
 
-			auto* newCommand = (ModifyVec3Command*)g_memory_allocate(sizeof(ModifyVec3Command));
-			new(newCommand)ModifyVec3Command(objId, oldVec, newVec, propType);
+			auto* newCommand = g_memory_new ModifyVec3Command(objId, oldVec, newVec, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -665,8 +656,7 @@ namespace MathAnim
 				return;
 			}
 
-			auto* newCommand = (ModifyVec4Command*)g_memory_allocate(sizeof(ModifyVec4Command));
-			new(newCommand)ModifyVec4Command(objId, oldVec, newVec, propType);
+			auto* newCommand = g_memory_new ModifyVec4Command(objId, oldVec, newVec, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -678,8 +668,7 @@ namespace MathAnim
 				return;
 			}
 
-			auto* newCommand = (ModifyStringCommand*)g_memory_allocate(sizeof(ModifyStringCommand));
-			new(newCommand)ModifyStringCommand(objId, oldString, newString, propType);
+			auto* newCommand = g_memory_new ModifyStringCommand(objId, oldString, newString, propType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -691,29 +680,25 @@ namespace MathAnim
 				return;
 			}
 
-			auto* newCommand = (SetFontCommand*)g_memory_allocate(sizeof(SetFontCommand));
-			new(newCommand)SetFontCommand(objId, oldFont, newFont);
+			auto* newCommand = g_memory_new SetFontCommand(objId, oldFont, newFont);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
 		void animDragDropInput(UndoSystemData* us, AnimObjId oldTarget, AnimObjId newTarget, AnimId animToAddTo, AnimDragDropType type)
 		{
-			auto* newCommand = (AnimDragDropInputCommand*)g_memory_allocate(sizeof(AnimDragDropInputCommand));
-			new(newCommand)AnimDragDropInputCommand(oldTarget, newTarget, animToAddTo, type);
+			auto* newCommand = g_memory_new AnimDragDropInputCommand(oldTarget, newTarget, animToAddTo, type);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
 		void addObjectToAnim(UndoSystemData* us, AnimObjId objToAdd, AnimId animToAddTo)
 		{
-			auto* newCommand = (AddObjectToAnimCommand*)g_memory_allocate(sizeof(AddObjectToAnimCommand));
-			new(newCommand)AddObjectToAnimCommand(objToAdd, animToAddTo);
+			auto* newCommand = g_memory_new AddObjectToAnimCommand(objToAdd, animToAddTo);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
 		void removeObjectFromAnim(UndoSystemData* us, AnimObjId objToAdd, AnimId animToAddTo)
 		{
-			auto* newCommand = (RemoveObjectFromAnimCommand*)g_memory_allocate(sizeof(RemoveObjectFromAnimCommand));
-			new(newCommand)RemoveObjectFromAnimCommand(objToAdd, animToAddTo);
+			auto* newCommand = g_memory_new RemoveObjectFromAnimCommand(objToAdd, animToAddTo);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -722,15 +707,13 @@ namespace MathAnim
 			assertEnumInRange<AnimObjectTypeV1>(animObjType);
 			g_logger_assert((AnimObjectTypeV1)animObjType != AnimObjectTypeV1::None, "Cannot create AnimObject of type 'None'");
 
-			auto* newCommand = (AddObjectToSceneCommand*)g_memory_allocate(sizeof(AddObjectToSceneCommand));
-			new(newCommand)AddObjectToSceneCommand((AnimObjectTypeV1)animObjType);
+			auto* newCommand = g_memory_new AddObjectToSceneCommand((AnimObjectTypeV1)animObjType);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
 		void removeObjFromScene(UndoSystemData* us, AnimObjId objId)
 		{
-			auto* newCommand = (RemoveObjectFromSceneCommand*)g_memory_allocate(sizeof(RemoveObjectFromSceneCommand));
-			new(newCommand)RemoveObjectFromSceneCommand(objId);
+			auto* newCommand = g_memory_new RemoveObjectFromSceneCommand(objId);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -741,8 +724,7 @@ namespace MathAnim
 			{
 				if (oldFrameStart != newFrameStart || newFrameDuration != oldFrameDuration)
 				{
-					auto* newCommand = (SetAnimationTimeCommand*)g_memory_allocate(sizeof(SetAnimationTimeCommand));
-					new(newCommand)SetAnimationTimeCommand(id, oldFrameStart, oldFrameDuration, newFrameStart, newFrameDuration);
+					auto* newCommand = g_memory_new SetAnimationTimeCommand(id, oldFrameStart, oldFrameDuration, newFrameStart, newFrameDuration);
 					pushAndExecuteCommand(us, newCommand);
 				}
 			}
@@ -753,15 +735,13 @@ namespace MathAnim
 			assertEnumInRange<AnimTypeV1>(animType);
 			g_logger_assert((AnimTypeV1)animType != AnimTypeV1::None, "Cannot create Animation of type 'None'");
 
-			auto* newCommand = (AddAnimationToTimelineCommand*)g_memory_allocate(sizeof(AddAnimationToTimelineCommand));
-			new(newCommand)AddAnimationToTimelineCommand((AnimTypeV1)animType, frameStart, frameDuration, trackIndex);
+			auto* newCommand = g_memory_new AddAnimationToTimelineCommand((AnimTypeV1)animType, frameStart, frameDuration, trackIndex);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
 		void removeAnimationFromTimeline(UndoSystemData* us, AnimId animId)
 		{
-			auto* newCommand = (RemoveAnimationFromTimelineCommand*)g_memory_allocate(sizeof(RemoveAnimationFromTimelineCommand));
-			new(newCommand)RemoveAnimationFromTimelineCommand(animId);
+			auto* newCommand = g_memory_new RemoveAnimationFromTimelineCommand(animId);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -779,8 +759,7 @@ namespace MathAnim
 				{
 					if (i == ((us->undoCursorHead + us->numCommands) % us->maxHistorySize)) break;
 
-					us->history[i]->~Command();
-					g_memory_free(us->history[i]);
+					g_memory_delete(us->history[i]);
 					numCommandsRemoved++;
 				}
 
@@ -790,8 +769,7 @@ namespace MathAnim
 
 			if (((us->undoCursorTail + 1) % us->maxHistorySize) == us->undoCursorHead)
 			{
-				us->history[us->undoCursorHead]->~Command();
-				g_memory_free(us->history[us->undoCursorHead]);
+				g_memory_delete(us->history[us->undoCursorHead]);
 
 				us->undoCursorHead = (us->undoCursorHead + 1) % us->maxHistorySize;
 				us->numCommands--;
@@ -1148,10 +1126,12 @@ namespace MathAnim
 			case EnumPropType::ImageRepeat:
 				assertCorrectType(obj, AnimObjectTypeV1::Image);
 				obj->as.image.repeatMode = (ImageRepeatMode)newEnum;
+				obj->as.image.reInit(am, obj, true);
 				break;
 			case EnumPropType::ImageSampleMode:
 				assertCorrectType(obj, AnimObjectTypeV1::Image);
 				obj->as.image.filterMode = (ImageFilterMode)newEnum;
+				obj->as.image.reInit(am, obj, true);
 				break;
 				// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
@@ -1222,10 +1202,12 @@ namespace MathAnim
 			case EnumPropType::ImageRepeat:
 				assertCorrectType(obj, AnimObjectTypeV1::Image);
 				obj->as.image.repeatMode = (ImageRepeatMode)oldEnum;
+				obj->as.image.reInit(am, obj, true);
 				break;
 			case EnumPropType::ImageSampleMode:
 				assertCorrectType(obj, AnimObjectTypeV1::Image);
 				obj->as.image.filterMode = (ImageFilterMode)oldEnum;
+				obj->as.image.reInit(am, obj, true);
 				break;
 				// NOTE: These are animation types, so they go in the if-block above
 			case EnumPropType::EaseType:
@@ -1548,10 +1530,6 @@ namespace MathAnim
 		{
 			switch (propType)
 			{
-			case Vec2PropType::MoveToTargetPos:
-				assertCorrectType(anim, AnimTypeV1::MoveTo);
-				anim->as.moveTo.target = this->newVec;
-				break;
 			case Vec2PropType::AnimateScaleTarget:
 				assertCorrectType(anim, AnimTypeV1::AnimateScale);
 				anim->as.animateScale.target = this->newVec;
@@ -1567,10 +1545,6 @@ namespace MathAnim
 		{
 			switch (propType)
 			{
-			case Vec2PropType::MoveToTargetPos:
-				assertCorrectType(anim, AnimTypeV1::MoveTo);
-				anim->as.moveTo.target = this->oldVec;
-				break;
 			case Vec2PropType::AnimateScaleTarget:
 				assertCorrectType(anim, AnimTypeV1::AnimateScale);
 				anim->as.animateScale.target = this->oldVec;
@@ -1663,6 +1637,7 @@ namespace MathAnim
 				break;
 				// NOTE: These are animations
 			case Vec3PropType::ModifyAnimationVec3Target:
+			case Vec3PropType::MoveToTargetPos:
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
@@ -1676,6 +1651,10 @@ namespace MathAnim
 			case Vec3PropType::ModifyAnimationVec3Target:
 				assertAnimIsModifyVec3Type(anim);
 				anim->as.modifyVec3.target = this->newVec;
+				break;
+			case Vec3PropType::MoveToTargetPos:
+				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				anim->as.moveTo.target = this->newVec;
 				break;
 				// NOTE: These are anim objects
 			case Vec3PropType::Position:
@@ -1709,6 +1688,7 @@ namespace MathAnim
 				break;
 				// NOTE: These are animations
 			case Vec3PropType::ModifyAnimationVec3Target:
+			case Vec3PropType::MoveToTargetPos:
 				break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
@@ -1722,6 +1702,10 @@ namespace MathAnim
 			case Vec3PropType::ModifyAnimationVec3Target:
 				assertAnimIsModifyVec3Type(anim);
 				anim->as.modifyVec3.target = this->oldVec;
+				break;
+			case Vec3PropType::MoveToTargetPos:
+				assertCorrectType(anim, AnimTypeV1::MoveTo);
+				anim->as.moveTo.target = this->oldVec;
 				break;
 				// NOTE: These are anim objects
 			case Vec3PropType::Position:
@@ -2073,7 +2057,7 @@ namespace MathAnim
 						break;
 					case U8Vec4PropType::StrokeColor:
 						this->oldProps[childId] = childObj->_strokeColorStart;
-						childObj->_fillColorStart = obj->_strokeColorStart;
+						childObj->_strokeColorStart = obj->_strokeColorStart;
 						break;
 					}
 				}

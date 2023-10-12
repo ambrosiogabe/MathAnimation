@@ -181,7 +181,7 @@ void RawMemory::writeDangerous(const uint8* inData, size_t inDataSize)
 		this->size = newSize;
 	}
 
-	g_memory_copyMem(this->data + this->offset, (uint8*)(inData), inDataSize);
+	g_memory_copyMem(this->data + this->offset, this->size, (uint8*)(inData), inDataSize);
 	this->offset += inDataSize;
 }
 
@@ -195,7 +195,7 @@ bool RawMemory::readDangerous(uint8* inData, size_t inDataSize)
 		return false;
 	}
 
-	g_memory_copyMem((uint8*)inData, this->data + this->offset, inDataSize);
+	g_memory_copyMem((uint8*)inData, this->size, this->data + this->offset, inDataSize);
 	this->offset += inDataSize;
 	return true;
 }

@@ -22,7 +22,7 @@ namespace MathAnim
 	{
 		*ogText = (char*)g_memory_realloc(*ogText, sizeof(char) * (newTextLength + 1));
 		*ogTextLength = (int32_t)newTextLength;
-		g_memory_copyMem(*ogText, (void*)newText, newTextLength * sizeof(char));
+		g_memory_copyMem(*ogText, sizeof(char) * (newTextLength + 1), (void*)newText, newTextLength * sizeof(char));
 		(*ogText)[newTextLength] = '\0';
 	}
 
@@ -46,13 +46,42 @@ namespace MathAnim
 
 		std::string textStr = std::string(text);
 
-		// Generate children that represent each character of the text object `obj`
-		Vec2 cursorPos = Vec2{ 0, 0 };
+		// First figure out the total size of the text so we can center it around the origin
+		Vec2 size = Vec2{ 0.0f, 0.0f };
 		for (int i = 0; i < textStr.length(); i++)
 		{
 			if (textStr[i] == '\n')
 			{
-				cursorPos = Vec2{ 0.0f, cursorPos.y - font->lineHeight };
+				size.y += font->lineHeight;
+				continue;
+			}
+
+			uint8 codepoint = (uint8)textStr[i];
+			const GlyphOutline& glyphOutline = font->getGlyphInfo(codepoint);
+			if (!glyphOutline.svg)
+			{
+				continue;
+			}
+
+			float halfGlyphHeight = glyphOutline.glyphHeight / 2.0f;
+			float halfGlyphWidth = glyphOutline.glyphWidth / 2.0f;
+			Vec2 offset = Vec2{
+				glyphOutline.bearingX + halfGlyphWidth,
+				halfGlyphHeight - glyphOutline.descentY
+			};
+
+			// TODO: I may have to add kerning info here
+			size.x += glyphOutline.advanceX;
+		}
+
+		// Generate children that represent each character of the text object `obj`
+		Vec2 halfSize = size / 2.0f;
+		Vec2 cursorPos = Vec2{ -halfSize.x, halfSize.y };
+		for (int i = 0; i < textStr.length(); i++)
+		{
+			if (textStr[i] == '\n')
+			{
+				cursorPos = Vec2{ -halfSize.x, cursorPos.y - font->lineHeight };
 				continue;
 			}
 
@@ -244,7 +273,7 @@ namespace MathAnim
 		res.font = nullptr;
 		static const char defaultText[] = "Text Object";
 		res.text = (char*)g_memory_allocate(sizeof(defaultText) / sizeof(char));
-		g_memory_copyMem(res.text, (void*)defaultText, sizeof(defaultText) / sizeof(char));
+		g_memory_copyMem(res.text, sizeof(defaultText) / sizeof(char), (void*)defaultText, sizeof(defaultText) / sizeof(char));
 		res.textLength = (sizeof(defaultText) / sizeof(char)) - 1;
 		res.text[res.textLength] = '\0';
 		return res;
@@ -402,7 +431,7 @@ namespace MathAnim
 		// Alternating harmonic series
 		static const char defaultLatex[] = R"raw(\sum _{k=1}^{\infty }{\frac {(-1)^{k+1}}{k}}={\frac {1}{1}}-{\frac {1}{2}}+{\frac {1}{3}}-{\frac {1}{4}}+\cdots =\ln 2)raw";
 		res.text = (char*)g_memory_allocate(sizeof(defaultLatex) / sizeof(char));
-		g_memory_copyMem(res.text, (void*)defaultLatex, sizeof(defaultLatex) / sizeof(char));
+		g_memory_copyMem(res.text, sizeof(defaultLatex) / sizeof(char), (void*)defaultLatex, sizeof(defaultLatex) / sizeof(char));
 		res.textLength = (sizeof(defaultLatex) / sizeof(char)) - 1;
 		res.text[res.textLength] = '\0';
 		res.isEquation = true;
@@ -645,7 +674,7 @@ int main()
 }
 )DEFAULT_LANG";
 		res.text = (char*)g_memory_allocate(sizeof(defaultText) / sizeof(char));
-		g_memory_copyMem(res.text, (void*)defaultText, sizeof(defaultText) / sizeof(char));
+		g_memory_copyMem(res.text, sizeof(defaultText) / sizeof(char), (void*)defaultText, sizeof(defaultText) / sizeof(char));
 		res.textLength = (sizeof(defaultText) / sizeof(char)) - 1;
 		res.text[res.textLength] = '\0';
 		return res;

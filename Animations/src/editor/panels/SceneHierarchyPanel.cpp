@@ -8,6 +8,7 @@
 #include "renderer/Colors.h"
 #include "core/Input.h"
 #include "core/Application.h"
+#include "core/Serialization.hpp"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -42,8 +43,8 @@ namespace MathAnim
 		// --------- Internal variables ---------
 		// This is the in between spaces for all the different elements in the
 		// scene heirarchy tree
-		static std::vector<BetweenMetadata> inBetweenBuffer;
-		static std::vector<SceneTreeMetadata> orderedEntities;
+		static std::vector<BetweenMetadata> inBetweenBuffer = {};
+		static std::vector<SceneTreeMetadata> orderedEntities = {};
 		static SceneTreeMoveData dragDropMove;
 		static bool mouseHoveredSceneHeirarchyPanel = false;
 
@@ -61,7 +62,6 @@ namespace MathAnim
 		void init(AnimationManagerData* am)
 		{
 			inBetweenBuffer = std::vector<BetweenMetadata>();
-			orderedEntities = std::vector<SceneTreeMetadata>();
 
 			const std::vector<AnimObject>& animObjects = AnimationManager::getAnimObjects(am);
 			for (int i = 0; i < animObjects.size(); i++)
@@ -69,7 +69,22 @@ namespace MathAnim
 				// Root object
 				if (isNull(animObjects[i].parentId))
 				{
-					addExistingAnimObject(am, animObjects[i], 0);
+					// Check if it was loaded properly
+					bool exists = false;
+					for (auto& meta : orderedEntities)
+					{
+						if (meta.animObjectId == animObjects[i].id)
+						{
+							exists = true;
+							break;
+						}
+					}
+
+					if (!exists)
+					{
+						g_logger_warning("Object '{}' was not loaded properly from the scene hierarchy data in the save file. Adding manually.", animObjects[i].id);
+						addExistingAnimObject(am, animObjects[i], 0);
+					}
 				}
 			}
 		}
@@ -284,49 +299,44 @@ namespace MathAnim
 			nlohmann::json orderedEntitiesJson = {};
 			for (int i = 0; i < orderedEntities.size(); i++)
 			{
-				SceneTreeMetadata metadata = orderedEntities[i];
-				nlohmann::json entityId = {
-					{ "Id", metadata.animObjectId },
-					{ "Level", metadata.level },
-					{ "Index", metadata.index },
-					{ "Selected", metadata.selected },
-					{ "IsOpen", metadata.isOpen }
-				};
-				orderedEntitiesJson.push_back(entityId);
+				const SceneTreeMetadata& metadata = orderedEntities[i];
+				nlohmann::json data = {};
+				SERIALIZE_ID(data, &metadata, animObjectId);
+				SERIALIZE_NON_NULL_PROP(data, &metadata, level);
+				SERIALIZE_NON_NULL_PROP(data, &metadata, index);
+				SERIALIZE_NON_NULL_PROP(data, &metadata, isOpen);
+				orderedEntitiesJson.push_back(data);
 			}
-			j["SceneHeirarchyOrder"] = orderedEntitiesJson;
+			j["SceneHierarchyOrder"] = orderedEntitiesJson;
 		}
 
-		void deserialize(RawMemory&)
+		void deserialize(const nlohmann::json& j)
 		{
-			// TODO: See if this is consistent with how you load the rest of the assets
-			//orderedEntities.clear(false);
+			orderedEntities.clear();
 
-			//if (j.contains("SceneHeirarchyOrder"))
-			//{
-			//	for (auto& entityJson : j["SceneHeirarchyOrder"])
-			//	{
-			//		if (entityJson.is_null()) continue;
+			if (!j.contains("SceneHierarchyOrder"))
+			{
+				return;
+			}
 
-			//		uint32 entityId = -1;
-			//		JsonExtended::assignIfNotNull(entityJson, "Id", entityId);
-			//		int level = -1;
-			//		JsonExtended::assignIfNotNull(entityJson, "Level", level);
-			//		Logger::Assert(level != -1, "Invalid entity level serialized for scene heirarchy tree.");
-			//		int index = -1;
-			//		JsonExtended::assignIfNotNull(entityJson, "Index", index);
-			//		Logger::Assert(index == orderedEntities.size(), "Scene tree was not serialized in sorted order, this will cause problems.");
-			//		bool selected = false;
-			//		JsonExtended::assignIfNotNull(entityJson, "Selected", selected);
-			//		bool isOpen = false;
-			//		JsonExtended::assignIfNotNull(entityJson, "IsOpen", isOpen);
+			for (auto& entityJson : j["SceneHierarchyOrder"])
+			{
+				if (entityJson.is_null()) continue;
 
-			//		Logger::Assert(entt::entity(entityId) != entt::null, "Somehow a null entity got serialized in the scene heirarchy panel.");
-			//		Logger::Assert(Scene::isValid(scene, entityId), "Somehow an invalid entity id got serialized in the scene heirarchy panel.");
-			//		Entity entity = Entity{ entt::entity(entityId) };
-			//		orderedEntities.push({ entity, level, index, selected, isOpen });
-			//	}
-			//}
+				SceneTreeMetadata meta = {};
+				DESERIALIZE_ID(&meta, animObjectId, entityJson);
+				DESERIALIZE_PROP(&meta, level, entityJson, -1);
+				DESERIALIZE_PROP(&meta, index, entityJson, -1);
+				DESERIALIZE_PROP(&meta, isOpen, entityJson, false);
+
+				if (meta.level == -1 || meta.index == -1)
+				{
+					g_logger_warning("Could not set anim object '{}' in scene hierarchy.", meta.animObjectId);
+					continue;
+				}
+
+				orderedEntities.emplace_back(meta);
+			}
 		}
 
 		bool mouseIsHovered()

@@ -60,12 +60,9 @@ namespace MathAnim
 		Luau::FrontendOptions frontendOptions;
 		frontendOptions.retainFullTypeGraphs = false;
 
-		fileResolver = (ScriptFileResolver*)g_memory_allocate(sizeof(ScriptFileResolver));
-		new(fileResolver)ScriptFileResolver(scriptDirectory);
-		configResolver = (ScriptConfigResolver*)g_memory_allocate(sizeof(ScriptConfigResolver));
-		new(configResolver)ScriptConfigResolver();
-		frontend = (Luau::Frontend*)g_memory_allocate(sizeof(Luau::Frontend));
-		new(frontend)Luau::Frontend(fileResolver, configResolver, frontendOptions);
+		fileResolver = g_memory_new ScriptFileResolver(scriptDirectory);
+		configResolver = g_memory_new ScriptConfigResolver();
+		frontend = g_memory_new Luau::Frontend(fileResolver, configResolver, frontendOptions);
 
 		// Register the bundled builtin globals that come with Luau
 		Luau::registerBuiltinGlobals(frontend->typeChecker);
@@ -188,23 +185,9 @@ namespace MathAnim
 
 	void ScriptAnalyzer::free()
 	{
-		if (fileResolver)
-		{
-			fileResolver->~FileResolver();
-			g_memory_free(fileResolver);
-		}
-
-		if (configResolver)
-		{
-			configResolver->~ConfigResolver();
-			g_memory_free(configResolver);
-		}
-
-		if (frontend)
-		{
-			frontend->~Frontend();
-			g_memory_free(frontend);
-		}
+		g_memory_delete(fileResolver);
+		g_memory_delete(configResolver);
+		g_memory_delete(frontend);
 
 		fileResolver = nullptr;
 		configResolver = nullptr;

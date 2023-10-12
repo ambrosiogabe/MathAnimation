@@ -13,6 +13,8 @@ namespace MathAnim
 		void popupSvgImportError();
 
 		void popupMissingFileError(const std::string& filename, const std::string& additionalMessage = "");
+
+		void popupTextureLoadError(const std::string& textureName, const std::string& errorMessage);
 	}
 }
 

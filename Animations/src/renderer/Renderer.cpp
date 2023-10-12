@@ -836,7 +836,7 @@ namespace MathAnim
 		}
 
 		// ----------- 2D stuff ----------- 
-		void drawSquare(const Vec2& start, const Vec2& size)
+		void drawSquare(const Vec2& start, const Vec2& size, const glm::mat4& transform)
 		{
 			// Don't draw squares with non-negative sizes since that's an invalid input
 			if (size.x <= 0.0f || size.y <= 0.0f)
@@ -844,7 +844,7 @@ namespace MathAnim
 				return;
 			}
 
-			Path2DContext* path = beginPath(start);
+			Path2DContext* path = beginPath(start, transform);
 			lineTo(path, start + Vec2{ size.x, 0 });
 			lineTo(path, start + size);
 			lineTo(path, start + Vec2{ 0, size.y });
@@ -1019,8 +1019,7 @@ namespace MathAnim
 		// ----------- 2D Line stuff ----------- 
 		Path2DContext* beginPath(const Vec2& start, const glm::mat4& transform)
 		{
-			Path2DContext* context = (Path2DContext*)g_memory_allocate(sizeof(Path2DContext));
-			new(context)Path2DContext();
+			Path2DContext* context = g_memory_new Path2DContext();
 
 			float strokeWidth = strokeWidthStackPtr > 0
 				? strokeWidthStack[strokeWidthStackPtr - 1]
@@ -1039,8 +1038,7 @@ namespace MathAnim
 
 		void free(Path2DContext* path)
 		{
-			path->~Path2DContext();
-			g_memory_free(path);
+			g_memory_delete(path);
 		}
 
 		static Vec3 transformVertVec3(const Vec2& vert, const glm::mat4& transform)
@@ -1249,7 +1247,7 @@ namespace MathAnim
 						Renderer::pushColor(path->data[curvei].color);
 						if (currentT >= startT)
 						{
-							context = Renderer::beginPath(path->rawCurves[curvei].p0);
+							context = Renderer::beginPath(path->rawCurves[curvei].p0, path->transform);
 						}
 						else if (currentT + approxLengthTVal >= startT)
 						{
@@ -1259,7 +1257,7 @@ namespace MathAnim
 							approxLength = curve.calculateApproximatePerimeter();
 							approxLengthTVal = approxLength / (float)path->approximateLength;
 
-							context = Renderer::beginPath(curve.p0);
+							context = Renderer::beginPath(curve.p0, path->transform);
 						}
 						Renderer::popColor();
 					}

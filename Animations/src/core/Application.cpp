@@ -28,6 +28,7 @@
 #include "editor/timeline/Timeline.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/panels/SceneManagementPanel.h"
+#include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/panels/InspectorPanel.h"
 #include "editor/panels/MenuBar.h"
 #include "editor/panels/ExportPanel.h"
@@ -463,6 +464,7 @@ namespace MathAnim
 			AnimationManager::serialize(am, sceneJson["AnimationManager"]);
 			Timeline::serialize(EditorGui::getTimelineData(), sceneJson["TimelineData"]);
 			sceneJson["EditorCameras"] = serializeCameras();
+			SceneHierarchyPanel::serialize(sceneJson["SceneHierarchy"]);
 
 			try
 			{
@@ -622,6 +624,11 @@ namespace MathAnim
 				}
 
 				deserializeCameras(sceneJson["EditorCameras"], versionMajor);
+
+				if (sceneJson.contains("SceneHierarchy") && !sceneJson["SceneHierarchy"].is_null())
+				{
+					SceneHierarchyPanel::deserialize(sceneJson["SceneHierarchy"]);
+				}
 			}
 			catch (const std::exception& ex)
 			{

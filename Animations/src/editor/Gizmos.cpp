@@ -87,6 +87,7 @@ namespace MathAnim
 		Vec3 mouseDelta;
 		FollowMouseConstraint moveMode;
 		bool shouldDraw;
+		bool drawCubeVisualization;
 
 		void render();
 	};
@@ -352,8 +353,7 @@ namespace MathAnim
 
 		void init()
 		{
-			void* gMemory = g_memory_allocate(sizeof(GlobalContext));
-			gGizmoManager = new(gMemory)GlobalContext();
+			gGizmoManager = g_memory_new GlobalContext();
 			gGizmoManager->hoveredGizmo = NullGizmo;
 			gGizmoManager->activeGizmo = NullGizmo;
 			gGizmoManager->mouseWorldPos3f = Vec3{ 0.0f, 0.0f, 0.0f };
@@ -425,13 +425,17 @@ namespace MathAnim
 					const Camera& orthoCamera = AnimationManager::getActiveCamera(am);
 
 					Renderer::pushStrokeWidth(0.05f);
+
 					Renderer::pushColor(Colors::Neutral[0]);
 					Vec4 leftRightBottomTop = orthoCamera.getLeftRightBottomTop();
 					Vec2 projectionSize = CMath::abs(Vec2{
 						leftRightBottomTop.values[1] - leftRightBottomTop.values[0],
 						leftRightBottomTop.values[3] - leftRightBottomTop.values[2]
 						});
-					Renderer::drawSquare(CMath::vector2From3(orthoCamera.position) - projectionSize / 2.0f, projectionSize);
+					Vec2 camera2DPos = CMath::vector2From3(orthoCamera.position) - projectionSize / 2.0f;
+					glm::mat4 transform = glm::identity<glm::mat4>();
+					transform = glm::translate(transform, CMath::convert(Vec3{ camera2DPos.x, camera2DPos.y, orthoCamera.position.z }));
+					Renderer::drawSquare(Vec2{ 0, 0 }, projectionSize, transform);
 					Renderer::popColor();
 					Renderer::popStrokeWidth();
 				}
@@ -554,8 +558,7 @@ namespace MathAnim
 					iter = gGizmoManager->gizmos.erase(iter);
 				}
 
-				gGizmoManager->~GlobalContext();
-				g_memory_free(gGizmoManager);
+				g_memory_delete(gGizmoManager);
 				gGizmoManager = nullptr;
 			}
 
@@ -602,7 +605,7 @@ namespace MathAnim
 			return gGizmoManager->visualMode;
 		}
 
-		ImGuiDataEx<Vec3> translateGizmo(const char* gizmoName, Vec3* position)
+		ImGuiDataEx<Vec3> translateGizmo(const char* gizmoName, Vec3* position, bool drawCubeVisualization)
 		{
 			// Find or create the gizmo
 			GizmoState* gizmo = getGizmoByName(gizmoName, GizmoType::Translation);
@@ -613,6 +616,7 @@ namespace MathAnim
 				gizmo->positionMoveStart = *position;
 			}
 			gizmo->position = *position;
+			gizmo->drawCubeVisualization = drawCubeVisualization;
 
 			Vec3 delta = Vec3{ 0.f, 0.f, 0.f };
 			if (handleLinearGizmoKeyEvents(gizmo, *position, &delta, GLFW_KEY_G, GizmoType::Translation))
@@ -623,7 +627,7 @@ namespace MathAnim
 				bool finishedEditing = gGizmoManager->activeGizmo != gizmo->idHash && gizmo->positionMoveStart != *position;
 				return {
 					gizmo->positionMoveStart,
-					finishedEditing 
+					finishedEditing
 					? EditState::FinishedEditing
 					: EditState::BeingEdited
 				};
@@ -1344,6 +1348,7 @@ namespace MathAnim
 			gizmoState->shouldDraw = false;
 			gizmoState->moveMode = FollowMouseConstraint::None;
 			gizmoState->mouseDelta = Vec3{ 0.0f, 0.0f, 0.0f };
+			gizmoState->drawCubeVisualization = false;
 
 			GlobalContext* g = gGizmoManager;
 			g->gizmos.push_back(gizmoState);
@@ -1555,6 +1560,11 @@ namespace MathAnim
 			leftRightBottomTop.values[1] - leftRightBottomTop.values[0],
 			leftRightBottomTop.values[3] - leftRightBottomTop.values[2]
 		};
+
+		if (drawCubeVisualization)
+		{
+			Renderer::drawCube3D(this->position, Vec3{0.1f, 0.1f, 0.1f} *zoom, Vector3::Forward, Vector3::Up);
+		}
 
 		// If it's in free move mode, render guidelines
 		if (moveMode != FollowMouseConstraint::None || idHash == g->activeGizmo)

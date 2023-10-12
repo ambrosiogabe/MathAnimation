@@ -53,7 +53,7 @@ namespace MathAnim
 			const char childName[] = "Generated Child";
 			childObj.nameLength = sizeof(childName);
 			childObj.name = (uint8*)g_memory_realloc(childObj.name, sizeof(uint8) * (childObj.nameLength + 1));
-			g_memory_copyMem(childObj.name, (void*)childName, sizeof(childName) / sizeof(char));
+			g_memory_copyMem(childObj.name, sizeof(uint8) * (childObj.nameLength + 1), (void*)childName, sizeof(childName) / sizeof(char));
 			childObj.name[childObj.nameLength] = '\0';
 
 			AnimationManager::addAnimObject(am, childObj);
@@ -89,7 +89,7 @@ namespace MathAnim
 		filepath = (char*)g_memory_allocate(sizeof(char) * (newFilepath.length() + 1));
 		filepathLength = (uint32)newFilepath.length();
 
-		g_memory_copyMem(filepath, (void*)newFilepath.c_str(), sizeof(char) * newFilepath.length());
+		g_memory_copyMem(filepath, sizeof(char) * (newFilepath.length() + 1), (void*)newFilepath.c_str(), sizeof(char) * newFilepath.length());
 		filepath[filepathLength] = '\0';
 
 		// Try to parse the new SVG and reset to the old one if it fails
