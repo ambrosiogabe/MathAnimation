@@ -7,6 +7,12 @@ using namespace CppUtils;
 
 namespace MathAnim
 {
+	struct CharInfo
+	{
+		size_t byteIndex;
+		uint8 numBytes;
+	};
+
 	namespace CodeEditorPanel
 	{
 		// ------------- Internal Functions -------------
@@ -104,10 +110,10 @@ namespace MathAnim
 
 			bool lineHighlightStartFound = false;
 			bool lastCharWasNewline = false;
+			bool passedFirstCharacter = false;
 			uint8 lastNumBytesParsed = 1;
 			ImVec2 textHighlightRectStart = ImVec2();
-			size_t closestByteToMouseCursor = panel.lineNumberByteStart;
-			uint8 closestByteToMouseNumBytes = 1;
+			CharInfo closestByteToMouseCursor = { panel.lineNumberByteStart, 1 };
 
 			while (parser.cursor < parser.numBytes)
 			{
@@ -143,20 +149,50 @@ namespace MathAnim
 					);
 				}
 
-				ImVec2 mouseToLetterEnd = (io.MousePos - (letterBoundsStart + letterBoundsSize));
-				if (io.MousePos.y >= letterBoundsStart.y &&
+				// If the mouse was clicked before any character, the closest byte 
+				// is the first byte
+				if (!passedFirstCharacter && (
+					io.MousePos.y < letterBoundsStart.y || (
+						io.MousePos.x <= letterBoundsStart.x && io.MousePos.y >= letterBoundsStart.y
+						&& io.MousePos.y <= letterBoundsStart.y + letterBoundsSize.y
+					)))
+				{
+					closestByteToMouseCursor.byteIndex = parser.cursor;
+					closestByteToMouseCursor.numBytes = numBytesParsed;
+				}
+				// If the mouse clicked in between a line, then the closest byte is in 
+				// this line
+				else if (io.MousePos.y >= letterBoundsStart.y &&
 					io.MousePos.y <= letterBoundsStart.y + letterBoundsSize.y)
 				{
-					if (io.MousePos.x >= letterBoundsStart.x + letterBoundsSize.x)
+					// If we clicked in a letter bounds, then that's the closest byte to the mouse
+					if (io.MousePos.x >= letterBoundsStart.x && io.MousePos.x < letterBoundsStart.x + letterBoundsSize.x)
 					{
-						closestByteToMouseCursor = parser.cursor;
-						closestByteToMouseNumBytes = numBytesParsed;
+						closestByteToMouseCursor.byteIndex = parser.cursor;
+						closestByteToMouseCursor.numBytes = numBytesParsed;
 					}
-					else if (lastCharWasNewline)
+					// If we clicked past the end of the line, the closest byte is the end of the line
+					else if ((currentCodepoint == '\n' || parser.cursor == parser.numBytes - 1) 
+						&& io.MousePos.x >= letterBoundsStart.x + letterBoundsSize.x)
 					{
-						closestByteToMouseCursor = parser.cursor - numBytesParsed;
-						closestByteToMouseNumBytes = lastNumBytesParsed;
+						closestByteToMouseCursor.byteIndex = parser.cursor;
+						closestByteToMouseCursor.numBytes = numBytesParsed;
 					}
+					// If we clicked before any letters in the start of the line, the closest byte
+					// is the first byte in this line
+					else if (io.MousePos.x < letterBoundsStart.x && lastCharWasNewline)
+					{
+						closestByteToMouseCursor.byteIndex = parser.cursor;
+						closestByteToMouseCursor.numBytes = numBytesParsed;
+					}
+				}
+				// If the mouse clicked past the last visible character, then the closest
+				// character is the last character on the screen
+				else if (parser.cursor == parser.numBytes - numBytesParsed && 
+					io.MousePos.y >= letterBoundsStart.y + letterBoundsSize.y)
+				{
+					closestByteToMouseCursor.byteIndex = parser.cursor;
+					closestByteToMouseCursor.numBytes = numBytesParsed;
 				}
 
 				if (parser.cursor >= panel.firstByteInSelection && parser.cursor <= panel.lastByteInSelection)
@@ -192,46 +228,47 @@ namespace MathAnim
 				if (io.MousePos.y > letterBoundsStart.y + letterBoundsSize.y &&
 					parser.cursor == parser.numBytes - numBytesParsed)
 				{
-					closestByteToMouseCursor = parser.cursor;
-					closestByteToMouseNumBytes = numBytesParsed;
+					closestByteToMouseCursor.byteIndex = parser.cursor;
+					closestByteToMouseCursor.numBytes = numBytesParsed;
 				}
 
 				currentLetterDrawPos.x += letterBoundsSize.x;
 				parser.cursor += numBytesParsed;
 				lastCharWasNewline = currentCodepoint == (uint32)'\n';
 				lastNumBytesParsed = numBytesParsed;
+				passedFirstCharacter = true;
 			}
 
 			if (panel.mouseIsDragSelecting)
 			{
 				if (justStartedDragSelecting)
 				{
-					panel.mouseByteDragStart = closestByteToMouseCursor;
-					panel.firstByteInSelection = closestByteToMouseCursor;
-					panel.lastByteInSelection = closestByteToMouseCursor;
+					panel.mouseByteDragStart = closestByteToMouseCursor.byteIndex;
+					panel.firstByteInSelection = closestByteToMouseCursor.byteIndex;
+					panel.lastByteInSelection = closestByteToMouseCursor.byteIndex;
 				}
 
-				if (closestByteToMouseCursor >= panel.lastByteInSelection)
+				if (closestByteToMouseCursor.byteIndex >= panel.lastByteInSelection)
 				{
-					panel.lastByteInSelection = closestByteToMouseCursor + closestByteToMouseNumBytes;
+					panel.lastByteInSelection = closestByteToMouseCursor.byteIndex + closestByteToMouseCursor.numBytes;
 					panel.firstByteInSelection = panel.mouseByteDragStart;
 				}
-				else if (closestByteToMouseCursor <= panel.lastByteInSelection - closestByteToMouseNumBytes &&
-					closestByteToMouseCursor > panel.mouseByteDragStart)
+				else if (closestByteToMouseCursor.byteIndex <= panel.lastByteInSelection - closestByteToMouseCursor.numBytes &&
+					closestByteToMouseCursor.byteIndex > panel.mouseByteDragStart)
 				{
-					panel.lastByteInSelection = closestByteToMouseCursor + closestByteToMouseNumBytes;
+					panel.lastByteInSelection = closestByteToMouseCursor.byteIndex + closestByteToMouseCursor.numBytes;
 					panel.firstByteInSelection = panel.mouseByteDragStart;
 				}
 
-				if (closestByteToMouseCursor < panel.firstByteInSelection)
+				if (closestByteToMouseCursor.byteIndex < panel.firstByteInSelection)
 				{
-					panel.firstByteInSelection = closestByteToMouseCursor;
+					panel.firstByteInSelection = closestByteToMouseCursor.byteIndex;
 					panel.lastByteInSelection = panel.mouseByteDragStart;
 				}
-				else if (closestByteToMouseCursor > panel.firstByteInSelection &&
-					closestByteToMouseCursor < panel.mouseByteDragStart)
+				else if (closestByteToMouseCursor.byteIndex > panel.firstByteInSelection &&
+					closestByteToMouseCursor.byteIndex < panel.mouseByteDragStart)
 				{
-					panel.firstByteInSelection = closestByteToMouseCursor;
+					panel.firstByteInSelection = closestByteToMouseCursor.byteIndex;
 					panel.lastByteInSelection = panel.mouseByteDragStart;
 				}
 			}
