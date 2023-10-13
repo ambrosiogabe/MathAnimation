@@ -13,6 +13,12 @@ namespace MathAnim
 		ImVec2 drawStart;
 		ImVec2 drawEnd;
 
+		bool mouseIsDragSelecting;
+		// The byte that was clicked when the user began clicking and dragging the mouse
+		size_t mouseByteDragStart;
+		size_t firstByteInSelection;
+		size_t lastByteInSelection;
+
 		CppUtils::ParseInfo visibleCharacterBuffer;
 	};
 
