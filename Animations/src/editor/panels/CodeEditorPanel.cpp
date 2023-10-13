@@ -7,15 +7,10 @@ using namespace CppUtils;
 
 namespace MathAnim
 {
-	struct CharInfo
-	{
-		size_t byteIndex;
-		uint8 numBytes;
-	};
-
 	namespace CodeEditorPanel
 	{
 		// ------------- Internal Functions -------------
+		static void renderTextCursor(ImVec2 const& textCursorDrawPosition);
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber);
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel);
 
@@ -36,7 +31,9 @@ namespace MathAnim
 		// ------------- Internal Data -------------
 		static float leftGutterWidth = 60;
 		static float scrollBarWidth = 10;
+		static float textCursorWidth = 3;
 		static ImColor lineNumberColor = ImColor(255, 255, 255);
+		static ImColor textCursorColor = ImColor(255, 255, 255);
 		static ImColor highlightTextColor = ImColor(115, 163, 240, 128);
 
 		CodeEditorPanelData openFile(std::string const& filepath)
@@ -94,7 +91,9 @@ namespace MathAnim
 			if (mouseInTextEditArea(panel))
 			{
 				ImGui::SetMouseCursor(ImGuiMouseCursor_TextInput);
-				if (!panel.mouseIsDragSelecting && io.MouseDown[ImGuiMouseButton_Left])
+				const bool isDragging = ImGui::IsMouseDragging(ImGuiMouseButton_Left, io.MouseDragThreshold * 1.70f);
+				const bool mouseClicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+				if (!panel.mouseIsDragSelecting && isDragging)
 				{
 					panel.mouseIsDragSelecting = true;
 					justStartedDragSelecting = true;
@@ -102,10 +101,18 @@ namespace MathAnim
 					panel.firstByteInSelection = 0;
 					panel.lastByteInSelection = 0;
 				}
-				else if (panel.mouseIsDragSelecting && !io.MouseDown[ImGuiMouseButton_Left])
+				
+				if (mouseClicked && !panel.mouseIsDragSelecting)
 				{
-					panel.mouseIsDragSelecting = false;
+					panel.mouseByteDragStart = panel.cursorBytePosition.byteIndex;
+					panel.firstByteInSelection = panel.cursorBytePosition.byteIndex;
+					panel.lastByteInSelection = panel.cursorBytePosition.byteIndex;
 				}
+			}
+
+			if (panel.mouseIsDragSelecting && !io.MouseDown[ImGuiMouseButton_Left])
+			{
+				panel.mouseIsDragSelecting = false;
 			}
 
 			bool lineHighlightStartFound = false;
@@ -133,6 +140,19 @@ namespace MathAnim
 					(const char*)parser.utf8String + parser.cursor + numBytesParsed
 				);
 
+				if (parser.cursor == panel.cursorBytePosition.byteIndex)
+				{
+					ImVec2 textCursorDrawPosition = letterBoundsStart;
+
+					bool selectionIsLeading = panel.firstByteInSelection < panel.mouseByteDragStart;
+					if (!selectionIsLeading)
+					{
+						textCursorDrawPosition = letterBoundsStart + ImVec2(letterBoundsSize.x, 0.0f);
+					}
+
+					renderTextCursor(textCursorDrawPosition);
+				}
+
 				if (currentCodepoint == (uint32)'\n')
 				{
 					currentLine++;
@@ -153,8 +173,8 @@ namespace MathAnim
 				// is the first byte
 				if (!passedFirstCharacter && (
 					io.MousePos.y < letterBoundsStart.y || (
-						io.MousePos.x <= letterBoundsStart.x && io.MousePos.y >= letterBoundsStart.y
-						&& io.MousePos.y <= letterBoundsStart.y + letterBoundsSize.y
+					io.MousePos.x <= letterBoundsStart.x && io.MousePos.y >= letterBoundsStart.y
+					&& io.MousePos.y <= letterBoundsStart.y + letterBoundsSize.y
 					)))
 				{
 					closestByteToMouseCursor.byteIndex = parser.cursor;
@@ -172,7 +192,7 @@ namespace MathAnim
 						closestByteToMouseCursor.numBytes = numBytesParsed;
 					}
 					// If we clicked past the end of the line, the closest byte is the end of the line
-					else if ((currentCodepoint == '\n' || parser.cursor == parser.numBytes - 1) 
+					else if ((currentCodepoint == '\n' || parser.cursor == parser.numBytes - 1)
 						&& io.MousePos.x >= letterBoundsStart.x + letterBoundsSize.x)
 					{
 						closestByteToMouseCursor.byteIndex = parser.cursor;
@@ -188,14 +208,15 @@ namespace MathAnim
 				}
 				// If the mouse clicked past the last visible character, then the closest
 				// character is the last character on the screen
-				else if (parser.cursor == parser.numBytes - numBytesParsed && 
+				else if (parser.cursor == parser.numBytes - numBytesParsed &&
 					io.MousePos.y >= letterBoundsStart.y + letterBoundsSize.y)
 				{
 					closestByteToMouseCursor.byteIndex = parser.cursor;
 					closestByteToMouseCursor.numBytes = numBytesParsed;
 				}
 
-				if (parser.cursor >= panel.firstByteInSelection && parser.cursor <= panel.lastByteInSelection)
+				if (panel.firstByteInSelection != panel.lastByteInSelection 
+					&& parser.cursor >= panel.firstByteInSelection && parser.cursor <= panel.lastByteInSelection)
 				{
 					if (!lineHighlightStartFound)
 					{
@@ -275,6 +296,11 @@ namespace MathAnim
 
 			parser.cursor = oldLineByteStart;
 
+			if (io.MouseDown[ImGuiMouseButton_Left])
+			{
+				panel.cursorBytePosition = closestByteToMouseCursor;
+			}
+
 			ImGui::Begin("Stats##Panel1");
 			ImGui::Text("Selection Begin: %d", panel.firstByteInSelection);
 			ImGui::Text("  Selection End: %d", panel.lastByteInSelection);
@@ -283,6 +309,14 @@ namespace MathAnim
 		}
 
 		// ------------- Internal Functions -------------
+		static void renderTextCursor(ImVec2 const& drawPosition)
+		{
+			float currentLineHeight = ImGui::GetFontSize();
+
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			drawList->AddRectFilled(drawPosition, drawPosition + ImVec2(textCursorWidth, currentLineHeight), textCursorColor);
+		}
+
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber)
 		{
 			ImGuiStyle& style = ImGui::GetStyle();

@@ -4,6 +4,12 @@
 
 namespace MathAnim
 {
+	struct CharInfo
+	{
+		size_t byteIndex;
+		uint8 numBytes;
+	};
+
 	struct CodeEditorPanelData
 	{
 		std::filesystem::path filepath;
@@ -18,6 +24,7 @@ namespace MathAnim
 		size_t mouseByteDragStart;
 		size_t firstByteInSelection;
 		size_t lastByteInSelection;
+		CharInfo cursorBytePosition;
 
 		CppUtils::ParseInfo visibleCharacterBuffer;
 	};
