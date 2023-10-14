@@ -245,7 +245,7 @@ namespace MathAnim
 			return 0;
 		}
 
-		SizedFont* loadSizedFont(const char* filepath, int fontSizePixels, CharRange defaultCharset)
+		SizedFont* loadSizedFont(const char* filepath, int fontSizePixels, CharRange defaultCharset, bool singleChannelTexture)
 		{
 			// Check if the sized font is already loaded
 			std::string sizedFontKey = getSizedFontKey(filepath, fontSizePixels);
@@ -275,10 +275,14 @@ namespace MathAnim
 				}
 			}
 
+			ByteFormat byteFormat = singleChannelTexture
+				? ByteFormat::R8_UI
+				: ByteFormat::RGBA8_UI;
+
 			constexpr uint32 textureWidth = 2048;
 			constexpr uint32 textureHeight = 2048;
 			res.texture = TextureBuilder()
-				.setFormat(ByteFormat::R8_UI)
+				.setFormat(byteFormat)
 				.setWidth(textureWidth)
 				.setHeight(textureHeight)
 				.setMagFilter(FilterMode::Linear)
@@ -288,9 +292,11 @@ namespace MathAnim
 				.generateEmpty();
 
 			// Generate the texture and upload it to the GPU
-			size_t textureMemorySize = sizeof(uint8) * textureWidth * textureHeight;
+			size_t singleColorSize = sizeof(uint8) * (singleChannelTexture ? 1 : 4);
+			size_t textureMemorySize = singleColorSize * textureWidth * textureHeight;
 			uint8* textureMemory = (uint8*)g_memory_allocate(textureMemorySize);
-			g_memory_zeroMem(textureMemory, sizeof(uint8) * textureWidth * textureHeight);
+			g_memory_zeroMem(textureMemory, textureMemorySize);
+
 			uint32 cursorX = 0;
 			uint32 cursorY = 0;
 			uint32 lineHeight = 0;
@@ -328,10 +334,26 @@ namespace MathAnim
 				// Copy every row into our bitmap
 				for (uint32 y = 0; y < bitmap.rows; y++)
 				{
-					uint8* dst = textureMemory + cursorX + ((cursorY + y) * textureWidth);
+					size_t sizedTextureWidth = textureWidth * singleColorSize;
+					uint8* dst = textureMemory + (cursorX * singleColorSize) + ((cursorY + y) * sizedTextureWidth);
 					uint8* src = bitmap.buffer + (y * bitmap.width);
-					size_t textureMemorySizeLeft = textureMemorySize - (dst - textureMemory);
-					g_memory_copyMem(dst, textureMemorySizeLeft, src, sizeof(uint8) * bitmap.width);
+
+					if (singleChannelTexture)
+					{
+						size_t textureMemorySizeLeft = textureMemorySize - (dst - textureMemory);
+						g_memory_copyMem(dst, textureMemorySizeLeft, src, sizeof(uint8) * bitmap.width);
+					}
+					else
+					{
+						// Unforunately, if we want an RGBA image, we have to manually copy every pixel like this
+						for (uint32 x = 0; x < bitmap.width; x++) 
+						{
+							dst[(x * singleColorSize) + 0] = src[x];
+							dst[(x * singleColorSize) + 1] = src[x];
+							dst[(x * singleColorSize) + 2] = src[x];
+							dst[(x * singleColorSize) + 3] = src[x];
+						}
+					}
 				}
 
 				// Add normalized glyph position
@@ -350,7 +372,7 @@ namespace MathAnim
 			}
 
 			// Upload texture memory to the GPU
-			res.texture.uploadSubImage(0, 0, textureWidth, textureHeight, textureMemory, sizeof(uint8) * textureWidth * textureHeight);
+			res.texture.uploadSubImage(0, 0, textureWidth, textureHeight, textureMemory, sizeof(uint8) * textureWidth * textureHeight * singleColorSize);
 
 			g_memory_free(textureMemory);
 
@@ -449,6 +471,7 @@ namespace MathAnim
 			font.fontFace = face;
 			font.unitsPerEM = (float)face->units_per_EM;
 			font.lineHeight = (float)face->height / font.unitsPerEM;
+			font.maxDescentY = (float)face->descender / font.unitsPerEM;
 
 			// TODO: Turn the preset characters into a parameter
 			generateDefaultCharset(font, defaultCharset);
@@ -548,15 +571,15 @@ namespace MathAnim
 			// Lazy load the font
 			if (!defaultMonoFont)
 			{
-#if defined(_WIN32)
+				#if defined(_WIN32)
 				defaultMonoFont = loadFont("C:\\Windows\\Fonts\\consola.ttf");
-#elif defined(__linux__)
+				#elif defined(__linux__)
 				defaultMonoFont = loadFont("/usr/share/fonts/liberation/LiberationMono-Regular.ttf");
-#endif
+				#endif
 			}
 
 			return defaultMonoFont;
-		}
+	}
 
 		static void generateDefaultCharset(Font& font, CharRange defaultCharset)
 		{
@@ -824,5 +847,5 @@ namespace MathAnim
 
 			return res;
 		}
-	}
+}
 }

@@ -47,6 +47,7 @@ namespace MathAnim
 		bool keyPressed(int key, KeyMods mods = KeyMods::None);
 		bool keyDown(int key, KeyMods mods = KeyMods::None);
 		bool keyUp(int key, KeyMods mods = KeyMods::None);
+		bool keyRepeatedOrDown(int key, KeyMods mods = KeyMods::None);
 
 		bool mouseClicked(MouseButton button);
 		bool mouseDown(MouseButton button);

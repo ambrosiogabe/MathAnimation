@@ -82,6 +82,7 @@ namespace MathAnim
 			SceneHierarchyPanel::init(am);
 			AssetManagerPanel::init(projectRoot);
 			EditorLayout::init(projectRoot);
+			CodeEditorPanelManager::init();
 			timelineLoaded = true;
 
 			gizmoPreviewTexture = TextureBuilder()

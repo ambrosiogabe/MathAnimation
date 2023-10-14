@@ -2,6 +2,7 @@
 #include "editor/panels/CodeEditorPanel.h"
 #include "animation/AnimationManager.h"
 #include "core/Input.h"
+#include "renderer/Fonts.h"
 
 namespace MathAnim
 {
@@ -20,8 +21,19 @@ namespace MathAnim
 		static uint64_t uuidCounter = 0;
 		static std::string nextFileToAdd = "";
 
+		static const char* codeFontRegularFile = "./assets/fonts/fira/FiraCode-SemiBold.ttf";
+		static SizedFont* codeFont = nullptr;
+		static int fontSizePx = 28;
+
+		void init()
+		{
+			codeFont = Fonts::loadSizedFont(codeFontRegularFile, fontSizePx, CharRange::Ascii, false);
+		}
+
 		void free()
 		{
+			Fonts::unloadSizedFont(codeFont);
+
 			for (auto& editor : openEditors)
 			{
 				CodeEditorPanel::free(editor.panel);
@@ -94,6 +106,23 @@ namespace MathAnim
 					g_logger_warning("Tried to close editor with invalid index '{}'. Max size '{}'.", index, openEditors.size());
 				}
 			}
+		}
+
+		SizedFont const* const getCodeFont()
+		{
+			return codeFont;
+		}
+
+		int getCodeFontSizePx()
+		{
+			return fontSizePx;
+		}
+
+		void setCodeFontSizePx(int inFontSizePx)
+		{
+			Fonts::unloadSizedFont(codeFont);
+			fontSizePx = inFontSizePx;
+			codeFont = Fonts::loadSizedFont(codeFontRegularFile, fontSizePx, CharRange::Ascii, false);
 		}
 	}
 }

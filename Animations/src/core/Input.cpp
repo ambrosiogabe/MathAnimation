@@ -1,4 +1,5 @@
 #include "core/Input.h"
+#include "core/Application.h"
 
 namespace MathAnim
 {
@@ -14,8 +15,13 @@ namespace MathAnim
 
 
 		// ----------- Internal Variables -----------
+		static constexpr float slowKeyRepeatTimeInterval = 0.013f;
+		static constexpr float firstRepeatFlag = -0.3f;
+
 		static bool keyDownLastFrame[GLFW_KEY_LAST + 1] = {};
 		static bool keyDownData[GLFW_KEY_LAST + 1] = {};
+		static float keyDownRepeatData[GLFW_KEY_LAST + 1] = {};
+		static float keyDownRepeatLastRepeatTime[GLFW_KEY_LAST + 1] = {};
 
 		// Shift+Key combo data
 		static bool shiftKeyDownLastFrame[GLFW_KEY_LAST + 1] = {};
@@ -86,6 +92,22 @@ namespace MathAnim
 			g_memory_copyMem(ctrlKeyDownLastFrame, sizeof(bool) * (GLFW_KEY_LAST + 1), ctrlKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
 			g_memory_copyMem(altKeyDownLastFrame, sizeof(bool) * (GLFW_KEY_LAST + 1), altKeyDownData, sizeof(bool) * (GLFW_KEY_LAST + 1));
 
+			for (int i = 0; i < GLFW_KEY_LAST + 1; i++)
+			{
+				if (keyDownData[i])
+				{
+					keyDownRepeatData[i] += Application::getDeltaTime();
+				}
+
+				float currentTime = keyDownRepeatData[i];
+				float lastTimeHit = keyDownRepeatLastRepeatTime[i];
+				bool res = currentTime - lastTimeHit > slowKeyRepeatTimeInterval;
+				if (res)
+				{
+					keyDownRepeatLastRepeatTime[i] = keyDownRepeatData[i];
+				}
+			}
+
 			// Reset mouse states
 			deltaMouseX = 0;
 			deltaMouseY = 0;
@@ -122,12 +144,19 @@ namespace MathAnim
 
 			keyDownData[key] = action == GLFW_PRESS || action == GLFW_REPEAT;
 
+			if (keyDownData[key] && keyDownRepeatData[key] == 0.0f)
+			{
+				keyDownRepeatData[key] = firstRepeatFlag;
+			}
+
 			if (action == GLFW_RELEASE)
 			{
 				shiftKeyDownData[key] = false;
 				ctrlKeyDownData[key] = false;
 				altKeyDownData[key] = false;
 				superKeyDownData[key] = false;
+				keyDownRepeatData[key] = 0.0f;
+				keyDownRepeatLastRepeatTime[key] = 0.0f;
 			}
 		}
 
@@ -202,6 +231,33 @@ namespace MathAnim
 		bool keyUp(int key, KeyMods mods)
 		{
 			return !keyDown(key, mods);
+		}
+
+		bool keyRepeatedOrDown(int key, KeyMods mods)
+		{
+			if (key >= 0 && key <= GLFW_KEY_LAST)
+			{
+				float repeatTime = keyDownRepeatData[key];
+				float lastRepeatTime = keyDownRepeatLastRepeatTime[key];
+				bool res = (repeatTime == lastRepeatTime && repeatTime != 0.0f) || repeatTime == firstRepeatFlag;
+				bool shiftMod = shiftKeyDownData[key];
+				bool ctrlMod = ctrlKeyDownData[key];
+				bool altMod = altKeyDownData[key];
+				bool superMod = superKeyDownData[key];
+
+				res = (uint8)(mods & KeyMods::Shift) ? res && shiftMod : res && !shiftMod;
+				res = (uint8)(mods & KeyMods::Alt) ? res && altMod : res && !altMod;
+				res = (uint8)(mods & KeyMods::Ctrl) ? res && ctrlMod : res && !ctrlMod;
+				res = (uint8)(mods & KeyMods::Super) ? res && superMod : res && !superMod;
+
+				return res;
+			}
+			else
+			{
+				g_logger_error("Cannot check if key '{}' is down. Key is out of range of known key codes.", key);
+			}
+
+			return false;
 		}
 
 		bool mouseClicked(MouseButton button)

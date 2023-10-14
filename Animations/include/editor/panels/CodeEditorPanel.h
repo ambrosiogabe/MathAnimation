@@ -25,6 +25,8 @@ namespace MathAnim
 		size_t firstByteInSelection;
 		size_t lastByteInSelection;
 		CharInfo cursorBytePosition;
+		float timeSinceCursorLastBlinked;
+		bool cursorIsBlinkedOn;
 
 		CppUtils::ParseInfo visibleCharacterBuffer;
 	};
