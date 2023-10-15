@@ -52,6 +52,7 @@ namespace MathAnim
 		glfwSetMouseButtonCallback((GLFWwindow*)windowPtr, Input::mouseButtonCallback);
 		glfwSetScrollCallback((GLFWwindow*)windowPtr, Input::scrollCallback);
 		glfwSetFramebufferSizeCallback((GLFWwindow*)windowPtr, resizeCallback);
+		glfwSetCharCallback((GLFWwindow*)windowPtr, Input::characterCallback);
 
 		if (flags & WindowFlags::OpenMaximized)
 		{

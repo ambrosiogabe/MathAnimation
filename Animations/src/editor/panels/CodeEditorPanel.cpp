@@ -16,6 +16,9 @@ namespace MathAnim
 		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& textCursorDrawPosition, SizedFont const* const font);
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber, SizedFont const* const font);
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel);
+		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const font, std::string const& str, ImVec2 const& drawPos);
+		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const font, uint32 charToAdd, ImVec2 const& drawPos);
+		static void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint);
 
 		// Simple calculation functions
 		static inline ImVec2 getTopLeftOfLine(CodeEditorPanelData const& panel, uint32 lineNumber, SizedFont const* const font)
@@ -25,14 +28,64 @@ namespace MathAnim
 				+ ImVec2(0.0f, fontHeight * (lineNumber - panel.lineNumberStart));
 		}
 
-		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const font, std::string const& str, ImVec2 const& drawPos);
-		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const font, uint32 charToAdd, ImVec2 const& drawPos);
-
 		static inline bool mouseIntersectsRect(ImVec2 rectStart, ImVec2 rectEnd)
 		{
 			ImGuiIO& io = ImGui::GetIO();
 			return io.MousePos.x >= rectStart.x && io.MousePos.x <= rectEnd.x &&
 				io.MousePos.y >= rectStart.y && io.MousePos.y <= rectEnd.y;
+		}
+
+		static int32 getBeginningOfLineFrom(CodeEditorPanelData& panel, int32 index)
+		{
+			if (index == 0)
+			{
+				return 0;
+			}
+
+			int32 cursor = index;
+			if (panel.byteMap[panel.visibleCharacterBuffer[cursor]] == '\n')
+			{
+				cursor--;
+			}
+
+			while (cursor > 0)
+			{
+				if (panel.byteMap[panel.visibleCharacterBuffer[cursor]] == '\n')
+				{
+					return cursor + 1;
+				}
+				cursor--;
+			}
+
+			return cursor;
+		}
+
+		static int32 getEndOfLineFrom(CodeEditorPanelData& panel, int32 index)
+		{
+			int32 cursor = index;
+			while (cursor < panel.visibleCharacterBufferSize)
+			{
+				if (panel.byteMap[panel.visibleCharacterBuffer[cursor]] == '\n')
+				{
+					return cursor;
+				}
+				cursor++;
+			}
+
+			return cursor - 1;
+		}
+
+		static void setCursorDistanceFromLineStart(CodeEditorPanelData& panel)
+		{
+			int32 beginningOfLine = getBeginningOfLineFrom(panel, panel.cursorBytePosition);
+			panel.cursorDistanceToBeginningOfLine = (panel.cursorBytePosition - beginningOfLine);
+		}
+
+		static inline void setCursorBytePosition(CodeEditorPanelData& panel, int32 newBytePosition)
+		{
+			int32 newPos = glm::clamp(newBytePosition, 0, (int32)panel.visibleCharacterBufferSize);
+			panel.cursorBytePosition = newPos;
+			setCursorDistanceFromLineStart(panel);
 		}
 
 		// ------------- Internal Data -------------
@@ -61,30 +114,126 @@ namespace MathAnim
 			fread(memory.data, fileSize, 1, fp);
 			fclose(fp);
 
-			// Take ownership of the data here
-			auto parseInfo = Parser::makeParseInfo((char*)memory.data, fileSize);
-			if (!parseInfo.hasValue())
+			// Parse this file and map all codepoints to a valid uint8 value
+			auto maybeParseInfo = Parser::makeParseInfo((char*)memory.data, fileSize);
+			if (!maybeParseInfo.hasValue())
 			{
-				g_logger_error("Could not open file '{}'. Had error '{}'.", filepath, parseInfo.error());
+				g_logger_error("Could not open file '{}'. Had error '{}'.", filepath, maybeParseInfo.error());
 				return {};
 			}
 
-			res.visibleCharacterBuffer = parseInfo.value();
+			size_t numberCharactersInFile = 0;
+			auto parseInfo = maybeParseInfo.value();
+			while (parseInfo.cursor < parseInfo.numBytes)
+			{
+				uint8 numBytesParsed = 1;
+				auto codepoint = Parser::parseCharacter(parseInfo, &numBytesParsed);
+				if (!codepoint.hasValue())
+				{
+					g_logger_error("File has malformed unicode. Skipping bad unicode data.");
+					parseInfo.numBytes++;
+					continue;
+				}
+
+				uint8 byteMapping = CodeEditorPanelManager::addCharToFont(codepoint.value());
+				res.byteMap[byteMapping] = codepoint.value();
+				numberCharactersInFile++;
+
+				parseInfo.cursor += numBytesParsed;
+			}
+
+			// Take ownership of the data here
+			res.visibleCharacterBuffer = (uint8*)g_memory_allocate(sizeof(uint8) * numberCharactersInFile);
+			res.visibleCharacterBufferSize = numberCharactersInFile;
 			res.lineNumberStart = 1;
 			res.lineNumberByteStart = 0;
+
+			// Parse file one more time and translate it into the byte mapping we now have.
+			parseInfo.cursor = 0;
+			size_t byteCursor = 0;
+			while (parseInfo.cursor < parseInfo.numBytes)
+			{
+				uint8 numBytesParsed = 0;
+				auto codepoint = Parser::parseCharacter(parseInfo, &numBytesParsed);
+				if (!codepoint.hasValue())
+				{
+					parseInfo.cursor++;
+					continue;
+				}
+
+				// Also, skip carriage returns 'cuz screw those
+				if (codepoint.value() == (uint32)'\r')
+				{
+					parseInfo.cursor += numBytesParsed;
+					continue;
+				}
+
+				uint8 byteMapping = CodeEditorPanelManager::addCharToFont(codepoint.value());
+				res.visibleCharacterBuffer[byteCursor] = byteMapping;
+
+				parseInfo.cursor += numBytesParsed;
+				byteCursor++;
+			}
+
+			g_memory_free((void*)parseInfo.utf8String);
+
+			res.visibleCharacterBufferSize = byteCursor;
+			res.visibleCharacterBuffer = (uint8*)g_memory_realloc((void*)res.visibleCharacterBuffer, res.visibleCharacterBufferSize * sizeof(uint8));
 
 			return res;
 		}
 
+		void saveFile(CodeEditorPanelData const& panel)
+		{
+			// Translate to valid UTF-8
+			RawMemory memory{};
+			memory.init(sizeof(uint8) * panel.visibleCharacterBufferSize);
+
+			for (size_t i = 0; i < panel.visibleCharacterBufferSize; i++)
+			{
+				uint32 codepoint = panel.byteMap[panel.visibleCharacterBuffer[i]];
+
+				// TODO: Figure out way to translate codepoint to valid u8 bytes
+				uint8 numBytes = 1;
+				uint8 utf8Bytes = (uint8)codepoint;
+
+#ifdef _WIN32
+				g_logger_assert(codepoint != (uint32)'\r', "We should never get carriage returns in our edit buffers");
+
+				// If we're on windows, translate newlines to carriage return + newlines when saving the files again
+				if (codepoint == (uint32)'\n')
+				{
+					uint8 carriageReturn = '\r';
+					memory.write(&carriageReturn);
+				}
+#endif
+
+				memory.writeDangerous(&utf8Bytes, numBytes * sizeof(uint8));
+			}
+
+			memory.shrinkToFit();
+
+			// Dump UTF-8 to file
+			FILE* fp = fopen(panel.filepath.string().c_str(), "wb");
+			fwrite(memory.data, memory.size, 1, fp);
+			fclose(fp);
+
+			// Free memory
+			memory.free();
+		}
+
 		void free(CodeEditorPanelData& panel)
 		{
-			g_memory_free((void*)panel.visibleCharacterBuffer.utf8String);
+			g_memory_free((void*)panel.visibleCharacterBuffer);
 			panel = {};
 		}
 
-		void update(CodeEditorPanelData& panel)
+		bool update(CodeEditorPanelData& panel)
 		{
+			bool fileHasBeenEdited = false;
+
 			SizedFont const* const codeFont = CodeEditorPanelManager::getCodeFont();
+			ImGuiStyle& style = ImGui::GetStyle();
 			panel.timeSinceCursorLastBlinked += Application::getDeltaTime();
 
 			// ---- Handle arrow key presses ----
@@ -93,21 +242,85 @@ namespace MathAnim
 				panel.cursorIsBlinkedOn = true;
 				panel.timeSinceCursorLastBlinked = 0.0f;
 
-				panel.cursorBytePosition.byteIndex++;
-				panel.firstByteInSelection = panel.cursorBytePosition.byteIndex;
-				panel.lastByteInSelection = panel.cursorBytePosition.byteIndex;
-				panel.mouseByteDragStart = panel.cursorBytePosition.byteIndex;
+				setCursorBytePosition(panel, panel.cursorBytePosition + 1);
+				panel.firstByteInSelection = panel.cursorBytePosition;
+				panel.lastByteInSelection = panel.cursorBytePosition;
+				panel.mouseByteDragStart = panel.cursorBytePosition;
 			}
-
-			if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT))
+			else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT))
 			{
 				panel.cursorIsBlinkedOn = true;
 				panel.timeSinceCursorLastBlinked = 0.0f;
 
-				panel.cursorBytePosition.byteIndex--;
-				panel.firstByteInSelection = panel.cursorBytePosition.byteIndex;
-				panel.lastByteInSelection = panel.cursorBytePosition.byteIndex;
-				panel.mouseByteDragStart = panel.cursorBytePosition.byteIndex;
+				setCursorBytePosition(panel, panel.cursorBytePosition - 1);
+				panel.firstByteInSelection = panel.cursorBytePosition;
+				panel.lastByteInSelection = panel.cursorBytePosition;
+				panel.mouseByteDragStart = panel.cursorBytePosition;
+			}
+			else if (Input::keyRepeatedOrDown(GLFW_KEY_UP))
+			{
+				panel.cursorIsBlinkedOn = true;
+				panel.timeSinceCursorLastBlinked = 0.0f;
+
+				// Try to go up a line while maintaining the same distance from the beginning of the line
+				int32 beginningOfCurrentLine = getBeginningOfLineFrom(panel, panel.cursorBytePosition);
+				int32 beginningOfLineAbove = getBeginningOfLineFrom(panel, beginningOfCurrentLine - 1);
+
+				// Only set the cursor to a new position if there is another line above the current line
+				if (beginningOfLineAbove != -1)
+				{
+					int32 newPos = beginningOfLineAbove;
+					for (int32 i = beginningOfLineAbove; i < beginningOfCurrentLine; i++)
+					{
+						if (i - beginningOfLineAbove == panel.cursorDistanceToBeginningOfLine)
+						{
+							newPos = i;
+							break;
+						}
+						else if (i == beginningOfCurrentLine - 1)
+						{
+							newPos = i;
+						}
+					}
+
+					panel.cursorBytePosition = newPos;
+					panel.firstByteInSelection = newPos;
+					panel.lastByteInSelection = newPos;
+					panel.mouseByteDragStart = newPos;
+				}
+			}
+			else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN))
+			{
+				panel.cursorIsBlinkedOn = true;
+				panel.timeSinceCursorLastBlinked = 0.0f;
+
+				// Try to go up a line while maintaining the same distance from the beginning of the line
+				int32 endOfCurrentLine = getEndOfLineFrom(panel, panel.cursorBytePosition);
+				int32 beginningOfLineBelow = endOfCurrentLine + 1;
+
+				// Only set the cursor to a new position if there is another line below the current line
+				if (beginningOfLineBelow < panel.visibleCharacterBufferSize)
+				{
+					int32 newPos = beginningOfLineBelow;
+					for (int32 i = beginningOfLineBelow; i < panel.visibleCharacterBufferSize; i++)
+					{
+						if (panel.byteMap[panel.visibleCharacterBuffer[i]] == '\n')
+						{
+							newPos = i;
+							break;
+						}
+						else if (i - beginningOfLineBelow == panel.cursorDistanceToBeginningOfLine)
+						{
+							newPos = i;
+							break;
+						}
+					}
+
+					panel.cursorBytePosition = newPos;
+					panel.firstByteInSelection = newPos;
+					panel.lastByteInSelection = newPos;
+					panel.mouseByteDragStart = newPos;
+				}
 			}
 
 			if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT, KeyMods::Shift))
@@ -115,18 +328,16 @@ namespace MathAnim
 				panel.cursorIsBlinkedOn = true;
 				panel.timeSinceCursorLastBlinked = 0.0f;
 
-				if (panel.cursorBytePosition.byteIndex != panel.lastByteInSelection)
-				{
-					panel.cursorBytePosition.byteIndex++;
-				}
+				int32 oldBytePos = panel.cursorBytePosition;
+				setCursorBytePosition(panel, panel.cursorBytePosition + 1);
 
-				if (panel.cursorBytePosition.byteIndex >= panel.mouseByteDragStart)
+				if (oldBytePos >= panel.mouseByteDragStart)
 				{
-					panel.lastByteInSelection = panel.cursorBytePosition.byteIndex + 1;
+					panel.lastByteInSelection = panel.cursorBytePosition;
 				}
 				else
 				{
-					panel.firstByteInSelection++;
+					panel.firstByteInSelection = panel.cursorBytePosition;
 				}
 			}
 
@@ -135,15 +346,75 @@ namespace MathAnim
 				panel.cursorIsBlinkedOn = true;
 				panel.timeSinceCursorLastBlinked = 0.0f;
 
-				panel.cursorBytePosition.byteIndex--;
-				if (panel.cursorBytePosition.byteIndex > panel.mouseByteDragStart)
+				int32 oldBytePos = panel.cursorBytePosition;
+				setCursorBytePosition(panel, panel.cursorBytePosition - 1);
+
+				if (oldBytePos > panel.mouseByteDragStart)
 				{
-					panel.lastByteInSelection--;
+					panel.lastByteInSelection = panel.cursorBytePosition;
 				}
 				else
 				{
-					panel.firstByteInSelection--;
+					panel.firstByteInSelection = panel.cursorBytePosition;
 				}
+			}
+
+			// Handle backspace
+			// TODO: Not all backspaces are handled for some reason
+			if (Input::keyRepeatedOrDown(GLFW_KEY_BACKSPACE))
+			{
+				if (panel.cursorBytePosition != 0 || panel.firstByteInSelection != panel.lastByteInSelection)
+				{
+					size_t numBytesToRemove = panel.lastByteInSelection - panel.firstByteInSelection;
+					size_t bytesToRemoveOffset = panel.firstByteInSelection;
+
+					if (panel.firstByteInSelection == panel.lastByteInSelection)
+					{
+						// TODO: Find out how many bytes are behind the cursor
+						numBytesToRemove = 1;
+						bytesToRemoveOffset -= numBytesToRemove;
+					}
+
+					size_t bytesToMoveOffset = bytesToRemoveOffset + numBytesToRemove;
+					if (bytesToMoveOffset != panel.visibleCharacterBufferSize)
+					{
+						memmove(
+							(void*)(panel.visibleCharacterBuffer + bytesToRemoveOffset),
+							(void*)(panel.visibleCharacterBuffer + bytesToMoveOffset),
+							panel.visibleCharacterBufferSize - bytesToMoveOffset
+						);
+					}
+
+					panel.visibleCharacterBufferSize -= numBytesToRemove;
+					panel.visibleCharacterBuffer = (uint8*)g_memory_realloc((void*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize);
+
+					if (panel.lastByteInSelection == panel.firstByteInSelection || panel.cursorBytePosition == panel.lastByteInSelection)
+					{
+						setCursorBytePosition(panel, panel.cursorBytePosition - (int32)numBytesToRemove);
+					}
+
+					panel.mouseByteDragStart = panel.cursorBytePosition;
+					panel.firstByteInSelection = panel.cursorBytePosition;
+					panel.lastByteInSelection = panel.cursorBytePosition;
+
+					fileHasBeenEdited = true;
+				}
+			}
+
+			// Handle text-insertion
+			if (uint32 codepoint = Input::getLastCharacterTyped(); codepoint != 0)
+			{
+				addCodepointToBuffer(panel, codepoint);
+				setCursorDistanceFromLineStart(panel);
+				fileHasBeenEdited = true;
+			}
+
+			// Handle newline-insertion
+			if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER))
+			{
+				addCodepointToBuffer(panel, (uint32)'\n');
+				setCursorDistanceFromLineStart(panel);
+				fileHasBeenEdited = true;
 			}
 
 			// ---- Handle Rendering/mouse clicking ----
@@ -154,18 +425,14 @@ namespace MathAnim
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 			drawList->AddRectFilled(panel.drawStart, panel.drawEnd, ImColor(44, 44, 44));
 
-			uint32 oldLineByteStart = panel.lineNumberByteStart;
 			uint32 currentLine = panel.lineNumberStart;
 			ImVec2 currentLetterDrawPos = renderNextLinePrefix(panel, currentLine, codeFont);
-
-			ParseInfo& parser = panel.visibleCharacterBuffer;
 
 			bool justStartedDragSelecting = false;
 			if (mouseInTextEditArea(panel))
 			{
 				ImGui::SetMouseCursor(ImGuiMouseCursor_TextInput);
 				const bool isDragging = ImGui::IsMouseDragging(ImGuiMouseButton_Left, io.MouseDragThreshold * 1.70f);
-				const bool mouseClicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
 				if (!panel.mouseIsDragSelecting && isDragging)
 				{
 					panel.mouseIsDragSelecting = true;
@@ -173,13 +440,6 @@ namespace MathAnim
 					panel.mouseByteDragStart = 0;
 					panel.firstByteInSelection = 0;
 					panel.lastByteInSelection = 0;
-				}
-
-				if (mouseClicked && !panel.mouseIsDragSelecting)
-				{
-					panel.mouseByteDragStart = panel.cursorBytePosition.byteIndex;
-					panel.firstByteInSelection = panel.cursorBytePosition.byteIndex;
-					panel.lastByteInSelection = panel.cursorBytePosition.byteIndex;
 				}
 			}
 
@@ -191,22 +451,12 @@ namespace MathAnim
 			bool lineHighlightStartFound = false;
 			bool lastCharWasNewline = false;
 			bool passedFirstCharacter = false;
-			uint8 lastNumBytesParsed = 1;
 			ImVec2 textHighlightRectStart = ImVec2();
-			CharInfo closestByteToMouseCursor = { panel.lineNumberByteStart, 1 };
+			int32 closestByteToMouseCursor = (int32)panel.lineNumberByteStart;
 
-			while (parser.cursor < parser.numBytes)
+			for (size_t cursor = 0; cursor < panel.visibleCharacterBufferSize; cursor++)
 			{
-				uint8 numBytesParsed = 0;
-				auto maybeCurrentCodepoint = Parser::parseCharacter(parser, &numBytesParsed);
-				if (!maybeCurrentCodepoint.hasValue())
-				{
-					parser.cursor++;
-					g_logger_warning("Malformed unicode encountered while rendering code editor.");
-					continue;
-				}
-
-				uint32 currentCodepoint = maybeCurrentCodepoint.value();
+				uint32 currentCodepoint = panel.byteMap[panel.visibleCharacterBuffer[cursor]];
 				ImVec2 letterBoundsStart = currentLetterDrawPos;
 				ImVec2 letterBoundsSize = addCharToDrawList(
 					drawList,
@@ -215,16 +465,22 @@ namespace MathAnim
 					letterBoundsStart
 				);
 
-				if (parser.cursor == panel.cursorBytePosition.byteIndex)
+				bool isLastCharacter = cursor == panel.visibleCharacterBufferSize - 1;
+				if (cursor == panel.cursorBytePosition)
 				{
 					ImVec2 textCursorDrawPosition = letterBoundsStart;
-
-					bool selectionIsLeading = panel.firstByteInSelection < panel.mouseByteDragStart || panel.firstByteInSelection == panel.lastByteInSelection;
-					if (!selectionIsLeading)
+					renderTextCursor(panel, textCursorDrawPosition, codeFont);
+				}
+				else if (isLastCharacter && panel.cursorBytePosition == panel.visibleCharacterBufferSize)
+				{
+					ImVec2 textCursorDrawPosition = letterBoundsStart + ImVec2(letterBoundsSize.x, 0.0f);
+					if (currentCodepoint == '\n')
 					{
-						textCursorDrawPosition = letterBoundsStart + ImVec2(letterBoundsSize.x, 0.0f);
-					}
+						textCursorDrawPosition = getTopLeftOfLine(panel, currentLine, codeFont);
 
+						const float lineHeight = codeFont->unsizedFont->lineHeight * codeFont->fontSizePixels;
+						textCursorDrawPosition = textCursorDrawPosition + ImVec2(leftGutterWidth + style.FramePadding.x, lineHeight);
+					}
 					renderTextCursor(panel, textCursorDrawPosition, codeFont);
 				}
 
@@ -242,8 +498,8 @@ namespace MathAnim
 					&& io.MousePos.y <= letterBoundsStart.y + letterBoundsSize.y
 					)))
 				{
-					closestByteToMouseCursor.byteIndex = parser.cursor;
-					closestByteToMouseCursor.numBytes = numBytesParsed;
+					closestByteToMouseCursor = (int32)cursor;
+
 				}
 				// If the mouse clicked in between a line, then the closest byte is in 
 				// this line
@@ -253,35 +509,31 @@ namespace MathAnim
 					// If we clicked in a letter bounds, then that's the closest byte to the mouse
 					if (io.MousePos.x >= letterBoundsStart.x && io.MousePos.x < letterBoundsStart.x + letterBoundsSize.x)
 					{
-						closestByteToMouseCursor.byteIndex = parser.cursor;
-						closestByteToMouseCursor.numBytes = numBytesParsed;
+						closestByteToMouseCursor = (int32)cursor;
 					}
 					// If we clicked past the end of the line, the closest byte is the end of the line
-					else if ((currentCodepoint == '\n' || parser.cursor == parser.numBytes - 1)
+					else if ((currentCodepoint == '\n' || cursor == panel.visibleCharacterBufferSize - 1)
 						&& io.MousePos.x >= letterBoundsStart.x + letterBoundsSize.x)
 					{
-						closestByteToMouseCursor.byteIndex = parser.cursor;
-						closestByteToMouseCursor.numBytes = numBytesParsed;
+						closestByteToMouseCursor = (int32)cursor;
 					}
 					// If we clicked before any letters in the start of the line, the closest byte
 					// is the first byte in this line
 					else if (io.MousePos.x < letterBoundsStart.x && lastCharWasNewline)
 					{
-						closestByteToMouseCursor.byteIndex = parser.cursor;
-						closestByteToMouseCursor.numBytes = numBytesParsed;
+						closestByteToMouseCursor = (int32)cursor;
 					}
 				}
 				// If the mouse clicked past the last visible character, then the closest
 				// character is the last character on the screen
-				else if (parser.cursor == parser.numBytes - numBytesParsed &&
+				else if (cursor == panel.visibleCharacterBufferSize - 1 &&
 					io.MousePos.y >= letterBoundsStart.y + letterBoundsSize.y)
 				{
-					closestByteToMouseCursor.byteIndex = parser.cursor;
-					closestByteToMouseCursor.numBytes = numBytesParsed;
+					closestByteToMouseCursor = (int32)cursor;
 				}
 
 				if (panel.firstByteInSelection != panel.lastByteInSelection
-					&& parser.cursor >= panel.firstByteInSelection && parser.cursor <= panel.lastByteInSelection)
+					&& cursor >= panel.firstByteInSelection && cursor <= panel.lastByteInSelection)
 				{
 					if (!lineHighlightStartFound)
 					{
@@ -289,7 +541,7 @@ namespace MathAnim
 						lineHighlightStartFound = true;
 					}
 
-					if (parser.cursor == panel.lastByteInSelection - numBytesParsed)
+					if (cursor == panel.lastByteInSelection - 1)
 					{
 						// Draw highlight to last character selected
 						ImVec2 highlightEnd = letterBoundsStart + letterBoundsSize;
@@ -305,23 +557,19 @@ namespace MathAnim
 						);
 						drawList->AddRectFilled(textHighlightRectStart, lineEndPos, highlightTextColor);
 						textHighlightRectStart = ImVec2(
-							panel.drawStart.x + leftGutterWidth,
+							panel.drawStart.x + leftGutterWidth + style.FramePadding.x,
 							letterBoundsStart.y + letterBoundsSize.y
 						);
 					}
 				}
 
-				if (io.MousePos.y > letterBoundsStart.y + letterBoundsSize.y &&
-					parser.cursor == parser.numBytes - numBytesParsed)
+				if (io.MousePos.y > letterBoundsStart.y + letterBoundsSize.y && cursor == panel.visibleCharacterBufferSize - 1)
 				{
-					closestByteToMouseCursor.byteIndex = parser.cursor;
-					closestByteToMouseCursor.numBytes = numBytesParsed;
+					closestByteToMouseCursor = (int32)cursor;
 				}
 
 				currentLetterDrawPos.x += letterBoundsSize.x;
-				parser.cursor += numBytesParsed;
 				lastCharWasNewline = currentCodepoint == (uint32)'\n';
-				lastNumBytesParsed = numBytesParsed;
 				passedFirstCharacter = true;
 			}
 
@@ -329,49 +577,75 @@ namespace MathAnim
 			{
 				if (justStartedDragSelecting)
 				{
-					panel.mouseByteDragStart = closestByteToMouseCursor.byteIndex;
-					panel.firstByteInSelection = closestByteToMouseCursor.byteIndex;
-					panel.lastByteInSelection = closestByteToMouseCursor.byteIndex;
+					panel.mouseByteDragStart = closestByteToMouseCursor;
+					panel.firstByteInSelection = closestByteToMouseCursor;
+					panel.lastByteInSelection = closestByteToMouseCursor;
 				}
 
-				if (closestByteToMouseCursor.byteIndex >= panel.lastByteInSelection)
+				if (closestByteToMouseCursor >= panel.lastByteInSelection)
 				{
-					panel.lastByteInSelection = closestByteToMouseCursor.byteIndex + closestByteToMouseCursor.numBytes;
+					panel.lastByteInSelection = closestByteToMouseCursor;
 					panel.firstByteInSelection = panel.mouseByteDragStart;
 				}
-				else if (closestByteToMouseCursor.byteIndex <= panel.lastByteInSelection - closestByteToMouseCursor.numBytes &&
-					closestByteToMouseCursor.byteIndex > panel.mouseByteDragStart)
+				else if (closestByteToMouseCursor <= panel.lastByteInSelection - 1 &&
+					closestByteToMouseCursor >= panel.mouseByteDragStart)
 				{
-					panel.lastByteInSelection = closestByteToMouseCursor.byteIndex + closestByteToMouseCursor.numBytes;
+					panel.lastByteInSelection = closestByteToMouseCursor;
 					panel.firstByteInSelection = panel.mouseByteDragStart;
 				}
 
-				if (closestByteToMouseCursor.byteIndex < panel.firstByteInSelection)
+				if (closestByteToMouseCursor < panel.firstByteInSelection)
 				{
-					panel.firstByteInSelection = closestByteToMouseCursor.byteIndex;
+					panel.firstByteInSelection = closestByteToMouseCursor;
 					panel.lastByteInSelection = panel.mouseByteDragStart;
 				}
-				else if (closestByteToMouseCursor.byteIndex > panel.firstByteInSelection &&
-					closestByteToMouseCursor.byteIndex < panel.mouseByteDragStart)
+				else if (closestByteToMouseCursor > panel.firstByteInSelection &&
+					closestByteToMouseCursor < panel.mouseByteDragStart)
 				{
-					panel.firstByteInSelection = closestByteToMouseCursor.byteIndex;
+					panel.firstByteInSelection = closestByteToMouseCursor;
 					panel.lastByteInSelection = panel.mouseByteDragStart;
 				}
 			}
-
-			parser.cursor = oldLineByteStart;
 
 			if (io.MouseDown[ImGuiMouseButton_Left])
 			{
 				panel.cursorBytePosition = closestByteToMouseCursor;
+				setCursorDistanceFromLineStart(panel);
 			}
 
-			ImGui::Begin("Stats##Panel1");
-			ImGui::Text("Selection Begin: %d", panel.firstByteInSelection);
-			ImGui::Text("  Selection End: %d", panel.lastByteInSelection);
-			ImGui::Text("     Drag Start: %d", panel.mouseByteDragStart);
-			ImGui::Text("    Cursor Byte: %d", panel.cursorBytePosition.byteIndex);
-			ImGui::End();
+			if (mouseInTextEditArea(panel))
+			{
+				const bool mouseClicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+				if (mouseClicked && !panel.mouseIsDragSelecting)
+				{
+					panel.mouseByteDragStart = (int32)panel.cursorBytePosition;
+					panel.firstByteInSelection = (int32)panel.cursorBytePosition;
+					panel.lastByteInSelection = (int32)panel.cursorBytePosition;
+				}
+			}
+
+			{
+				ImGui::Begin("Stats##Panel1");
+				ImGui::Text("Selection Begin: %d", panel.firstByteInSelection);
+				ImGui::Text("  Selection End: %d", panel.lastByteInSelection);
+				ImGui::Text("     Drag Start: %d", panel.mouseByteDragStart);
+				ImGui::Text("    Cursor Byte: %d", panel.cursorBytePosition);
+				ImGui::Text("Line start dist: %d", panel.cursorDistanceToBeginningOfLine);
+				char character = (char)panel.byteMap[panel.visibleCharacterBuffer[panel.cursorBytePosition]];
+				if (character != '\r' && character != '\n' && character != '\t')
+				{
+					ImGui::Text("      Character: %c", character);
+				}
+				else
+				{
+					char escapedCharacter = character == '\r' ? 'r' :
+						character == '\n' ? 'n' : 't';
+					ImGui::Text("      Character: \\%c", escapedCharacter);
+				}
+				ImGui::End();
+			}
+
+			return fileHasBeenEdited;
 		}
 
 		// ------------- Internal Functions -------------
@@ -483,6 +757,36 @@ namespace MathAnim
 
 			const float totalFontHeight = sizedFont->fontSizePixels * font->lineHeight;
 			return ImVec2((cursorPos - drawPos).x, totalFontHeight);
+		}
+
+		static void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint)
+		{
+			uint8 byteMapping = CodeEditorPanelManager::addCharToFont(codepoint);
+			panel.byteMap[byteMapping] = codepoint;
+
+			size_t newCharBufferSize = sizeof(uint8) * (panel.visibleCharacterBufferSize + 1);
+			uint8* newCharBuffer = (uint8*)g_memory_allocate(newCharBufferSize);
+
+			g_memory_copyMem(newCharBuffer, newCharBufferSize, (void*)panel.visibleCharacterBuffer, panel.cursorBytePosition);
+			newCharBufferSize -= panel.cursorBytePosition;
+			g_memory_copyMem(newCharBuffer + panel.cursorBytePosition, newCharBufferSize, &byteMapping, sizeof(uint8));
+			newCharBufferSize -= sizeof(uint8);
+			g_memory_copyMem(
+				newCharBuffer + panel.cursorBytePosition + sizeof(uint8),
+				newCharBufferSize,
+				(void*)(panel.visibleCharacterBuffer + panel.cursorBytePosition),
+				panel.visibleCharacterBufferSize - panel.cursorBytePosition
+			);
+
+			g_memory_free((void*)panel.visibleCharacterBuffer);
+
+			panel.visibleCharacterBuffer = newCharBuffer;
+			panel.visibleCharacterBufferSize = sizeof(uint8) * (panel.visibleCharacterBufferSize + 1);
+
+			panel.cursorBytePosition++;
+			panel.mouseByteDragStart = panel.cursorBytePosition;
+			panel.firstByteInSelection = panel.cursorBytePosition;
+			panel.lastByteInSelection = panel.cursorBytePosition;
 		}
 	}
 }

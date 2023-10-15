@@ -18,6 +18,8 @@ namespace MathAnim
 		static constexpr float slowKeyRepeatTimeInterval = 0.013f;
 		static constexpr float firstRepeatFlag = -0.3f;
 
+		static uint32 lastCharacterTyped = 0;
+
 		static bool keyDownLastFrame[GLFW_KEY_LAST + 1] = {};
 		static bool keyDownData[GLFW_KEY_LAST + 1] = {};
 		static float keyDownRepeatData[GLFW_KEY_LAST + 1] = {};
@@ -80,6 +82,11 @@ namespace MathAnim
 			scrollY = (float)yoffset;
 		}
 
+		void characterCallback(GLFWwindow*, uint32 codepoint)
+		{
+			lastCharacterTyped = codepoint;
+		}
+
 		void endFrame()
 		{
 			// Copy the mouse button down states to mouse button down last frame
@@ -113,6 +120,7 @@ namespace MathAnim
 			deltaMouseY = 0;
 			scrollX = 0;
 			scrollY = 0;
+			lastCharacterTyped = 0;
 		}
 
 		void keyCallback(GLFWwindow*, int key, int, int action, int mods)
@@ -258,6 +266,11 @@ namespace MathAnim
 			}
 
 			return false;
+		}
+
+		uint32 getLastCharacterTyped()
+		{
+			return lastCharacterTyped;
 		}
 
 		bool mouseClicked(MouseButton button)

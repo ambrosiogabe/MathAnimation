@@ -11,10 +11,13 @@ namespace MathAnim
 		CodeEditorPanelData panel;
 		uint64_t uuid;
 		std::string windowName;
+		bool isEditedWithoutSave;
 	};
 
 	namespace CodeEditorPanelManager
 	{
+		// ----------- Internal functinons -----------
+
 		// ----------- Internal data -----------
 		static std::unordered_map<std::string, size_t> fileMap;
 		static std::vector<CodeEditorMetadata> openEditors;
@@ -23,11 +26,19 @@ namespace MathAnim
 
 		static const char* codeFontRegularFile = "./assets/fonts/fira/FiraCode-SemiBold.ttf";
 		static SizedFont* codeFont = nullptr;
+		static std::unordered_map<uint32, uint8> loadedCodepoints;
+		static std::unordered_set<uint32> loadedCodepointsSet;
 		static int fontSizePx = 28;
 
 		void init()
 		{
 			codeFont = Fonts::loadSizedFont(codeFontRegularFile, fontSizePx, CharRange::Ascii, false);
+
+			for (uint32 i = CharRange::Ascii.firstCharCode; i <= CharRange::Ascii.lastCharCode; i++)
+			{
+				loadedCodepointsSet.insert(i);
+				loadedCodepoints[i] = (uint8)(loadedCodepointsSet.size() - 1);
+			}
 		}
 
 		void free()
@@ -63,11 +74,23 @@ namespace MathAnim
 			for (auto editor = openEditors.begin(); editor != openEditors.end();)
 			{
 				bool open = true;
-				ImGui::Begin(editor->windowName.c_str(), &open);
+				int windowFlags = editor->isEditedWithoutSave ? ImGuiWindowFlags_UnsavedDocument : 0;
+				bool windowIsActive = ImGui::Begin(editor->windowName.c_str(), &open, windowFlags);
 
-				CodeEditorPanel::update(editor->panel);
+				if (windowIsActive) 
+				{
+					bool hasBeenEdited = CodeEditorPanel::update(editor->panel);
+					editor->isEditedWithoutSave = editor->isEditedWithoutSave || hasBeenEdited;
+				}
 
+				bool windowIsFocused = ImGui::IsWindowFocused();
 				ImGui::End();
+
+				if (windowIsFocused && Input::keyPressed(GLFW_KEY_S, KeyMods::Ctrl))
+				{
+					CodeEditorPanel::saveFile(editor->panel);
+					editor->isEditedWithoutSave = false;
+				}
 
 				if (!open)
 				{
@@ -124,5 +147,40 @@ namespace MathAnim
 			fontSizePx = inFontSizePx;
 			codeFont = Fonts::loadSizedFont(codeFontRegularFile, fontSizePx, CharRange::Ascii, false);
 		}
+
+		uint8 addCharToFont(uint32 codepoint)
+		{
+			if (auto iter = loadedCodepointsSet.find(codepoint); iter == loadedCodepointsSet.end())
+			{
+				// If we're trying to load a newline, just return a dummy value since newlines can't be rendered
+				if (codepoint == '\n')
+				{
+					loadedCodepointsSet.insert(codepoint);
+					loadedCodepoints[codepoint] = (uint8)(loadedCodepointsSet.size() - 1);
+					return (uint8)loadedCodepoints.size() - 1;
+				}
+
+				loadedCodepointsSet.insert(codepoint);
+				SizedFont* newFont = Fonts::loadSizedFont(codeFontRegularFile, fontSizePx, loadedCodepointsSet, false);
+				g_logger_assert(newFont == codeFont, "We should have loaded this font in place. Weird...");
+				Fonts::unloadSizedFont(codeFont);
+
+				if (loadedCodepointsSet.size() > (1 << 8))
+				{
+					g_logger_error("Not good, we ran out of room for our codepoints. We have more than 255 unique characters in all files.");
+				}
+				
+				loadedCodepoints[codepoint] = (uint8)(loadedCodepointsSet.size() - 1);
+				return (uint8)loadedCodepoints.size() - 1;
+			}
+			else
+			{
+				auto codepointIter = loadedCodepoints.find(codepoint);
+				g_logger_assert(codepointIter != loadedCodepoints.end(), "We shouldn't have mismatched codepoints in the set and map.");
+				return codepointIter->second;
+			}
+		}
+
+		// ----------- Internal functinons -----------
 	}
 }

@@ -19,5 +19,7 @@ namespace MathAnim
 
 		int getCodeFontSizePx();
 		void setCodeFontSizePx(int fontSizePx);
+
+		uint8 addCharToFont(uint32 codepoint);
 	}
 }

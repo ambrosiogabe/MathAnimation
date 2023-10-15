@@ -41,6 +41,7 @@ namespace MathAnim
 		void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 		void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 		void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+		void characterCallback(GLFWwindow* window, uint32 codepoint);
 		void endFrame();
 		
 		void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -48,6 +49,8 @@ namespace MathAnim
 		bool keyDown(int key, KeyMods mods = KeyMods::None);
 		bool keyUp(int key, KeyMods mods = KeyMods::None);
 		bool keyRepeatedOrDown(int key, KeyMods mods = KeyMods::None);
+
+		uint32 getLastCharacterTyped();
 
 		bool mouseClicked(MouseButton button);
 		bool mouseDown(MouseButton button);

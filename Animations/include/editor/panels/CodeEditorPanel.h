@@ -4,12 +4,6 @@
 
 namespace MathAnim
 {
-	struct CharInfo
-	{
-		size_t byteIndex;
-		uint8 numBytes;
-	};
-
 	struct CodeEditorPanelData
 	{
 		std::filesystem::path filepath;
@@ -21,21 +15,27 @@ namespace MathAnim
 
 		bool mouseIsDragSelecting;
 		// The byte that was clicked when the user began clicking and dragging the mouse
-		size_t mouseByteDragStart;
-		size_t firstByteInSelection;
-		size_t lastByteInSelection;
-		CharInfo cursorBytePosition;
+		int32 mouseByteDragStart;
+		int32 firstByteInSelection;
+		int32 lastByteInSelection;
+		int32 cursorBytePosition;
+		int32 cursorDistanceToBeginningOfLine;
 		float timeSinceCursorLastBlinked;
 		bool cursorIsBlinkedOn;
 
-		CppUtils::ParseInfo visibleCharacterBuffer;
+		uint8* visibleCharacterBuffer;
+		size_t visibleCharacterBufferSize;
+
+		// A map that contains this files byte->codepoint mapping
+		uint32 byteMap[1 << 8];
 	};
 
 	namespace CodeEditorPanel
 	{
 		CodeEditorPanelData openFile(std::string const& filepath);
+		void saveFile(CodeEditorPanelData const& panel);
 		void free(CodeEditorPanelData& panel);
 
-		void update(CodeEditorPanelData& panel);
+		bool update(CodeEditorPanelData& panel);
 	}
 }
