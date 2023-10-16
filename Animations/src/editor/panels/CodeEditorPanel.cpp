@@ -246,6 +246,7 @@ namespace MathAnim
 				panel.firstByteInSelection = panel.cursorBytePosition;
 				panel.lastByteInSelection = panel.cursorBytePosition;
 				panel.mouseByteDragStart = panel.cursorBytePosition;
+				panel.lastByteInSelectionIncludingNewline = panel.cursorBytePosition;
 			}
 			else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT))
 			{
@@ -256,6 +257,7 @@ namespace MathAnim
 				panel.firstByteInSelection = panel.cursorBytePosition;
 				panel.lastByteInSelection = panel.cursorBytePosition;
 				panel.mouseByteDragStart = panel.cursorBytePosition;
+				panel.lastByteInSelectionIncludingNewline = panel.cursorBytePosition;
 			}
 			else if (Input::keyRepeatedOrDown(GLFW_KEY_UP))
 			{
@@ -286,6 +288,7 @@ namespace MathAnim
 					panel.cursorBytePosition = newPos;
 					panel.firstByteInSelection = newPos;
 					panel.lastByteInSelection = newPos;
+					panel.lastByteInSelectionIncludingNewline = newPos;
 					panel.mouseByteDragStart = newPos;
 				}
 			}
@@ -319,6 +322,7 @@ namespace MathAnim
 					panel.cursorBytePosition = newPos;
 					panel.firstByteInSelection = newPos;
 					panel.lastByteInSelection = newPos;
+					panel.lastByteInSelectionIncludingNewline = newPos;
 					panel.mouseByteDragStart = newPos;
 				}
 			}
@@ -333,7 +337,7 @@ namespace MathAnim
 
 				if (oldBytePos >= panel.mouseByteDragStart)
 				{
-					panel.lastByteInSelection = panel.cursorBytePosition;
+					panel.lastByteInSelectionIncludingNewline = panel.cursorBytePosition;
 				}
 				else
 				{
@@ -351,7 +355,7 @@ namespace MathAnim
 
 				if (oldBytePos > panel.mouseByteDragStart)
 				{
-					panel.lastByteInSelection = panel.cursorBytePosition;
+					panel.lastByteInSelectionIncludingNewline = panel.cursorBytePosition;
 				}
 				else
 				{
@@ -365,7 +369,8 @@ namespace MathAnim
 			{
 				if (panel.cursorBytePosition != 0 || panel.firstByteInSelection != panel.lastByteInSelection)
 				{
-					size_t numBytesToRemove = panel.lastByteInSelection - panel.firstByteInSelection;
+					// The + 1 is because we include the last byte in the selection, so this range is inclusive
+					size_t numBytesToRemove = panel.lastByteInSelection - panel.firstByteInSelection + 1;
 					size_t bytesToRemoveOffset = panel.firstByteInSelection;
 
 					if (panel.firstByteInSelection == panel.lastByteInSelection)
@@ -396,6 +401,7 @@ namespace MathAnim
 					panel.mouseByteDragStart = panel.cursorBytePosition;
 					panel.firstByteInSelection = panel.cursorBytePosition;
 					panel.lastByteInSelection = panel.cursorBytePosition;
+					panel.lastByteInSelectionIncludingNewline = panel.cursorBytePosition;
 
 					fileHasBeenEdited = true;
 				}
@@ -440,6 +446,7 @@ namespace MathAnim
 					panel.mouseByteDragStart = 0;
 					panel.firstByteInSelection = 0;
 					panel.lastByteInSelection = 0;
+					panel.lastByteInSelectionIncludingNewline = 0;
 				}
 			}
 
@@ -532,8 +539,9 @@ namespace MathAnim
 					closestByteToMouseCursor = (int32)cursor;
 				}
 
-				if (panel.firstByteInSelection != panel.lastByteInSelection
-					&& cursor >= panel.firstByteInSelection && cursor <= panel.lastByteInSelection)
+				// Render selected text
+				if (panel.firstByteInSelection != panel.lastByteInSelection && 
+					cursor >= panel.firstByteInSelection && cursor <= panel.lastByteInSelection)
 				{
 					if (!lineHighlightStartFound)
 					{
@@ -541,14 +549,7 @@ namespace MathAnim
 						lineHighlightStartFound = true;
 					}
 
-					if (cursor == panel.lastByteInSelection - 1)
-					{
-						// Draw highlight to last character selected
-						ImVec2 highlightEnd = letterBoundsStart + letterBoundsSize;
-						//drawList->AddRectFilled(textHighlightRectStart, highlightEnd, highlightTextColor);
-						drawList->AddRectFilled(textHighlightRectStart, highlightEnd, ImColor(240, 123, 112, 128));
-					}
-					else if (currentCodepoint == (uint32)'\n')
+					if (currentCodepoint == (uint32)'\n')
 					{
 						// Draw highlight to the end of the line
 						ImVec2 lineEndPos = ImVec2(
@@ -560,6 +561,13 @@ namespace MathAnim
 							panel.drawStart.x + leftGutterWidth + style.FramePadding.x,
 							letterBoundsStart.y + letterBoundsSize.y
 						);
+					}
+					else if (cursor == panel.lastByteInSelection)
+					{
+						// Draw highlight to last character selected
+						ImVec2 highlightEnd = letterBoundsStart + letterBoundsSize;
+						//drawList->AddRectFilled(textHighlightRectStart, highlightEnd, highlightTextColor);
+						drawList->AddRectFilled(textHighlightRectStart, highlightEnd, ImColor(240, 123, 112, 128));
 					}
 				}
 
@@ -580,30 +588,40 @@ namespace MathAnim
 					panel.mouseByteDragStart = closestByteToMouseCursor;
 					panel.firstByteInSelection = closestByteToMouseCursor;
 					panel.lastByteInSelection = closestByteToMouseCursor;
+					panel.lastByteInSelectionIncludingNewline = closestByteToMouseCursor;
 				}
 
-				if (closestByteToMouseCursor >= panel.lastByteInSelection)
+				if (closestByteToMouseCursor >= panel.lastByteInSelectionIncludingNewline)
 				{
-					panel.lastByteInSelection = closestByteToMouseCursor;
+					panel.lastByteInSelectionIncludingNewline = closestByteToMouseCursor;
 					panel.firstByteInSelection = panel.mouseByteDragStart;
 				}
-				else if (closestByteToMouseCursor <= panel.lastByteInSelection - 1 &&
+				else if (closestByteToMouseCursor <= panel.lastByteInSelectionIncludingNewline - 1 &&
 					closestByteToMouseCursor >= panel.mouseByteDragStart)
 				{
-					panel.lastByteInSelection = closestByteToMouseCursor;
+					panel.lastByteInSelectionIncludingNewline = closestByteToMouseCursor;
 					panel.firstByteInSelection = panel.mouseByteDragStart;
 				}
 
 				if (closestByteToMouseCursor < panel.firstByteInSelection)
 				{
 					panel.firstByteInSelection = closestByteToMouseCursor;
-					panel.lastByteInSelection = panel.mouseByteDragStart;
+					panel.lastByteInSelectionIncludingNewline = panel.mouseByteDragStart;
 				}
 				else if (closestByteToMouseCursor > panel.firstByteInSelection &&
 					closestByteToMouseCursor < panel.mouseByteDragStart)
 				{
 					panel.firstByteInSelection = closestByteToMouseCursor;
-					panel.lastByteInSelection = panel.mouseByteDragStart;
+					panel.lastByteInSelectionIncludingNewline = panel.mouseByteDragStart;
+				}
+
+				panel.lastByteInSelection = panel.lastByteInSelectionIncludingNewline;
+
+				// Make sure you can't end a selection on a newline, because that's what Visual Studio does
+				if (panel.byteMap[panel.visibleCharacterBuffer[panel.lastByteInSelectionIncludingNewline]] == '\n')
+				{
+					panel.lastByteInSelection--;
+					if (panel.lastByteInSelection < 0) panel.lastByteInSelection = 0;
 				}
 			}
 
@@ -621,26 +639,28 @@ namespace MathAnim
 					panel.mouseByteDragStart = (int32)panel.cursorBytePosition;
 					panel.firstByteInSelection = (int32)panel.cursorBytePosition;
 					panel.lastByteInSelection = (int32)panel.cursorBytePosition;
+					panel.lastByteInSelectionIncludingNewline = (int32)panel.cursorBytePosition;
 				}
 			}
 
 			{
 				ImGui::Begin("Stats##Panel1");
-				ImGui::Text("Selection Begin: %d", panel.firstByteInSelection);
-				ImGui::Text("  Selection End: %d", panel.lastByteInSelection);
-				ImGui::Text("     Drag Start: %d", panel.mouseByteDragStart);
-				ImGui::Text("    Cursor Byte: %d", panel.cursorBytePosition);
-				ImGui::Text("Line start dist: %d", panel.cursorDistanceToBeginningOfLine);
+				ImGui::Text("                 Selection Begin: %d", panel.firstByteInSelection);
+				ImGui::Text("                   Selection End: %d", panel.lastByteInSelection);
+				ImGui::Text("Selection End Inlcuding newlines: %d", panel.lastByteInSelectionIncludingNewline);
+				ImGui::Text("                      Drag Start: %d", panel.mouseByteDragStart);
+				ImGui::Text("                     Cursor Byte: %d", panel.cursorBytePosition);
+				ImGui::Text("                 Line start dist: %d", panel.cursorDistanceToBeginningOfLine);
 				char character = (char)panel.byteMap[panel.visibleCharacterBuffer[panel.cursorBytePosition]];
 				if (character != '\r' && character != '\n' && character != '\t')
 				{
-					ImGui::Text("      Character: %c", character);
+					ImGui::Text("                       Character: %c", character);
 				}
 				else
 				{
 					char escapedCharacter = character == '\r' ? 'r' :
 						character == '\n' ? 'n' : 't';
-					ImGui::Text("      Character: \\%c", escapedCharacter);
+					ImGui::Text("                       Character: \\%c", escapedCharacter);
 				}
 				ImGui::End();
 			}
@@ -787,6 +807,7 @@ namespace MathAnim
 			panel.mouseByteDragStart = panel.cursorBytePosition;
 			panel.firstByteInSelection = panel.cursorBytePosition;
 			panel.lastByteInSelection = panel.cursorBytePosition;
+			panel.lastByteInSelectionIncludingNewline = panel.cursorBytePosition;
 		}
 	}
 }
