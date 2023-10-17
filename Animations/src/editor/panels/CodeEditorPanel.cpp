@@ -25,6 +25,9 @@ namespace MathAnim
 	namespace CodeEditorPanel
 	{
 		// ------------- Internal Functions -------------
+		static void resetSelection(CodeEditorPanelData& panel);
+		static void moveTextCursor(CodeEditorPanelData& panel, KeyMoveDirection direction);
+		static void moveTextCursorAndResetSelection(CodeEditorPanelData& panel, KeyMoveDirection direction);
 		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& textCursorDrawPosition, SizedFont const* const font);
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber, SizedFont const* const font);
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel);
@@ -251,49 +254,35 @@ namespace MathAnim
 			{
 				if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT))
 				{
-					panel.cursorIsBlinkedOn = true;
-					panel.timeSinceCursorLastBlinked = 0.0f;
-
-					panel.cursorBytePosition = getNewCursorPositionFromMove(panel, KeyMoveDirection::Right);;
-					setCursorDistanceFromLineStart(panel);
-
-					panel.firstByteInSelection = panel.cursorBytePosition;
-					panel.lastByteInSelection = panel.cursorBytePosition;
-					panel.mouseByteDragStart = panel.cursorBytePosition;
+					moveTextCursorAndResetSelection(panel, KeyMoveDirection::Right);
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT))
 				{
-					panel.cursorIsBlinkedOn = true;
-					panel.timeSinceCursorLastBlinked = 0.0f;
-
-					panel.cursorBytePosition = getNewCursorPositionFromMove(panel, KeyMoveDirection::Left);
-					setCursorDistanceFromLineStart(panel);
-
-					panel.firstByteInSelection = panel.cursorBytePosition;
-					panel.lastByteInSelection = panel.cursorBytePosition;
-					panel.mouseByteDragStart = panel.cursorBytePosition;
+					moveTextCursorAndResetSelection(panel, KeyMoveDirection::Left);
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_UP))
 				{
-					panel.cursorIsBlinkedOn = true;
-					panel.timeSinceCursorLastBlinked = 0.0f;
-
-					panel.cursorBytePosition = getNewCursorPositionFromMove(panel, KeyMoveDirection::Up);
-
-					panel.firstByteInSelection = panel.cursorBytePosition;
-					panel.lastByteInSelection = panel.cursorBytePosition;
-					panel.mouseByteDragStart = panel.cursorBytePosition;
+					moveTextCursorAndResetSelection(panel, KeyMoveDirection::Up);
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN))
 				{
-					panel.cursorIsBlinkedOn = true;
-					panel.timeSinceCursorLastBlinked = 0.0f;
-
-					panel.cursorBytePosition = getNewCursorPositionFromMove(panel, KeyMoveDirection::Down);
-
-					panel.firstByteInSelection = panel.cursorBytePosition;
-					panel.lastByteInSelection = panel.cursorBytePosition;
-					panel.mouseByteDragStart = panel.cursorBytePosition;
+					moveTextCursorAndResetSelection(panel, KeyMoveDirection::Down);
+				}
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT, KeyMods::Ctrl))
+				{
+					moveTextCursorAndResetSelection(panel, KeyMoveDirection::RightUntilBoundary);
+				}
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT, KeyMods::Ctrl))
+				{
+					moveTextCursorAndResetSelection(panel, KeyMoveDirection::LeftUntilBoundary);
+				}
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_HOME))
+				{
+					moveTextCursorAndResetSelection(panel, KeyMoveDirection::LeftUntilBeginning);
+				}
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_END))
+				{
+					moveTextCursorAndResetSelection(panel, KeyMoveDirection::RightUntilEnd);
 				}
 			}
 
@@ -302,33 +291,35 @@ namespace MathAnim
 				int32 oldBytePos = panel.cursorBytePosition;
 				if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT, KeyMods::Shift))
 				{
-					panel.cursorIsBlinkedOn = true;
-					panel.timeSinceCursorLastBlinked = 0.0f;
-
-					panel.cursorBytePosition = getNewCursorPositionFromMove(panel, KeyMoveDirection::Right);
-					setCursorDistanceFromLineStart(panel);
+					moveTextCursor(panel, KeyMoveDirection::Right);
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT, KeyMods::Shift))
 				{
-					panel.cursorIsBlinkedOn = true;
-					panel.timeSinceCursorLastBlinked = 0.0f;
-
-					panel.cursorBytePosition = getNewCursorPositionFromMove(panel, KeyMoveDirection::Left);
-					setCursorDistanceFromLineStart(panel);
+					moveTextCursor(panel, KeyMoveDirection::Left);
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_UP, KeyMods::Shift))
 				{
-					panel.cursorIsBlinkedOn = true;
-					panel.timeSinceCursorLastBlinked = 0.0f;
-
-					panel.cursorBytePosition = getNewCursorPositionFromMove(panel, KeyMoveDirection::Up);
+					moveTextCursor(panel, KeyMoveDirection::Up);
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN, KeyMods::Shift))
 				{
-					panel.cursorIsBlinkedOn = true;
-					panel.timeSinceCursorLastBlinked = 0.0f;
-
-					panel.cursorBytePosition = getNewCursorPositionFromMove(panel, KeyMoveDirection::Down);
+					moveTextCursor(panel, KeyMoveDirection::Down);
+				}
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT, KeyMods::Shift | KeyMods::Ctrl))
+				{
+					moveTextCursor(panel, KeyMoveDirection::RightUntilBoundary);
+				}
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT, KeyMods::Shift | KeyMods::Ctrl))
+				{
+					moveTextCursor(panel, KeyMoveDirection::LeftUntilBoundary);
+				}
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_HOME, KeyMods::Shift))
+				{
+					moveTextCursor(panel, KeyMoveDirection::LeftUntilBeginning);
+				}
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_END, KeyMods::Shift))
+				{
+					moveTextCursor(panel, KeyMoveDirection::RightUntilEnd);
 				}
 
 				if (panel.cursorBytePosition != oldBytePos)
@@ -614,7 +605,7 @@ namespace MathAnim
 				else
 				{
 					char escapedCharacter = character == '\r' ? 'r' :
-						character == '\n' ? 'n' : 
+						character == '\n' ? 'n' :
 						character == '\t' ? 't' : '0';
 					ImGui::Text("                       Character: \\%c", escapedCharacter);
 				}
@@ -625,6 +616,33 @@ namespace MathAnim
 		}
 
 		// ------------- Internal Functions -------------
+		static void resetSelection(CodeEditorPanelData& panel)
+		{
+			panel.firstByteInSelection = panel.cursorBytePosition;
+			panel.lastByteInSelection = panel.cursorBytePosition;
+			panel.mouseByteDragStart = panel.cursorBytePosition;
+		}
+
+		static void moveTextCursor(CodeEditorPanelData& panel, KeyMoveDirection direction)
+		{
+			panel.cursorIsBlinkedOn = true;
+			panel.timeSinceCursorLastBlinked = 0.0f;
+
+			panel.cursorBytePosition = getNewCursorPositionFromMove(panel, direction);
+
+			bool recalculateDistanceFromLineStart = direction != KeyMoveDirection::Up && direction != KeyMoveDirection::Down;
+			if (recalculateDistanceFromLineStart)
+			{
+				setCursorDistanceFromLineStart(panel);
+			}
+		}
+
+		static void moveTextCursorAndResetSelection(CodeEditorPanelData& panel, KeyMoveDirection direction)
+		{
+			moveTextCursor(panel, direction);
+			resetSelection(panel);
+		}
+
 		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& drawPosition, SizedFont const* const font)
 		{
 			if (panel.timeSinceCursorLastBlinked >= cursorBlinkTime)
@@ -848,6 +866,16 @@ namespace MathAnim
 			panel.visibleCharacterBuffer = (uint8*)g_memory_realloc((void*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize);
 		}
 
+		static inline bool isBoundaryCharacter(uint32 c)
+		{
+			if (c == ' ' || c == ':' || c == ';')
+			{
+				return true;
+			}
+
+			return false;
+		}
+
 		static int32 getNewCursorPositionFromMove(CodeEditorPanelData const& panel, KeyMoveDirection direction)
 		{
 			switch (direction)
@@ -923,22 +951,115 @@ namespace MathAnim
 
 			case KeyMoveDirection::LeftUntilBeginning:
 			{
+				int32 beginningOfCurrentLine = getBeginningOfLineFrom(panel, panel.cursorBytePosition);
+
+				for (int32 i = beginningOfCurrentLine; i < panel.visibleCharacterBufferSize; i++)
+				{
+					uint32 c = panel.byteMap[panel.visibleCharacterBuffer[i]];
+					if (c == ' ' || c == '\t')
+					{
+						continue;
+					}
+
+					// Return the first non-whitespace character from the beginning of the line if we're in front of the beginning
+					// of the line, or at the beginning of the line
+					if (panel.cursorBytePosition > i || panel.cursorBytePosition == beginningOfCurrentLine)
+					{
+						return i;
+					}
+					// Otherwise return the beginning of the line
+					else
+					{
+						return beginningOfCurrentLine;
+					}
+				}
 				break;
 			}
 
 			case KeyMoveDirection::RightUntilEnd:
 			{
-				break;
+				int32 endOfCurrentLine = getEndOfLineFrom(panel, panel.cursorBytePosition);
+				return endOfCurrentLine;
 			}
 
 			case KeyMoveDirection::LeftUntilBoundary:
 			{
-				break;
+				int32 startPos = glm::clamp(panel.cursorBytePosition - 1, 0, (int32)panel.visibleCharacterBufferSize);
+
+				uint32 c = panel.byteMap[panel.visibleCharacterBuffer[startPos]];
+				bool startedOnSkippableWhitespace = c == ' ' || c == '\t';
+				bool skippedAllWhitespace = false;
+
+				for (int32 i = panel.cursorBytePosition - 1; i >= 0; i--)
+				{
+					c = panel.byteMap[panel.visibleCharacterBuffer[i]];
+
+					// Handle newlines
+					if (c == '\n' && i != panel.cursorBytePosition - 1)
+					{
+						return glm::clamp(i + 1, 0, (int32)panel.visibleCharacterBufferSize);
+					}
+
+					// Handle skippable whitespace
+					if (startedOnSkippableWhitespace && (c == ' ' || c == '\t') && !skippedAllWhitespace)
+					{
+						continue;
+					}
+					else if (startedOnSkippableWhitespace && c != ' ' && c != '\t')
+					{
+						skippedAllWhitespace = true;
+						continue;
+					}
+					else if (startedOnSkippableWhitespace && skippedAllWhitespace && (c == ' ' || c == '\t'))
+					{
+						return glm::clamp(i + 1, 0, (int32)panel.visibleCharacterBufferSize);
+					}
+					else if (!startedOnSkippableWhitespace && (c == ' ' || c == '\t'))
+					{
+						return glm::clamp(i + 1, 0, (int32)panel.visibleCharacterBufferSize);
+					}
+				}
+
+				return 0;
 			}
 
 			case KeyMoveDirection::RightUntilBoundary:
 			{
-				break;
+				uint32 c = panel.byteMap[panel.visibleCharacterBuffer[panel.cursorBytePosition]];
+				bool startedOnSkippableWhitespace = c == ' ' || c == '\t';
+				bool skippedAllWhitespace = false;
+
+				for (int32 i = panel.cursorBytePosition; i < panel.visibleCharacterBufferSize; i++)
+				{
+					c = panel.byteMap[panel.visibleCharacterBuffer[i]];
+
+					// Handle newlines
+					if (c == '\n' && i != panel.cursorBytePosition)
+					{
+						return i;
+					}
+
+					// Handle skippable whitespace
+					if (startedOnSkippableWhitespace && (c == ' ' || c == '\t') && !skippedAllWhitespace)
+					{
+						continue;
+					}
+					else if (startedOnSkippableWhitespace && c != ' ' && c != '\t')
+					{
+						skippedAllWhitespace = true;
+						continue;
+					}
+					else if (startedOnSkippableWhitespace && skippedAllWhitespace && (c == ' ' || c == '\t'))
+					{
+						return i;
+					}
+					else if (!startedOnSkippableWhitespace && (c == ' ' || c == '\t'))
+					{
+						return i;
+					}
+				}
+
+				return (int32)panel.visibleCharacterBufferSize;
 			}
 
 			}
