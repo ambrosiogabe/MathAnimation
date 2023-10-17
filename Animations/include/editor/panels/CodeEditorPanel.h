@@ -18,7 +18,6 @@ namespace MathAnim
 		int32 mouseByteDragStart;
 		int32 firstByteInSelection;
 		int32 lastByteInSelection;
-		int32 lastByteInSelectionIncludingNewline;
 		int32 cursorBytePosition;
 		int32 cursorDistanceToBeginningOfLine;
 		float timeSinceCursorLastBlinked;
