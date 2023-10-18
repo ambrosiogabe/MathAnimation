@@ -96,10 +96,6 @@ namespace MathAnim
 		{
 			MP_PROFILE_EVENT("EditorGui_Update");
 
-			// TODO: Do this in a central file
-			checkHotKeys(am);
-			checkForMousePicking(am, editorFramebuffer);
-
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
 			// NOTE: Begin will return whether the window is visible
@@ -153,6 +149,10 @@ namespace MathAnim
 			InspectorPanel::update(am);
 			CodeEditorPanelManager::update(am, editorViewportDockId);
 			ErrorPopups::update(am);
+
+			// TODO: Do this in a central file
+			checkHotKeys(am);
+			checkForMousePicking(am, editorFramebuffer);
 		}
 
 		void onGizmo(AnimationManagerData* am)

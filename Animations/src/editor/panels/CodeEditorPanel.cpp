@@ -246,144 +246,151 @@ namespace MathAnim
 
 			SizedFont const* const codeFont = CodeEditorPanelManager::getCodeFont();
 			ImGuiStyle& style = ImGui::GetStyle();
+			ImGuiIO& io = ImGui::GetIO();
 			panel.timeSinceCursorLastBlinked += Application::getDeltaTime();
 
 			// ---- Handle arrow key presses ----
 
-			// Handle key presses to move cursor without the select modifier (Shift) being pressed
+			bool windowIsFocused = ImGui::IsWindowFocused();
+			if (windowIsFocused)
 			{
-				if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT))
-				{
-					moveTextCursorAndResetSelection(panel, KeyMoveDirection::Right);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT))
-				{
-					moveTextCursorAndResetSelection(panel, KeyMoveDirection::Left);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_UP))
-				{
-					moveTextCursorAndResetSelection(panel, KeyMoveDirection::Up);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN))
-				{
-					moveTextCursorAndResetSelection(panel, KeyMoveDirection::Down);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT, KeyMods::Ctrl))
-				{
-					moveTextCursorAndResetSelection(panel, KeyMoveDirection::RightUntilBoundary);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT, KeyMods::Ctrl))
-				{
-					moveTextCursorAndResetSelection(panel, KeyMoveDirection::LeftUntilBoundary);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_HOME))
-				{
-					moveTextCursorAndResetSelection(panel, KeyMoveDirection::LeftUntilBeginning);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_END))
-				{
-					moveTextCursorAndResetSelection(panel, KeyMoveDirection::RightUntilEnd);
-				}
-			}
+				io.WantTextInput = true;
 
-			// Handle key presses to move cursor + select modifier (Shift)
-			{
-				int32 oldBytePos = panel.cursorBytePosition;
-				if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT, KeyMods::Shift))
+				// Handle key presses to move cursor without the select modifier (Shift) being pressed
 				{
-					moveTextCursor(panel, KeyMoveDirection::Right);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT, KeyMods::Shift))
-				{
-					moveTextCursor(panel, KeyMoveDirection::Left);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_UP, KeyMods::Shift))
-				{
-					moveTextCursor(panel, KeyMoveDirection::Up);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN, KeyMods::Shift))
-				{
-					moveTextCursor(panel, KeyMoveDirection::Down);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT, KeyMods::Shift | KeyMods::Ctrl))
-				{
-					moveTextCursor(panel, KeyMoveDirection::RightUntilBoundary);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT, KeyMods::Shift | KeyMods::Ctrl))
-				{
-					moveTextCursor(panel, KeyMoveDirection::LeftUntilBoundary);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_HOME, KeyMods::Shift))
-				{
-					moveTextCursor(panel, KeyMoveDirection::LeftUntilBeginning);
-				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_END, KeyMods::Shift))
-				{
-					moveTextCursor(panel, KeyMoveDirection::RightUntilEnd);
-				}
-
-				if (panel.cursorBytePosition != oldBytePos)
-				{
-					if (panel.cursorBytePosition == panel.mouseByteDragStart)
+					if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT))
 					{
-						panel.firstByteInSelection = panel.cursorBytePosition;
-						panel.lastByteInSelection = panel.cursorBytePosition;
+						moveTextCursorAndResetSelection(panel, KeyMoveDirection::Right);
 					}
-					else if (panel.cursorBytePosition > panel.mouseByteDragStart)
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT))
 					{
-						panel.lastByteInSelection = panel.cursorBytePosition;
+						moveTextCursorAndResetSelection(panel, KeyMoveDirection::Left);
 					}
-					else
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_UP))
 					{
-						panel.firstByteInSelection = panel.cursorBytePosition;
+						moveTextCursorAndResetSelection(panel, KeyMoveDirection::Up);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN))
+					{
+						moveTextCursorAndResetSelection(panel, KeyMoveDirection::Down);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT, KeyMods::Ctrl))
+					{
+						moveTextCursorAndResetSelection(panel, KeyMoveDirection::RightUntilBoundary);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT, KeyMods::Ctrl))
+					{
+						moveTextCursorAndResetSelection(panel, KeyMoveDirection::LeftUntilBoundary);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_HOME))
+					{
+						moveTextCursorAndResetSelection(panel, KeyMoveDirection::LeftUntilBeginning);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_END))
+					{
+						moveTextCursorAndResetSelection(panel, KeyMoveDirection::RightUntilEnd);
 					}
 				}
-			}
 
-			// Handle backspace
-			// TODO: Not all backspaces are handled for some reason
-			if (Input::keyRepeatedOrDown(GLFW_KEY_BACKSPACE))
-			{
-				if (removeSelectedTextWithBackspace(panel))
+				// Handle key presses to move cursor + select modifier (Shift)
 				{
+					int32 oldBytePos = panel.cursorBytePosition;
+					if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT, KeyMods::Shift))
+					{
+						moveTextCursor(panel, KeyMoveDirection::Right);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT, KeyMods::Shift))
+					{
+						moveTextCursor(panel, KeyMoveDirection::Left);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_UP, KeyMods::Shift))
+					{
+						moveTextCursor(panel, KeyMoveDirection::Up);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN, KeyMods::Shift))
+					{
+						moveTextCursor(panel, KeyMoveDirection::Down);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_RIGHT, KeyMods::Shift | KeyMods::Ctrl))
+					{
+						moveTextCursor(panel, KeyMoveDirection::RightUntilBoundary);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_LEFT, KeyMods::Shift | KeyMods::Ctrl))
+					{
+						moveTextCursor(panel, KeyMoveDirection::LeftUntilBoundary);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_HOME, KeyMods::Shift))
+					{
+						moveTextCursor(panel, KeyMoveDirection::LeftUntilBeginning);
+					}
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_END, KeyMods::Shift))
+					{
+						moveTextCursor(panel, KeyMoveDirection::RightUntilEnd);
+					}
+
+					if (panel.cursorBytePosition != oldBytePos)
+					{
+						if (panel.cursorBytePosition == panel.mouseByteDragStart)
+						{
+							panel.firstByteInSelection = panel.cursorBytePosition;
+							panel.lastByteInSelection = panel.cursorBytePosition;
+						}
+						else if (panel.cursorBytePosition > panel.mouseByteDragStart)
+						{
+							panel.lastByteInSelection = panel.cursorBytePosition;
+						}
+						else
+						{
+							panel.firstByteInSelection = panel.cursorBytePosition;
+						}
+					}
+				}
+
+				// Handle backspace
+				// TODO: Not all backspaces are handled for some reason
+				if (Input::keyRepeatedOrDown(GLFW_KEY_BACKSPACE))
+				{
+					if (removeSelectedTextWithBackspace(panel))
+					{
+						fileHasBeenEdited = true;
+					}
+				}
+
+				// Handle delete
+				if (Input::keyRepeatedOrDown(GLFW_KEY_DELETE))
+				{
+					if (removeSelectedTextWithDelete(panel))
+					{
+						fileHasBeenEdited = true;
+					}
+				}
+
+				// Handle text-insertion
+				if (uint32 codepoint = Input::getLastCharacterTyped(); codepoint != 0)
+				{
+					if (panel.firstByteInSelection != panel.lastByteInSelection)
+					{
+						removeSelectedTextWithBackspace(panel);
+					}
+
+					addCodepointToBuffer(panel, codepoint);
+					setCursorDistanceFromLineStart(panel);
 					fileHasBeenEdited = true;
 				}
-			}
 
-			if (Input::keyRepeatedOrDown(GLFW_KEY_DELETE))
-			{
-				if (removeSelectedTextWithDelete(panel))
+				// Handle newline-insertion
+				if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER))
 				{
+					addCodepointToBuffer(panel, (uint32)'\n');
+					setCursorDistanceFromLineStart(panel);
 					fileHasBeenEdited = true;
 				}
-			}
-
-			// Handle text-insertion
-			if (uint32 codepoint = Input::getLastCharacterTyped(); codepoint != 0)
-			{
-				if (panel.firstByteInSelection != panel.lastByteInSelection)
-				{
-					removeSelectedTextWithBackspace(panel);
-				}
-
-				addCodepointToBuffer(panel, codepoint);
-				setCursorDistanceFromLineStart(panel);
-				fileHasBeenEdited = true;
-			}
-
-			// Handle newline-insertion
-			if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER))
-			{
-				addCodepointToBuffer(panel, (uint32)'\n');
-				setCursorDistanceFromLineStart(panel);
-				fileHasBeenEdited = true;
 			}
 
 			// ---- Handle Rendering/mouse clicking ----
 			panel.drawStart = ImGui::GetCursorScreenPos();
 			panel.drawEnd = panel.drawStart + ImGui::GetContentRegionAvail();
 
-			ImGuiIO& io = ImGui::GetIO();
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 			drawList->AddRectFilled(panel.drawStart, panel.drawEnd, ImColor(44, 44, 44));
 
@@ -570,14 +577,14 @@ namespace MathAnim
 				}
 			}
 
-			if (io.MouseDown[ImGuiMouseButton_Left])
-			{
-				panel.cursorBytePosition = closestByteToMouseCursor;
-				setCursorDistanceFromLineStart(panel);
-			}
-
 			if (mouseInTextEditArea(panel))
 			{
+				if (io.MouseDown[ImGuiMouseButton_Left])
+				{
+					panel.cursorBytePosition = closestByteToMouseCursor;
+					setCursorDistanceFromLineStart(panel);
+				}
+
 				const bool mouseClicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
 				if (mouseClicked && !panel.mouseIsDragSelecting)
 				{
@@ -650,6 +657,11 @@ namespace MathAnim
 
 		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& drawPosition, SizedFont const* const font)
 		{
+			if (!ImGui::IsWindowFocused())
+			{
+				return;
+			}
+
 			if (panel.timeSinceCursorLastBlinked >= cursorBlinkTime)
 			{
 				panel.cursorIsBlinkedOn = !panel.cursorIsBlinkedOn;
