@@ -361,6 +361,11 @@ namespace MathAnim
 			// Handle text-insertion
 			if (uint32 codepoint = Input::getLastCharacterTyped(); codepoint != 0)
 			{
+				if (panel.firstByteInSelection != panel.lastByteInSelection)
+				{
+					removeSelectedTextWithBackspace(panel);
+				}
+
 				addCodepointToBuffer(panel, codepoint);
 				setCursorDistanceFromLineStart(panel);
 				fileHasBeenEdited = true;
@@ -868,7 +873,8 @@ namespace MathAnim
 
 		static inline bool isBoundaryCharacter(uint32 c)
 		{
-			if (c == ' ' || c == ':' || c == ';')
+			if (c == ':' || c == ';' || c == '"' || c == '\'' || c == '.' || c == '(' || c == ')' || c == '{' || c == '}'
+				|| c == '-' || c == '+' || c == '*' || c == '/' || c == ',' || c == '=')
 			{
 				return true;
 			}
@@ -989,6 +995,7 @@ namespace MathAnim
 				uint32 c = panel.byteMap[panel.visibleCharacterBuffer[startPos]];
 				bool startedOnSkippableWhitespace = c == ' ' || c == '\t';
 				bool skippedAllWhitespace = false;
+				bool hitBoundaryCharacterButSkipped = false;
 
 				for (int32 i = panel.cursorBytePosition - 1; i >= 0; i--)
 				{
@@ -1000,12 +1007,27 @@ namespace MathAnim
 						return glm::clamp(i + 1, 0, (int32)panel.visibleCharacterBufferSize);
 					}
 
-					// Handle skippable whitespace
-					if (startedOnSkippableWhitespace && (c == ' ' || c == '\t') && !skippedAllWhitespace)
+					// Handle boundary characters
+					if (isBoundaryCharacter(c) && i != panel.cursorBytePosition - 1)
 					{
-						continue;
+						uint32 nextC = i + 1 < panel.visibleCharacterBufferSize ? panel.byteMap[panel.visibleCharacterBuffer[i + 1]] : '\0';
+						if (isBoundaryCharacter(nextC) || nextC == ' ' || nextC == '\t' || hitBoundaryCharacterButSkipped)
+						{
+							hitBoundaryCharacterButSkipped = true;
+							continue;
+						}
+						else
+						{
+							return glm::clamp(i + 1, 0, (int32)panel.visibleCharacterBufferSize);
+						}
 					}
-					else if (startedOnSkippableWhitespace && c != ' ' && c != '\t')
+					else if (!isBoundaryCharacter(c) && hitBoundaryCharacterButSkipped)
+					{
+						return glm::clamp(i + 1, 0, (int32)panel.visibleCharacterBufferSize);
+					}
+
+					// Handle skippable whitespace
+					if (startedOnSkippableWhitespace && c != ' ' && c != '\t')
 					{
 						skippedAllWhitespace = true;
 						continue;
@@ -1028,6 +1050,7 @@ namespace MathAnim
 				uint32 c = panel.byteMap[panel.visibleCharacterBuffer[panel.cursorBytePosition]];
 				bool startedOnSkippableWhitespace = c == ' ' || c == '\t';
 				bool skippedAllWhitespace = false;
+				bool hitBoundaryCharacterButSkipped = false;
 
 				for (int32 i = panel.cursorBytePosition; i < panel.visibleCharacterBufferSize; i++)
 				{
@@ -1039,12 +1062,27 @@ namespace MathAnim
 						return i;
 					}
 
-					// Handle skippable whitespace
-					if (startedOnSkippableWhitespace && (c == ' ' || c == '\t') && !skippedAllWhitespace)
+					// Handle boundary characters
+					if (isBoundaryCharacter(c) && i != panel.cursorBytePosition)
 					{
-						continue;
+						uint32 prevC = i - 1 >= 0 ? panel.byteMap[panel.visibleCharacterBuffer[i - 1]] : '\0';
+						if (isBoundaryCharacter(prevC) || prevC == ' ' || prevC == '\t' || hitBoundaryCharacterButSkipped)
+						{
+							hitBoundaryCharacterButSkipped = true;
+							continue;
+						}
+						else
+						{
+							return i;
+						}
 					}
-					else if (startedOnSkippableWhitespace && c != ' ' && c != '\t')
+					else if (!isBoundaryCharacter(c) && hitBoundaryCharacterButSkipped)
+					{
+						return i;
+					}
+
+					// Handle skippable whitespace
+					if (startedOnSkippableWhitespace && c != ' ' && c != '\t')
 					{
 						skippedAllWhitespace = true;
 						continue;
