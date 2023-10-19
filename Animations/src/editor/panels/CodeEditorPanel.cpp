@@ -140,6 +140,8 @@ namespace MathAnim
 
 			res->undoSystem = UndoSystem::createTextEditorUndoSystem(res, MAX_UNDO_HISTORY);
 
+			g_memory_free(memory.data);
+
 			return res;
 		}
 
@@ -184,8 +186,8 @@ namespace MathAnim
 
 		void free(CodeEditorPanelData* panel)
 		{
+			UndoSystem::free(panel->undoSystem);
 			g_memory_free((void*)panel->visibleCharacterBuffer);
-			panel = {};
 			g_memory_delete(panel);
 		}
 
