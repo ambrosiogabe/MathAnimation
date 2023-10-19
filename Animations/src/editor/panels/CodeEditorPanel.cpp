@@ -28,6 +28,8 @@ namespace MathAnim
 		// ------------- Internal Functions -------------
 		static void resetSelection(CodeEditorPanelData& panel);
 		static void handleTypingUndo(CodeEditorPanelData& panel);
+		static void handleBackspaceUndo(CodeEditorPanelData& panel, bool shouldSetTextSelectedOnUndo);
+		static void handleDeleteUndo(CodeEditorPanelData& panel, bool shouldSetTextSelectedOnUndo);
 		static void moveTextCursor(CodeEditorPanelData& panel, KeyMoveDirection direction);
 		static void moveTextCursorAndResetSelection(CodeEditorPanelData& panel, KeyMoveDirection direction);
 		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& textCursorDrawPosition, SizedFont const* const font);
@@ -39,8 +41,6 @@ namespace MathAnim
 		static bool removeSelectedTextWithDelete(CodeEditorPanelData& panel);
 		static bool removeText(CodeEditorPanelData& panel, int32 textToRemoveOffset, int32 textToRemoveNumBytes);
 		static int32 getNewCursorPositionFromMove(CodeEditorPanelData const& panel, KeyMoveDirection direction);
-		static void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength);
-		static void translateLocalByteMappingToString(CodeEditorPanelData const& panel, uint8* byteMappedString, size_t numBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes);
 
 		// Simple calculation functions
 		static inline ImVec2 getTopLeftOfLine(CodeEditorPanelData const& panel, uint32 lineNumber, SizedFont const* const font)
@@ -642,7 +642,7 @@ namespace MathAnim
 			{
 				return false;
 			}
-			
+
 			removeText(panel, textToRemoveStart, textToRemoveLength);
 
 			panel.cursorBytePosition = textToRemoveStart;
@@ -675,6 +675,86 @@ namespace MathAnim
 			return true;
 		}
 
+		void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength)
+		{
+			*outStr = nullptr;
+			*outStrLength = 0;
+
+			// Translate UTF8 string to local byte mapping
+			auto maybeParseInfo = Parser::makeParseInfo((char*)utf8String, stringNumBytes);
+			if (!maybeParseInfo.hasValue())
+			{
+				g_logger_error("Could not add UTF-8 string '{}' to editor. Had error '{}'.", utf8String, maybeParseInfo.error());
+				return;
+			}
+
+			*outStr = (uint8*)g_memory_allocate(sizeof(uint8) * stringNumBytes);
+
+			auto parseInfo = maybeParseInfo.value();
+			while (parseInfo.cursor < parseInfo.numBytes)
+			{
+				uint8 numBytesParsed = 1;
+				auto codepoint = Parser::parseCharacter(parseInfo, &numBytesParsed);
+				if (!codepoint.hasValue())
+				{
+					g_logger_error("File has malformed unicode. Skipping bad unicode data.");
+					parseInfo.numBytes++;
+					continue;
+				}
+
+				// Also, skip carriage returns 'cuz screw those
+				if (codepoint.value() == (uint32)'\r')
+				{
+					parseInfo.cursor += numBytesParsed;
+					continue;
+				}
+
+				uint8 byteMapping = CodeEditorPanelManager::addCharToFont(codepoint.value());
+				panel.byteMap[byteMapping] = codepoint.value();
+
+				(*outStr)[(*outStrLength)] = byteMapping;
+				*outStrLength = *outStrLength + 1;
+
+				parseInfo.cursor += numBytesParsed;
+			}
+
+			*outStr = (uint8*)g_memory_realloc((void*)(*outStr), (*outStrLength) * sizeof(uint8));
+		}
+
+		void translateLocalByteMappingToString(CodeEditorPanelData const& panel, uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes)
+		{
+			// Translate to valid UTF-8
+			RawMemory memory{};
+			memory.init(sizeof(uint8) * byteMappedStringNumBytes);
+
+			for (size_t i = 0; i < byteMappedStringNumBytes; i++)
+			{
+				uint32 codepoint = panel.byteMap[byteMappedString[i]];
+
+				// TODO: Figure out way to translate codepoint to valid u8 bytes
+				uint8 numBytes = 1;
+				uint8 utf8Bytes = (uint8)codepoint;
+
+				#ifdef _WIN32
+				g_logger_assert(codepoint != (uint32)'\r', "We should never get carriage returns in our edit buffers");
+
+				// If we're on windows, translate newlines to carriage return + newlines when saving the files again
+				if (codepoint == (uint32)'\n')
+				{
+					uint8 carriageReturn = '\r';
+					memory.write(&carriageReturn);
+				}
+				#endif
+
+				memory.writeDangerous(&utf8Bytes, numBytes * sizeof(uint8));
+			}
+
+			memory.shrinkToFit();
+
+			*outUtf8String = memory.data;
+			*outUtf8StringNumBytes = memory.size;
+		}
+
 		// ------------- Internal Functions -------------
 		static void resetSelection(CodeEditorPanelData& panel)
 		{
@@ -692,7 +772,7 @@ namespace MathAnim
 			}
 
 			int32 numBytesInUndo = (panel.cursorBytePosition - panel.undoTypingStart);
-			if (panel.undoTypingStart > panel.cursorBytePosition || numBytesInUndo < 0 || 
+			if (panel.undoTypingStart > panel.cursorBytePosition || numBytesInUndo < 0 ||
 				panel.undoTypingStart + numBytesInUndo > panel.visibleCharacterBufferSize)
 			{
 				g_logger_warning("Invalid undo typing cursor encountered.");
@@ -719,6 +799,74 @@ namespace MathAnim
 			panel.undoTypingStart = -1;
 		}
 
+		static void handleBackspaceUndo(CodeEditorPanelData& panel, bool shouldSetTextSelectedOnUndo)
+		{
+			// Figure out what text we're about to delete
+			int32 numBytesToDelete = panel.lastByteInSelection - panel.firstByteInSelection;
+			if (numBytesToDelete < 0 || panel.firstByteInSelection + numBytesToDelete > panel.visibleCharacterBufferSize)
+			{
+				g_logger_error("This shouldn't happen. We are trying to add a backspace operation that deletes an invalid amount of text.");
+				return;
+			}
+
+			// Translate the text to a utf8-string
+			uint8* textAboutToBeDeleted = nullptr;
+			size_t textAboutToBeDeletedLength = 0;
+			translateLocalByteMappingToString(
+				panel,
+				panel.visibleCharacterBuffer + panel.firstByteInSelection,
+				numBytesToDelete,
+				&textAboutToBeDeleted,
+				&textAboutToBeDeletedLength
+			);
+
+			UndoSystem::backspaceTextAction(
+				panel.undoSystem,
+				textAboutToBeDeleted,
+				textAboutToBeDeletedLength,
+				panel.firstByteInSelection,
+				panel.firstByteInSelection + numBytesToDelete,
+				panel.cursorBytePosition,
+				shouldSetTextSelectedOnUndo
+			);
+
+			g_memory_free(textAboutToBeDeleted);
+		}
+
+		static void handleDeleteUndo(CodeEditorPanelData& panel, bool shouldSetTextSelectedOnUndo)
+		{
+			// Figure out what text we're about to delete
+			int32 numBytesToDelete = panel.lastByteInSelection - panel.firstByteInSelection;
+			if (numBytesToDelete < 0 || panel.firstByteInSelection + numBytesToDelete > panel.visibleCharacterBufferSize)
+			{
+				g_logger_error("This shouldn't happen. We are trying to add a backspace operation that deletes an invalid amount of text.");
+				return;
+			}
+
+			// Translate the text to a utf8-string
+			uint8* textAboutToBeDeleted = nullptr;
+			size_t textAboutToBeDeletedLength = 0;
+			translateLocalByteMappingToString(
+				panel,
+				panel.visibleCharacterBuffer + panel.firstByteInSelection,
+				numBytesToDelete,
+				&textAboutToBeDeleted,
+				&textAboutToBeDeletedLength
+			);
+
+			UndoSystem::deleteTextAction(
+				panel.undoSystem,
+				textAboutToBeDeleted,
+				textAboutToBeDeletedLength,
+				panel.firstByteInSelection,
+				panel.firstByteInSelection + numBytesToDelete,
+				panel.cursorBytePosition,
+				shouldSetTextSelectedOnUndo
+			);
+
+			g_memory_free(textAboutToBeDeleted);
+		}
+
 		static void moveTextCursor(CodeEditorPanelData& panel, KeyMoveDirection direction)
 		{
 			handleTypingUndo(panel);
@@ -737,8 +885,6 @@ namespace MathAnim
 
 		static void moveTextCursorAndResetSelection(CodeEditorPanelData& panel, KeyMoveDirection direction)
 		{
-			handleTypingUndo(panel);
-
 			moveTextCursor(panel, direction);
 			resetSelection(panel);
 		}
@@ -868,10 +1014,15 @@ namespace MathAnim
 
 			// If we're pressing backspace and no text is selected, pretend that the character behind the cursor is selected
 			// by pushing the selection window back one
+			bool shouldSetTextSelectedOnUndo = true;
 			if (panel.firstByteInSelection == panel.lastByteInSelection)
 			{
+				shouldSetTextSelectedOnUndo = false;
 				panel.firstByteInSelection--;
 			}
+
+			// Add an undo command if needed
+			handleBackspaceUndo(panel, shouldSetTextSelectedOnUndo);
 
 			return removeTextWithBackspace(panel, panel.firstByteInSelection, panel.lastByteInSelection - panel.firstByteInSelection);
 		}
@@ -886,10 +1037,15 @@ namespace MathAnim
 
 			// If we're pressing delete and no text is selected, pretend that the character in front of the cursor is selected
 			// by pushing the selection window forward one
+			bool shouldSetTextSelectedOnUndo = true;
 			if (panel.firstByteInSelection == panel.lastByteInSelection)
 			{
 				panel.lastByteInSelection++;
+				shouldSetTextSelectedOnUndo = false;
 			}
+
+			// Add an undo command if needed
+			handleDeleteUndo(panel, shouldSetTextSelectedOnUndo);
 
 			return removeTextWithDelete(panel, panel.firstByteInSelection, panel.lastByteInSelection - panel.firstByteInSelection);
 		}
@@ -1032,6 +1188,13 @@ namespace MathAnim
 			case KeyMoveDirection::RightUntilEnd:
 			{
 				int32 endOfCurrentLine = getEndOfLineFrom(panel, panel.cursorBytePosition);
+
+				// If we're at the end of the file, move all the way to the end
+				if (endOfCurrentLine == panel.visibleCharacterBufferSize - 1)
+				{
+					endOfCurrentLine++;
+				}
+
 				return endOfCurrentLine;
 			}
 
@@ -1150,86 +1313,6 @@ namespace MathAnim
 			}
 
 			return panel.cursorBytePosition;
-		}
-
-		static void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength)
-		{
-			*outStr = nullptr;
-			*outStrLength = 0;
-
-			// Translate UTF8 string to local byte mapping
-			auto maybeParseInfo = Parser::makeParseInfo((char*)utf8String, stringNumBytes);
-			if (!maybeParseInfo.hasValue())
-			{
-				g_logger_error("Could not add UTF-8 string '{}' to editor. Had error '{}'.", utf8String, maybeParseInfo.error());
-				return;
-			}
-
-			*outStr = (uint8*)g_memory_allocate(sizeof(uint8) * stringNumBytes);
-
-			auto parseInfo = maybeParseInfo.value();
-			while (parseInfo.cursor < parseInfo.numBytes)
-			{
-				uint8 numBytesParsed = 1;
-				auto codepoint = Parser::parseCharacter(parseInfo, &numBytesParsed);
-				if (!codepoint.hasValue())
-				{
-					g_logger_error("File has malformed unicode. Skipping bad unicode data.");
-					parseInfo.numBytes++;
-					continue;
-				}
-
-				// Also, skip carriage returns 'cuz screw those
-				if (codepoint.value() == (uint32)'\r')
-				{
-					parseInfo.cursor += numBytesParsed;
-					continue;
-				}
-
-				uint8 byteMapping = CodeEditorPanelManager::addCharToFont(codepoint.value());
-				panel.byteMap[byteMapping] = codepoint.value();
-
-				(*outStr)[(*outStrLength)] = byteMapping;
-				*outStrLength = *outStrLength + 1;
-
-				parseInfo.cursor += numBytesParsed;
-			}
-
-			*outStr = (uint8*)g_memory_realloc((void*)(*outStr), (*outStrLength) * sizeof(uint8));
-		}
-
-		static void translateLocalByteMappingToString(CodeEditorPanelData const& panel, uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes)
-		{
-			// Translate to valid UTF-8
-			RawMemory memory{};
-			memory.init(sizeof(uint8) * byteMappedStringNumBytes);
-
-			for (size_t i = 0; i < byteMappedStringNumBytes; i++)
-			{
-				uint32 codepoint = panel.byteMap[byteMappedString[i]];
-
-				// TODO: Figure out way to translate codepoint to valid u8 bytes
-				uint8 numBytes = 1;
-				uint8 utf8Bytes = (uint8)codepoint;
-
-				#ifdef _WIN32
-				g_logger_assert(codepoint != (uint32)'\r', "We should never get carriage returns in our edit buffers");
-
-				// If we're on windows, translate newlines to carriage return + newlines when saving the files again
-				if (codepoint == (uint32)'\n')
-				{
-					uint8 carriageReturn = '\r';
-					memory.write(&carriageReturn);
-				}
-				#endif
-
-				memory.writeDangerous(&utf8Bytes, numBytes * sizeof(uint8));
-			}
-
-			memory.shrinkToFit();
-
-			*outUtf8String = memory.data;
-			*outUtf8StringNumBytes = memory.size;
 		}
 	}
 }

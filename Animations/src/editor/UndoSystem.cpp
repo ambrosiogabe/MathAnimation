@@ -490,6 +490,7 @@ namespace MathAnim
 				{
 					if (i == ((us->undoCursorHead + us->numCommands) % us->maxHistorySize)) break;
 
+					us->history[i]->free(us->userCtx);
 					g_memory_delete(us->history[i]);
 					numCommandsRemoved++;
 				}
@@ -500,6 +501,7 @@ namespace MathAnim
 
 			if (((us->undoCursorTail + 1) % us->maxHistorySize) == us->undoCursorHead)
 			{
+				us->history[us->undoCursorHead]->free(us->userCtx);
 				g_memory_delete(us->history[us->undoCursorHead]);
 
 				us->undoCursorHead = (us->undoCursorHead + 1) % us->maxHistorySize;

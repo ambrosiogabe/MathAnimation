@@ -156,6 +156,8 @@ namespace MathAnim
 
 		virtual void execute(void* userContext) = 0;
 		virtual void undo(void* userContext) = 0;
+
+		virtual void free(void*) {}
 	};
 
 	namespace UndoSystem
@@ -170,6 +172,7 @@ namespace MathAnim
 		
 		// Returns the index the command was inserted at
 		uint32 pushCommand(UndoSystemData* us, Command* command);
+		void iterate(UndoSystemData* us);
 
 		void undo(UndoSystemData* us);
 		void redo(UndoSystemData* us);

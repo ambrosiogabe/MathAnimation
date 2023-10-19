@@ -8,7 +8,7 @@ namespace MathAnim
 	{
 		CodeEditorPanelData* codeEditor;
 		UndoSystemData* genericSystem;
-		size_t totalAllocatedMemory;
+		size_t totalMemoryAllocated;
 	};
 
 	class InsertTextCommand : public Command
@@ -32,10 +32,90 @@ namespace MathAnim
 			insertOffset = 0;
 		}
 
+		virtual void free(void* ctx) override
+		{
+			auto* us = (TextEditorUndoSystem*)ctx;
+			us->totalMemoryAllocated -= textToInsertSize;
+		}
+
 	private:
 		uint8* textToInsert;
 		size_t textToInsertSize;
 		size_t insertOffset;
+	};
+
+	class BackspaceTextCommand : public Command
+	{
+	public:
+		BackspaceTextCommand(uint8* inTextToDelete, size_t textToBeDeletedSize, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
+			: textToBeDeletedSize(textToBeDeletedSize), selectionStart(selectionStart), selectionEnd(selectionEnd), cursorPosition(cursorPosition), shouldSetTextSelected(shouldSetTextSelected)
+		{
+			this->textToBeDeleted = (uint8*)g_memory_allocate(textToBeDeletedSize);
+			g_memory_copyMem(this->textToBeDeleted, textToBeDeletedSize, inTextToDelete, textToBeDeletedSize);
+		}
+
+		virtual void execute(void* ctx) override;
+		virtual void undo(void* ctx) override;
+
+		virtual ~BackspaceTextCommand() override
+		{
+			g_memory_free(textToBeDeleted);
+			textToBeDeleted = nullptr;
+			textToBeDeletedSize = 0;
+			selectionStart = 0;
+			selectionEnd = 0;
+		}
+
+		virtual void free(void* ctx) override
+		{
+			auto* us = (TextEditorUndoSystem*)ctx;
+			us->totalMemoryAllocated -= textToBeDeletedSize;
+		}
+
+	private:
+		uint8* textToBeDeleted;
+		size_t textToBeDeletedSize;
+		size_t selectionStart;
+		size_t selectionEnd;
+		size_t cursorPosition;
+		bool shouldSetTextSelected;
+	};
+
+	class DeleteTextCommand : public Command
+	{
+	public:
+		DeleteTextCommand(uint8* inTextToDelete, size_t textToBeDeletedSize, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
+			: textToBeDeletedSize(textToBeDeletedSize), selectionStart(selectionStart), selectionEnd(selectionEnd), cursorPosition(cursorPosition), shouldSetTextSelected(shouldSetTextSelected)
+		{
+			this->textToBeDeleted = (uint8*)g_memory_allocate(textToBeDeletedSize);
+			g_memory_copyMem(this->textToBeDeleted, textToBeDeletedSize, inTextToDelete, textToBeDeletedSize);
+		}
+
+		virtual void execute(void* ctx) override;
+		virtual void undo(void* ctx) override;
+
+		virtual ~DeleteTextCommand() override
+		{
+			g_memory_free(textToBeDeleted);
+			textToBeDeleted = nullptr;
+			textToBeDeletedSize = 0;
+			selectionStart = 0;
+			selectionEnd = 0;
+		}
+
+		virtual void free(void* ctx) override
+		{
+			auto* us = (TextEditorUndoSystem*)ctx;
+			us->totalMemoryAllocated -= textToBeDeletedSize;
+		}
+
+	private:
+		uint8* textToBeDeleted;
+		size_t textToBeDeletedSize;
+		size_t selectionStart;
+		size_t selectionEnd;
+		size_t cursorPosition;
+		bool shouldSetTextSelected;
 	};
 
 	namespace UndoSystem
@@ -47,7 +127,6 @@ namespace MathAnim
 
 			res->codeEditor = codeEditor;
 			res->genericSystem = UndoSystem::init(res, maxHistory);
-			res->totalAllocatedMemory = 0;
 
 			return res;
 		}
@@ -77,20 +156,70 @@ namespace MathAnim
 		{
 			auto* newCommand = g_memory_new InsertTextCommand(text, textSize, textOffset);
 			pushCommand(us->genericSystem, newCommand);
+			us->totalMemoryAllocated += textSize;
 		}
 
-		void deleteTextAction(TextEditorUndoSystem* us, size_t deleteOffset, size_t deleteNumBytes)
+		void deleteTextAction(TextEditorUndoSystem* us, uint8* textToBeDeleted, size_t textToBeDeletedLength, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
 		{
-			// TODO: Remove me, compiler warning suppression for now
-			*us;
-			deleteOffset++;
-			deleteNumBytes++;
+			// TODO: Merge delete commands somehow
+			//       If two consecutive backspaces happen at the same position, they should be merged
+			//       However, if the backspace is at a different position, they should remain distinct
+			auto* newCommand = g_memory_new DeleteTextCommand(textToBeDeleted, textToBeDeletedLength, selectionStart, selectionEnd, cursorPosition, shouldSetTextSelected);
+			pushCommand(us->genericSystem, newCommand);
+			us->totalMemoryAllocated += textToBeDeletedLength;
+		}
+
+		void backspaceTextAction(TextEditorUndoSystem* us, uint8* textToBeDeleted, size_t textToBeDeletedLength, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
+		{
+			// TODO: Merge backspace commands somehow
+			//       If two consecutive backspaces happen at the same position, they should be merged
+			//       However, if the backspace is at a different position, they should remain distinct
+			auto* newCommand = g_memory_new BackspaceTextCommand(textToBeDeleted, textToBeDeletedLength, selectionStart, selectionEnd, cursorPosition, shouldSetTextSelected);
+			pushCommand(us->genericSystem, newCommand);
+			us->totalMemoryAllocated += textToBeDeletedLength;
 		}
 
 		void imguiStats(TextEditorUndoSystem const* undoSystem)
 		{
-			// TODO: Remove me, compiler warning suppression for now
-			*undoSystem;
+			const char* suffix = "B";
+			size_t totalMemoryAllocated = undoSystem->totalMemoryAllocated;
+			size_t remainder = 0;
+			size_t remainderPower = 0;
+			if (totalMemoryAllocated >= 1024)
+			{
+				// Divide by 1024
+				size_t newAllocation = totalMemoryAllocated >> 10;
+				remainder += totalMemoryAllocated - (newAllocation << 10);
+				totalMemoryAllocated = newAllocation;
+				suffix = "KB";
+				remainderPower += 10;
+			}
+
+			if (totalMemoryAllocated >= 1024)
+			{
+				// Divide by 1024
+				size_t newAllocation = totalMemoryAllocated >> 10;
+				remainder += totalMemoryAllocated - (newAllocation << 10);
+				totalMemoryAllocated = newAllocation;
+				suffix = "MB";
+				remainderPower += 10;
+			}
+
+			if (totalMemoryAllocated >= 1024)
+			{
+				// Divide by 1024
+				size_t newAllocation = totalMemoryAllocated >> 10;
+				remainder += totalMemoryAllocated - (newAllocation << 10);
+				totalMemoryAllocated = newAllocation;
+				suffix = "GB";
+				remainderPower += 10;
+			}
+
+			float remainderFloat = (float)remainder / (float)(1 << remainderPower);
+			// Integer with 2 decimal places of precision
+			int integerRemainder = (int)(remainderFloat * 100.0f);
+
+			ImGui::Text("Total Allocated Memory: %d.%d%s", totalMemoryAllocated, integerRemainder, suffix);
 		}
 	}
 
@@ -98,7 +227,7 @@ namespace MathAnim
 	void InsertTextCommand::execute(void* ctx)
 	{
 		auto* us = (TextEditorUndoSystem*)ctx;
-		
+
 		CodeEditorPanel::addUtf8StringToBuffer(*us->codeEditor, this->textToInsert, (int32)this->textToInsertSize, (int32)this->insertOffset);
 	}
 
@@ -107,5 +236,59 @@ namespace MathAnim
 		auto* us = (TextEditorUndoSystem*)ctx;
 
 		CodeEditorPanel::removeTextWithBackspace(*us->codeEditor, (int32)this->insertOffset, (int32)this->textToInsertSize);
+	}
+
+	void BackspaceTextCommand::execute(void* ctx)
+	{
+		auto* us = (TextEditorUndoSystem*)ctx;
+
+		CodeEditorPanel::removeTextWithBackspace(*us->codeEditor, (int32)this->selectionStart, (int32)(this->selectionEnd - this->selectionStart));
+	}
+
+	void BackspaceTextCommand::undo(void* ctx)
+	{
+		auto* us = (TextEditorUndoSystem*)ctx;
+
+		CodeEditorPanel::addUtf8StringToBuffer(*us->codeEditor, this->textToBeDeleted, (int32)this->textToBeDeletedSize, (int32)this->selectionStart);
+		us->codeEditor->cursorBytePosition = (int32)this->cursorPosition;
+		if (this->shouldSetTextSelected)
+		{
+			us->codeEditor->firstByteInSelection = (int32)this->selectionStart;
+			us->codeEditor->lastByteInSelection = (int32)this->selectionEnd;
+			us->codeEditor->mouseByteDragStart = this->cursorPosition == this->selectionEnd ? (int32)this->selectionStart : (int32)this->selectionEnd;
+		}
+		else
+		{
+			us->codeEditor->firstByteInSelection = us->codeEditor->cursorBytePosition;
+			us->codeEditor->lastByteInSelection = us->codeEditor->cursorBytePosition;
+			us->codeEditor->mouseByteDragStart = us->codeEditor->cursorBytePosition;
+		}
+	}
+
+	void DeleteTextCommand::execute(void* ctx)
+	{
+		auto* us = (TextEditorUndoSystem*)ctx;
+
+		CodeEditorPanel::removeTextWithDelete(*us->codeEditor, (int32)this->selectionStart, (int32)(this->selectionEnd - this->selectionStart));
+	}
+
+	void DeleteTextCommand::undo(void* ctx)
+	{
+		auto* us = (TextEditorUndoSystem*)ctx;
+
+		CodeEditorPanel::addUtf8StringToBuffer(*us->codeEditor, this->textToBeDeleted, (int32)this->textToBeDeletedSize, (int32)this->selectionStart);
+		us->codeEditor->cursorBytePosition = (int32)this->cursorPosition;
+		if (this->shouldSetTextSelected)
+		{
+			us->codeEditor->firstByteInSelection = (int32)this->selectionStart;
+			us->codeEditor->lastByteInSelection = (int32)this->selectionEnd;
+			us->codeEditor->mouseByteDragStart = this->cursorPosition == this->selectionEnd ? (int32)this->selectionStart : (int32)this->selectionEnd;
+		}
+		else
+		{
+			us->codeEditor->firstByteInSelection = us->codeEditor->cursorBytePosition;
+			us->codeEditor->lastByteInSelection = us->codeEditor->cursorBytePosition;
+			us->codeEditor->mouseByteDragStart = us->codeEditor->cursorBytePosition;
+		}
 	}
 }

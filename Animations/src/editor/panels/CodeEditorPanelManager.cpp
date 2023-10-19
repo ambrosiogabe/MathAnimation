@@ -1,5 +1,6 @@
 #include "editor/panels/CodeEditorPanelManager.h"
 #include "editor/panels/CodeEditorPanel.h"
+#include "editor/TextEditUndo.h"
 #include "animation/AnimationManager.h"
 #include "core/Input.h"
 #include "renderer/Fonts.h"
@@ -103,6 +104,22 @@ namespace MathAnim
 					editor++;
 				}
 			}
+		}
+
+		void imguiStats()
+		{
+			ImGui::Separator();
+
+			ImGui::Text("Text Editor Undo Stats");
+
+			for (auto const& editor : openEditors)
+			{
+				ImGui::NewLine();
+				ImGui::Text("%s", editor.windowName.c_str());
+				UndoSystem::imguiStats(editor.panel->undoSystem);
+			}
+
+			ImGui::Separator();
 		}
 
 		void openFile(std::string const& filename)
