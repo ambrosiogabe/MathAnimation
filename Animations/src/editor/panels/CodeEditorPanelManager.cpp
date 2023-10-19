@@ -8,7 +8,7 @@ namespace MathAnim
 {
 	struct CodeEditorMetadata
 	{
-		CodeEditorPanelData panel;
+		CodeEditorPanelData* panel;
 		uint64_t uuid;
 		std::string windowName;
 		bool isEditedWithoutSave;
@@ -60,7 +60,7 @@ namespace MathAnim
 				CodeEditorMetadata nextWindow = {};
 				nextWindow.panel = CodeEditorPanel::openFile(nextFileToAdd);
 				nextWindow.uuid = uuidCounter++;
-				nextWindow.windowName = nextWindow.panel.filepath.filename().string() + "##" + std::to_string(nextWindow.uuid);
+				nextWindow.windowName = nextWindow.panel->filepath.filename().string() + "##" + std::to_string(nextWindow.uuid);
 				openEditors.emplace_back(nextWindow);
 				fileMap[nextFileToAdd] = openEditors.size() - 1;
 
@@ -79,7 +79,7 @@ namespace MathAnim
 
 				if (windowIsActive) 
 				{
-					bool hasBeenEdited = CodeEditorPanel::update(editor->panel);
+					bool hasBeenEdited = CodeEditorPanel::update(*editor->panel);
 					editor->isEditedWithoutSave = editor->isEditedWithoutSave || hasBeenEdited;
 				}
 
@@ -88,13 +88,13 @@ namespace MathAnim
 
 				if (windowIsFocused && Input::keyPressed(GLFW_KEY_S, KeyMods::Ctrl))
 				{
-					CodeEditorPanel::saveFile(editor->panel);
+					CodeEditorPanel::saveFile(*editor->panel);
 					editor->isEditedWithoutSave = false;
 				}
 
 				if (!open)
 				{
-					fileMap.erase(editor->panel.filepath.string());
+					fileMap.erase(editor->panel->filepath.string());
 					CodeEditorPanel::free(editor->panel);
 					editor = openEditors.erase(editor);
 				}

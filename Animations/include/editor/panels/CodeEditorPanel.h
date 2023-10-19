@@ -4,8 +4,11 @@
 
 namespace MathAnim
 {
+	struct TextEditorUndoSystem;
+
 	struct CodeEditorPanelData
 	{
+		TextEditorUndoSystem* undoSystem;
 		std::filesystem::path filepath;
 
 		uint32 lineNumberStart;
@@ -32,10 +35,13 @@ namespace MathAnim
 
 	namespace CodeEditorPanel
 	{
-		CodeEditorPanelData openFile(std::string const& filepath);
+		CodeEditorPanelData* openFile(std::string const& filepath);
 		void saveFile(CodeEditorPanelData const& panel);
-		void free(CodeEditorPanelData& panel);
+		void free(CodeEditorPanelData* panel);
 
 		bool update(CodeEditorPanelData& panel);
+
+		void addUtf8StringToBuffer(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, size_t insertPosition);
+		void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint, size_t insertPosition);
 	}
 }

@@ -148,10 +148,25 @@ namespace MathAnim
 		AxisDrawNumbers,
 	};
 
+	class Command
+	{
+	public:
+		Command() {}
+		virtual ~Command() {};
+
+		virtual void execute(void* userContext) = 0;
+		virtual void undo(void* userContext) = 0;
+	};
+
 	namespace UndoSystem
 	{
-		UndoSystemData* init(AnimationManagerData* const am, int maxHistory);
+		// TODO: Come up with AnimationManagerUndoSystem so that the animation manager and text editor stuff is separate
+
+		UndoSystemData* init(void* userContext, int maxHistory);
 		void free(UndoSystemData* us);
+
+		void setUserContext(UndoSystemData* us, void* ctx);
+		void pushAndExecuteCommand(UndoSystemData* us, Command* command);
 
 		void undo(UndoSystemData* us);
 		void redo(UndoSystemData* us);

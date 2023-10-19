@@ -5,6 +5,7 @@
 #include "core/Application.h"
 #include "core/Input.h"
 #include "renderer/Fonts.h"
+#include "editor/TextEditUndo.h"
 
 using namespace CppUtils;
 
@@ -33,11 +34,11 @@ namespace MathAnim
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel);
 		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const font, std::string const& str, ImVec2 const& drawPos);
 		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const font, uint32 charToAdd, ImVec2 const& drawPos);
-		static void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint);
 		static bool removeSelectedTextWithBackspace(CodeEditorPanelData& panel);
 		static bool removeSelectedTextWithDelete(CodeEditorPanelData& panel);
 		static void removeSelectedText(CodeEditorPanelData& panel);
 		static int32 getNewCursorPositionFromMove(CodeEditorPanelData const& panel, KeyMoveDirection direction);
+		static void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength);
 
 		// Simple calculation functions
 		static inline ImVec2 getTopLeftOfLine(CodeEditorPanelData const& panel, uint32 lineNumber, SizedFont const* const font)
@@ -108,13 +109,16 @@ namespace MathAnim
 		static ImColor textCursorColor = ImColor(255, 255, 255);
 		static ImColor highlightTextColor = ImColor(115, 163, 240, 128);
 
+		// TODO: Make this configurable
+		static int MAX_UNDO_HISTORY = 1024;
+
 		// This is the number of seconds between the cursor blinking
 		static float cursorBlinkTime = 0.5f;
 
-		CodeEditorPanelData openFile(std::string const& filepath)
+		CodeEditorPanelData* openFile(std::string const& filepath)
 		{
-			CodeEditorPanelData res = {};
-			res.filepath = filepath;
+			CodeEditorPanelData* res = g_memory_new CodeEditorPanelData();
+			res->filepath = filepath;
 
 			FILE* fp = fopen(filepath.c_str(), "rb");
 			fseek(fp, 0, SEEK_END);
@@ -126,71 +130,15 @@ namespace MathAnim
 			fread(memory.data, fileSize, 1, fp);
 			fclose(fp);
 
-			// Parse this file and map all codepoints to a valid uint8 value
-			auto maybeParseInfo = Parser::makeParseInfo((char*)memory.data, fileSize);
-			if (!maybeParseInfo.hasValue())
-			{
-				g_logger_error("Could not open file '{}'. Had error '{}'.", filepath, maybeParseInfo.error());
-				return {};
-			}
+			// Preprocess file into usable buffer
+			res->visibleCharacterBuffer = nullptr;
+			res->visibleCharacterBufferSize = 0;
+			res->lineNumberStart = 1;
+			res->lineNumberByteStart = 0;
 
-			size_t numberCharactersInFile = 0;
-			auto parseInfo = maybeParseInfo.value();
-			while (parseInfo.cursor < parseInfo.numBytes)
-			{
-				uint8 numBytesParsed = 1;
-				auto codepoint = Parser::parseCharacter(parseInfo, &numBytesParsed);
-				if (!codepoint.hasValue())
-				{
-					g_logger_error("File has malformed unicode. Skipping bad unicode data.");
-					parseInfo.numBytes++;
-					continue;
-				}
+			translateStringToLocalByteMapping(*res, (uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize);
 
-				uint8 byteMapping = CodeEditorPanelManager::addCharToFont(codepoint.value());
-				res.byteMap[byteMapping] = codepoint.value();
-				numberCharactersInFile++;
-
-				parseInfo.cursor += numBytesParsed;
-			}
-
-			// Take ownership of the data here
-			res.visibleCharacterBuffer = (uint8*)g_memory_allocate(sizeof(uint8) * numberCharactersInFile);
-			res.visibleCharacterBufferSize = numberCharactersInFile;
-			res.lineNumberStart = 1;
-			res.lineNumberByteStart = 0;
-
-			// Parse file one more time and translate it into the byte mapping we now have.
-			parseInfo.cursor = 0;
-			size_t byteCursor = 0;
-			while (parseInfo.cursor < parseInfo.numBytes)
-			{
-				uint8 numBytesParsed = 0;
-				auto codepoint = Parser::parseCharacter(parseInfo, &numBytesParsed);
-				if (!codepoint.hasValue())
-				{
-					parseInfo.cursor++;
-					continue;
-				}
-
-				// Also, skip carriage returns 'cuz screw those
-				if (codepoint.value() == (uint32)'\r')
-				{
-					parseInfo.cursor += numBytesParsed;
-					continue;
-				}
-
-				uint8 byteMapping = CodeEditorPanelManager::addCharToFont(codepoint.value());
-				res.visibleCharacterBuffer[byteCursor] = byteMapping;
-
-				parseInfo.cursor += numBytesParsed;
-				byteCursor++;
-			}
-
-			g_memory_free((void*)parseInfo.utf8String);
-
-			res.visibleCharacterBufferSize = byteCursor;
-			res.visibleCharacterBuffer = (uint8*)g_memory_realloc((void*)res.visibleCharacterBuffer, res.visibleCharacterBufferSize * sizeof(uint8));
+			res->undoSystem = UndoSystem::createTextEditorUndoSystem(res, MAX_UNDO_HISTORY);
 
 			return res;
 		}
@@ -234,10 +182,11 @@ namespace MathAnim
 			memory.free();
 		}
 
-		void free(CodeEditorPanelData& panel)
+		void free(CodeEditorPanelData* panel)
 		{
-			g_memory_free((void*)panel.visibleCharacterBuffer);
+			g_memory_free((void*)panel->visibleCharacterBuffer);
 			panel = {};
+			g_memory_delete(panel);
 		}
 
 		bool update(CodeEditorPanelData& panel)
@@ -255,6 +204,13 @@ namespace MathAnim
 			if (windowIsFocused)
 			{
 				io.WantTextInput = true;
+
+				// TODO: Tmp remove me, just testing undo/redo system
+				if (Input::keyRepeatedOrDown(GLFW_KEY_V, KeyMods::Ctrl))
+				{
+					const char testText[] = "-- This is a test! --";
+					UndoSystem::insertTextAction(panel.undoSystem, (uint8*)testText, sizeof(testText) - 1, panel.cursorBytePosition);
+				}
 
 				// Handle key presses to move cursor without the select modifier (Shift) being pressed
 				{
@@ -373,7 +329,7 @@ namespace MathAnim
 						removeSelectedTextWithBackspace(panel);
 					}
 
-					addCodepointToBuffer(panel, codepoint);
+					addCodepointToBuffer(panel, codepoint, panel.cursorBytePosition);
 					setCursorDistanceFromLineStart(panel);
 					fileHasBeenEdited = true;
 				}
@@ -381,7 +337,7 @@ namespace MathAnim
 				// Handle newline-insertion
 				if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER))
 				{
-					addCodepointToBuffer(panel, (uint32)'\n');
+					addCodepointToBuffer(panel, (uint32)'\n', panel.cursorBytePosition);
 					setCursorDistanceFromLineStart(panel);
 					fileHasBeenEdited = true;
 				}
@@ -627,6 +583,54 @@ namespace MathAnim
 			return fileHasBeenEdited;
 		}
 
+		void addUtf8StringToBuffer(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, size_t insertPosition)
+		{
+			g_logger_assert(insertPosition <= panel.visibleCharacterBufferSize, "Cannot insert string past end of buffer.");
+
+			// Translate UTF8 string to local byte mapping
+			uint8* byteMappedString = nullptr;
+			size_t byteMappedStringLength = 0;
+
+			translateStringToLocalByteMapping(panel, utf8String, stringNumBytes, &byteMappedString, &byteMappedStringLength);
+
+			size_t newCharBufferSize = sizeof(uint8) * (panel.visibleCharacterBufferSize + byteMappedStringLength);
+			panel.visibleCharacterBuffer = (uint8*)g_memory_realloc(panel.visibleCharacterBuffer, newCharBufferSize);
+
+			// Move the right half of the string over
+			size_t placeToMoveRightHalfToOffset = byteMappedStringLength + insertPosition;
+			memmove(
+				panel.visibleCharacterBuffer + placeToMoveRightHalfToOffset,
+				panel.visibleCharacterBuffer + insertPosition,
+				panel.visibleCharacterBufferSize - insertPosition
+			);
+
+			// Copy the mapped text into the middle portion
+			g_memory_copyMem(
+				panel.visibleCharacterBuffer + insertPosition,
+				newCharBufferSize - insertPosition,
+				byteMappedString,
+				byteMappedStringLength * sizeof(uint8)
+			);
+
+			panel.visibleCharacterBufferSize = newCharBufferSize;
+
+			panel.cursorBytePosition = (int32)(insertPosition + byteMappedStringLength);
+			panel.mouseByteDragStart = panel.cursorBytePosition;
+			panel.firstByteInSelection = panel.cursorBytePosition;
+			panel.lastByteInSelection = panel.cursorBytePosition;
+
+			g_memory_free(byteMappedString);
+		}
+
+		void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint, size_t insertPosition)
+		{
+			// TODO: Figure out a way to convert the codepoint to a utf8 byte array
+			//       for now we'll pretend
+			uint8 numBytes = 1;
+			uint8* byteArray = (uint8*)(&codepoint);
+			addUtf8StringToBuffer(panel, byteArray, numBytes, insertPosition);
+		}
+
 		// ------------- Internal Functions -------------
 		static void resetSelection(CodeEditorPanelData& panel)
 		{
@@ -770,36 +774,6 @@ namespace MathAnim
 			return ImVec2((cursorPos - drawPos).x, totalFontHeight);
 		}
 
-		static void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint)
-		{
-			uint8 byteMapping = CodeEditorPanelManager::addCharToFont(codepoint);
-			panel.byteMap[byteMapping] = codepoint;
-
-			size_t newCharBufferSize = sizeof(uint8) * (panel.visibleCharacterBufferSize + 1);
-			uint8* newCharBuffer = (uint8*)g_memory_allocate(newCharBufferSize);
-
-			g_memory_copyMem(newCharBuffer, newCharBufferSize, (void*)panel.visibleCharacterBuffer, panel.cursorBytePosition);
-			newCharBufferSize -= panel.cursorBytePosition;
-			g_memory_copyMem(newCharBuffer + panel.cursorBytePosition, newCharBufferSize, &byteMapping, sizeof(uint8));
-			newCharBufferSize -= sizeof(uint8);
-			g_memory_copyMem(
-				newCharBuffer + panel.cursorBytePosition + sizeof(uint8),
-				newCharBufferSize,
-				(void*)(panel.visibleCharacterBuffer + panel.cursorBytePosition),
-				panel.visibleCharacterBufferSize - panel.cursorBytePosition
-			);
-
-			g_memory_free((void*)panel.visibleCharacterBuffer);
-
-			panel.visibleCharacterBuffer = newCharBuffer;
-			panel.visibleCharacterBufferSize = sizeof(uint8) * (panel.visibleCharacterBufferSize + 1);
-
-			panel.cursorBytePosition++;
-			panel.mouseByteDragStart = panel.cursorBytePosition;
-			panel.firstByteInSelection = panel.cursorBytePosition;
-			panel.lastByteInSelection = panel.cursorBytePosition;
-		}
-
 		static bool removeSelectedTextWithBackspace(CodeEditorPanelData& panel)
 		{
 			if (panel.cursorBytePosition == 0 && panel.firstByteInSelection == panel.lastByteInSelection)
@@ -886,7 +860,7 @@ namespace MathAnim
 		static inline bool isBoundaryCharacter(uint32 c)
 		{
 			if (c == ':' || c == ';' || c == '"' || c == '\'' || c == '.' || c == '(' || c == ')' || c == '{' || c == '}'
-				|| c == '-' || c == '+' || c == '*' || c == '/' || c == ',' || c == '=')
+				|| c == '-' || c == '+' || c == '*' || c == '/' || c == ',' || c == '=' || c == '!' || c == '`')
 			{
 				return true;
 			}
@@ -1115,6 +1089,52 @@ namespace MathAnim
 			}
 
 			return panel.cursorBytePosition;
+		}
+
+		static void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength)
+		{
+			*outStr = nullptr;
+			*outStrLength = 0;
+
+			// Translate UTF8 string to local byte mapping
+			auto maybeParseInfo = Parser::makeParseInfo((char*)utf8String, stringNumBytes);
+			if (!maybeParseInfo.hasValue())
+			{
+				g_logger_error("Could not add UTF-8 string '{}' to editor. Had error '{}'.", utf8String, maybeParseInfo.error());
+				return;
+			}
+
+			*outStr = (uint8*)g_memory_allocate(sizeof(uint8) * stringNumBytes);
+
+			auto parseInfo = maybeParseInfo.value();
+			while (parseInfo.cursor < parseInfo.numBytes)
+			{
+				uint8 numBytesParsed = 1;
+				auto codepoint = Parser::parseCharacter(parseInfo, &numBytesParsed);
+				if (!codepoint.hasValue())
+				{
+					g_logger_error("File has malformed unicode. Skipping bad unicode data.");
+					parseInfo.numBytes++;
+					continue;
+				}
+
+				// Also, skip carriage returns 'cuz screw those
+				if (codepoint.value() == (uint32)'\r')
+				{
+					parseInfo.cursor += numBytesParsed;
+					continue;
+				}
+
+				uint8 byteMapping = CodeEditorPanelManager::addCharToFont(codepoint.value());
+				panel.byteMap[byteMapping] = codepoint.value();
+
+				(*outStr)[(*outStrLength)] = byteMapping;
+				*outStrLength = *outStrLength + 1;
+
+				parseInfo.cursor += numBytesParsed;
+			}
+
+			*outStr = (uint8*)g_memory_realloc((void*)(*outStr), (*outStrLength) * sizeof(uint8));
 		}
 	}
 }
