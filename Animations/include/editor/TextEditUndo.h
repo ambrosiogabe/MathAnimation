@@ -15,7 +15,7 @@ namespace MathAnim
 		void undo(TextEditorUndoSystem* us);
 		void redo(TextEditorUndoSystem* us);
 
-		void insertTextAction(TextEditorUndoSystem* us, uint8* text, size_t textSize, size_t insertOffset);
+		void insertTextAction(TextEditorUndoSystem* us, uint8* utf8String, size_t utf8StringNumBytes, size_t insertOffset);
 		void deleteTextAction(TextEditorUndoSystem* us, size_t deleteSize, size_t deleteOffset);
 
 		void imguiStats(TextEditorUndoSystem const* undoSystem);

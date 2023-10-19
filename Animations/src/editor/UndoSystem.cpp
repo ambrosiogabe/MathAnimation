@@ -475,6 +475,12 @@ namespace MathAnim
 
 		void pushAndExecuteCommand(UndoSystemData* us, Command* command)
 		{
+			uint32 offsetToPlaceNewCommand = pushCommand(us, command);
+			us->history[offsetToPlaceNewCommand]->execute(us->userCtx);
+		}
+
+		uint32 pushCommand(UndoSystemData* us, Command* command)
+		{
 			// Remove any commands after the current tail
 			{
 				uint32 numCommandsRemoved = 0;
@@ -505,7 +511,7 @@ namespace MathAnim
 			us->numCommands++;
 			us->undoCursorTail = (us->undoCursorTail + 1) % us->maxHistorySize;
 
-			us->history[offsetToPlaceNewCommand]->execute(us->userCtx);
+			return offsetToPlaceNewCommand;
 		}
 
 		void undo(UndoSystemData* us)

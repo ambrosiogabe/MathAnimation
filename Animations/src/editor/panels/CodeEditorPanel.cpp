@@ -27,6 +27,7 @@ namespace MathAnim
 	{
 		// ------------- Internal Functions -------------
 		static void resetSelection(CodeEditorPanelData& panel);
+		static void handleTypingUndo(CodeEditorPanelData& panel);
 		static void moveTextCursor(CodeEditorPanelData& panel, KeyMoveDirection direction);
 		static void moveTextCursorAndResetSelection(CodeEditorPanelData& panel, KeyMoveDirection direction);
 		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& textCursorDrawPosition, SizedFont const* const font);
@@ -36,9 +37,10 @@ namespace MathAnim
 		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const font, uint32 charToAdd, ImVec2 const& drawPos);
 		static bool removeSelectedTextWithBackspace(CodeEditorPanelData& panel);
 		static bool removeSelectedTextWithDelete(CodeEditorPanelData& panel);
-		static void removeSelectedText(CodeEditorPanelData& panel);
+		static bool removeText(CodeEditorPanelData& panel, int32 textToRemoveOffset, int32 textToRemoveNumBytes);
 		static int32 getNewCursorPositionFromMove(CodeEditorPanelData const& panel, KeyMoveDirection direction);
 		static void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength);
+		static void translateLocalByteMappingToString(CodeEditorPanelData const& panel, uint8* byteMappedString, size_t numBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes);
 
 		// Simple calculation functions
 		static inline ImVec2 getTopLeftOfLine(CodeEditorPanelData const& panel, uint32 lineNumber, SizedFont const* const font)
@@ -135,6 +137,7 @@ namespace MathAnim
 			res->visibleCharacterBufferSize = 0;
 			res->lineNumberStart = 1;
 			res->lineNumberByteStart = 0;
+			res->undoTypingStart = -1;
 
 			translateStringToLocalByteMapping(*res, (uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize);
 
@@ -147,41 +150,17 @@ namespace MathAnim
 
 		void saveFile(CodeEditorPanelData const& panel)
 		{
-			// Translate to valid UTF-8
-			RawMemory memory{};
-			memory.init(sizeof(uint8) * panel.visibleCharacterBufferSize);
-
-			for (size_t i = 0; i < panel.visibleCharacterBufferSize; i++)
-			{
-				uint32 codepoint = panel.byteMap[panel.visibleCharacterBuffer[i]];
-
-				// TODO: Figure out way to translate codepoint to valid u8 bytes
-				uint8 numBytes = 1;
-				uint8 utf8Bytes = (uint8)codepoint;
-
-				#ifdef _WIN32
-				g_logger_assert(codepoint != (uint32)'\r', "We should never get carriage returns in our edit buffers");
-
-				// If we're on windows, translate newlines to carriage return + newlines when saving the files again
-				if (codepoint == (uint32)'\n')
-				{
-					uint8 carriageReturn = '\r';
-					memory.write(&carriageReturn);
-				}
-				#endif
-
-				memory.writeDangerous(&utf8Bytes, numBytes * sizeof(uint8));
-			}
-
-			memory.shrinkToFit();
+			uint8* utf8String = nullptr;
+			size_t utf8StringNumBytes = 0;
+			translateLocalByteMappingToString(panel, panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, &utf8String, &utf8StringNumBytes);
 
 			// Dump UTF-8 to file
 			FILE* fp = fopen(panel.filepath.string().c_str(), "wb");
-			fwrite(memory.data, memory.size, 1, fp);
+			fwrite(utf8String, utf8StringNumBytes, 1, fp);
 			fclose(fp);
 
 			// Free memory
-			memory.free();
+			g_memory_free(utf8String);
 		}
 
 		void free(CodeEditorPanelData* panel)
@@ -212,6 +191,20 @@ namespace MathAnim
 				{
 					const char testText[] = "-- This is a test! --";
 					UndoSystem::insertTextAction(panel.undoSystem, (uint8*)testText, sizeof(testText) - 1, panel.cursorBytePosition);
+				}
+
+				if (Input::keyRepeatedOrDown(GLFW_KEY_Z, KeyMods::Ctrl))
+				{
+					if (panel.undoTypingStart != -1)
+					{
+						handleTypingUndo(panel);
+					}
+
+					UndoSystem::undo(panel.undoSystem);
+				}
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_Z, KeyMods::Ctrl | KeyMods::Shift))
+				{
+					UndoSystem::redo(panel.undoSystem);
 				}
 
 				// Handle key presses to move cursor without the select modifier (Shift) being pressed
@@ -326,6 +319,11 @@ namespace MathAnim
 				// Handle text-insertion
 				if (uint32 codepoint = Input::getLastCharacterTyped(); codepoint != 0)
 				{
+					if (panel.undoTypingStart == -1)
+					{
+						panel.undoTypingStart = panel.cursorBytePosition;
+					}
+
 					if (panel.firstByteInSelection != panel.lastByteInSelection)
 					{
 						removeSelectedTextWithBackspace(panel);
@@ -633,6 +631,50 @@ namespace MathAnim
 			addUtf8StringToBuffer(panel, byteArray, numBytes, insertPosition);
 		}
 
+		bool removeTextWithBackspace(CodeEditorPanelData& panel, int32 textToRemoveStart, int32 textToRemoveLength)
+		{
+			if (textToRemoveStart < 0 || textToRemoveStart + textToRemoveLength > panel.visibleCharacterBufferSize)
+			{
+				return false;
+			}
+
+			if (textToRemoveLength == 0)
+			{
+				return false;
+			}
+			
+			removeText(panel, textToRemoveStart, textToRemoveLength);
+
+			panel.cursorBytePosition = textToRemoveStart;
+			panel.mouseByteDragStart = panel.cursorBytePosition;
+			panel.firstByteInSelection = panel.cursorBytePosition;
+			panel.lastByteInSelection = panel.cursorBytePosition;
+
+			return true;
+		}
+
+		bool removeTextWithDelete(CodeEditorPanelData& panel, int32 textToRemoveStart, int32 textToRemoveLength)
+		{
+			if (textToRemoveStart < 0 || textToRemoveStart + textToRemoveLength > panel.visibleCharacterBufferSize)
+			{
+				return false;
+			}
+
+			if (textToRemoveLength == 0)
+			{
+				return false;
+			}
+
+			removeText(panel, textToRemoveStart, textToRemoveLength);
+
+			panel.cursorBytePosition = textToRemoveStart;
+			panel.mouseByteDragStart = panel.cursorBytePosition;
+			panel.firstByteInSelection = panel.cursorBytePosition;
+			panel.lastByteInSelection = panel.cursorBytePosition;
+
+			return true;
+		}
+
 		// ------------- Internal Functions -------------
 		static void resetSelection(CodeEditorPanelData& panel)
 		{
@@ -641,8 +683,46 @@ namespace MathAnim
 			panel.mouseByteDragStart = panel.cursorBytePosition;
 		}
 
+		static void handleTypingUndo(CodeEditorPanelData& panel)
+		{
+			// Nothing to undo, just skip adding an undo operation
+			if (panel.undoTypingStart == -1 || panel.undoTypingStart == panel.cursorBytePosition)
+			{
+				return;
+			}
+
+			int32 numBytesInUndo = (panel.cursorBytePosition - panel.undoTypingStart);
+			if (panel.undoTypingStart > panel.cursorBytePosition || numBytesInUndo < 0 || 
+				panel.undoTypingStart + numBytesInUndo > panel.visibleCharacterBufferSize)
+			{
+				g_logger_warning("Invalid undo typing cursor encountered.");
+				panel.undoTypingStart = -1;
+				return;
+			}
+
+			// We typed some stuff, and we want to add it as one big undo operation
+			uint8* utf8String = nullptr;
+			size_t utf8StringNumBytes = 0;
+
+			translateLocalByteMappingToString(
+				panel,
+				panel.visibleCharacterBuffer + panel.undoTypingStart,
+				numBytesInUndo,
+				&utf8String,
+				&utf8StringNumBytes
+			);
+
+			UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, panel.undoTypingStart);
+
+			g_memory_free(utf8String);
+
+			panel.undoTypingStart = -1;
+		}
+
 		static void moveTextCursor(CodeEditorPanelData& panel, KeyMoveDirection direction)
 		{
+			handleTypingUndo(panel);
+
 			panel.cursorIsBlinkedOn = true;
 			panel.timeSinceCursorLastBlinked = 0.0f;
 
@@ -657,6 +737,8 @@ namespace MathAnim
 
 		static void moveTextCursorAndResetSelection(CodeEditorPanelData& panel, KeyMoveDirection direction)
 		{
+			handleTypingUndo(panel);
+
 			moveTextCursor(panel, direction);
 			resetSelection(panel);
 		}
@@ -791,19 +873,7 @@ namespace MathAnim
 				panel.firstByteInSelection--;
 			}
 
-			int32 numBytesToRemove = panel.lastByteInSelection - panel.firstByteInSelection;
-			removeSelectedText(panel);
-
-			if (panel.lastByteInSelection == panel.firstByteInSelection || panel.cursorBytePosition == panel.lastByteInSelection)
-			{
-				panel.cursorBytePosition = glm::clamp(panel.cursorBytePosition - (int32)numBytesToRemove, 0, (int32)panel.visibleCharacterBufferSize);
-			}
-
-			panel.mouseByteDragStart = panel.cursorBytePosition;
-			panel.firstByteInSelection = panel.cursorBytePosition;
-			panel.lastByteInSelection = panel.cursorBytePosition;
-
-			return true;
+			return removeTextWithBackspace(panel, panel.firstByteInSelection, panel.lastByteInSelection - panel.firstByteInSelection);
 		}
 
 		static bool removeSelectedTextWithDelete(CodeEditorPanelData& panel)
@@ -821,42 +891,31 @@ namespace MathAnim
 				panel.lastByteInSelection++;
 			}
 
-			int32 numBytesToRemove = panel.lastByteInSelection - panel.firstByteInSelection;
-			removeSelectedText(panel);
-
-			if (panel.cursorBytePosition == panel.lastByteInSelection)
-			{
-				panel.cursorBytePosition = glm::clamp(panel.cursorBytePosition - (int32)numBytesToRemove, 0, (int32)panel.visibleCharacterBufferSize);
-			}
-
-			panel.mouseByteDragStart = panel.cursorBytePosition;
-			panel.firstByteInSelection = panel.cursorBytePosition;
-			panel.lastByteInSelection = panel.cursorBytePosition;
-
-			return true;
+			return removeTextWithDelete(panel, panel.firstByteInSelection, panel.lastByteInSelection - panel.firstByteInSelection);
 		}
 
-		static void removeSelectedText(CodeEditorPanelData& panel)
+		static bool removeText(CodeEditorPanelData& panel, int32 textToRemoveOffset, int32 textToRemoveNumBytes)
 		{
-			// We should never call this function by itself. Instead, call the backspace or delete versions of this function
-			g_logger_assert(panel.firstByteInSelection != panel.lastByteInSelection, "Cannot remove selected text if no text is selected.");
+			// No text to remove
+			if (textToRemoveNumBytes == 0)
+			{
+				return false;
+			}
 
-			// The + 1 is because we include the last byte in the selection, so this range is inclusive
-			size_t numBytesToRemove = panel.lastByteInSelection - panel.firstByteInSelection;
-			size_t bytesToRemoveOffset = panel.firstByteInSelection;
-
-			size_t bytesToMoveOffset = bytesToRemoveOffset + numBytesToRemove;
+			size_t bytesToMoveOffset = textToRemoveOffset + textToRemoveNumBytes;
 			if (bytesToMoveOffset != panel.visibleCharacterBufferSize)
 			{
 				memmove(
-					(void*)(panel.visibleCharacterBuffer + bytesToRemoveOffset),
+					(void*)(panel.visibleCharacterBuffer + textToRemoveOffset),
 					(void*)(panel.visibleCharacterBuffer + bytesToMoveOffset),
 					panel.visibleCharacterBufferSize - bytesToMoveOffset
 				);
 			}
 
-			panel.visibleCharacterBufferSize -= numBytesToRemove;
+			panel.visibleCharacterBufferSize -= textToRemoveNumBytes;
 			panel.visibleCharacterBuffer = (uint8*)g_memory_realloc((void*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize);
+
+			return true;
 		}
 
 		static inline bool isBoundaryCharacter(uint32 c)
@@ -1137,6 +1196,40 @@ namespace MathAnim
 			}
 
 			*outStr = (uint8*)g_memory_realloc((void*)(*outStr), (*outStrLength) * sizeof(uint8));
+		}
+
+		static void translateLocalByteMappingToString(CodeEditorPanelData const& panel, uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes)
+		{
+			// Translate to valid UTF-8
+			RawMemory memory{};
+			memory.init(sizeof(uint8) * byteMappedStringNumBytes);
+
+			for (size_t i = 0; i < byteMappedStringNumBytes; i++)
+			{
+				uint32 codepoint = panel.byteMap[byteMappedString[i]];
+
+				// TODO: Figure out way to translate codepoint to valid u8 bytes
+				uint8 numBytes = 1;
+				uint8 utf8Bytes = (uint8)codepoint;
+
+				#ifdef _WIN32
+				g_logger_assert(codepoint != (uint32)'\r', "We should never get carriage returns in our edit buffers");
+
+				// If we're on windows, translate newlines to carriage return + newlines when saving the files again
+				if (codepoint == (uint32)'\n')
+				{
+					uint8 carriageReturn = '\r';
+					memory.write(&carriageReturn);
+				}
+				#endif
+
+				memory.writeDangerous(&utf8Bytes, numBytes * sizeof(uint8));
+			}
+
+			memory.shrinkToFit();
+
+			*outUtf8String = memory.data;
+			*outUtf8StringNumBytes = memory.size;
 		}
 	}
 }

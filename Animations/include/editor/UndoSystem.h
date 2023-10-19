@@ -167,6 +167,9 @@ namespace MathAnim
 
 		void setUserContext(UndoSystemData* us, void* ctx);
 		void pushAndExecuteCommand(UndoSystemData* us, Command* command);
+		
+		// Returns the index the command was inserted at
+		uint32 pushCommand(UndoSystemData* us, Command* command);
 
 		void undo(UndoSystemData* us);
 		void redo(UndoSystemData* us);

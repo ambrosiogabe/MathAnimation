@@ -16,6 +16,8 @@ namespace MathAnim
 		ImVec2 drawStart;
 		ImVec2 drawEnd;
 
+		int32 undoTypingStart;
+
 		bool mouseIsDragSelecting;
 		// The byte that was clicked when the user began clicking and dragging the mouse
 		int32 mouseByteDragStart;
@@ -43,5 +45,8 @@ namespace MathAnim
 
 		void addUtf8StringToBuffer(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, size_t insertPosition);
 		void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint, size_t insertPosition);
+
+		bool removeTextWithBackspace(CodeEditorPanelData& panel, int32 textToRemoveStart, int32 textToRemoveLength);
+		bool removeTextWithDelete(CodeEditorPanelData& panel, int32 textToRemoveStart, int32 textToRemoveLength);
 	}
 }

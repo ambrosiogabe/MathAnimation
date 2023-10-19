@@ -76,7 +76,7 @@ namespace MathAnim
 		void insertTextAction(TextEditorUndoSystem* us, uint8* text, size_t textSize, size_t textOffset)
 		{
 			auto* newCommand = g_memory_new InsertTextCommand(text, textSize, textOffset);
-			pushAndExecuteCommand(us->genericSystem, newCommand);
+			pushCommand(us->genericSystem, newCommand);
 		}
 
 		void deleteTextAction(TextEditorUndoSystem* us, size_t deleteOffset, size_t deleteNumBytes)
@@ -99,12 +99,13 @@ namespace MathAnim
 	{
 		auto* us = (TextEditorUndoSystem*)ctx;
 		
-		CodeEditorPanel::addUtf8StringToBuffer(*us->codeEditor, this->textToInsert, this->textToInsertSize, this->insertOffset);
+		CodeEditorPanel::addUtf8StringToBuffer(*us->codeEditor, this->textToInsert, (int32)this->textToInsertSize, (int32)this->insertOffset);
 	}
 
 	void InsertTextCommand::undo(void* ctx)
 	{
 		auto* us = (TextEditorUndoSystem*)ctx;
-		*us;
+
+		CodeEditorPanel::removeTextWithBackspace(*us->codeEditor, (int32)this->insertOffset, (int32)this->textToInsertSize);
 	}
 }
