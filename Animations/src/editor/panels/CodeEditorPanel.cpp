@@ -250,12 +250,11 @@ namespace MathAnim
 						handleTypingUndo(panel);
 					}
 
-					bool shouldDoPasteOverSelectedAction = false;
 					if (panel.firstByteInSelection != panel.lastByteInSelection)
 					{
-						// FIXME: Save the text here so we can restore it in undo history
-						removeSelectedTextWithBackspace(panel, false);
-						shouldDoPasteOverSelectedAction = true;
+						// TODO: In the future, we should treat paste over text as one undo action
+						//       so you don't have to undo twice to get back to the original state
+						removeSelectedTextWithBackspace(panel);
 					}
 
 					// Get clipboard string
@@ -274,15 +273,7 @@ namespace MathAnim
 					int32 insertPosition = panel.cursorBytePosition;
 					addUtf8StringToBuffer(panel, (uint8*)utf8String, utf8StringNumBytes, panel.cursorBytePosition);
 
-					if (shouldDoPasteOverSelectedAction)
-					{
-						g_logger_assert(false, "FIXME: If we pasted directly over a selection, we have to save the old text then store it for undo history to work");
-					}
-					else
-					{
-						UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, insertPosition, numCharacters);
-					}
-
+					UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, insertPosition, numCharacters);
 					scrollCursorIntoViewIfNeeded(panel);
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_C, KeyMods::Ctrl))
@@ -451,14 +442,14 @@ namespace MathAnim
 				// Handle text-insertion
 				if (uint32 codepoint = Input::getLastCharacterTyped(); codepoint != 0)
 				{
-					if (panel.undoTypingStart == -1)
-					{
-						panel.undoTypingStart = panel.cursorBytePosition;
-					}
-
 					if (panel.firstByteInSelection != panel.lastByteInSelection)
 					{
 						removeSelectedTextWithBackspace(panel);
+					}
+
+					if (panel.undoTypingStart == -1)
+					{
+						panel.undoTypingStart = panel.cursorBytePosition;
 					}
 
 					addCodepointToBuffer(panel, codepoint, panel.cursorBytePosition);
@@ -469,14 +460,14 @@ namespace MathAnim
 				// Handle newline-insertion
 				if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER))
 				{
-					if (panel.undoTypingStart == -1)
-					{
-						panel.undoTypingStart = panel.cursorBytePosition;
-					}
-
 					if (panel.firstByteInSelection != panel.lastByteInSelection)
 					{
 						removeSelectedTextWithBackspace(panel);
+					}
+
+					if (panel.undoTypingStart == -1)
+					{
+						panel.undoTypingStart = panel.cursorBytePosition;
 					}
 
 					addCodepointToBuffer(panel, (uint32)'\n', panel.cursorBytePosition);
