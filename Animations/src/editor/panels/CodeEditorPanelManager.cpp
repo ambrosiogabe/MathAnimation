@@ -24,6 +24,8 @@ namespace MathAnim
 		static std::vector<CodeEditorMetadata> openEditors;
 		static uint64_t uuidCounter = 0;
 		static std::string nextFileToAdd = "";
+		static int fileToMakeActive = -1;
+		static int lineNumberToGoTo = -1;
 
 		static const char* codeFontRegularFile = "./assets/fonts/fira/FiraCode-SemiBold.ttf";
 		static SizedFont* codeFont = nullptr;
@@ -70,6 +72,22 @@ namespace MathAnim
 				ImGui::End();
 
 				nextFileToAdd = "";
+			}
+
+			if (lineNumberToGoTo != -1 && fileToMakeActive != -1)
+			{
+				g_logger_assert(fileToMakeActive >= 0 && fileToMakeActive < openEditors.size(), "How did this happen?");
+				auto& editor = openEditors[fileToMakeActive];
+
+				if (lineNumberToGoTo < 0 || lineNumberToGoTo >= (int)editor.panel->totalNumberLines)
+				{
+					lineNumberToGoTo = 0;
+				}
+
+				CodeEditorPanel::setCursorToLine(*editor.panel, lineNumberToGoTo);
+
+				lineNumberToGoTo = -1;
+				fileToMakeActive = -1;
 			}
 
 			for (auto editor = openEditors.begin(); editor != openEditors.end();)
@@ -120,6 +138,20 @@ namespace MathAnim
 			}
 
 			ImGui::Separator();
+		}
+
+		void openFile(std::string const& filename, uint32 lineNumber)
+		{
+			if (auto iter = fileMap.find(filename); iter == fileMap.end())
+			{
+				nextFileToAdd = filename;
+				lineNumberToGoTo = lineNumber;
+			}
+			else
+			{
+				fileToMakeActive = (int)iter->second;
+				lineNumberToGoTo = lineNumber;
+			}
 		}
 
 		void openFile(std::string const& filename)

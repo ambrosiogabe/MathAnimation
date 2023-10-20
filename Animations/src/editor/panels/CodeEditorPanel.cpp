@@ -240,6 +240,7 @@ namespace MathAnim
 			// ---- Handle arrow key presses ----
 
 			bool windowIsFocused = ImGui::IsWindowFocused();
+			bool windowIsHovered = ImGui::IsWindowHovered();
 			if (windowIsFocused)
 			{
 				io.WantTextInput = true;
@@ -492,7 +493,7 @@ namespace MathAnim
 			ImVec2 currentLetterDrawPos = renderNextLinePrefix(panel, currentLine, codeFont);
 
 			// Handle scroll bar render and logic
-			if (panel.numberLinesCanFitOnScreen < panel.totalNumberLines + numberBufferLines)
+			if (windowIsHovered && panel.numberLinesCanFitOnScreen < panel.totalNumberLines + numberBufferLines)
 			{
 				const uint32 totalLinesIncludingBuffer = panel.totalNumberLines + numberBufferLines;
 				float scrollbarHeight = ((float)panel.numberLinesCanFitOnScreen / (float)totalLinesIncludingBuffer) * (panel.drawEnd.y - panel.drawStart.y);
@@ -750,6 +751,18 @@ namespace MathAnim
 			}
 
 			return fileHasBeenEdited;
+		}
+
+		void setCursorToLine(CodeEditorPanelData& panel, uint32 lineNumber)
+		{
+			g_logger_assert(lineNumber <= panel.totalNumberLines, "This shouldn't happen.");
+
+			panel.cursorBytePosition = getLineNumberByteStartFrom(panel, lineNumber);
+			panel.firstByteInSelection = panel.cursorBytePosition;
+			panel.lastByteInSelection = panel.cursorBytePosition;
+			panel.mouseByteDragStart = panel.cursorBytePosition;
+
+			scrollCursorIntoViewIfNeeded(panel);
 		}
 
 		void addUtf8StringToBuffer(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, size_t insertPosition)

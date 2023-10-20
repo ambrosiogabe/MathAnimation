@@ -1,4 +1,5 @@
 #include "editor/panels/ConsoleLog.h"
+#include "editor/panels/CodeEditorPanelManager.h"
 #include "editor/imgui/ImGuiExtended.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "scripting/LuauLayer.h"
@@ -189,12 +190,10 @@ namespace MathAnim
 					{
 						if (Platform::fileExists(entry->filename.c_str()))
 						{
-							if (!Platform::openFileWithVsCode(entry->filename.c_str(), entry->line))
-							{
-								// If the vscode command fails for whatever reason try to open the 
-								// file using the default file command
-								Platform::openFileWithDefaultProgram(entry->filename.c_str());
-							}
+							CodeEditorPanelManager::openFile(entry->filename.c_str(), entry->line);
+
+							// TODO: Support external code editors if the user doesn't want to use
+							//       my builtin editor
 						}
 					}
 					ImGui::PopStyleColor(2);

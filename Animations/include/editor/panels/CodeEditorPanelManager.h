@@ -12,6 +12,7 @@ namespace MathAnim
 
 		void update(AnimationManagerData const* am, ImGuiID parentDockId);
 
+		void openFile(std::string const& filename, uint32 lineNumber);
 		void openFile(std::string const& filename);
 		void closeFile(std::string const& filename);
 

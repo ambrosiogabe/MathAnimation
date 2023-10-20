@@ -45,6 +45,8 @@ namespace MathAnim
 
 		bool update(CodeEditorPanelData& panel);
 
+		void setCursorToLine(CodeEditorPanelData& panel, uint32 lineNumber);
+
 		void addUtf8StringToBuffer(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, size_t insertPosition);
 		void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint, size_t insertPosition);
 
