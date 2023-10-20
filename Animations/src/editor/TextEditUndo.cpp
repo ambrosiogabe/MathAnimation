@@ -14,11 +14,11 @@ namespace MathAnim
 	class InsertTextCommand : public Command
 	{
 	public:
-		InsertTextCommand(uint8* inTextToInsert, size_t textToInsertSize, size_t insertOffset)
-			: textToInsertSize(textToInsertSize), insertOffset(insertOffset)
+		InsertTextCommand(uint8 const* inTextToInsert, size_t textToInsertSize, size_t insertOffset, size_t numberCharactersInserted)
+			: textToInsertSize(textToInsertSize), insertOffset(insertOffset), numberCharactersInserted(numberCharactersInserted)
 		{
 			this->textToInsert = (uint8*)g_memory_allocate(textToInsertSize);
-			g_memory_copyMem(this->textToInsert, textToInsertSize, inTextToInsert, textToInsertSize);
+			g_memory_copyMem(this->textToInsert, textToInsertSize, (void*)inTextToInsert, textToInsertSize);
 		}
 
 		virtual void execute(void* ctx) override;
@@ -42,16 +42,17 @@ namespace MathAnim
 		uint8* textToInsert;
 		size_t textToInsertSize;
 		size_t insertOffset;
+		size_t numberCharactersInserted;
 	};
 
 	class BackspaceTextCommand : public Command
 	{
 	public:
-		BackspaceTextCommand(uint8* inTextToDelete, size_t textToBeDeletedSize, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
+		BackspaceTextCommand(uint8 const* inTextToDelete, size_t textToBeDeletedSize, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
 			: textToBeDeletedSize(textToBeDeletedSize), selectionStart(selectionStart), selectionEnd(selectionEnd), cursorPosition(cursorPosition), shouldSetTextSelected(shouldSetTextSelected)
 		{
 			this->textToBeDeleted = (uint8*)g_memory_allocate(textToBeDeletedSize);
-			g_memory_copyMem(this->textToBeDeleted, textToBeDeletedSize, inTextToDelete, textToBeDeletedSize);
+			g_memory_copyMem(this->textToBeDeleted, textToBeDeletedSize, (void*)inTextToDelete, textToBeDeletedSize);
 		}
 
 		virtual void execute(void* ctx) override;
@@ -84,11 +85,11 @@ namespace MathAnim
 	class DeleteTextCommand : public Command
 	{
 	public:
-		DeleteTextCommand(uint8* inTextToDelete, size_t textToBeDeletedSize, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
+		DeleteTextCommand(uint8 const* inTextToDelete, size_t textToBeDeletedSize, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
 			: textToBeDeletedSize(textToBeDeletedSize), selectionStart(selectionStart), selectionEnd(selectionEnd), cursorPosition(cursorPosition), shouldSetTextSelected(shouldSetTextSelected)
 		{
 			this->textToBeDeleted = (uint8*)g_memory_allocate(textToBeDeletedSize);
-			g_memory_copyMem(this->textToBeDeleted, textToBeDeletedSize, inTextToDelete, textToBeDeletedSize);
+			g_memory_copyMem(this->textToBeDeleted, textToBeDeletedSize, (void*)inTextToDelete, textToBeDeletedSize);
 		}
 
 		virtual void execute(void* ctx) override;
@@ -152,14 +153,14 @@ namespace MathAnim
 			UndoSystem::redo(us->genericSystem);
 		}
 
-		void insertTextAction(TextEditorUndoSystem* us, uint8* text, size_t textSize, size_t textOffset)
+		void insertTextAction(TextEditorUndoSystem* us, uint8 const* text, size_t textSize, size_t textOffset, size_t numberCharactersInserted)
 		{
-			auto* newCommand = g_memory_new InsertTextCommand(text, textSize, textOffset);
+			auto* newCommand = g_memory_new InsertTextCommand(text, textSize, textOffset, numberCharactersInserted);
 			pushCommand(us->genericSystem, newCommand);
 			us->totalMemoryAllocated += textSize;
 		}
 
-		void deleteTextAction(TextEditorUndoSystem* us, uint8* textToBeDeleted, size_t textToBeDeletedLength, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
+		void deleteTextAction(TextEditorUndoSystem* us, uint8 const* textToBeDeleted, size_t textToBeDeletedLength, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
 		{
 			// TODO: Merge delete commands somehow
 			//       If two consecutive backspaces happen at the same position, they should be merged
@@ -169,7 +170,7 @@ namespace MathAnim
 			us->totalMemoryAllocated += textToBeDeletedLength;
 		}
 
-		void backspaceTextAction(TextEditorUndoSystem* us, uint8* textToBeDeleted, size_t textToBeDeletedLength, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
+		void backspaceTextAction(TextEditorUndoSystem* us, uint8 const* textToBeDeleted, size_t textToBeDeletedLength, size_t selectionStart, size_t selectionEnd, size_t cursorPosition, bool shouldSetTextSelected)
 		{
 			// TODO: Merge backspace commands somehow
 			//       If two consecutive backspaces happen at the same position, they should be merged
@@ -235,7 +236,7 @@ namespace MathAnim
 	{
 		auto* us = (TextEditorUndoSystem*)ctx;
 
-		CodeEditorPanel::removeTextWithBackspace(*us->codeEditor, (int32)this->insertOffset, (int32)this->textToInsertSize);
+		CodeEditorPanel::removeTextWithBackspace(*us->codeEditor, (int32)this->insertOffset, (int32)this->numberCharactersInserted);
 	}
 
 	void BackspaceTextCommand::execute(void* ctx)

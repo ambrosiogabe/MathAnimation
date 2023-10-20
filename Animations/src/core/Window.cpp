@@ -146,6 +146,16 @@ namespace MathAnim
 		glfwSetWindowShouldClose((GLFWwindow*)windowPtr, true);
 	}
 
+	const uint8* Window::getClipboardString() const
+	{
+		return (uint8*)glfwGetClipboardString((GLFWwindow*)windowPtr);
+	}
+
+	void Window::setClipboardString(const char* string) const
+	{
+		glfwSetClipboardString((GLFWwindow*)windowPtr, string);
+	}
+
 	void Window::update(float)
 	{
 

@@ -4,6 +4,7 @@
 #include "platform/Platform.h"
 #include "core/Application.h"
 #include "core/Input.h"
+#include "core/Window.h"
 #include "renderer/Fonts.h"
 #include "editor/TextEditUndo.h"
 
@@ -186,13 +187,57 @@ namespace MathAnim
 			{
 				io.WantTextInput = true;
 
-				// TODO: Tmp remove me, just testing undo/redo system
+				// Handle copy/paste
 				if (Input::keyRepeatedOrDown(GLFW_KEY_V, KeyMods::Ctrl))
 				{
-					const char testText[] = "-- This is a test! --";
-					UndoSystem::insertTextAction(panel.undoSystem, (uint8*)testText, sizeof(testText) - 1, panel.cursorBytePosition);
+					// Get clipboard string
+					const uint8* utf8String = Application::getWindow().getClipboardString();
+					size_t utf8StringNumBytes = strlen((const char*)utf8String);
+
+					// Figure out how many characters exist in this string
+					uint8* outStr = nullptr;
+					size_t numCharacters;
+					translateStringToLocalByteMapping(panel, (uint8*)utf8String, utf8StringNumBytes, &outStr, &numCharacters);
+
+					// Free the new memory since we don't actually need the string
+					g_memory_free(outStr);
+
+					// Perform the paste and add an undo action
+					UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, panel.cursorBytePosition, numCharacters);
+					addUtf8StringToBuffer(panel, (uint8*)utf8String, utf8StringNumBytes, panel.cursorBytePosition);
+				}
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_C, KeyMods::Ctrl))
+				{
+					// Only copy if we have text selected
+					if (panel.lastByteInSelection != panel.firstByteInSelection)
+					{
+						g_logger_assert(panel.lastByteInSelection > panel.firstByteInSelection, "This shouldn't happen.");
+						g_logger_assert(panel.lastByteInSelection <= panel.visibleCharacterBufferSize, "This shouldn't happen either.");
+
+						uint8* utf8String = nullptr;
+						size_t utf8StringSize = 0;
+
+						translateLocalByteMappingToString(
+							panel,
+							panel.visibleCharacterBuffer + panel.firstByteInSelection,
+							(panel.lastByteInSelection - panel.firstByteInSelection),
+							&utf8String,
+							&utf8StringSize
+						);
+
+						// Add null-byte for GLFW
+						utf8String = (uint8*)g_memory_realloc(utf8String, utf8StringSize + 1);
+						utf8String[utf8StringSize] = '\0';
+
+						Application::getWindow().setClipboardString((const char*)utf8String);
+
+						// Free temporary allocation
+						g_memory_free(utf8String);
+					}
 				}
 
+
+				// Handle undo/redo
 				if (Input::keyRepeatedOrDown(GLFW_KEY_Z, KeyMods::Ctrl))
 				{
 					if (panel.undoTypingStart != -1)
@@ -337,6 +382,16 @@ namespace MathAnim
 				// Handle newline-insertion
 				if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER))
 				{
+					if (panel.undoTypingStart == -1)
+					{
+						panel.undoTypingStart = panel.cursorBytePosition;
+					}
+
+					if (panel.firstByteInSelection != panel.lastByteInSelection)
+					{
+						removeSelectedTextWithBackspace(panel);
+					}
+
 					addCodepointToBuffer(panel, (uint32)'\n', panel.cursorBytePosition);
 					setCursorDistanceFromLineStart(panel);
 					fileHasBeenEdited = true;
@@ -792,7 +847,7 @@ namespace MathAnim
 				&utf8StringNumBytes
 			);
 
-			UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, panel.undoTypingStart);
+			UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, panel.undoTypingStart, numBytesInUndo);
 
 			g_memory_free(utf8String);
 
