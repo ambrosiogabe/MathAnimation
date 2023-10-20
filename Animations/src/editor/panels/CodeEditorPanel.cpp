@@ -42,6 +42,7 @@ namespace MathAnim
 		static bool removeSelectedTextWithDelete(CodeEditorPanelData& panel);
 		static bool removeText(CodeEditorPanelData& panel, int32 textToRemoveOffset, int32 textToRemoveNumBytes);
 		static int32 getNewCursorPositionFromMove(CodeEditorPanelData const& panel, KeyMoveDirection direction);
+		static void scrollCursorIntoViewIfNeeded(CodeEditorPanelData& panel);
 
 		// Simple calculation functions
 		static inline float getLineHeight(SizedFont const* const font)
@@ -130,6 +131,25 @@ namespace MathAnim
 			}
 
 			return (uint32)panel.visibleCharacterBufferSize;
+		}
+
+		static uint32 getLineNumberFromPosition(CodeEditorPanelData const& panel, uint32 bytePos)
+		{
+			uint32 currentLine = 1;
+			for (uint32 i = 0; i < (uint32)panel.visibleCharacterBufferSize; i++)
+			{
+				if (i >= bytePos)
+				{
+					return currentLine;
+				}
+
+				if (panel.byteMap[panel.visibleCharacterBuffer[i]] == '\n')
+				{
+					currentLine++;
+				}
+			}
+
+			return panel.totalNumberLines;
 		}
 
 		// ------------- Internal Data -------------
@@ -262,6 +282,8 @@ namespace MathAnim
 					{
 						UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, insertPosition, numCharacters);
 					}
+
+					scrollCursorIntoViewIfNeeded(panel);
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_C, KeyMods::Ctrl))
 				{
@@ -312,7 +334,7 @@ namespace MathAnim
 
 					UndoSystem::undo(panel.undoSystem);
 				}
-				else if (Input::keyRepeatedOrDown(GLFW_KEY_Z, KeyMods::Ctrl | KeyMods::Shift))
+				else if (Input::keyRepeatedOrDown(GLFW_KEY_Z, KeyMods::Ctrl | KeyMods::Shift) || Input::keyRepeatedOrDown(GLFW_KEY_Y, KeyMods::Ctrl))
 				{
 					UndoSystem::redo(panel.undoSystem);
 				}
@@ -1042,11 +1064,13 @@ namespace MathAnim
 
 			panel.cursorBytePosition = getNewCursorPositionFromMove(panel, direction);
 
-			bool recalculateDistanceFromLineStart = direction != KeyMoveDirection::Up && direction != KeyMoveDirection::Down;
-			if (recalculateDistanceFromLineStart)
+			bool movedLines = direction == KeyMoveDirection::Up || direction == KeyMoveDirection::Down;
+			if (!movedLines)
 			{
 				setCursorDistanceFromLineStart(panel);
 			}
+
+			scrollCursorIntoViewIfNeeded(panel);
 		}
 
 		static void moveTextCursorAndResetSelection(CodeEditorPanelData& panel, KeyMoveDirection direction)
@@ -1323,20 +1347,20 @@ namespace MathAnim
 
 			case KeyMoveDirection::Down:
 			{
-				// Try to go up a line while maintaining the same distance from the beginning of the line
+				// Try to go down a line while maintaining the same distance from the beginning of the line
 				int32 endOfCurrentLine = getEndOfLineFrom(panel, panel.cursorBytePosition);
 				int32 beginningOfLineBelow = endOfCurrentLine + 1;
 
 				// Only set the cursor to a new position if there is another line below the current line
-				if (beginningOfLineBelow >= panel.visibleCharacterBufferSize)
+				if (beginningOfLineBelow > panel.visibleCharacterBufferSize)
 				{
 					return panel.cursorBytePosition;
 				}
 
 				int32 newPos = beginningOfLineBelow;
-				for (int32 i = beginningOfLineBelow; i < panel.visibleCharacterBufferSize; i++)
+				for (int32 i = beginningOfLineBelow; i <= panel.visibleCharacterBufferSize; i++)
 				{
-					if (panel.byteMap[panel.visibleCharacterBuffer[i]] == '\n')
+					if (i == panel.visibleCharacterBufferSize || panel.byteMap[panel.visibleCharacterBuffer[i]] == '\n')
 					{
 						newPos = i;
 						break;
@@ -1506,6 +1530,27 @@ namespace MathAnim
 			}
 
 			return panel.cursorBytePosition;
+		}
+
+		static void scrollCursorIntoViewIfNeeded(CodeEditorPanelData& panel)
+		{
+			// If cursor is off-screen, scroll it into view
+			uint32 cursorLine = getLineNumberFromPosition(panel, panel.cursorBytePosition);
+			if (cursorLine < panel.lineNumberStart || cursorLine >= panel.lineNumberStart + panel.numberLinesCanFitOnScreen)
+			{
+				if (cursorLine >= panel.lineNumberStart + panel.numberLinesCanFitOnScreen)
+				{
+					// Bring new line into view
+					int32 newLineStart = (int32)cursorLine - (int32)panel.numberLinesCanFitOnScreen + 1;
+					panel.lineNumberStart = (uint32)glm::clamp(newLineStart, 1, (int32)panel.totalNumberLines);
+				}
+				else if (cursorLine < panel.lineNumberStart)
+				{
+					panel.lineNumberStart = cursorLine;
+				}
+
+				panel.lineNumberByteStart = getLineNumberByteStartFrom(panel, panel.lineNumberStart);
+			}
 		}
 	}
 }
