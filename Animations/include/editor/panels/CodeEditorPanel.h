@@ -11,6 +11,8 @@ namespace MathAnim
 		TextEditorUndoSystem* undoSystem;
 		std::filesystem::path filepath;
 
+		uint32 numberLinesCanFitOnScreen;
+		uint32 totalNumberLines;
 		uint32 lineNumberStart;
 		uint32 lineNumberByteStart;
 		ImVec2 drawStart;
@@ -49,7 +51,7 @@ namespace MathAnim
 		bool removeTextWithBackspace(CodeEditorPanelData& panel, int32 textToRemoveStart, int32 textToRemoveLength);
 		bool removeTextWithDelete(CodeEditorPanelData& panel, int32 textToRemoveStart, int32 textToRemoveLength);
 
-		void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength);
+		void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength, uint32* numberLines = nullptr);
 		void translateLocalByteMappingToString(CodeEditorPanelData const& panel, uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes);
 	}
 }

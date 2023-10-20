@@ -44,11 +44,20 @@ namespace MathAnim
 		static int32 getNewCursorPositionFromMove(CodeEditorPanelData const& panel, KeyMoveDirection direction);
 
 		// Simple calculation functions
+		static inline float getLineHeight(SizedFont const* const font)
+		{
+			return font->unsizedFont->lineHeight * font->fontSizePixels;
+		}
+
 		static inline ImVec2 getTopLeftOfLine(CodeEditorPanelData const& panel, uint32 lineNumber, SizedFont const* const font)
 		{
-			const float fontHeight = font->unsizedFont->lineHeight * font->fontSizePixels;
 			return panel.drawStart
-				+ ImVec2(0.0f, fontHeight * (lineNumber - panel.lineNumberStart));
+				+ ImVec2(0.0f, getLineHeight(font) * (lineNumber - panel.lineNumberStart));
+		}
+
+		static inline float getDocumentHeight(CodeEditorPanelData const& panel, SizedFont const* const font)
+		{
+			return getLineHeight(font) * panel.totalNumberLines;
 		}
 
 		static inline bool mouseIntersectsRect(ImVec2 rectStart, ImVec2 rectEnd)
@@ -104,13 +113,36 @@ namespace MathAnim
 			panel.cursorDistanceToBeginningOfLine = (panel.cursorBytePosition - beginningOfLine);
 		}
 
+		static uint32 getLineNumberByteStartFrom(CodeEditorPanelData const& panel, uint32 lineNumber)
+		{
+			uint32 currentLine = 1;
+			for (uint32 i = 0; i < (uint32)panel.visibleCharacterBufferSize; i++)
+			{
+				if (currentLine >= lineNumber)
+				{
+					return i;
+				}
+
+				if (panel.byteMap[panel.visibleCharacterBuffer[i]] == '\n')
+				{
+					currentLine++;
+				}
+			}
+
+			return (uint32)panel.visibleCharacterBufferSize;
+		}
+
 		// ------------- Internal Data -------------
 		static float leftGutterWidth = 60;
-		static float scrollBarWidth = 10;
+		static float scrollbarWidth = 10;
 		static float textCursorWidth = 3;
+		static uint32 numberBufferLines = 30;
+
 		static ImColor lineNumberColor = ImColor(255, 255, 255);
 		static ImColor textCursorColor = ImColor(255, 255, 255);
 		static ImColor highlightTextColor = ImColor(115, 163, 240, 128);
+		static ImColor backgroundColor = ImColor(44, 44, 44);
+		static ImColor scrollbarColor = ImColor(95, 95, 95);
 
 		// TODO: Make this configurable
 		static int MAX_UNDO_HISTORY = 1024;
@@ -139,8 +171,11 @@ namespace MathAnim
 			res->lineNumberStart = 1;
 			res->lineNumberByteStart = 0;
 			res->undoTypingStart = -1;
+			res->totalNumberLines = 0;
 
-			translateStringToLocalByteMapping(*res, (uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize);
+			translateStringToLocalByteMapping(*res, (uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize, &res->totalNumberLines);
+			// +1 for the extra line for EOF
+			res->totalNumberLines++;
 
 			res->undoSystem = UndoSystem::createTextEditorUndoSystem(res, MAX_UNDO_HISTORY);
 
@@ -432,11 +467,36 @@ namespace MathAnim
 			panel.drawStart = ImGui::GetCursorScreenPos();
 			panel.drawEnd = panel.drawStart + ImGui::GetContentRegionAvail();
 
+			panel.numberLinesCanFitOnScreen = (uint32)glm::floor((panel.drawEnd.y - panel.drawStart.y) / getLineHeight(codeFont));
+
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
-			drawList->AddRectFilled(panel.drawStart, panel.drawEnd, ImColor(44, 44, 44));
+			drawList->PushClipRect(panel.drawStart, panel.drawEnd, true);
+			drawList->AddRectFilled(panel.drawStart, panel.drawEnd, backgroundColor);
 
 			uint32 currentLine = panel.lineNumberStart;
 			ImVec2 currentLetterDrawPos = renderNextLinePrefix(panel, currentLine, codeFont);
+
+			// Handle scroll bar render and logic
+			if (panel.numberLinesCanFitOnScreen < panel.totalNumberLines + numberBufferLines)
+			{
+				const uint32 totalLinesIncludingBuffer = panel.totalNumberLines + numberBufferLines;
+				float scrollbarHeight = ((float)panel.numberLinesCanFitOnScreen / (float)totalLinesIncludingBuffer) * (panel.drawEnd.y - panel.drawStart.y);
+				float scrollYPos = ((float)(currentLine - 1) / (float)totalLinesIncludingBuffer) * (panel.drawEnd.y - panel.drawStart.y);
+
+				ImVec2 scrollDrawStart = ImVec2(panel.drawEnd.x - scrollbarWidth, panel.drawStart.y + scrollYPos);
+				ImVec2 scrollDrawEnd = scrollDrawStart + ImVec2(scrollbarWidth, scrollbarHeight);
+				drawList->AddRectFilled(scrollDrawStart, scrollDrawEnd, scrollbarColor, 0.3f);
+
+				if (Input::scrollY != 0)
+				{
+					int32 newLine = (int32)currentLine - ((int32)Input::scrollY * 3);
+					newLine = (int32)glm::clamp(newLine, 1, (int32)(panel.totalNumberLines + numberBufferLines - panel.numberLinesCanFitOnScreen));
+
+					panel.lineNumberStart = (uint32)newLine;
+					currentLine = panel.lineNumberStart;
+					panel.lineNumberByteStart = getLineNumberByteStartFrom(panel, (uint32)newLine);
+				}
+			}
 
 			bool justStartedDragSelecting = false;
 			if (mouseInTextEditArea(panel))
@@ -464,7 +524,7 @@ namespace MathAnim
 			ImVec2 textHighlightRectStart = ImVec2();
 			int32 closestByteToMouseCursor = (int32)panel.lineNumberByteStart;
 
-			for (size_t cursor = 0; cursor < panel.visibleCharacterBufferSize; cursor++)
+			for (size_t cursor = panel.lineNumberByteStart; cursor < panel.visibleCharacterBufferSize; cursor++)
 			{
 				uint32 currentCodepoint = panel.byteMap[panel.visibleCharacterBuffer[cursor]];
 				ImVec2 letterBoundsStart = currentLetterDrawPos;
@@ -496,6 +556,13 @@ namespace MathAnim
 				if (currentCodepoint == (uint32)'\n')
 				{
 					currentLine++;
+
+					// Only render and handle logic for the visible characters
+					if (currentLine > panel.lineNumberStart + panel.numberLinesCanFitOnScreen)
+					{
+						break;
+					}
+
 					currentLetterDrawPos = renderNextLinePrefix(panel, currentLine, codeFont);
 				}
 
@@ -554,7 +621,7 @@ namespace MathAnim
 					{
 						// Draw highlight to the end of the line
 						ImVec2 lineEndPos = ImVec2(
-							panel.drawEnd.x - scrollBarWidth,
+							panel.drawEnd.x - scrollbarWidth,
 							letterBoundsStart.y + letterBoundsSize.y
 						);
 						drawList->AddRectFilled(textHighlightRectStart, lineEndPos, highlightTextColor);
@@ -583,6 +650,8 @@ namespace MathAnim
 				lastCharWasNewline = currentCodepoint == (uint32)'\n';
 				passedFirstCharacter = true;
 			}
+
+			drawList->PopClipRect();
 
 			if (panel.mouseIsDragSelecting)
 			{
@@ -618,7 +687,7 @@ namespace MathAnim
 				}
 			}
 
-			if (mouseInTextEditArea(panel))
+			if (mouseInTextEditArea(panel) || panel.mouseIsDragSelecting)
 			{
 				if (io.MouseDown[ImGuiMouseButton_Left])
 				{
@@ -675,8 +744,9 @@ namespace MathAnim
 			// Translate UTF8 string to local byte mapping
 			uint8* byteMappedString = nullptr;
 			size_t byteMappedStringLength = 0;
+			uint32 numberLinesInString = 0;
 
-			translateStringToLocalByteMapping(panel, utf8String, stringNumBytes, &byteMappedString, &byteMappedStringLength);
+			translateStringToLocalByteMapping(panel, utf8String, stringNumBytes, &byteMappedString, &byteMappedStringLength, &numberLinesInString);
 
 			size_t newCharBufferSize = sizeof(uint8) * (panel.visibleCharacterBufferSize + byteMappedStringLength);
 			panel.visibleCharacterBuffer = (uint8*)g_memory_realloc(panel.visibleCharacterBuffer, newCharBufferSize);
@@ -703,6 +773,8 @@ namespace MathAnim
 			panel.mouseByteDragStart = panel.cursorBytePosition;
 			panel.firstByteInSelection = panel.cursorBytePosition;
 			panel.lastByteInSelection = panel.cursorBytePosition;
+
+			panel.totalNumberLines += numberLinesInString;
 
 			g_memory_free(byteMappedString);
 		}
@@ -760,10 +832,14 @@ namespace MathAnim
 			return true;
 		}
 
-		void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength)
+		void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength, uint32* numberLines)
 		{
 			*outStr = nullptr;
 			*outStrLength = 0;
+			if (numberLines != nullptr)
+			{
+				*numberLines = 0;
+			}
 
 			// Translate UTF8 string to local byte mapping
 			auto maybeParseInfo = Parser::makeParseInfo((char*)utf8String, stringNumBytes);
@@ -785,6 +861,11 @@ namespace MathAnim
 					g_logger_error("File has malformed unicode. Skipping bad unicode data.");
 					parseInfo.numBytes++;
 					continue;
+				}
+
+				if (numberLines != nullptr && codepoint.value() == '\n')
+				{
+					*numberLines += 1;
 				}
 
 				// Also, skip carriage returns 'cuz screw those
@@ -976,7 +1057,7 @@ namespace MathAnim
 
 		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& drawPosition, SizedFont const* const font)
 		{
-			if (!ImGui::IsWindowFocused())
+			if (!ImGui::IsWindowFocused() && !panel.mouseIsDragSelecting)
 			{
 				return;
 			}
@@ -1014,7 +1095,7 @@ namespace MathAnim
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel)
 		{
 			ImVec2 textAreaStart = panel.drawStart + ImVec2(leftGutterWidth, 0.0f);
-			ImVec2 textAreaEnd = panel.drawEnd - ImVec2(scrollBarWidth, 0.0f);
+			ImVec2 textAreaEnd = panel.drawEnd - ImVec2(scrollbarWidth, 0.0f);
 			return mouseIntersectsRect(textAreaStart, textAreaEnd);
 		}
 
@@ -1146,6 +1227,16 @@ namespace MathAnim
 				return false;
 			}
 
+			// Count the number of lines in the text we're about to remove
+			uint32 numberLinesInString = 0;
+			for (int32 i = textToRemoveOffset; i <= textToRemoveOffset + textToRemoveNumBytes; i++)
+			{
+				if (panel.byteMap[panel.visibleCharacterBuffer[i]] == '\n')
+				{
+					numberLinesInString += 1;
+				}
+			}
+
 			size_t bytesToMoveOffset = textToRemoveOffset + textToRemoveNumBytes;
 			if (bytesToMoveOffset != panel.visibleCharacterBufferSize)
 			{
@@ -1158,6 +1249,20 @@ namespace MathAnim
 
 			panel.visibleCharacterBufferSize -= textToRemoveNumBytes;
 			panel.visibleCharacterBuffer = (uint8*)g_memory_realloc((void*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize);
+
+			// Update total number of lines
+			uint32 oldTotalNumberLines = panel.totalNumberLines;
+			panel.totalNumberLines -= numberLinesInString;
+
+			// If removing the text changed the scroll height, shift the scroll up to fit on the screen
+			if (panel.lineNumberStart + panel.numberLinesCanFitOnScreen > panel.totalNumberLines + numberBufferLines)
+			{
+				uint32 delta = (oldTotalNumberLines + numberBufferLines) - panel.lineNumberStart;
+				int32 newLine = (int32)(panel.totalNumberLines + numberBufferLines) - (int32)delta;
+
+				panel.lineNumberStart = (uint32)glm::clamp(newLine, 1, (int32)panel.totalNumberLines + (int32)numberBufferLines);
+				panel.lineNumberByteStart = getLineNumberByteStartFrom(panel, panel.lineNumberStart);
+			}
 
 			return true;
 		}
