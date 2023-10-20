@@ -38,7 +38,7 @@ namespace MathAnim
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel);
 		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const font, std::string const& str, ImVec2 const& drawPos);
 		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const font, uint32 charToAdd, ImVec2 const& drawPos);
-		static bool removeSelectedTextWithBackspace(CodeEditorPanelData& panel);
+		static bool removeSelectedTextWithBackspace(CodeEditorPanelData& panel, bool addBackspaceToUndoHistory = true);
 		static bool removeSelectedTextWithDelete(CodeEditorPanelData& panel);
 		static bool removeText(CodeEditorPanelData& panel, int32 textToRemoveOffset, int32 textToRemoveNumBytes);
 		static int32 getNewCursorPositionFromMove(CodeEditorPanelData const& panel, KeyMoveDirection direction);
@@ -190,6 +190,19 @@ namespace MathAnim
 				// Handle copy/paste
 				if (Input::keyRepeatedOrDown(GLFW_KEY_V, KeyMods::Ctrl))
 				{
+					if (panel.undoTypingStart != -1)
+					{
+						handleTypingUndo(panel);
+					}
+
+					bool shouldDoPasteOverSelectedAction = false;
+					if (panel.firstByteInSelection != panel.lastByteInSelection)
+					{
+						// FIXME: Save the text here so we can restore it in undo history
+						removeSelectedTextWithBackspace(panel, false);
+						shouldDoPasteOverSelectedAction = true;
+					}
+
 					// Get clipboard string
 					const uint8* utf8String = Application::getWindow().getClipboardString();
 					size_t utf8StringNumBytes = strlen((const char*)utf8String);
@@ -203,8 +216,17 @@ namespace MathAnim
 					g_memory_free(outStr);
 
 					// Perform the paste and add an undo action
-					UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, panel.cursorBytePosition, numCharacters);
+					int32 insertPosition = panel.cursorBytePosition;
 					addUtf8StringToBuffer(panel, (uint8*)utf8String, utf8StringNumBytes, panel.cursorBytePosition);
+
+					if (shouldDoPasteOverSelectedAction)
+					{
+						g_logger_assert(false, "FIXME: If we pasted directly over a selection, we have to save the old text then store it for undo history to work");
+					}
+					else
+					{
+						UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, insertPosition, numCharacters);
+					}
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_C, KeyMods::Ctrl))
 				{
@@ -236,6 +258,14 @@ namespace MathAnim
 					}
 				}
 
+				// Special hotkeys like Ctrl+A
+				if (Input::keyRepeatedOrDown(GLFW_KEY_A, KeyMods::Ctrl))
+				{
+					panel.firstByteInSelection = 0;
+					panel.lastByteInSelection = (int32)panel.visibleCharacterBufferSize;
+					panel.cursorBytePosition = (int32)panel.visibleCharacterBufferSize;
+					panel.mouseByteDragStart = 0;
+				}
 
 				// Handle undo/redo
 				if (Input::keyRepeatedOrDown(GLFW_KEY_Z, KeyMods::Ctrl))
@@ -1059,7 +1089,7 @@ namespace MathAnim
 			return ImVec2((cursorPos - drawPos).x, totalFontHeight);
 		}
 
-		static bool removeSelectedTextWithBackspace(CodeEditorPanelData& panel)
+		static bool removeSelectedTextWithBackspace(CodeEditorPanelData& panel, bool addBackspaceToUndoHistory)
 		{
 			if (panel.cursorBytePosition == 0 && panel.firstByteInSelection == panel.lastByteInSelection)
 			{
@@ -1076,8 +1106,11 @@ namespace MathAnim
 				panel.firstByteInSelection--;
 			}
 
-			// Add an undo command if needed
-			handleBackspaceUndo(panel, shouldSetTextSelectedOnUndo);
+			if (addBackspaceToUndoHistory)
+			{
+				// Add an undo command if needed
+				handleBackspaceUndo(panel, shouldSetTextSelectedOnUndo);
+			}
 
 			return removeTextWithBackspace(panel, panel.firstByteInSelection, panel.lastByteInSelection - panel.firstByteInSelection);
 		}
