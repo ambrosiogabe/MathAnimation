@@ -85,6 +85,8 @@ inline MathAnim::Vec2 FT_Vector_ToVec2(const FT_Vector& vec, float glyphLeft, fl
 
 namespace MathAnim
 {
+	static uint32 MISSING_GLYPH_CODEPOINT = 0;
+
 	CharRange CharRange::Ascii = { 32, 126 };
 
 	struct SharedFont
@@ -101,15 +103,20 @@ namespace MathAnim
 
 	const GlyphOutline& Font::getGlyphInfo(uint32 glyphIndex) const
 	{
-		auto iter = glyphMap.find(glyphIndex);
-		if (iter != glyphMap.end())
+		if (auto iter = glyphMap.find(glyphIndex); iter != glyphMap.end())
 		{
 			return iter->second;
 		}
 
-		g_logger_error("Glyph index '{}' does not exist in font '{}'.", glyphIndex, fontFilepath);
-		static GlyphOutline defaultGlyph = {};
-		return defaultGlyph;
+		// Try to get and return the missing glyph
+		if (auto iter = glyphMap.find(MISSING_GLYPH_CODEPOINT); iter != glyphMap.end())
+		{
+			return iter->second;
+		}
+
+		g_logger_error("No missing glyph set for font, and could not find glyph for codepoint: '{}'.", glyphIndex);
+		static GlyphOutline undefinedGlyphAndNoMissingGlyph = {};
+		return undefinedGlyphAndNoMissingGlyph;
 	}
 
 	float Font::getKerning(uint32 leftCodepoint, uint32 rightCodepoint) const
@@ -166,18 +173,23 @@ namespace MathAnim
 
 	const GlyphTexture& SizedFont::getGlyphTexture(uint32 codepoint) const
 	{
-		if (this->glyphTextureCoords.find(codepoint) == this->glyphTextureCoords.end())
+		if (auto iter = this->glyphTextureCoords.find(codepoint); iter != this->glyphTextureCoords.end())
 		{
-			g_logger_warning("Trying to access glyph texture for unloaded glyph: '{}' in font '{}'.", codepoint, this->unsizedFont->fontFilepath);
-			static GlyphTexture nullTexture = {
-				0,
-				Vec2{0, 0},
-				Vec2{0, 0}
-			};
-			return nullTexture;
+			return iter->second;
 		}
 
-		return this->glyphTextureCoords.at(codepoint);
+		if (auto iter = this->glyphTextureCoords.find(MISSING_GLYPH_CODEPOINT); iter != this->glyphTextureCoords.end())
+		{
+			return iter->second;
+		}
+
+		g_logger_error("Trying to access glyph texture for unloaded glyph and no missing glyph set. Glyph: '{}' in font '{}'.", codepoint, this->unsizedFont->fontFilepath);
+		static GlyphTexture nullTexture = {
+			0,
+			Vec2{0, 0},
+			Vec2{0, 0}
+		};
+		return nullTexture;
 	}
 
 	namespace Fonts
@@ -216,9 +228,8 @@ namespace MathAnim
 
 			FT_Face fontFace = font->fontFace;
 			FT_UInt glyphIndex = FT_Get_Char_Index(fontFace, character);
-			if (glyphIndex == 0)
+			if (glyphIndex == 0 && character != 0)
 			{
-				g_logger_warning("Character code '{}' not found. Missing glyph.", character);
 				return 1;
 			}
 
@@ -281,16 +292,23 @@ namespace MathAnim
 					{
 						// Regenerate the texture and add all chars currently available to the new font
 						std::unordered_set<uint32> setToGenerate = charset;
+						// Always include the missing glyph
+						setToGenerate.insert(MISSING_GLYPH_CODEPOINT);
 						for (const auto& [key, value] : iter->second.font.glyphTextureCoords)
 						{
 							setToGenerate.insert(key);
 						}
 
 						generateTextureForChars(sizedFontKey, filepath, iter->second.font, setToGenerate, fontSizePixels, singleChannelTexture);
-					}
 
-					// Also load the unsized font so that reference counts remain equal
-					loadFont(filepath, charset);
+						// Also load the unsized font so that reference counts remain equal
+						loadFont(filepath, setToGenerate);
+					}
+					else
+					{
+						// Also load the unsized font so that reference counts remain equal
+						loadFont(filepath, charset);
+					}
 
 					// Increment reference count and return
 					iter->second.referenceCount++;
@@ -396,6 +414,8 @@ namespace MathAnim
 					{
 						// Reload this font with all the necessary chars
 						std::unordered_set<uint32> charsetToUse = charset;
+						// Always include the missing glyph
+						charsetToUse.insert(MISSING_GLYPH_CODEPOINT);
 						for (const auto& [key, value] : iter->second.font.glyphMap)
 						{
 							charsetToUse.insert(key);
@@ -512,16 +532,16 @@ namespace MathAnim
 				#elif defined(__linux__)
 				defaultMonoFont = loadFont("/usr/share/fonts/liberation/LiberationMono-Regular.ttf");
 				#endif
-			}
+		}
 
 			return defaultMonoFont;
-		}
+	}
 
 		static void generateDefaultCharset(Font& font, std::unordered_set<uint32> const& charset)
 		{
 			for (uint32 i : charset)
 			{
-				if (i == '\n') 
+				if (i == '\n')
 				{
 					continue;
 				}
@@ -530,7 +550,7 @@ namespace MathAnim
 				int error = createOutline(&font, i, &outlineResult);
 				if (error)
 				{
-					g_logger_warning("Could not create glyph outline for character '{}'", (char)i);
+					g_logger_warning("Could not create glyph outline for character code: '{}'", (uint8)i);
 					continue;
 				}
 
@@ -850,15 +870,14 @@ namespace MathAnim
 			uint32 lineHeight = 0;
 			for (uint32 codepoint : charset)
 			{
-				if (codepoint == '\n') 
+				if (codepoint == '\n')
 				{
 					continue;
 				}
 
 				FT_UInt glyphIndex = FT_Get_Char_Index(res.unsizedFont->fontFace, codepoint);
-				if (glyphIndex == 0)
+				if (glyphIndex == 0 && codepoint != 0)
 				{
-					g_logger_warning("Character code '{}' not found. Missing glyph.", codepoint);
 					continue;
 				}
 
@@ -970,5 +989,5 @@ namespace MathAnim
 
 			generateDefaultCharset(res, charset);
 		}
-	}
 }
+	}

@@ -43,6 +43,8 @@ namespace MathAnim
 		static bool removeText(CodeEditorPanelData& panel, int32 textToRemoveOffset, int32 textToRemoveNumBytes);
 		static int32 getNewCursorPositionFromMove(CodeEditorPanelData const& panel, KeyMoveDirection direction);
 		static void scrollCursorIntoViewIfNeeded(CodeEditorPanelData& panel);
+		// TODO: Move this to <cppStrings.hpp>
+		static uint8 codepointToUtf8Str(uint8* const buffer, uint32 codepoint);
 
 		// Simple calculation functions
 		static inline float getLineHeight(SizedFont const* const font)
@@ -794,11 +796,9 @@ namespace MathAnim
 
 		void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint, size_t insertPosition)
 		{
-			// TODO: Figure out a way to convert the codepoint to a utf8 byte array
-			//       for now we'll pretend
-			uint8 numBytes = 1;
-			uint8* byteArray = (uint8*)(&codepoint);
-			addUtf8StringToBuffer(panel, byteArray, numBytes, insertPosition);
+			uint8 bytes[4] = {};
+			uint8 numBytes = codepointToUtf8Str(bytes, codepoint);
+			addUtf8StringToBuffer(panel, bytes, numBytes, insertPosition);
 		}
 
 		bool removeTextWithBackspace(CodeEditorPanelData& panel, int32 textToRemoveStart, int32 textToRemoveLength)
@@ -910,11 +910,10 @@ namespace MathAnim
 			{
 				uint32 codepoint = panel.byteMap[byteMappedString[i]];
 
-				// TODO: Figure out way to translate codepoint to valid u8 bytes
-				uint8 numBytes = 1;
-				uint8 utf8Bytes = (uint8)codepoint;
+				uint8 utf8Bytes[4] = {};
+				uint8 numBytes = codepointToUtf8Str(utf8Bytes, codepoint);
 
-				#ifdef _WIN32
+#ifdef _WIN32
 				g_logger_assert(codepoint != (uint32)'\r', "We should never get carriage returns in our edit buffers");
 
 				// If we're on windows, translate newlines to carriage return + newlines when saving the files again
@@ -923,9 +922,9 @@ namespace MathAnim
 					uint8 carriageReturn = '\r';
 					memory.write(&carriageReturn);
 				}
-				#endif
+#endif
 
-				memory.writeDangerous(&utf8Bytes, numBytes * sizeof(uint8));
+				memory.writeDangerous(utf8Bytes, numBytes * sizeof(uint8));
 			}
 
 			memory.shrinkToFit();
@@ -1542,6 +1541,41 @@ namespace MathAnim
 
 				panel.lineNumberByteStart = getLineNumberByteStartFrom(panel, panel.lineNumberStart);
 			}
+		}
+
+		static uint8 codepointToUtf8Str(uint8* const outBuffer, uint32 code)
+		{
+			if (code <= 0x7F)
+			{
+				outBuffer[0] = (uint8)code;
+				return 1;
+			}
+
+			if (code <= 0x7FF)
+			{
+				outBuffer[0] = (uint8)(0xC0 | (code >> 6));   /* 110xxxxx */
+				outBuffer[1] = (uint8)(0x80 | (code & 0x3F)); /* 10xxxxxx */
+				return 2;
+			}
+
+			if (code <= 0xFFFF)
+			{
+				outBuffer[0] = (uint8)(0xE0 | (code >> 12));         /* 1110xxxx */
+				outBuffer[1] = (uint8)(0x80 | ((code >> 6) & 0x3F)); /* 10xxxxxx */
+				outBuffer[2] = (uint8)(0x80 | (code & 0x3F));        /* 10xxxxxx */
+				return 3;
+			}
+
+			if (code <= 0x10FFFF)
+			{
+				outBuffer[0] = (uint8)(0xF0 | (code >> 18));          /* 11110xxx */
+				outBuffer[1] = (uint8)(0x80 | ((code >> 12) & 0x3F)); /* 10xxxxxx */
+				outBuffer[2] = (uint8)(0x80 | ((code >> 6) & 0x3F));  /* 10xxxxxx */
+				outBuffer[3] = (uint8)(0x80 | (code & 0x3F));         /* 10xxxxxx */
+				return 4;
+			}
+
+			return 0;
 		}
 	}
 }
