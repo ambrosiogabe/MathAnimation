@@ -111,12 +111,13 @@ namespace MathAnim
 
 						if (searchRes >= 0)
 						{
+							int maxEnd = 0;
 							for (int i = 0; i < region->num_regs; i++)
 							{
-								if (region->beg[0] >= 0 && region->end[0] >= region->beg[0])
+								if (region->beg[i] >= 0 && region->end[i] >= region->beg[i])
 								{
-									int matchStart = region->beg[0];
-									int matchEnd = region->end[0];
+									int matchStart = region->beg[i];
+									int matchEnd = region->end[i];
 
 									Match match = {};
 									match.text = std::string(targetStr + matchStart, matchEnd - matchStart);
@@ -124,12 +125,19 @@ namespace MathAnim
 									match.end = matchEnd + (int)(targetStr - stringToTestAgainst);
 									matches.emplace_back(match);
 
-									targetStr += matchEnd;
-									if (matchEnd == matchStart)
-									{
-										targetStr++;
-									}
+									maxEnd = glm::max(matchEnd, maxEnd);
 								}
+							}
+
+							targetStr += maxEnd;
+							if (maxEnd == 0)
+							{
+								targetStr++;
+							}
+
+							if (multiline)
+							{
+								break;
 							}
 						}
 						else if (searchRes != ONIG_MISMATCH)
