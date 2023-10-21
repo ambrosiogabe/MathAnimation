@@ -13,6 +13,7 @@ namespace MathAnim
 		uint64_t uuid;
 		std::string windowName;
 		bool isEditedWithoutSave;
+		bool setFocus;
 	};
 
 	namespace CodeEditorPanelManager
@@ -72,6 +73,12 @@ namespace MathAnim
 				ImGui::End();
 
 				nextFileToAdd = "";
+
+				if (lineNumberToGoTo != -1)
+				{
+					CodeEditorPanel::setCursorToLine(*nextWindow.panel, lineNumberToGoTo);
+					lineNumberToGoTo = -1;
+				}
 			}
 
 			if (lineNumberToGoTo != -1 && fileToMakeActive != -1)
@@ -85,6 +92,7 @@ namespace MathAnim
 				}
 
 				CodeEditorPanel::setCursorToLine(*editor.panel, lineNumberToGoTo);
+				editor.setFocus = true;
 
 				lineNumberToGoTo = -1;
 				fileToMakeActive = -1;
@@ -92,6 +100,12 @@ namespace MathAnim
 
 			for (auto editor = openEditors.begin(); editor != openEditors.end();)
 			{
+				if (editor->setFocus)
+				{
+					ImGui::SetNextWindowFocus();
+					editor->setFocus = false;
+				}
+
 				bool open = true;
 				int windowFlags = editor->isEditedWithoutSave ? ImGuiWindowFlags_UnsavedDocument : 0;
 				bool windowIsActive = ImGui::Begin(editor->windowName.c_str(), &open, windowFlags);
