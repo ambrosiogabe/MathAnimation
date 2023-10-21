@@ -14,6 +14,7 @@ namespace MathAnim
 		Cpp,
 		Glsl,
 		Javascript,
+		Custom,
 		Length
 	};
 
@@ -21,14 +22,16 @@ namespace MathAnim
 		"None",
 		"C++",
 		"Glsl",
-		"JavaScript"
+		"JavaScript",
+		"Undefined"
 	);
 
 	constexpr auto _highlighterLanguageFilenames = fixedSizeArray<const char*, (size_t)HighlighterLanguage::Length>(
 		"None",
 		"assets/grammars/cpp.tmLanguage.json",
 		"assets/grammars/glsl.tmLanguage.json",
-		"assets/grammars/javascript.json"
+		"assets/grammars/javascript.json",
+		"Undefined"
 		);
 
 	enum class HighlighterTheme : uint8
@@ -98,6 +101,9 @@ namespace MathAnim
 	namespace Highlighters
 	{
 		void init();
+
+		void importGrammar(const char* filename);
+		const SyntaxHighlighter* getImportedHighlighter(const char* filename);
 
 		const SyntaxHighlighter* getHighlighter(HighlighterLanguage language);
 		const SyntaxTheme* getTheme(HighlighterTheme theme);

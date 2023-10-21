@@ -7,6 +7,9 @@
 #include "core/Window.h"
 #include "renderer/Fonts.h"
 #include "editor/TextEditUndo.h"
+#include "parsers/SyntaxTheme.h"
+
+#include <cppUtils/cppStrings.hpp>
 
 using namespace CppUtils;
 
@@ -36,8 +39,8 @@ namespace MathAnim
 		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& textCursorDrawPosition, SizedFont const* const font);
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber, SizedFont const* const font);
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel);
-		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const font, std::string const& str, ImVec2 const& drawPos);
-		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const font, uint32 charToAdd, ImVec2 const& drawPos);
+		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const font, std::string const& str, ImVec2 const& drawPos, ImColor const& color);
+		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const font, uint32 charToAdd, ImVec2 const& drawPos, ImColor const& color);
 		static bool removeSelectedTextWithBackspace(CodeEditorPanelData& panel, bool addBackspaceToUndoHistory = true);
 		static bool removeSelectedTextWithDelete(CodeEditorPanelData& panel);
 		static bool removeText(CodeEditorPanelData& panel, int32 textToRemoveOffset, int32 textToRemoveNumBytes);
@@ -184,8 +187,10 @@ namespace MathAnim
 
 			RawMemory memory;
 			memory.init(fileSize);
-			fread(memory.data, fileSize, 1, fp);
+			fread(memory.data, fileSize + 1, 1, fp);
 			fclose(fp);
+
+			memory.data[fileSize + 1] = '\0';
 
 			// Preprocess file into usable buffer
 			res->visibleCharacterBuffer = nullptr;
@@ -198,6 +203,29 @@ namespace MathAnim
 			translateStringToLocalByteMapping(*res, (uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize, &res->totalNumberLines);
 			// +1 for the extra line for EOF
 			res->totalNumberLines++;
+
+			// TODO: This is very gross, instead of copying a million times, we should get rid of the local byte
+			//       mapping garbage since it's not working well.
+			uint8* noCarriageReturnStr = nullptr;
+			size_t noCarriageReturnStrLength = 0;
+			translateLocalByteMappingToString(
+				*res,
+				res->visibleCharacterBuffer,
+				res->visibleCharacterBufferSize,
+				&noCarriageReturnStr,
+				&noCarriageReturnStrLength,
+				false
+			);
+
+			// Parse the syntax
+			// TODO: This will not work with UTF8, fix it.
+			res->syntaxHighlightTree = CodeEditorPanelManager::getHighlighter().parse(
+				std::string((const char*)noCarriageReturnStr, noCarriageReturnStrLength),
+				CodeEditorPanelManager::getTheme(),
+				true
+			);
+
+			g_memory_free(noCarriageReturnStr);
 
 			res->undoSystem = UndoSystem::createTextEditorUndoSystem(res, MAX_UNDO_HISTORY);
 
@@ -540,15 +568,38 @@ namespace MathAnim
 			ImVec2 textHighlightRectStart = ImVec2();
 			int32 closestByteToMouseCursor = (int32)panel.lineNumberByteStart;
 
+			auto highlightIter = panel.syntaxHighlightTree.segments.begin();
+			auto syntaxTheme = CodeEditorPanelManager::getTheme();
+
 			for (size_t cursor = panel.lineNumberByteStart; cursor < panel.visibleCharacterBufferSize; cursor++)
 			{
+				ImColor highlightedColor = syntaxTheme.defaultForeground.color;
+
+				// Figure out what color this character should be
+				if (highlightIter != panel.syntaxHighlightTree.segments.end() && cursor >= highlightIter->endPos)
+				{
+					highlightIter++;
+				}
+
+				if (highlightIter != panel.syntaxHighlightTree.segments.end() &&
+					cursor >= highlightIter->startPos && cursor < highlightIter->endPos)
+				{
+					highlightedColor = ImColor(
+						highlightIter->color.r,
+						highlightIter->color.g,
+						highlightIter->color.b,
+						highlightIter->color.a
+					);
+				}
+
 				uint32 currentCodepoint = panel.byteMap[panel.visibleCharacterBuffer[cursor]];
 				ImVec2 letterBoundsStart = currentLetterDrawPos;
 				ImVec2 letterBoundsSize = addCharToDrawList(
 					drawList,
 					codeFont,
 					currentCodepoint,
-					letterBoundsStart
+					letterBoundsStart,
+					highlightedColor
 				);
 
 				if (cursor == panel.cursorBytePosition)
@@ -868,7 +919,7 @@ namespace MathAnim
 			}
 
 			// Translate UTF8 string to local byte mapping
-			auto maybeParseInfo = Parser::makeParseInfo((char*)utf8String, stringNumBytes);
+			auto maybeParseInfo = ::Parser::makeParseInfo((char*)utf8String, stringNumBytes);
 			if (!maybeParseInfo.hasValue())
 			{
 				g_logger_error("Could not add UTF-8 string '{}' to editor. Had error '{}'.", utf8String, maybeParseInfo.error());
@@ -881,7 +932,7 @@ namespace MathAnim
 			while (parseInfo.cursor < parseInfo.numBytes)
 			{
 				uint8 numBytesParsed = 1;
-				auto codepoint = Parser::parseCharacter(parseInfo, &numBytesParsed);
+				auto codepoint = ::Parser::parseCharacter(parseInfo, &numBytesParsed);
 				if (!codepoint.hasValue())
 				{
 					g_logger_error("File has malformed unicode. Skipping bad unicode data.");
@@ -913,7 +964,7 @@ namespace MathAnim
 			*outStr = (uint8*)g_memory_realloc((void*)(*outStr), (*outStrLength) * sizeof(uint8));
 		}
 
-		void translateLocalByteMappingToString(CodeEditorPanelData const& panel, uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes)
+		void translateLocalByteMappingToString(CodeEditorPanelData const& panel, uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes, bool includeCarriageReturnsForWindows)
 		{
 			// Translate to valid UTF-8
 			RawMemory memory{};
@@ -926,16 +977,19 @@ namespace MathAnim
 				uint8 utf8Bytes[4] = {};
 				uint8 numBytes = codepointToUtf8Str(utf8Bytes, codepoint);
 
-#ifdef _WIN32
-				g_logger_assert(codepoint != (uint32)'\r', "We should never get carriage returns in our edit buffers");
-
-				// If we're on windows, translate newlines to carriage return + newlines when saving the files again
-				if (codepoint == (uint32)'\n')
+				#ifdef _WIN32
+				if (includeCarriageReturnsForWindows)
 				{
-					uint8 carriageReturn = '\r';
-					memory.write(&carriageReturn);
+					g_logger_assert(codepoint != (uint32)'\r', "We should never get carriage returns in our edit buffers");
+
+					// If we're on windows, translate newlines to carriage return + newlines when saving the files again
+					if (codepoint == (uint32)'\n')
+					{
+						uint8 carriageReturn = '\r';
+						memory.write(&carriageReturn);
+					}
 				}
-#endif
+				#endif
 
 				memory.writeDangerous(utf8Bytes, numBytes * sizeof(uint8));
 			}
@@ -1114,7 +1168,7 @@ namespace MathAnim
 
 			ImVec2 lineStart = getTopLeftOfLine(panel, lineNumber, font);
 			ImVec2 numberStart = lineStart + ImVec2(leftGutterWidth - textSize.x, 0.0f);
-			addStringToDrawList(drawList, font, numberText, numberStart);
+			addStringToDrawList(drawList, font, numberText, numberStart, ImColor(255, 255, 255, 255));
 
 			return lineStart + ImVec2(leftGutterWidth + style.FramePadding.x, 0.0f);
 		}
@@ -1126,7 +1180,7 @@ namespace MathAnim
 			return mouseIntersectsRect(textAreaStart, textAreaEnd);
 		}
 
-		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const sizedFont, std::string const& str, ImVec2 const& drawPos)
+		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const sizedFont, std::string const& str, ImVec2 const& drawPos, ImColor const& color)
 		{
 			Font const* const font = sizedFont->unsizedFont;
 			ImVec2 cursorPos = drawPos;
@@ -1139,14 +1193,14 @@ namespace MathAnim
 					continue;
 				}
 
-				ImVec2 charSize = addCharToDrawList(drawList, sizedFont, (uint32)str[i], cursorPos);
+				ImVec2 charSize = addCharToDrawList(drawList, sizedFont, (uint32)str[i], cursorPos, color);
 				cursorPos = cursorPos + ImVec2(charSize.x, 0.0f);
 			}
 
 			return cursorPos - drawPos;
 		}
 
-		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const sizedFont, uint32 charToAdd, ImVec2 const& drawPos)
+		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const sizedFont, uint32 charToAdd, ImVec2 const& drawPos, ImColor const& color)
 		{
 			Font const* const font = sizedFont->unsizedFont;
 			uint32 texId = sizedFont->texture.graphicsId;
@@ -1187,7 +1241,8 @@ namespace MathAnim
 					uvMin,
 					uvMin + ImVec2(uvSize.x, 0.0f),
 					uvMin + uvSize,
-					uvMin + ImVec2(0.0f, uvSize.y)
+					uvMin + ImVec2(0.0f, uvSize.y),
+					color
 				);
 			}
 

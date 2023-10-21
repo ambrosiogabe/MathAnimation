@@ -678,6 +678,17 @@ namespace MathAnim
 		return ancestorScopes;
 	}
 
+	static bool checkBufferUnderflow(size_t sizeLeft, size_t numBytesToRemove)
+	{
+		if (sizeLeft >= numBytesToRemove)
+		{
+			return false;
+		} 
+
+		g_logger_error("We have a buffer underflow. Please pass a larger buffer to the tree.");
+		return true;
+	}
+
 	std::string SourceGrammarTree::getStringifiedTree(size_t bufferSize) const
 	{
 		char* buffer = (char*)g_memory_allocate(bufferSize * sizeof(char));
@@ -697,6 +708,11 @@ namespace MathAnim
 			{
 				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "  ");
 				bufferPtr += numBytesWritten;
+				if (checkBufferUnderflow(bufferSizeLeft, numBytesWritten))
+				{
+					// Break out of all loops
+					goto end;
+				}
 				bufferSizeLeft -= numBytesWritten;
 			}
 
@@ -704,6 +720,11 @@ namespace MathAnim
 			{
 				int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'ATOM': ");
 				bufferPtr += numBytesWritten;
+				if (checkBufferUnderflow(bufferSizeLeft, numBytesWritten))
+				{
+					// Break out of all loops
+					goto end;
+				}
 				bufferSizeLeft -= numBytesWritten;
 			}
 			else
@@ -713,12 +734,22 @@ namespace MathAnim
 					const std::optional<ScopedName>& scope = tree[i].scope;
 					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s': ", scope->getFriendlyName().c_str());
 					bufferPtr += numBytesWritten;
+					if (checkBufferUnderflow(bufferSizeLeft, numBytesWritten))
+					{
+						// Break out of all loops
+						goto end;
+					}
 					bufferSizeLeft -= numBytesWritten;
 				}
 				else
 				{
 					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'NULL_SCOPE': ");
 					bufferPtr += numBytesWritten;
+					if (checkBufferUnderflow(bufferSizeLeft, numBytesWritten))
+					{
+						// Break out of all loops
+						goto end;
+					}
 					bufferSizeLeft -= numBytesWritten;
 				}
 			}
@@ -734,6 +765,11 @@ namespace MathAnim
 						+ ">";
 					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s'\n", offsetVal.c_str());
 					bufferPtr += numBytesWritten;
+					if (checkBufferUnderflow(bufferSizeLeft, numBytesWritten))
+					{
+						// Break out of all loops
+						goto end;
+					}
 					bufferSizeLeft -= numBytesWritten;
 				}
 				else
@@ -759,6 +795,11 @@ namespace MathAnim
 					}
 					int numBytesWritten = snprintf(bufferPtr, bufferSizeLeft, "'%s'\n", val.c_str());
 					bufferPtr += numBytesWritten;
+					if (checkBufferUnderflow(bufferSizeLeft, numBytesWritten))
+					{
+						// Break out of all loops
+						goto end;
+					}
 					bufferSizeLeft -= numBytesWritten;
 				}
 			}
@@ -778,16 +819,18 @@ namespace MathAnim
 			}
 		}
 
+	end:
 		if ((size_t)(bufferPtr - buffer) < bufferSize)
 		{
 			bufferPtr[0] = '\0';
 		}
 		else
 		{
+			// We had a buffer overrun, truncate the string
 			buffer[bufferSize - 1] = '\0';
 		}
 
-		std::string res = std::string(buffer);
+		std::string res = std::string((const char*)buffer);
 		g_memory_free(buffer);
 
 		return res;
@@ -1622,7 +1665,7 @@ namespace MathAnim
 						}
 						else
 						{
-							g_logger_error("Capture group in Onigiruma expression did not have a scoped name or a pattern array.");
+							g_logger_error("Capture group in Oniguruma expression did not have a scoped name or a pattern array.");
 						}
 					}
 				}

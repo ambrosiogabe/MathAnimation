@@ -112,6 +112,7 @@ namespace MathAnim
 	{
 		static std::unordered_map<HighlighterLanguage, SyntaxHighlighter*> grammars = {};
 		static std::unordered_map<HighlighterTheme, SyntaxTheme*> themes = {};
+		static std::unordered_map<std::filesystem::path, SyntaxHighlighter*> importedGrammars = {};
 
 		void init()
 		{
@@ -133,6 +134,32 @@ namespace MathAnim
 			}
 
 			g_logger_info("Successfully imported default languages and themes for syntax highlighters.");
+		}
+
+		void importGrammar(const char* filename)
+		{
+			std::filesystem::path absPath = std::filesystem::absolute(std::filesystem::path(filename));
+			if (auto iter = importedGrammars.find(absPath); iter != importedGrammars.end())
+			{
+				return;
+			}
+
+			if (Platform::fileExists(absPath.string().c_str()))
+			{
+				SyntaxHighlighter* highlighter = g_memory_new SyntaxHighlighter(absPath);
+				importedGrammars[absPath] = highlighter;
+			}
+		}
+
+		const SyntaxHighlighter* getImportedHighlighter(const char* filename)
+		{
+			std::filesystem::path absPath = std::filesystem::absolute(std::filesystem::path(filename));
+			if (auto iter = importedGrammars.find(absPath); iter != importedGrammars.end())
+			{
+				return iter->second;
+			}
+
+			return nullptr;
 		}
 
 		const SyntaxHighlighter* getHighlighter(HighlighterLanguage language)
@@ -159,6 +186,13 @@ namespace MathAnim
 
 		void free()
 		{
+			for (auto [k, v] : importedGrammars)
+			{
+				v->free();
+				g_memory_delete(v);
+			}
+			importedGrammars.clear();
+
 			for (auto [k, v] : grammars)
 			{
 				v->free();

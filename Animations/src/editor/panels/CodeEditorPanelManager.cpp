@@ -4,6 +4,7 @@
 #include "animation/AnimationManager.h"
 #include "core/Input.h"
 #include "renderer/Fonts.h"
+#include "parsers/SyntaxHighlighter.h"
 
 namespace MathAnim
 {
@@ -27,6 +28,9 @@ namespace MathAnim
 		static std::string nextFileToAdd = "";
 		static int fileToMakeActive = -1;
 		static int lineNumberToGoTo = -1;
+		static const char* luaGrammarJsonFile = "./assets/customGrammars/lua.grammar.json";
+		static SyntaxHighlighter const* luaGrammar = nullptr;
+		static SyntaxTheme const* syntaxTheme = nullptr;
 
 		static const char* codeFontRegularFile = "./assets/fonts/fira/FiraCode-SemiBold.ttf";
 		static SizedFont* codeFont = nullptr;
@@ -37,6 +41,10 @@ namespace MathAnim
 		void init()
 		{
 			codeFont = Fonts::loadSizedFont(codeFontRegularFile, fontSizePx, CharRange::Ascii, false);
+			
+			Highlighters::importGrammar(luaGrammarJsonFile);
+			luaGrammar = Highlighters::getImportedHighlighter(luaGrammarJsonFile);
+			syntaxTheme = Highlighters::getTheme(HighlighterTheme::MonokaiNight);
 
 			for (uint32 i = CharRange::Ascii.firstCharCode; i <= CharRange::Ascii.lastCharCode; i++)
 			{
@@ -242,6 +250,18 @@ namespace MathAnim
 				g_logger_assert(codepointIter != loadedCodepoints.end(), "We shouldn't have mismatched codepoints in the set and map.");
 				return codepointIter->second;
 			}
+		}
+
+		SyntaxHighlighter const& getHighlighter()
+		{
+			g_logger_assert(luaGrammar != nullptr, "This shouldn't happen.");
+			return *luaGrammar;
+		}
+
+		SyntaxTheme const& getTheme()
+		{
+			g_logger_assert(syntaxTheme != nullptr, "This shouldn't happen.");
+			return *syntaxTheme;
 		}
 
 		// ----------- Internal functinons -----------
