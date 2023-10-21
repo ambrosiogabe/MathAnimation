@@ -47,6 +47,13 @@ namespace MathAnim
 		float getContentScale() const;
 
 		void close();
+
+		// Returns a UTF8 string if the window clipboard contains a string
+		// You do not need to free the string.
+		const uint8* getClipboardString() const;
+
+		// Set the window clipboard string. The window creates a copy of this data.
+		void setClipboardString(const char* string) const;
         
         static glm::ivec2 getMonitorWorkingSize();
         

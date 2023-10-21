@@ -35,6 +35,7 @@ namespace MathAnim
 		std::string fontFilepath;
 		float unitsPerEM;
 		float lineHeight;
+		float maxDescentY;
 
 		const GlyphOutline& getGlyphInfo(uint32 glyphIndex) const;
 		float getKerning(uint32 leftCodepoint, uint32 rightCodepoint) const;
@@ -73,7 +74,13 @@ namespace MathAnim
 		// a texture with the default charset.
 		// If the font is already loaded, it just increments
 		// a reference count and returns the font.
-		SizedFont* loadSizedFont(const char* filepath, int fontSizePixels, CharRange defaultCharset = CharRange::Ascii);
+		SizedFont* loadSizedFont(const char* filepath, int fontSizePixels, CharRange defaultCharset = CharRange::Ascii, bool singleChannelTexture = true);
+
+		// Loads a sized font if it is not already loaded and creates
+		// a texture with the default charset.
+		// If the font is already loaded, it just increments
+		// a reference count and returns the font.
+		SizedFont* loadSizedFont(const char* filepath, int fontSizePixels, std::unordered_set<uint32> const& charset, bool singleChannelTexture = true);
 
 		// Decreases a reference count to the font
 		// If the reference count goes below 0, the 
@@ -94,6 +101,11 @@ namespace MathAnim
 		// If the font is already loaded, it just increments
 		// a reference count and returns the font.
 		Font* loadFont(const char* filepath, CharRange defaultCharset = CharRange::Ascii);
+
+		// Loads a font if it is not already loaded.
+		// If the font is already loaded, it just increments
+		// a reference count and returns the font.
+		Font* loadFont(const char* filepath, std::unordered_set<uint32> const& charset);
 
 		// Decreases a reference count to the font
 		// If the reference count goes below 0, the 

@@ -1,4 +1,5 @@
 #include "editor/panels/DebugPanel.h"
+#include "editor/panels/CodeEditorPanelManager.h"
 #include "core.h"
 #include "core/Application.h"
 #include "svg/Svg.h"
@@ -196,6 +197,10 @@ namespace MathAnim
 				static bool drawAllBoundingBoxes = false;
 				ImGui::Checkbox(": Draw All Bounding Boxes", &drawAllBoundingBoxes);
 				AnimationManager::setRenderAllBoundingBoxes(am, drawAllBoundingBoxes);
+			}
+
+			{
+				CodeEditorPanelManager::imguiStats();
 			}
 
 			ImGui::End();

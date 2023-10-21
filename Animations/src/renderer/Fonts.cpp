@@ -85,6 +85,8 @@ inline MathAnim::Vec2 FT_Vector_ToVec2(const FT_Vector& vec, float glyphLeft, fl
 
 namespace MathAnim
 {
+	static uint32 MISSING_GLYPH_CODEPOINT = 0;
+
 	CharRange CharRange::Ascii = { 32, 126 };
 
 	struct SharedFont
@@ -101,15 +103,20 @@ namespace MathAnim
 
 	const GlyphOutline& Font::getGlyphInfo(uint32 glyphIndex) const
 	{
-		auto iter = glyphMap.find(glyphIndex);
-		if (iter != glyphMap.end())
+		if (auto iter = glyphMap.find(glyphIndex); iter != glyphMap.end())
 		{
 			return iter->second;
 		}
 
-		g_logger_error("Glyph index '{}' does not exist in font '{}'.", glyphIndex, fontFilepath);
-		static GlyphOutline defaultGlyph = {};
-		return defaultGlyph;
+		// Try to get and return the missing glyph
+		if (auto iter = glyphMap.find(MISSING_GLYPH_CODEPOINT); iter != glyphMap.end())
+		{
+			return iter->second;
+		}
+
+		g_logger_error("No missing glyph set for font, and could not find glyph for codepoint: '{}'.", glyphIndex);
+		static GlyphOutline undefinedGlyphAndNoMissingGlyph = {};
+		return undefinedGlyphAndNoMissingGlyph;
 	}
 
 	float Font::getKerning(uint32 leftCodepoint, uint32 rightCodepoint) const
@@ -166,18 +173,23 @@ namespace MathAnim
 
 	const GlyphTexture& SizedFont::getGlyphTexture(uint32 codepoint) const
 	{
-		if (this->glyphTextureCoords.find(codepoint) == this->glyphTextureCoords.end())
+		if (auto iter = this->glyphTextureCoords.find(codepoint); iter != this->glyphTextureCoords.end())
 		{
-			g_logger_warning("Trying to access glyph texture for unloaded glyph: '{}' in font '{}'.", codepoint, this->unsizedFont->fontFilepath);
-			static GlyphTexture nullTexture = {
-				0,
-				Vec2{0, 0},
-				Vec2{0, 0}
-			};
-			return nullTexture;
+			return iter->second;
 		}
 
-		return this->glyphTextureCoords.at(codepoint);
+		if (auto iter = this->glyphTextureCoords.find(MISSING_GLYPH_CODEPOINT); iter != this->glyphTextureCoords.end())
+		{
+			return iter->second;
+		}
+
+		g_logger_error("Trying to access glyph texture for unloaded glyph and no missing glyph set. Glyph: '{}' in font '{}'.", codepoint, this->unsizedFont->fontFilepath);
+		static GlyphTexture nullTexture = {
+			0,
+			Vec2{0, 0},
+			Vec2{0, 0}
+		};
+		return nullTexture;
 	}
 
 	namespace Fonts
@@ -190,11 +202,13 @@ namespace MathAnim
 		static std::unordered_map<std::string, SharedFont> loadedFonts;
 		static std::unordered_map<std::string, SharedSizedFont> loadedSizedFonts;
 
-		static void generateDefaultCharset(Font& font, CharRange defaultCharset);
+		static void loadFontInternal(Font& res, const char* filepath, std::unordered_set<uint32> const& charset);
+		static void generateDefaultCharset(Font& font, std::unordered_set<uint32> const& charset);
 		static int getOutline(FT_Glyph glyph, FT_OutlineGlyph* Outg);
 		static GlyphOutline createOutlineInternal(FT_OutlineGlyph outlineGlyph, FT_Face face);
 		static std::string getSizedFontKey(const char* filepath, int fontSizePixels);
 		static std::string getUnsizedFontKey(const char* filepath);
+		static void generateTextureForChars(std::string const& sizedFontKey, const char* filepath, SizedFont& res, std::unordered_set<uint32> const& charset, int fontSizePixels, bool singleChannelTexture);
 
 		void init()
 		{
@@ -214,9 +228,8 @@ namespace MathAnim
 
 			FT_Face fontFace = font->fontFace;
 			FT_UInt glyphIndex = FT_Get_Char_Index(fontFace, character);
-			if (glyphIndex == 0)
+			if (glyphIndex == 0 && character != 0)
 			{
-				g_logger_warning("Character code '{}' not found. Missing glyph.", character);
 				return 1;
 			}
 
@@ -245,7 +258,18 @@ namespace MathAnim
 			return 0;
 		}
 
-		SizedFont* loadSizedFont(const char* filepath, int fontSizePixels, CharRange defaultCharset)
+		SizedFont* loadSizedFont(const char* filepath, int fontSizePixels, CharRange defaultCharset, bool singleChannelTexture)
+		{
+			std::unordered_set<uint32> charset = {};
+			for (uint32 i = defaultCharset.firstCharCode; i <= defaultCharset.lastCharCode; i++)
+			{
+				charset.insert(i);
+			}
+
+			return loadSizedFont(filepath, fontSizePixels, charset, singleChannelTexture);
+		}
+
+		SizedFont* loadSizedFont(const char* filepath, int fontSizePixels, std::unordered_set<uint32> const& charset, bool singleChannelTexture)
 		{
 			// Check if the sized font is already loaded
 			std::string sizedFontKey = getSizedFontKey(filepath, fontSizePixels);
@@ -253,106 +277,48 @@ namespace MathAnim
 				auto iter = loadedSizedFonts.find(sizedFontKey);
 				if (iter != loadedSizedFonts.end())
 				{
+					// Check if the loaded font contains all the characters needed
+					bool needsNewChars = false;
+					for (uint32 codepoint : charset)
+					{
+						if (iter->second.font.glyphTextureCoords.find(codepoint) == iter->second.font.glyphTextureCoords.end())
+						{
+							needsNewChars = true;
+							break;
+						}
+					}
+
+					if (needsNewChars)
+					{
+						// Regenerate the texture and add all chars currently available to the new font
+						std::unordered_set<uint32> setToGenerate = charset;
+						// Always include the missing glyph
+						setToGenerate.insert(MISSING_GLYPH_CODEPOINT);
+						for (const auto& [key, value] : iter->second.font.glyphTextureCoords)
+						{
+							setToGenerate.insert(key);
+						}
+
+						generateTextureForChars(sizedFontKey, filepath, iter->second.font, setToGenerate, fontSizePixels, singleChannelTexture);
+
+						// Also load the unsized font so that reference counts remain equal
+						loadFont(filepath, setToGenerate);
+					}
+					else
+					{
+						// Also load the unsized font so that reference counts remain equal
+						loadFont(filepath, charset);
+					}
+
 					// Increment reference count and return
 					iter->second.referenceCount++;
 					return &iter->second.font;
 				}
 			}
 
-			g_logger_info("Caching sized font '{}'.", sizedFontKey);
-
-			SizedFont res;
-			res.unsizedFont = loadFont(filepath, defaultCharset);
-			res.fontSizePixels = fontSizePixels;
-
-			{
-				FT_Error error = FT_Set_Pixel_Sizes(res.unsizedFont->fontFace, fontSizePixels, fontSizePixels);
-				if (error)
-				{
-					g_logger_error("Freetype failed to set the pixel size for font '{}'.", filepath);
-					unloadFont(res.unsizedFont);
-					return nullptr;
-				}
-			}
-
-			constexpr uint32 textureWidth = 2048;
-			constexpr uint32 textureHeight = 2048;
-			res.texture = TextureBuilder()
-				.setFormat(ByteFormat::R8_UI)
-				.setWidth(textureWidth)
-				.setHeight(textureHeight)
-				.setMagFilter(FilterMode::Linear)
-				.setMinFilter(FilterMode::Linear)
-				.setWrapS(WrapMode::None)
-				.setWrapT(WrapMode::None)
-				.generateEmpty();
-
-			// Generate the texture and upload it to the GPU
-			size_t textureMemorySize = sizeof(uint8) * textureWidth * textureHeight;
-			uint8* textureMemory = (uint8*)g_memory_allocate(textureMemorySize);
-			g_memory_zeroMem(textureMemory, sizeof(uint8) * textureWidth * textureHeight);
-			uint32 cursorX = 0;
-			uint32 cursorY = 0;
-			uint32 lineHeight = 0;
-			for (uint32 codepoint = defaultCharset.firstCharCode; codepoint <= defaultCharset.lastCharCode; codepoint++)
-			{
-				FT_UInt glyphIndex = FT_Get_Char_Index(res.unsizedFont->fontFace, codepoint);
-				if (glyphIndex == 0)
-				{
-					g_logger_warning("Character code '{}' not found. Missing glyph.", codepoint);
-					continue;
-				}
-
-				// Load the glyph
-				FT_Error error = FT_Load_Glyph(res.unsizedFont->fontFace, glyphIndex, FT_LOAD_RENDER);
-				if (error)
-				{
-					g_logger_error("Freetype could not load glyph for character code '{}'.", codepoint);
-				}
-
-				FT_Bitmap& bitmap = res.unsizedFont->fontFace->glyph->bitmap;
-				if (cursorX + bitmap.width >= textureWidth)
-				{
-					cursorY += lineHeight;
-					lineHeight = 0;
-					cursorX = 0;
-				}
-				lineHeight = glm::max(bitmap.rows, lineHeight);
-
-				if (cursorY + bitmap.rows >= textureHeight)
-				{
-					g_logger_error("Ran out of texture room for font '{}'", filepath);
-					continue;
-				}
-
-				// Copy every row into our bitmap
-				for (uint32 y = 0; y < bitmap.rows; y++)
-				{
-					uint8* dst = textureMemory + cursorX + ((cursorY + y) * textureWidth);
-					uint8* src = bitmap.buffer + (y * bitmap.width);
-					size_t textureMemorySizeLeft = textureMemorySize - (dst - textureMemory);
-					g_memory_copyMem(dst, textureMemorySizeLeft, src, sizeof(uint8) * bitmap.width);
-				}
-
-				// Add normalized glyph position
-				res.glyphTextureCoords[codepoint].lruCacheId = 0;
-				res.glyphTextureCoords[codepoint].uvMin = Vec2{
-					(float)cursorX / (float)textureWidth,
-					(float)cursorY / (float)textureHeight
-				};
-				res.glyphTextureCoords[codepoint].uvMax = Vec2{
-					(float)cursorX / (float)textureWidth + (float)bitmap.width / (float)textureWidth,
-					(float)cursorY / (float)textureHeight + (float)bitmap.rows / (float)textureHeight
-				};
-
-				// Increment our write cursor
-				cursorX += bitmap.width;
-			}
-
-			// Upload texture memory to the GPU
-			res.texture.uploadSubImage(0, 0, textureWidth, textureHeight, textureMemory, sizeof(uint8) * textureWidth * textureHeight);
-
-			g_memory_free(textureMemory);
+			// Just generate a new texture and return the result
+			SizedFont res = {};
+			generateTextureForChars(sizedFontKey, filepath, res, charset, fontSizePixels, singleChannelTexture);
 
 			// All done now cache the result and return it
 			loadedSizedFonts[sizedFontKey].font = res;
@@ -415,6 +381,17 @@ namespace MathAnim
 
 		Font* loadFont(const char* filepath, CharRange defaultCharset)
 		{
+			std::unordered_set<uint32> charset = {};
+			for (uint32 i = defaultCharset.firstCharCode; i <= defaultCharset.lastCharCode; i++)
+			{
+				charset.insert(i);
+			}
+
+			return loadFont(filepath, charset);
+		}
+
+		Font* loadFont(const char* filepath, std::unordered_set<uint32> const& charset)
+		{
 			g_logger_assert(initialized, "Font library must be initialized to load a font.");
 
 			std::string unsizedFontKey = getUnsizedFontKey(filepath);
@@ -422,36 +399,38 @@ namespace MathAnim
 				auto iter = loadedFonts.find(unsizedFontKey);
 				if (iter != loadedFonts.end())
 				{
+					// Check if we have all the charset loaded in this font
+					bool needsNewChars = false;
+					for (uint32 codepoint : charset)
+					{
+						if (iter->second.font.glyphMap.find(codepoint) == iter->second.font.glyphMap.end())
+						{
+							needsNewChars = true;
+							break;
+						}
+					}
+
+					if (needsNewChars)
+					{
+						// Reload this font with all the necessary chars
+						std::unordered_set<uint32> charsetToUse = charset;
+						// Always include the missing glyph
+						charsetToUse.insert(MISSING_GLYPH_CODEPOINT);
+						for (const auto& [key, value] : iter->second.font.glyphMap)
+						{
+							charsetToUse.insert(key);
+						}
+
+						loadFontInternal(iter->second.font, filepath, charset);
+					}
+
 					iter->second.referenceCount++;
 					return &iter->second.font;
 				}
 			}
 
-			g_logger_info("Caching unsized font '{}'.", unsizedFontKey);
-
-			// Load the new font into freetype.
-			FT_Face face;
-			int error = FT_New_Face(library, filepath, 0, &face);
-			if (error == FT_Err_Unknown_File_Format)
-			{
-				g_logger_error("Unsupported font file format for '{}'. Could not load font.", filepath);
-				return {};
-			}
-			else if (error)
-			{
-				g_logger_error("Font could not be opened or read or is broken '{}'. Could not load font.", filepath);
-				return {};
-			}
-
-			// Generate a texture for the font and initialize the font structure
-			Font font;
-			font.fontFilepath = filepath;
-			font.fontFace = face;
-			font.unitsPerEM = (float)face->units_per_EM;
-			font.lineHeight = (float)face->height / font.unitsPerEM;
-
-			// TODO: Turn the preset characters into a parameter
-			generateDefaultCharset(font, defaultCharset);
+			Font font = {};
+			loadFontInternal(font, filepath, charset);
 
 			loadedFonts[unsizedFontKey].font = font;
 			loadedFonts[unsizedFontKey].referenceCount = 1;
@@ -548,25 +527,30 @@ namespace MathAnim
 			// Lazy load the font
 			if (!defaultMonoFont)
 			{
-#if defined(_WIN32)
+				#if defined(_WIN32)
 				defaultMonoFont = loadFont("C:\\Windows\\Fonts\\consola.ttf");
-#elif defined(__linux__)
+				#elif defined(__linux__)
 				defaultMonoFont = loadFont("/usr/share/fonts/liberation/LiberationMono-Regular.ttf");
-#endif
-			}
-
-			return defaultMonoFont;
+				#endif
 		}
 
-		static void generateDefaultCharset(Font& font, CharRange defaultCharset)
+			return defaultMonoFont;
+	}
+
+		static void generateDefaultCharset(Font& font, std::unordered_set<uint32> const& charset)
 		{
-			for (uint32 i = defaultCharset.firstCharCode; i <= defaultCharset.lastCharCode; i++)
+			for (uint32 i : charset)
 			{
+				if (i == '\n')
+				{
+					continue;
+				}
+
 				GlyphOutline outlineResult;
 				int error = createOutline(&font, i, &outlineResult);
 				if (error)
 				{
-					g_logger_warning("Could not create glyph outline for character '{}'", (char)i);
+					g_logger_warning("Could not create glyph outline for character code: '{}'", (uint8)i);
 					continue;
 				}
 
@@ -824,5 +808,186 @@ namespace MathAnim
 
 			return res;
 		}
-	}
+
+		static void generateTextureForChars(std::string const& sizedFontKey, const char* filepath, SizedFont& res, std::unordered_set<uint32> const& charset, int fontSizePixels, bool singleChannelTexture)
+		{
+			g_logger_info("Generating texture for sized font '{}'.", sizedFontKey);
+
+			if (!res.texture.isNull())
+			{
+				res.texture.destroy();
+				res.texture = {};
+				res.glyphTextureCoords = {};
+			}
+
+			if (!res.unsizedFont)
+			{
+				res.unsizedFont = loadFont(filepath, charset);
+			}
+			else
+			{
+				res.unsizedFont = loadFont(filepath, charset);
+				// Unload the font to make sure the reference count remains accurate
+				unloadFont(res.unsizedFont);
+			}
+
+			res.fontSizePixels = fontSizePixels;
+
+			{
+				FT_Error error = FT_Set_Pixel_Sizes(res.unsizedFont->fontFace, fontSizePixels, fontSizePixels);
+				if (error)
+				{
+					g_logger_error("Freetype failed to set the pixel size for font '{}'.", filepath);
+					unloadFont(res.unsizedFont);
+					return;
+				}
+			}
+
+			ByteFormat byteFormat = singleChannelTexture
+				? ByteFormat::R8_UI
+				: ByteFormat::RGBA8_UI;
+
+			constexpr uint32 textureWidth = 2048;
+			constexpr uint32 textureHeight = 2048;
+			res.texture = TextureBuilder()
+				.setFormat(byteFormat)
+				.setWidth(textureWidth)
+				.setHeight(textureHeight)
+				.setMagFilter(FilterMode::Linear)
+				.setMinFilter(FilterMode::Linear)
+				.setWrapS(WrapMode::None)
+				.setWrapT(WrapMode::None)
+				.generateEmpty();
+
+			// Generate the texture and upload it to the GPU
+			size_t singleColorSize = sizeof(uint8) * (singleChannelTexture ? 1 : 4);
+			size_t textureMemorySize = singleColorSize * textureWidth * textureHeight;
+			uint8* textureMemory = (uint8*)g_memory_allocate(textureMemorySize);
+			g_memory_zeroMem(textureMemory, textureMemorySize);
+
+			uint32 cursorX = 0;
+			uint32 cursorY = 0;
+			uint32 lineHeight = 0;
+			for (uint32 codepoint : charset)
+			{
+				if (codepoint == '\n')
+				{
+					continue;
+				}
+
+				FT_UInt glyphIndex = FT_Get_Char_Index(res.unsizedFont->fontFace, codepoint);
+				if (glyphIndex == 0 && codepoint != 0)
+				{
+					continue;
+				}
+
+				// Load the glyph
+				FT_Error error = FT_Load_Glyph(res.unsizedFont->fontFace, glyphIndex, FT_LOAD_RENDER);
+				if (error)
+				{
+					g_logger_error("Freetype could not load glyph for character code '{}'.", codepoint);
+				}
+
+				FT_Bitmap& bitmap = res.unsizedFont->fontFace->glyph->bitmap;
+				if (cursorX + bitmap.width >= textureWidth)
+				{
+					cursorY += lineHeight;
+					lineHeight = 0;
+					cursorX = 0;
+				}
+				lineHeight = glm::max(bitmap.rows, lineHeight);
+
+				if (cursorY + bitmap.rows >= textureHeight)
+				{
+					g_logger_error("Ran out of texture room for font '{}'", filepath);
+					continue;
+				}
+
+				// Copy every row into our bitmap
+				for (uint32 y = 0; y < bitmap.rows; y++)
+				{
+					size_t sizedTextureWidth = textureWidth * singleColorSize;
+					uint8* dst = textureMemory + (cursorX * singleColorSize) + ((cursorY + y) * sizedTextureWidth);
+					uint8* src = bitmap.buffer + (y * bitmap.width);
+
+					if (singleChannelTexture)
+					{
+						size_t textureMemorySizeLeft = textureMemorySize - (dst - textureMemory);
+						g_memory_copyMem(dst, textureMemorySizeLeft, src, sizeof(uint8) * bitmap.width);
+					}
+					else
+					{
+						// Unforunately, if we want an RGBA image, we have to manually copy every pixel like this
+						for (uint32 x = 0; x < bitmap.width; x++)
+						{
+							dst[(x * singleColorSize) + 0] = src[x];
+							dst[(x * singleColorSize) + 1] = src[x];
+							dst[(x * singleColorSize) + 2] = src[x];
+							dst[(x * singleColorSize) + 3] = src[x];
+						}
+					}
+				}
+
+				// Add normalized glyph position
+				res.glyphTextureCoords[codepoint].lruCacheId = 0;
+				res.glyphTextureCoords[codepoint].uvMin = Vec2{
+					(float)cursorX / (float)textureWidth,
+					(float)cursorY / (float)textureHeight
+				};
+				res.glyphTextureCoords[codepoint].uvMax = Vec2{
+					(float)cursorX / (float)textureWidth + (float)bitmap.width / (float)textureWidth,
+					(float)cursorY / (float)textureHeight + (float)bitmap.rows / (float)textureHeight
+				};
+
+				// Increment our write cursor
+				cursorX += bitmap.width;
+			}
+
+			// Upload texture memory to the GPU
+			res.texture.uploadSubImage(0, 0, textureWidth, textureHeight, textureMemory, sizeof(uint8) * textureWidth * textureHeight * singleColorSize);
+
+			g_memory_free(textureMemory);
+		}
+
+		static void loadFontInternal(Font& res, const char* filepath, std::unordered_set<uint32> const& charset)
+		{
+			g_logger_info("Generating unsized font '{}'.", filepath);
+
+			// Unload current font if we need to
+			if (res.fontFace)
+			{
+				for (std::pair<const uint32, GlyphOutline>& kv : res.glyphMap)
+				{
+					GlyphOutline& outline = kv.second;
+					outline.free();
+				}
+
+				FT_Done_Face(res.fontFace);
+				res.fontFace = nullptr;
+			}
+
+			// Load the new font into freetype.
+			FT_Face face;
+			int error = FT_New_Face(library, filepath, 0, &face);
+			if (error == FT_Err_Unknown_File_Format)
+			{
+				g_logger_error("Unsupported font file format for '{}'. Could not load font.", filepath);
+				return;
+			}
+			else if (error)
+			{
+				g_logger_error("Font could not be opened or read or is broken '{}'. Could not load font.", filepath);
+				return;
+			}
+
+			// Generate a texture for the font and initialize the font structure
+			res.fontFilepath = filepath;
+			res.fontFace = face;
+			res.unitsPerEM = (float)face->units_per_EM;
+			res.lineHeight = (float)face->height / res.unitsPerEM;
+			res.maxDescentY = (float)face->descender / res.unitsPerEM;
+
+			generateDefaultCharset(res, charset);
+		}
 }
+	}

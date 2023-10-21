@@ -52,6 +52,7 @@ namespace MathAnim
 		glfwSetMouseButtonCallback((GLFWwindow*)windowPtr, Input::mouseButtonCallback);
 		glfwSetScrollCallback((GLFWwindow*)windowPtr, Input::scrollCallback);
 		glfwSetFramebufferSizeCallback((GLFWwindow*)windowPtr, resizeCallback);
+		glfwSetCharCallback((GLFWwindow*)windowPtr, Input::characterCallback);
 
 		if (flags & WindowFlags::OpenMaximized)
 		{
@@ -143,6 +144,16 @@ namespace MathAnim
 	void Window::close()
 	{
 		glfwSetWindowShouldClose((GLFWwindow*)windowPtr, true);
+	}
+
+	const uint8* Window::getClipboardString() const
+	{
+		return (uint8*)glfwGetClipboardString((GLFWwindow*)windowPtr);
+	}
+
+	void Window::setClipboardString(const char* string) const
+	{
+		glfwSetClipboardString((GLFWwindow*)windowPtr, string);
 	}
 
 	void Window::update(float)

@@ -28,6 +28,7 @@ namespace MathAnim
 		static ImFont* mediumSolidIconFont;
 		static ImFont* largeRegularIconFont;
 		static ImFont* mediumRegularIconFont;
+		static ImFont* codeFont;
 		static ImGuiLayerFlags layerFlags;
 
 		static bool reloadLayout = false;

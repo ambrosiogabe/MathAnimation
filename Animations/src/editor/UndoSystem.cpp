@@ -54,19 +54,9 @@ namespace MathAnim
 		g_logger_assert(value >= 0 && value < (int)T::Length, "Invalid enum, out of range. Got '{}', and enum range goes from [{}, {}).", value, 0, (int)T::Length);
 	}
 
-	class Command
-	{
-	public:
-		Command() {}
-		virtual ~Command() {};
-
-		virtual void execute(AnimationManagerData* const am) = 0;
-		virtual void undo(AnimationManagerData* const am) = 0;
-	};
-
 	struct UndoSystemData
 	{
-		AnimationManagerData* am;
+		void* userCtx;
 		Command** history;
 		// The total number of commands that we can redo up to
 		uint32 numCommands;
@@ -90,8 +80,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objToAdd;
@@ -106,8 +96,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objToAdd;
@@ -122,8 +112,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 		virtual ~AddObjectToSceneCommand() override
 		{
@@ -147,8 +137,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 		virtual ~RemoveObjectFromSceneCommand() override
 		{
@@ -173,8 +163,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimId anim;
@@ -192,8 +182,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 		virtual ~AddAnimationToTimelineCommand() override
 		{
@@ -220,8 +210,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 		virtual ~RemoveAnimationFromTimelineCommand() override
 		{
@@ -242,8 +232,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objId;
@@ -260,8 +250,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objId;
@@ -278,8 +268,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId id;
@@ -296,8 +286,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objId;
@@ -314,8 +304,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId id;
@@ -332,8 +322,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objId;
@@ -350,8 +340,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objId;
@@ -368,8 +358,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objId;
@@ -386,8 +376,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objId;
@@ -404,8 +394,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objId;
@@ -421,8 +411,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId oldTarget;
@@ -439,8 +429,8 @@ namespace MathAnim
 		{
 		}
 
-		virtual void execute(AnimationManagerData* const am) override;
-		virtual void undo(AnimationManagerData* const am) override;
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
 
 	private:
 		AnimObjId objId;
@@ -450,18 +440,13 @@ namespace MathAnim
 
 	namespace UndoSystem
 	{
-		// ----------------------------------------
-		// Internal Implementations
-		// ----------------------------------------
-		static void pushAndExecuteCommand(UndoSystemData* us, Command* command);
-
-		UndoSystemData* init(AnimationManagerData* const am, int maxHistory)
+		UndoSystemData* init(void* userContext, int maxHistory)
 		{
 			g_logger_assert(maxHistory > 1, "Cannot have a history of size '{}'. Must be greater than 1.", maxHistory);
 
 			UndoSystemData* data = (UndoSystemData*)g_memory_allocate(sizeof(UndoSystemData));
 			// TODO: Is there a way around this ugly hack while initializing? (Without classes...)
-			data->am = am;
+			data->userCtx = userContext;
 			data->numCommands = 0;
 			data->maxHistorySize = maxHistory;
 			data->history = (Command**)g_memory_allocate(sizeof(Command*) * maxHistory);
@@ -488,6 +473,49 @@ namespace MathAnim
 			g_memory_free(us);
 		}
 
+		void pushAndExecuteCommand(UndoSystemData* us, Command* command)
+		{
+			uint32 offsetToPlaceNewCommand = pushCommand(us, command);
+			us->history[offsetToPlaceNewCommand]->execute(us->userCtx);
+		}
+
+		uint32 pushCommand(UndoSystemData* us, Command* command)
+		{
+			// Remove any commands after the current tail
+			{
+				uint32 numCommandsRemoved = 0;
+				for (uint32 i = us->undoCursorTail;
+					i != ((us->undoCursorHead + us->numCommands) % us->maxHistorySize);
+					i = (i + 1) % us->maxHistorySize)
+				{
+					if (i == ((us->undoCursorHead + us->numCommands) % us->maxHistorySize)) break;
+
+					us->history[i]->free(us->userCtx);
+					g_memory_delete(us->history[i]);
+					numCommandsRemoved++;
+				}
+
+				// Set the number of commands to the appropriate number now
+				us->numCommands -= numCommandsRemoved;
+			}
+
+			if (((us->undoCursorTail + 1) % us->maxHistorySize) == us->undoCursorHead)
+			{
+				us->history[us->undoCursorHead]->free(us->userCtx);
+				g_memory_delete(us->history[us->undoCursorHead]);
+
+				us->undoCursorHead = (us->undoCursorHead + 1) % us->maxHistorySize;
+				us->numCommands--;
+			}
+
+			uint32 offsetToPlaceNewCommand = us->undoCursorTail;
+			us->history[offsetToPlaceNewCommand] = command;
+			us->numCommands++;
+			us->undoCursorTail = (us->undoCursorTail + 1) % us->maxHistorySize;
+
+			return offsetToPlaceNewCommand;
+		}
+
 		void undo(UndoSystemData* us)
 		{
 			// No commands to undo
@@ -503,7 +531,7 @@ namespace MathAnim
 				offsetToUndo = us->maxHistorySize - 1;
 			}
 
-			us->history[offsetToUndo]->undo(us->am);
+			us->history[offsetToUndo]->undo(us->userCtx);
 			us->undoCursorTail = offsetToUndo;
 		}
 
@@ -516,7 +544,7 @@ namespace MathAnim
 			}
 
 			uint32 offsetToRedo = us->undoCursorTail;
-			us->history[offsetToRedo]->execute(us->am);
+			us->history[offsetToRedo]->execute(us->userCtx);
 			us->undoCursorTail = (us->undoCursorTail + 1) % us->maxHistorySize;
 		}
 
@@ -719,7 +747,8 @@ namespace MathAnim
 
 		void setAnimationTime(UndoSystemData* us, AnimId id, int oldFrameStart, int oldFrameDuration, int newFrameStart, int newFrameDuration)
 		{
-			const Animation* anim = AnimationManager::getAnimation(us->am, id);
+			AnimationManagerData* const am = (AnimationManagerData* const)us->userCtx;
+			const Animation* anim = AnimationManager::getAnimation(am, id);
 			if (anim)
 			{
 				if (oldFrameStart != newFrameStart || newFrameDuration != oldFrameDuration)
@@ -744,71 +773,39 @@ namespace MathAnim
 			auto* newCommand = g_memory_new RemoveAnimationFromTimelineCommand(animId);
 			pushAndExecuteCommand(us, newCommand);
 		}
-
-		// ----------------------------------------
-		// Internal Implementations
-		// ----------------------------------------
-		static void pushAndExecuteCommand(UndoSystemData* us, Command* command)
-		{
-			// Remove any commands after the current tail
-			{
-				uint32 numCommandsRemoved = 0;
-				for (uint32 i = us->undoCursorTail;
-					i != ((us->undoCursorHead + us->numCommands) % us->maxHistorySize);
-					i = (i + 1) % us->maxHistorySize)
-				{
-					if (i == ((us->undoCursorHead + us->numCommands) % us->maxHistorySize)) break;
-
-					g_memory_delete(us->history[i]);
-					numCommandsRemoved++;
-				}
-
-				// Set the number of commands to the appropriate number now
-				us->numCommands -= numCommandsRemoved;
-			}
-
-			if (((us->undoCursorTail + 1) % us->maxHistorySize) == us->undoCursorHead)
-			{
-				g_memory_delete(us->history[us->undoCursorHead]);
-
-				us->undoCursorHead = (us->undoCursorHead + 1) % us->maxHistorySize;
-				us->numCommands--;
-			}
-
-			uint32 offsetToPlaceNewCommand = us->undoCursorTail;
-			us->history[offsetToPlaceNewCommand] = command;
-			us->numCommands++;
-			us->undoCursorTail = (us->undoCursorTail + 1) % us->maxHistorySize;
-
-			us->history[offsetToPlaceNewCommand]->execute(us->am);
-		}
 	}
 
 	// -------------------------------------
 	// Command Implementations
 	// -------------------------------------
-	void AddObjectToAnimCommand::execute(AnimationManagerData* const am)
+	void AddObjectToAnimCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
 		AnimationManager::addObjectToAnim(am, objToAdd, animToAddTo);
 	}
 
-	void AddObjectToAnimCommand::undo(AnimationManagerData* const am)
+	void AddObjectToAnimCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
 		AnimationManager::removeObjectFromAnim(am, objToAdd, animToAddTo);
 	}
 
-	void RemoveObjectFromAnimCommand::execute(AnimationManagerData* const am)
+	void RemoveObjectFromAnimCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
 		AnimationManager::removeObjectFromAnim(am, objToAdd, animToAddTo);
 	}
 
-	void RemoveObjectFromAnimCommand::undo(AnimationManagerData* const am)
+	void RemoveObjectFromAnimCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
 		AnimationManager::addObjectToAnim(am, objToAdd, animToAddTo);
 	}
 
-	void AddObjectToSceneCommand::execute(AnimationManagerData* const am)
+	void AddObjectToSceneCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		if (this->objCreated == NULL_ANIM_OBJECT)
 		{
 			this->animObj = AnimObject::createDefault(am, type);
@@ -825,8 +822,10 @@ namespace MathAnim
 		}
 	}
 
-	void AddObjectToSceneCommand::undo(AnimationManagerData* const am)
+	void AddObjectToSceneCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		if (!isNull(this->objCreated))
 		{
 			const AnimObject* animObject = AnimationManager::getObject(am, this->objCreated);
@@ -836,8 +835,10 @@ namespace MathAnim
 		}
 	}
 
-	void RemoveObjectFromSceneCommand::execute(AnimationManagerData* const am)
+	void RemoveObjectFromSceneCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		const AnimObject* objToDeletePtr = AnimationManager::getObject(am, this->objToDelete);
 		if (!objToDeletePtr)
 		{
@@ -866,8 +867,10 @@ namespace MathAnim
 		InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
 	}
 
-	void RemoveObjectFromSceneCommand::undo(AnimationManagerData* const am)
+	void RemoveObjectFromSceneCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		for (const auto& obj : parentAndChildren)
 		{
 			AnimObject copy = obj.createDeepCopy(true);
@@ -892,8 +895,10 @@ namespace MathAnim
 		InspectorPanel::setActiveAnimObject(am, objToDelete);
 	}
 
-	void SetAnimationTimeCommand::execute(AnimationManagerData* const am)
+	void SetAnimationTimeCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimationManager::setAnimationTime(
 			am,
 			this->anim,
@@ -903,8 +908,10 @@ namespace MathAnim
 		Timeline::updateAnimation(this->anim, this->newFrameStart, this->newFrameDuration);
 	}
 
-	void SetAnimationTimeCommand::undo(AnimationManagerData* const am)
+	void SetAnimationTimeCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimationManager::setAnimationTime(
 			am,
 			this->anim,
@@ -914,8 +921,10 @@ namespace MathAnim
 		Timeline::updateAnimation(this->anim, this->oldFrameStart, this->oldFrameDuration);
 	}
 
-	void AddAnimationToTimelineCommand::execute(AnimationManagerData* const am)
+	void AddAnimationToTimelineCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		if (this->animCreated == NULL_ANIM)
 		{
 			this->anim = Animation::createDefault(type, frameStart, frameDuration);
@@ -929,16 +938,20 @@ namespace MathAnim
 		Timeline::addAnimation(deepCopy);
 	}
 
-	void AddAnimationToTimelineCommand::undo(AnimationManagerData* const am)
+	void AddAnimationToTimelineCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		if (!isNull(this->animCreated))
 		{
 			Timeline::removeAnimation(am, this->animCreated);
 		}
 	}
 
-	void RemoveAnimationFromTimelineCommand::execute(AnimationManagerData* const am)
+	void RemoveAnimationFromTimelineCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		const Animation* animToDeletePtr = AnimationManager::getAnimation(am, this->animToDelete);
 		if (!animToDeletePtr)
 		{
@@ -954,16 +967,20 @@ namespace MathAnim
 		Timeline::removeAnimation(am, this->animToDelete);
 	}
 
-	void RemoveAnimationFromTimelineCommand::undo(AnimationManagerData* const am)
+	void RemoveAnimationFromTimelineCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		Animation deepCopy = this->anim.createDeepCopy(true);
 		AnimationManager::addAnimation(am, deepCopy);
 		InspectorPanel::setActiveAnimation(deepCopy.id);
 		Timeline::addAnimation(deepCopy);
 	}
 
-	void ModifyBoolCommand::execute(AnimationManagerData* const am)
+	void ModifyBoolCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -979,8 +996,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyBoolCommand::undo(AnimationManagerData* const am)
+	void ModifyBoolCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -996,8 +1015,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyU8Vec4Command::execute(AnimationManagerData* const am)
+	void ModifyU8Vec4Command::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1033,8 +1054,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyU8Vec4Command::undo(AnimationManagerData* const am)
+	void ModifyU8Vec4Command::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1070,8 +1093,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyEnumCommand::execute(AnimationManagerData* const am)
+	void ModifyEnumCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		Animation* anim = AnimationManager::getMutableAnimation(am, this->id);
 		if (anim)
 		{
@@ -1146,8 +1171,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyEnumCommand::undo(AnimationManagerData* const am)
+	void ModifyEnumCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		Animation* anim = AnimationManager::getMutableAnimation(am, this->id);
 		if (anim)
 		{
@@ -1222,8 +1249,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyFloatCommand::execute(AnimationManagerData* const am)
+	void ModifyFloatCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1373,8 +1402,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyFloatCommand::undo(AnimationManagerData* const am)
+	void ModifyFloatCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1523,8 +1554,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyVec2Command::execute(AnimationManagerData* const am)
+	void ModifyVec2Command::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		Animation* anim = AnimationManager::getMutableAnimation(am, this->id);
 		if (anim)
 		{
@@ -1538,8 +1571,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyVec2Command::undo(AnimationManagerData* const am)
+	void ModifyVec2Command::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		Animation* anim = AnimationManager::getMutableAnimation(am, this->id);
 		if (anim)
 		{
@@ -1553,8 +1588,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyVec2iCommand::execute(AnimationManagerData* const am)
+	void ModifyVec2iCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1584,8 +1621,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyVec2iCommand::undo(AnimationManagerData* const am)
+	void ModifyVec2iCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1615,8 +1654,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyVec3Command::execute(AnimationManagerData* const am)
+	void ModifyVec3Command::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1666,8 +1707,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyVec3Command::undo(AnimationManagerData* const am)
+	void ModifyVec3Command::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1717,8 +1760,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyVec4Command::execute(AnimationManagerData* const am)
+	void ModifyVec4Command::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1751,8 +1796,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyVec4Command::undo(AnimationManagerData* const am)
+	void ModifyVec4Command::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1785,8 +1832,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyStringCommand::execute(AnimationManagerData* const am)
+	void ModifyStringCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1863,8 +1912,10 @@ namespace MathAnim
 		}
 	}
 
-	void ModifyStringCommand::undo(AnimationManagerData* const am)
+	void ModifyStringCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -1940,8 +1991,10 @@ namespace MathAnim
 		}
 	}
 
-	void SetFontCommand::execute(AnimationManagerData* const am)
+	void SetFontCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* object = AnimationManager::getMutableObject(am, objId);
 		if (object)
 		{
@@ -1958,8 +2011,10 @@ namespace MathAnim
 		}
 	}
 
-	void SetFontCommand::undo(AnimationManagerData* const am)
+	void SetFontCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* object = AnimationManager::getMutableObject(am, objId);
 		if (object && oldFont != "")
 		{
@@ -1976,8 +2031,10 @@ namespace MathAnim
 		}
 	}
 
-	void AnimDragDropInputCommand::execute(AnimationManagerData* const am)
+	void AnimDragDropInputCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		Animation* anim = AnimationManager::getMutableAnimation(am, animToAddTo);
 		if (anim)
 		{
@@ -2007,8 +2064,10 @@ namespace MathAnim
 		}
 	}
 
-	void AnimDragDropInputCommand::undo(AnimationManagerData* const am)
+	void AnimDragDropInputCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		Animation* anim = AnimationManager::getMutableAnimation(am, animToAddTo);
 		if (anim)
 		{
@@ -2038,8 +2097,10 @@ namespace MathAnim
 		}
 	}
 
-	void ApplyU8Vec4ToChildrenCommand::execute(AnimationManagerData* const am)
+	void ApplyU8Vec4ToChildrenCommand::execute(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
@@ -2066,8 +2127,10 @@ namespace MathAnim
 		}
 	}
 
-	void ApplyU8Vec4ToChildrenCommand::undo(AnimationManagerData* const am)
+	void ApplyU8Vec4ToChildrenCommand::undo(void* userContext)
 	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
 		if (obj)
 		{
