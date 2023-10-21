@@ -318,6 +318,47 @@
                         }
                     },
                     "name": "string.quoted.double.lua"
+                },
+                {
+                    "begin": "(?<=\\.cdef)\\s*(\\[(=*)\\[)",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "string.quoted.other.multiline.lua"
+                        },
+                        "1": {
+                            "name": "punctuation.definition.string.begin.lua"
+                        }
+                    },
+                    "contentName": "meta.embedded.lua",
+                    "end": "(\\]\\2\\])[ \\t]*",
+                    "endCaptures": {
+                        "0": {
+                            "name": "string.quoted.other.multiline.lua"
+                        },
+                        "1": {
+                            "name": "punctuation.definition.string.end.lua"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "source.c"
+                        }
+                    ]
+                },
+                {
+                    "begin": "(?<!--)\\[(=*)\\[",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.begin.lua"
+                        }
+                    },
+                    "end": "\\]\\1\\][ \\t]*",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.end.lua"
+                        }
+                    },
+                    "name": "string.quoted.other.multiline.lua"
                 }
             ]
         },

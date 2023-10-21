@@ -94,7 +94,7 @@ namespace MathAnim
 	{
 		std::optional<GrammarMatch> match = getFirstMatch(str, anchor, start, end, this->regMatch, region, this->scope);
 		if (match.has_value() && match->start < end && match->start >= start && match->end <= end)
-		{			
+		{
 			// `region` now contains any potential captures, so we'll search for any captures now
 			std::vector<GrammarMatch> subMatches = getCaptures(str, repo, region, this->captures, self);
 
@@ -143,8 +143,42 @@ namespace MathAnim
 		// If beginBlockMatch is valid, then we'll use the result stored in `region` to find any captures
 		std::vector<GrammarMatch> beginMatches = getCaptures(str, repo, region, this->beginCaptures, self);
 
+		OnigRegex endPattern = this->end.simpleRegex;
+		if (this->end.isDynamic)
+		{
+			// Generate an on the fly pattern
+			std::string regexPatternToTest = this->end.regexText;
+
+			// Substitute backrefs in the string
+			int offsetToAdd = 0;
+			for (auto& backref : this->end.backrefs)
+			{
+				g_logger_assert(backref.captureIndex < region->num_regs, "An invalid regex was created in the grammar. This was the regex: '{}'", this->end.regexText);
+
+				int replacementStringBegin = region->beg[backref.captureIndex];
+				int replacementStringEnd = region->end[backref.captureIndex];
+
+				g_logger_assert(replacementStringEnd > replacementStringBegin, "An invalid backreference was captured for pattern: '{}'", this->end.regexText);
+
+				int replaceBeginOffset = (int)backref.strReplaceStart + offsetToAdd;
+				int replaceEndOffset = (int)backref.strReplaceEnd + offsetToAdd + 1;
+
+				std::string beginRegex = regexPatternToTest.substr(0, replaceBeginOffset);
+				std::string endRegex = regexPatternToTest.substr(replaceEndOffset);
+				std::string replacement = str.substr(replacementStringBegin, (replacementStringEnd - replacementStringBegin));
+				regexPatternToTest = beginRegex + replacement + endRegex;
+
+				offsetToAdd += (replacementStringEnd - replacementStringBegin) - (replaceEndOffset - replaceBeginOffset);
+			}
+
+			// After substituting backrefs generate an on-the-fly end pattern to match
+			endPattern = onigFromString(regexPatternToTest, true);
+
+			g_logger_assert(endPattern != nullptr, "Failed to generate dynamic regex pattern with backreferences for pattern: '{}'", this->end.regexText);
+		}
+
 		// This match can go to the end of the string
-		std::optional<GrammarMatch> endBlockMatch = getFirstMatch(str, beginBlockMatch->end, beginBlockMatch->end, str.length(), this->end, region, std::nullopt);
+		std::optional<GrammarMatch> endBlockMatch = getFirstMatch(str, beginBlockMatch->end, beginBlockMatch->end, str.length(), endPattern, region, std::nullopt);
 		std::vector<GrammarMatch> endMatches = {};
 		if (!endBlockMatch.has_value())
 		{
@@ -231,7 +265,7 @@ namespace MathAnim
 				//       a new end that satisfies this match
 				if (inBetweenStart > endBlockMatch->start)
 				{
-					endBlockMatch = getFirstMatch(str, inBetweenStart, inBetweenStart, str.length(), this->end, region, std::nullopt);
+					endBlockMatch = getFirstMatch(str, inBetweenStart, inBetweenStart, str.length(), endPattern, region, std::nullopt);
 					if (!endBlockMatch.has_value())
 					{
 						GrammarMatch eof;
@@ -269,6 +303,12 @@ namespace MathAnim
 			}
 		}
 
+		// Free dynamic regex if necessary
+		if (this->end.isDynamic)
+		{
+			onig_free(endPattern);
+		}
+
 		res.subMatches.insert(res.subMatches.end(), endMatches.begin(), endMatches.end());
 
 		res.start = beginBlockMatch->start;
@@ -294,9 +334,9 @@ namespace MathAnim
 			onig_free(begin);
 		}
 
-		if (end)
+		if (end.simpleRegex)
 		{
-			onig_free(end);
+			onig_free(end.simpleRegex);
 		}
 
 		if (beginCaptures.has_value())
@@ -315,7 +355,7 @@ namespace MathAnim
 		}
 
 		begin = nullptr;
-		end = nullptr;
+		end.simpleRegex = nullptr;
 	}
 
 	bool PatternArray::match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const
@@ -683,7 +723,7 @@ namespace MathAnim
 		if (sizeLeft >= numBytesToRemove)
 		{
 			return false;
-		} 
+		}
 
 		g_logger_error("We have a buffer underflow. Please pass a larger buffer to the tree.");
 		return true;
@@ -1170,7 +1210,80 @@ namespace MathAnim
 
 			ComplexSyntaxPattern c = {};
 			c.begin = onigFromString(json["begin"], false);
-			c.end = onigFromString(json["end"], true);
+
+			if (!c.begin)
+			{
+				return res;
+			}
+
+			// Check if this end pattern has a dynamic backreferences and pre-process it if it does
+			std::string const& endPattern = json["end"];
+			{
+				int numBeginCaptures = onig_number_of_captures(c.begin);
+				DynamicRegexCapture capture = {};
+				int digitStart = 0;
+				bool parsingDigit = false;
+				for (int i = 0; i < (int)endPattern.size(); i++)
+				{
+					if (i < (int)endPattern.size() - 1 && endPattern[i] == '\\' && Parser::isDigit(endPattern[i + 1]))
+					{
+						c.end.isDynamic = true;
+						digitStart = i + 1;
+						parsingDigit = true;
+					}
+					else if (parsingDigit && !Parser::isDigit(endPattern[i]))
+					{
+						std::string substr = endPattern.substr(digitStart, i - digitStart);
+						capture.captureIndex = std::atoi(substr.c_str());
+
+						if (capture.captureIndex < 0 || capture.captureIndex > numBeginCaptures)
+						{
+							g_logger_error("Invalid backreference in regex '{}'. Cannot backreference '{}', only '{}' captures in the begin block.", endPattern, capture.captureIndex, numBeginCaptures);
+							onig_free(c.begin);
+							return res;
+						}
+
+						capture.strReplaceStart = digitStart - 1;
+						capture.strReplaceEnd = i - 1;
+
+						c.end.backrefs.push_back(capture);
+						parsingDigit = false;
+					}
+					else if (parsingDigit && i == (int)endPattern.size() - 1)
+					{
+						std::string substr = endPattern.substr(digitStart, i - digitStart + 1);
+						capture.captureIndex = std::atoi(substr.c_str());
+
+						if (capture.captureIndex < 0 || capture.captureIndex > numBeginCaptures)
+						{
+							g_logger_error("Invalid backreference in regex '{}'. Cannot backreference '{}', only '{}' captures in the begin block.", endPattern, capture.captureIndex, numBeginCaptures);
+							onig_free(c.begin);
+							return res;
+						}
+
+						capture.strReplaceStart = digitStart - 1;
+						capture.strReplaceEnd = i;
+
+						c.end.backrefs.push_back(capture);
+						parsingDigit = false;
+					}
+				}
+			}
+
+			if (!c.end.isDynamic)
+			{
+				c.end.simpleRegex = onigFromString(json["end"], true);
+				
+				if (!c.end.simpleRegex)
+				{
+					onig_free(c.begin);
+					return res;
+				}
+			}
+			else
+			{
+				c.end.regexText = json["end"];
+			}
 
 			if (json.contains("name"))
 			{

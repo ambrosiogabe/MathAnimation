@@ -51,6 +51,21 @@ namespace MathAnim
 		static CaptureList from(const nlohmann::json& j, Grammar* self);
 	};
 
+	struct DynamicRegexCapture
+	{
+		size_t captureIndex;
+		size_t strReplaceStart;
+		size_t strReplaceEnd;
+	};
+
+	struct DynamicRegex
+	{
+		bool isDynamic;
+		OnigRegex simpleRegex;
+		std::string regexText;
+		std::vector<DynamicRegexCapture> backrefs;
+	};
+
 	struct SimpleSyntaxPattern
 	{
 		std::optional<ScopedName> scope;
@@ -66,7 +81,7 @@ namespace MathAnim
 	{
 		std::optional<ScopedName> scope;
 		OnigRegex begin;
-		OnigRegex end;
+		DynamicRegex end;
 		std::optional<CaptureList> beginCaptures;
 		std::optional<CaptureList> endCaptures;
 		std::optional<PatternArray> patterns;
