@@ -46,6 +46,8 @@ namespace MathAnim
 		void saveFile(CodeEditorPanelData const& panel);
 		void free(CodeEditorPanelData* panel);
 
+		void reparseSyntax(CodeEditorPanelData& panel);
+
 		bool update(CodeEditorPanelData& panel);
 
 		void setCursorToLine(CodeEditorPanelData& panel, uint32 lineNumber);

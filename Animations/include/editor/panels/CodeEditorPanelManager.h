@@ -1,5 +1,7 @@
 #include "core.h"
 
+#include "parsers/SyntaxHighlighter.h"
+
 namespace MathAnim
 {
 	struct AnimationManagerData;
@@ -29,5 +31,7 @@ namespace MathAnim
 
 		SyntaxHighlighter const& getHighlighter();
 		SyntaxTheme const& getTheme();
+
+		void setTheme(HighlighterTheme theme);
 	}
 }

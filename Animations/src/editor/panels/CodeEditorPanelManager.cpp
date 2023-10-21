@@ -264,6 +264,15 @@ namespace MathAnim
 			return *syntaxTheme;
 		}
 
+		void setTheme(HighlighterTheme theme)
+		{
+			syntaxTheme = Highlighters::getTheme(theme);
+			for (auto editor = openEditors.begin(); editor != openEditors.end(); editor++)
+			{
+				CodeEditorPanel::reparseSyntax(*editor->panel);
+			}
+		}
+
 		// ----------- Internal functinons -----------
 	}
 }

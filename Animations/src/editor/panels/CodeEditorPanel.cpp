@@ -50,6 +50,11 @@ namespace MathAnim
 		static uint8 codepointToUtf8Str(uint8* const buffer, uint32 codepoint);
 
 		// Simple calculation functions
+		static inline ImColor getColor(Vec4 const& color)
+		{
+			return ImColor(color.r, color.g, color.b, color.a);
+		}
+
 		static inline float getLineHeight(SizedFont const* const font)
 		{
 			return font->unsizedFont->lineHeight * font->fontSizePixels;
@@ -204,28 +209,7 @@ namespace MathAnim
 			// +1 for the extra line for EOF
 			res->totalNumberLines++;
 
-			// TODO: This is very gross, instead of copying a million times, we should get rid of the local byte
-			//       mapping garbage since it's not working well.
-			uint8* noCarriageReturnStr = nullptr;
-			size_t noCarriageReturnStrLength = 0;
-			translateLocalByteMappingToString(
-				*res,
-				res->visibleCharacterBuffer,
-				res->visibleCharacterBufferSize,
-				&noCarriageReturnStr,
-				&noCarriageReturnStrLength,
-				false
-			);
-
-			// Parse the syntax
-			// TODO: This will not work with UTF8, fix it.
-			res->syntaxHighlightTree = CodeEditorPanelManager::getHighlighter().parse(
-				std::string((const char*)noCarriageReturnStr, noCarriageReturnStrLength),
-				CodeEditorPanelManager::getTheme(),
-				true
-			);
-
-			g_memory_free(noCarriageReturnStr);
+			reparseSyntax(*res);
 
 			res->undoSystem = UndoSystem::createTextEditorUndoSystem(res, MAX_UNDO_HISTORY);
 
@@ -254,6 +238,32 @@ namespace MathAnim
 			UndoSystem::free(panel->undoSystem);
 			g_memory_free((void*)panel->visibleCharacterBuffer);
 			g_memory_delete(panel);
+		}
+
+		void reparseSyntax(CodeEditorPanelData& panel)
+		{
+			// TODO: This is very gross, instead of copying a million times, we should get rid of the local byte
+			//       mapping garbage since it's not working well.
+			uint8* noCarriageReturnStr = nullptr;
+			size_t noCarriageReturnStrLength = 0;
+			translateLocalByteMappingToString(
+				panel,
+				panel.visibleCharacterBuffer,
+				panel.visibleCharacterBufferSize,
+				&noCarriageReturnStr,
+				&noCarriageReturnStrLength,
+				false
+			);
+
+			// Parse the syntax
+			// TODO: This will not work with UTF8, fix it.
+			panel.syntaxHighlightTree = CodeEditorPanelManager::getHighlighter().parse(
+				std::string((const char*)noCarriageReturnStr, noCarriageReturnStrLength),
+				CodeEditorPanelManager::getTheme(),
+				true
+			);
+
+			g_memory_free(noCarriageReturnStr);
 		}
 
 		bool update(CodeEditorPanelData& panel)
@@ -508,6 +518,7 @@ namespace MathAnim
 			}
 
 			// ---- Handle Rendering/mouse clicking ----
+			auto syntaxTheme = CodeEditorPanelManager::getTheme();
 			panel.drawStart = ImGui::GetCursorScreenPos();
 			panel.drawEnd = panel.drawStart + ImGui::GetContentRegionAvail();
 
@@ -515,7 +526,7 @@ namespace MathAnim
 
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 			drawList->PushClipRect(panel.drawStart, panel.drawEnd, true);
-			drawList->AddRectFilled(panel.drawStart, panel.drawEnd, backgroundColor);
+			drawList->AddRectFilled(panel.drawStart, panel.drawEnd, getColor(syntaxTheme.defaultBackground.color));
 
 			uint32 currentLine = panel.lineNumberStart;
 			ImVec2 currentLetterDrawPos = renderNextLinePrefix(panel, currentLine, codeFont);
@@ -567,9 +578,7 @@ namespace MathAnim
 			bool passedFirstCharacter = false;
 			ImVec2 textHighlightRectStart = ImVec2();
 			int32 closestByteToMouseCursor = (int32)panel.lineNumberByteStart;
-
 			auto highlightIter = panel.syntaxHighlightTree.segments.begin();
-			auto syntaxTheme = CodeEditorPanelManager::getTheme();
 
 			for (size_t cursor = panel.lineNumberByteStart; cursor < panel.visibleCharacterBufferSize; cursor++)
 			{
@@ -584,12 +593,7 @@ namespace MathAnim
 				if (highlightIter != panel.syntaxHighlightTree.segments.end() &&
 					cursor >= highlightIter->startPos && cursor < highlightIter->endPos)
 				{
-					highlightedColor = ImColor(
-						highlightIter->color.r,
-						highlightIter->color.g,
-						highlightIter->color.b,
-						highlightIter->color.a
-					);
+					highlightedColor = getColor(highlightIter->color);
 				}
 
 				uint32 currentCodepoint = panel.byteMap[panel.visibleCharacterBuffer[cursor]];
