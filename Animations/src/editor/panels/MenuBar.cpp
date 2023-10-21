@@ -1,5 +1,6 @@
 #include "editor/panels/MenuBar.h"
 #include "editor/panels/CodeEditorPanelManager.h"
+#include "editor/panels/RegexTester.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/EditorLayout.h"
 #include "editor/UndoSystem.h"
@@ -90,6 +91,16 @@ namespace MathAnim
 
 				if (ImGui::BeginMenu("View"))
 				{
+					if (ImGui::BeginMenu("Windows"))
+					{
+						if (ImGui::MenuItem("Regex Tester"))
+						{
+							RegexTester::showWindow();
+						}
+
+						ImGui::EndMenu();
+					}
+
 					if (ImGui::BeginMenu("Layouts"))
 					{
 						const std::vector<std::filesystem::path>& defaultLayouts = EditorLayout::getDefaultLayouts();
