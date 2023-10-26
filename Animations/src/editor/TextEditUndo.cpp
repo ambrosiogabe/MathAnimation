@@ -251,7 +251,7 @@ namespace MathAnim
 		auto* us = (TextEditorUndoSystem*)ctx;
 
 		CodeEditorPanel::addUtf8StringToBuffer(*us->codeEditor, this->textToBeDeleted, (int32)this->textToBeDeletedSize, (int32)this->selectionStart);
-		us->codeEditor->cursorBytePosition = (int32)this->cursorPosition;
+		us->codeEditor->cursor.bytePos = (int32)this->cursorPosition;
 		if (this->shouldSetTextSelected)
 		{
 			us->codeEditor->firstByteInSelection = (int32)this->selectionStart;
@@ -260,9 +260,9 @@ namespace MathAnim
 		}
 		else
 		{
-			us->codeEditor->firstByteInSelection = us->codeEditor->cursorBytePosition;
-			us->codeEditor->lastByteInSelection = us->codeEditor->cursorBytePosition;
-			us->codeEditor->mouseByteDragStart = us->codeEditor->cursorBytePosition;
+			us->codeEditor->firstByteInSelection = (int32)us->codeEditor->cursor.bytePos;
+			us->codeEditor->lastByteInSelection = (int32)us->codeEditor->cursor.bytePos;
+			us->codeEditor->mouseByteDragStart = (int32)us->codeEditor->cursor.bytePos;
 		}
 	}
 
@@ -278,7 +278,7 @@ namespace MathAnim
 		auto* us = (TextEditorUndoSystem*)ctx;
 
 		CodeEditorPanel::addUtf8StringToBuffer(*us->codeEditor, this->textToBeDeleted, (int32)this->textToBeDeletedSize, (int32)this->selectionStart);
-		us->codeEditor->cursorBytePosition = (int32)this->cursorPosition;
+		us->codeEditor->cursor.bytePos = (int32)this->cursorPosition;
 		if (this->shouldSetTextSelected)
 		{
 			us->codeEditor->firstByteInSelection = (int32)this->selectionStart;
@@ -287,9 +287,9 @@ namespace MathAnim
 		}
 		else
 		{
-			us->codeEditor->firstByteInSelection = us->codeEditor->cursorBytePosition;
-			us->codeEditor->lastByteInSelection = us->codeEditor->cursorBytePosition;
-			us->codeEditor->mouseByteDragStart = us->codeEditor->cursorBytePosition;
+			us->codeEditor->firstByteInSelection = (int32)us->codeEditor->cursor.bytePos;
+			us->codeEditor->lastByteInSelection = (int32)us->codeEditor->cursor.bytePos;
+			us->codeEditor->mouseByteDragStart = (int32)us->codeEditor->cursor.bytePos;
 		}
 	}
 }
