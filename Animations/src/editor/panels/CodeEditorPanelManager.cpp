@@ -44,7 +44,7 @@ namespace MathAnim
 			
 			Highlighters::importGrammar(luaGrammarJsonFile);
 			luaGrammar = Highlighters::getImportedHighlighter(luaGrammarJsonFile);
-			syntaxTheme = Highlighters::getTheme(HighlighterTheme::MonokaiNight);
+			syntaxTheme = Highlighters::getTheme(HighlighterTheme::OneDark);
 
 			for (uint32 i = CharRange::Ascii.firstCharCode; i <= CharRange::Ascii.lastCharCode; i++)
 			{

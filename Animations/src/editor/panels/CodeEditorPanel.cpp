@@ -222,10 +222,8 @@ namespace MathAnim
 
 			RawMemory memory;
 			memory.init(fileSize);
-			fread(memory.data, fileSize + 1, 1, fp);
+			fread(memory.data, fileSize, 1, fp);
 			fclose(fp);
-
-			memory.data[fileSize + 1] = '\0';
 
 			// Preprocess file into usable buffer
 			res->visibleCharacterBuffer = nullptr;
@@ -276,9 +274,8 @@ namespace MathAnim
 			// Parse the syntax
 			panel.syntaxHighlightTree = CodeEditorPanelManager::getHighlighter().parse(
 				std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
-				CodeEditorPanelManager::getTheme(),
-				true
-			);
+				CodeEditorPanelManager::getTheme()
+				);
 		}
 
 		bool update(CodeEditorPanelData& panel)
@@ -568,7 +565,7 @@ namespace MathAnim
 			}
 
 			bool justStartedDragSelecting = false;
-			if (mouseInTextEditArea(panel))
+			if (windowIsHovered && mouseInTextEditArea(panel))
 			{
 				ImGui::SetMouseCursor(ImGuiMouseCursor_TextInput);
 				const bool isDragging = ImGui::IsMouseDragging(ImGuiMouseButton_Left, io.MouseDragThreshold * 1.70f);
@@ -776,7 +773,7 @@ namespace MathAnim
 				}
 			}
 
-			if (mouseInTextEditArea(panel) || panel.mouseIsDragSelecting)
+			if ((windowIsHovered && mouseInTextEditArea(panel)) || panel.mouseIsDragSelecting)
 			{
 				if (io.MouseDown[ImGuiMouseButton_Left])
 				{
@@ -830,9 +827,68 @@ namespace MathAnim
 					ImGui::Text("                       Character: \\%c", escapedCharacter);
 				}
 
-				//auto highlighter = CodeEditorPanelManager::getHighlighter();
-				//auto ancestors = highlighter.getAncestorsFor(data->Buf, data->CursorPos);
-				//auto tokenMatch = theme->match(userData.ancestors);
+				// TODO: This is copied (almost directly) from InspectorPanel.cpp. Perhaps this should be
+				//       its own abstraction.
+				static bool inspectCodeStyles = false;
+				ImGui::Checkbox(": Inspect Syntax Styles", &inspectCodeStyles);
+				if (inspectCodeStyles)
+				{
+					auto highlighter = CodeEditorPanelManager::getHighlighter();
+					auto theme = CodeEditorPanelManager::getTheme();
+					auto ancestors = highlighter.getAncestorsFor((const char*)panel.visibleCharacterBuffer, panel.cursor.bytePos);
+					auto tokenMatch = theme.match(ancestors);
+
+					ImGui::BeginChild("Code Ancestors", ImVec2(0, 0), true);
+
+					if (ImGui::BeginTable("textmate scopes", 2))
+					{
+						ImGui::TableNextColumn(); ImGui::Text("textmate scopes");
+						for (size_t i = 0; i < ancestors.size(); i++)
+						{
+							size_t backwardsIndex = ancestors.size() - i - 1;
+							std::string friendlyName = ancestors[backwardsIndex].getFriendlyName();
+							ImGui::TableNextColumn(); ImGui::Text(friendlyName.c_str());
+
+							if (i < ancestors.size() - 1)
+							{
+								ImGui::TableNextRow(); ImGui::TableNextColumn();
+							}
+						}
+
+						ImGui::TableNextRow(); ImGui::TableNextRow();
+
+						ImGui::TableNextColumn(); ImGui::Text("foreground");
+						bool foundThemeSelector = false;
+						if (tokenMatch.matchedRule)
+						{
+							const auto* matchedRule = tokenMatch.matchedRule;
+							const ThemeSetting* setting = matchedRule->getSetting(ThemeSettingType::ForegroundColor);
+							if (setting && setting->foregroundColor.has_value())
+							{
+								const Vec4& foregroundColor = setting->foregroundColor.value().color;
+								std::string foregroundColorStr = toHexString(foregroundColor);
+								if (setting->foregroundColor.value().styleType == CssStyleType::Inherit)
+								{
+									foregroundColorStr = "inherit";
+								}
+
+								ImGui::TableNextColumn(); ImGui::Text(tokenMatch.styleMatched.c_str());
+								ImGui::TableNextRow(); ImGui::TableNextColumn();
+								ImGui::TableNextColumn(); ImGui::Text("{ \"foreground\": \"%s\"", foregroundColorStr.c_str());
+								foundThemeSelector = true;
+							}
+						}
+
+						if (!foundThemeSelector)
+						{
+							ImGui::TableNextColumn(); ImGui::Text("No theme selector");
+						}
+
+						ImGui::EndTable();
+					}
+
+					ImGui::EndChild();
+				}
 
 				ImGui::End();
 			}
