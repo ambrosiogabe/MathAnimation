@@ -34,9 +34,6 @@ namespace MathAnim
 		uint8* visibleCharacterBuffer;
 		size_t visibleCharacterBufferSize;
 
-		// A map that contains this files byte->codepoint mapping
-		uint32 byteMap[1 << 8];
-
 		CodeHighlights syntaxHighlightTree;
 	};
 
@@ -58,7 +55,10 @@ namespace MathAnim
 		bool removeTextWithBackspace(CodeEditorPanelData& panel, int32 textToRemoveStart, int32 textToRemoveLength);
 		bool removeTextWithDelete(CodeEditorPanelData& panel, int32 textToRemoveStart, int32 textToRemoveLength);
 
-		void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength, uint32* numberLines = nullptr);
-		void translateLocalByteMappingToString(CodeEditorPanelData const& panel, uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes, bool includeCarriageReturnsForWindows = true);
+		// Strip any carriage returns and invalid UTF8
+		void preprocessText(uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength, uint32* numberLines = nullptr);
+
+		// Adds carriage returns as necessary
+		void postprocessText(uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes, bool includeCarriageReturnsForWindows = true);
 	}
 }

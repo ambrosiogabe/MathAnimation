@@ -1366,7 +1366,7 @@ namespace MathAnim
 			{
 				g_logger_warning("Invalid pattern parsed.");
 				freePattern(pattern);
-			}
+			} 
 		}
 
 		return res;

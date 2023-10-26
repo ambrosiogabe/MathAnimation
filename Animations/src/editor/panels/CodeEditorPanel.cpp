@@ -86,14 +86,14 @@ namespace MathAnim
 			}
 
 			int32 cursor = index;
-			if (panel.byteMap[panel.visibleCharacterBuffer[cursor]] == '\n')
+			if (panel.visibleCharacterBuffer[cursor] == '\n')
 			{
 				cursor--;
 			}
 
 			while (cursor > 0)
 			{
-				if (panel.byteMap[panel.visibleCharacterBuffer[cursor]] == '\n')
+				if (panel.visibleCharacterBuffer[cursor] == '\n')
 				{
 					return cursor + 1;
 				}
@@ -108,7 +108,7 @@ namespace MathAnim
 			int32 cursor = index;
 			while (cursor < panel.visibleCharacterBufferSize)
 			{
-				if (panel.byteMap[panel.visibleCharacterBuffer[cursor]] == '\n')
+				if (panel.visibleCharacterBuffer[cursor] == '\n')
 				{
 					return cursor;
 				}
@@ -134,7 +134,7 @@ namespace MathAnim
 					return i;
 				}
 
-				if (panel.byteMap[panel.visibleCharacterBuffer[i]] == '\n')
+				if (panel.visibleCharacterBuffer[i] == '\n')
 				{
 					currentLine++;
 				}
@@ -153,7 +153,7 @@ namespace MathAnim
 					return currentLine;
 				}
 
-				if (panel.byteMap[panel.visibleCharacterBuffer[i]] == '\n')
+				if (panel.visibleCharacterBuffer[i] == '\n')
 				{
 					currentLine++;
 				}
@@ -205,7 +205,7 @@ namespace MathAnim
 			res->undoTypingStart = -1;
 			res->totalNumberLines = 0;
 
-			translateStringToLocalByteMapping(*res, (uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize, &res->totalNumberLines);
+			preprocessText((uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize, &res->totalNumberLines);
 			// +1 for the extra line for EOF
 			res->totalNumberLines++;
 
@@ -222,7 +222,7 @@ namespace MathAnim
 		{
 			uint8* utf8String = nullptr;
 			size_t utf8StringNumBytes = 0;
-			translateLocalByteMappingToString(panel, panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, &utf8String, &utf8StringNumBytes);
+			postprocessText(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, &utf8String, &utf8StringNumBytes);
 
 			// Dump UTF-8 to file
 			FILE* fp = fopen(panel.filepath.string().c_str(), "wb");
@@ -242,28 +242,12 @@ namespace MathAnim
 
 		void reparseSyntax(CodeEditorPanelData& panel)
 		{
-			// TODO: This is very gross, instead of copying a million times, we should get rid of the local byte
-			//       mapping garbage since it's not working well.
-			uint8* noCarriageReturnStr = nullptr;
-			size_t noCarriageReturnStrLength = 0;
-			translateLocalByteMappingToString(
-				panel,
-				panel.visibleCharacterBuffer,
-				panel.visibleCharacterBufferSize,
-				&noCarriageReturnStr,
-				&noCarriageReturnStrLength,
-				false
-			);
-
 			// Parse the syntax
-			// TODO: This will not work with UTF8, fix it.
 			panel.syntaxHighlightTree = CodeEditorPanelManager::getHighlighter().parse(
-				std::string((const char*)noCarriageReturnStr, noCarriageReturnStrLength),
+				std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
 				CodeEditorPanelManager::getTheme(),
 				true
 			);
-
-			g_memory_free(noCarriageReturnStr);
 		}
 
 		bool update(CodeEditorPanelData& panel)
@@ -305,7 +289,7 @@ namespace MathAnim
 					// Figure out how many characters exist in this string
 					uint8* outStr = nullptr;
 					size_t numCharacters;
-					translateStringToLocalByteMapping(panel, (uint8*)utf8String, utf8StringNumBytes, &outStr, &numCharacters);
+					preprocessText((uint8*)utf8String, utf8StringNumBytes, &outStr, &numCharacters);
 
 					// Free the new memory since we don't actually need the string
 					g_memory_free(outStr);
@@ -328,8 +312,7 @@ namespace MathAnim
 						uint8* utf8String = nullptr;
 						size_t utf8StringSize = 0;
 
-						translateLocalByteMappingToString(
-							panel,
+						postprocessText(
 							panel.visibleCharacterBuffer + panel.firstByteInSelection,
 							(panel.lastByteInSelection - panel.firstByteInSelection),
 							&utf8String,
@@ -580,23 +563,27 @@ namespace MathAnim
 			int32 closestByteToMouseCursor = (int32)panel.lineNumberByteStart;
 			auto highlightIter = panel.syntaxHighlightTree.segments.begin();
 
-			for (size_t cursor = panel.lineNumberByteStart; cursor < panel.visibleCharacterBufferSize; cursor++)
+			for (auto cursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, panel.lineNumberByteStart); 
+				cursor.bytePos < panel.visibleCharacterBufferSize; 
+				++cursor)
 			{
 				ImColor highlightedColor = syntaxTheme.defaultForeground.color;
 
 				// Figure out what color this character should be
-				if (highlightIter != panel.syntaxHighlightTree.segments.end() && cursor >= highlightIter->endPos)
+				if (highlightIter != panel.syntaxHighlightTree.segments.end() && cursor.bytePos >= highlightIter->endPos)
 				{
 					highlightIter++;
 				}
 
 				if (highlightIter != panel.syntaxHighlightTree.segments.end() &&
-					cursor >= highlightIter->startPos && cursor < highlightIter->endPos)
+					cursor.bytePos >= highlightIter->startPos && cursor.bytePos < highlightIter->endPos)
 				{
 					highlightedColor = getColor(highlightIter->color);
 				}
 
-				uint32 currentCodepoint = panel.byteMap[panel.visibleCharacterBuffer[cursor]];
+				auto maybeCurrentCodepoint = *cursor;
+				g_logger_assert(maybeCurrentCodepoint.hasValue(), "We shouldn't have any invalid UTF8 in our edit buffer.");
+				uint32 currentCodepoint = maybeCurrentCodepoint.value();
 				ImVec2 letterBoundsStart = currentLetterDrawPos;
 				ImVec2 letterBoundsSize = addCharToDrawList(
 					drawList,
@@ -606,12 +593,12 @@ namespace MathAnim
 					highlightedColor
 				);
 
-				if (cursor == panel.cursorBytePosition)
+				if (cursor.bytePos == panel.cursorBytePosition)
 				{
 					ImVec2 textCursorDrawPosition = letterBoundsStart;
 					renderTextCursor(panel, textCursorDrawPosition, codeFont);
 				}
-				else if (cursor == panel.visibleCharacterBufferSize - 1 && panel.cursorBytePosition == panel.visibleCharacterBufferSize)
+				else if (cursor.bytePos == panel.visibleCharacterBufferSize - 1 && panel.cursorBytePosition == panel.visibleCharacterBufferSize)
 				{
 					ImVec2 textCursorDrawPosition = letterBoundsStart + ImVec2(letterBoundsSize.x, 0.0f);
 					if (currentCodepoint == '\n')
@@ -644,7 +631,7 @@ namespace MathAnim
 					&& io.MousePos.y <= letterBoundsStart.y + letterBoundsSize.y
 					)))
 				{
-					closestByteToMouseCursor = (int32)cursor;
+					closestByteToMouseCursor = (int32)cursor.bytePos;
 
 				}
 				// If the mouse clicked in between a line, then the closest byte is in this line
@@ -653,15 +640,15 @@ namespace MathAnim
 					// If we clicked in a letter bounds, then that's the closest byte to the mouse
 					if (io.MousePos.x >= letterBoundsStart.x && io.MousePos.x < letterBoundsStart.x + letterBoundsSize.x)
 					{
-						closestByteToMouseCursor = (int32)cursor;
+						closestByteToMouseCursor = (int32)cursor.bytePos;
 					}
 					// If we clicked past the end of the line, the closest byte is the end of the line
 					else if (currentCodepoint == '\n' && io.MousePos.x >= letterBoundsStart.x + letterBoundsSize.x)
 					{
-						closestByteToMouseCursor = (int32)cursor;
+						closestByteToMouseCursor = (int32)cursor.bytePos;
 					}
 					// If we clicked past the last character in the file, the closest byte is the end of the file
-					else if (cursor == panel.visibleCharacterBufferSize - 1 && io.MousePos.x >= letterBoundsStart.x + letterBoundsSize.x)
+					else if (cursor.bytePos == panel.visibleCharacterBufferSize - 1 && io.MousePos.x >= letterBoundsStart.x + letterBoundsSize.x)
 					{
 						closestByteToMouseCursor = (int32)panel.visibleCharacterBufferSize;
 					}
@@ -669,18 +656,18 @@ namespace MathAnim
 					// is the first byte in this line
 					else if (io.MousePos.x < letterBoundsStart.x && lastCharWasNewline)
 					{
-						closestByteToMouseCursor = (int32)cursor;
+						closestByteToMouseCursor = (int32)cursor.bytePos;
 					}
 				}
 				// If the mouse clicked past the last visible character, then the closest byte is the end of the file
-				else if (cursor == panel.visibleCharacterBufferSize - 1 && io.MousePos.y >= letterBoundsStart.y + letterBoundsSize.y)
+				else if (cursor.bytePos == panel.visibleCharacterBufferSize - 1 && io.MousePos.y >= letterBoundsStart.y + letterBoundsSize.y)
 				{
 					closestByteToMouseCursor = (int32)panel.visibleCharacterBufferSize;
 				}
 
 				// Render selected text
 				if (panel.firstByteInSelection != panel.lastByteInSelection &&
-					cursor >= panel.firstByteInSelection && cursor <= panel.lastByteInSelection)
+					cursor.bytePos >= panel.firstByteInSelection && cursor.bytePos <= panel.lastByteInSelection)
 				{
 					if (!lineHighlightStartFound)
 					{
@@ -688,7 +675,7 @@ namespace MathAnim
 						lineHighlightStartFound = true;
 					}
 
-					if (currentCodepoint == (uint32)'\n' && cursor != panel.lastByteInSelection)
+					if (currentCodepoint == (uint32)'\n' && cursor.bytePos != panel.lastByteInSelection)
 					{
 						// Draw highlight to the end of the line
 						ImVec2 lineEndPos = ImVec2(
@@ -701,13 +688,13 @@ namespace MathAnim
 							letterBoundsStart.y + letterBoundsSize.y
 						);
 					}
-					else if (cursor == panel.lastByteInSelection)
+					else if (cursor.bytePos == panel.lastByteInSelection)
 					{
 						// Draw highlight to beginning of the last character selected
 						ImVec2 highlightEnd = letterBoundsStart + ImVec2(0.0f, letterBoundsSize.y);
 						drawList->AddRectFilled(textHighlightRectStart, highlightEnd, highlightTextColor);
 					}
-					else if (cursor == panel.visibleCharacterBufferSize - 1)
+					else if (cursor.bytePos == panel.visibleCharacterBufferSize - 1)
 					{
 						// NOTE: This is the special case of when you're highlighting the last character in the file, which we won't
 						//       iterate past normally
@@ -781,15 +768,23 @@ namespace MathAnim
 				renderTextCursor(panel, currentLetterDrawPos, codeFont);
 			}
 
+			static bool inspectorOn = false;
+			if (windowIsFocused && Input::keyPressed(GLFW_KEY_I, KeyMods::Ctrl | KeyMods::Shift))
 			{
-				ImGui::Begin("Stats##Panel1");
+				inspectorOn = true;
+			}
+
+			if (inspectorOn)
+			{
+				ImGui::Begin("Stats##Panel1", &inspectorOn);
+
 				ImGui::Text("                 Selection Begin: %d", panel.firstByteInSelection);
 				ImGui::Text("                   Selection End: %d", panel.lastByteInSelection);
 				ImGui::Text("                      Drag Start: %d", panel.mouseByteDragStart);
 				ImGui::Text("                     Cursor Byte: %d", panel.cursorBytePosition);
 				ImGui::Text("                 Line start dist: %d", panel.cursorDistanceToBeginningOfLine);
 				char character = panel.visibleCharacterBufferSize > 0
-					? (char)panel.byteMap[panel.visibleCharacterBuffer[panel.cursorBytePosition]]
+					? (char)panel.visibleCharacterBuffer[panel.cursorBytePosition]
 					: '\0';
 				if (character != '\r' && character != '\n' && character != '\t' && character != '\0')
 				{
@@ -802,6 +797,11 @@ namespace MathAnim
 						character == '\t' ? 't' : '0';
 					ImGui::Text("                       Character: \\%c", escapedCharacter);
 				}
+
+				//auto highlighter = CodeEditorPanelManager::getHighlighter();
+				//auto ancestors = highlighter.getAncestorsFor(data->Buf, data->CursorPos);
+				//auto tokenMatch = theme->match(userData.ancestors);
+
 				ImGui::End();
 			}
 
@@ -829,7 +829,7 @@ namespace MathAnim
 			size_t byteMappedStringLength = 0;
 			uint32 numberLinesInString = 0;
 
-			translateStringToLocalByteMapping(panel, utf8String, stringNumBytes, &byteMappedString, &byteMappedStringLength, &numberLinesInString);
+			preprocessText(utf8String, stringNumBytes, &byteMappedString, &byteMappedStringLength, &numberLinesInString);
 
 			size_t newCharBufferSize = sizeof(uint8) * (panel.visibleCharacterBufferSize + byteMappedStringLength);
 			panel.visibleCharacterBuffer = (uint8*)g_memory_realloc(panel.visibleCharacterBuffer, newCharBufferSize);
@@ -913,7 +913,7 @@ namespace MathAnim
 			return true;
 		}
 
-		void translateStringToLocalByteMapping(CodeEditorPanelData& panel, uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength, uint32* numberLines)
+		void preprocessText(uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength, uint32* numberLines)
 		{
 			*outStr = nullptr;
 			*outStrLength = 0;
@@ -922,7 +922,7 @@ namespace MathAnim
 				*numberLines = 0;
 			}
 
-			// Translate UTF8 string to local byte mapping
+			// Strip any carriage returns and any invalid UTF8
 			auto maybeParseInfo = ::Parser::makeParseInfo((char*)utf8String, stringNumBytes);
 			if (!maybeParseInfo.hasValue())
 			{
@@ -956,11 +956,16 @@ namespace MathAnim
 					continue;
 				}
 
-				uint8 byteMapping = CodeEditorPanelManager::addCharToFont(codepoint.value());
-				panel.byteMap[byteMapping] = codepoint.value();
+				CodeEditorPanelManager::addCharToFont(codepoint.value());
 
-				(*outStr)[(*outStrLength)] = byteMapping;
-				*outStrLength = *outStrLength + 1;
+				// Copy all UTF8 bytes over to the new string
+				for (size_t tmpCursor = parseInfo.cursor; 
+					tmpCursor < parseInfo.cursor + numBytesParsed;
+					tmpCursor++)
+				{
+					(*outStr)[(*outStrLength)] = parseInfo.utf8String[tmpCursor];
+					*outStrLength = *outStrLength + 1;
+				}
 
 				parseInfo.cursor += numBytesParsed;
 			}
@@ -968,26 +973,23 @@ namespace MathAnim
 			*outStr = (uint8*)g_memory_realloc((void*)(*outStr), (*outStrLength) * sizeof(uint8));
 		}
 
-		void translateLocalByteMappingToString(CodeEditorPanelData const& panel, uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes, bool includeCarriageReturnsForWindows)
+		void postprocessText(uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes, bool includeCarriageReturnsForWindows)
 		{
-			// Translate to valid UTF-8
+			// Add carriage returns as necessary
 			RawMemory memory{};
 			memory.init(sizeof(uint8) * byteMappedStringNumBytes);
 
 			for (size_t i = 0; i < byteMappedStringNumBytes; i++)
 			{
-				uint32 codepoint = panel.byteMap[byteMappedString[i]];
-
-				uint8 utf8Bytes[4] = {};
-				uint8 numBytes = codepointToUtf8Str(utf8Bytes, codepoint);
+				uint8 c = byteMappedString[i];
 
 				#ifdef _WIN32
 				if (includeCarriageReturnsForWindows)
 				{
-					g_logger_assert(codepoint != (uint32)'\r', "We should never get carriage returns in our edit buffers");
+					g_logger_assert(c != (uint32)'\r', "We should never get carriage returns in our edit buffers");
 
 					// If we're on windows, translate newlines to carriage return + newlines when saving the files again
-					if (codepoint == (uint32)'\n')
+					if (c == (uint32)'\n')
 					{
 						uint8 carriageReturn = '\r';
 						memory.write(&carriageReturn);
@@ -995,7 +997,7 @@ namespace MathAnim
 				}
 				#endif
 
-				memory.writeDangerous(utf8Bytes, numBytes * sizeof(uint8));
+				memory.write(&c);
 			}
 
 			memory.shrinkToFit();
@@ -1030,20 +1032,12 @@ namespace MathAnim
 			}
 
 			// We typed some stuff, and we want to add it as one big undo operation
-			uint8* utf8String = nullptr;
-			size_t utf8StringNumBytes = 0;
-
-			translateLocalByteMappingToString(
-				panel,
+			UndoSystem::insertTextAction(
+				panel.undoSystem,
 				panel.visibleCharacterBuffer + panel.undoTypingStart,
 				numBytesInUndo,
-				&utf8String,
-				&utf8StringNumBytes
-			);
-
-			UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, panel.undoTypingStart, numBytesInUndo);
-
-			g_memory_free(utf8String);
+				panel.undoTypingStart,
+				numBytesInUndo);
 
 			panel.undoTypingStart = -1;
 		}
@@ -1058,28 +1052,15 @@ namespace MathAnim
 				return;
 			}
 
-			// Translate the text to a utf8-string
-			uint8* textAboutToBeDeleted = nullptr;
-			size_t textAboutToBeDeletedLength = 0;
-			translateLocalByteMappingToString(
-				panel,
-				panel.visibleCharacterBuffer + panel.firstByteInSelection,
-				numBytesToDelete,
-				&textAboutToBeDeleted,
-				&textAboutToBeDeletedLength
-			);
-
 			UndoSystem::backspaceTextAction(
 				panel.undoSystem,
-				textAboutToBeDeleted,
-				textAboutToBeDeletedLength,
+				panel.visibleCharacterBuffer + panel.firstByteInSelection,
+				numBytesToDelete,
 				panel.firstByteInSelection,
 				panel.firstByteInSelection + numBytesToDelete,
 				panel.cursorBytePosition,
 				shouldSetTextSelectedOnUndo
 			);
-
-			g_memory_free(textAboutToBeDeleted);
 		}
 
 		static void handleDeleteUndo(CodeEditorPanelData& panel, bool shouldSetTextSelectedOnUndo)
@@ -1092,28 +1073,15 @@ namespace MathAnim
 				return;
 			}
 
-			// Translate the text to a utf8-string
-			uint8* textAboutToBeDeleted = nullptr;
-			size_t textAboutToBeDeletedLength = 0;
-			translateLocalByteMappingToString(
-				panel,
-				panel.visibleCharacterBuffer + panel.firstByteInSelection,
-				numBytesToDelete,
-				&textAboutToBeDeleted,
-				&textAboutToBeDeletedLength
-			);
-
 			UndoSystem::deleteTextAction(
 				panel.undoSystem,
-				textAboutToBeDeleted,
-				textAboutToBeDeletedLength,
+				panel.visibleCharacterBuffer + panel.firstByteInSelection,
+				numBytesToDelete,
 				panel.firstByteInSelection,
 				panel.firstByteInSelection + numBytesToDelete,
 				panel.cursorBytePosition,
 				shouldSetTextSelectedOnUndo
 			);
-
-			g_memory_free(textAboutToBeDeleted);
 		}
 
 		static void moveTextCursor(CodeEditorPanelData& panel, KeyMoveDirection direction)
@@ -1317,7 +1285,7 @@ namespace MathAnim
 			uint32 numberLinesInString = 0;
 			for (int32 i = textToRemoveOffset; i <= textToRemoveOffset + textToRemoveNumBytes; i++)
 			{
-				if (panel.byteMap[panel.visibleCharacterBuffer[i]] == '\n')
+				if (panel.visibleCharacterBuffer[i] == '\n')
 				{
 					numberLinesInString += 1;
 				}
@@ -1422,7 +1390,7 @@ namespace MathAnim
 				int32 newPos = beginningOfLineBelow;
 				for (int32 i = beginningOfLineBelow; i <= panel.visibleCharacterBufferSize; i++)
 				{
-					if (i == panel.visibleCharacterBufferSize || panel.byteMap[panel.visibleCharacterBuffer[i]] == '\n')
+					if (i == panel.visibleCharacterBufferSize || panel.visibleCharacterBuffer[i] == '\n')
 					{
 						newPos = i;
 						break;
@@ -1443,7 +1411,7 @@ namespace MathAnim
 
 				for (int32 i = beginningOfCurrentLine; i < panel.visibleCharacterBufferSize; i++)
 				{
-					uint32 c = panel.byteMap[panel.visibleCharacterBuffer[i]];
+					uint32 c = panel.visibleCharacterBuffer[i];
 					if (c == ' ' || c == '\t')
 					{
 						continue;
@@ -1481,14 +1449,14 @@ namespace MathAnim
 			{
 				int32 startPos = glm::clamp(panel.cursorBytePosition - 1, 0, (int32)panel.visibleCharacterBufferSize);
 
-				uint32 c = panel.byteMap[panel.visibleCharacterBuffer[startPos]];
+				uint8 c = panel.visibleCharacterBuffer[startPos];
 				bool startedOnSkippableWhitespace = c == ' ' || c == '\t';
 				bool skippedAllWhitespace = false;
 				bool hitBoundaryCharacterButSkipped = false;
 
 				for (int32 i = panel.cursorBytePosition - 1; i >= 0; i--)
 				{
-					c = panel.byteMap[panel.visibleCharacterBuffer[i]];
+					c = panel.visibleCharacterBuffer[i];
 
 					// Handle newlines
 					if (c == '\n' && i != panel.cursorBytePosition - 1)
@@ -1499,7 +1467,7 @@ namespace MathAnim
 					// Handle boundary characters
 					if (isBoundaryCharacter(c) && i != panel.cursorBytePosition - 1)
 					{
-						uint32 nextC = i + 1 < panel.visibleCharacterBufferSize ? panel.byteMap[panel.visibleCharacterBuffer[i + 1]] : '\0';
+						uint32 nextC = i + 1 < panel.visibleCharacterBufferSize ? panel.visibleCharacterBuffer[i + 1] : '\0';
 						if (isBoundaryCharacter(nextC) || nextC == ' ' || nextC == '\t' || hitBoundaryCharacterButSkipped)
 						{
 							hitBoundaryCharacterButSkipped = true;
@@ -1536,14 +1504,14 @@ namespace MathAnim
 
 			case KeyMoveDirection::RightUntilBoundary:
 			{
-				uint32 c = panel.byteMap[panel.visibleCharacterBuffer[panel.cursorBytePosition]];
+				uint8 c = panel.visibleCharacterBuffer[panel.cursorBytePosition];
 				bool startedOnSkippableWhitespace = c == ' ' || c == '\t';
 				bool skippedAllWhitespace = false;
 				bool hitBoundaryCharacterButSkipped = false;
 
 				for (int32 i = panel.cursorBytePosition; i < panel.visibleCharacterBufferSize; i++)
 				{
-					c = panel.byteMap[panel.visibleCharacterBuffer[i]];
+					c = panel.visibleCharacterBuffer[i];
 
 					// Handle newlines
 					if (c == '\n' && i != panel.cursorBytePosition)
@@ -1554,7 +1522,7 @@ namespace MathAnim
 					// Handle boundary characters
 					if (isBoundaryCharacter(c) && i != panel.cursorBytePosition)
 					{
-						uint32 prevC = i - 1 >= 0 ? panel.byteMap[panel.visibleCharacterBuffer[i - 1]] : '\0';
+						uint32 prevC = i - 1 >= 0 ? panel.visibleCharacterBuffer[i - 1] : '\0';
 						if (isBoundaryCharacter(prevC) || prevC == ' ' || prevC == '\t' || hitBoundaryCharacterButSkipped)
 						{
 							hitBoundaryCharacterButSkipped = true;
