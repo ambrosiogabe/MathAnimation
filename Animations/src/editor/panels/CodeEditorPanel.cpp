@@ -892,6 +892,9 @@ namespace MathAnim
 			panel.totalNumberLines += numberLinesInString;
 
 			g_memory_free(byteMappedString);
+
+			// TODO: Only reparse the effected lines
+			reparseSyntax(panel);
 		}
 
 		void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint, size_t insertPosition)
@@ -920,6 +923,9 @@ namespace MathAnim
 			panel.firstByteInSelection = (int32)panel.cursor.bytePos;
 			panel.lastByteInSelection = (int32)panel.cursor.bytePos;
 
+			// TODO: Only reparse the effected lines
+			reparseSyntax(panel);
+
 			return true;
 		}
 
@@ -941,6 +947,9 @@ namespace MathAnim
 			panel.mouseByteDragStart = (int32)panel.cursor.bytePos;
 			panel.firstByteInSelection = (int32)panel.cursor.bytePos;
 			panel.lastByteInSelection = (int32)panel.cursor.bytePos;
+
+			// TODO: Only reparse the effected lines
+			reparseSyntax(panel);
 
 			return true;
 		}
