@@ -1290,7 +1290,7 @@ namespace MathAnim
 			if (!c.end.isDynamic)
 			{
 				c.end.simpleRegex = onigFromString(json["end"], true);
-				
+
 				if (!c.end.simpleRegex)
 				{
 					onig_free(c.begin);
@@ -1383,7 +1383,7 @@ namespace MathAnim
 			{
 				g_logger_warning("Invalid pattern parsed.");
 				freePattern(pattern);
-			} 
+			}
 		}
 
 		return res;
@@ -1672,9 +1672,15 @@ namespace MathAnim
 				int captureIndex = dotSeparatedScope.capture->captureIndex;
 				if (region->beg[captureIndex] >= 0 && region->end[captureIndex] > region->beg[captureIndex])
 				{
+					auto& captureRegex = *dotSeparatedScope.capture;
 					size_t captureStart = region->beg[captureIndex];
 					size_t captureLength = region->end[captureIndex] - captureStart;
-					dotSeparatedScope.capture->capture = str.substr(captureStart, captureLength);
+
+					std::string resultString = captureRegex.capture.substr(0, captureRegex.captureReplaceStart);
+					resultString += str.substr(captureStart, captureLength);
+					resultString += captureRegex.captureRegex.substr(captureRegex.captureReplaceEnd);
+
+					dotSeparatedScope.capture->capture = resultString;
 				}
 			}
 		}

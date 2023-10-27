@@ -520,5 +520,64 @@ R"_('source.lua': '<0, 14>'
       'ATOM': '\nblah\n]]'
 )_";
 
+// NOTE: This is for a scope capture that looks like foo.$1ter
+//       where the scope should become the match followed by ter.
+//       In this case foo.getter
+constexpr const char* JS_COMPLEX_SCOPE_CAPTURE = \
+R"_(class Foo {
+  get bar() {
+    return 0.1;
+  }
+}
+)_";
+
+constexpr const char* JS_COMPLEX_SCOPE_CAPTURE_EXPECTED = \
+R"_('source.js': '<0, 48>'
+  'meta.class.js': '<0, 9>'
+    'storage.type.class.js': '<0, 5>'
+      'ATOM': 'class'
+    'ATOM': ' '
+    'entity.name.type.class.js': '<6, 3>'
+      'ATOM': 'Foo'
+  'ATOM': ' '
+  'NULL_SCOPE': '<10, 37>'
+    'meta.brace.curly.js': '<0, 1>'
+      'ATOM': '{'
+    'ATOM': '\n  '
+    'NULL_SCOPE': '<4, 31>'
+      'meta.function.method.definition.js': '<0, 9>'
+        'keyword.operator.getter[$1].js': '<0, 3>'
+          'ATOM': 'get'
+        'ATOM': ' '
+        'entity.name.function.js': '<4, 3>'
+          'ATOM': 'bar'
+        'meta.parameters.js': '<7, 2>'
+          'punctuation.definition.parameters.begin.bracket.round.js': '<0, 1>'
+            'ATOM': '('
+          'punctuation.definition.parameters.end.bracket.round.js': '<1, 1>'
+            'ATOM': ')'
+      'ATOM': ' '
+      'NULL_SCOPE': '<10, 21>'
+        'punctuation.definition.function.body.begin.bracket.curly.js': '<0, 1>'
+          'ATOM': '{'
+        'ATOM': '\n    '
+        'keyword.control.js': '<6, 6>'
+          'ATOM': 'return'
+        'ATOM': ' '
+        'constant.numeric.decimal.js': '<13, 3>'
+          'ATOM': '0'
+          'meta.delimiter.decimal.period.js': '<1, 1>'
+            'ATOM': '.'
+          'ATOM': '1'
+        'punctuation.terminator.statement.js': '<16, 1>'
+          'ATOM': ';'
+        'ATOM': '\n  '
+        'punctuation.definition.function.body.end.bracket.curly.js': '<20, 1>'
+          'ATOM': '}'
+    'ATOM': '\n'
+    'meta.brace.curly.js': '<36, 1>'
+      'ATOM': '}'
+)_";
+
 #endif
 #endif // _MATH_ANIM_TESTS

@@ -13,12 +13,23 @@ namespace MathAnim
 
 	struct ScopeCapture
 	{
+		// This is the original capture text
+		std::string captureRegex;
+		// This is where we should start replacing the capture text with the capture
+		size_t captureReplaceStart;
+		// This is where we should end replacing the capture text with the capture
+		size_t captureReplaceEnd;
 		int captureIndex;
 		std::string capture;
 	};
 
 	struct Scope
 	{
+		Scope() 
+			: name(std::nullopt), capture(std::nullopt)
+		{
+		}
+
 		std::optional<std::string> name;
 		std::optional<ScopeCapture> capture;
 

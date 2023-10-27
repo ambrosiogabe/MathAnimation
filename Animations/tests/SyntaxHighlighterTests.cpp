@@ -185,6 +185,16 @@ namespace MathAnim
 			END_TEST;
 		}
 
+		DEFINE_TEST(withJs_scopeCaptureWithExtraTextGetsSetCorrectly)
+		{
+			const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(HighlighterLanguage::Javascript);
+			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(JS_COMPLEX_SCOPE_CAPTURE);
+
+			ASSERT_EQUAL(stringifiedParseTree, JS_COMPLEX_SCOPE_CAPTURE_EXPECTED);
+
+			END_TEST;
+		}
+
 		void setupTestSuite()
 		{
 			Tests::TestSuite& testSuite = Tests::addTestSuite("SyntaxHighlighterTests");
@@ -208,6 +218,7 @@ namespace MathAnim
 			ADD_TEST(testSuite, withLua_backreferencesInEndBlocksWork);
 			ADD_TEST(testSuite, withLua_backreferenceWith0SizedMatchWorks);
 			ADD_TEST(testSuite, withLua_backreferenceWithNoEndMatchParsesUntilTheEnd);
+			ADD_TEST(testSuite, withJs_scopeCaptureWithExtraTextGetsSetCorrectly);
 		}
 
 		// -------------------- Private functions --------------------

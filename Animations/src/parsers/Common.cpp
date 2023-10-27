@@ -34,32 +34,49 @@ namespace MathAnim
 
 	Scope Scope::from(const std::string& string)
 	{
-		Scope res;
-		res.capture = std::nullopt;
-		res.name = std::nullopt;
+		Scope res = Scope();
 
 		if (string.length() == 0)
 		{
 			return res;
 		}
 
-		// This is a capture scope
-		if (string[0] == '$')
+		// This is a capture scope if there is a $ in the capture
+		bool isCaptureScope = false;
+		size_t captureBegin = 0;
+		for (size_t i = 0; i < string.length(); i++)
 		{
-			for (size_t i = 1; i < string.length(); i++)
+			if (string[i] == '$')
+			{
+				isCaptureScope = true;
+				captureBegin = i;
+				break;
+			}
+		}
+
+		if (isCaptureScope)
+		{
+			size_t captureEnd = captureBegin;
+			for (size_t i = captureBegin + 1; i < string.length(); i++)
 			{
 				if (!Parser::isDigit(string[i]))
 				{
-					g_logger_error("Invalid scope '{}' encountered while parsing scoped name. Capture scopes must start with '$' and consist of only digits after the '$'.", string);
-					return res;
+					captureEnd = i;
+					break;
+				}
+				else if (i == string.length() - 1)
+				{
+					captureEnd = i + 1;
 				}
 			}
 
-			int captureIndex = std::stoi(string.substr(1));
-			res.capture = {
-				captureIndex,
-				""
-			};
+			int captureIndex = std::stoi(string.substr(captureBegin + 1, captureEnd - captureBegin + 1));
+			res.capture = ScopeCapture{};
+			res.capture->captureIndex =	captureIndex;
+			res.capture->captureReplaceStart = captureBegin;
+			res.capture->captureReplaceEnd = captureEnd;
+			res.capture->captureRegex = string;
+			res.capture->capture = "";
 		}
 		else
 		{
