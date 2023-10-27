@@ -270,7 +270,7 @@ namespace MathAnim
 					// NOTE: If a match ends on a newline and exceeds the current end block, we'll stop matching.
 					//       So this basically short-circuits the rest of this process. This is for the test case
 					//       `withLua_endBlockDoesNotExceedWhenItsStoppedOnANewline`
-					if (str[inBetweenStart - 1] == '\n')
+					if (inBetweenStart > 0 && str[inBetweenStart - 1] == '\n')
 					{
 						endBlockMatch->start = inBetweenStart;
 						if (endBlockMatch->start > endBlockMatch->end)
