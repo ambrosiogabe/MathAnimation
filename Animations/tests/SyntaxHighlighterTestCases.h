@@ -446,5 +446,33 @@ R"_('source.js': '<0, 26>'
     'ATOM': '}'
 )_";
 
+constexpr const char* LUA_NEWLINE_END_BLOCK_THING = \
+R"_(--
+function foo()
+end)_";
+
+constexpr const char* LUA_NEWLINE_END_BLOCK_THING_EXPECTED = \
+R"_('source.lua': '<0, 21>'
+  'NULL_SCOPE': '<0, 3>'
+    'comment.line.double-dash.lua': '<0, 3>'
+      'punctuation.definition.comment.lua': '<0, 2>'
+        'ATOM': '--'
+      'ATOM': '\n'
+  'meta.function.lua': '<3, 14>'
+    'keyword.control.lua': '<0, 8>'
+      'ATOM': 'function'
+    'ATOM': ' '
+    'entity.name.function.lua': '<9, 3>'
+      'ATOM': 'foo'
+    'meta.parameter.lua': '<12, 2>'
+      'punctuation.definition.parameters.begin.lua': '<0, 1>'
+        'ATOM': '('
+      'punctuation.definition.parameters.finish.lua': '<1, 1>'
+        'ATOM': ')'
+  'ATOM': '\n'
+  'keyword.control.lua': '<18, 3>'
+    'ATOM': 'end'
+)_";
+
 #endif
 #endif // _MATH_ANIM_TESTS

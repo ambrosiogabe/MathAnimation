@@ -18,6 +18,11 @@ namespace MathAnim
 			return {};
 		}
 
+		if (cursorPos >= code.length())
+		{
+			return {};
+		}
+
 		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code);
 		return grammarTree.getAllAncestorScopesAtChar(cursorPos);
 	}

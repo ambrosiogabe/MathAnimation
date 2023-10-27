@@ -589,8 +589,20 @@ namespace MathAnim
 			bool passedFirstCharacter = false;
 			ImVec2 textHighlightRectStart = ImVec2();
 			int32 closestByteToMouseCursor = (int32)panel.lineNumberByteStart;
-			auto highlightIter = panel.syntaxHighlightTree.segments.begin();
 
+			// Make sure the highlight iterator is on the correct segment before we begin rendering text
+			auto highlightIter = panel.syntaxHighlightTree.segments.begin();
+			for (auto cursor = CppUtils::String::makeIter(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize);
+				cursor.bytePos < panel.lineNumberByteStart;
+				++cursor)
+			{
+				if (highlightIter != panel.syntaxHighlightTree.segments.end() && cursor.bytePos >= highlightIter->endPos)
+				{
+					highlightIter++;
+				}
+			}
+
+			// Render the text
 			for (auto cursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, panel.lineNumberByteStart); 
 				cursor.bytePos < panel.visibleCharacterBufferSize; 
 				++cursor)

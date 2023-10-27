@@ -13,6 +13,7 @@ namespace MathAnim
 	namespace SyntaxHighlighterTests
 	{
 		// -------------------- Constants --------------------
+		static const char* luaGrammar = "./assets/customGrammars/lua.grammar.json";
 
 		// -------------------- Private functions --------------------
 
@@ -22,6 +23,7 @@ namespace MathAnim
 			g_logger_level oldLevel = g_logger_get_level();
 			g_logger_set_level(g_logger_level_None);
 			Highlighters::init();
+			Highlighters::importGrammar(luaGrammar);
 			g_logger_set_level(oldLevel);
 			END_BEFORE_ALL;
 		}
@@ -143,6 +145,16 @@ namespace MathAnim
 			END_TEST;
 		}
 
+		DEFINE_TEST(withLua_endBlockDoesNotExceedWhenItsStoppedOnANewline)
+		{
+			const SyntaxHighlighter* highlighter = Highlighters::getImportedHighlighter(luaGrammar);
+			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(LUA_NEWLINE_END_BLOCK_THING);
+
+			ASSERT_EQUAL(stringifiedParseTree, LUA_NEWLINE_END_BLOCK_THING_EXPECTED);
+
+			END_TEST;
+		}
+
 		void setupTestSuite()
 		{
 			Tests::TestSuite& testSuite = Tests::addTestSuite("SyntaxHighlighterTests");
@@ -162,6 +174,7 @@ namespace MathAnim
 			ADD_TEST(testSuite, withJs_allowsCaptureToExtendBeyondMatch);
 			ADD_TEST(testSuite, withJs_forKindaSimpleLoopParsesCorrect);
 			ADD_TEST(testSuite, withJs_capturesInCapturesWorkCorrect);
+			ADD_TEST(testSuite, withLua_endBlockDoesNotExceedWhenItsStoppedOnANewline);
 		}
 
 		// -------------------- Private functions --------------------

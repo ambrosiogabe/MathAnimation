@@ -261,10 +261,26 @@ namespace MathAnim
 					}
 				}
 
+				// ----
 				// NOTE: If a match in between exceeds the current end of our match, we have to try to find
 				//       a new end that satisfies this match
 				if (inBetweenStart > endBlockMatch->start)
 				{
+					// ----
+					// NOTE: If a match ends on a newline and exceeds the current end block, we'll stop matching.
+					//       So this basically short-circuits the rest of this process. This is for the test case
+					//       `withLua_endBlockDoesNotExceedWhenItsStoppedOnANewline`
+					if (str[inBetweenStart - 1] == '\n')
+					{
+						endBlockMatch->start = inBetweenStart;
+						if (endBlockMatch->start > endBlockMatch->end)
+						{
+							endBlockMatch->end = endBlockMatch->start;
+						}
+						break;
+					}
+					// ----
+
 					endBlockMatch = getFirstMatch(str, inBetweenStart, inBetweenStart, str.length(), endPattern, region, std::nullopt);
 					if (!endBlockMatch.has_value())
 					{
@@ -296,6 +312,7 @@ namespace MathAnim
 						}
 					}
 				}
+				// ----
 				else if (inBetweenStart == endBlockMatch->end || !anyMatchesBeganInBetweenScope)
 				{
 					break;
