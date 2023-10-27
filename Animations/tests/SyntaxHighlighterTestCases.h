@@ -474,5 +474,51 @@ R"_('source.lua': '<0, 21>'
     'ATOM': 'end'
 )_";
 
+constexpr const char* LUA_BACKREFERENCE_TEST = \
+R"_(--[===[
+blah
+]===])_";
+
+constexpr const char* LUA_BACKREFERENCE_TEST_EXPECTED = \
+R"_('source.lua': '<0, 18>'
+  'NULL_SCOPE': '<0, 18>'
+    'comment.block.lua': '<0, 18>'
+      'punctuation.definition.comment.begin.lua': '<0, 7>'
+        'ATOM': '--[===['
+      'ATOM': '\nblah\n'
+      'punctuation.definition.comment.end.lua': '<13, 5>'
+        'ATOM': ']===]'
+)_";
+
+constexpr const char* LUA_BACKREFERENCE_0_SIZE = \
+R"_(--[[
+blah
+]])_";
+
+constexpr const char* LUA_BACKREFERENCE_0_SIZE_EXPECTED = \
+R"_('source.lua': '<0, 12>'
+  'NULL_SCOPE': '<0, 12>'
+    'comment.block.lua': '<0, 12>'
+      'punctuation.definition.comment.begin.lua': '<0, 4>'
+        'ATOM': '--[['
+      'ATOM': '\nblah\n'
+      'punctuation.definition.comment.end.lua': '<10, 2>'
+        'ATOM': ']]'
+)_";
+
+constexpr const char* LUA_BACKREFERENCE_MISMATCH = \
+R"_(--[==[
+blah
+]])_";
+
+constexpr const char* LUA_BACKREFERENCE_MISMATCH_EXPECTED = \
+R"_('source.lua': '<0, 14>'
+  'NULL_SCOPE': '<0, 14>'
+    'comment.block.lua': '<0, 14>'
+      'punctuation.definition.comment.begin.lua': '<0, 6>'
+        'ATOM': '--[==['
+      'ATOM': '\nblah\n]]'
+)_";
+
 #endif
 #endif // _MATH_ANIM_TESTS

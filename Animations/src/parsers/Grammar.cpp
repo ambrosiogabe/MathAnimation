@@ -158,7 +158,7 @@ namespace MathAnim
 				int replacementStringBegin = region->beg[backref.captureIndex];
 				int replacementStringEnd = region->end[backref.captureIndex];
 
-				g_logger_assert(replacementStringEnd > replacementStringBegin, "An invalid backreference was captured for pattern: '{}'", this->end.regexText);
+				g_logger_assert(replacementStringEnd >= replacementStringBegin, "An invalid backreference was captured for pattern: '{}'", this->end.regexText);
 
 				int replaceBeginOffset = (int)backref.strReplaceStart + offsetToAdd;
 				int replaceEndOffset = (int)backref.strReplaceEnd + offsetToAdd + 1;

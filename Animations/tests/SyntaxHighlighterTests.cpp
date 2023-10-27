@@ -155,6 +155,36 @@ namespace MathAnim
 			END_TEST;
 		}
 
+		DEFINE_TEST(withLua_backreferencesInEndBlocksWork)
+		{
+			const SyntaxHighlighter* highlighter = Highlighters::getImportedHighlighter(luaGrammar);
+			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(LUA_BACKREFERENCE_TEST);
+
+			ASSERT_EQUAL(stringifiedParseTree, LUA_BACKREFERENCE_TEST_EXPECTED);
+
+			END_TEST;
+		}
+
+		DEFINE_TEST(withLua_backreferenceWith0SizedMatchWorks)
+		{
+			const SyntaxHighlighter* highlighter = Highlighters::getImportedHighlighter(luaGrammar);
+			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(LUA_BACKREFERENCE_0_SIZE);
+
+			ASSERT_EQUAL(stringifiedParseTree, LUA_BACKREFERENCE_0_SIZE_EXPECTED);
+
+			END_TEST;
+		}
+
+		DEFINE_TEST(withLua_backreferenceWithNoEndMatchParsesUntilTheEnd)
+		{
+			const SyntaxHighlighter* highlighter = Highlighters::getImportedHighlighter(luaGrammar);
+			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(LUA_BACKREFERENCE_MISMATCH);
+
+			ASSERT_EQUAL(stringifiedParseTree, LUA_BACKREFERENCE_MISMATCH_EXPECTED);
+
+			END_TEST;
+		}
+
 		void setupTestSuite()
 		{
 			Tests::TestSuite& testSuite = Tests::addTestSuite("SyntaxHighlighterTests");
@@ -175,6 +205,9 @@ namespace MathAnim
 			ADD_TEST(testSuite, withJs_forKindaSimpleLoopParsesCorrect);
 			ADD_TEST(testSuite, withJs_capturesInCapturesWorkCorrect);
 			ADD_TEST(testSuite, withLua_endBlockDoesNotExceedWhenItsStoppedOnANewline);
+			ADD_TEST(testSuite, withLua_backreferencesInEndBlocksWork);
+			ADD_TEST(testSuite, withLua_backreferenceWith0SizedMatchWorks);
+			ADD_TEST(testSuite, withLua_backreferenceWithNoEndMatchParsesUntilTheEnd);
 		}
 
 		// -------------------- Private functions --------------------
