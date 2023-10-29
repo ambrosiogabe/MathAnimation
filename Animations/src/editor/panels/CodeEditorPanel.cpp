@@ -590,19 +590,8 @@ namespace MathAnim
 			ImVec2 textHighlightRectStart = ImVec2();
 			int32 closestByteToMouseCursor = (int32)panel.lineNumberByteStart;
 
-			// Make sure the highlight iterator is on the correct segment before we begin rendering text
-			auto highlightIter = panel.syntaxHighlightTree.segments.begin();
-			for (auto cursor = CppUtils::String::makeIter(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize);
-				cursor.bytePos < panel.lineNumberByteStart;
-				++cursor)
-			{
-				if (highlightIter != panel.syntaxHighlightTree.segments.end() && cursor.bytePos >= highlightIter->endPos)
-				{
-					highlightIter++;
-				}
-			}
-
 			// Render the text
+			auto highlightIter = panel.syntaxHighlightTree.begin(panel.lineNumberByteStart);
 			for (auto cursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, panel.lineNumberByteStart); 
 				cursor.bytePos < panel.visibleCharacterBufferSize; 
 				++cursor)
@@ -610,12 +599,8 @@ namespace MathAnim
 				ImColor highlightedColor = syntaxTheme.defaultForeground.color;
 
 				// Figure out what color this character should be
-				if (highlightIter != panel.syntaxHighlightTree.segments.end() && cursor.bytePos >= highlightIter->endPos)
-				{
-					highlightIter++;
-				}
-
-				if (highlightIter != panel.syntaxHighlightTree.segments.end() &&
+				highlightIter = highlightIter.next(cursor.bytePos);
+				if (highlightIter != panel.syntaxHighlightTree.end() &&
 					cursor.bytePos >= highlightIter->startPos && cursor.bytePos < highlightIter->endPos)
 				{
 					highlightedColor = getColor(highlightIter->color);

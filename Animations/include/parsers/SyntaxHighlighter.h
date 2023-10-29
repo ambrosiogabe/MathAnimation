@@ -2,6 +2,7 @@
 #define MATH_ANIM_SYNTAX_HIGHLIGHTER_H
 #include "core.h"
 #include "parsers/Common.h"
+#include "parsers/Grammar.h"
 
 namespace MathAnim
 {
@@ -75,10 +76,37 @@ namespace MathAnim
 		Vec4 color;
 	};
 
+	struct CodeHighlightIter
+	{
+		std::vector<HighlightSegment>::iterator currentIter;
+		std::vector<HighlightSegment> const* collection;
+
+		CodeHighlightIter& next(size_t bytePos);
+
+		inline HighlightSegment const* operator->()
+		{
+			return &(*currentIter);
+		}
+
+		inline bool operator==(CodeHighlightIter const& other)
+		{
+			return this->currentIter == other.currentIter;
+		}
+
+		inline bool operator!=(CodeHighlightIter const& other)
+		{
+			return !(*this == other);
+		}
+	};
+
 	struct CodeHighlights
 	{
+		SourceGrammarTree tree;
 		std::vector<HighlightSegment> segments;
 		std::string codeBlock;
+
+		CodeHighlightIter begin(size_t bytePos = 0);
+		CodeHighlightIter end();
 	};
 
 	class SyntaxHighlighter

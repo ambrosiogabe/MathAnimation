@@ -6,6 +6,42 @@
 
 namespace MathAnim
 {
+	CodeHighlightIter& CodeHighlightIter::next(size_t bytePos)
+	{
+		if (collection && currentIter != collection->end() && bytePos >= currentIter->endPos)
+		{
+			currentIter++;
+		}
+
+		return *this;
+	}
+
+	CodeHighlightIter CodeHighlights::begin(size_t bytePos)
+	{
+		CodeHighlightIter res = {};
+		res.collection = &this->segments;
+
+		// Find where the iterator should start
+		res.currentIter = this->segments.begin();
+		for (size_t i = 0; i <= bytePos; i++)
+		{
+			if (res.currentIter != this->segments.end() && i >= res.currentIter->endPos)
+			{
+				res.currentIter++;
+			}
+		}
+
+		return res;
+	}
+
+	CodeHighlightIter CodeHighlights::end()
+	{
+		CodeHighlightIter res = {};
+		res.collection = &this->segments;
+		res.currentIter = this->segments.end();
+		return res;
+	}
+
 	SyntaxHighlighter::SyntaxHighlighter(const std::filesystem::path& grammar)
 	{
 		this->grammar = Grammar::importGrammar(grammar.string().c_str());
@@ -34,18 +70,18 @@ namespace MathAnim
 			return {};
 		}
 
-		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code, printDebugInfo);
 		CodeHighlights res = {};
+		res.tree = grammar->parseCodeBlock(code, printDebugInfo);
 		res.codeBlock = code;
 
 		// For each atom in our grammar tree, output a highlight segment with the
 		// appropriate style for that atom
 		size_t highlightCursor = 0;
-		for (size_t child = 0; child < grammarTree.tree.size(); child++)
+		for (size_t child = 0; child < res.tree.tree.size(); child++)
 		{
-			if (grammarTree.tree[child].isAtomicNode)
+			if (res.tree.tree[child].isAtomicNode)
 			{
-				std::vector<ScopedName> ancestorScopes = grammarTree.getAllAncestorScopes(child);
+				std::vector<ScopedName> ancestorScopes = res.tree.getAllAncestorScopes(child);
 				const ThemeSetting* setting = theme.match(ancestorScopes, ThemeSettingType::ForegroundColor);
 
 				Vec4 settingForeground = Vec4{ 1, 1, 1, 1 };
@@ -60,7 +96,7 @@ namespace MathAnim
 				}
 
 				size_t absStart = highlightCursor;
-				size_t nodeSize = grammarTree.tree[child].sourceSpan.size;
+				size_t nodeSize = res.tree.tree[child].sourceSpan.size;
 
 				HighlightSegment segment = {};
 				segment.startPos = absStart;
