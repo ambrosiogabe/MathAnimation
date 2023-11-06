@@ -101,6 +101,7 @@ namespace MathAnim
 
 	struct CodeHighlights
 	{
+		SyntaxTheme const* theme;
 		SourceGrammarTree tree;
 		std::vector<HighlightSegment> segments;
 		std::string codeBlock;
@@ -117,6 +118,7 @@ namespace MathAnim
 		std::vector<ScopedName> getAncestorsFor(const std::string& code, size_t cursorPos) const;
 
 		CodeHighlights parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo = false) const;
+		void reparseSection(CodeHighlights& codeHighlights, const std::string& newCode, size_t parseStart, size_t parseEnd, bool printDebugInfo = false) const;
 
 		std::string getStringifiedParseTreeFor(const std::string& code) const;
 

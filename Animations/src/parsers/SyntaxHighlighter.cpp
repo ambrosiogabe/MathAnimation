@@ -73,6 +73,7 @@ namespace MathAnim
 		CodeHighlights res = {};
 		res.tree = grammar->parseCodeBlock(code, printDebugInfo);
 		res.codeBlock = code;
+		res.theme = &theme;
 
 		// For each atom in our grammar tree, output a highlight segment with the
 		// appropriate style for that atom
@@ -126,6 +127,69 @@ namespace MathAnim
 		}
 
 		return res;
+	}
+
+	void SyntaxHighlighter::reparseSection(CodeHighlights& codeHighlights, const std::string& newCode, size_t , size_t , bool printDebugInfo) const
+	{
+		if (!this->grammar)
+		{
+			return;
+		}
+
+		codeHighlights.tree = grammar->parseCodeBlock(codeHighlights.codeBlock, printDebugInfo);
+		codeHighlights.segments = {};
+		codeHighlights.codeBlock = newCode;
+
+		// For each atom in our grammar tree, output a highlight segment with the
+		// appropriate style for that atom
+		size_t highlightCursor = 0;
+		for (size_t child = 0; child < codeHighlights.tree.tree.size(); child++)
+		{
+			if (codeHighlights.tree.tree[child].isAtomicNode)
+			{
+				std::vector<ScopedName> ancestorScopes = codeHighlights.tree.getAllAncestorScopes(child);
+				const ThemeSetting* setting = codeHighlights.theme->match(ancestorScopes, ThemeSettingType::ForegroundColor);
+
+				Vec4 settingForeground = Vec4{ 1, 1, 1, 1 };
+				if (setting)
+				{
+					g_logger_assert(setting->foregroundColor.has_value(), "Something bad happened here.");
+					settingForeground = setting->foregroundColor.value().color;
+				}
+				else if (codeHighlights.theme->defaultForeground.styleType == CssStyleType::Value)
+				{
+					settingForeground = codeHighlights.theme->defaultForeground.color;
+				}
+
+				size_t absStart = highlightCursor;
+				size_t nodeSize = codeHighlights.tree.tree[child].sourceSpan.size;
+
+				HighlightSegment segment = {};
+				segment.startPos = absStart;
+				segment.endPos = absStart + nodeSize;
+				segment.color = settingForeground;
+
+				codeHighlights.segments.emplace_back(segment);
+				highlightCursor += nodeSize;
+			}
+		}
+
+		if (highlightCursor < newCode.length())
+		{
+			Vec4 settingColor = Vec4{ 1, 1, 1, 1 };
+			const ThemeSetting* setting = codeHighlights.theme->defaultRule.getSetting(ThemeSettingType::ForegroundColor);
+			if (setting && setting->foregroundColor.has_value())
+			{
+				settingColor = setting->foregroundColor.value().color;
+			}
+
+			HighlightSegment finalSegment = {};
+			finalSegment.startPos = highlightCursor;
+			finalSegment.endPos = newCode.length();
+			finalSegment.color = settingColor;
+
+			codeHighlights.segments.emplace_back(finalSegment);
+		}
 	}
 
 	std::string SyntaxHighlighter::getStringifiedParseTreeFor(const std::string& code) const

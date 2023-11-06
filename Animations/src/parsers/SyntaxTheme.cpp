@@ -1,5 +1,6 @@
 #include "parsers/SyntaxTheme.h"
 #include "platform/Platform.h"
+#include "svg/Styles.h"
 
 #include <nlohmann/json.hpp>
 #include <../tinyxml2/tinyxml2.h>
@@ -32,6 +33,87 @@ namespace MathAnim
 		}
 
 		return nullptr;
+	}
+
+	const ThemeSetting* SyntaxTrieTheme::getSetting(ThemeSettingType type) const
+	{
+		if (auto iter = settings.find(type); iter != settings.end())
+		{
+			return &iter->second;
+		}
+
+		return nullptr;
+	}
+
+	void SyntaxTrieNode::insert(std::string const& inName, ScopedName const& scope, SyntaxTrieTheme const& inTheme, std::vector<ScopedName> const& inAncestors, size_t subScopeIndex)
+	{
+		g_logger_assert(subScopeIndex < scope.dotSeparatedScopes.size(), "Invalid sub-scope index '{}' encountered while generating theme trie. Out of range for sub-scopes of size '{}'.", subScopeIndex, scope.dotSeparatedScopes.size());
+		g_logger_assert(scope.dotSeparatedScopes[subScopeIndex].name.has_value(), "Invalid sub-scope '{}' while generating theme trie.", scope.dotSeparatedScopes[subScopeIndex].getFriendlyName());
+
+		std::string const& subScope = scope.dotSeparatedScopes[subScopeIndex].getScopeName();
+		auto iter = this->children.find(subScope);
+
+		// We've reached the end of this path in the trie, now insert the styles here and assert that
+		// a style/parent-style hasn't already been set for this particular rule
+		if (subScopeIndex == scope.dotSeparatedScopes.size() - 1)
+		{
+			// Add the node if it hasn't been added already
+			if (iter == this->children.end())
+			{
+				this->children[subScope] = {};
+			}
+
+			// Add the style to the parent rule or the node
+			if (inAncestors.size() == 0)
+			{
+				// Some themes are ill-formed (naughty developers!). If an ill-formed theme is found,
+				// we'll log a warning then discard the newer value and prefer the first-match instead
+				// 
+				// Sometimes though, the developers are merging different theme settings, like adding font-style
+				// or a color to a group of themes. In those cases, we'll just merge the themes.
+				if (this->children[subScope].theme.settings.size() != 0)
+				{
+					auto& themesToAddTo = this->children[subScope].theme.settings;
+
+					for (auto& [k, v] : inTheme.settings)
+					{
+						if (themesToAddTo.find(k) != themesToAddTo.end())
+						{
+							g_logger_warning("The scope rule '{}' tried to set the theme setting '{}' twice. This rule is ambiguous.", scope.getFriendlyName(), k);
+						}
+						else
+						{
+							themesToAddTo[k] = v;
+						}
+					}
+					return;
+				}
+
+				this->children[subScope].theme = inTheme;
+				this->children[subScope].name = inName;
+			}
+			else
+			{
+				SyntaxTrieParentRule newParentRule = {};
+				newParentRule.ancestors = inAncestors;
+				newParentRule.theme = inTheme;
+				this->children[subScope].parentRules.push_back(newParentRule);
+			}
+
+			// End the recursion
+			return;
+		}
+
+		// Recurse and complete adding this sub-scope into the tree
+		if (iter == this->children.end())
+		{
+			this->children[subScope] = {};
+			this->children[subScope].insert(inName, scope, inTheme, inAncestors, subScopeIndex + 1);
+		}
+		else
+		{
+			iter->second.insert(inName, scope, inTheme, inAncestors, subScopeIndex + 1);
+		}
 	}
 
 	TokenRuleMatch SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
@@ -130,11 +212,12 @@ namespace MathAnim
 		/*
 		* 3. Rules 1 and 2 applied again to the scope selector when removing the deepest element
 		*    (in the case of a tie), e.g. "text source string" wins over "source string".
-		* 
+		*
 		* NOTE: Right now I'm just culling whichever matches have less ancestors matched.
 		*/
 		size_t maxAncestorsMatched = 0;
-		for (size_t i = 0; i < potentialMatches.size(); i++) {
+		for (size_t i = 0; i < potentialMatches.size(); i++)
+		{
 			if (potentialMatches[i].match.scopeRule.ancestorMatches.size() > maxAncestorsMatched)
 			{
 				maxAncestorsMatched = potentialMatches[i].match.scopeRule.ancestorMatches.size();
@@ -161,7 +244,7 @@ namespace MathAnim
 			{
 				for (size_t j = 0; j < potentialMatches[i].match.scopeRule.ancestorMatches.size(); j++)
 				{
-					if (j < deepestAncestorLevelMatches.size() && 
+					if (j < deepestAncestorLevelMatches.size() &&
 						potentialMatches[i].match.scopeRule.ancestorMatches[j].levelMatched >
 						deepestAncestorLevelMatches[j].levelMatched)
 					{
@@ -304,6 +387,9 @@ namespace MathAnim
 
 		SyntaxTheme* theme = g_memory_new SyntaxTheme();
 
+		// Initialize the trie
+		theme->root = {};
+
 		if (j.contains("colors"))
 		{
 			if (j["colors"].contains("editor.foreground"))
@@ -338,6 +424,9 @@ namespace MathAnim
 			defaultThemeSetting.foregroundColor = theme->defaultForeground;
 			defaultThemeRule.settings.push_back(defaultThemeSetting);
 			theme->defaultRule = defaultThemeRule;
+
+			// Initialize the root of our tree (these are global settings)
+			theme->root.theme.settings[ThemeSettingType::ForegroundColor] = defaultThemeSetting;
 		}
 
 		for (auto color : tokenColors)
@@ -374,6 +463,11 @@ namespace MathAnim
 					defaultThemeSetting.foregroundColor = theme->defaultForeground;
 					defaultThemeRule.settings.push_back(defaultThemeSetting);
 					theme->defaultRule = defaultThemeRule;
+
+					// Clear the global settings first
+					theme->root.theme.settings = {};
+					// Then initialize the root of our tree with these new global settings
+					theme->root.theme.settings[ThemeSettingType::ForegroundColor] = defaultThemeSetting;
 				}
 				else
 				{
@@ -405,18 +499,84 @@ namespace MathAnim
 				}
 			}
 
+			// TODO: This is duplicated, remove the block below once we verify that the trie is working correctly
+			SyntaxTrieTheme trieThemeSettings = {};
+			if (settingsJson.contains("foreground"))
+			{
+				const std::string& foregroundColorStr = settingsJson["foreground"];
+				ThemeSetting trieTheme = ThemeSetting{};
+				trieTheme.type = ThemeSettingType::ForegroundColor;
+				trieTheme.foregroundColor = Css::colorFromString(foregroundColorStr);
+
+				trieThemeSettings.settings[ThemeSettingType::ForegroundColor] = trieTheme;
+			}
+
+			if (settingsJson.contains("fontStyle"))
+			{
+				std::string const& fontStyleStr = settingsJson["fontStyle"];
+				ThemeSetting trieTheme = ThemeSetting{};
+				trieTheme.type = ThemeSettingType::FontStyle;
+				trieTheme.fontStyle = Css::fontStyleFromString(fontStyleStr);
+
+				trieThemeSettings.settings[ThemeSettingType::FontStyle] = trieTheme;
+			}
+
 			TokenRule rule = {};
 			rule.name = name;
 			if (color["scope"].is_array())
 			{
 				for (auto scope : color["scope"])
 				{
-					rule.scopeCollection.emplace_back(ScopeRuleCollection::from(scope));
+					auto ruleCollection = ScopeRuleCollection::from(scope);
+
+					// Insert every rule into the trie so we have a resolved path for this specific rule
+					for (auto& subRule : ruleCollection.scopeRules)
+					{
+						// If there's a parent scope, grab it
+						if (subRule.scopes.size() >= 2)
+						{
+							ScopedName child = subRule.scopes[subRule.scopes.size() - 1];
+							subRule.scopes.pop_back();
+
+							// Insert the ancestors scope
+							theme->root.insert(name, child, trieThemeSettings, subRule.scopes);
+						}
+						else
+						{
+							// Insert the child scope
+							theme->root.insert(name, subRule.scopes[0], trieThemeSettings);
+						}
+					}
+
+					rule.scopeCollection.push_back(ruleCollection);
 				}
 			}
 			else if (color["scope"].is_string())
 			{
-				rule.scopeCollection.emplace_back(ScopeRuleCollection::from(color["scope"]));
+				// TODO: This is duplicated from the stuff right above, it should prolly be a function
+
+				auto ruleCollection = ScopeRuleCollection::from(color["scope"]);
+
+				// Insert every rule into the trie so we have a resolved path for this specific rule
+				for (auto& subRule : ruleCollection.scopeRules)
+				{
+					// If there's a parent scope, grab it
+					if (subRule.scopes.size() >= 2)
+					{
+						ScopedName child = subRule.scopes[subRule.scopes.size() - 1];
+						subRule.scopes.pop_back();
+
+						// Insert the ancestors scope
+						theme->root.insert(name, child, trieThemeSettings, subRule.scopes);
+					}
+					else
+					{
+						// Insert the child scope
+						theme->root.insert(name, subRule.scopes[0], trieThemeSettings);
+					}
+				}
+
+				rule.scopeCollection.push_back(ruleCollection);
 			}
 
 			if (settingsJson.contains("foreground"))
@@ -606,4 +766,22 @@ namespace MathAnim
 
 		return nullptr;
 	}
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::ThemeSettingType& style)
+{
+	switch (style)
+	{
+	case MathAnim::ThemeSettingType::FontStyle:
+		ostream << "<ThemeSettingType:FontStyle>";
+		break;
+	case MathAnim::ThemeSettingType::ForegroundColor:
+		ostream << "<ThemeSettingType:ForegroundColor>";
+		break;
+	case MathAnim::ThemeSettingType::None:
+		ostream << "<ThemeSettingType:None>";
+		break;
+	};
+
+	return ostream;
 }

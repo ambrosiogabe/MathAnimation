@@ -238,7 +238,11 @@ namespace MathAnim
 			res->totalNumberLines++;
 			res->cursor = CppUtils::String::makeIter(res->visibleCharacterBuffer, res->visibleCharacterBufferSize);
 
-			reparseSyntax(*res);
+			// Parse the syntax
+			res->syntaxHighlightTree = CodeEditorPanelManager::getHighlighter().parse(
+				std::string((const char*)res->visibleCharacterBuffer, res->visibleCharacterBufferSize),
+				CodeEditorPanelManager::getTheme()
+			);
 
 			res->undoSystem = UndoSystem::createTextEditorUndoSystem(res, MAX_UNDO_HISTORY);
 

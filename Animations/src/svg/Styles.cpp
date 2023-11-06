@@ -202,5 +202,81 @@ namespace MathAnim
 				CssStyleType::Error
 			};
 		}
+
+		CssFontStyle fontStyleFromString(std::string const& str)
+		{
+			std::string strLowerCase = std::string(str);
+			for (size_t i = 0; i < strLowerCase.length(); i++)
+			{
+				if ((uint8)strLowerCase[i] >= (uint8)'A' && (uint8)strLowerCase[i] <= (uint8)'Z')
+				{
+					strLowerCase[i] = (char)(((uint8)strLowerCase[i] - (uint8)'A') + (uint8)'a');
+				}
+			}
+
+			if (strLowerCase == "bold")
+			{
+				return CssFontStyle::Bold;
+			}
+
+			if (strLowerCase == "italic")
+			{
+				return CssFontStyle::Italic;
+			}
+
+			if (strLowerCase == "normal")
+			{
+				return CssFontStyle::Normal;
+			}
+
+			if (strLowerCase == "inherit")
+			{
+				return CssFontStyle::Inherit;
+			}
+
+			return CssFontStyle::None;
+		}
 	}
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::CssFontStyle& style)
+{
+	switch (style)
+	{
+	case MathAnim::CssFontStyle::Bold:
+		ostream << "<CssFontStyle:Bold>";
+		break;
+	case MathAnim::CssFontStyle::Inherit:
+		ostream << "<CssFontStyle:Inherit>";
+		break;
+	case MathAnim::CssFontStyle::Italic:
+		ostream << "<CssFontStyle:Italic>";
+		break;
+	case MathAnim::CssFontStyle::None:
+		ostream << "<CssFontStyle:None>";
+		break;
+	case MathAnim::CssFontStyle::Normal:
+		ostream << "<CssFontStyle:Normal>";
+		break;
+	};
+
+	return ostream;
+}
+
+CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::CssStyleType& style)
+{
+	switch (style)
+	{
+	case MathAnim::CssStyleType::Error:
+		ostream << "<CssStyleType:error>";
+		break;
+	case MathAnim::CssStyleType::Inherit:
+		ostream << "<CssStyleType:inherit>";
+		break;
+	case MathAnim::CssStyleType::Value:
+		ostream << "<CssStyleType:value>";
+		break;
+	};
+
+	return ostream;
 }
