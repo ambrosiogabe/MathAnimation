@@ -116,6 +116,103 @@ namespace MathAnim
 		}
 	}
 
+	static void printThemeSettings(SyntaxTrieTheme const& theme, std::string& res, size_t tabDepth = 0)
+	{
+		for (auto& [k, v] : theme.settings)
+		{
+			for (size_t t = 0; t < tabDepth * 2; t++)
+			{
+				res += ' ';
+			}
+			res += ' ';
+
+			if (k == ThemeSettingType::FontStyle)
+			{
+				res += "(FontStyle: ";
+				switch (v.fontStyle.value())
+				{
+				case CssFontStyle::None:
+					res += "None";
+					break;
+				case CssFontStyle::Bold:
+					res += "Bold";
+					break;
+				case CssFontStyle::Inherit:
+					res += "Inherit";
+					break;
+				case CssFontStyle::Italic:
+					res += "Italic";
+					break;
+				case CssFontStyle::Normal:
+					res += "Normal";
+					break;
+				}
+
+				res += ")";
+				res += '\n';
+			}
+			else if (k == ThemeSettingType::ForegroundColor)
+			{
+				res += "(ForegroundColor: ";
+				res += toHexString(v.foregroundColor.value().color);
+				res += ")";
+				res += '\n';
+			}
+		}
+	}
+
+	static void recursivePrint(SyntaxTrieNode const& node, std::string& res, size_t tabDepth = 0)
+	{
+		if (node.parentRules.size() != 0)
+		{
+			for (size_t i = 0; i < node.parentRules.size(); i++)
+			{
+				auto& parent = node.parentRules[i];
+
+				// Print parent rules
+				for (size_t t = 0; t < tabDepth * 2; t++)
+				{
+					res += ' ';
+				}
+				res += "-^";
+
+				for (auto& ancestor : parent.ancestors)
+				{
+					res += ancestor.getFriendlyName();
+					res += ' ';
+				}
+
+				res += '\n';
+
+				printThemeSettings(parent.theme, res, tabDepth);
+			}
+		}
+
+		for (auto& child : node.children)
+		{
+			// Print node connection
+			for (size_t i = 0; i < tabDepth * 2; i++)
+			{
+				res += ' ';
+			}
+			res += "|->";
+			res += child.first;
+			res += '\n';
+
+			printThemeSettings(child.second.theme, res, tabDepth);
+
+			// Print children, depth-first style
+			recursivePrint(child.second, res, tabDepth + 1);
+		}
+	}
+
+	void SyntaxTrieNode::print() const
+	{
+		std::string res = "";
+		recursivePrint(*this, res);
+		g_logger_info("Tree: \n{}\n", res);
+	}
+
 	TokenRuleMatch SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
 	{
 		// Pick the best rule according to the guide laid out here https://macromates.com/manual/en/scope_selectors

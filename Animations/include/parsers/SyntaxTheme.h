@@ -65,6 +65,7 @@ namespace MathAnim
 		std::unordered_map<std::string, SyntaxTrieNode> children;
 
 		void insert(std::string const& name, ScopedName const& scope, SyntaxTrieTheme const& theme, std::vector<ScopedName> const& ancestors = {}, size_t subScopeIndex = 0);
+		void print() const;
 	};
 
 	struct SyntaxTheme
