@@ -236,7 +236,7 @@ namespace MathAnim
 				{
 					themes[(HighlighterTheme)i] = SyntaxTheme::importTheme(_highlighterThemeFilenames[i]);
 
-					if (i == (int)HighlighterTheme::OneDark)
+					if (i == (int)HighlighterTheme::Gruvbox)
 					{
 						themes[(HighlighterTheme)i]->root.print();
 					}

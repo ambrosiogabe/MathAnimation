@@ -52,27 +52,48 @@ namespace MathAnim
 		std::string const& subScope = scope.dotSeparatedScopes[subScopeIndex];
 		auto iter = this->children.find(subScope);
 
+		// Add the node if it hasn't been added already
+		if (iter == this->children.end())
+		{
+			this->children[subScope] = {};
+
+			// Reassign iter so it now has a value
+			iter = this->children.find(subScope);
+
+			// Merge inherited themes so our final theme has all inherited properties + manually set properties
+			for (auto& [k, v] : inheritedTheme.settings)
+			{
+				if (iter->second.theme.settings.find(k) == iter->second.theme.settings.end())
+				{
+					iter->second.theme.settings[k] = v;
+					iter->second.theme.settings[k].inherited = true;
+				}
+			}
+		}
+		else
+		{
+			// Merge this node's settings with the inherited settings
+			for (auto& [k, v] : iter->second.theme.settings)
+			{
+				inheritedTheme.settings[k] = v;
+				inheritedTheme.settings[k].inherited = true;
+			}
+
+			// Merge the inherited settings with this node
+			for (auto& [k, v] : inheritedTheme.settings)
+			{
+				if (iter->second.theme.settings.find(k) == iter->second.theme.settings.end())
+				{
+					iter->second.theme.settings[k] = v;
+					iter->second.theme.settings[k].inherited = true;
+				}
+			}
+		}
+
 		// We've reached the end of this path in the trie, now insert the styles here and assert that
 		// a style/parent-style hasn't already been set for this particular rule
 		if (subScopeIndex == scope.dotSeparatedScopes.size() - 1)
 		{
-			// Add the node if it hasn't been added already
-			if (iter == this->children.end())
-			{
-				this->children[subScope] = {};
-				auto& newChild = this->children[subScope];
-
-				// Merge inherited themes so our final theme has all inherited properties + manually set properties
-				for (auto& [k, v] : inheritedTheme.settings)
-				{
-					if (newChild.theme.settings.find(k) == newChild.theme.settings.end())
-					{
-						newChild.theme.settings[k] = v;
-						newChild.theme.settings[k].inherited = true;
-					}
-				}
-			}
-
 			// Add the style to the parent rule or the node
 			if (inAncestors.size() == 0)
 			{
@@ -129,23 +150,7 @@ namespace MathAnim
 		}
 
 		// Recurse and complete adding this sub-scope into the tree
-		if (iter == this->children.end())
-		{
-			// Create a new scope for this guy
-			this->children[subScope] = {};
-			this->children[subScope].theme = inheritedTheme;
-			this->children[subScope].insert(inName, scope, inTheme, inAncestors, inheritedTheme, subScopeIndex + 1);
-		}
-		else
-		{
-			// Merge the inherited theme props with this node's props so we can propagate inherited themes downwards
-			for (auto& [k, v] : iter->second.theme.settings)
-			{
-				inheritedTheme.settings[k] = v;
-			}
-
-			iter->second.insert(inName, scope, inTheme, inAncestors, inheritedTheme, subScopeIndex + 1);
-		}
+		iter->second.insert(inName, scope, inTheme, inAncestors, inheritedTheme, subScopeIndex + 1);
 	}
 
 	static void printThemeSettings(SyntaxTrieTheme const& theme, std::string& res, size_t tabDepth = 0)
@@ -250,11 +255,22 @@ namespace MathAnim
 		g_logger_info("Tree: \n{}\n", res);
 	}
 
+	static int avgTrieTimingCount = 0;
+	static float avgTrieTiming = 0.0f;
+
+	static int avgNormalTimingCount = 0;
+	static float avgNormalTiming = 0.0f;
+
 	TokenRuleMatch SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
 	{
 		// Make sure these two things behave the same
+		auto trieMatchStart = std::chrono::high_resolution_clock::now();
 		ThemeSetting trieMatch = this->matchTrie(ancestorScopes);
+		auto trieMatchEnd = std::chrono::high_resolution_clock::now();
+		avgTrieTiming += std::chrono::duration_cast<std::chrono::nanoseconds>(trieMatchEnd - trieMatchStart).count();
+		avgTrieTimingCount++;
 
+		auto normalMatchStart = std::chrono::high_resolution_clock::now();
 		// Pick the best rule according to the guide laid out here https://macromates.com/manual/en/scope_selectors
 		/*
 		* 1. Match the element deepest down in the scope e.g. "string" wins over "source.php" when
@@ -441,7 +457,19 @@ namespace MathAnim
 
 			if (auto* setting = tokenRuleMatch.getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
 			{
-				g_logger_assert(trieMatch.foregroundColor.value().color == setting->foregroundColor.value().color, "The trie does not return the same result here.");
+				auto& actual = trieMatch.foregroundColor.value().color;
+				auto& expected = setting->foregroundColor.value().color;
+				g_logger_assert(expected == actual, "The trie does not return the same result here. Got trie match '{}' and expected match '{}'.", toHexString(actual), toHexString(expected));
+			}
+
+			auto normalMatchEnd = std::chrono::high_resolution_clock::now();
+			avgNormalTiming += std::chrono::duration_cast<std::chrono::nanoseconds>(normalMatchEnd - normalMatchStart).count();
+			avgNormalTimingCount++;
+
+			if (avgNormalTimingCount % 100 == 0 && avgNormalTimingCount > 1 || avgNormalTimingCount == 174)
+			{
+				g_logger_info("Avg Normal Timing: {:2.4f} microseconds", (avgNormalTiming / (float)avgNormalTimingCount) / 1'000.0f);
+				g_logger_info("  Avg Trie Timing: {:2.4f} microseconds", (avgTrieTiming / (float)avgTrieTimingCount) / 1'000.0f);
 			}
 
 			return {
