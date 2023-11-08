@@ -509,15 +509,44 @@ namespace MathAnim
 				node = &iter->second;
 			}
 
-			if (auto setting = node->theme.getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
+			if (auto setting = node->theme.getSetting(ThemeSettingType::ForegroundColor); setting != nullptr && node != &this->root)
 			{
 				res.foregroundColor = setting->foregroundColor.value();
 			}
 
 			if (node->parentRules.size() > 0)
 			{
-				// TODO: Check if this node is a descendant of one of these parent rules
-				//       If it is, use that style instead since it's more specific
+				for (auto const& parentRule : node->parentRules)
+				{
+					// parentRule.ancestors goes from broad -> narrow
+					//   Ex: source.js -> string.quoted
+
+					// If this parent rule matches, we should expect to find all the ancestors listed in the same order
+					auto parentRuleAncestorCheck = parentRule.ancestors.begin();
+					for (auto const& ancestorCheck : ancestorScopes)
+					{
+						// We have a match
+						if (parentRuleAncestorCheck == parentRule.ancestors.end())
+						{
+							break;
+						}
+
+						if (ancestorCheck.matches(*parentRuleAncestorCheck))
+						{
+							parentRuleAncestorCheck++;
+						}
+					}
+
+					// We have a match
+					if (parentRuleAncestorCheck == parentRule.ancestors.end())
+					{
+						if (auto* setting = parentRule.theme.getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
+						{
+							res.foregroundColor = setting->foregroundColor.value();
+						}
+						break;
+					}
+				}
 			}
 		}
 

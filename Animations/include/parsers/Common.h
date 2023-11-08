@@ -47,10 +47,12 @@ namespace MathAnim
 		int levelMatched;
 	};
 
+	struct ScopeSelector;
 	struct ScopedName
 	{
 		std::vector<Scope> dotSeparatedScopes;
 
+		bool matches(ScopeSelector const& other) const;
 		std::optional<ScopedNameMatch> matches(const ScopedName& other) const;
 		std::string getFriendlyName() const;
 

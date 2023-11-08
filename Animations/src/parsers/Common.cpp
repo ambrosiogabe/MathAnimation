@@ -120,6 +120,24 @@ namespace MathAnim
 		return this->getScopeName() != other.getScopeName();
 	}
 
+	bool ScopedName::matches(ScopeSelector const& other) const
+	{
+		for (size_t i = 0; i < other.dotSeparatedScopes.size(); i++)
+		{
+			if (i >= this->dotSeparatedScopes.size())
+			{
+				return true;
+			}
+
+			if (other.dotSeparatedScopes[i] != this->dotSeparatedScopes[i].getScopeName())
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	std::optional<ScopedNameMatch> ScopedName::matches(const ScopedName& other) const
 	{
 		bool matched = true;
