@@ -188,6 +188,45 @@ namespace MathAnim
 		return scope;
 	}
 
+	std::string ScopeSelector::getFriendlyName() const
+	{
+		std::string res = "";
+		for (size_t i = 0; i < dotSeparatedScopes.size(); i++)
+		{
+			res += dotSeparatedScopes[i];
+			if (i < dotSeparatedScopes.size() - 1)
+			{
+				res += ".";
+			}
+		}
+
+		return res;
+	}
+
+	ScopeSelector ScopeSelector::from(const std::string& str)
+	{
+		size_t scopeStart = 0;
+		ScopeSelector scope = {};
+		for (size_t i = 0; i < str.length(); i++)
+		{
+			if (str[i] == '.')
+			{
+				std::string scopeStr = str.substr(scopeStart, i - scopeStart);
+				scope.dotSeparatedScopes.emplace_back(scopeStr);
+				scopeStart = i + 1;
+			}
+		}
+
+		if (scopeStart > 0 && scopeStart < str.length())
+		{
+			// Add the last scope
+			std::string scopeStr = str.substr(scopeStart, str.length() - scopeStart);
+			scope.dotSeparatedScopes.emplace_back(scopeStr);
+		}
+
+		return scope;
+	}
+
 	std::optional<ScopeRuleMatch> ScopeRule::matches(const std::vector<ScopedName>& ancestors) const
 	{
 		if (scopes.size() == 0)
@@ -352,6 +391,76 @@ namespace MathAnim
 		if (currentRule.scopes.size() > 0)
 		{
 			res.scopeRules.emplace_back(currentRule);
+		}
+
+		return res;
+	}
+
+	ScopeSelectorCollection ScopeSelectorCollection::from(const std::string& str)
+	{
+		ScopeSelectorCollection res = {};
+
+		res.friendlyName = str;
+
+		size_t scopeStart = 0;
+		ScopeDescendantSelector currentDescendantSelector = {};
+		ScopeSelector currentSelector = {};
+		for (size_t i = 0; i < str.length(); i++)
+		{
+			if (str[i] == '.' || str[i] == ' ' || str[i] == ',' || str[i] == '>')
+			{
+				std::string scope = str.substr(scopeStart, i - scopeStart);
+				if (scope != "")
+				{
+					currentSelector.dotSeparatedScopes.emplace_back(scope);
+				}
+				scopeStart = i + 1;
+
+				if (str[i] == '>')
+				{
+					static bool shouldWarn = true;
+					if (shouldWarn)
+					{
+						g_logger_warning("No support for child selectors yet '>' in SyntaxTheme's.");
+						shouldWarn = false;
+					}
+				}
+			}
+
+			// NOTE: Important that this is a separate if-stmt. This means the last dotted scope
+			// will get added before starting the descendant scope after the space
+			if (str[i] == ' ' || str[i] == ',')
+			{
+				// Space separated scope
+				if (currentSelector.dotSeparatedScopes.size() > 0)
+				{
+					currentDescendantSelector.descendants.emplace_back(currentSelector);
+				}
+				currentSelector = {};
+			}
+
+			if (str[i] == ',')
+			{
+				res.descendantSelectors.emplace_back(currentDescendantSelector);
+				currentSelector = {};
+				currentDescendantSelector = {};
+			}
+		}
+
+		// Don't forget about the final scope in the string
+		if (scopeStart < str.length())
+		{
+			currentSelector.dotSeparatedScopes.emplace_back(str.substr(scopeStart, str.length() - scopeStart));
+		}
+
+		if (currentSelector.dotSeparatedScopes.size() > 0)
+		{
+			currentDescendantSelector.descendants.emplace_back(currentSelector);
+		}
+
+		if (currentDescendantSelector.descendants.size() > 0)
+		{
+			res.descendantSelectors.emplace_back(currentDescendantSelector);
 		}
 
 		return res;

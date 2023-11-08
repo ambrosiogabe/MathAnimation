@@ -57,6 +57,15 @@ namespace MathAnim
 		static ScopedName from(const std::string& string);
 	};
 
+	struct ScopeSelector
+	{
+		std::vector<std::string> dotSeparatedScopes;
+
+		std::string getFriendlyName() const;
+
+		static ScopeSelector from(const std::string& string);
+	};
+
 	// Information on how scopes work here https://macromates.com/manual/en/scope_selectors
 	// 
 	// "string" matches anything starting with "string"
@@ -95,6 +104,19 @@ namespace MathAnim
 		std::optional<ScopeRuleCollectionMatch> matches(const std::vector<ScopedName>& ancestors) const;
 
 		static ScopeRuleCollection from(const std::string& str);
+	};
+
+	struct ScopeDescendantSelector
+	{
+		std::vector<ScopeSelector> descendants;
+	};
+
+	struct ScopeSelectorCollection
+	{
+		std::vector<ScopeDescendantSelector> descendantSelectors;
+		std::string friendlyName;
+
+		static ScopeSelectorCollection from(std::string const& str);
 	};
 
 	namespace Parser

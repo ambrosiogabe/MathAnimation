@@ -45,12 +45,11 @@ namespace MathAnim
 		return nullptr;
 	}
 
-	void SyntaxTrieNode::insert(std::string const& inName, ScopedName const& scope, SyntaxTrieTheme const& inTheme, std::vector<ScopedName> const& inAncestors, size_t subScopeIndex)
+	void SyntaxTrieNode::insert(std::string const& inName, ScopeSelector const& scope, SyntaxTrieTheme const& inTheme, std::vector<ScopeSelector> const& inAncestors, size_t subScopeIndex)
 	{
 		g_logger_assert(subScopeIndex < scope.dotSeparatedScopes.size(), "Invalid sub-scope index '{}' encountered while generating theme trie. Out of range for sub-scopes of size '{}'.", subScopeIndex, scope.dotSeparatedScopes.size());
-		g_logger_assert(scope.dotSeparatedScopes[subScopeIndex].name.has_value(), "Invalid sub-scope '{}' while generating theme trie.", scope.dotSeparatedScopes[subScopeIndex].getFriendlyName());
 
-		std::string const& subScope = scope.dotSeparatedScopes[subScopeIndex].getScopeName();
+		std::string const& subScope = scope.dotSeparatedScopes[subScopeIndex];
 		auto iter = this->children.find(subScope);
 
 		// We've reached the end of this path in the trie, now insert the styles here and assert that
@@ -624,56 +623,58 @@ namespace MathAnim
 			{
 				for (auto scope : color["scope"])
 				{
-					auto ruleCollection = ScopeRuleCollection::from(scope);
+					auto selectorCollection = ScopeSelectorCollection::from(scope);
 
 					// Insert every rule into the trie so we have a resolved path for this specific rule
-					for (auto& subRule : ruleCollection.scopeRules)
+					for (auto& descendantSelector : selectorCollection.descendantSelectors)
 					{
 						// If there's a parent scope, grab it
-						if (subRule.scopes.size() >= 2)
+						if (descendantSelector.descendants.size() >= 2)
 						{
-							ScopedName child = subRule.scopes[subRule.scopes.size() - 1];
-							subRule.scopes.pop_back();
+							ScopeSelector child = descendantSelector.descendants[descendantSelector.descendants.size() - 1];
+							descendantSelector.descendants.pop_back();
 
 							// Insert the ancestors scope
-							theme->root.insert(name, child, trieThemeSettings, subRule.scopes);
+							theme->root.insert(name, child, trieThemeSettings, descendantSelector.descendants);
 						}
 						else
 						{
 							// Insert the child scope
-							theme->root.insert(name, subRule.scopes[0], trieThemeSettings);
+							theme->root.insert(name, descendantSelector.descendants[0], trieThemeSettings);
 						}
 					}
 
-					rule.scopeCollection.push_back(ruleCollection);
+					// TODO: Remove this once we get the new trie implementation working
+					rule.scopeCollection.push_back(ScopeRuleCollection::from(scope));
 				}
 			}
 			else if (color["scope"].is_string())
 			{
 				// TODO: This is duplicated from the stuff right above, it should prolly be a function
 
-				auto ruleCollection = ScopeRuleCollection::from(color["scope"]);
+				auto selectorCollection = ScopeSelectorCollection::from(color["scope"]);
 
 				// Insert every rule into the trie so we have a resolved path for this specific rule
-				for (auto& subRule : ruleCollection.scopeRules)
+				for (auto& descendantSelector : selectorCollection.descendantSelectors)
 				{
 					// If there's a parent scope, grab it
-					if (subRule.scopes.size() >= 2)
+					if (descendantSelector.descendants.size() >= 2)
 					{
-						ScopedName child = subRule.scopes[subRule.scopes.size() - 1];
-						subRule.scopes.pop_back();
+						ScopeSelector child = descendantSelector.descendants[descendantSelector.descendants.size() - 1];
+						descendantSelector.descendants.pop_back();
 
 						// Insert the ancestors scope
-						theme->root.insert(name, child, trieThemeSettings, subRule.scopes);
+						theme->root.insert(name, child, trieThemeSettings, descendantSelector.descendants);
 					}
 					else
 					{
 						// Insert the child scope
-						theme->root.insert(name, subRule.scopes[0], trieThemeSettings);
+						theme->root.insert(name, descendantSelector.descendants[0], trieThemeSettings);
 					}
 				}
 
-				rule.scopeCollection.push_back(ruleCollection);
+				// TODO: Remove this once we get the new trie implementation working
+				rule.scopeCollection.push_back(ScopeRuleCollection::from(color["scope"]));
 			}
 
 			if (settingsJson.contains("foreground"))

@@ -49,7 +49,7 @@ namespace MathAnim
 
 	struct SyntaxTrieParentRule
 	{
-		std::vector<ScopedName> ancestors;
+		std::vector<ScopeSelector> ancestors;
 		SyntaxTrieTheme theme;
 	};
 
@@ -64,7 +64,7 @@ namespace MathAnim
 		//       <"identifier", Node>
 		std::unordered_map<std::string, SyntaxTrieNode> children;
 
-		void insert(std::string const& name, ScopedName const& scope, SyntaxTrieTheme const& theme, std::vector<ScopedName> const& ancestors = {}, size_t subScopeIndex = 0);
+		void insert(std::string const& name, ScopeSelector const& selector, SyntaxTrieTheme const& theme, std::vector<ScopeSelector> const& ancestors = {}, size_t subScopeIndex = 0);
 		void print() const;
 	};
 

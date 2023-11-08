@@ -235,6 +235,11 @@ namespace MathAnim
 				if (Platform::fileExists(_highlighterThemeFilenames[i]))
 				{
 					themes[(HighlighterTheme)i] = SyntaxTheme::importTheme(_highlighterThemeFilenames[i]);
+
+					if (i == (int)HighlighterTheme::OneDark)
+					{
+						themes[(HighlighterTheme)i]->root.print();
+					}
 				}
 			}
 
