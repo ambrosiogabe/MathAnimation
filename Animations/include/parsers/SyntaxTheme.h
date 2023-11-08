@@ -20,6 +20,7 @@ namespace MathAnim
 		ThemeSettingType type;
 		std::optional<CssColor> foregroundColor;
 		std::optional<CssFontStyle> fontStyle;
+		bool inherited;
 	};
 
 	struct TokenRule
@@ -64,7 +65,14 @@ namespace MathAnim
 		//       <"identifier", Node>
 		std::unordered_map<std::string, SyntaxTrieNode> children;
 
-		void insert(std::string const& name, ScopeSelector const& selector, SyntaxTrieTheme const& theme, std::vector<ScopeSelector> const& ancestors = {}, size_t subScopeIndex = 0);
+		void insert(std::string const& name, ScopeSelector const& selector, SyntaxTrieTheme const& theme, std::vector<ScopeSelector> const& ancestors, SyntaxTrieTheme& inheritedTheme, size_t subScopeIndex);
+
+		inline void insert(std::string const& inName, ScopeSelector const& selector, SyntaxTrieTheme const& inTheme, std::vector<ScopeSelector> const& ancestors = {}, size_t subScopeIndex = 0)
+		{
+			SyntaxTrieTheme inheritedThemes = {};
+			this->insert(inName, selector, inTheme, ancestors, inheritedThemes, subScopeIndex);
+		}
+
 		void print() const;
 	};
 
@@ -83,6 +91,7 @@ namespace MathAnim
 
 		TokenRuleMatch match(const std::vector<ScopedName>& ancestorScopes) const;
 		const ThemeSetting* match(const std::vector<ScopedName>& ancestorScopes, ThemeSettingType settingType) const;
+		ThemeSetting matchTrie(const std::vector<ScopedName>& ancestorScopes) const;
 
 		static SyntaxTheme* importTheme(const char* filepath);
 		static void free(SyntaxTheme* theme);

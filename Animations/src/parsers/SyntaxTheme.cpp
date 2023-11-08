@@ -45,7 +45,7 @@ namespace MathAnim
 		return nullptr;
 	}
 
-	void SyntaxTrieNode::insert(std::string const& inName, ScopeSelector const& scope, SyntaxTrieTheme const& inTheme, std::vector<ScopeSelector> const& inAncestors, size_t subScopeIndex)
+	void SyntaxTrieNode::insert(std::string const& inName, ScopeSelector const& scope, SyntaxTrieTheme const& inTheme, std::vector<ScopeSelector> const& inAncestors, SyntaxTrieTheme& inheritedTheme, size_t subScopeIndex)
 	{
 		g_logger_assert(subScopeIndex < scope.dotSeparatedScopes.size(), "Invalid sub-scope index '{}' encountered while generating theme trie. Out of range for sub-scopes of size '{}'.", subScopeIndex, scope.dotSeparatedScopes.size());
 
@@ -60,6 +60,17 @@ namespace MathAnim
 			if (iter == this->children.end())
 			{
 				this->children[subScope] = {};
+				auto& newChild = this->children[subScope];
+
+				// Merge inherited themes so our final theme has all inherited properties + manually set properties
+				for (auto& [k, v] : inheritedTheme.settings)
+				{
+					if (newChild.theme.settings.find(k) == newChild.theme.settings.end())
+					{
+						newChild.theme.settings[k] = v;
+						newChild.theme.settings[k].inherited = true;
+					}
+				}
 			}
 
 			// Add the style to the parent rule or the node
@@ -76,15 +87,18 @@ namespace MathAnim
 
 					for (auto& [k, v] : inTheme.settings)
 					{
-						if (themesToAddTo.find(k) != themesToAddTo.end())
+						// If the setting exists and wasn't inherited, somebody tried to add it twice
+						if (auto themeIter = themesToAddTo.find(k); themeIter != themesToAddTo.end() && !themeIter->second.inherited)
 						{
 							g_logger_warning("The scope rule '{}' tried to set the theme setting '{}' twice. This rule is ambiguous.", scope.getFriendlyName(), k);
 						}
 						else
 						{
 							themesToAddTo[k] = v;
+							themesToAddTo[k].inherited = false;
 						}
 					}
+
 					return;
 				}
 
@@ -96,6 +110,17 @@ namespace MathAnim
 				SyntaxTrieParentRule newParentRule = {};
 				newParentRule.ancestors = inAncestors;
 				newParentRule.theme = inTheme;
+
+				// Merge inherited themes so our final theme has all inherited properties + manually set properties
+				for (auto& [k, v] : inheritedTheme.settings)
+				{
+					if (newParentRule.theme.settings.find(k) == newParentRule.theme.settings.end())
+					{
+						newParentRule.theme.settings[k] = v;
+						newParentRule.theme.settings[k].inherited = true;
+					}
+				}
+
 				this->children[subScope].parentRules.push_back(newParentRule);
 			}
 
@@ -106,12 +131,20 @@ namespace MathAnim
 		// Recurse and complete adding this sub-scope into the tree
 		if (iter == this->children.end())
 		{
+			// Create a new scope for this guy
 			this->children[subScope] = {};
-			this->children[subScope].insert(inName, scope, inTheme, inAncestors, subScopeIndex + 1);
+			this->children[subScope].theme = inheritedTheme;
+			this->children[subScope].insert(inName, scope, inTheme, inAncestors, inheritedTheme, subScopeIndex + 1);
 		}
 		else
 		{
-			iter->second.insert(inName, scope, inTheme, inAncestors, subScopeIndex + 1);
+			// Merge the inherited theme props with this node's props so we can propagate inherited themes downwards
+			for (auto& [k, v] : iter->second.theme.settings)
+			{
+				inheritedTheme.settings[k] = v;
+			}
+
+			iter->second.insert(inName, scope, inTheme, inAncestors, inheritedTheme, subScopeIndex + 1);
 		}
 	}
 
@@ -123,11 +156,16 @@ namespace MathAnim
 			{
 				res += ' ';
 			}
-			res += ' ';
+			res += "(";
+
+			if (v.inherited)
+			{
+				res += ">>>";
+			}
 
 			if (k == ThemeSettingType::FontStyle)
 			{
-				res += "(FontStyle: ";
+				res += "FontStyle: ";
 				switch (v.fontStyle.value())
 				{
 				case CssFontStyle::None:
@@ -152,7 +190,7 @@ namespace MathAnim
 			}
 			else if (k == ThemeSettingType::ForegroundColor)
 			{
-				res += "(ForegroundColor: ";
+				res += "ForegroundColor: ";
 				res += toHexString(v.foregroundColor.value().color);
 				res += ")";
 				res += '\n';
@@ -214,6 +252,9 @@ namespace MathAnim
 
 	TokenRuleMatch SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
 	{
+		// Make sure these two things behave the same
+		ThemeSetting trieMatch = this->matchTrie(ancestorScopes);
+
 		// Pick the best rule according to the guide laid out here https://macromates.com/manual/en/scope_selectors
 		/*
 		* 1. Match the element deepest down in the scope e.g. "string" wins over "source.php" when
@@ -398,6 +439,11 @@ namespace MathAnim
 				}
 			}
 
+			if (auto* setting = tokenRuleMatch.getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
+			{
+				g_logger_assert(trieMatch.foregroundColor.value().color == setting->foregroundColor.value().color, "The trie does not return the same result here.");
+			}
+
 			return {
 				&tokenRuleMatch,
 				matchedOnStr
@@ -408,6 +454,46 @@ namespace MathAnim
 			nullptr,
 			""
 		};
+	}
+
+	ThemeSetting SyntaxTheme::matchTrie(const std::vector<ScopedName>& ancestorScopes) const
+	{
+		ThemeSetting res = {};
+		res.foregroundColor = this->defaultForeground;
+		res.type = ThemeSettingType::ForegroundColor;
+
+		// Ancestors are always passed in order from broad->narrow
+		//   Ex. source.lua -> punctuation.string.begin
+		for (auto const& ancestor : ancestorScopes)
+		{
+			SyntaxTrieNode const* node = &this->root;
+
+			// Query the trie and find out what styles apply to this ancestor
+			for (auto const& scope : ancestor.dotSeparatedScopes)
+			{
+				auto iter = node->children.find(scope.getScopeName());
+				if (iter == node->children.end())
+				{
+					break;
+				}
+
+				// Drill down to the deepest node
+				node = &iter->second;
+			}
+
+			if (auto setting = node->theme.getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
+			{
+				res.foregroundColor = setting->foregroundColor.value();
+			}
+
+			if (node->parentRules.size() > 0)
+			{
+				// TODO: Check if this node is a descendant of one of these parent rules
+				//       If it is, use that style instead since it's more specific
+			}
+		}
+
+		return res;
 	}
 
 	const ThemeSetting* SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes, ThemeSettingType settingType) const
