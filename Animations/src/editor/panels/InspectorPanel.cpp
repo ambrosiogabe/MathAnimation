@@ -754,7 +754,7 @@ namespace MathAnim
 		struct CodeEditUserData
 		{
 			std::vector<ScopedName> ancestors;
-			TokenRuleMatch tokenMatch;
+			SyntaxTrieTheme settings;
 			HighlighterLanguage language;
 			HighlighterTheme theme;
 			bool isActive;
@@ -782,7 +782,7 @@ namespace MathAnim
 			}
 
 			userData.ancestors = highlighter->getAncestorsFor(data->Buf, data->CursorPos);
-			userData.tokenMatch = theme->match(userData.ancestors);
+			userData.settings = theme->match(userData.ancestors);
 
 			return 0;
 		}
@@ -842,7 +842,7 @@ namespace MathAnim
 				codeEditUserData.language = object->as.codeBlock.language;
 				codeEditUserData.theme = object->as.codeBlock.theme;
 				codeEditUserData.ancestors = {};
-				codeEditUserData.tokenMatch = {};
+				codeEditUserData.settings = {};
 			}
 
 			g_memory_copyMem(scratch, scratchLength, object->as.codeBlock.text, object->as.codeBlock.textLength * sizeof(char));
@@ -899,29 +899,24 @@ namespace MathAnim
 
 					ImGui::TableNextColumn(); ImGui::Text("foreground");
 					bool foundThemeSelector = false;
-					if (codeEditUserData.tokenMatch.matchedRule)
-					{
-						const auto* matchedRule = codeEditUserData.tokenMatch.matchedRule;
-						const ThemeSetting* setting = matchedRule->getSetting(ThemeSettingType::ForegroundColor);
-						if (setting && setting->foregroundColor.has_value())
-						{
-							const Vec4& foregroundColor = setting->foregroundColor.value().color;
-							std::string foregroundColorStr = toHexString(foregroundColor);
-							if (setting->foregroundColor.value().styleType == CssStyleType::Inherit)
-							{
-								foregroundColorStr = "inherit";
-							}
-
-							ImGui::TableNextColumn(); ImGui::Text(codeEditUserData.tokenMatch.styleMatched.c_str());
-							ImGui::TableNextRow(); ImGui::TableNextColumn();
-							ImGui::TableNextColumn(); ImGui::Text("{ \"foreground\": \"%s\"", foregroundColorStr.c_str());
-							foundThemeSelector = true;
-						}
-					}
-
-					if (!foundThemeSelector)
+					if (codeEditUserData.settings.usingDefaultSettings)
 					{
 						ImGui::TableNextColumn(); ImGui::Text("No theme selector");
+					}
+					else 
+					{
+						const SyntaxTheme* theme = Highlighters::getTheme(object->as.codeBlock.theme);
+						const CssColor& foregroundCssColor = codeEditUserData.settings.getForegroundCssColor(theme);
+						std::string foregroundColorStr = toHexString(foregroundCssColor.color);
+						if (foregroundCssColor.styleType == CssStyleType::Inherit)
+						{
+							foregroundColorStr = "inherit";
+						}
+
+						ImGui::TableNextColumn(); ImGui::Text(codeEditUserData.settings.styleMatched.c_str());
+						ImGui::TableNextRow(); ImGui::TableNextColumn();
+						ImGui::TableNextColumn(); ImGui::Text("{ \"foreground\": \"%s\"", foregroundColorStr.c_str());
+						foundThemeSelector = true;
 					}
 
 					ImGui::EndTable();

@@ -56,6 +56,20 @@ namespace MathAnim
 		return theme != nullptr ? theme->defaultForeground.color : defaultWhite;
 	}
 
+	CssColor const& SyntaxTrieTheme::getForegroundCssColor(SyntaxTheme const* theme) const
+	{
+		if (auto setting = getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
+		{
+			return setting->foregroundColor.value();
+		}
+
+		static CssColor defaultWhite = {};
+		defaultWhite.color = "#FFFFFF"_hex;
+		defaultWhite.styleType = CssStyleType::Value;
+
+		return theme != nullptr ? theme->defaultForeground : defaultWhite;
+	}
+
 	CssFontStyle SyntaxTrieTheme::getFontStyle() const
 	{
 		if (auto setting = getSetting(ThemeSettingType::FontStyle); setting != nullptr)
@@ -276,238 +290,11 @@ namespace MathAnim
 		g_logger_info("Tree: \n{}\n", res);
 	}
 
-	static int avgTrieTimingCount = 0;
-	static float avgTrieTiming = 0.0f;
-
-	static int avgNormalTimingCount = 0;
-	static float avgNormalTiming = 0.0f;
-
-	TokenRuleMatch SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
-	{
-		// Make sure these two things behave the same
-		auto trieMatchStart = std::chrono::high_resolution_clock::now();
-		auto trieMatch = this->matchTrie(ancestorScopes);
-		auto trieMatchEnd = std::chrono::high_resolution_clock::now();
-		avgTrieTiming += std::chrono::duration_cast<std::chrono::nanoseconds>(trieMatchEnd - trieMatchStart).count();
-		avgTrieTimingCount++;
-
-		auto normalMatchStart = std::chrono::high_resolution_clock::now();
-		// Pick the best rule according to the guide laid out here https://macromates.com/manual/en/scope_selectors
-		/*
-		* 1. Match the element deepest down in the scope e.g. "string" wins over "source.php" when
-		*    the scope is "source.php string.quoted".
-		*
-		* 2. Match most of the deepest element e.g. "string.quoted" wins over "string".
-		*
-		* 3. Rules 1 and 2 applied again to the scope selector when removing the deepest element
-		*    (in the case of a tie), e.g. "text source string" wins over "source string".
-		*/
-
-		std::vector<InternalScopeMatch> potentialMatches = {};
-
-		int deepestScopeMatched = 0;
-		for (size_t ruleIndex = 0; ruleIndex < tokenColors.size(); ruleIndex++)
-		{
-			const auto& rule = tokenColors[ruleIndex];
-			for (size_t collectionIndex = 0; collectionIndex < rule.scopeCollection.size(); collectionIndex++)
-			{
-				const auto& scopeRule = rule.scopeCollection[collectionIndex];
-				auto match = scopeRule.matches(ancestorScopes);
-				if (match.has_value())
-				{
-					if (match->scopeRule.deepestScopeMatched > deepestScopeMatched)
-					{
-						deepestScopeMatched = match->scopeRule.deepestScopeMatched;
-					}
-
-					potentialMatches.emplace_back(InternalScopeMatch{
-						ruleIndex,
-						match.value()
-						});
-					break;
-				}
-			}
-		}
-
-		/*
-		* First pass to cull the list, follow this rule to cull potential matches:
-		*
-		*  1. Match the element deepest down in the scope e.g. "string" wins over "source.php" when
-		*    the scope is "source.php string.quoted".
-		*/
-
-		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
-		{
-			if (iter->match.scopeRule.deepestScopeMatched < deepestScopeMatched)
-			{
-				iter = potentialMatches.erase(iter);
-			}
-			else
-			{
-				iter++;
-			}
-		}
-
-		/**
-		* Second pass to cull the list, follow this rule to cull more potential matches:
-		*
-		*  2. Match most of the deepest element e.g. "string.quoted" wins over "string".
-		*
-		*  NOTE (Deprecated?): I think the note below this one no longer applies. I've removed the code
-		*                      that used to do what the note below said and it still works alright /shrug.
-		*  NOTE:
-		*  This is kind of vague. What happens if you get "string.quoted.at.json" vs "string.quoted" for the pattern "string.quoted"
-		*  I believe "string.quoted" should win since it matches 100%, but the spec doesn't specify this. So
-		*  first I'll cull by the percentage matched of the total number of levels. In this case "string.quoted.at.json"
-		*  would match 0.5 and "string.quoted" would match 1.0, so "string.quoted" would win. Then, if you have
-		*  "string.quoted" vs "string", "string.quoted" would win since it goes two levels deep and is more specific.
-		*/
-		int maxLevelMatched = 0;
-		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end(); iter++)
-		{
-			if (iter->match.scopeRule.ancestorMatches[0].levelMatched > maxLevelMatched)
-			{
-				maxLevelMatched = iter->match.scopeRule.ancestorMatches[0].levelMatched;
-			}
-		}
-
-		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
-		{
-			if (iter->match.scopeRule.ancestorMatches[0].levelMatched < maxLevelMatched)
-			{
-				iter = potentialMatches.erase(iter);
-			}
-			else
-			{
-				iter++;
-			}
-		}
-
-		/*
-		* 3. Rules 1 and 2 applied again to the scope selector when removing the deepest element
-		*    (in the case of a tie), e.g. "text source string" wins over "source string".
-		*
-		* NOTE: Right now I'm just culling whichever matches have less ancestors matched.
-		*/
-		size_t maxAncestorsMatched = 0;
-		for (size_t i = 0; i < potentialMatches.size(); i++)
-		{
-			if (potentialMatches[i].match.scopeRule.ancestorMatches.size() > maxAncestorsMatched)
-			{
-				maxAncestorsMatched = potentialMatches[i].match.scopeRule.ancestorMatches.size();
-			}
-		}
-
-		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
-		{
-			if (iter->match.scopeRule.ancestorMatches.size() < maxAncestorsMatched)
-			{
-				iter = potentialMatches.erase(iter);
-			}
-			else
-			{
-				iter++;
-			}
-		}
-
-		if (potentialMatches.size() > 0)
-		{
-			// Take the best ancestor match
-			std::vector<ScopedNameMatch> deepestAncestorLevelMatches = potentialMatches[0].match.scopeRule.ancestorMatches;
-			for (size_t i = 0; i < potentialMatches.size(); i++)
-			{
-				for (size_t j = 0; j < potentialMatches[i].match.scopeRule.ancestorMatches.size(); j++)
-				{
-					if (j < deepestAncestorLevelMatches.size() &&
-						potentialMatches[i].match.scopeRule.ancestorMatches[j].levelMatched >
-						deepestAncestorLevelMatches[j].levelMatched)
-					{
-						deepestAncestorLevelMatches[j].levelMatched = potentialMatches[i].match.scopeRule.ancestorMatches[j].levelMatched;
-					}
-					else if (j >= deepestAncestorLevelMatches.size())
-					{
-						deepestAncestorLevelMatches.push_back(potentialMatches[i].match.scopeRule.ancestorMatches[j]);
-					}
-				}
-			}
-
-			for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
-			{
-				bool erased = false;
-				for (size_t j = 0; j < iter->match.scopeRule.ancestorMatches.size(); j++)
-				{
-					if (j < deepestAncestorLevelMatches.size() &&
-						iter->match.scopeRule.ancestorMatches[j].levelMatched <
-						deepestAncestorLevelMatches[j].levelMatched)
-					{
-						iter = potentialMatches.erase(iter);
-						erased = true;
-						break;
-					}
-				}
-
-				if (!erased)
-				{
-					iter++;
-				}
-			}
-
-			const auto& match = potentialMatches[0];
-			const auto& tokenRuleMatch = tokenColors[match.globalRuleIndex];
-
-			std::string matchedOnStr = "";
-			for (size_t i = 0; i < match.match.scopeRule.ancestorMatches.size(); i++)
-			{
-				const auto& ancestor = match.match.scopeRule.ancestorMatches[i];
-				const auto& ancestorName = match.match.scopeRule.ancestorNames[i];
-				for (size_t j = 0; j < ancestor.levelMatched; j++)
-				{
-					g_logger_assert(j < ancestorName.dotSeparatedScopes.size(), "How did that happen?");
-					matchedOnStr += ancestorName.dotSeparatedScopes[j].getScopeName();
-					if (j < ancestor.levelMatched - 1)
-					{
-						matchedOnStr += ".";
-					}
-				}
-
-				if (i < match.match.scopeRule.ancestorMatches.size() - 1)
-				{
-					matchedOnStr += " ";
-				}
-			}
-
-			if (auto* setting = tokenRuleMatch.getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
-			{
-				auto& actual = trieMatch.getForegroundColor(this);
-				auto& expected = setting->foregroundColor.value().color;
-				g_logger_assert(expected == actual, "The trie does not return the same result here. Got trie match '{}' and expected match '{}'.", toHexString(actual), toHexString(expected));
-			}
-
-			auto normalMatchEnd = std::chrono::high_resolution_clock::now();
-			avgNormalTiming += std::chrono::duration_cast<std::chrono::nanoseconds>(normalMatchEnd - normalMatchStart).count();
-			avgNormalTimingCount++;
-
-			if (avgNormalTimingCount % 100 == 0 && avgNormalTimingCount > 1 || avgNormalTimingCount == 174)
-			{
-				g_logger_info("Avg Normal Timing: {:2.4f} microseconds", (avgNormalTiming / (float)avgNormalTimingCount) / 1'000.0f);
-				g_logger_info("  Avg Trie Timing: {:2.4f} microseconds", (avgTrieTiming / (float)avgTrieTimingCount) / 1'000.0f);
-			}
-
-			return {
-				&tokenRuleMatch,
-				matchedOnStr
-			};
-		}
-
-		return {
-			nullptr,
-			""
-		};
-	}
-
-	SyntaxTrieTheme SyntaxTheme::matchTrie(const std::vector<ScopedName>& ancestorScopes) const
+	SyntaxTrieTheme SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
 	{
 		SyntaxTrieTheme resolvedTheme = {};
+		resolvedTheme.usingDefaultSettings = false;
+		resolvedTheme.styleMatched = "";
 
 		// Set the resolved theme to the global default settings in case we don't find a match
 		{
@@ -526,6 +313,7 @@ namespace MathAnim
 		for (auto const& ancestor : ancestorScopes)
 		{
 			SyntaxTrieNode const* node = &this->root;
+			resolvedTheme.styleMatched = "";
 
 			// Query the trie and find out what styles apply to this ancestor
 			for (auto const& scope : ancestor.dotSeparatedScopes)
@@ -533,11 +321,14 @@ namespace MathAnim
 				auto iter = node->children.find(scope.getScopeName());
 				if (iter == node->children.end())
 				{
+					// Strip last '.' off the resolved theme match
+					resolvedTheme.styleMatched = resolvedTheme.styleMatched.substr(0, resolvedTheme.styleMatched.length() - 1);
 					break;
 				}
 
 				// Drill down to the deepest node
 				node = &iter->second;
+				resolvedTheme.styleMatched += scope.getScopeName() + ".";
 			}
 
 			// First check if we match a parent rule, if we do, we'll take that because 
@@ -575,6 +366,11 @@ namespace MathAnim
 							resolvedTheme.settings[k] = v;
 						}
 
+						for (auto const& resolvedAncestor : parentRule.ancestors)
+						{
+							resolvedTheme.styleMatched = resolvedAncestor.getFriendlyName() + " " + resolvedTheme.styleMatched;
+						}
+
 						foundParentRuleMatch = true;
 						break;
 					}
@@ -589,15 +385,11 @@ namespace MathAnim
 					resolvedTheme.settings[k] = v;
 				}
 			}
+
+			resolvedTheme.usingDefaultSettings = node == &root;
 		}
 
 		return resolvedTheme;
-	}
-
-	const ThemeSetting* SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes, ThemeSettingType settingType) const
-	{
-		TokenRuleMatch matchedRule = match(ancestorScopes);
-		return matchedRule.getSetting(settingType);
 	}
 
 	SyntaxTheme* SyntaxTheme::importTheme(const char* filepathStr)

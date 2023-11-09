@@ -37,7 +37,7 @@ namespace MathAnim
 				ScopedName::from("storage.type.annotation")
 			};
 
-			auto res = theme->matchTrie(ancestorScopes);
+			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Bold);
 			ASSERT_EQUAL(res.getForegroundColor(theme), "#83a598"_hex);
@@ -53,7 +53,7 @@ namespace MathAnim
 				ScopedName::from("variable.language.this")
 			};
 
-			auto res = theme->matchTrie(ancestorScopes);
+			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
 			ASSERT_EQUAL(res.getForegroundColor(theme), "#FF9AC1"_hex);
@@ -69,7 +69,7 @@ namespace MathAnim
 				ScopedName::from("punctuation.definition.expression")
 			};
 
-			auto res = theme->matchTrie(ancestorScopes);
+			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Italic);
 			ASSERT_EQUAL(res.getForegroundColor(theme), "#FFCC95"_hex);
@@ -87,7 +87,7 @@ namespace MathAnim
 				ScopedName::from("punctuation.definition.comment.js")
 			};
 
-			auto res = theme->matchTrie(ancestorScopes);
+			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Italic);
 			ASSERT_EQUAL(res.getForegroundColor(theme), "#928374ff"_hex);
@@ -105,7 +105,7 @@ namespace MathAnim
 				ScopedName::from("support.type.property-name.json")
 			};
 
-			auto res = theme->matchTrie(ancestorScopes);
+			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
 			ASSERT_EQUAL(res.getForegroundColor(theme), "#B8BB26FF"_hex);
@@ -123,7 +123,7 @@ namespace MathAnim
 				ScopedName::from("support.type.property-name.json")
 			};
 
-			auto res = theme->matchTrie(ancestorScopes);
+			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
 			ASSERT_EQUAL(res.getForegroundColor(theme), "#689D6AFF"_hex);
@@ -141,7 +141,7 @@ namespace MathAnim
 				ScopedName::from("support.type.property-name.json")
 			};
 
-			auto res = theme->matchTrie(ancestorScopes);
+			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
 			ASSERT_EQUAL(res.getForegroundColor(theme), "#B8BB26FF"_hex);
@@ -159,7 +159,7 @@ namespace MathAnim
 				ScopedName::from("support.type.property-name")
 			};
 
-			auto res = theme->matchTrie(ancestorScopes);
+			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
 			ASSERT_EQUAL(res.getForegroundColor(theme), "#689d6a"_hex);

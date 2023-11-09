@@ -45,10 +45,13 @@ namespace MathAnim
 	{
 		// Resolved settings to apply if this node is a match
 		std::unordered_map<ThemeSettingType, ThemeSetting> settings;
+		bool usingDefaultSettings;
+		std::string styleMatched;
 
 		const ThemeSetting* getSetting(ThemeSettingType type) const;
 
 		Vec4 const& getForegroundColor(SyntaxTheme const* theme) const;
+		CssColor const& getForegroundCssColor(SyntaxTheme const* theme) const;
 		CssFontStyle getFontStyle() const;
 	};
 
@@ -93,9 +96,7 @@ namespace MathAnim
 		std::unordered_map<std::string, uint32> colorMap;
 		std::vector<Vec4> colors;
 
-		TokenRuleMatch match(const std::vector<ScopedName>& ancestorScopes) const;
-		const ThemeSetting* match(const std::vector<ScopedName>& ancestorScopes, ThemeSettingType settingType) const;
-		SyntaxTrieTheme matchTrie(const std::vector<ScopedName>& ancestorScopes) const;
+		SyntaxTrieTheme match(const std::vector<ScopedName>& ancestorScopes) const;
 
 		static SyntaxTheme* importTheme(const char* filepath);
 		static void free(SyntaxTheme* theme);

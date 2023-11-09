@@ -83,18 +83,9 @@ namespace MathAnim
 			if (res.tree.tree[child].isAtomicNode)
 			{
 				std::vector<ScopedName> ancestorScopes = res.tree.getAllAncestorScopes(child);
-				const ThemeSetting* setting = theme.match(ancestorScopes, ThemeSettingType::ForegroundColor);
 
-				Vec4 settingForeground = Vec4{ 1, 1, 1, 1 };
-				if (setting)
-				{
-					g_logger_assert(setting->foregroundColor.has_value(), "Something bad happened here.");
-					settingForeground = setting->foregroundColor.value().color;
-				}
-				else if (theme.defaultForeground.styleType == CssStyleType::Value)
-				{
-					settingForeground = theme.defaultForeground.color;
-				}
+				auto settings = theme.match(ancestorScopes);
+				Vec4 settingForeground = settings.getForegroundColor(&theme);
 
 				size_t absStart = highlightCursor;
 				size_t nodeSize = res.tree.tree[child].sourceSpan.size;
@@ -148,18 +139,9 @@ namespace MathAnim
 			if (codeHighlights.tree.tree[child].isAtomicNode)
 			{
 				std::vector<ScopedName> ancestorScopes = codeHighlights.tree.getAllAncestorScopes(child);
-				const ThemeSetting* setting = codeHighlights.theme->match(ancestorScopes, ThemeSettingType::ForegroundColor);
 
-				Vec4 settingForeground = Vec4{ 1, 1, 1, 1 };
-				if (setting)
-				{
-					g_logger_assert(setting->foregroundColor.has_value(), "Something bad happened here.");
-					settingForeground = setting->foregroundColor.value().color;
-				}
-				else if (codeHighlights.theme->defaultForeground.styleType == CssStyleType::Value)
-				{
-					settingForeground = codeHighlights.theme->defaultForeground.color;
-				}
+				auto settings = codeHighlights.theme->match(ancestorScopes);
+				Vec4 settingForeground = settings.getForegroundColor(codeHighlights.theme);
 
 				size_t absStart = highlightCursor;
 				size_t nodeSize = codeHighlights.tree.tree[child].sourceSpan.size;

@@ -279,7 +279,7 @@ namespace MathAnim
 			panel.syntaxHighlightTree = CodeEditorPanelManager::getHighlighter().parse(
 				std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
 				CodeEditorPanelManager::getTheme()
-				);
+			);
 		}
 
 		bool update(CodeEditorPanelData& panel)
@@ -596,8 +596,8 @@ namespace MathAnim
 
 			// Render the text
 			auto highlightIter = panel.syntaxHighlightTree.begin(panel.lineNumberByteStart);
-			for (auto cursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, panel.lineNumberByteStart); 
-				cursor.bytePos < panel.visibleCharacterBufferSize; 
+			for (auto cursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, panel.lineNumberByteStart);
+				cursor.bytePos < panel.visibleCharacterBufferSize;
 				++cursor)
 			{
 				ImColor highlightedColor = syntaxTheme.defaultForeground.color;
@@ -837,7 +837,6 @@ namespace MathAnim
 					auto highlighter = CodeEditorPanelManager::getHighlighter();
 					auto theme = CodeEditorPanelManager::getTheme();
 					auto ancestors = highlighter.getAncestorsFor((const char*)panel.visibleCharacterBuffer, panel.cursor.bytePos);
-					auto tokenMatch = theme.match(ancestors);
 
 					ImGui::BeginChild("Code Ancestors", ImVec2(0, 0), true);
 
@@ -860,29 +859,26 @@ namespace MathAnim
 
 						ImGui::TableNextColumn(); ImGui::Text("foreground");
 						bool foundThemeSelector = false;
-						if (tokenMatch.matchedRule)
-						{
-							const auto* matchedRule = tokenMatch.matchedRule;
-							const ThemeSetting* setting = matchedRule->getSetting(ThemeSettingType::ForegroundColor);
-							if (setting && setting->foregroundColor.has_value())
-							{
-								const Vec4& foregroundColor = setting->foregroundColor.value().color;
-								std::string foregroundColorStr = toHexString(foregroundColor);
-								if (setting->foregroundColor.value().styleType == CssStyleType::Inherit)
-								{
-									foregroundColorStr = "inherit";
-								}
 
-								ImGui::TableNextColumn(); ImGui::Text(tokenMatch.styleMatched.c_str());
-								ImGui::TableNextRow(); ImGui::TableNextColumn();
-								ImGui::TableNextColumn(); ImGui::Text("{ \"foreground\": \"%s\"", foregroundColorStr.c_str());
-								foundThemeSelector = true;
-							}
-						}
+						auto settings = theme.match(ancestors);
 
-						if (!foundThemeSelector)
+						if (settings.usingDefaultSettings)
 						{
 							ImGui::TableNextColumn(); ImGui::Text("No theme selector");
+						}
+						else
+						{
+							const CssColor& foregroundCssColor = settings.getForegroundCssColor(&theme);
+							std::string foregroundColorStr = toHexString(foregroundCssColor.color);
+							if (foregroundCssColor.styleType == CssStyleType::Inherit)
+							{
+								foregroundColorStr = "inherit";
+							}
+
+							ImGui::TableNextColumn(); ImGui::Text(settings.styleMatched.c_str());
+							ImGui::TableNextRow(); ImGui::TableNextColumn();
+							ImGui::TableNextColumn(); ImGui::Text("{ \"foreground\": \"%s\"", foregroundColorStr.c_str());
+							foundThemeSelector = true;
 						}
 
 						ImGui::EndTable();
@@ -1057,7 +1053,7 @@ namespace MathAnim
 				CodeEditorPanelManager::addCharToFont(codepoint.value());
 
 				// Copy all UTF8 bytes over to the new string
-				for (size_t tmpCursor = parseInfo.cursor; 
+				for (size_t tmpCursor = parseInfo.cursor;
 					tmpCursor < parseInfo.cursor + numBytesParsed;
 					tmpCursor++)
 				{
@@ -1509,7 +1505,7 @@ namespace MathAnim
 				int32 numCharsCounted = 1;
 				int32 newPos = beginningOfLineBelow;
 				for (auto tmpCursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, beginningOfLineBelow);
-					tmpCursor.bytePos <= panel.visibleCharacterBufferSize; 
+					tmpCursor.bytePos <= panel.visibleCharacterBufferSize;
 					++tmpCursor)
 				{
 					if (tmpCursor.bytePos == panel.visibleCharacterBufferSize || (*tmpCursor).value() == '\n')
@@ -1533,7 +1529,7 @@ namespace MathAnim
 			{
 				int32 beginningOfCurrentLine = getBeginningOfLineFrom(panel, (int32)panel.cursor.bytePos);
 
-				for (auto tmpCursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, beginningOfCurrentLine); 
+				for (auto tmpCursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, beginningOfCurrentLine);
 					tmpCursor.bytePos < panel.visibleCharacterBufferSize;
 					++tmpCursor)
 				{
