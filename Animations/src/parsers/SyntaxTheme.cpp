@@ -45,6 +45,27 @@ namespace MathAnim
 		return nullptr;
 	}
 
+	Vec4 const& SyntaxTrieTheme::getForegroundColor(SyntaxTheme const* theme) const
+	{
+		if (auto setting = getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
+		{
+			return setting->foregroundColor.value().color;
+		}
+
+		static Vec4 defaultWhite = "#FFF"_hex;
+		return theme != nullptr ? theme->defaultForeground.color : defaultWhite;
+	}
+
+	CssFontStyle SyntaxTrieTheme::getFontStyle() const
+	{
+		if (auto setting = getSetting(ThemeSettingType::FontStyle); setting != nullptr)
+		{
+			return setting->fontStyle.value();
+		}
+
+		return CssFontStyle::Normal;
+	}
+
 	void SyntaxTrieNode::insert(std::string const& inName, ScopeSelector const& scope, SyntaxTrieTheme const& inTheme, std::vector<ScopeSelector> const& inAncestors, SyntaxTrieTheme& inheritedTheme, size_t subScopeIndex)
 	{
 		g_logger_assert(subScopeIndex < scope.dotSeparatedScopes.size(), "Invalid sub-scope index '{}' encountered while generating theme trie. Out of range for sub-scopes of size '{}'.", subScopeIndex, scope.dotSeparatedScopes.size());
@@ -265,7 +286,7 @@ namespace MathAnim
 	{
 		// Make sure these two things behave the same
 		auto trieMatchStart = std::chrono::high_resolution_clock::now();
-		ThemeSetting trieMatch = this->matchTrie(ancestorScopes);
+		auto trieMatch = this->matchTrie(ancestorScopes);
 		auto trieMatchEnd = std::chrono::high_resolution_clock::now();
 		avgTrieTiming += std::chrono::duration_cast<std::chrono::nanoseconds>(trieMatchEnd - trieMatchStart).count();
 		avgTrieTimingCount++;
@@ -457,7 +478,7 @@ namespace MathAnim
 
 			if (auto* setting = tokenRuleMatch.getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
 			{
-				auto& actual = trieMatch.foregroundColor.value().color;
+				auto& actual = trieMatch.getForegroundColor(this);
 				auto& expected = setting->foregroundColor.value().color;
 				g_logger_assert(expected == actual, "The trie does not return the same result here. Got trie match '{}' and expected match '{}'.", toHexString(actual), toHexString(expected));
 			}
@@ -484,11 +505,21 @@ namespace MathAnim
 		};
 	}
 
-	ThemeSetting SyntaxTheme::matchTrie(const std::vector<ScopedName>& ancestorScopes) const
+	SyntaxTrieTheme SyntaxTheme::matchTrie(const std::vector<ScopedName>& ancestorScopes) const
 	{
-		ThemeSetting res = {};
-		res.foregroundColor = this->defaultForeground;
-		res.type = ThemeSettingType::ForegroundColor;
+		SyntaxTrieTheme resolvedTheme = {};
+
+		// Set the resolved theme to the global default settings in case we don't find a match
+		{
+			auto& foregroundSetting = resolvedTheme.settings[ThemeSettingType::ForegroundColor];
+			auto& fontStyleSetting = resolvedTheme.settings[ThemeSettingType::FontStyle];
+
+			foregroundSetting.foregroundColor = this->defaultForeground;
+			foregroundSetting.type = ThemeSettingType::ForegroundColor;
+
+			fontStyleSetting.fontStyle = CssFontStyle::Normal;
+			fontStyleSetting.type = ThemeSettingType::FontStyle;
+		}
 
 		// Ancestors are always passed in order from broad->narrow
 		//   Ex. source.lua -> punctuation.string.begin
@@ -509,11 +540,9 @@ namespace MathAnim
 				node = &iter->second;
 			}
 
-			if (auto setting = node->theme.getSetting(ThemeSettingType::ForegroundColor); setting != nullptr && node != &this->root)
-			{
-				res.foregroundColor = setting->foregroundColor.value();
-			}
-
+			// First check if we match a parent rule, if we do, we'll take that because 
+			// a parent rule match has more specificity then a normal match
+			bool foundParentRuleMatch = false;
 			if (node->parentRules.size() > 0)
 			{
 				for (auto const& parentRule : node->parentRules)
@@ -540,17 +569,29 @@ namespace MathAnim
 					// We have a match
 					if (parentRuleAncestorCheck == parentRule.ancestors.end())
 					{
-						if (auto* setting = parentRule.theme.getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
+						// Set all settings appropriately
+						for (auto [k, v] : parentRule.theme.settings)
 						{
-							res.foregroundColor = setting->foregroundColor.value();
+							resolvedTheme.settings[k] = v;
 						}
+
+						foundParentRuleMatch = true;
 						break;
 					}
 				}
 			}
+
+			// If no parent rule match was found, just take the node's settings
+			if (!foundParentRuleMatch)
+			{
+				for (auto [k, v] : node->theme.settings)
+				{
+					resolvedTheme.settings[k] = v;
+				}
+			}
 		}
 
-		return res;
+		return resolvedTheme;
 	}
 
 	const ThemeSetting* SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes, ThemeSettingType settingType) const

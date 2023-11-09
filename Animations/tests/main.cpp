@@ -2,6 +2,7 @@
 #include "LRUCacheTests.h"
 #include "AnimationManagerTests.h"
 #include "SyntaxHighlighterTests.h"
+#include "SyntaxThemeTests.h"
 
 #include <cppUtils/cppTests.hpp>
 #include <cppUtils/cppUtils.hpp>
@@ -18,6 +19,7 @@ int main()
 	LRUCacheTests::setupTestSuite();
 	AnimationManagerTests::setupTestSuite();
 	SyntaxHighlighterTests::setupTestSuite();
+	SyntaxThemeTests::setupTestSuite();
 
 	Tests::runTests();
 	Tests::free();

@@ -40,12 +40,16 @@ namespace MathAnim
 		inline const ThemeSetting* getSetting(ThemeSettingType type) const { return matchedRule ? matchedRule->getSetting(type) : nullptr; }
 	};
 
+	struct SyntaxTheme;
 	struct SyntaxTrieTheme
 	{
 		// Resolved settings to apply if this node is a match
 		std::unordered_map<ThemeSettingType, ThemeSetting> settings;
 
 		const ThemeSetting* getSetting(ThemeSettingType type) const;
+
+		Vec4 const& getForegroundColor(SyntaxTheme const* theme) const;
+		CssFontStyle getFontStyle() const;
 	};
 
 	struct SyntaxTrieParentRule
@@ -91,7 +95,7 @@ namespace MathAnim
 
 		TokenRuleMatch match(const std::vector<ScopedName>& ancestorScopes) const;
 		const ThemeSetting* match(const std::vector<ScopedName>& ancestorScopes, ThemeSettingType settingType) const;
-		ThemeSetting matchTrie(const std::vector<ScopedName>& ancestorScopes) const;
+		SyntaxTrieTheme matchTrie(const std::vector<ScopedName>& ancestorScopes) const;
 
 		static SyntaxTheme* importTheme(const char* filepath);
 		static void free(SyntaxTheme* theme);
