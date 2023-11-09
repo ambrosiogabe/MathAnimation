@@ -42,18 +42,12 @@ namespace MathAnim
 		static MathAnim::Scope from(const std::string& string);
 	};
 
-	struct ScopedNameMatch
-	{
-		int levelMatched;
-	};
-
 	struct ScopeSelector;
 	struct ScopedName
 	{
 		std::vector<Scope> dotSeparatedScopes;
 
 		bool matches(ScopeSelector const& other) const;
-		std::optional<ScopedNameMatch> matches(const ScopedName& other) const;
 		std::string getFriendlyName() const;
 
 		static ScopedName from(const std::string& string);
@@ -66,46 +60,6 @@ namespace MathAnim
 		std::string getFriendlyName() const;
 
 		static ScopeSelector from(const std::string& string);
-	};
-
-	// Information on how scopes work here https://macromates.com/manual/en/scope_selectors
-	// 
-	// "string" matches anything starting with "string"
-	//   Examples: "string.quoted.double.cpp" "string.quoted" "string"
-	//             are all valid matches for the selector "string"
-	//
-	// An empty scope matches all scopes, but has the lowest ranking.
-	//
-	// Descendants also work like CSS descendants. See the link above for more info.
-
-	struct ScopeRuleMatch
-	{
-		int deepestScopeMatched;
-		std::vector<ScopedNameMatch> ancestorMatches;
-		std::vector<ScopedName> ancestorNames;
-	};
-	
-	struct ScopeRule
-	{
-		std::vector<ScopedName> scopes;
-
-		std::optional<ScopeRuleMatch> matches(const std::vector<ScopedName>& ancestors) const;
-	};
-
-	struct ScopeRuleCollectionMatch
-	{
-		int ruleIndexMatched;
-		ScopeRuleMatch scopeRule;
-	};
-
-	struct ScopeRuleCollection
-	{
-		std::vector<ScopeRule> scopeRules;
-		std::string friendlyName;
-
-		std::optional<ScopeRuleCollectionMatch> matches(const std::vector<ScopedName>& ancestors) const;
-
-		static ScopeRuleCollection from(const std::string& str);
 	};
 
 	struct ScopeDescendantSelector

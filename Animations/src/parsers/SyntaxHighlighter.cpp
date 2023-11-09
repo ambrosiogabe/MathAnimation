@@ -102,17 +102,10 @@ namespace MathAnim
 
 		if (highlightCursor < code.length())
 		{
-			Vec4 settingColor = Vec4{ 1, 1, 1, 1 };
-			const ThemeSetting* setting = theme.defaultRule.getSetting(ThemeSettingType::ForegroundColor);
-			if (setting && setting->foregroundColor.has_value())
-			{
-				settingColor = setting->foregroundColor.value().color;
-			}
-
 			HighlightSegment finalSegment = {};
 			finalSegment.startPos = highlightCursor;
 			finalSegment.endPos = code.length();
-			finalSegment.color = settingColor;
+			finalSegment.color = theme.defaultForeground.color;
 
 			res.segments.emplace_back(finalSegment);
 		}
@@ -158,17 +151,10 @@ namespace MathAnim
 
 		if (highlightCursor < newCode.length())
 		{
-			Vec4 settingColor = Vec4{ 1, 1, 1, 1 };
-			const ThemeSetting* setting = codeHighlights.theme->defaultRule.getSetting(ThemeSettingType::ForegroundColor);
-			if (setting && setting->foregroundColor.has_value())
-			{
-				settingColor = setting->foregroundColor.value().color;
-			}
-
 			HighlightSegment finalSegment = {};
 			finalSegment.startPos = highlightCursor;
 			finalSegment.endPos = newCode.length();
-			finalSegment.color = settingColor;
+			finalSegment.color = codeHighlights.theme->defaultForeground.color;
 
 			codeHighlights.segments.emplace_back(finalSegment);
 		}

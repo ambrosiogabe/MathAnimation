@@ -23,23 +23,6 @@ namespace MathAnim
 		bool inherited;
 	};
 
-	struct TokenRule
-	{
-		std::string name;
-		std::vector<ScopeRuleCollection> scopeCollection;
-		std::vector<ThemeSetting> settings;
-
-		const ThemeSetting* getSetting(ThemeSettingType type) const;
-	};
-
-	struct TokenRuleMatch
-	{
-		const TokenRule* matchedRule;
-		std::string styleMatched;
-
-		inline const ThemeSetting* getSetting(ThemeSettingType type) const { return matchedRule ? matchedRule->getSetting(type) : nullptr; }
-	};
-
 	struct SyntaxTheme;
 	struct SyntaxTrieTheme
 	{
@@ -85,11 +68,8 @@ namespace MathAnim
 
 	struct SyntaxTheme
 	{
-		// TODO: Deprecate me, old way to query themes
-		TokenRule defaultRule;
 		CssColor defaultForeground;
 		CssColor defaultBackground;
-		std::vector<TokenRule> tokenColors;
 
 		// TODO: Switch to this, once we verify it's working correctly
 		SyntaxTrieNode root;

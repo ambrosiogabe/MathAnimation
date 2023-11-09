@@ -11,29 +11,10 @@ namespace MathAnim
 {
 	using namespace nlohmann;
 
-	struct InternalScopeMatch
-	{
-		size_t globalRuleIndex;
-		ScopeRuleCollectionMatch match;
-	};
-
 	// -------------- Internal Functions --------------
 	static SyntaxTheme* importThemeFromJson(const json& json, const char* filepath);
 	static SyntaxTheme* importThemeFromXml(const XMLDocument& document, const char* filepath);
 	static const XMLElement* getValue(const XMLElement* element, const std::string& keyName);
-
-	const ThemeSetting* TokenRule::getSetting(ThemeSettingType type) const
-	{
-		for (const ThemeSetting& setting : settings)
-		{
-			if (setting.type == type)
-			{
-				return &setting;
-			}
-		}
-
-		return nullptr;
-	}
 
 	const ThemeSetting* SyntaxTrieTheme::getSetting(ThemeSettingType type) const
 	{
@@ -490,12 +471,9 @@ namespace MathAnim
 				};
 			}
 
-			TokenRule defaultThemeRule = {};
 			ThemeSetting defaultThemeSetting = {};
 			defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
 			defaultThemeSetting.foregroundColor = theme->defaultForeground;
-			defaultThemeRule.settings.push_back(defaultThemeSetting);
-			theme->defaultRule = defaultThemeRule;
 
 			// Initialize the root of our tree (these are global settings)
 			theme->root.theme.settings[ThemeSettingType::ForegroundColor] = defaultThemeSetting;
@@ -517,8 +495,6 @@ namespace MathAnim
 			{
 				if (color.contains("settings"))
 				{
-					TokenRule defaultThemeRule = {};
-
 					// This is presumably the defualt foreground/background settings and not a token rule
 					if (color["settings"].contains("foreground"))
 					{
@@ -533,8 +509,6 @@ namespace MathAnim
 					ThemeSetting defaultThemeSetting = {};
 					defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
 					defaultThemeSetting.foregroundColor = theme->defaultForeground;
-					defaultThemeRule.settings.push_back(defaultThemeSetting);
-					theme->defaultRule = defaultThemeRule;
 
 					// Clear the global settings first
 					theme->root.theme.settings = {};
@@ -571,7 +545,6 @@ namespace MathAnim
 				}
 			}
 
-			// TODO: This is duplicated, remove the block below once we verify that the trie is working correctly
 			SyntaxTrieTheme trieThemeSettings = {};
 			if (settingsJson.contains("foreground"))
 			{
@@ -593,8 +566,6 @@ namespace MathAnim
 				trieThemeSettings.settings[ThemeSettingType::FontStyle] = trieTheme;
 			}
 
-			TokenRule rule = {};
-			rule.name = name;
 			if (color["scope"].is_array())
 			{
 				for (auto scope : color["scope"])
@@ -619,9 +590,6 @@ namespace MathAnim
 							theme->root.insert(name, descendantSelector.descendants[0], trieThemeSettings);
 						}
 					}
-
-					// TODO: Remove this once we get the new trie implementation working
-					rule.scopeCollection.push_back(ScopeRuleCollection::from(scope));
 				}
 			}
 			else if (color["scope"].is_string())
@@ -648,32 +616,6 @@ namespace MathAnim
 						theme->root.insert(name, descendantSelector.descendants[0], trieThemeSettings);
 					}
 				}
-
-				// TODO: Remove this once we get the new trie implementation working
-				rule.scopeCollection.push_back(ScopeRuleCollection::from(color["scope"]));
-			}
-
-			if (settingsJson.contains("foreground"))
-			{
-				const std::string& foregroundColorStr = settingsJson["foreground"];
-				ThemeSetting setting = {};
-				setting.type = ThemeSettingType::ForegroundColor;
-				setting.foregroundColor = Css::colorFromString(foregroundColorStr);
-				rule.settings.emplace_back(setting);
-			}
-
-			if (rule.scopeCollection.size() > 0)
-			{
-				if (nameIsFirstScope)
-				{
-					rule.name = rule.scopeCollection[0].friendlyName;
-				}
-
-				theme->tokenColors.emplace_back(rule);
-			}
-			else
-			{
-				g_logger_warning("TokenColor '{}' is malformed. No scopes were successfully parsed.", name);
 			}
 		}
 
@@ -759,12 +701,13 @@ namespace MathAnim
 					}
 				}
 
-				TokenRule defaultThemeRule = {};
-				ThemeSetting defaultThemeSetting = {};
-				defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
-				defaultThemeSetting.foregroundColor = theme->defaultForeground;
-				defaultThemeRule.settings.push_back(defaultThemeSetting);
-				theme->defaultRule = defaultThemeRule;
+				g_logger_error("TODO: Fix XML theme support.");
+				//TokenRule defaultThemeRule = {};
+				//ThemeSetting defaultThemeSetting = {};
+				//defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
+				//defaultThemeSetting.foregroundColor = theme->defaultForeground;
+				//defaultThemeRule.settings.push_back(defaultThemeSetting);
+				//theme->defaultRule = defaultThemeRule;
 			}
 			else if (settingDictKey->Value() == std::string("name"))
 			{
@@ -805,20 +748,21 @@ namespace MathAnim
 					}
 				}
 
-				TokenRule rule = {};
-				rule.name = name;
-				rule.scopeCollection.emplace_back(ScopeRuleCollection::from(scopeValue->Value()));
+				g_logger_error("TODO: Fix XML theme support.");
+				//TokenRule rule = {};
+				//rule.name = name;
+				//rule.scopeCollection.emplace_back(ScopeRuleCollection::from(scopeValue->Value()));
 
-				if (foregroundSetting)
-				{
-					const std::string& colorHexStr = foregroundSetting->Value();
-					ThemeSetting foregroundSettingAsThemeSetting = {};
-					foregroundSettingAsThemeSetting.type = ThemeSettingType::ForegroundColor;
-					foregroundSettingAsThemeSetting.foregroundColor = Css::colorFromString(colorHexStr);
-					rule.settings.emplace_back(foregroundSettingAsThemeSetting);
-				}
+				//if (foregroundSetting)
+				//{
+				//	const std::string& colorHexStr = foregroundSetting->Value();
+				//	ThemeSetting foregroundSettingAsThemeSetting = {};
+				//	foregroundSettingAsThemeSetting.type = ThemeSettingType::ForegroundColor;
+				//	foregroundSettingAsThemeSetting.foregroundColor = Css::colorFromString(colorHexStr);
+				//	rule.settings.emplace_back(foregroundSettingAsThemeSetting);
+				//}
 
-				theme->tokenColors.emplace_back(rule);
+				//theme->tokenColors.emplace_back(rule);
 			}
 		}
 
