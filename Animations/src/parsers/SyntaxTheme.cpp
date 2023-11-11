@@ -16,52 +16,63 @@ namespace MathAnim
 	static SyntaxTheme* importThemeFromXml(const XMLDocument& document, const char* filepath);
 	static const XMLElement* getValue(const XMLElement* element, const std::string& keyName);
 
-	const ThemeSetting* SyntaxTrieTheme::getSetting(ThemeSettingType type) const
+	void PackedSyntaxStyle::mergeWith(PackedSyntaxStyle other)
 	{
-		if (auto iter = settings.find(type); iter != settings.end())
+		if (!this->getBackgroundColor())
 		{
-			return &iter->second;
+			this->setBackgroundColor(other.getBackgroundColor());
 		}
 
-		return nullptr;
-	}
-
-	Vec4 const& SyntaxTrieTheme::getForegroundColor(SyntaxTheme const* theme) const
-	{
-		if (auto setting = getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
+		if (this->getFontStyle() == CssFontStyle::None)
 		{
-			return setting->foregroundColor.value().color;
+			this->setFontStyle(other.getFontStyle());
 		}
 
-		static Vec4 defaultWhite = "#FFF"_hex;
-		return theme != nullptr ? theme->defaultForeground.color : defaultWhite;
-	}
-
-	CssColor const& SyntaxTrieTheme::getForegroundCssColor(SyntaxTheme const* theme) const
-	{
-		if (auto setting = getSetting(ThemeSettingType::ForegroundColor); setting != nullptr)
+		if (!this->getForegroundColor())
 		{
-			return setting->foregroundColor.value();
+			this->setForegroundColor(other.getForegroundColor());
 		}
 
-		static CssColor defaultWhite = {};
-		defaultWhite.color = "#FFFFFF"_hex;
-		defaultWhite.styleType = CssStyleType::Value;
-
-		return theme != nullptr ? theme->defaultForeground : defaultWhite;
-	}
-
-	CssFontStyle SyntaxTrieTheme::getFontStyle() const
-	{
-		if (auto setting = getSetting(ThemeSettingType::FontStyle); setting != nullptr)
+		if (!this->getLanguageId())
 		{
-			return setting->fontStyle.value();
+			this->setLanguageId(other.getLanguageId());
 		}
 
-		return CssFontStyle::Normal;
+		if (!this->getStandardTokenType())
+		{
+			this->setStandardTokenType(other.getStandardTokenType());
+		}
 	}
 
-	void SyntaxTrieNode::insert(std::string const& inName, ScopeSelector const& scope, SyntaxTrieTheme const& inTheme, std::vector<ScopeSelector> const& inAncestors, SyntaxTrieTheme& inheritedTheme, size_t subScopeIndex)
+	void PackedSyntaxStyle::overwriteMergeWith(PackedSyntaxStyle other)
+	{
+		if (other.getBackgroundColor())
+		{
+			this->setBackgroundColor(other.getBackgroundColor());
+		}
+
+		if (other.getFontStyle() != CssFontStyle::None)
+		{
+			this->setFontStyle(other.getFontStyle());
+		}
+
+		if (other.getForegroundColor())
+		{
+			this->setForegroundColor(other.getForegroundColor());
+		}
+
+		if (other.getLanguageId())
+		{
+			this->setLanguageId(other.getLanguageId());
+		}
+
+		if (other.getStandardTokenType())
+		{
+			this->setStandardTokenType(other.getStandardTokenType());
+		}
+	}
+
+	void SyntaxTrieNode::insert(std::string const& inName, ScopeSelector const& scope, PackedSyntaxStyle const& inStyle, std::vector<ScopeSelector> const& inAncestors, size_t subScopeIndex)
 	{
 		g_logger_assert(subScopeIndex < scope.dotSeparatedScopes.size(), "Invalid sub-scope index '{}' encountered while generating theme trie. Out of range for sub-scopes of size '{}'.", subScopeIndex, scope.dotSeparatedScopes.size());
 
@@ -75,35 +86,6 @@ namespace MathAnim
 
 			// Reassign iter so it now has a value
 			iter = this->children.find(subScope);
-
-			// Merge inherited themes so our final theme has all inherited properties + manually set properties
-			for (auto& [k, v] : inheritedTheme.settings)
-			{
-				if (iter->second.theme.settings.find(k) == iter->second.theme.settings.end())
-				{
-					iter->second.theme.settings[k] = v;
-					iter->second.theme.settings[k].inherited = true;
-				}
-			}
-		}
-		else
-		{
-			// Merge this node's settings with the inherited settings
-			for (auto& [k, v] : iter->second.theme.settings)
-			{
-				inheritedTheme.settings[k] = v;
-				inheritedTheme.settings[k].inherited = true;
-			}
-
-			// Merge the inherited settings with this node
-			for (auto& [k, v] : inheritedTheme.settings)
-			{
-				if (iter->second.theme.settings.find(k) == iter->second.theme.settings.end())
-				{
-					iter->second.theme.settings[k] = v;
-					iter->second.theme.settings[k].inherited = true;
-				}
-			}
 		}
 
 		// We've reached the end of this path in the trie, now insert the styles here and assert that
@@ -118,45 +100,81 @@ namespace MathAnim
 				// 
 				// Sometimes though, the developers are merging different theme settings, like adding font-style
 				// or a color to a group of themes. In those cases, we'll just merge the themes.
-				if (this->children[subScope].theme.settings.size() != 0)
+				if (!this->children[subScope].style.isEmpty())
 				{
-					auto& themesToAddTo = this->children[subScope].theme.settings;
+					auto& styleToModify = this->children[subScope].style;
 
-					for (auto& [k, v] : inTheme.settings)
+					if (inStyle.getBackgroundColor())
 					{
-						// If the setting exists and wasn't inherited, somebody tried to add it twice
-						if (auto themeIter = themesToAddTo.find(k); themeIter != themesToAddTo.end() && !themeIter->second.inherited)
+						if (styleToModify.getBackgroundColor())
 						{
-							g_logger_warning("The scope rule '{}' tried to set the theme setting '{}' twice. This rule is ambiguous.", scope.getFriendlyName(), k);
+							g_logger_warning("The scope rule '{}' tried to set the 'backgroundColor' twice. This rule is ambiguous.", scope.getFriendlyName());
 						}
 						else
 						{
-							themesToAddTo[k] = v;
-							themesToAddTo[k].inherited = false;
+							styleToModify.setBackgroundColor(inStyle.getBackgroundColor());
+						}
+					}
+
+					if (inStyle.getFontStyle() != CssFontStyle::None)
+					{
+						if (styleToModify.getFontStyle() != CssFontStyle::None)
+						{
+							g_logger_warning("The scope rule '{}' tried to set the 'fontStyle' twice. This rule is ambiguous.", scope.getFriendlyName());
+						}
+						else
+						{
+							styleToModify.setFontStyle(inStyle.getFontStyle());
+						}
+					}
+
+					if (inStyle.getForegroundColor())
+					{
+						if (styleToModify.getForegroundColor())
+						{
+							g_logger_warning("The scope rule '{}' tried to set the 'foregroundColor' twice. This rule is ambiguous.", scope.getFriendlyName());
+						}
+						else
+						{
+							styleToModify.setForegroundColor(inStyle.getForegroundColor());
+						}
+					}
+
+					if (inStyle.getLanguageId())
+					{
+						if (styleToModify.getLanguageId())
+						{
+							g_logger_warning("The scope rule '{}' tried to set the 'languageId' twice. This rule is ambiguous.", scope.getFriendlyName());
+						}
+						else
+						{
+							styleToModify.setLanguageId(inStyle.getLanguageId());
+						}
+					}
+
+					if (inStyle.getStandardTokenType())
+					{
+						if (styleToModify.getStandardTokenType())
+						{
+							g_logger_warning("The scope rule '{}' tried to set the 'standardTokenType' twice. This rule is ambiguous.", scope.getFriendlyName());
+						}
+						else
+						{
+							styleToModify.setStandardTokenType(inStyle.getStandardTokenType());
 						}
 					}
 
 					return;
 				}
 
-				this->children[subScope].theme = inTheme;
+				this->children[subScope].style = inStyle;
 				this->children[subScope].name = inName;
 			}
 			else
 			{
 				SyntaxTrieParentRule newParentRule = {};
 				newParentRule.ancestors = inAncestors;
-				newParentRule.theme = inTheme;
-
-				// Merge inherited themes so our final theme has all inherited properties + manually set properties
-				for (auto& [k, v] : inheritedTheme.settings)
-				{
-					if (newParentRule.theme.settings.find(k) == newParentRule.theme.settings.end())
-					{
-						newParentRule.theme.settings[k] = v;
-						newParentRule.theme.settings[k].inherited = true;
-					}
-				}
+				newParentRule.style = inStyle;
 
 				this->children[subScope].parentRules.push_back(newParentRule);
 			}
@@ -166,60 +184,94 @@ namespace MathAnim
 		}
 
 		// Recurse and complete adding this sub-scope into the tree
-		iter->second.insert(inName, scope, inTheme, inAncestors, inheritedTheme, subScopeIndex + 1);
+		iter->second.insert(inName, scope, inStyle, inAncestors, subScopeIndex + 1);
 	}
 
-	static void printThemeSettings(SyntaxTrieTheme const& theme, std::string& res, size_t tabDepth = 0)
+	void SyntaxTrieNode::calculateInheritedStyles(PackedSyntaxStyle inInheritedStyle)
 	{
-		for (auto& [k, v] : theme.settings)
+		inInheritedStyle.overwriteMergeWith(this->style);
+		this->inheritedStyle = inInheritedStyle;
+
+		for (auto& parentRule : this->parentRules)
 		{
-			for (size_t t = 0; t < tabDepth * 2; t++)
-			{
-				res += ' ';
-			}
-			res += "(";
+			parentRule.inheritedStyle = inInheritedStyle;
+			parentRule.inheritedStyle.overwriteMergeWith(parentRule.style);
+		}
 
-			if (v.inherited)
-			{
-				res += ">>>";
-			}
-
-			if (k == ThemeSettingType::FontStyle)
-			{
-				res += "FontStyle: ";
-				switch (v.fontStyle.value())
-				{
-				case CssFontStyle::None:
-					res += "None";
-					break;
-				case CssFontStyle::Bold:
-					res += "Bold";
-					break;
-				case CssFontStyle::Inherit:
-					res += "Inherit";
-					break;
-				case CssFontStyle::Italic:
-					res += "Italic";
-					break;
-				case CssFontStyle::Normal:
-					res += "Normal";
-					break;
-				}
-
-				res += ")";
-				res += '\n';
-			}
-			else if (k == ThemeSettingType::ForegroundColor)
-			{
-				res += "ForegroundColor: ";
-				res += toHexString(v.foregroundColor.value().color);
-				res += ")";
-				res += '\n';
-			}
+		for (auto& [k, v] : this->children)
+		{
+			v.calculateInheritedStyles(inInheritedStyle);
 		}
 	}
 
-	static void recursivePrint(SyntaxTrieNode const& node, std::string& res, size_t tabDepth = 0)
+	static void printTabs(std::string& res, size_t tabDepth = 0)
+	{
+		for (size_t t = 0; t < tabDepth * 2; t++)
+		{
+			res += ' ';
+		}
+	}
+
+	static std::string getFontStyleStr(CssFontStyle fontStyle)
+	{
+		switch (fontStyle)
+		{
+		case CssFontStyle::None:
+			return "None";
+		case CssFontStyle::Bold:
+			return "Bold";
+		case CssFontStyle::Inherit:
+			return "Inherit";
+		case CssFontStyle::Italic:
+			return "Italic";
+		case CssFontStyle::Normal:
+			return "Normal";
+		}
+
+		return "Undefined";
+	}
+
+	static void printThemeSettings(SyntaxTheme const& theme, PackedSyntaxStyle style, PackedSyntaxStyle inheritedStyle, std::string& res, size_t tabDepth = 0)
+	{
+		if (style.getForegroundColor())
+		{
+			printTabs(res, tabDepth);
+			res += "(ForegroundColor: ";
+			res += toHexString(theme.getColor(style.getForegroundColor())) + ")\n";
+		}
+		else if (inheritedStyle.getForegroundColor())
+		{
+			printTabs(res, tabDepth);
+			res += "(>>>ForegroundColor: ";
+			res += toHexString(theme.getColor(inheritedStyle.getForegroundColor())) + ")\n";
+		}
+
+		if (style.getFontStyle() != CssFontStyle::None)
+		{
+			printTabs(res, tabDepth);
+			res += "(FontStyle: " + getFontStyleStr(style.getFontStyle()) + ")\n";
+		}
+		else if (inheritedStyle.getFontStyle() != CssFontStyle::None)
+		{
+			printTabs(res, tabDepth);
+			res += "(>>>FontStyle: " + getFontStyleStr(inheritedStyle.getFontStyle()) + ")\n";
+		}
+
+		if (style.getBackgroundColor())
+		{
+			printTabs(res, tabDepth);
+			res += "(BackgroundColor: ";
+			res += toHexString(theme.getColor(style.getBackgroundColor())) + ")\n";
+		}
+		else if (inheritedStyle.getBackgroundColor())
+		{
+			printTabs(res, tabDepth);
+			res += "(>>>BackgroundColor: ";
+			res += toHexString(theme.getColor(inheritedStyle.getBackgroundColor())) + ")\n";
+		}
+	}
+
+	static void recursivePrint(SyntaxTheme const& theme, SyntaxTrieNode const& node, std::string& res, size_t tabDepth = 0)
 	{
 		if (node.parentRules.size() != 0)
 		{
@@ -242,7 +294,7 @@ namespace MathAnim
 
 				res += '\n';
 
-				printThemeSettings(parent.theme, res, tabDepth);
+				printThemeSettings(theme, parent.style, parent.inheritedStyle, res, tabDepth);
 			}
 		}
 
@@ -257,36 +309,28 @@ namespace MathAnim
 			res += child.first;
 			res += '\n';
 
-			printThemeSettings(child.second.theme, res, tabDepth);
+			printThemeSettings(theme, child.second.style, child.second.inheritedStyle, res, tabDepth);
 
 			// Print children, depth-first style
-			recursivePrint(child.second, res, tabDepth + 1);
+			recursivePrint(theme, child.second, res, tabDepth + 1);
 		}
 	}
 
-	void SyntaxTrieNode::print() const
+	void SyntaxTrieNode::print(SyntaxTheme const& theme) const
 	{
 		std::string res = "";
-		recursivePrint(*this, res);
+		recursivePrint(theme, *this, res);
 		g_logger_info("Tree: \n{}\n", res);
 	}
 
-	SyntaxTrieTheme SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
+	PackedSyntaxStyle SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
 	{
-		SyntaxTrieTheme resolvedTheme = {};
-		resolvedTheme.usingDefaultSettings = false;
-		resolvedTheme.styleMatched = "";
+		PackedSyntaxStyle resolvedStyle = {};
 
 		// Set the resolved theme to the global default settings in case we don't find a match
 		{
-			auto& foregroundSetting = resolvedTheme.settings[ThemeSettingType::ForegroundColor];
-			auto& fontStyleSetting = resolvedTheme.settings[ThemeSettingType::FontStyle];
-
-			foregroundSetting.foregroundColor = this->defaultForeground;
-			foregroundSetting.type = ThemeSettingType::ForegroundColor;
-
-			fontStyleSetting.fontStyle = CssFontStyle::Normal;
-			fontStyleSetting.type = ThemeSettingType::FontStyle;
+			resolvedStyle.setForegroundColor(this->defaultForeground);
+			resolvedStyle.setFontStyle(CssFontStyle::Normal);
 		}
 
 		// Ancestors are always passed in order from broad->narrow
@@ -294,7 +338,6 @@ namespace MathAnim
 		for (auto const& ancestor : ancestorScopes)
 		{
 			SyntaxTrieNode const* node = &this->root;
-			resolvedTheme.styleMatched = "";
 
 			// Query the trie and find out what styles apply to this ancestor
 			for (auto const& scope : ancestor.dotSeparatedScopes)
@@ -302,14 +345,11 @@ namespace MathAnim
 				auto iter = node->children.find(scope.getScopeName());
 				if (iter == node->children.end())
 				{
-					// Strip last '.' off the resolved theme match
-					resolvedTheme.styleMatched = resolvedTheme.styleMatched.substr(0, resolvedTheme.styleMatched.length() - 1);
 					break;
 				}
 
 				// Drill down to the deepest node
 				node = &iter->second;
-				resolvedTheme.styleMatched += scope.getScopeName() + ".";
 			}
 
 			// First check if we match a parent rule, if we do, we'll take that because 
@@ -341,15 +381,101 @@ namespace MathAnim
 					// We have a match
 					if (parentRuleAncestorCheck == parentRule.ancestors.end())
 					{
-						// Set all settings appropriately
-						for (auto [k, v] : parentRule.theme.settings)
+						// Hard merge with inherited styles then the actual styles to get
+						// both inherited and default styles applied
+						resolvedStyle.overwriteMergeWith(parentRule.inheritedStyle);
+						resolvedStyle.overwriteMergeWith(parentRule.style);
+
+						foundParentRuleMatch = true;
+						break;
+					}
+				}
+			}
+
+			// If no parent rule match was found, just take the node's settings
+			if (!foundParentRuleMatch)
+			{
+				resolvedStyle.overwriteMergeWith(node->inheritedStyle);
+				resolvedStyle.overwriteMergeWith(node->style);
+			}
+		}
+
+		return resolvedStyle;
+	}
+
+	// TODO: This is a duplicate of the function above, but it also keeps track of the name matched for debug purposes.
+	//       There's probably a way to combine these two if I really want to
+	DebugPackedSyntaxStyle SyntaxTheme::debugMatch(const std::vector<ScopedName>& ancestorScopes, bool* usingDefaultSettings) const
+	{
+		DebugPackedSyntaxStyle resolvedStyle = {};
+		if (usingDefaultSettings != nullptr) *usingDefaultSettings = true;
+
+		// Set the resolved theme to the global default settings in case we don't find a match
+		{
+			resolvedStyle.style.setForegroundColor(this->defaultForeground);
+			resolvedStyle.style.setFontStyle(CssFontStyle::Normal);
+		}
+
+		// Ancestors are always passed in order from broad->narrow
+		//   Ex. source.lua -> punctuation.string.begin
+		for (auto const& ancestor : ancestorScopes)
+		{
+			SyntaxTrieNode const* node = &this->root;
+			resolvedStyle.styleMatched = "";
+
+			// Query the trie and find out what styles apply to this ancestor
+			for (auto const& scope : ancestor.dotSeparatedScopes)
+			{
+				auto iter = node->children.find(scope.getScopeName());
+				if (iter == node->children.end())
+				{
+					// Strip last '.' off the resolved theme match
+					resolvedStyle.styleMatched = resolvedStyle.styleMatched.substr(0, resolvedStyle.styleMatched.length() - 1);
+					break;
+				}
+
+				// Drill down to the deepest node
+				node = &iter->second;
+				resolvedStyle.styleMatched += scope.getScopeName() + ".";
+			}
+
+			// First check if we match a parent rule, if we do, we'll take that because 
+			// a parent rule match has more specificity then a normal match
+			bool foundParentRuleMatch = false;
+			if (node->parentRules.size() > 0)
+			{
+				for (auto const& parentRule : node->parentRules)
+				{
+					// parentRule.ancestors goes from broad -> narrow
+					//   Ex: source.js -> string.quoted
+
+					// If this parent rule matches, we should expect to find all the ancestors listed in the same order
+					auto parentRuleAncestorCheck = parentRule.ancestors.begin();
+					for (auto const& ancestorCheck : ancestorScopes)
+					{
+						// We have a match
+						if (parentRuleAncestorCheck == parentRule.ancestors.end())
 						{
-							resolvedTheme.settings[k] = v;
+							break;
 						}
+
+						if (ancestorCheck.matches(*parentRuleAncestorCheck))
+						{
+							parentRuleAncestorCheck++;
+						}
+					}
+
+					// We have a match
+					if (parentRuleAncestorCheck == parentRule.ancestors.end())
+					{
+						// Hard merge with inherited styles then the actual styles to get
+						// both inherited and default styles applied
+						resolvedStyle.style.overwriteMergeWith(parentRule.inheritedStyle);
+						resolvedStyle.style.overwriteMergeWith(parentRule.style);
 
 						for (auto const& resolvedAncestor : parentRule.ancestors)
 						{
-							resolvedTheme.styleMatched = resolvedAncestor.getFriendlyName() + " " + resolvedTheme.styleMatched;
+							resolvedStyle.styleMatched = resolvedAncestor.getFriendlyName() + " " + resolvedStyle.styleMatched;
 						}
 
 						foundParentRuleMatch = true;
@@ -361,16 +487,36 @@ namespace MathAnim
 			// If no parent rule match was found, just take the node's settings
 			if (!foundParentRuleMatch)
 			{
-				for (auto [k, v] : node->theme.settings)
-				{
-					resolvedTheme.settings[k] = v;
-				}
+				resolvedStyle.style.overwriteMergeWith(node->inheritedStyle);
+				resolvedStyle.style.overwriteMergeWith(node->style);
 			}
 
-			resolvedTheme.usingDefaultSettings = node == &root;
+			if (usingDefaultSettings != nullptr) *usingDefaultSettings = (node == &root);
 		}
 
-		return resolvedTheme;
+		return resolvedStyle;
+	}
+
+	uint32 SyntaxTheme::getOrCreateColorIndex(std::string const& colorStr, Vec4 const& color)
+	{
+		if (auto iter = this->colorMap.find(colorStr); iter == this->colorMap.end())
+		{
+			uint32 newColorIndex = (uint32)this->colors.size();
+			g_logger_assert(newColorIndex < (1 << 9), "Invalid color. We can only have a maximum of '{}' unique colors in a style.", (1 << 9));
+			this->colorMap[colorStr] = newColorIndex;
+			this->colors.push_back(color);
+			return newColorIndex;
+		}
+		else
+		{
+			return iter->second;
+		}
+	}
+
+	Vec4 const& SyntaxTheme::getColor(uint32 id) const
+	{
+		g_logger_assert(id < this->colors.size(), "Invalid id '{}'. Only '{}' colors are available.", id, this->colors.size());
+		return this->colors[id];
 	}
 
 	SyntaxTheme* SyntaxTheme::importTheme(const char* filepathStr)
@@ -389,7 +535,9 @@ namespace MathAnim
 			{
 				std::ifstream file(filepath);
 				json j = json::parse(file, nullptr, true, true);
-				return importThemeFromJson(j, filepathStr);
+				SyntaxTheme* theme = importThemeFromJson(j, filepathStr);
+				theme->root.calculateInheritedStyles();
+				return theme;
 			}
 			catch (json::parse_error& ex)
 			{
@@ -408,7 +556,9 @@ namespace MathAnim
 				return nullptr;
 			}
 
-			return importThemeFromXml(doc, filepathStr);
+			SyntaxTheme* theme = importThemeFromXml(doc, filepathStr);
+			theme->root.calculateInheritedStyles();
+			return theme;
 		}
 
 		g_logger_warning("Unsupported theme file: '{}'", filepathStr);
@@ -443,40 +593,39 @@ namespace MathAnim
 		// Initialize the trie
 		theme->root = {};
 
+		// Set the 0th and 1rst color to an ugly pink for debugging purposes. The 0th and 1rst index should always be invalid.
+		theme->colors.push_back("#f542f2"_hex);
+		theme->colors.push_back("#f542f2"_hex);
+
 		if (j.contains("colors"))
 		{
 			if (j["colors"].contains("editor.foreground"))
 			{
-				std::string foregroundColorStr = j["colors"]["editor.foreground"];
-				theme->defaultForeground = Css::colorFromString(foregroundColorStr);
+				std::string const& foregroundColorStr = j["colors"]["editor.foreground"];
+				CssColor color = Css::colorFromString(foregroundColorStr);
+				g_logger_assert(color.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
+				theme->defaultForeground = theme->getOrCreateColorIndex(foregroundColorStr, color.color);
 			}
 			else
 			{
-				theme->defaultForeground = {
-					Vec4{ 1, 1, 1, 1 },
-					CssStyleType::Value
-				};
+				theme->defaultForeground = theme->getOrCreateColorIndex("#FFFFFF", Vec4{1, 1, 1, 1});
 			}
 
 			if (j["colors"].contains("editor.background"))
 			{
-				std::string backgroundColorStr = j["colors"]["editor.background"];
-				theme->defaultBackground = Css::colorFromString(backgroundColorStr);
+				std::string const& backgroundColorStr = j["colors"]["editor.background"];
+				CssColor color = Css::colorFromString(backgroundColorStr);
+				g_logger_assert(color.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
+				theme->defaultBackground = theme->getOrCreateColorIndex(backgroundColorStr, color.color);
 			}
 			else
 			{
-				theme->defaultBackground = {
-					Vec4{ 0, 0, 0, 0 },
-					CssStyleType::Value
-				};
+				theme->defaultBackground = theme->getOrCreateColorIndex("#00000000", Vec4{ 0, 0, 0, 0 });
 			}
 
-			ThemeSetting defaultThemeSetting = {};
-			defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
-			defaultThemeSetting.foregroundColor = theme->defaultForeground;
-
 			// Initialize the root of our tree (these are global settings)
-			theme->root.theme.settings[ThemeSettingType::ForegroundColor] = defaultThemeSetting;
+			theme->root.style.setForegroundColor(theme->defaultForeground);
+			theme->root.style.setBackgroundColor(theme->defaultBackground);
 		}
 
 		for (auto color : tokenColors)
@@ -498,22 +647,23 @@ namespace MathAnim
 					// This is presumably the defualt foreground/background settings and not a token rule
 					if (color["settings"].contains("foreground"))
 					{
-						theme->defaultForeground = Css::colorFromString(color["settings"]["foreground"]);
+						std::string const& foregroundColorStr = color["settings"]["foreground"];
+						CssColor cssColor = Css::colorFromString(foregroundColorStr);
+						g_logger_assert(cssColor.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
+						theme->defaultForeground = theme->getOrCreateColorIndex(foregroundColorStr, cssColor.color);
+
+						theme->root.style.setForegroundColor(theme->defaultForeground);
 					}
 
 					if (color["settings"].contains("background"))
 					{
-						theme->defaultBackground = Css::colorFromString(color["settings"]["background"]);
+						std::string const& backgroundColorStr = color["settings"]["background"];
+						CssColor cssColor = Css::colorFromString(backgroundColorStr);
+						g_logger_assert(cssColor.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
+						theme->defaultBackground = theme->getOrCreateColorIndex(backgroundColorStr, cssColor.color);
+
+						theme->root.style.setBackgroundColor(theme->defaultBackground);
 					}
-
-					ThemeSetting defaultThemeSetting = {};
-					defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
-					defaultThemeSetting.foregroundColor = theme->defaultForeground;
-
-					// Clear the global settings first
-					theme->root.theme.settings = {};
-					// Then initialize the root of our tree with these new global settings
-					theme->root.theme.settings[ThemeSettingType::ForegroundColor] = defaultThemeSetting;
 				}
 				else
 				{
@@ -545,25 +695,39 @@ namespace MathAnim
 				}
 			}
 
-			SyntaxTrieTheme trieThemeSettings = {};
+			PackedSyntaxStyle trieThemeSettings = {};
 			if (settingsJson.contains("foreground"))
 			{
 				const std::string& foregroundColorStr = settingsJson["foreground"];
-				ThemeSetting trieTheme = ThemeSetting{};
-				trieTheme.type = ThemeSettingType::ForegroundColor;
-				trieTheme.foregroundColor = Css::colorFromString(foregroundColorStr);
+				CssColor cssColor = Css::colorFromString(foregroundColorStr);
+				if (cssColor.styleType == CssStyleType::Inherit)
+				{
+					trieThemeSettings.setForegroundColorInherited();
+				}
+				else 
+				{
+					trieThemeSettings.setForegroundColor(theme->getOrCreateColorIndex(foregroundColorStr, cssColor.color));
+				}
+			}
 
-				trieThemeSettings.settings[ThemeSettingType::ForegroundColor] = trieTheme;
+			if (settingsJson.contains("background"))
+			{
+				const std::string& backgroundColorStr = settingsJson["background"];
+				CssColor cssColor = Css::colorFromString(backgroundColorStr);
+				if (cssColor.styleType == CssStyleType::Inherit)
+				{
+					trieThemeSettings.setBackgroundColorInherited();
+				}
+				else
+				{
+					trieThemeSettings.setBackgroundColor(theme->getOrCreateColorIndex(backgroundColorStr, cssColor.color));
+				}
 			}
 
 			if (settingsJson.contains("fontStyle"))
 			{
 				std::string const& fontStyleStr = settingsJson["fontStyle"];
-				ThemeSetting trieTheme = ThemeSetting{};
-				trieTheme.type = ThemeSettingType::FontStyle;
-				trieTheme.fontStyle = Css::fontStyleFromString(fontStyleStr);
-
-				trieThemeSettings.settings[ThemeSettingType::FontStyle] = trieTheme;
+				trieThemeSettings.setFontStyle(Css::fontStyleFromString(fontStyleStr));
 			}
 
 			if (color["scope"].is_array())
@@ -683,21 +847,21 @@ namespace MathAnim
 			{
 				// Parse the settings for this theme
 				const XMLElement* themeSettingsDict = settingDictKey->NextSiblingElement("dict");
-				theme->defaultForeground = { Vec4{ 1, 1, 1, 1 }, CssStyleType::Value };
-				theme->defaultBackground = { Vec4{ 0, 0, 0, 0 }, CssStyleType::Value };
+				//theme->defaultForeground = { Vec4{ 1, 1, 1, 1 }, CssStyleType::Value };
+				//theme->defaultBackground = { Vec4{ 0, 0, 0, 0 }, CssStyleType::Value };
 
 				if (themeSettingsDict)
 				{
 					const XMLElement* backgroundValue = getValue(themeSettingsDict, "background");
 					if (backgroundValue && (std::strcmp(backgroundValue->Name(), "string") == 0))
 					{
-						theme->defaultBackground = Css::colorFromString(backgroundValue->Value());
+						//theme->defaultBackground = Css::colorFromString(backgroundValue->Value());
 					}
 
 					const XMLElement* foregroundValue = getValue(themeSettingsDict, "foreground");
 					if (foregroundValue && (std::strcmp(foregroundValue->Name(), "string") == 0))
 					{
-						theme->defaultForeground = Css::colorFromString(foregroundValue->Value());
+						//theme->defaultForeground = Css::colorFromString(foregroundValue->Value());
 					}
 				}
 
@@ -784,22 +948,4 @@ namespace MathAnim
 
 		return nullptr;
 	}
-}
-
-CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::ThemeSettingType& style)
-{
-	switch (style)
-	{
-	case MathAnim::ThemeSettingType::FontStyle:
-		ostream << "<ThemeSettingType:FontStyle>";
-		break;
-	case MathAnim::ThemeSettingType::ForegroundColor:
-		ostream << "<ThemeSettingType:ForegroundColor>";
-		break;
-	case MathAnim::ThemeSettingType::None:
-		ostream << "<ThemeSettingType:None>";
-		break;
-	};
-
-	return ostream;
 }

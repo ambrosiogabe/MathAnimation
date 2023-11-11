@@ -475,7 +475,7 @@ namespace MathAnim
 		size_t codeBlockCursor = 0;
 		for (size_t textIndex = 0; textIndex < (size_t)textLength; textIndex++)
 		{
-			Vec4 textColor = syntaxTheme->defaultForeground.color;
+			Vec4 textColor = syntaxTheme->getColor(syntaxTheme->defaultForeground);
 			if (codeBlockCursor < highlights.segments.size())
 			{
 				if (textIndex >= highlights.segments[codeBlockCursor].endPos)

@@ -85,7 +85,7 @@ namespace MathAnim
 				std::vector<ScopedName> ancestorScopes = res.tree.getAllAncestorScopes(child);
 
 				auto settings = theme.match(ancestorScopes);
-				Vec4 settingForeground = settings.getForegroundColor(&theme);
+				Vec4 settingForeground = theme.getColor(settings.getForegroundColor());
 
 				size_t absStart = highlightCursor;
 				size_t nodeSize = res.tree.tree[child].sourceSpan.size;
@@ -105,7 +105,7 @@ namespace MathAnim
 			HighlightSegment finalSegment = {};
 			finalSegment.startPos = highlightCursor;
 			finalSegment.endPos = code.length();
-			finalSegment.color = theme.defaultForeground.color;
+			finalSegment.color = theme.getColor(theme.defaultForeground);
 
 			res.segments.emplace_back(finalSegment);
 		}
@@ -134,7 +134,7 @@ namespace MathAnim
 				std::vector<ScopedName> ancestorScopes = codeHighlights.tree.getAllAncestorScopes(child);
 
 				auto settings = codeHighlights.theme->match(ancestorScopes);
-				Vec4 settingForeground = settings.getForegroundColor(codeHighlights.theme);
+				Vec4 settingForeground = codeHighlights.theme->getColor(settings.getForegroundColor());
 
 				size_t absStart = highlightCursor;
 				size_t nodeSize = codeHighlights.tree.tree[child].sourceSpan.size;
@@ -154,7 +154,7 @@ namespace MathAnim
 			HighlightSegment finalSegment = {};
 			finalSegment.startPos = highlightCursor;
 			finalSegment.endPos = newCode.length();
-			finalSegment.color = codeHighlights.theme->defaultForeground.color;
+			finalSegment.color = codeHighlights.theme->getColor(codeHighlights.theme->defaultForeground);
 
 			codeHighlights.segments.emplace_back(finalSegment);
 		}
@@ -203,11 +203,6 @@ namespace MathAnim
 				if (Platform::fileExists(_highlighterThemeFilenames[i]))
 				{
 					themes[(HighlighterTheme)i] = SyntaxTheme::importTheme(_highlighterThemeFilenames[i]);
-
-					if (i == (int)HighlighterTheme::Gruvbox)
-					{
-						themes[(HighlighterTheme)i]->root.print();
-					}
 				}
 			}
 

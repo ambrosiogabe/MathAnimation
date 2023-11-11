@@ -754,9 +754,10 @@ namespace MathAnim
 		struct CodeEditUserData
 		{
 			std::vector<ScopedName> ancestors;
-			SyntaxTrieTheme settings;
+			DebugPackedSyntaxStyle settings;
 			HighlighterLanguage language;
 			HighlighterTheme theme;
+			bool usingDefaultSettings;
 			bool isActive;
 		};
 
@@ -782,7 +783,7 @@ namespace MathAnim
 			}
 
 			userData.ancestors = highlighter->getAncestorsFor(data->Buf, data->CursorPos);
-			userData.settings = theme->match(userData.ancestors);
+			userData.settings = theme->debugMatch(userData.ancestors, &userData.usingDefaultSettings);
 
 			return 0;
 		}
@@ -899,16 +900,16 @@ namespace MathAnim
 
 					ImGui::TableNextColumn(); ImGui::Text("foreground");
 					bool foundThemeSelector = false;
-					if (codeEditUserData.settings.usingDefaultSettings)
+					if (codeEditUserData.usingDefaultSettings)
 					{
 						ImGui::TableNextColumn(); ImGui::Text("No theme selector");
 					}
 					else 
 					{
 						const SyntaxTheme* theme = Highlighters::getTheme(object->as.codeBlock.theme);
-						const CssColor& foregroundCssColor = codeEditUserData.settings.getForegroundCssColor(theme);
-						std::string foregroundColorStr = toHexString(foregroundCssColor.color);
-						if (foregroundCssColor.styleType == CssStyleType::Inherit)
+						Vec4 const& foregroundCssColor = theme->getColor(codeEditUserData.settings.style.getForegroundColor());
+						std::string foregroundColorStr = toHexString(foregroundCssColor);
+						if (codeEditUserData.settings.style.isForegroundInherited())
 						{
 							foregroundColorStr = "inherit";
 						}

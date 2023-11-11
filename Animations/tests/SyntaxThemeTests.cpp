@@ -40,7 +40,7 @@ namespace MathAnim
 			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Bold);
-			ASSERT_EQUAL(res.getForegroundColor(theme), "#83a598"_hex);
+			ASSERT_EQUAL(theme->getColor(res.getForegroundColor()), "#83a598"_hex);
 
 			END_TEST;
 		}
@@ -56,7 +56,7 @@ namespace MathAnim
 			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
-			ASSERT_EQUAL(res.getForegroundColor(theme), "#FF9AC1"_hex);
+			ASSERT_EQUAL(theme->getColor(res.getForegroundColor()), "#FF9AC1"_hex);
 
 			END_TEST;
 		}
@@ -72,7 +72,7 @@ namespace MathAnim
 			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Italic);
-			ASSERT_EQUAL(res.getForegroundColor(theme), "#FFCC95"_hex);
+			ASSERT_EQUAL(theme->getColor(res.getForegroundColor()), "#FFCC95"_hex);
 
 			END_TEST;
 		}
@@ -90,7 +90,7 @@ namespace MathAnim
 			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Italic);
-			ASSERT_EQUAL(res.getForegroundColor(theme), "#928374ff"_hex);
+			ASSERT_EQUAL(theme->getColor(res.getForegroundColor()), "#928374ff"_hex);
 
 			END_TEST;
 		}
@@ -108,7 +108,7 @@ namespace MathAnim
 			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
-			ASSERT_EQUAL(res.getForegroundColor(theme), "#B8BB26FF"_hex);
+			ASSERT_EQUAL(theme->getColor(res.getForegroundColor()), "#B8BB26FF"_hex);
 
 			END_TEST;
 		}
@@ -126,7 +126,7 @@ namespace MathAnim
 			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
-			ASSERT_EQUAL(res.getForegroundColor(theme), "#689D6AFF"_hex);
+			ASSERT_EQUAL(theme->getColor(res.getForegroundColor()), "#689D6AFF"_hex);
 
 			END_TEST;
 		}
@@ -144,7 +144,7 @@ namespace MathAnim
 			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
-			ASSERT_EQUAL(res.getForegroundColor(theme), "#B8BB26FF"_hex);
+			ASSERT_EQUAL(theme->getColor(res.getForegroundColor()), "#B8BB26FF"_hex);
 
 			END_TEST;
 		}
@@ -162,7 +162,7 @@ namespace MathAnim
 			auto res = theme->match(ancestorScopes);
 
 			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
-			ASSERT_EQUAL(res.getForegroundColor(theme), "#689d6a"_hex);
+			ASSERT_EQUAL(theme->getColor(res.getForegroundColor()), "#689d6a"_hex);
 
 			END_TEST;
 		}

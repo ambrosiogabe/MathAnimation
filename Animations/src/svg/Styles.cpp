@@ -258,6 +258,9 @@ CppUtils::Stream& operator<<(CppUtils::Stream& ostream, const MathAnim::CssFontS
 	case MathAnim::CssFontStyle::Normal:
 		ostream << "<CssFontStyle:Normal>";
 		break;
+	case MathAnim::CssFontStyle::Length:
+		ostream << "<CssFontStyle::Length>";
+		break;
 	};
 
 	return ostream;

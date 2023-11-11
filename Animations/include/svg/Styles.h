@@ -20,7 +20,8 @@ namespace MathAnim
 		Normal,
 		Italic,
 		Bold,
-		Inherit
+		Inherit,
+		Length
 	};
 
 	struct CssColor

@@ -145,28 +145,11 @@ namespace MathAnim
 		bool isAtomicNode;
 	};
 
-	//struct SourceSyntaxToken
-	//{
-	//	// The byte that this token starts at in the text
-	//	uint32 startByte;
-
-	//	/**
-	//	 * Taken from: https://code.visualstudio.com/blogs/2017/02/08/syntax-highlighting-optimizations#_changes-to-tokenization
-	//	 * - -------------------------------------------
-	//	 *     3322 2222 2222 1111 1111 1100 0000 0000
-	//	 *     1098 7654 3210 9876 5432 1098 7654 3210
-	//	 * - -------------------------------------------
-	//	 *     xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
-	//	 *     bbbb bbbb bfff ffff ffFF FTTT LLLL LLLL
-	//	 * - -------------------------------------------
-	//	 *  - L = LanguageId (8 bits)        -> Lookup from language map
-	//	 *  - T = StandardTokenType (3 bits) -> 
-	//	 *  - F = FontStyle (3 bits)         -> Lookup from style map (italic, bold, etc)
-	//	 *  - f = foreground color (9 bits)  -> Lookup from color map
-	//	 *  - b = background color (9 bits)  -> Lookup from color map
-	//	 */
-	//	uint32 metadata;
-	//};
+	struct SourceSyntaxToken
+	{
+		// The byte that this token starts at in the text
+		uint32 startByte;
+	};
 
 	// This corresponds to the tree represented here: https://macromates.com/blog/2005/introduction-to-scopes/#htmlxml-analogy
 	struct SourceGrammarTree

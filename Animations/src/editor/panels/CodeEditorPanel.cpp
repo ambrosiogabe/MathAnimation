@@ -541,7 +541,7 @@ namespace MathAnim
 
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 			drawList->PushClipRect(panel.drawStart, panel.drawEnd, true);
-			drawList->AddRectFilled(panel.drawStart, panel.drawEnd, getColor(syntaxTheme.defaultBackground.color));
+			drawList->AddRectFilled(panel.drawStart, panel.drawEnd, getColor(syntaxTheme.getColor(syntaxTheme.defaultBackground)));
 
 			uint32 currentLine = panel.lineNumberStart;
 			ImVec2 currentLetterDrawPos = renderNextLinePrefix(panel, currentLine, codeFont);
@@ -600,7 +600,7 @@ namespace MathAnim
 				cursor.bytePos < panel.visibleCharacterBufferSize;
 				++cursor)
 			{
-				ImColor highlightedColor = syntaxTheme.defaultForeground.color;
+				ImColor highlightedColor = syntaxTheme.getColor(syntaxTheme.defaultForeground);
 
 				// Figure out what color this character should be
 				highlightIter = highlightIter.next(cursor.bytePos);
@@ -860,17 +860,18 @@ namespace MathAnim
 						ImGui::TableNextColumn(); ImGui::Text("foreground");
 						bool foundThemeSelector = false;
 
-						auto settings = theme.match(ancestors);
+						bool usingDefaultSettings = true;
+						auto settings = theme.debugMatch(ancestors, &usingDefaultSettings);
 
-						if (settings.usingDefaultSettings)
+						if (usingDefaultSettings)
 						{
 							ImGui::TableNextColumn(); ImGui::Text("No theme selector");
 						}
 						else
 						{
-							const CssColor& foregroundCssColor = settings.getForegroundCssColor(&theme);
-							std::string foregroundColorStr = toHexString(foregroundCssColor.color);
-							if (foregroundCssColor.styleType == CssStyleType::Inherit)
+							Vec4 const& foregroundCssColor = theme.getColor(settings.style.getForegroundColor());
+							std::string foregroundColorStr = toHexString(foregroundCssColor);
+							if (settings.style.isForegroundInherited())
 							{
 								foregroundColorStr = "inherit";
 							}
