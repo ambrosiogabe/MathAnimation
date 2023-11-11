@@ -47,7 +47,7 @@ namespace MathAnim
 		this->grammar = Grammar::importGrammar(grammar.string().c_str());
 	}
 
-	std::vector<ScopedName> SyntaxHighlighter::getAncestorsFor(const std::string& code, size_t cursorPos) const
+	CodeHighlightDebugInfo SyntaxHighlighter::getAncestorsFor(SyntaxTheme const* theme, const std::string& code, size_t cursorPos) const
 	{
 		if (!this->grammar)
 		{
@@ -59,8 +59,40 @@ namespace MathAnim
 			return {};
 		}
 
+		CodeHighlightDebugInfo res  = {};
+
 		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code);
-		return grammarTree.getAllAncestorScopesAtChar(cursorPos);
+		res.matchText = grammarTree.getMatchTextAtChar(cursorPos);
+
+		// Since this is just used for debug info, replace the matchText control characters with escaped (e.g \n) chars
+		for (size_t i = 0; i < res.matchText.length(); i++)
+		{
+			if (res.matchText[i] == '\n')
+			{
+				res.matchText[i] = '\\';
+				res.matchText.insert(res.matchText.begin() + i + 1, 'n');
+				i++;
+			}
+
+			if (res.matchText[i] == '\t')
+			{
+				res.matchText[i] = '\\';
+				res.matchText.insert(res.matchText.begin() + i + 1, 't');
+				i++;
+			}
+
+			if (res.matchText[i] == '\r')
+			{
+				res.matchText[i] = '\\';
+				res.matchText.insert(res.matchText.begin() + i + 1, 'r');
+				i++;
+			}
+		}
+
+		res.ancestors = grammarTree.getAllAncestorScopesAtChar(cursorPos);
+		res.settings = theme->debugMatch(res.ancestors, &res.usingDefaultSettings);
+
+		return res;
 	}
 
 	CodeHighlights SyntaxHighlighter::parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo) const

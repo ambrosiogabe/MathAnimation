@@ -236,6 +236,25 @@ namespace MathAnim
 
 			return CssFontStyle::None;
 		}
+
+		std::string toString(CssFontStyle fontStyle)
+		{
+			switch (fontStyle)
+			{
+			case CssFontStyle::None:
+				return "None";
+			case CssFontStyle::Bold:
+				return "Bold";
+			case CssFontStyle::Inherit:
+				return "Inherit";
+			case CssFontStyle::Italic:
+				return "Italic";
+			case CssFontStyle::Normal:
+				return "Normal";
+			}
+
+			return "Undefined";
+		}
 	}
 }
 

@@ -735,6 +735,41 @@ namespace MathAnim
 		return ancestorScopes;
 	}
 
+	std::string SourceGrammarTree::getMatchTextAtChar(size_t cursorPos) const
+	{
+		size_t nodePos = 0;
+		{
+			size_t absPos = 0;
+			for (size_t i = 0; i < tree.size();)
+			{
+				size_t absSpanStart = tree[i].sourceSpan.relativeStart + absPos;
+				size_t absSpanEnd = absSpanStart + tree[i].sourceSpan.size;
+				if (cursorPos >= absSpanStart && cursorPos < absSpanEnd)
+				{
+					// This is a leaf node, so this is the node we're looking for
+					if (tree[i].nextNodeDelta == 1)
+					{
+						nodePos = i;
+						g_logger_assert(absSpanEnd >= absSpanStart, "Invalid match.");
+						return this->codeBlock.substr(absSpanStart, absSpanEnd - absSpanStart);
+					}
+
+					// Otherwise, the cursorPos is at one of the children of this branch
+					// so we start iterating through the children
+					absPos += tree[i].sourceSpan.relativeStart;
+					i += 1;
+				}
+				else
+				{
+					// Skip this node since the cursor doesn't live in it
+					i += tree[i].nextNodeDelta;
+				}
+			}
+		}
+
+		return "";
+	}
+
 	static bool checkBufferUnderflow(size_t sizeLeft, size_t numBytesToRemove)
 	{
 		if (sizeLeft >= numBytesToRemove)

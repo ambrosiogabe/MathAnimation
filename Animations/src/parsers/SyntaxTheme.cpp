@@ -212,25 +212,6 @@ namespace MathAnim
 		}
 	}
 
-	static std::string getFontStyleStr(CssFontStyle fontStyle)
-	{
-		switch (fontStyle)
-		{
-		case CssFontStyle::None:
-			return "None";
-		case CssFontStyle::Bold:
-			return "Bold";
-		case CssFontStyle::Inherit:
-			return "Inherit";
-		case CssFontStyle::Italic:
-			return "Italic";
-		case CssFontStyle::Normal:
-			return "Normal";
-		}
-
-		return "Undefined";
-	}
-
 	static void printThemeSettings(SyntaxTheme const& theme, PackedSyntaxStyle style, PackedSyntaxStyle inheritedStyle, std::string& res, size_t tabDepth = 0)
 	{
 		if (style.getForegroundColor())
@@ -249,12 +230,12 @@ namespace MathAnim
 		if (style.getFontStyle() != CssFontStyle::None)
 		{
 			printTabs(res, tabDepth);
-			res += "(FontStyle: " + getFontStyleStr(style.getFontStyle()) + ")\n";
+			res += "(FontStyle: " + Css::toString(style.getFontStyle()) + ")\n";
 		}
 		else if (inheritedStyle.getFontStyle() != CssFontStyle::None)
 		{
 			printTabs(res, tabDepth);
-			res += "(>>>FontStyle: " + getFontStyleStr(inheritedStyle.getFontStyle()) + ")\n";
+			res += "(>>>FontStyle: " + Css::toString(inheritedStyle.getFontStyle()) + ")\n";
 		}
 
 		if (style.getBackgroundColor())

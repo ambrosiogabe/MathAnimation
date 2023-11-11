@@ -163,11 +163,10 @@ namespace MathAnim
 
 		std::vector<ScopedName> getAllAncestorScopes(size_t node) const;
 		std::vector<ScopedName> getAllAncestorScopesAtChar(size_t cursorPos) const;
+		std::string getMatchTextAtChar(size_t cursorPos) const;
 
 		// Default buffer size of 10KB
 		std::string getStringifiedTree(size_t bufferSize = 1024 * 10) const;
-
-
 	};
 
 	// This loosely follows the rules set out by TextMate grammars.

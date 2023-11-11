@@ -834,22 +834,62 @@ namespace MathAnim
 				ImGui::Checkbox(": Inspect Syntax Styles", &inspectCodeStyles);
 				if (inspectCodeStyles)
 				{
-					auto highlighter = CodeEditorPanelManager::getHighlighter();
-					auto theme = CodeEditorPanelManager::getTheme();
-					auto ancestors = highlighter.getAncestorsFor((const char*)panel.visibleCharacterBuffer, panel.cursor.bytePos);
+					auto const& highlighter = CodeEditorPanelManager::getHighlighter();
+					auto const& theme = CodeEditorPanelManager::getTheme();
+					auto parseInfo = highlighter.getAncestorsFor(&theme, (const char*)panel.visibleCharacterBuffer, panel.cursor.bytePos);
 
 					ImGui::BeginChild("Code Ancestors", ImVec2(0, 0), true);
 
+					ImGui::PushFont(ImGuiLayer::getMediumFont());
+					if (parseInfo.matchText.length() > 30)
+					{
+						std::string firstPart = parseInfo.matchText.substr(0, 15);
+						std::string lastPart = parseInfo.matchText.substr(parseInfo.matchText.length() - 15);
+						ImGui::Text("%s...%s", firstPart.c_str(), lastPart.c_str());
+					}
+					else
+					{
+						ImGui::Text(parseInfo.matchText.c_str());
+					}
+					ImGui::PopFont();
+
 					if (ImGui::BeginTable("textmate scopes", 2))
 					{
+						ImGui::TableNextColumn(); ImGui::Text("language");
+						ImGui::TableNextColumn(); ImGui::Text("%d", parseInfo.settings.style.getLanguageId());
+
+						ImGui::TableNextColumn(); ImGui::Text("standard token type");
+						ImGui::TableNextColumn(); ImGui::Text("%d", parseInfo.settings.style.getStandardTokenType());
+
+						ImGui::TableNextColumn(); ImGui::Text("foreground");
+						Vec4 foregroundColor = theme.getColor(parseInfo.settings.style.getForegroundColor());
+						std::string foregroundStr = toHexString(foregroundColor);
+						ImGui::TableNextColumn(); ImGui::Text("%s", foregroundStr.c_str()); ImGui::SameLine();
+						ImGui::ColorButton("##ForegroundInspector_InspectorPanel", foregroundColor,
+							ImGuiColorEditFlags_NoLabel
+						);
+
+						ImGui::TableNextColumn(); ImGui::Text("background");
+						Vec4 styleBackgroundColor = theme.getColor(parseInfo.settings.style.getBackgroundColor());
+						std::string backgroundStr = toHexString(styleBackgroundColor);
+						ImGui::TableNextColumn(); ImGui::Text("%s", backgroundStr.c_str()); ImGui::SameLine();
+						ImGui::ColorButton("##ForegroundInspector_InspectorPanel", styleBackgroundColor,
+							ImGuiColorEditFlags_NoLabel
+						);
+
+						ImGui::TableNextColumn(); ImGui::Text("font style");
+						ImGui::TableNextColumn(); ImGui::Text("%s", Css::toString(parseInfo.settings.style.getFontStyle()).c_str());
+
+						ImGui::Separator();
+
 						ImGui::TableNextColumn(); ImGui::Text("textmate scopes");
-						for (size_t i = 0; i < ancestors.size(); i++)
+						for (size_t i = 0; i < parseInfo.ancestors.size(); i++)
 						{
-							size_t backwardsIndex = ancestors.size() - i - 1;
-							std::string friendlyName = ancestors[backwardsIndex].getFriendlyName();
+							size_t backwardsIndex = parseInfo.ancestors.size() - i - 1;
+							std::string friendlyName = parseInfo.ancestors[backwardsIndex].getFriendlyName();
 							ImGui::TableNextColumn(); ImGui::Text(friendlyName.c_str());
 
-							if (i < ancestors.size() - 1)
+							if (i < parseInfo.ancestors.size() - 1)
 							{
 								ImGui::TableNextRow(); ImGui::TableNextColumn();
 							}
@@ -860,23 +900,20 @@ namespace MathAnim
 						ImGui::TableNextColumn(); ImGui::Text("foreground");
 						bool foundThemeSelector = false;
 
-						bool usingDefaultSettings = true;
-						auto settings = theme.debugMatch(ancestors, &usingDefaultSettings);
-
-						if (usingDefaultSettings)
+						if (parseInfo.usingDefaultSettings)
 						{
 							ImGui::TableNextColumn(); ImGui::Text("No theme selector");
 						}
 						else
 						{
-							Vec4 const& foregroundCssColor = theme.getColor(settings.style.getForegroundColor());
+							Vec4 const& foregroundCssColor = theme.getColor(parseInfo.settings.style.getForegroundColor());
 							std::string foregroundColorStr = toHexString(foregroundCssColor);
-							if (settings.style.isForegroundInherited())
+							if (parseInfo.settings.style.isForegroundInherited())
 							{
 								foregroundColorStr = "inherit";
 							}
 
-							ImGui::TableNextColumn(); ImGui::Text(settings.styleMatched.c_str());
+							ImGui::TableNextColumn(); ImGui::Text(parseInfo.settings.styleMatched.c_str());
 							ImGui::TableNextRow(); ImGui::TableNextColumn();
 							ImGui::TableNextColumn(); ImGui::Text("{ \"foreground\": \"%s\"", foregroundColorStr.c_str());
 							foundThemeSelector = true;

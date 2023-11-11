@@ -3,12 +3,10 @@
 #include "core.h"
 #include "parsers/Common.h"
 #include "parsers/Grammar.h"
+#include "parsers/SyntaxTheme.h"
 
 namespace MathAnim
 {
-	struct SyntaxTheme;
-	struct Grammar;
-
 	enum class HighlighterLanguage : uint8
 	{
 		None,
@@ -110,12 +108,20 @@ namespace MathAnim
 		CodeHighlightIter end();
 	};
 
+	struct CodeHighlightDebugInfo
+	{
+		std::vector<ScopedName> ancestors;
+		DebugPackedSyntaxStyle settings;
+		std::string matchText;
+		bool usingDefaultSettings;
+	};
+
 	class SyntaxHighlighter
 	{
 	public:
 		SyntaxHighlighter(const std::filesystem::path& grammar);
 
-		std::vector<ScopedName> getAncestorsFor(const std::string& code, size_t cursorPos) const;
+		CodeHighlightDebugInfo getAncestorsFor(SyntaxTheme const* theme, const std::string& code, size_t cursorPos) const;
 
 		CodeHighlights parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo = false) const;
 		void reparseSection(CodeHighlights& codeHighlights, const std::string& newCode, size_t parseStart, size_t parseEnd, bool printDebugInfo = false) const;

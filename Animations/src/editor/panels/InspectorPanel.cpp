@@ -757,8 +757,9 @@ namespace MathAnim
 			DebugPackedSyntaxStyle settings;
 			HighlighterLanguage language;
 			HighlighterTheme theme;
-			bool usingDefaultSettings;
+			std::string matchText;
 			bool isActive;
+			bool usingDefaultSettings;
 		};
 
 		static int codeEditCallback(ImGuiInputTextCallbackData* data)
@@ -782,8 +783,11 @@ namespace MathAnim
 				return 0;
 			}
 
-			userData.ancestors = highlighter->getAncestorsFor(data->Buf, data->CursorPos);
-			userData.settings = theme->debugMatch(userData.ancestors, &userData.usingDefaultSettings);
+			auto parseInfo = highlighter->getAncestorsFor(theme, data->Buf, data->CursorPos);
+			userData.ancestors = parseInfo.ancestors;
+			userData.settings = parseInfo.settings;
+			userData.matchText = parseInfo.matchText;
+			userData.usingDefaultSettings = parseInfo.usingDefaultSettings;
 
 			return 0;
 		}
@@ -881,8 +885,52 @@ namespace MathAnim
 			{
 				ImGui::BeginChild("Code Ancestors", ImVec2(0, 0), true);
 
+				ImGui::PushFont(ImGuiLayer::getMediumFont());
+				if (codeEditUserData.matchText.length() > 30)
+				{
+					std::string firstPart = codeEditUserData.matchText.substr(0, 15);
+					std::string lastPart = codeEditUserData.matchText.substr(codeEditUserData.matchText.length() - 15);
+					ImGui::Text("%s...%s", firstPart.c_str(), lastPart.c_str());
+				}
+				else
+				{
+					ImGui::Text(codeEditUserData.matchText.c_str());
+				}
+				ImGui::PopFont();
+
+				ImGui::Separator();
+
 				if (ImGui::BeginTable("textmate scopes", 2))
 				{
+					const SyntaxTheme* theme = Highlighters::getTheme(object->as.codeBlock.theme);
+
+					ImGui::TableNextColumn(); ImGui::Text("language");
+					ImGui::TableNextColumn(); ImGui::Text("%d", codeEditUserData.settings.style.getLanguageId());
+
+					ImGui::TableNextColumn(); ImGui::Text("standard token type");
+					ImGui::TableNextColumn(); ImGui::Text("%d", codeEditUserData.settings.style.getStandardTokenType());
+
+					ImGui::TableNextColumn(); ImGui::Text("foreground");
+					Vec4 foregroundColor = theme->getColor(codeEditUserData.settings.style.getForegroundColor());
+					std::string foregroundStr = toHexString(foregroundColor);
+					ImGui::TableNextColumn(); ImGui::Text("%s", foregroundStr.c_str()); ImGui::SameLine();
+					ImGui::ColorButton("##ForegroundInspector_InspectorPanel", foregroundColor, 
+						ImGuiColorEditFlags_NoLabel
+					);
+
+					ImGui::TableNextColumn(); ImGui::Text("background");
+					Vec4 backgroundColor = theme->getColor(codeEditUserData.settings.style.getBackgroundColor());
+					std::string backgroundStr = toHexString(backgroundColor);
+					ImGui::TableNextColumn(); ImGui::Text("%s", backgroundStr.c_str()); ImGui::SameLine();
+					ImGui::ColorButton("##ForegroundInspector_InspectorPanel", backgroundColor,
+						ImGuiColorEditFlags_NoLabel
+					);
+
+					ImGui::TableNextColumn(); ImGui::Text("font style");
+					ImGui::TableNextColumn(); ImGui::Text("%s", Css::toString(codeEditUserData.settings.style.getFontStyle()).c_str());
+
+					ImGui::Separator();
+
 					ImGui::TableNextColumn(); ImGui::Text("textmate scopes");
 					for (size_t i = 0; i < codeEditUserData.ancestors.size(); i++)
 					{
@@ -906,7 +954,6 @@ namespace MathAnim
 					}
 					else 
 					{
-						const SyntaxTheme* theme = Highlighters::getTheme(object->as.codeBlock.theme);
 						Vec4 const& foregroundCssColor = theme->getColor(codeEditUserData.settings.style.getForegroundColor());
 						std::string foregroundColorStr = toHexString(foregroundCssColor);
 						if (codeEditUserData.settings.style.isForegroundInherited())

@@ -36,6 +36,7 @@ namespace MathAnim
 		inline CssColor colorFromString(const std::string& cssColorStr) { return colorFromString(cssColorStr.c_str(), cssColorStr.length()); }
 
 		CssFontStyle fontStyleFromString(std::string const& str);
+		std::string toString(CssFontStyle fontStyle);
 	}
 }
 
