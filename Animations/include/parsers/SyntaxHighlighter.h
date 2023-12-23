@@ -126,7 +126,7 @@ namespace MathAnim
 		CodeHighlights parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo = false) const;
 		void reparseSection(CodeHighlights& codeHighlights, const std::string& newCode, size_t parseStart, size_t parseEnd, bool printDebugInfo = false) const;
 
-		std::string getStringifiedParseTreeFor(const std::string& code) const;
+		std::string getStringifiedParseTreeFor(const std::string& code, SyntaxTheme const& theme) const;
 
 		void free();
 

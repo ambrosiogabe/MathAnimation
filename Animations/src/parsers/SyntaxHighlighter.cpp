@@ -54,6 +54,11 @@ namespace MathAnim
 			return {};
 		}
 
+		if (!theme)
+		{
+			return {};
+		}
+
 		if (cursorPos >= code.length())
 		{
 			return {};
@@ -61,7 +66,7 @@ namespace MathAnim
 
 		CodeHighlightDebugInfo res  = {};
 
-		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code);
+		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code, *theme, false);
 		res.matchText = grammarTree.getMatchTextAtChar(cursorPos);
 
 		// Since this is just used for debug info, replace the matchText control characters with escaped (e.g \n) chars
@@ -103,104 +108,104 @@ namespace MathAnim
 		}
 
 		CodeHighlights res = {};
-		res.tree = grammar->parseCodeBlock(code, printDebugInfo);
+		res.tree = grammar->parseCodeBlock(code, theme, printDebugInfo);
 		res.codeBlock = code;
 		res.theme = &theme;
 
 		// For each atom in our grammar tree, output a highlight segment with the
 		// appropriate style for that atom
-		size_t highlightCursor = 0;
-		for (size_t child = 0; child < res.tree.tree.size(); child++)
-		{
-			if (res.tree.tree[child].isAtomicNode)
-			{
-				std::vector<ScopedName> ancestorScopes = res.tree.getAllAncestorScopes(child);
+		//size_t highlightCursor = 0;
+		//for (size_t child = 0; child < res.tree.tree.size(); child++)
+		//{
+		//	if (res.tree.tree[child].isAtomicNode)
+		//	{
+		//		std::vector<ScopedName> ancestorScopes = res.tree.getAllAncestorScopes(child);
 
-				auto settings = theme.match(ancestorScopes);
-				Vec4 settingForeground = theme.getColor(settings.getForegroundColor());
+		//		auto settings = theme.match(ancestorScopes);
+		//		Vec4 settingForeground = theme.getColor(settings.getForegroundColor());
 
-				size_t absStart = highlightCursor;
-				size_t nodeSize = res.tree.tree[child].sourceSpan.size;
+		//		size_t absStart = highlightCursor;
+		//		size_t nodeSize = res.tree.tree[child].sourceSpan.size;
 
-				HighlightSegment segment = {};
-				segment.startPos = absStart;
-				segment.endPos = absStart + nodeSize;
-				segment.color = settingForeground;
+		//		HighlightSegment segment = {};
+		//		segment.startPos = absStart;
+		//		segment.endPos = absStart + nodeSize;
+		//		segment.color = settingForeground;
 
-				res.segments.emplace_back(segment);
-				highlightCursor += nodeSize;
-			}
-		}
+		//		res.segments.emplace_back(segment);
+		//		highlightCursor += nodeSize;
+		//	}
+		//}
 
-		if (highlightCursor < code.length())
-		{
-			HighlightSegment finalSegment = {};
-			finalSegment.startPos = highlightCursor;
-			finalSegment.endPos = code.length();
-			finalSegment.color = theme.getColor(theme.defaultForeground);
+		//if (highlightCursor < code.length())
+		//{
+		//	HighlightSegment finalSegment = {};
+		//	finalSegment.startPos = highlightCursor;
+		//	finalSegment.endPos = code.length();
+		//	finalSegment.color = theme.getColor(theme.defaultForeground);
 
-			res.segments.emplace_back(finalSegment);
-		}
+		//	res.segments.emplace_back(finalSegment);
+		//}
 
 		return res;
 	}
 
-	void SyntaxHighlighter::reparseSection(CodeHighlights& codeHighlights, const std::string& newCode, size_t , size_t , bool printDebugInfo) const
+	void SyntaxHighlighter::reparseSection(CodeHighlights& /*codeHighlights*/, const std::string& /*newCode*/, size_t, size_t, bool /*printDebugInfo*/) const
 	{
 		if (!this->grammar)
 		{
 			return;
 		}
 
-		codeHighlights.tree = grammar->parseCodeBlock(codeHighlights.codeBlock, printDebugInfo);
-		codeHighlights.segments = {};
-		codeHighlights.codeBlock = newCode;
+		//codeHighlights.tree = grammar->parseCodeBlock(codeHighlights.codeBlock, printDebugInfo);
+		//codeHighlights.segments = {};
+		//codeHighlights.codeBlock = newCode;
 
-		// For each atom in our grammar tree, output a highlight segment with the
-		// appropriate style for that atom
-		size_t highlightCursor = 0;
-		for (size_t child = 0; child < codeHighlights.tree.tree.size(); child++)
-		{
-			if (codeHighlights.tree.tree[child].isAtomicNode)
-			{
-				std::vector<ScopedName> ancestorScopes = codeHighlights.tree.getAllAncestorScopes(child);
+		//// For each atom in our grammar tree, output a highlight segment with the
+		//// appropriate style for that atom
+		//size_t highlightCursor = 0;
+		//for (size_t child = 0; child < codeHighlights.tree.tree.size(); child++)
+		//{
+		//	if (codeHighlights.tree.tree[child].isAtomicNode)
+		//	{
+		//		std::vector<ScopedName> ancestorScopes = codeHighlights.tree.getAllAncestorScopes(child);
 
-				auto settings = codeHighlights.theme->match(ancestorScopes);
-				Vec4 settingForeground = codeHighlights.theme->getColor(settings.getForegroundColor());
+		//		auto settings = codeHighlights.theme->match(ancestorScopes);
+		//		Vec4 settingForeground = codeHighlights.theme->getColor(settings.getForegroundColor());
 
-				size_t absStart = highlightCursor;
-				size_t nodeSize = codeHighlights.tree.tree[child].sourceSpan.size;
+		//		size_t absStart = highlightCursor;
+		//		size_t nodeSize = codeHighlights.tree.tree[child].sourceSpan.size;
 
-				HighlightSegment segment = {};
-				segment.startPos = absStart;
-				segment.endPos = absStart + nodeSize;
-				segment.color = settingForeground;
+		//		HighlightSegment segment = {};
+		//		segment.startPos = absStart;
+		//		segment.endPos = absStart + nodeSize;
+		//		segment.color = settingForeground;
 
-				codeHighlights.segments.emplace_back(segment);
-				highlightCursor += nodeSize;
-			}
-		}
+		//		codeHighlights.segments.emplace_back(segment);
+		//		highlightCursor += nodeSize;
+		//	}
+		//}
 
-		if (highlightCursor < newCode.length())
-		{
-			HighlightSegment finalSegment = {};
-			finalSegment.startPos = highlightCursor;
-			finalSegment.endPos = newCode.length();
-			finalSegment.color = codeHighlights.theme->getColor(codeHighlights.theme->defaultForeground);
+		//if (highlightCursor < newCode.length())
+		//{
+		//	HighlightSegment finalSegment = {};
+		//	finalSegment.startPos = highlightCursor;
+		//	finalSegment.endPos = newCode.length();
+		//	finalSegment.color = codeHighlights.theme->getColor(codeHighlights.theme->defaultForeground);
 
-			codeHighlights.segments.emplace_back(finalSegment);
-		}
+		//	codeHighlights.segments.emplace_back(finalSegment);
+		//}
 	}
 
-	std::string SyntaxHighlighter::getStringifiedParseTreeFor(const std::string& code) const
+	std::string SyntaxHighlighter::getStringifiedParseTreeFor(const std::string& code, SyntaxTheme const& theme) const
 	{
 		if (!this->grammar)
 		{
 			return {};
 		}
 
-		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code);
-		return grammarTree.getStringifiedTree();
+		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code, theme, false);
+		return grammarTree.getStringifiedTree(*grammar);
 	}
 
 	void SyntaxHighlighter::free()

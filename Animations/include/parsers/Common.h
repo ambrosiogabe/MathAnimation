@@ -51,6 +51,24 @@ namespace MathAnim
 		std::string getFriendlyName() const;
 
 		static ScopedName from(const std::string& string);
+
+		bool strictEquals(ScopedName const& other) const
+		{
+			if (other.dotSeparatedScopes.size() != this->dotSeparatedScopes.size())
+			{
+				return false;
+			}
+
+			for (size_t i = 0; i < this->dotSeparatedScopes.size(); i++)
+			{
+				if (this->dotSeparatedScopes[i] != other.dotSeparatedScopes[i])
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
 	};
 
 	struct ScopeSelector

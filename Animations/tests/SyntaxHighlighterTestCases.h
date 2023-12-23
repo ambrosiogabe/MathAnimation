@@ -12,79 +12,101 @@ int main()
 )_";
 
 constexpr const char* CPP_MAIN_TEST_EXPECTED = \
-R"_('source.cpp': '<0, 63>'
-  'meta.preprocessor.include.cpp': '<0, 19>'
-    'keyword.control.directive.include.cpp': '<0, 8>'
-      'ATOM': '#include'
-    'ATOM': ' '
-    'string.quoted.other.ltgt.cpp': '<9, 9>'
-      'punctuation.definition.string.begin.cpp': '<0, 1>'
-        'ATOM': '<'
-      'ATOM': 'stdio.h'
-      'punctuation.definition.string.end.cpp': '<8, 1>'
-        'ATOM': '>'
-    'ATOM': '\n'
-  'ATOM': '\n'
-  'keyword.other.type.cpp': '<20, 3>'
-    'ATOM': 'int'
-  'ATOM': ' '
-  'entity.name.other.callable.cpp': '<24, 4>'
-    'ATOM': 'main'
-  'punctuation.section.begin.round.cpp': '<28, 1>'
-    'ATOM': '('
-  'punctuation.section.end.round.cpp': '<29, 1>'
-    'ATOM': ')'
-  'ATOM': '\n'
-  'punctuation.section.begin.curly.cpp': '<31, 1>'
-    'ATOM': '{'
-  'ATOM': '\n  '
-  'entity.name.other.callable.cpp': '<35, 6>'
-    'ATOM': 'printf'
-  'punctuation.section.begin.round.cpp': '<41, 1>'
-    'ATOM': '('
-  'string.quoted.double.cpp': '<42, 16>'
-    'punctuation.definition.string.begin.cpp': '<0, 1>'
-      'ATOM': '"'
-    'ATOM': 'Hello world!'
-    'constant.character.escape': '<13, 2>'
-      'ATOM': '\n'
-    'punctuation.definition.string.end.cpp': '<15, 1>'
-      'ATOM': '"'
-  'punctuation.section.end.round.cpp': '<58, 1>'
-    'ATOM': ')'
-  'punctuation.terminator.statement.cpp': '<59, 1>'
-    'ATOM': ';'
-  'ATOM': '\n'
-  'punctuation.section.end.curly.cpp': '<61, 1>'
-    'ATOM': '}'
+R"_(<source.cpp>
+  <meta.preprocessor.include.cpp>
+    <keyword.control.directive.include.cpp>
+      '#include'
+    </keyword.control.directive.include.cpp>
+    <string.quoted.other.ltgt.cpp>
+      ' '
+      <punctuation.definition.string.begin.cpp>
+        '<'
+      </punctuation.definition.string.begin.cpp>
+      'stdio.h'
+      <punctuation.definition.string.end.cpp>
+        '>'
+      </punctuation.definition.string.end.cpp>
+    </string.quoted.other.ltgt.cpp>
+    '\n'
+  </meta.preprocessor.include.cpp>
+  '\n'
+  <keyword.other.type.cpp>
+    'int'
+  </keyword.other.type.cpp>
+  ' '
+  <entity.name.other.callable.cpp>
+    'main'
+  </entity.name.other.callable.cpp>
+  <punctuation.section.begin.round.cpp>
+    '('
+  </punctuation.section.begin.round.cpp>
+  <punctuation.section.end.round.cpp>
+    ')'
+  </punctuation.section.end.round.cpp>
+  '\n'
+  <punctuation.section.begin.curly.cpp>
+    '{'
+  </punctuation.section.begin.curly.cpp>
+  '\n  '
+  <entity.name.other.callable.cpp>
+    'printf'
+  </entity.name.other.callable.cpp>
+  <punctuation.section.begin.round.cpp>
+    '('
+  </punctuation.section.begin.round.cpp>
+  <string.quoted.double.cpp>
+    <punctuation.definition.string.begin.cpp>
+      '"'
+    </punctuation.definition.string.begin.cpp>
+    'Hello world!'
+    <constant.character.escape>
+      '\n'
+    </constant.character.escape>
+    <punctuation.definition.string.end.cpp>
+      '"'
+    </punctuation.definition.string.end.cpp>
+  </string.quoted.double.cpp>
+  <punctuation.section.end.round.cpp>
+    ')'
+  </punctuation.section.end.round.cpp>
+  <punctuation.terminator.statement.cpp>
+    ';'
+  </punctuation.terminator.statement.cpp>
+  '\n'
+  <punctuation.section.end.curly.cpp>
+    '}'
+  </punctuation.section.end.curly.cpp>
+  '\n'
+</source.cpp>
 )_";
 
 constexpr const char* CPP_MAIN_TEST_WITH_GLSL_EXPECTED =
-R"_('source.glsl': '<0, 63>'
-  'keyword.control.import.glsl': '<0, 8>'
-    'ATOM': '#include'
-  'ATOM': ' '
-  'string.quoted.include.glsl': '<9, 9>'
-    'ATOM': '<stdio.h>'
-  'ATOM': '\n\n'
-  'NULL_SCOPE': '<20, 10>'
-    'storage.type.glsl': '<0, 3>'
-      'ATOM': 'int'
-    'ATOM': ' '
-    'entity.name.function.glsl': '<4, 4>'
-      'ATOM': 'main'
-    'ATOM': '()'
-  'ATOM': '\n'
-  'NULL_SCOPE': '<31, 31>'
-    'ATOM': '{\n  '
-    'NULL_SCOPE': '<4, 24>'
-      'support.function.glsl': '<0, 6>'
-        'ATOM': 'printf'
-      'ATOM': '("Hello world'
-      'keyword.operator.arithmetic.glsl': '<19, 1>'
-        'ATOM': '!'
-      'ATOM': '\n")'
-    'ATOM': ';\n}'
+R"_(<source.glsl>
+  <keyword.control.import.glsl>
+    '#include'
+  </keyword.control.import.glsl>
+  ' '
+  <string.quoted.include.glsl>
+    '<stdio.h>'
+  </string.quoted.include.glsl>
+  '\n\n'
+  <storage.type.glsl>
+    'int'
+  </storage.type.glsl>
+  ' '
+  <entity.name.function.glsl>
+    'main'
+  </entity.name.function.glsl>
+  '()\n{\n  '
+  <support.function.glsl>
+    'printf'
+  </support.function.glsl>
+  '("Hello world'
+  <keyword.operator.arithmetic.glsl>
+    '!'
+  </keyword.operator.arithmetic.glsl>
+  '\n");\n}\n'
+</source.glsl>
 )_";
 
 // NOTE: This covers a test case where I wasn't setting capture groups that
@@ -95,12 +117,15 @@ R"_('source.glsl': '<0, 63>'
 constexpr const char* JS_NUMBER_LITERAL_TEST_SRC = "3.14";
 
 constexpr const char* JS_NUMBER_LITERAL_TEST_EXPECTED = \
-R"_('source.js': '<0, 4>'
-  'constant.numeric.decimal.js': '<0, 4>'
-    'ATOM': '3'
-    'meta.delimiter.decimal.period.js': '<1, 1>'
-      'ATOM': '.'
-    'ATOM': '14'
+R"_(<source.js>
+  <constant.numeric.decimal.js>
+    '3'
+    <meta.delimiter.decimal.period.js>
+      '.'
+    </meta.delimiter.decimal.period.js>
+    '14'
+  </constant.numeric.decimal.js>
+</source.js>
 )_";
 
 // NOTE: This covers a test case where I was incorrectly continuing to parse a document after 
@@ -116,26 +141,34 @@ int main()
 )_";
 
 constexpr const char* CPP_STRAY_BRACKET_TEST_EXPECTED = \
-R"_('source.cpp': '<0, 74>'
-  'meta.preprocessor.include.cpp': '<0, 19>'
-    'keyword.control.directive.include.cpp': '<0, 8>'
-      'ATOM': '#include'
-    'ATOM': ' '
-    'string.quoted.other.ltgt.cpp': '<9, 9>'
-      'punctuation.definition.string.begin.cpp': '<0, 1>'
-        'ATOM': '<'
-      'ATOM': 'stdio.h'
-      'punctuation.definition.string.end.cpp': '<8, 1>'
-        'ATOM': '>'
-    'ATOM': '\n'
-  'meta.preprocessor.include.cpp': '<19, 55>'
-    'keyword.control.directive.include.cpp': '<0, 8>'
-      'ATOM': '#include'
-    'ATOM': ' '
-    'string.quoted.other.ltgt.cpp': '<9, 46>'
-      'punctuation.definition.string.begin.cpp': '<0, 1>'
-        'ATOM': '<'
-      'ATOM': '\n\nint main()\n{\n  printf("Hello world!\n");\n}\n'
+R"_(<source.cpp>
+  <meta.preprocessor.include.cpp>
+    <keyword.control.directive.include.cpp>
+      '#include'
+    </keyword.control.directive.include.cpp>
+    <string.quoted.other.ltgt.cpp>
+      ' '
+      <punctuation.definition.string.begin.cpp>
+        '<'
+      </punctuation.definition.string.begin.cpp>
+      'stdio.h'
+      <punctuation.definition.string.end.cpp>
+        '>'
+      </punctuation.definition.string.end.cpp>
+    </string.quoted.other.ltgt.cpp>
+    '\n'
+    <keyword.control.directive.include.cpp>
+      '#include'
+    </keyword.control.directive.include.cpp>
+    <string.quoted.other.ltgt.cpp>
+      ' '
+      <punctuation.definition.string.begin.cpp>
+        '<'
+      </punctuation.definition.string.begin.cpp>
+      '\n\nint main()\n{\n  printf("Hello world!\n");\n}\n'
+    </string.quoted.other.ltgt.cpp>
+  </meta.preprocessor.include.cpp>
+</source.cpp>
 )_";
 
 // NOTE: This tests a rule I had where the comment continued parsing until the end of the document

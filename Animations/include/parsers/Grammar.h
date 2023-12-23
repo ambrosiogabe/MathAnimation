@@ -2,6 +2,7 @@
 #define MATH_ANIM_GRAMMAR_H
 #include "core.h"
 #include "parsers/Common.h"
+#include "parsers/SyntaxTheme.h"
 
 #include <nlohmann/json_fwd.hpp>
 
@@ -10,8 +11,10 @@ namespace MathAnim
 	// Internal forward decls
 	struct Grammar;
 	struct PatternRepository;
-	struct GrammarMatch;
+	struct GrammarMatchV2;
 	struct SyntaxPattern;
+	struct GrammarLineInfo;
+	struct SourceGrammarTree;
 
 	// Typedefs
 	typedef uint64 GrammarPatternGid;
@@ -24,8 +27,10 @@ namespace MathAnim
 		uint64 firstSelfPatternArrayIndex;
 		OnigRegSet* regset;
 
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
-		bool matchAll(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
+		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
+		size_t tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
+		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
+		size_t tryParseAll(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
 
 		void free();
 	};
@@ -72,7 +77,11 @@ namespace MathAnim
 		OnigRegex regMatch;
 		std::optional<CaptureList> captures;
 
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
+		void pushScopeToAncestorStack(GrammarLineInfo& line) const;
+		void popScopeFromAncestorStack(GrammarLineInfo& line) const;
+
+		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
+		size_t tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
 
 		void free();
 	};
@@ -86,7 +95,13 @@ namespace MathAnim
 		std::optional<CaptureList> endCaptures;
 		std::optional<PatternArray> patterns;
 
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
+		void pushScopeToAncestorStack(GrammarLineInfo& line) const;
+		void popScopeFromAncestorStack(GrammarLineInfo& line) const;
+
+		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
+		size_t tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self, GrammarPatternGid gid) const;
+		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
+		size_t resumeParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t currentByte, OnigRegex endPattern, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
 
 		void free();
 	};
@@ -110,8 +125,9 @@ namespace MathAnim
 		const Grammar* self;
 		GrammarPatternGid gid;
 		uint64 patternArrayIndex;
-
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		
+		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
+		size_t tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region) const;
 
 		void free();
 	};
@@ -121,52 +137,59 @@ namespace MathAnim
 		std::unordered_map<std::string, SyntaxPattern*> patterns;
 	};
 
-	struct GrammarMatch
+	struct GrammarMatchV2
 	{
 		size_t start;
 		size_t end;
 		std::optional<ScopedName> scope;
-		std::vector<GrammarMatch> subMatches;
-	};
-
-	// Data for source grammar trees
-	struct Span
-	{
-		size_t relativeStart;
-		size_t size;
-	};
-
-	struct SourceGrammarTreeNode
-	{
-		size_t nextNodeDelta;
-		size_t parentDelta;
-		Span sourceSpan;
-		std::optional<ScopedName> scope;
-		bool isAtomicNode;
 	};
 
 	struct SourceSyntaxToken
 	{
 		// The byte that this token starts at in the text
 		uint32 startByte;
+		PackedSyntaxStyle style;
+		std::vector<ScopedName> debugAncestorStack;
+	};
+
+	struct GrammarResumeParseInfo
+	{
+		GrammarPatternGid gid;
+		OnigRegex endPattern;
+		size_t anchor;
+		size_t currentByte;
+
+		inline bool operator==(GrammarResumeParseInfo const& other) const
+		{
+			return gid == other.gid && endPattern == other.endPattern && anchor == other.anchor;
+		}
+
+		inline bool operator!=(GrammarResumeParseInfo const& other) const
+		{
+			return !(*this == other);
+		}
+	};
+
+	struct GrammarLineInfo
+	{
+		std::vector<SourceSyntaxToken> tokens;
+		std::vector<ScopedName> ancestors;
+		std::vector<GrammarResumeParseInfo> patternStack;
+		uint32 byteStart;
+		uint32 numBytes;
 	};
 
 	// This corresponds to the tree represented here: https://macromates.com/blog/2005/introduction-to-scopes/#htmlxml-analogy
 	struct SourceGrammarTree
 	{
-		std::vector<SourceGrammarTreeNode> tree;
-		ScopedName rootScope;
+		std::vector<GrammarLineInfo> sourceInfo;
 		std::string codeBlock;
 
-		void insertNode(const SourceGrammarTreeNode& node, size_t sourceSpanOffset);
-		void removeNode(size_t nodeIndex);
-
-		std::vector<ScopedName> getAllAncestorScopes(size_t node) const;
 		std::vector<ScopedName> getAllAncestorScopesAtChar(size_t cursorPos) const;
 		std::string getMatchTextAtChar(size_t cursorPos) const;
 
 		// Default buffer size of 10KB
-		std::string getStringifiedTree(size_t bufferSize = 1024 * 10) const;
+		std::string getStringifiedTree(Grammar const& grammar, size_t bufferSize = 1024 * 10) const;
 	};
 
 	// This loosely follows the rules set out by TextMate grammars.
@@ -182,8 +205,13 @@ namespace MathAnim
 		std::unordered_map<GrammarPatternGid, SyntaxPattern const *const> globalPatternIndex;
 		GrammarPatternGid gidCounter;
 
-		SourceGrammarTree parseCodeBlock(const std::string& code, bool printDebugStuff = false) const;
-		bool getNextMatch(const std::string& code, std::vector<GrammarMatch>* outMatches) const;
+		SourceGrammarTree initCodeBlock(const std::string& code) const;
+
+		// @returns -- The number of lines updated
+		size_t updateFromByte(SourceGrammarTree& tree, SyntaxTheme const& theme, uint32_t byteOffset = 0, uint32_t maxNumLinesToUpdate = 30) const;
+
+		// @deprecated -- Do it yourself, no really. Do it yourself.
+		SourceGrammarTree Grammar::parseCodeBlock(const std::string& code, SyntaxTheme const& theme, bool printDebugStuff) const;
 
 		static Grammar* importGrammar(const char* filepath);
 		static void free(Grammar* grammar);
