@@ -17,8 +17,8 @@ R"_(<source.cpp>
     <keyword.control.directive.include.cpp>
       '#include'
     </keyword.control.directive.include.cpp>
+    ' '
     <string.quoted.other.ltgt.cpp>
-      ' '
       <punctuation.definition.string.begin.cpp>
         '<'
       </punctuation.definition.string.begin.cpp>
@@ -146,8 +146,8 @@ R"_(<source.cpp>
     <keyword.control.directive.include.cpp>
       '#include'
     </keyword.control.directive.include.cpp>
+    ' '
     <string.quoted.other.ltgt.cpp>
-      ' '
       <punctuation.definition.string.begin.cpp>
         '<'
       </punctuation.definition.string.begin.cpp>
@@ -160,8 +160,8 @@ R"_(<source.cpp>
     <keyword.control.directive.include.cpp>
       '#include'
     </keyword.control.directive.include.cpp>
+    ' '
     <string.quoted.other.ltgt.cpp>
-      ' '
       <punctuation.definition.string.begin.cpp>
         '<'
       </punctuation.definition.string.begin.cpp>
@@ -459,66 +459,88 @@ R"_(for (const n in this.numbers) {
 })_";
 
 constexpr const char* JS_FOR_LOOP_EXPECTED = \
-R"_('source.js': '<0, 59>'
-  'keyword.control.js': '<0, 3>'
-    'ATOM': 'for'
-  'ATOM': ' '
-  'NULL_SCOPE': '<4, 25>'
-    'meta.brace.round.js': '<0, 1>'
-      'ATOM': '('
-    'NULL_SCOPE': '<1, 10>'
-      'storage.type.const.js': '<0, 5>'
-        'ATOM': 'const'
-      'ATOM': ' '
-      'constant.other.js': '<6, 1>'
-        'ATOM': 'n'
-      'ATOM': ' '
-      'keyword.operator.in[$1].js': '<8, 2>'
-        'ATOM': 'in'
-    'ATOM': ' '
-    'variable.language.js': '<12, 4>'
-      'ATOM': 'this'
-    'meta.delimiter.property.period.js': '<16, 1>'
-      'ATOM': '.'
-    'variable.other.property.js': '<17, 7>'
-      'ATOM': 'numbers'
-    'meta.brace.round.js': '<24, 1>'
-      'ATOM': ')'
-  'ATOM': ' '
-  'NULL_SCOPE': '<30, 29>'
-    'meta.brace.curly.js': '<0, 1>'
-      'ATOM': '{'
-    'ATOM': '\n  '
-    'NULL_SCOPE': '<4, 22>'
-      'entity.name.type.object.console.js': '<0, 7>'
-        'ATOM': 'console'
-      'meta.method-call.js': '<7, 15>'
-        'meta.delimiter.method.period.js': '<0, 1>'
-          'ATOM': '.'
-        'support.function.console.js': '<1, 3>'
-          'ATOM': 'log'
-        'meta.arguments.js': '<4, 11>'
-          'punctuation.definition.arguments.begin.bracket.round.js': '<0, 1>'
-            'ATOM': '('
-          'string.quoted.template.js': '<1, 9>'
-            'punctuation.definition.string.begin.js': '<0, 1>'
-              'ATOM': '`'
-            'ATOM': 'N: '
-            'source.js.embedded.source': '<4, 4>'
-              'punctuation.section.embedded.js': '<0, 2>'
-                'ATOM': '${'
-              'ATOM': 'n'
-              'punctuation.section.embedded.js': '<3, 1>'
-                'ATOM': '}'
-            'punctuation.definition.string.end.js': '<8, 1>'
-              'ATOM': '`'
-          'punctuation.definition.arguments.end.bracket.round.js': '<10, 1>'
-            'ATOM': ')'
-    'punctuation.terminator.statement.js': '<26, 1>'
-      'ATOM': ';'
-    'ATOM': '\n'
-    'meta.brace.curly.js': '<28, 1>'
-      'ATOM': '}'
+R"_(<source.js>
+  <keyword.control.js>
+    'for'
+  </keyword.control.js>
+  ' '
+  <meta.brace.round.js>
+    '('
+  </meta.brace.round.js>
+  <storage.type.const.js>
+    'const'
+  </storage.type.const.js>
+  ' '
+  <constant.other.js>
+    'n'
+  </constant.other.js>
+  ' '
+  <keyword.operator.in[$1].js>
+    'in'
+  </keyword.operator.in[$1].js>
+  ' '
+  <variable.language.js>
+    'this'
+  </variable.language.js>
+  <meta.delimiter.property.period.js>
+    '.'
+  </meta.delimiter.property.period.js>
+  <variable.other.property.js>
+    'numbers'
+  </variable.other.property.js>
+  <meta.brace.round.js>
+    ')'
+  </meta.brace.round.js>
+  ' '
+  <meta.brace.curly.js>
+    '{'
+  </meta.brace.curly.js>
+  '\n  '
+  <entity.name.type.object.console.js>
+    'console'
+  </entity.name.type.object.console.js>
+  <meta.method-call.js>
+    <meta.delimiter.method.period.js>
+      '.'
+    </meta.delimiter.method.period.js>
+    <support.function.console.js>
+      'log'
+    </support.function.console.js>
+    <meta.arguments.js>
+      <punctuation.definition.arguments.begin.bracket.round.js>
+        '('
+      </punctuation.definition.arguments.begin.bracket.round.js>
+      <string.quoted.template.js>
+        <punctuation.definition.string.begin.js>
+          '`'
+        </punctuation.definition.string.begin.js>
+        'N: '
+        <source.js.embedded.source>
+          <punctuation.section.embedded.js>
+            '${'
+          </punctuation.section.embedded.js>
+          'n'
+          <punctuation.section.embedded.js>
+            '}'
+          </punctuation.section.embedded.js>
+        </source.js.embedded.source>
+        <punctuation.definition.string.end.js>
+          '`'
+        </punctuation.definition.string.end.js>
+      </string.quoted.template.js>
+      <punctuation.definition.arguments.end.bracket.round.js>
+        ')'
+      </punctuation.definition.arguments.end.bracket.round.js>
+    </meta.arguments.js>
+  </meta.method-call.js>
+  <punctuation.terminator.statement.js>
+    ';'
+  </punctuation.terminator.statement.js>
+  '\n'
+  <meta.brace.curly.js>
+    '}'
+  </meta.brace.curly.js>
+</source.js>
 )_";
 
 constexpr const char* JS_CAPTURE_IN_CAPTURE_SRC = "for (const foo in blah) {}";

@@ -165,6 +165,7 @@ namespace MathAnim
 		size_t anchor;
 		size_t currentByte;
 		size_t originalStart;
+		size_t gapTokenStart;
 
 		inline bool operator==(GrammarResumeParseInfo const& other) const
 		{

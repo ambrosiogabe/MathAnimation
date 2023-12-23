@@ -199,6 +199,28 @@ namespace MathAnim
 		// If beginBlockMatch is valid, then we'll use the result stored in `region` to find any captures
 		std::vector<GrammarMatchV2> beginSubMatches = getCapturesV2(line, code, theme, repo, region, this->beginCaptures, self);
 
+		// We'll be storing information for how to resume parsing if we get interrupted
+		GrammarResumeParseInfo resumeInfo = {};
+
+		// If there is no gap, then this will equal the start location and nothing will happen
+		resumeInfo.gapTokenStart = beginBlockMatch->start;
+
+		if (beginBlockMatch->start > start)
+		{
+			// Make sure to record where this gap is stored just in case we need to pop it when we pop the rest of this
+			// off the stack
+			resumeInfo.gapTokenStart = start;
+
+			// Fill in the gap if needed before we push our scope to the stack
+			SourceSyntaxToken token = {};
+			token.startByte = (uint32)start;
+			token.debugAncestorStack = line.ancestors;
+			token.style = theme.match(line.ancestors);
+
+			line.tokens.emplace_back(token);
+			start = beginBlockMatch->start;
+		}
+
 		pushScopeToAncestorStack(line);
 		size_t endOfBeginBlockSubMatches = pushMatchesToLine(line, beginSubMatches, theme, start);
 
@@ -238,12 +260,11 @@ namespace MathAnim
 
 		// We're potentially entering a pattern that could exceed this line, so we'll store the gid here in case
 		// we need to resume parsing at a later time
-		GrammarResumeParseInfo resumeInfo = {};
 		resumeInfo.gid = gid;
 		resumeInfo.anchor = beginBlockMatch->end;
 		resumeInfo.endPattern = endPattern;
 		resumeInfo.currentByte = endOfBeginBlockSubMatches;
-		resumeInfo.originalStart = start;
+		resumeInfo.originalStart = beginBlockMatch->start;
 		line.patternStack.emplace_back(resumeInfo);
 
 		return resumeParse(line, code, theme, resumeInfo.currentByte, endPattern, beginBlockMatch->end, beginBlockMatch->end, code.length(), repo, region, self);
@@ -305,17 +326,19 @@ namespace MathAnim
 
 				// Discard any matches that begin outside of our inBetweenBlock
 				bool anyMatchesBeganInBetweenScope = false;
-				if (span.matchStart > inBetweenEnd)
+				if (span.matchStart >= inBetweenEnd)
 				{
 					line.tokens.erase(line.tokens.begin() + lastTokensSize, line.tokens.end());
 					// Reset currentByte
 					currentByte = inBetweenStart;
+					break;
 				}
 				else if (span.matchStart < inBetweenStart)
 				{
 					line.tokens.erase(line.tokens.begin() + lastTokensSize, line.tokens.end());
 					// Reset currentByte
 					currentByte = inBetweenStart;
+					break;
 				}
 				else
 				{
@@ -374,7 +397,7 @@ namespace MathAnim
 					}
 				}
 				// ----
-				else if (inBetweenStart == endBlockMatch->end || !anyMatchesBeganInBetweenScope)
+				else if (inBetweenStart == endBlockMatch->end)
 				{
 					break;
 				}
@@ -383,7 +406,19 @@ namespace MathAnim
 
 		if (endBlockMatch->end > line.byteStart + line.numBytes)
 		{
-			goto complexPattern_AddMatchesAndReturnEarly;
+			if (endBlockMatch->end == code.length() && endBlockMatch->start == code.length())
+			{
+				// If no matches were found and no end match for the begin match was found, then this
+				// indicates that we've parsed to the end of the file as a failure. So pop this off the
+				// stack, and return the failure
+				line.patternStack.pop_back();
+				popScopeFromAncestorStack(line);
+				return { endBlockMatch->end, endBlockMatch->end };
+			}
+			else
+			{
+				goto complexPattern_AddMatchesAndReturnEarly;
+			}
 		}
 
 		// Free dynamic regex if necessary
@@ -1048,7 +1083,7 @@ namespace MathAnim
 						theme,
 						start,
 						resumeInfo.endPattern,
-						start,
+						resumeInfo.anchor,
 						start,
 						lineInfo->byteStart + lineInfo->numBytes,
 						this->repository,
@@ -1060,7 +1095,7 @@ namespace MathAnim
 					if (newCursorPos == start || newCursorPos >= lineInfo->byteStart + lineInfo->numBytes)
 					{
 						// TODO: This duplicates a block slightly below, see if they should be combined
-						
+
 						// Found all the matches for this line, we can stop parsing now
 						// If no matches were found, just add an empty token so we have comprehensive coverage with all tokens
 						if (lineInfo->tokens.size() == 0)
