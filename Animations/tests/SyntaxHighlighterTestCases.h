@@ -179,19 +179,26 @@ int foo;
 )_";
 
 constexpr const char* CPP_SINGLE_LINE_COMMENT_TEST_EXPECTED = \
-R"_('source.cpp': '<0, 21>'
-  'comment.line.cpp': '<0, 11>'
-    'punctuation.definition.comment.cpp': '<0, 2>'
-      'ATOM': '//'
-    'ATOM': ' Comments'
-  'ATOM': '\n'
-  'keyword.other.type.cpp': '<12, 3>'
-    'ATOM': 'int'
-  'ATOM': ' '
-  'entity.name.other.unknown.cpp': '<16, 3>'
-    'ATOM': 'foo'
-  'punctuation.terminator.statement.cpp': '<19, 1>'
-    'ATOM': ';'
+R"_(<source.cpp>
+  <comment.line.cpp>
+    <punctuation.definition.comment.cpp>
+      '//'
+    </punctuation.definition.comment.cpp>
+    ' Comments'
+  </comment.line.cpp>
+  '\n'
+  <keyword.other.type.cpp>
+    'int'
+  </keyword.other.type.cpp>
+  ' '
+  <entity.name.other.unknown.cpp>
+    'foo'
+  </entity.name.other.unknown.cpp>
+  <punctuation.terminator.statement.cpp>
+    ';'
+  </punctuation.terminator.statement.cpp>
+  '\n'
+</source.cpp>
 )_";
 
 constexpr const char* JS_BASIC_ARROW_FN_TEST_SRC = \

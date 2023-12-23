@@ -1807,7 +1807,22 @@ namespace MathAnim
 			}
 		}
 
-		return pushMatchesToLine(line, subMatches, theme, currentByte);
+		currentByte = pushMatchesToLine(line, subMatches, theme, currentByte);
+
+		if (currentByte < parent.end && parent.scope.has_value())
+		{
+			// Push a token to fill in the gap
+			SourceSyntaxToken token = {};
+			token.debugAncestorStack = line.ancestors;
+			token.startByte = (uint32)currentByte;
+			token.style = theme.match(line.ancestors);
+
+			line.tokens.emplace_back(token);
+
+			currentByte = parent.end;
+		}
+
+		return currentByte;
 	}
 
 	static size_t pushMatchesToLine(GrammarLineInfo& line, std::vector<GrammarMatchV2> const& subMatches, SyntaxTheme const& theme, size_t currentByte)
