@@ -292,92 +292,127 @@ R"_(var sum = async function () {
 )_";
 
 constexpr const char* JS_ANCHORED_MATCHES_EXPECTED = \
-R"_('source.js': '<0, 57>'
-  'storage.type.var.js': '<0, 3>'
-    'ATOM': 'var'
-  'ATOM': ' '
-  'NULL_SCOPE': '<4, 52>'
-    'meta.function.js': '<0, 23>'
-      'entity.name.function.js': '<0, 3>'
-        'ATOM': 'sum'
-      'ATOM': ' '
-      'keyword.operator.assignment.js': '<4, 1>'
-        'ATOM': '='
-      'ATOM': ' '
-      'storage.modifier.async.js': '<6, 5>'
-        'ATOM': 'async'
-      'ATOM': ' '
-      'storage.type.function.js': '<12, 8>'
-        'ATOM': 'function'
-      'ATOM': ' '
-      'meta.parameters.js': '<21, 2>'
-        'punctuation.definition.parameters.begin.bracket.round.js': '<0, 1>'
-          'ATOM': '('
-        'punctuation.definition.parameters.end.bracket.round.js': '<1, 1>'
-          'ATOM': ')'
-    'ATOM': ' '
-    'NULL_SCOPE': '<24, 28>'
-      'punctuation.definition.function.body.begin.bracket.curly.js': '<0, 1>'
-        'ATOM': '{'
-      'ATOM': '\n  '
-      'keyword.control.js': '<4, 5>'
-        'ATOM': 'await'
-      'ATOM': ' '
-      'variable.language.js': '<10, 4>'
-        'ATOM': 'this'
-      'meta.delimiter.property.period.js': '<14, 1>'
-        'ATOM': '.'
-      'variable.other.property.js': '<15, 1>'
-        'ATOM': 'a'
-      'ATOM': ' '
-      'keyword.operator.js': '<17, 1>'
-        'ATOM': '+'
-      'ATOM': ' '
-      'variable.language.js': '<19, 4>'
-        'ATOM': 'this'
-      'meta.delimiter.property.period.js': '<23, 1>'
-        'ATOM': '.'
-      'variable.other.property.js': '<24, 1>'
-        'ATOM': 'b'
-      'punctuation.terminator.statement.js': '<25, 1>'
-        'ATOM': ';'
-      'ATOM': '\n'
-      'punctuation.definition.function.body.end.bracket.curly.js': '<27, 1>'
-        'ATOM': '}'
+R"_(<source.js>
+  <storage.type.var.js>
+    'var'
+  </storage.type.var.js>
+  ' '
+  <meta.function.js>
+    <entity.name.function.js>
+      'sum'
+    </entity.name.function.js>
+    ' '
+    <keyword.operator.assignment.js>
+      '='
+    </keyword.operator.assignment.js>
+    ' '
+    <storage.modifier.async.js>
+      'async'
+    </storage.modifier.async.js>
+    ' '
+    <storage.type.function.js>
+      'function'
+    </storage.type.function.js>
+    <meta.parameters.js>
+      ' '
+      <punctuation.definition.parameters.begin.bracket.round.js>
+        '('
+      </punctuation.definition.parameters.begin.bracket.round.js>
+      <punctuation.definition.parameters.end.bracket.round.js>
+        ')'
+      </punctuation.definition.parameters.end.bracket.round.js>
+    </meta.parameters.js>
+  </meta.function.js>
+  ' '
+  <punctuation.definition.function.body.begin.bracket.curly.js>
+    '{'
+  </punctuation.definition.function.body.begin.bracket.curly.js>
+  '\n  '
+  <keyword.control.js>
+    'await'
+  </keyword.control.js>
+  ' '
+  <variable.language.js>
+    'this'
+  </variable.language.js>
+  <meta.delimiter.property.period.js>
+    '.'
+  </meta.delimiter.property.period.js>
+  <variable.other.property.js>
+    'a'
+  </variable.other.property.js>
+  ' '
+  <keyword.operator.js>
+    '+'
+  </keyword.operator.js>
+  ' '
+  <variable.language.js>
+    'this'
+  </variable.language.js>
+  <meta.delimiter.property.period.js>
+    '.'
+  </meta.delimiter.property.period.js>
+  <variable.other.property.js>
+    'b'
+  </variable.other.property.js>
+  <punctuation.terminator.statement.js>
+    ';'
+  </punctuation.terminator.statement.js>
+  '\n'
+  <punctuation.definition.function.body.end.bracket.curly.js>
+    '}'
+  </punctuation.definition.function.body.end.bracket.curly.js>
+  '\n'
+</source.js>
 )_";
 
 constexpr const char* JS_INTERPOLATED_STRING_SRC = "`${this.a + this.b}`;";
 
 constexpr const char* JS_INTERPOLATED_STRING_EXPECTED = \
-R"_('source.js': '<0, 21>'
-  'string.quoted.template.js': '<0, 20>'
-    'punctuation.definition.string.begin.js': '<0, 1>'
-      'ATOM': '`'
-    'source.js.embedded.source': '<1, 18>'
-      'punctuation.section.embedded.js': '<0, 2>'
-        'ATOM': '${'
-      'variable.language.js': '<2, 4>'
-        'ATOM': 'this'
-      'meta.delimiter.property.period.js': '<6, 1>'
-        'ATOM': '.'
-      'variable.other.property.js': '<7, 1>'
-        'ATOM': 'a'
-      'ATOM': ' '
-      'keyword.operator.js': '<9, 1>'
-        'ATOM': '+'
-      'ATOM': ' '
-      'variable.language.js': '<11, 4>'
-        'ATOM': 'this'
-      'meta.delimiter.property.period.js': '<15, 1>'
-        'ATOM': '.'
-      'variable.other.property.js': '<16, 1>'
-        'ATOM': 'b'
-      'punctuation.section.embedded.js': '<17, 1>'
-        'ATOM': '}'
-    'punctuation.definition.string.end.js': '<19, 1>'
-      'ATOM': '`'
-  'punctuation.terminator.statement.js': '<20, 1>'
-    'ATOM': ';'
+R"_(<source.js>
+  <string.quoted.template.js>
+    <punctuation.definition.string.begin.js>
+      '`'
+    </punctuation.definition.string.begin.js>
+    <source.js.embedded.source>
+      <punctuation.section.embedded.js>
+        '${'
+      </punctuation.section.embedded.js>
+      <variable.language.js>
+        'this'
+      </variable.language.js>
+      <meta.delimiter.property.period.js>
+        '.'
+      </meta.delimiter.property.period.js>
+      <variable.other.property.js>
+        'a'
+      </variable.other.property.js>
+      ' '
+      <keyword.operator.js>
+        '+'
+      </keyword.operator.js>
+      ' '
+      <variable.language.js>
+        'this'
+      </variable.language.js>
+      <meta.delimiter.property.period.js>
+        '.'
+      </meta.delimiter.property.period.js>
+      <variable.other.property.js>
+        'b'
+      </variable.other.property.js>
+      <punctuation.section.embedded.js>
+        '}'
+      </punctuation.section.embedded.js>
+    </source.js.embedded.source>
+    <punctuation.definition.string.end.js>
+      '`'
+    </punctuation.definition.string.end.js>
+  </string.quoted.template.js>
+  <punctuation.terminator.statement.js>
+    ';'
+  </punctuation.terminator.statement.js>
+</source.js>
 )_";
 
 constexpr const char* JS_TEST_BEGIN_CAPTURE_EXTENDING_BEYOND_MATCH_SRC = "console.log(\"Hello World!\");";
