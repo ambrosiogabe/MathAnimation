@@ -19,6 +19,12 @@ namespace MathAnim
 	// Typedefs
 	typedef uint64 GrammarPatternGid;
 
+	struct MatchSpan
+	{
+		size_t matchStart;
+		size_t matchEnd;
+	};
+
 	// Structs
 	struct PatternArray
 	{
@@ -27,10 +33,10 @@ namespace MathAnim
 		uint64 firstSelfPatternArrayIndex;
 		OnigRegSet* regset;
 
-		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
-		size_t tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
-		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
-		size_t tryParseAll(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
+		// @returns The overall span of this match
+		MatchSpan tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
+		// @returns The overall span of all matches contained by this pattern array
+		MatchSpan tryParseAll(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
 
 		void free();
 	};
@@ -80,8 +86,8 @@ namespace MathAnim
 		void pushScopeToAncestorStack(GrammarLineInfo& line) const;
 		void popScopeFromAncestorStack(GrammarLineInfo& line) const;
 
-		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
-		size_t tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
+		// @returns The overall span of this match
+		MatchSpan tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
 
 		void free();
 	};
@@ -98,10 +104,10 @@ namespace MathAnim
 		void pushScopeToAncestorStack(GrammarLineInfo& line) const;
 		void popScopeFromAncestorStack(GrammarLineInfo& line) const;
 
-		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
-		size_t tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self, GrammarPatternGid gid) const;
-		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
-		size_t resumeParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t currentByte, OnigRegex endPattern, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
+		// @returns The overall span of this match
+		MatchSpan tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self, GrammarPatternGid gid) const;
+		// @returns The overall span of this match
+		MatchSpan resumeParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t currentByte, OnigRegex endPattern, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
 
 		void free();
 	};
@@ -126,8 +132,8 @@ namespace MathAnim
 		GrammarPatternGid gid;
 		uint64 patternArrayIndex;
 		
-		// @returns The new cursor position at the end of the match. If the return value == start parameter, then nothing was matched
-		size_t tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region) const;
+		// @returns The overall span of this match
+		MatchSpan tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region) const;
 
 		void free();
 	};

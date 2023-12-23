@@ -60,7 +60,7 @@ R"_(<source.cpp>
     </punctuation.definition.string.begin.cpp>
     'Hello world!'
     <constant.character.escape>
-      '\n'
+      '\\n'
     </constant.character.escape>
     <punctuation.definition.string.end.cpp>
       '"'
@@ -105,7 +105,7 @@ R"_(<source.glsl>
   <keyword.operator.arithmetic.glsl>
     '!'
   </keyword.operator.arithmetic.glsl>
-  '\n");\n}\n'
+  '\\n");\n}\n'
 </source.glsl>
 )_";
 
@@ -165,7 +165,7 @@ R"_(<source.cpp>
       <punctuation.definition.string.begin.cpp>
         '<'
       </punctuation.definition.string.begin.cpp>
-      '\n\nint main()\n{\n  printf("Hello world!\n");\n}\n'
+      '\n\nint main()\n{\n  printf("Hello world!\\n");\n}\n'
     </string.quoted.other.ltgt.cpp>
   </meta.preprocessor.include.cpp>
 </source.cpp>
@@ -208,61 +208,79 @@ R"_(const foo = () => {
 )_";
 
 constexpr const char* JS_BASIC_ARROW_FN_TEST_EXPECTED = \
-R"_('source.js': '<0, 47>'
-  'NULL_SCOPE': '<0, 11>'
-    'storage.type.const.js': '<0, 5>'
-      'ATOM': 'const'
-    'ATOM': ' '
-    'constant.other.js': '<6, 3>'
-      'ATOM': 'foo'
-    'ATOM': ' '
-    'keyword.operator.assignment.js': '<10, 1>'
-      'ATOM': '='
-  'ATOM': ' '
-  'NULL_SCOPE': '<12, 34>'
-    'meta.function.arrow.js': '<0, 5>'
-      'meta.parameters.js': '<0, 2>'
-        'punctuation.definition.parameters.begin.bracket.round.js': '<0, 1>'
-          'ATOM': '('
-        'punctuation.definition.parameters.end.bracket.round.js': '<1, 1>'
-          'ATOM': ')'
-      'ATOM': ' '
-      'storage.type.function.arrow.js': '<3, 2>'
-        'ATOM': '=>'
-    'ATOM': ' '
-    'NULL_SCOPE': '<6, 28>'
-      'punctuation.definition.function.body.begin.bracket.curly.js': '<0, 1>'
-        'ATOM': '{'
-      'ATOM': '\n  '
-      'keyword.control.js': '<4, 6>'
-        'ATOM': 'return'
-      'ATOM': ' '
-      'NULL_SCOPE': '<11, 14>'
-        'meta.brace.curly.js': '<0, 1>'
-          'ATOM': '{'
-        'ATOM': ' '
-        'string.quoted.single.js': '<2, 4>'
-          'punctuation.definition.string.begin.js': '<0, 1>'
-            'ATOM': '''
-          'ATOM': 'PI'
-          'punctuation.definition.string.end.js': '<3, 1>'
-            'ATOM': '''
-        'keyword.operator.assignment.js': '<6, 1>'
-          'ATOM': ':'
-        'ATOM': ' '
-        'constant.numeric.decimal.js': '<8, 4>'
-          'ATOM': '3'
-          'meta.delimiter.decimal.period.js': '<1, 1>'
-            'ATOM': '.'
-          'ATOM': '14'
-        'ATOM': ' '
-        'meta.brace.curly.js': '<13, 1>'
-          'ATOM': '}'
-      'punctuation.terminator.statement.js': '<25, 1>'
-        'ATOM': ';'
-      'ATOM': '\n'
-      'punctuation.definition.function.body.end.bracket.curly.js': '<27, 1>'
-        'ATOM': '}'
+R"_(<source.js>
+  <storage.type.const.js>
+    'const'
+  </storage.type.const.js>
+  ' '
+  <constant.other.js>
+    'foo'
+  </constant.other.js>
+  ' '
+  <keyword.operator.assignment.js>
+    '='
+  </keyword.operator.assignment.js>
+  ' '
+  <meta.function.arrow.js>
+    <meta.parameters.js>
+      <punctuation.definition.parameters.begin.bracket.round.js>
+        '('
+      </punctuation.definition.parameters.begin.bracket.round.js>
+      <punctuation.definition.parameters.end.bracket.round.js>
+        ')'
+      </punctuation.definition.parameters.end.bracket.round.js>
+    </meta.parameters.js>
+    ' '
+    <storage.type.function.arrow.js>
+      '=>'
+    </storage.type.function.arrow.js>
+  </meta.function.arrow.js>
+  ' '
+  <punctuation.definition.function.body.begin.bracket.curly.js>
+    '{'
+  </punctuation.definition.function.body.begin.bracket.curly.js>
+  '\n  '
+  <keyword.control.js>
+    'return'
+  </keyword.control.js>
+  ' '
+  <meta.brace.curly.js>
+    '{'
+  </meta.brace.curly.js>
+  <string.quoted.single.js>
+    ' '
+    <punctuation.definition.string.begin.js>
+      '\''
+    </punctuation.definition.string.begin.js>
+    'PI'
+    <punctuation.definition.string.end.js>
+      '\''
+    </punctuation.definition.string.end.js>
+  </string.quoted.single.js>
+  <keyword.operator.assignment.js>
+    ':'
+  </keyword.operator.assignment.js>
+  ' '
+  <constant.numeric.decimal.js>
+    '3'
+    <meta.delimiter.decimal.period.js>
+      '.'
+    </meta.delimiter.decimal.period.js>
+    '14'
+  </constant.numeric.decimal.js>
+  ' '
+  <meta.brace.curly.js>
+    '}'
+  </meta.brace.curly.js>
+  <punctuation.terminator.statement.js>
+    ';'
+  </punctuation.terminator.statement.js>
+  '\n'
+  <punctuation.definition.function.body.end.bracket.curly.js>
+    '}'
+  </punctuation.definition.function.body.end.bracket.curly.js>
+  '\n'
+</source.js>
 )_";
 
 // NOTE: This test case found an area where patterns that use anchors (stuff like \G or \A)

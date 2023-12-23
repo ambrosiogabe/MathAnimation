@@ -111,7 +111,7 @@ namespace MathAnim
 		}
 	}
 
-	size_t SimpleSyntaxPattern::tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const
+	MatchSpan SimpleSyntaxPattern::tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const
 	{
 		std::optional<GrammarMatchV2> match = getFirstMatchV2(code, anchor, start, end, this->regMatch, region, this->scope);
 
@@ -141,7 +141,7 @@ namespace MathAnim
 			{
 				size_t res = pushMatchesToLineWithParent(line, match.value(), subMatches, theme, currentByte);
 				popScopeFromAncestorStack(line);
-				return res;
+				return { match->start, res };
 			}
 			// Otherwise, just add the children to the out matches
 			else
@@ -149,11 +149,11 @@ namespace MathAnim
 				// Push any applicable sub-matches to the line info
 				size_t res = pushMatchesToLine(line, subMatches, theme, currentByte);
 				popScopeFromAncestorStack(line);
-				return res;
+				return { match->start, res };
 			}
 		}
 
-		return start;
+		return { start, start };
 	}
 
 	void SimpleSyntaxPattern::free()
@@ -187,13 +187,13 @@ namespace MathAnim
 		}
 	}
 
-	size_t ComplexSyntaxPattern::tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region, Grammar const* self, GrammarPatternGid gid) const
+	MatchSpan ComplexSyntaxPattern::tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region, Grammar const* self, GrammarPatternGid gid) const
 	{
 		// If the begin/end pair doesn't have a match, then this rule isn't a success
 		std::optional<GrammarMatchV2> beginBlockMatch = getFirstMatchV2(code, anchor, start, endOffset, this->begin, region, std::nullopt);
 		if (!beginBlockMatch.has_value() || beginBlockMatch->start >= endOffset || beginBlockMatch->start < start)
 		{
-			return start;
+			return { start, start };
 		}
 
 		// If beginBlockMatch is valid, then we'll use the result stored in `region` to find any captures
@@ -248,7 +248,7 @@ namespace MathAnim
 		return resumeParse(line, code, theme, resumeInfo.currentByte, endPattern, beginBlockMatch->end, beginBlockMatch->end, code.length(), repo, region, self);
 	}
 
-	size_t ComplexSyntaxPattern::resumeParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t currentByte, OnigRegex endPattern, size_t anchor, size_t start, size_t /*endOffset*/, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const
+	MatchSpan ComplexSyntaxPattern::resumeParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t currentByte, OnigRegex endPattern, size_t anchor, size_t start, size_t /*endOffset*/, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const
 	{
 		// This match can go to the end of the string
 		std::optional<GrammarMatchV2> endBlockMatch = getFirstMatchV2(code, anchor, start, code.length(), endPattern, region, std::nullopt);
@@ -282,6 +282,9 @@ namespace MathAnim
 			currentByte = start;
 		}
 
+		// Keep track of this so we can return how big the overall match was
+		size_t beginBlockEnd = currentByte;
+
 		if (this->patterns.has_value())
 		{
 			size_t inBetweenStart = start;
@@ -295,7 +298,8 @@ namespace MathAnim
 				// NOTE: We start searching at `beginBlockMatch->end` so that if any patterns are using anchors in
 				//       their regexes, the anchor will appropriately start at the beginning of the `inBetween` span
 				size_t lastTokensSize = line.tokens.size();
-				currentByte = patterns->tryParse(line, code, theme, anchor, inBetweenStart, endOfLine, repo, region, self);
+				auto span = patterns->tryParse(line, code, theme, anchor, inBetweenStart, endOfLine, repo, region, self);
+				currentByte = span.matchEnd;
 				if (currentByte == inBetweenStart)
 				{
 					break;
@@ -303,26 +307,24 @@ namespace MathAnim
 
 				// Discard any matches that begin outside of our inBetweenBlock
 				bool anyMatchesBeganInBetweenScope = false;
-				for (size_t i = lastTokensSize; i < line.tokens.size(); i++)
+				if (span.matchStart > inBetweenEnd)
 				{
-					if (line.tokens[i].startByte > inBetweenEnd)
-					{
-						line.tokens.erase(line.tokens.begin() + i);
-						i--;
-					}
-					else if (line.tokens[i].startByte < inBetweenStart)
-					{
-						line.tokens.erase(line.tokens.begin() + i);
-						i--;
-					}
-					else
-					{
-						anyMatchesBeganInBetweenScope = true;
-					}
+					line.tokens.erase(line.tokens.begin() + lastTokensSize, line.tokens.end());
+					// Reset currentByte
+					currentByte = inBetweenStart;
 				}
-
-				// New in between start is where we stopped parsing: the currentByte
-				inBetweenStart = currentByte;
+				else if (span.matchStart < inBetweenStart)
+				{
+					line.tokens.erase(line.tokens.begin() + lastTokensSize, line.tokens.end());
+					// Reset currentByte
+					currentByte = inBetweenStart;
+				}
+				else
+				{
+					anyMatchesBeganInBetweenScope = true;
+					// New in between start is where we stopped parsing: the currentByte
+					inBetweenStart = currentByte;
+				}
 
 				// ----
 				// NOTE: If a match in between exceeds the current end of our match, we have to try to find
@@ -368,7 +370,7 @@ namespace MathAnim
 
 					// Stop matching if we've hit the end of the line and add all current sub-matches to the line info.
 					// This complex pattern will resume matching if/when the caller decides it should
-					if (inBetweenEnd >= endOfLine)
+					if (currentByte > endOfLine)
 					{
 						goto complexPattern_AddMatchesAndReturnEarly;
 					}
@@ -400,7 +402,7 @@ namespace MathAnim
 			// Pop the pattern
 			line.patternStack.pop_back();
 
-			return newCursorPos;
+			return { beginBlockEnd, newCursorPos };
 		}
 
 		// This is if we've hit the end of the line early and want to return true
@@ -408,8 +410,8 @@ namespace MathAnim
 
 		{
 			// Push an empty token with current ancestor stack to fill the rest of the line
-			// Only push the token if it's not at the end of the file which indicates a failure
-			if (currentByte != code.length())
+			// Only push the token if it's within this line's boundaries
+			if (currentByte < line.byteStart + line.numBytes)
 			{
 				SourceSyntaxToken emptyToken = {};
 				emptyToken.startByte = (uint32)currentByte;
@@ -421,7 +423,7 @@ namespace MathAnim
 
 			// NOTE: If we're returning early, it's because we've reached the end of the line, so return
 			//       the end of line byte so the caller knows to stop parsing this line.
-			return endBlockMatch->end;
+			return { beginBlockEnd, endBlockMatch->end };
 		}
 	}
 
@@ -456,7 +458,7 @@ namespace MathAnim
 		end.simpleRegex = nullptr;
 	}
 
-	size_t PatternArray::tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const
+	MatchSpan PatternArray::tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const
 	{
 		int onigPatternMatched = -1;
 		getFirstMatchInRegset(code, anchor, start, end, *this, &onigPatternMatched);
@@ -507,16 +509,26 @@ namespace MathAnim
 			return self->patterns.tryParse(line, code, theme, anchor, start, end, repo, region, self);
 		}
 
-		return start;
+		return { start, start };
 	}
 
-	size_t PatternArray::tryParseAll(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const
+	MatchSpan PatternArray::tryParseAll(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const
 	{
 		size_t cursor = start;
 
+		MatchSpan res = { start, start };
+		bool setStart = false;
+
 		while (cursor < end)
 		{
-			size_t newCursorPos = this->tryParse(line, code, theme, anchor, cursor, end, repo, region, self);
+			auto span = this->tryParse(line, code, theme, anchor, cursor, end, repo, region, self);
+			if (!setStart)
+			{
+				setStart = true;
+				res.matchStart = span.matchStart;
+			}
+
+			size_t newCursorPos = span.matchEnd;
 			if (newCursorPos == start)
 			{
 				// If we hit the end of the line or the end anchor, stop parsing
@@ -532,13 +544,13 @@ namespace MathAnim
 				// If we hit the end of the line or the end anchor, stop parsing
 				if (newCursorPos >= line.byteStart + line.numBytes || newCursorPos >= end)
 				{
-					return CMath::min((uint32)newCursorPos, line.byteStart + line.numBytes);
+					return { res.matchStart, (size_t)CMath::min((uint32)newCursorPos, line.byteStart + line.numBytes) };
 				}
 				cursor = newCursorPos;
 			}
 		}
 
-		return cursor;
+		return { res.matchStart, cursor };
 	}
 
 	void PatternArray::free()
@@ -549,7 +561,7 @@ namespace MathAnim
 		}
 	}
 
-	size_t SyntaxPattern::tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region) const
+	MatchSpan SyntaxPattern::tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region) const
 	{
 		switch (type)
 		{
@@ -600,7 +612,7 @@ namespace MathAnim
 			break;
 		}
 
-		return start;
+		return { start, start };
 	}
 
 	void SyntaxPattern::free()
@@ -828,6 +840,27 @@ namespace MathAnim
 					if (sanitizedString[i] == '\n')
 					{
 						sanitizedString = sanitizedString.substr(0, i) + "\\n" + sanitizedString.substr(i + 1);
+						i++;
+					}
+					else if (sanitizedString[i] == '\t')
+					{
+						sanitizedString = sanitizedString.substr(0, i) + "\\t" + sanitizedString.substr(i + 1);
+						i++;
+					}
+					else if (sanitizedString[i] == '\\')
+					{
+						sanitizedString = sanitizedString.substr(0, i) + "\\\\" + sanitizedString.substr(i + 1);
+						i++;
+					}
+					else if (sanitizedString[i] == '\r')
+					{
+						sanitizedString = sanitizedString.substr(0, i) + "\\r" + sanitizedString.substr(i + 1);
+						i++;
+					}
+					else if (sanitizedString[i] == '\'')
+					{
+						sanitizedString = sanitizedString.substr(0, i) + "\\'" + sanitizedString.substr(i + 1);
+						i++;
 					}
 				}
 
@@ -1005,23 +1038,45 @@ namespace MathAnim
 
 					auto const& resumeInfo = lineInfo->patternStack[lineInfo->patternStack.size() - 1];
 
-					size_t newCursorPos = pattern->complexPattern->resumeParse(
+					auto span = pattern->complexPattern->resumeParse(
 						*lineInfo,
 						tree.codeBlock,
 						theme,
-						lineInfo->byteStart,
+						start,
 						resumeInfo.endPattern,
-						lineInfo->byteStart,
-						lineInfo->byteStart,
+						start,
+						start,
 						lineInfo->byteStart + lineInfo->numBytes,
 						this->repository,
 						region,
 						this
 					);
 
+					size_t newCursorPos = span.matchEnd;
 					if (newCursorPos == start || newCursorPos >= lineInfo->byteStart + lineInfo->numBytes)
 					{
+						// TODO: This duplicates a block slightly below, see if they should be combined
+						
 						// Found all the matches for this line, we can stop parsing now
+						// If no matches were found, just add an empty token so we have comprehensive coverage with all tokens
+						if (lineInfo->tokens.size() == 0)
+						{
+							SourceSyntaxToken emptyToken = {};
+							emptyToken.startByte = lineInfo->byteStart;
+							emptyToken.style = theme.match(lineInfo->ancestors);
+							lineInfo->tokens.emplace_back(emptyToken);
+							newCursorPos = lineInfo->byteStart + lineInfo->numBytes;
+						}
+
+						// Likewise, if we didn't find a match and we still haven't reached the end of the line,
+						// then push an empty token with the current ancestors
+						if (newCursorPos < lineInfo->byteStart + lineInfo->numBytes)
+						{
+							SourceSyntaxToken emptyToken = {};
+							emptyToken.startByte = (uint32)newCursorPos;
+							emptyToken.style = theme.match(lineInfo->ancestors);
+							lineInfo->tokens.emplace_back(emptyToken);
+						}
 						break;
 					}
 
@@ -1029,7 +1084,7 @@ namespace MathAnim
 				}
 				else
 				{
-					size_t newCursorPos = this->patterns.tryParse(
+					auto span = this->patterns.tryParse(
 						*lineInfo,
 						tree.codeBlock,
 						theme,
@@ -1041,6 +1096,7 @@ namespace MathAnim
 						this
 					);
 
+					size_t newCursorPos = span.matchEnd;
 					if (newCursorPos == start || newCursorPos >= lineInfo->byteStart + lineInfo->numBytes)
 					{
 						// Found all the matches for this line, we can stop parsing now
@@ -1763,15 +1819,19 @@ namespace MathAnim
 	{
 		if (subMatches.size() == 0 || (subMatches.size() > 0 && subMatches[0].start > parent.start))
 		{
-			// Push the style for the currentByte up to this point
-			SourceSyntaxToken token = {};
-			token.startByte = (uint32)currentByte;
-			token.style = theme.match(line.ancestors);
+			// Don't push 0-sized matches
+			if (currentByte != parent.end)
+			{
+				// Push the style for the currentByte up to this point
+				SourceSyntaxToken token = {};
+				token.startByte = (uint32)currentByte;
+				token.style = theme.match(line.ancestors);
 
-			// TODO: OPTIMIZE: Profile how expensive this is and consider moving to debug only
-			token.debugAncestorStack = line.ancestors;
+				// TODO: OPTIMIZE: Profile how expensive this is and consider moving to debug only
+				token.debugAncestorStack = line.ancestors;
 
-			line.tokens.emplace_back(token);
+				line.tokens.emplace_back(token);
+			}
 
 			if (subMatches.size() > 0)
 			{

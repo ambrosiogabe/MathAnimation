@@ -96,8 +96,6 @@ namespace MathAnim
 			const SyntaxTheme* theme = Highlighters::getTheme(HighlighterTheme::OneDark);
 			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(JS_BASIC_ARROW_FN_TEST_SRC, *theme);
 
-			g_logger_info("stringified tree:\n{}", stringifiedParseTree);
-
 			ASSERT_EQUAL(stringifiedParseTree, JS_BASIC_ARROW_FN_TEST_EXPECTED);
 
 			END_TEST;
@@ -108,6 +106,8 @@ namespace MathAnim
 			const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(HighlighterLanguage::Javascript);
 			const SyntaxTheme* theme = Highlighters::getTheme(HighlighterTheme::OneDark);
 			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(JS_ANCHORED_MATCHES_SRC, *theme);
+
+			g_logger_info("stringified tree:\n{}", stringifiedParseTree);
 
 			ASSERT_EQUAL(stringifiedParseTree, JS_ANCHORED_MATCHES_EXPECTED);
 
@@ -221,12 +221,12 @@ namespace MathAnim
 			ADD_AFTER_ALL(testSuite, afterAll);
 
 			// -------------- Test get function --------------
-			//ADD_TEST(testSuite, withCppLang_CppHelloWorldParsesCorrectly);
-			//ADD_TEST(testSuite, withGlslLang_CppHelloWorldParsesCorrectly);
-			//ADD_TEST(testSuite, withJsLang_JavaScriptNumberLiteralParsesCorrectly_NestedCaptureTest);
+			ADD_TEST(testSuite, withCppLang_CppHelloWorldParsesCorrectly);
+			ADD_TEST(testSuite, withGlslLang_CppHelloWorldParsesCorrectly);
+			ADD_TEST(testSuite, withJsLang_JavaScriptNumberLiteralParsesCorrectly_NestedCaptureTest);
 			ADD_TEST(testSuite, withCpp_strayBracketParsesCorrectly);
-			//ADD_TEST(testSuite, withCpp_singleLineCommentParsesCorrectly);
-			//ADD_TEST(testSuite, withJs_basicArrowFunctionParsesCorrectly);
+			ADD_TEST(testSuite, withCpp_singleLineCommentParsesCorrectly);
+			ADD_TEST(testSuite, withJs_basicArrowFunctionParsesCorrectly);
 
 			//ADD_TEST(testSuite, withJs_matchesWithAnchorsParseCorrectly);
 			//ADD_TEST(testSuite, withJs_allowsBeginEndCaptureShorthandInGrammar);
