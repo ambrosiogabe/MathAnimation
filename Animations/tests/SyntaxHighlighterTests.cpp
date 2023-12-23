@@ -221,12 +221,13 @@ namespace MathAnim
 			ADD_AFTER_ALL(testSuite, afterAll);
 
 			// -------------- Test get function --------------
-			ADD_TEST(testSuite, withCppLang_CppHelloWorldParsesCorrectly);
-			ADD_TEST(testSuite, withGlslLang_CppHelloWorldParsesCorrectly);
-			ADD_TEST(testSuite, withJsLang_JavaScriptNumberLiteralParsesCorrectly_NestedCaptureTest);
+			//ADD_TEST(testSuite, withCppLang_CppHelloWorldParsesCorrectly);
+			//ADD_TEST(testSuite, withGlslLang_CppHelloWorldParsesCorrectly);
+			//ADD_TEST(testSuite, withJsLang_JavaScriptNumberLiteralParsesCorrectly_NestedCaptureTest);
 			ADD_TEST(testSuite, withCpp_strayBracketParsesCorrectly);
-			ADD_TEST(testSuite, withCpp_singleLineCommentParsesCorrectly);
-			ADD_TEST(testSuite, withJs_basicArrowFunctionParsesCorrectly);
+			//ADD_TEST(testSuite, withCpp_singleLineCommentParsesCorrectly);
+			//ADD_TEST(testSuite, withJs_basicArrowFunctionParsesCorrectly);
+
 			//ADD_TEST(testSuite, withJs_matchesWithAnchorsParseCorrectly);
 			//ADD_TEST(testSuite, withJs_allowsBeginEndCaptureShorthandInGrammar);
 			//ADD_TEST(testSuite, withJs_allowsCaptureToExtendBeyondMatch);

@@ -282,8 +282,6 @@ namespace MathAnim
 			currentByte = start;
 		}
 
-		std::vector<GrammarMatchV2> subMatches = {};
-
 		if (this->patterns.has_value())
 		{
 			size_t inBetweenStart = start;
@@ -296,7 +294,7 @@ namespace MathAnim
 			{
 				// NOTE: We start searching at `beginBlockMatch->end` so that if any patterns are using anchors in
 				//       their regexes, the anchor will appropriately start at the beginning of the `inBetween` span
-				size_t lastSubMatchesSize = subMatches.size();
+				size_t lastTokensSize = line.tokens.size();
 				currentByte = patterns->tryParse(line, code, theme, anchor, inBetweenStart, endOfLine, repo, region, self);
 				if (currentByte == inBetweenStart)
 				{
@@ -305,16 +303,16 @@ namespace MathAnim
 
 				// Discard any matches that begin outside of our inBetweenBlock
 				bool anyMatchesBeganInBetweenScope = false;
-				for (size_t i = lastSubMatchesSize; i < subMatches.size(); i++)
+				for (size_t i = lastTokensSize; i < line.tokens.size(); i++)
 				{
-					if (subMatches[i].start >= inBetweenEnd)
+					if (line.tokens[i].startByte > inBetweenEnd)
 					{
-						subMatches.erase(subMatches.begin() + i);
+						line.tokens.erase(line.tokens.begin() + i);
 						i--;
 					}
-					else if (subMatches[i].start < inBetweenStart)
+					else if (line.tokens[i].startByte < inBetweenStart)
 					{
-						subMatches.erase(subMatches.begin() + i);
+						line.tokens.erase(line.tokens.begin() + i);
 						i--;
 					}
 					else
@@ -323,21 +321,7 @@ namespace MathAnim
 					}
 				}
 
-				// Figure out the new inBetweenStart
-				//for (size_t i = lastSubMatchesSize; i < subMatches.size(); i++)
-				//{
-				//	if (subMatches[i].end >= inBetweenStart)
-				//	{
-				//		if (subMatches[i].start == subMatches[i].end && subMatches[i].start != endBlockMatch->end)
-				//		{
-				//			inBetweenStart = subMatches[i].end + 1;
-				//		}
-				//		else
-				//		{
-				//			inBetweenStart = subMatches[i].end;
-				//		}
-				//	}
-				//}
+				// New in between start is where we stopped parsing: the currentByte
 				inBetweenStart = currentByte;
 
 				// ----
@@ -423,24 +407,16 @@ namespace MathAnim
 	complexPattern_AddMatchesAndReturnEarly:
 
 		{
-			// Push any matches found for this line to the line
-			// If no matches are found, then push an empty token with current ancestor stack to fill the rest of the line
-			if (subMatches.size() == 0)
+			// Push an empty token with current ancestor stack to fill the rest of the line
+			// Only push the token if it's not at the end of the file which indicates a failure
+			if (currentByte != code.length())
 			{
-				// Only push the token if it's not at the end of the file which indicates a failure
-				if (currentByte != code.length())
-				{
-					SourceSyntaxToken emptyToken = {};
-					emptyToken.startByte = (uint32)currentByte;
-					emptyToken.debugAncestorStack = line.ancestors;
-					emptyToken.style = theme.match(line.ancestors);
+				SourceSyntaxToken emptyToken = {};
+				emptyToken.startByte = (uint32)currentByte;
+				emptyToken.debugAncestorStack = line.ancestors;
+				emptyToken.style = theme.match(line.ancestors);
 
-					line.tokens.emplace_back(emptyToken);
-				}
-			}
-			else
-			{
-				pushMatchesToLine(line, subMatches, theme, start);
+				line.tokens.emplace_back(emptyToken);
 			}
 
 			// NOTE: If we're returning early, it's because we've reached the end of the line, so return
