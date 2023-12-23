@@ -247,8 +247,8 @@ R"_(<source.js>
   <meta.brace.curly.js>
     '{'
   </meta.brace.curly.js>
+  ' '
   <string.quoted.single.js>
-    ' '
     <punctuation.definition.string.begin.js>
       '\''
     </punctuation.definition.string.begin.js>
@@ -313,8 +313,8 @@ R"_(<source.js>
     <storage.type.function.js>
       'function'
     </storage.type.function.js>
+    ' '
     <meta.parameters.js>
-      ' '
       <punctuation.definition.parameters.begin.bracket.round.js>
         '('
       </punctuation.definition.parameters.begin.bracket.round.js>

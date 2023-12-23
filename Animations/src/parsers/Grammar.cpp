@@ -265,6 +265,7 @@ namespace MathAnim
 		resumeInfo.endPattern = endPattern;
 		resumeInfo.currentByte = endOfBeginBlockSubMatches;
 		resumeInfo.originalStart = beginBlockMatch->start;
+		resumeInfo.hasParentScope = this->scope.has_value();
 		line.patternStack.emplace_back(resumeInfo);
 
 		return resumeParse(line, code, theme, resumeInfo.currentByte, endPattern, beginBlockMatch->end, beginBlockMatch->end, code.length(), repo, region, self);
@@ -317,6 +318,7 @@ namespace MathAnim
 				// NOTE: We start searching at `beginBlockMatch->end` so that if any patterns are using anchors in
 				//       their regexes, the anchor will appropriately start at the beginning of the `inBetween` span
 				size_t lastTokensSize = line.tokens.size();
+				size_t lastPatternStackSize = line.patternStack.size();
 				auto span = patterns->tryParse(line, code, theme, anchor, inBetweenStart, endOfLine, repo, region, self);
 				currentByte = span.matchEnd;
 				if (currentByte == inBetweenStart)
@@ -325,24 +327,49 @@ namespace MathAnim
 				}
 
 				// Discard any matches that begin outside of our inBetweenBlock
-				bool anyMatchesBeganInBetweenScope = false;
 				if (span.matchStart >= inBetweenEnd)
 				{
 					line.tokens.erase(line.tokens.begin() + lastTokensSize, line.tokens.end());
+
+					// Pop any pattern stacks and their ancestors too since we won't be using them now
+					while (line.patternStack.size() > lastPatternStackSize)
+					{
+						auto const& resumeInfoToPop = line.patternStack[line.patternStack.size() - 1];
+						if (resumeInfoToPop.hasParentScope)
+						{
+							line.ancestors.pop_back();
+						}
+
+						line.patternStack.pop_back();
+					}
+
 					// Reset currentByte
 					currentByte = inBetweenStart;
 					break;
 				}
 				else if (span.matchStart < inBetweenStart)
 				{
+					// TODO: Is this block needed?
+
 					line.tokens.erase(line.tokens.begin() + lastTokensSize, line.tokens.end());
 					// Reset currentByte
 					currentByte = inBetweenStart;
+
+					// Pop any pattern stacks and their ancestors too since we won't be using them now
+					while (line.patternStack.size() > lastPatternStackSize)
+					{
+						auto const& resumeInfoToPop = line.patternStack[line.patternStack.size() - 1];
+						if (resumeInfoToPop.hasParentScope)
+						{
+							line.ancestors.pop_back();
+						}
+
+						line.patternStack.pop_back();
+					}
 					break;
 				}
 				else
 				{
-					anyMatchesBeganInBetweenScope = true;
 					// New in between start is where we stopped parsing: the currentByte
 					inBetweenStart = currentByte;
 				}
@@ -406,19 +433,7 @@ namespace MathAnim
 
 		if (endBlockMatch->end > line.byteStart + line.numBytes)
 		{
-			if (endBlockMatch->end == code.length() && endBlockMatch->start == code.length())
-			{
-				// If no matches were found and no end match for the begin match was found, then this
-				// indicates that we've parsed to the end of the file as a failure. So pop this off the
-				// stack, and return the failure
-				line.patternStack.pop_back();
-				popScopeFromAncestorStack(line);
-				return { endBlockMatch->end, endBlockMatch->end };
-			}
-			else
-			{
-				goto complexPattern_AddMatchesAndReturnEarly;
-			}
+			goto complexPattern_AddMatchesAndReturnEarly;
 		}
 
 		// Free dynamic regex if necessary

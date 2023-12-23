@@ -166,6 +166,7 @@ namespace MathAnim
 		size_t currentByte;
 		size_t originalStart;
 		size_t gapTokenStart;
+		bool hasParentScope;
 
 		inline bool operator==(GrammarResumeParseInfo const& other) const
 		{
