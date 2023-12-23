@@ -243,6 +243,7 @@ namespace MathAnim
 		resumeInfo.anchor = beginBlockMatch->end;
 		resumeInfo.endPattern = endPattern;
 		resumeInfo.currentByte = endOfBeginBlockSubMatches;
+		resumeInfo.originalStart = start;
 		line.patternStack.emplace_back(resumeInfo);
 
 		return resumeParse(line, code, theme, resumeInfo.currentByte, endPattern, beginBlockMatch->end, beginBlockMatch->end, code.length(), repo, region, self);
@@ -281,9 +282,6 @@ namespace MathAnim
 			line.tokens.emplace_back(emptyToken);
 			currentByte = start;
 		}
-
-		// Keep track of this so we can return how big the overall match was
-		size_t beginBlockEnd = currentByte;
 
 		if (this->patterns.has_value())
 		{
@@ -399,10 +397,13 @@ namespace MathAnim
 			size_t newCursorPos = pushMatchesToLineWithParent(line, endBlockMatch.value(), endSubMatches, theme, currentByte);
 			popScopeFromAncestorStack(line);
 
+			// Get the original start from the resume information
+			size_t originalStart = line.patternStack[line.patternStack.size() - 1].originalStart;
+
 			// Pop the pattern
 			line.patternStack.pop_back();
 
-			return { beginBlockEnd, newCursorPos };
+			return { originalStart, newCursorPos };
 		}
 
 		// This is if we've hit the end of the line early and want to return true
@@ -421,9 +422,12 @@ namespace MathAnim
 				line.tokens.emplace_back(emptyToken);
 			}
 
+			// Get the original start from the resume information
+			size_t originalStart = line.patternStack[line.patternStack.size() - 1].originalStart;
+
 			// NOTE: If we're returning early, it's because we've reached the end of the line, so return
 			//       the end of line byte so the caller knows to stop parsing this line.
-			return { beginBlockEnd, endBlockMatch->end };
+			return { originalStart, endBlockMatch->end };
 		}
 	}
 

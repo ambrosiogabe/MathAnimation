@@ -164,6 +164,7 @@ namespace MathAnim
 		OnigRegex endPattern;
 		size_t anchor;
 		size_t currentByte;
+		size_t originalStart;
 
 		inline bool operator==(GrammarResumeParseInfo const& other) const
 		{
