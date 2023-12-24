@@ -95,11 +95,20 @@ namespace MathAnim
 		return res;
 	}
 
-	void SimpleSyntaxPattern::pushScopeToAncestorStack(GrammarLineInfo& line) const
+	void SimpleSyntaxPattern::pushScopeToAncestorStack(GrammarLineInfo& line, std::optional<GrammarMatchV2> const& match) const
 	{
 		if (this->scope.has_value())
 		{
-			line.ancestors.push_back(this->scope.value());
+			if (match.has_value() && match->scope.has_value())
+			{
+				// NOTE: Prefer pushing the matches scope here because it will occasionally consist of a regex that gets replaced
+				//       with a capture group. Like: get[$1] -> getter
+				line.ancestors.push_back(match->scope.value());
+			}
+			else
+			{
+				line.ancestors.push_back(this->scope.value());
+			}
 		}
 	}
 
@@ -129,7 +138,7 @@ namespace MathAnim
 		}
 
 		// Push new scope to ancestor stack
-		pushScopeToAncestorStack(line);
+		pushScopeToAncestorStack(line, match);
 
 		if (match.has_value() && match->start < end && match->start >= start && match->end <= end)
 		{

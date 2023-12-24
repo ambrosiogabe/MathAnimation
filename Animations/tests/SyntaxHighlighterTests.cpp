@@ -151,8 +151,6 @@ namespace MathAnim
 			const SyntaxTheme* theme = Highlighters::getTheme(HighlighterTheme::OneDark);
 			std::string stringifiedParseTree = highlighter->getStringifiedParseTreeFor(JS_CAPTURE_IN_CAPTURE_SRC, *theme);
 
-			g_logger_info("Stringified tree:\n{}", stringifiedParseTree);
-
 			ASSERT_EQUAL(stringifiedParseTree, JS_CAPTURE_IN_CAPTURE_EXPECTED);
 
 			END_TEST;
@@ -231,13 +229,12 @@ namespace MathAnim
 			ADD_TEST(testSuite, withJs_allowsBeginEndCaptureShorthandInGrammar);
 			ADD_TEST(testSuite, withJs_allowsCaptureToExtendBeyondMatch);
 			ADD_TEST(testSuite, withJs_forKindaSimpleLoopParsesCorrect);
-
-			//ADD_TEST(testSuite, withJs_capturesInCapturesWorkCorrect);
-			//ADD_TEST(testSuite, withLua_endBlockDoesNotExceedWhenItsStoppedOnANewline);
-			//ADD_TEST(testSuite, withLua_backreferencesInEndBlocksWork);
-			//ADD_TEST(testSuite, withLua_backreferenceWith0SizedMatchWorks);
-			//ADD_TEST(testSuite, withLua_backreferenceWithNoEndMatchParsesUntilTheEnd);
-			//ADD_TEST(testSuite, withJs_scopeCaptureWithExtraTextGetsSetCorrectly);
+			ADD_TEST(testSuite, withJs_capturesInCapturesWorkCorrect);
+			ADD_TEST(testSuite, withLua_endBlockDoesNotExceedWhenItsStoppedOnANewline);
+			ADD_TEST(testSuite, withLua_backreferencesInEndBlocksWork);
+			ADD_TEST(testSuite, withLua_backreferenceWith0SizedMatchWorks);
+			ADD_TEST(testSuite, withLua_backreferenceWithNoEndMatchParsesUntilTheEnd);
+			ADD_TEST(testSuite, withJs_scopeCaptureWithExtraTextGetsSetCorrectly);
 		}
 
 		// -------------------- Private functions --------------------

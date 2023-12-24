@@ -83,7 +83,7 @@ namespace MathAnim
 		OnigRegex regMatch;
 		std::optional<CaptureList> captures;
 
-		void pushScopeToAncestorStack(GrammarLineInfo& line) const;
+		void pushScopeToAncestorStack(GrammarLineInfo& line, std::optional<GrammarMatchV2> const& match) const;
 		void popScopeFromAncestorStack(GrammarLineInfo& line) const;
 
 		// @returns The overall span of this match

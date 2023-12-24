@@ -546,30 +546,37 @@ R"_(<source.js>
 constexpr const char* JS_CAPTURE_IN_CAPTURE_SRC = "for (const foo in blah) {}";
 
 constexpr const char* JS_CAPTURE_IN_CAPTURE_EXPECTED = \
-R"_('source.js': '<0, 26>'
-  'keyword.control.js': '<0, 3>'
-    'ATOM': 'for'
-  'ATOM': ' '
-  'NULL_SCOPE': '<4, 19>'
-    'meta.brace.round.js': '<0, 1>'
-      'ATOM': '('
-    'NULL_SCOPE': '<1, 12>'
-      'storage.type.const.js': '<0, 5>'
-        'ATOM': 'const'
-      'ATOM': ' '
-      'constant.other.js': '<6, 3>'
-        'ATOM': 'foo'
-      'ATOM': ' '
-      'keyword.operator.in[$1].js': '<10, 2>'
-        'ATOM': 'in'
-    'ATOM': ' blah'
-    'meta.brace.round.js': '<18, 1>'
-      'ATOM': ')'
-  'ATOM': ' '
-  'punctuation.section.scope.begin.js': '<24, 1>'
-    'ATOM': '{'
-  'punctuation.section.scope.end.js': '<25, 1>'
-    'ATOM': '}'
+R"_(<source.js>
+  <keyword.control.js>
+    'for'
+  </keyword.control.js>
+  ' '
+  <meta.brace.round.js>
+    '('
+  </meta.brace.round.js>
+  <storage.type.const.js>
+    'const'
+  </storage.type.const.js>
+  ' '
+  <constant.other.js>
+    'foo'
+  </constant.other.js>
+  ' '
+  <keyword.operator.in[$1].js>
+    'in'
+  </keyword.operator.in[$1].js>
+  ' blah'
+  <meta.brace.round.js>
+    ')'
+  </meta.brace.round.js>
+  ' '
+  <punctuation.section.scope.begin.js>
+    '{'
+  </punctuation.section.scope.begin.js>
+  <punctuation.section.scope.end.js>
+    '}'
+  </punctuation.section.scope.end.js>
+</source.js>
 )_";
 
 constexpr const char* LUA_NEWLINE_END_BLOCK_THING = \
@@ -578,26 +585,35 @@ function foo()
 end)_";
 
 constexpr const char* LUA_NEWLINE_END_BLOCK_THING_EXPECTED = \
-R"_('source.lua': '<0, 21>'
-  'NULL_SCOPE': '<0, 3>'
-    'comment.line.double-dash.lua': '<0, 3>'
-      'punctuation.definition.comment.lua': '<0, 2>'
-        'ATOM': '--'
-      'ATOM': '\n'
-  'meta.function.lua': '<3, 14>'
-    'keyword.control.lua': '<0, 8>'
-      'ATOM': 'function'
-    'ATOM': ' '
-    'entity.name.function.lua': '<9, 3>'
-      'ATOM': 'foo'
-    'meta.parameter.lua': '<12, 2>'
-      'punctuation.definition.parameters.begin.lua': '<0, 1>'
-        'ATOM': '('
-      'punctuation.definition.parameters.finish.lua': '<1, 1>'
-        'ATOM': ')'
-  'ATOM': '\n'
-  'keyword.control.lua': '<18, 3>'
-    'ATOM': 'end'
+R"_(<source.lua>
+  <comment.line.double-dash.lua>
+    <punctuation.definition.comment.lua>
+      '--'
+    </punctuation.definition.comment.lua>
+    '\n'
+  </comment.line.double-dash.lua>
+  <meta.function.lua>
+    <keyword.control.lua>
+      'function'
+    </keyword.control.lua>
+    ' '
+    <entity.name.function.lua>
+      'foo'
+    </entity.name.function.lua>
+    <meta.parameter.lua>
+      <punctuation.definition.parameters.begin.lua>
+        '('
+      </punctuation.definition.parameters.begin.lua>
+      <punctuation.definition.parameters.finish.lua>
+        ')'
+      </punctuation.definition.parameters.finish.lua>
+    </meta.parameter.lua>
+  </meta.function.lua>
+  '\n'
+  <keyword.control.lua>
+    'end'
+  </keyword.control.lua>
+</source.lua>
 )_";
 
 constexpr const char* LUA_BACKREFERENCE_TEST = \
@@ -606,14 +622,17 @@ blah
 ]===])_";
 
 constexpr const char* LUA_BACKREFERENCE_TEST_EXPECTED = \
-R"_('source.lua': '<0, 18>'
-  'NULL_SCOPE': '<0, 18>'
-    'comment.block.lua': '<0, 18>'
-      'punctuation.definition.comment.begin.lua': '<0, 7>'
-        'ATOM': '--[===['
-      'ATOM': '\nblah\n'
-      'punctuation.definition.comment.end.lua': '<13, 5>'
-        'ATOM': ']===]'
+R"_(<source.lua>
+  <comment.block.lua>
+    <punctuation.definition.comment.begin.lua>
+      '--[===['
+    </punctuation.definition.comment.begin.lua>
+    '\nblah\n'
+    <punctuation.definition.comment.end.lua>
+      ']===]'
+    </punctuation.definition.comment.end.lua>
+  </comment.block.lua>
+</source.lua>
 )_";
 
 constexpr const char* LUA_BACKREFERENCE_0_SIZE = \
@@ -622,14 +641,17 @@ blah
 ]])_";
 
 constexpr const char* LUA_BACKREFERENCE_0_SIZE_EXPECTED = \
-R"_('source.lua': '<0, 12>'
-  'NULL_SCOPE': '<0, 12>'
-    'comment.block.lua': '<0, 12>'
-      'punctuation.definition.comment.begin.lua': '<0, 4>'
-        'ATOM': '--[['
-      'ATOM': '\nblah\n'
-      'punctuation.definition.comment.end.lua': '<10, 2>'
-        'ATOM': ']]'
+R"_(<source.lua>
+  <comment.block.lua>
+    <punctuation.definition.comment.begin.lua>
+      '--[['
+    </punctuation.definition.comment.begin.lua>
+    '\nblah\n'
+    <punctuation.definition.comment.end.lua>
+      ']]'
+    </punctuation.definition.comment.end.lua>
+  </comment.block.lua>
+</source.lua>
 )_";
 
 constexpr const char* LUA_BACKREFERENCE_MISMATCH = \
@@ -638,12 +660,14 @@ blah
 ]])_";
 
 constexpr const char* LUA_BACKREFERENCE_MISMATCH_EXPECTED = \
-R"_('source.lua': '<0, 14>'
-  'NULL_SCOPE': '<0, 14>'
-    'comment.block.lua': '<0, 14>'
-      'punctuation.definition.comment.begin.lua': '<0, 6>'
-        'ATOM': '--[==['
-      'ATOM': '\nblah\n]]'
+R"_(<source.lua>
+  <comment.block.lua>
+    <punctuation.definition.comment.begin.lua>
+      '--[==['
+    </punctuation.definition.comment.begin.lua>
+    '\nblah\n]]'
+  </comment.block.lua>
+</source.lua>
 )_";
 
 // NOTE: This is for a scope capture that looks like foo.$1ter
@@ -658,51 +682,67 @@ R"_(class Foo {
 )_";
 
 constexpr const char* JS_COMPLEX_SCOPE_CAPTURE_EXPECTED = \
-R"_('source.js': '<0, 48>'
-  'meta.class.js': '<0, 9>'
-    'storage.type.class.js': '<0, 5>'
-      'ATOM': 'class'
-    'ATOM': ' '
-    'entity.name.type.class.js': '<6, 3>'
-      'ATOM': 'Foo'
-  'ATOM': ' '
-  'NULL_SCOPE': '<10, 37>'
-    'meta.brace.curly.js': '<0, 1>'
-      'ATOM': '{'
-    'ATOM': '\n  '
-    'NULL_SCOPE': '<4, 31>'
-      'meta.function.method.definition.js': '<0, 9>'
-        'keyword.operator.getter[$1].js': '<0, 3>'
-          'ATOM': 'get'
-        'ATOM': ' '
-        'entity.name.function.js': '<4, 3>'
-          'ATOM': 'bar'
-        'meta.parameters.js': '<7, 2>'
-          'punctuation.definition.parameters.begin.bracket.round.js': '<0, 1>'
-            'ATOM': '('
-          'punctuation.definition.parameters.end.bracket.round.js': '<1, 1>'
-            'ATOM': ')'
-      'ATOM': ' '
-      'NULL_SCOPE': '<10, 21>'
-        'punctuation.definition.function.body.begin.bracket.curly.js': '<0, 1>'
-          'ATOM': '{'
-        'ATOM': '\n    '
-        'keyword.control.js': '<6, 6>'
-          'ATOM': 'return'
-        'ATOM': ' '
-        'constant.numeric.decimal.js': '<13, 3>'
-          'ATOM': '0'
-          'meta.delimiter.decimal.period.js': '<1, 1>'
-            'ATOM': '.'
-          'ATOM': '1'
-        'punctuation.terminator.statement.js': '<16, 1>'
-          'ATOM': ';'
-        'ATOM': '\n  '
-        'punctuation.definition.function.body.end.bracket.curly.js': '<20, 1>'
-          'ATOM': '}'
-    'ATOM': '\n'
-    'meta.brace.curly.js': '<36, 1>'
-      'ATOM': '}'
+R"_(<source.js>
+  <meta.class.js>
+    <storage.type.class.js>
+      'class'
+    </storage.type.class.js>
+    ' '
+    <entity.name.type.class.js>
+      'Foo'
+    </entity.name.type.class.js>
+  </meta.class.js>
+  ' '
+  <meta.brace.curly.js>
+    '{'
+  </meta.brace.curly.js>
+  '\n  '
+  <meta.function.method.definition.js>
+    <keyword.operator.getter[$1].js>
+      'get'
+    </keyword.operator.getter[$1].js>
+    ' '
+    <entity.name.function.js>
+      'bar'
+    </entity.name.function.js>
+    <meta.parameters.js>
+      <punctuation.definition.parameters.begin.bracket.round.js>
+        '('
+      </punctuation.definition.parameters.begin.bracket.round.js>
+      <punctuation.definition.parameters.end.bracket.round.js>
+        ')'
+      </punctuation.definition.parameters.end.bracket.round.js>
+    </meta.parameters.js>
+  </meta.function.method.definition.js>
+  ' '
+  <punctuation.definition.function.body.begin.bracket.curly.js>
+    '{'
+  </punctuation.definition.function.body.begin.bracket.curly.js>
+  '\n    '
+  <keyword.control.js>
+    'return'
+  </keyword.control.js>
+  ' '
+  <constant.numeric.decimal.js>
+    '0'
+    <meta.delimiter.decimal.period.js>
+      '.'
+    </meta.delimiter.decimal.period.js>
+    '1'
+  </constant.numeric.decimal.js>
+  <punctuation.terminator.statement.js>
+    ';'
+  </punctuation.terminator.statement.js>
+  '\n  '
+  <punctuation.definition.function.body.end.bracket.curly.js>
+    '}'
+  </punctuation.definition.function.body.end.bracket.curly.js>
+  '\n'
+  <meta.brace.curly.js>
+    '}'
+  </meta.brace.curly.js>
+  '\n'
+</source.js>
 )_";
 
 #endif
