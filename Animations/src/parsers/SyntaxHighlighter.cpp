@@ -112,40 +112,24 @@ namespace MathAnim
 		res.codeBlock = code;
 		res.theme = &theme;
 
-		// For each atom in our grammar tree, output a highlight segment with the
-		// appropriate style for that atom
-		//size_t highlightCursor = 0;
-		//for (size_t child = 0; child < res.tree.tree.size(); child++)
-		//{
-		//	if (res.tree.tree[child].isAtomicNode)
-		//	{
-		//		std::vector<ScopedName> ancestorScopes = res.tree.getAllAncestorScopes(child);
+		for (auto const& line : res.tree.sourceInfo)
+		{
+			for (size_t i = 0; i < line.tokens.size(); i++)
+			{
+				HighlightSegment segment = {};
+				segment.startPos = line.tokens[i].startByte;
+				segment.endPos = line.byteStart + line.numBytes;
+				
+				if (i < line.tokens.size() - 1)
+				{
+					segment.endPos = line.tokens[i + 1].startByte;
+				}
 
-		//		auto settings = theme.match(ancestorScopes);
-		//		Vec4 settingForeground = theme.getColor(settings.getForegroundColor());
+				segment.color = theme.getColor(line.tokens[i].style.getForegroundColor());
 
-		//		size_t absStart = highlightCursor;
-		//		size_t nodeSize = res.tree.tree[child].sourceSpan.size;
-
-		//		HighlightSegment segment = {};
-		//		segment.startPos = absStart;
-		//		segment.endPos = absStart + nodeSize;
-		//		segment.color = settingForeground;
-
-		//		res.segments.emplace_back(segment);
-		//		highlightCursor += nodeSize;
-		//	}
-		//}
-
-		//if (highlightCursor < code.length())
-		//{
-		//	HighlightSegment finalSegment = {};
-		//	finalSegment.startPos = highlightCursor;
-		//	finalSegment.endPos = code.length();
-		//	finalSegment.color = theme.getColor(theme.defaultForeground);
-
-		//	res.segments.emplace_back(finalSegment);
-		//}
+				res.segments.emplace_back(segment);
+			}
+		}
 
 		return res;
 	}
