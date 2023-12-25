@@ -152,8 +152,18 @@ namespace MathAnim
 
 	struct SourceSyntaxToken
 	{
-		// The byte that this token starts at in the text
-		uint32 startByte;
+		// The byte that this token starts at, relative to the beginning of the line
+		uint32 relativeStart;
+		PackedSyntaxStyle style;
+		std::vector<ScopedName> debugAncestorStack;
+	};
+
+	// TODO: Make this the only data structure that adds a debug ancestor stack to every token.
+	//       That way, we don't use this except for fast paths.
+	struct SourceSyntaxToken_Debug
+	{
+		// The byte that this token starts at, relative to the beginning of the line
+		uint32 relativeStart;
 		PackedSyntaxStyle style;
 		std::vector<ScopedName> debugAncestorStack;
 	};

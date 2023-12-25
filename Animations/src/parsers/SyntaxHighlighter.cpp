@@ -117,12 +117,12 @@ namespace MathAnim
 			for (size_t i = 0; i < line.tokens.size(); i++)
 			{
 				HighlightSegment segment = {};
-				segment.startPos = line.tokens[i].startByte;
+				segment.startPos = line.tokens[i].relativeStart + line.byteStart;
 				segment.endPos = line.byteStart + line.numBytes;
 				
 				if (i < line.tokens.size() - 1)
 				{
-					segment.endPos = line.tokens[i + 1].startByte;
+					segment.endPos = line.tokens[i + 1].relativeStart + line.byteStart;
 				}
 
 				segment.color = theme.getColor(line.tokens[i].style.getForegroundColor());

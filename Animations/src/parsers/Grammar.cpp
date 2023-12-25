@@ -130,7 +130,7 @@ namespace MathAnim
 			// Push an empty token to fill in the gap before we push a new scope to the ancestor stack
 			SourceSyntaxToken token = {};
 			token.debugAncestorStack = line.ancestors;
-			token.startByte = (uint32)currentByte;
+			token.relativeStart = (uint32)(currentByte - line.byteStart);
 			token.style = theme.match(line.ancestors);
 
 			line.tokens.emplace_back(token);
@@ -222,7 +222,7 @@ namespace MathAnim
 
 			// Fill in the gap if needed before we push our scope to the stack
 			SourceSyntaxToken token = {};
-			token.startByte = (uint32)start;
+			token.relativeStart = (uint32)(start - line.byteStart);
 			token.debugAncestorStack = line.ancestors;
 			token.style = theme.match(line.ancestors);
 
@@ -306,7 +306,7 @@ namespace MathAnim
 		if (start > currentByte)
 		{
 			SourceSyntaxToken emptyToken = {};
-			emptyToken.startByte = (uint32)currentByte;
+			emptyToken.relativeStart = (uint32)(currentByte - line.byteStart);
 			emptyToken.debugAncestorStack = line.ancestors;
 			emptyToken.style = theme.match(line.ancestors);
 
@@ -474,7 +474,7 @@ namespace MathAnim
 			if (currentByte < line.byteStart + line.numBytes)
 			{
 				SourceSyntaxToken emptyToken = {};
-				emptyToken.startByte = (uint32)currentByte;
+				emptyToken.relativeStart = (uint32)(currentByte - line.byteStart);
 				emptyToken.debugAncestorStack = line.ancestors;
 				emptyToken.style = theme.match(line.ancestors);
 
@@ -726,7 +726,7 @@ namespace MathAnim
 				size_t tokenIndex = line.tokens.size() - 1;
 				for (size_t i = 1; i < line.tokens.size(); i++)
 				{
-					if (line.tokens[i].startByte > cursorPos)
+					if ((line.tokens[i].relativeStart + line.byteStart) > cursorPos)
 					{
 						tokenIndex = i - 1;
 						break;
@@ -754,17 +754,18 @@ namespace MathAnim
 				size_t tokenIndex = line.tokens.size() - 1;
 				for (size_t i = 1; i < line.tokens.size(); i++)
 				{
-					if (line.tokens[i].startByte > cursorPos)
+					if ((line.tokens[i].relativeStart + line.byteStart) > cursorPos)
 					{
 						tokenIndex = i - 1;
 						break;
 					}
 				}
 
+				size_t tokenStartByte = line.tokens[tokenIndex].relativeStart + line.byteStart;
 				size_t tokenEndByte = tokenIndex == line.tokens.size() - 1
 					? line.byteStart + line.numBytes
-					: line.tokens[tokenIndex + 1].startByte;
-				return this->codeBlock.substr(line.tokens[tokenIndex].startByte, tokenEndByte - line.tokens[tokenIndex].startByte);
+					: line.tokens[tokenIndex + 1].relativeStart + line.byteStart;
+				return this->codeBlock.substr(tokenStartByte, tokenEndByte - tokenStartByte);
 			}
 		}
 
@@ -887,7 +888,7 @@ namespace MathAnim
 				size_t tokenByteEnd = line.byteStart + line.numBytes;
 				if (tokenIndex < line.tokens.size() - 1)
 				{
-					tokenByteEnd = line.tokens[tokenIndex + 1].startByte;
+					tokenByteEnd = line.tokens[tokenIndex + 1].relativeStart + line.byteStart;
 				}
 
 				if (lastTokenClosed || isFirstLineAndToken)
@@ -897,7 +898,7 @@ namespace MathAnim
 				}
 
 				// Sanitize the string, render any special characters like '\n' escaped
-				std::string sanitizedString = codeBlock.substr(token.startByte, tokenByteEnd - token.startByte);
+				std::string sanitizedString = codeBlock.substr(token.relativeStart + line.byteStart, tokenByteEnd - (token.relativeStart + line.byteStart));
 				for (size_t i = 0; i < sanitizedString.length(); i++)
 				{
 					if (sanitizedString[i] == '\n')
@@ -1125,7 +1126,7 @@ namespace MathAnim
 						if (lineInfo->tokens.size() == 0)
 						{
 							SourceSyntaxToken emptyToken = {};
-							emptyToken.startByte = lineInfo->byteStart;
+							emptyToken.relativeStart = 0;
 							emptyToken.style = theme.match(lineInfo->ancestors);
 							lineInfo->tokens.emplace_back(emptyToken);
 							newCursorPos = lineInfo->byteStart + lineInfo->numBytes;
@@ -1136,7 +1137,7 @@ namespace MathAnim
 						if (newCursorPos < lineInfo->byteStart + lineInfo->numBytes)
 						{
 							SourceSyntaxToken emptyToken = {};
-							emptyToken.startByte = (uint32)newCursorPos;
+							emptyToken.relativeStart = (uint32)(newCursorPos - lineInfo->byteStart);
 							emptyToken.style = theme.match(lineInfo->ancestors);
 							lineInfo->tokens.emplace_back(emptyToken);
 						}
@@ -1167,7 +1168,7 @@ namespace MathAnim
 						if (lineInfo->tokens.size() == 0)
 						{
 							SourceSyntaxToken emptyToken = {};
-							emptyToken.startByte = lineInfo->byteStart;
+							emptyToken.relativeStart = 0;
 							emptyToken.style = theme.match(lineInfo->ancestors);
 							lineInfo->tokens.emplace_back(emptyToken);
 							newCursorPos = lineInfo->byteStart + lineInfo->numBytes;
@@ -1178,7 +1179,7 @@ namespace MathAnim
 						if (newCursorPos < lineInfo->byteStart + lineInfo->numBytes)
 						{
 							SourceSyntaxToken emptyToken = {};
-							emptyToken.startByte = (uint32)newCursorPos;
+							emptyToken.relativeStart = (uint32)(newCursorPos - lineInfo->byteStart);
 							emptyToken.style = theme.match(lineInfo->ancestors);
 							lineInfo->tokens.emplace_back(emptyToken);
 						}
@@ -1887,7 +1888,7 @@ namespace MathAnim
 			{
 				// Push the style for the currentByte up to this point
 				SourceSyntaxToken token = {};
-				token.startByte = (uint32)currentByte;
+				token.relativeStart = (uint32)(currentByte - line.byteStart);
 				token.style = theme.match(line.ancestors);
 
 				// TODO: OPTIMIZE: Profile how expensive this is and consider moving to debug only
@@ -1913,7 +1914,7 @@ namespace MathAnim
 			// Push a token to fill in the gap
 			SourceSyntaxToken token = {};
 			token.debugAncestorStack = line.ancestors;
-			token.startByte = (uint32)currentByte;
+			token.relativeStart = (uint32)(currentByte - line.byteStart);
 			token.style = theme.match(line.ancestors);
 
 			line.tokens.emplace_back(token);
@@ -1950,7 +1951,7 @@ namespace MathAnim
 			{
 				// Push the style for the currentByte up to this point, without this sub-match's ancestor
 				SourceSyntaxToken token = {};
-				token.startByte = (uint32)currentByte;
+				token.relativeStart = (uint32)(currentByte - line.byteStart);
 				token.style = theme.match(line.ancestors);
 
 				// TODO: OPTIMIZE: Profile how expensive this is and consider moving to debug only
@@ -1970,7 +1971,7 @@ namespace MathAnim
 			{
 				// Push the style for the currentByte up to this point
 				SourceSyntaxToken token = {};
-				token.startByte = (uint32)currentByte;
+				token.relativeStart = (uint32)(currentByte - line.byteStart);
 				token.style = theme.match(line.ancestors);
 
 				// TODO: OPTIMIZE: Profile how expensive this is and consider moving to debug only
@@ -2005,7 +2006,7 @@ namespace MathAnim
 		{
 			// Push the final token onto the stack
 			SourceSyntaxToken token = {};
-			token.startByte = (uint32)currentByte;
+			token.relativeStart = (uint32)(currentByte - line.byteStart);
 			token.style = theme.match(line.ancestors);
 
 			// TODO: OPTIMIZE: Profile how expensive this is and consider moving to debug only
@@ -2109,9 +2110,9 @@ namespace MathAnim
 								g_logger_assert(currentToken.debugAncestorStack.size() > 0, "Must have at least one valid scope for a capture.");
 
 								GrammarMatchV2 dummyMatch = {};
-								dummyMatch.start = currentToken.startByte;
+								dummyMatch.start = currentToken.relativeStart + line.byteStart;
 								dummyMatch.end = i < lineShallowCopy.tokens.size() - 1
-									? lineShallowCopy.tokens[i + 1].startByte
+									? lineShallowCopy.tokens[i + 1].relativeStart + line.byteStart
 									: captureEnd;
 								dummyMatch.scope = currentToken.debugAncestorStack[currentToken.debugAncestorStack.size() - 1];
 								res.emplace_back(dummyMatch);
