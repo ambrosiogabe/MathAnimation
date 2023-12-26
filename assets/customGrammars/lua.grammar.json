@@ -365,8 +365,17 @@
         "comment": {
             "patterns": [
                 {
-                    "match": "(--[- ]*)(todo|TODO)(\\b)",
-                    "name": "keyword.todo.lua"
+                    "begin": "(--[- ]*)(todo|TODO)(\\b)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.definition.comment.lua"
+                        },
+                        "2": {
+                            "name": "keyword.todo.lua"
+                        }
+                    },
+                    "end": "\\n",
+                    "name": "comment.line.double-dash.lua"
                 },
                 {
                     "begin": "(^[ \\t]+)?(?=--)",
