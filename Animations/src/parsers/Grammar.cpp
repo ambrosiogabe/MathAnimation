@@ -1026,7 +1026,7 @@ namespace MathAnim
 	size_t Grammar::updateFromByte(SourceGrammarTree& tree, SyntaxTheme const& theme, uint32_t byteOffset, uint32_t maxNumLinesToUpdate) const
 	{
 		size_t numLinesUpdated = 1;
-		while (numLinesUpdated < maxNumLinesToUpdate)
+		while (numLinesUpdated <= maxNumLinesToUpdate)
 		{
 			std::vector<GrammarResumeParseInfo> oldPatternStack = {};
 
@@ -1201,7 +1201,7 @@ namespace MathAnim
 			numLinesUpdated++;
 		}
 
-		return numLinesUpdated;
+		return numLinesUpdated - 1;
 	}
 
 	SourceGrammarTree Grammar::parseCodeBlock(const char* code, size_t codeLength, SyntaxTheme const& theme, bool printDebugStuff) const
