@@ -600,15 +600,9 @@ namespace MathAnim
 				cursor.bytePos < panel.visibleCharacterBufferSize;
 				++cursor)
 			{
-				ImColor highlightedColor = syntaxTheme.getColor(syntaxTheme.defaultForeground);
-
 				// Figure out what color this character should be
 				highlightIter = highlightIter.next(cursor.bytePos);
-				if (highlightIter != panel.syntaxHighlightTree.end() &&
-					cursor.bytePos >= highlightIter->startPos && cursor.bytePos < highlightIter->endPos)
-				{
-					highlightedColor = getColor(highlightIter->color);
-				}
+				ImColor highlightedColor = highlightIter.getForegroundColor(syntaxTheme);
 
 				auto maybeCurrentCodepoint = *cursor;
 				g_logger_assert(maybeCurrentCodepoint.hasValue(), "We shouldn't have any invalid UTF8 in our edit buffer.");

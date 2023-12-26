@@ -8,9 +8,31 @@ namespace MathAnim
 {
 	CodeHighlightIter& CodeHighlightIter::next(size_t bytePos)
 	{
-		if (collection && currentIter != collection->end() && bytePos >= currentIter->endPos)
+		// Check if we're at the end of the token
+		if (tree && currentTokenIter != currentLineIter->tokens.end())
 		{
-			currentIter++;
+			// Get the next token end pos
+			size_t thisTokenEndPos = currentLineIter->byteStart + currentLineIter->numBytes;
+			auto nextToken = currentTokenIter + 1;
+			if (nextToken != currentLineIter->tokens.end())
+			{
+				thisTokenEndPos = currentLineIter->byteStart + nextToken->relativeStart;
+			}
+
+			if (bytePos >= thisTokenEndPos)
+			{
+				currentTokenIter++;
+			}
+		}
+
+		// Then update the line iterator if we reached the end of this line
+		if (tree && currentTokenIter == currentLineIter->tokens.end())
+		{
+			currentLineIter++;
+			if (currentLineIter != tree->sourceInfo.end())
+			{
+				currentTokenIter = currentLineIter->tokens.begin();
+			}
 		}
 
 		return *this;
@@ -19,15 +41,45 @@ namespace MathAnim
 	CodeHighlightIter CodeHighlights::begin(size_t bytePos)
 	{
 		CodeHighlightIter res = {};
-		res.collection = &this->segments;
+		res.tree = &this->tree;
 
-		// Find where the iterator should start
-		res.currentIter = this->segments.begin();
-		for (size_t i = 0; i <= bytePos; i++)
+		if (res.tree)
 		{
-			if (res.currentIter != this->segments.end() && i >= res.currentIter->endPos)
+			// Find where the line iterator should start
+			res.currentLineIter = this->tree.sourceInfo.begin();
+			while (res.currentLineIter != this->tree.sourceInfo.end())
 			{
-				res.currentIter++;
+				if (res.currentLineIter->byteStart <= bytePos && res.currentLineIter->byteStart + res.currentLineIter->numBytes > bytePos)
+				{
+					res.currentTokenIter = res.currentLineIter->tokens.begin();
+					break;
+				}
+
+				res.currentLineIter++;
+			}
+
+			// Find where the token iterator should start
+			if (res.currentLineIter != this->tree.sourceInfo.end())
+			{
+				res.currentTokenIter = res.currentLineIter->tokens.begin();
+				while (res.currentTokenIter != res.currentLineIter->tokens.end())
+				{
+					size_t tokenStart = res.currentTokenIter->relativeStart + res.currentLineIter->byteStart;
+
+					size_t tokenEnd = res.currentLineIter->byteStart + res.currentLineIter->numBytes;
+					auto nextTokenIter = res.currentTokenIter + 1;
+					if (nextTokenIter != res.currentLineIter->tokens.end())
+					{
+						tokenEnd = nextTokenIter->relativeStart + res.currentLineIter->byteStart;
+					}
+
+					if (tokenStart <= bytePos && tokenEnd > bytePos)
+					{
+						break;
+					}
+
+					res.currentTokenIter++;
+				}
 			}
 		}
 
@@ -37,8 +89,13 @@ namespace MathAnim
 	CodeHighlightIter CodeHighlights::end()
 	{
 		CodeHighlightIter res = {};
-		res.collection = &this->segments;
-		res.currentIter = this->segments.end();
+		res.tree = &this->tree;
+		res.currentLineIter = this->tree.sourceInfo.end();
+		if (this->tree.sourceInfo.size() > 0)
+		{
+			res.currentTokenIter = this->tree.sourceInfo[this->tree.sourceInfo.size() - 1].tokens.end();
+		}
+
 		return res;
 	}
 
@@ -64,7 +121,7 @@ namespace MathAnim
 			return {};
 		}
 
-		CodeHighlightDebugInfo res  = {};
+		CodeHighlightDebugInfo res = {};
 
 		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code, *theme, false);
 		res.matchText = grammarTree.getMatchTextAtChar(cursorPos);
@@ -112,25 +169,6 @@ namespace MathAnim
 		res.codeBlock = code;
 		res.theme = &theme;
 
-		for (auto const& line : res.tree.sourceInfo)
-		{
-			for (size_t i = 0; i < line.tokens.size(); i++)
-			{
-				HighlightSegment segment = {};
-				segment.startPos = line.tokens[i].relativeStart + line.byteStart;
-				segment.endPos = line.byteStart + line.numBytes;
-				
-				if (i < line.tokens.size() - 1)
-				{
-					segment.endPos = line.tokens[i + 1].relativeStart + line.byteStart;
-				}
-
-				segment.color = theme.getColor(line.tokens[i].style.getForegroundColor());
-
-				res.segments.emplace_back(segment);
-			}
-		}
-
 		return res;
 	}
 
@@ -140,45 +178,6 @@ namespace MathAnim
 		{
 			return;
 		}
-
-		//codeHighlights.tree = grammar->parseCodeBlock(codeHighlights.codeBlock, printDebugInfo);
-		//codeHighlights.segments = {};
-		//codeHighlights.codeBlock = newCode;
-
-		//// For each atom in our grammar tree, output a highlight segment with the
-		//// appropriate style for that atom
-		//size_t highlightCursor = 0;
-		//for (size_t child = 0; child < codeHighlights.tree.tree.size(); child++)
-		//{
-		//	if (codeHighlights.tree.tree[child].isAtomicNode)
-		//	{
-		//		std::vector<ScopedName> ancestorScopes = codeHighlights.tree.getAllAncestorScopes(child);
-
-		//		auto settings = codeHighlights.theme->match(ancestorScopes);
-		//		Vec4 settingForeground = codeHighlights.theme->getColor(settings.getForegroundColor());
-
-		//		size_t absStart = highlightCursor;
-		//		size_t nodeSize = codeHighlights.tree.tree[child].sourceSpan.size;
-
-		//		HighlightSegment segment = {};
-		//		segment.startPos = absStart;
-		//		segment.endPos = absStart + nodeSize;
-		//		segment.color = settingForeground;
-
-		//		codeHighlights.segments.emplace_back(segment);
-		//		highlightCursor += nodeSize;
-		//	}
-		//}
-
-		//if (highlightCursor < newCode.length())
-		//{
-		//	HighlightSegment finalSegment = {};
-		//	finalSegment.startPos = highlightCursor;
-		//	finalSegment.endPos = newCode.length();
-		//	finalSegment.color = codeHighlights.theme->getColor(codeHighlights.theme->defaultForeground);
-
-		//	codeHighlights.segments.emplace_back(finalSegment);
-		//}
 	}
 
 	std::string SyntaxHighlighter::getStringifiedParseTreeFor(const std::string& code, SyntaxTheme const& theme) const

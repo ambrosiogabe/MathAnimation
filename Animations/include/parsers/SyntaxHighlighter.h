@@ -76,19 +76,61 @@ namespace MathAnim
 
 	struct CodeHighlightIter
 	{
-		std::vector<HighlightSegment>::iterator currentIter;
-		std::vector<HighlightSegment> const* collection;
+		std::vector<GrammarLineInfo>::iterator currentLineIter;
+		std::vector<SourceSyntaxToken>::iterator currentTokenIter;
+		SourceGrammarTree const* tree;
 
 		CodeHighlightIter& next(size_t bytePos);
 
-		inline HighlightSegment const* operator->()
+		inline Vec4 const& getForegroundColor(SyntaxTheme const& theme) 
 		{
-			return &(*currentIter);
+			if (this->currentLineIter == this->tree->sourceInfo.end())
+			{
+				return theme.getColor(theme.defaultForeground);
+			}
+
+			if (this->currentTokenIter == this->currentLineIter->tokens.end()) 
+			{
+				return theme.getColor(theme.defaultForeground);
+			}
+
+			return theme.getColor(this->currentTokenIter->style.getForegroundColor());
+		}
+
+		inline Vec4 const& getBackgroundColor(SyntaxTheme const& theme)
+		{
+			if (this->currentLineIter == this->tree->sourceInfo.end())
+			{
+				return theme.getColor(theme.defaultBackground);
+			}
+
+			if (this->currentTokenIter == this->currentLineIter->tokens.end())
+			{
+				return theme.getColor(theme.defaultBackground);
+			}
+
+			return theme.getColor(this->currentTokenIter->style.getBackgroundColor());
+		}
+
+		inline CssFontStyle getFontStyle()
+		{
+			if (this->currentLineIter == this->tree->sourceInfo.end())
+			{
+				return CssFontStyle::Normal;
+			}
+
+			if (this->currentTokenIter == this->currentLineIter->tokens.end())
+			{
+				return CssFontStyle::Normal;
+			}
+
+			return this->currentTokenIter->style.getFontStyle();
 		}
 
 		inline bool operator==(CodeHighlightIter const& other)
 		{
-			return this->currentIter == other.currentIter;
+			return this->currentLineIter == other.currentLineIter &&
+				this->currentTokenIter == other.currentTokenIter;
 		}
 
 		inline bool operator!=(CodeHighlightIter const& other)
@@ -101,7 +143,6 @@ namespace MathAnim
 	{
 		SyntaxTheme const* theme;
 		SourceGrammarTree tree;
-		std::vector<HighlightSegment> segments;
 		std::string codeBlock;
 
 		CodeHighlightIter begin(size_t bytePos = 0);
