@@ -61,5 +61,7 @@ namespace MathAnim
 
 		// Adds carriage returns as necessary
 		void postprocessText(uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes, bool includeCarriageReturnsForWindows = true);
+
+		void showInspectorGui(SyntaxTheme const& theme, CodeHighlightDebugInfo const& parseInfo);
 	}
 }

@@ -371,7 +371,7 @@
                             "name": "punctuation.definition.comment.lua"
                         },
                         "2": {
-                            "name": "keyword.todo.lua"
+                            "name": "keyword.other.important.todo.lua"
                         }
                     },
                     "end": "\\n",

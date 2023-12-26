@@ -104,7 +104,7 @@ namespace MathAnim
 		this->grammar = Grammar::importGrammar(grammar.string().c_str());
 	}
 
-	CodeHighlightDebugInfo SyntaxHighlighter::getAncestorsFor(SyntaxTheme const* theme, const std::string& code, size_t cursorPos) const
+	CodeHighlightDebugInfo SyntaxHighlighter::getAncestorsFor(SyntaxTheme const* theme, CodeHighlights const& highlights, size_t cursorPos) const
 	{
 		if (!this->grammar)
 		{
@@ -116,15 +116,13 @@ namespace MathAnim
 			return {};
 		}
 
-		if (cursorPos >= code.length())
+		if (cursorPos >= highlights.tree.codeLength)
 		{
 			return {};
 		}
 
 		CodeHighlightDebugInfo res = {};
-
-		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code, *theme, false);
-		res.matchText = grammarTree.getMatchTextAtChar(cursorPos);
+		res.matchText = highlights.tree.getMatchTextAtChar(cursorPos);
 
 		// Since this is just used for debug info, replace the matchText control characters with escaped (e.g \n) chars
 		for (size_t i = 0; i < res.matchText.length(); i++)
@@ -151,13 +149,13 @@ namespace MathAnim
 			}
 		}
 
-		res.ancestors = grammarTree.getAllAncestorScopesAtChar(cursorPos);
+		res.ancestors = highlights.tree.getAllAncestorScopesAtChar(cursorPos);
 		res.settings = theme->debugMatch(res.ancestors, &res.usingDefaultSettings);
 
 		return res;
 	}
 
-	CodeHighlights SyntaxHighlighter::parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo) const
+	CodeHighlights SyntaxHighlighter::parse(const char* code, size_t codeLength, const SyntaxTheme& theme, bool printDebugInfo) const
 	{
 		if (!this->grammar)
 		{
@@ -165,8 +163,7 @@ namespace MathAnim
 		}
 
 		CodeHighlights res = {};
-		res.tree = grammar->parseCodeBlock(code, theme, printDebugInfo);
-		res.codeBlock = code;
+		res.tree = grammar->parseCodeBlock(code, codeLength, theme, printDebugInfo);
 		res.theme = &theme;
 
 		return res;
@@ -187,7 +184,7 @@ namespace MathAnim
 			return {};
 		}
 
-		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code, theme, false);
+		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code.c_str(), code.length(), theme, false);
 		return grammarTree.getStringifiedTree(*grammar);
 	}
 

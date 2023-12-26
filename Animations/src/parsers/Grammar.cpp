@@ -765,7 +765,7 @@ namespace MathAnim
 				size_t tokenEndByte = tokenIndex == line.tokens.size() - 1
 					? line.byteStart + line.numBytes
 					: line.tokens[tokenIndex + 1].relativeStart + line.byteStart;
-				return this->codeBlock.substr(tokenStartByte, tokenEndByte - tokenStartByte);
+				return std::string(codeBlock + tokenStartByte, tokenEndByte - tokenStartByte);
 			}
 		}
 
@@ -898,7 +898,7 @@ namespace MathAnim
 				}
 
 				// Sanitize the string, render any special characters like '\n' escaped
-				std::string sanitizedString = codeBlock.substr(token.relativeStart + line.byteStart, tokenByteEnd - (token.relativeStart + line.byteStart));
+				std::string sanitizedString = std::string(codeBlock + token.relativeStart + line.byteStart, tokenByteEnd - (token.relativeStart + line.byteStart));
 				for (size_t i = 0; i < sanitizedString.length(); i++)
 				{
 					if (sanitizedString[i] == '\n')
@@ -987,16 +987,17 @@ namespace MathAnim
 	//    17: ATOM: { next: 1, parent: -17, start: 33, size: 1 },         `;`
 	// 18: END
 
-	SourceGrammarTree Grammar::initCodeBlock(const std::string& code) const
+	SourceGrammarTree Grammar::initCodeBlock(const char* code, size_t codeLength) const
 	{
 		SourceGrammarTree res = {};
 		res.codeBlock = code;
+		res.codeLength = codeLength;
 
 		// Initialize each line stack
 		size_t lineStart = 0;
 		// Used for validation
 		size_t lineCounter = 0;
-		for (size_t i = 0; i < code.length(); i++)
+		for (size_t i = 0; i < res.codeLength; i++)
 		{
 			if (code[i] == '\n')
 			{
@@ -1011,11 +1012,11 @@ namespace MathAnim
 			}
 		}
 
-		if (lineStart < code.length())
+		if (lineStart < res.codeLength)
 		{
 			GrammarLineInfo info = {};
 			info.byteStart = (uint32)lineStart;
-			info.numBytes = code.length() == 0 ? 0 : (uint32)(code.length() - info.byteStart);
+			info.numBytes = res.codeLength == 0 ? 0 : (uint32)(res.codeLength - info.byteStart);
 			res.sourceInfo.emplace_back(info);
 		}
 
@@ -1203,9 +1204,9 @@ namespace MathAnim
 		return numLinesUpdated;
 	}
 
-	SourceGrammarTree Grammar::parseCodeBlock(const std::string& code, SyntaxTheme const& theme, bool printDebugStuff) const
+	SourceGrammarTree Grammar::parseCodeBlock(const char* code, size_t codeLength, SyntaxTheme const& theme, bool printDebugStuff) const
 	{
-		SourceGrammarTree res = initCodeBlock(code);
+		SourceGrammarTree res = initCodeBlock(code, codeLength);
 
 		size_t currentLine = 1;
 		while (currentLine <= res.sourceInfo.size())

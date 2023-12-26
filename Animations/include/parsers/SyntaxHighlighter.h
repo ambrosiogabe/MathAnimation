@@ -65,15 +65,6 @@ namespace MathAnim
 		"assets/themes/Panda.json"
 		);
 
-	// Styles a text segment from
-	//   startPos <= text < endPos
-	struct HighlightSegment
-	{
-		size_t startPos;
-		size_t endPos;
-		Vec4 color;
-	};
-
 	struct CodeHighlightIter
 	{
 		std::vector<GrammarLineInfo>::iterator currentLineIter;
@@ -143,7 +134,6 @@ namespace MathAnim
 	{
 		SyntaxTheme const* theme;
 		SourceGrammarTree tree;
-		std::string codeBlock;
 
 		CodeHighlightIter begin(size_t bytePos = 0);
 		CodeHighlightIter end();
@@ -162,9 +152,9 @@ namespace MathAnim
 	public:
 		SyntaxHighlighter(const std::filesystem::path& grammar);
 
-		CodeHighlightDebugInfo getAncestorsFor(SyntaxTheme const* theme, const std::string& code, size_t cursorPos) const;
+		CodeHighlightDebugInfo getAncestorsFor(SyntaxTheme const* theme, CodeHighlights const& highlights, size_t cursorPos) const;
 
-		CodeHighlights parse(const std::string& code, const SyntaxTheme& theme, bool printDebugInfo = false) const;
+		CodeHighlights parse(const char* code, size_t codeLength, const SyntaxTheme& theme, bool printDebugInfo = false) const;
 		void reparseSection(CodeHighlights& codeHighlights, const std::string& newCode, size_t parseStart, size_t parseEnd, bool printDebugInfo = false) const;
 
 		std::string getStringifiedParseTreeFor(const std::string& code, SyntaxTheme const& theme) const;

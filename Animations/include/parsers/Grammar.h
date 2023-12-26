@@ -202,7 +202,8 @@ namespace MathAnim
 	struct SourceGrammarTree
 	{
 		std::vector<GrammarLineInfo> sourceInfo;
-		std::string codeBlock;
+		const char* codeBlock;
+		size_t codeLength;
 
 		std::vector<ScopedName> getAllAncestorScopesAtChar(size_t cursorPos) const;
 		std::string getMatchTextAtChar(size_t cursorPos) const;
@@ -224,13 +225,13 @@ namespace MathAnim
 		std::unordered_map<GrammarPatternGid, SyntaxPattern const *const> globalPatternIndex;
 		GrammarPatternGid gidCounter;
 
-		SourceGrammarTree initCodeBlock(const std::string& code) const;
+		SourceGrammarTree initCodeBlock(const char* code, size_t codeLength) const;
 
 		// @returns -- The number of lines updated
 		size_t updateFromByte(SourceGrammarTree& tree, SyntaxTheme const& theme, uint32_t byteOffset = 0, uint32_t maxNumLinesToUpdate = 30) const;
 
 		// @deprecated -- Do it yourself, no really. Do it yourself.
-		SourceGrammarTree Grammar::parseCodeBlock(const std::string& code, SyntaxTheme const& theme, bool printDebugStuff) const;
+		SourceGrammarTree Grammar::parseCodeBlock(const char* code, size_t codeLength, SyntaxTheme const& theme, bool printDebugStuff) const;
 
 		static Grammar* importGrammar(const char* filepath);
 		static void free(Grammar* grammar);

@@ -468,7 +468,7 @@ namespace MathAnim
 		}
 
 		// First parse the code block and get the code in segmented form with highlight information
-		CodeHighlights highlights = highlighter->parse(text, *syntaxTheme);
+		CodeHighlights highlights = highlighter->parse(text, textLength, *syntaxTheme);
 
 		// Generate children that represent each character of the text object `obj`
 		Vec2 cursorPos = Vec2{ 0, 0 };

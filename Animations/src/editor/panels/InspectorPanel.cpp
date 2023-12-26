@@ -1,5 +1,6 @@
 #include "editor/panels/InspectorPanel.h"
 #include "editor/panels/SceneHierarchyPanel.h"
+#include "editor/panels/CodeEditorPanel.h"
 #include "editor/imgui/ImGuiExtended.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/UndoSystem.h"
@@ -753,13 +754,11 @@ namespace MathAnim
 
 		struct CodeEditUserData
 		{
-			std::vector<ScopedName> ancestors;
-			DebugPackedSyntaxStyle settings;
 			HighlighterLanguage language;
 			HighlighterTheme theme;
-			std::string matchText;
+			CodeHighlights highlights;
+			CodeHighlightDebugInfo parseInfo;
 			bool isActive;
-			bool usingDefaultSettings;
 		};
 
 		static int codeEditCallback(ImGuiInputTextCallbackData* data)
@@ -783,11 +782,7 @@ namespace MathAnim
 				return 0;
 			}
 
-			auto parseInfo = highlighter->getAncestorsFor(theme, data->Buf, data->CursorPos);
-			userData.ancestors = parseInfo.ancestors;
-			userData.settings = parseInfo.settings;
-			userData.matchText = parseInfo.matchText;
-			userData.usingDefaultSettings = parseInfo.usingDefaultSettings;
+			userData.parseInfo = highlighter->getAncestorsFor(theme, userData.highlights, data->CursorPos);
 
 			return 0;
 		}
@@ -846,8 +841,7 @@ namespace MathAnim
 			{
 				codeEditUserData.language = object->as.codeBlock.language;
 				codeEditUserData.theme = object->as.codeBlock.theme;
-				codeEditUserData.ancestors = {};
-				codeEditUserData.settings = {};
+				codeEditUserData.parseInfo = {};
 			}
 
 			g_memory_copyMem(scratch, scratchLength, object->as.codeBlock.text, object->as.codeBlock.textLength * sizeof(char));
@@ -873,6 +867,16 @@ namespace MathAnim
 					{
 						object->as.codeBlock.setText(scratch);
 						object->as.codeBlock.reInit(am, object);
+
+						if (codeEditUserData.isActive)
+						{
+							const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(codeEditUserData.language);
+							const SyntaxTheme* theme = Highlighters::getTheme(codeEditUserData.theme);
+							if (highlighter && theme)
+							{
+								codeEditUserData.highlights = highlighter->parse(object->as.codeBlock.text, object->as.codeBlock.textLength, *theme);
+							}
+						}
 					}
 				}
 			}
@@ -880,97 +884,24 @@ namespace MathAnim
 			// Debug stuff, checking this box allows you to inspect the styles and
 			// ancestors that are generated for the codeblock where the text cursor
 			// is located.
-			ImGui::Checkbox(": Inspect", &codeEditUserData.isActive);
+			if (ImGui::Checkbox(": Inspect", &codeEditUserData.isActive))
+			{
+				// Make sure to populate all the data the first time the checkbox is clicked
+				const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(object->as.codeBlock.language);
+				const SyntaxTheme* theme = Highlighters::getTheme(object->as.codeBlock.theme);
+				if (highlighter && theme)
+				{
+					codeEditUserData.highlights = highlighter->parse(object->as.codeBlock.text, object->as.codeBlock.textLength, *theme);
+				}
+			}
+
 			if (codeEditUserData.isActive)
 			{
-				ImGui::BeginChild("Code Ancestors", ImVec2(0, 0), true);
-
-				ImGui::PushFont(ImGuiLayer::getMediumFont());
-				if (codeEditUserData.matchText.length() > 30)
+				const SyntaxTheme* theme = Highlighters::getTheme(codeEditUserData.theme);
+				if (theme)
 				{
-					std::string firstPart = codeEditUserData.matchText.substr(0, 15);
-					std::string lastPart = codeEditUserData.matchText.substr(codeEditUserData.matchText.length() - 15);
-					ImGui::Text("%s...%s", firstPart.c_str(), lastPart.c_str());
+					CodeEditorPanel::showInspectorGui(*theme, codeEditUserData.parseInfo);
 				}
-				else
-				{
-					ImGui::Text(codeEditUserData.matchText.c_str());
-				}
-				ImGui::PopFont();
-
-				ImGui::Separator();
-
-				if (ImGui::BeginTable("textmate scopes", 2))
-				{
-					const SyntaxTheme* theme = Highlighters::getTheme(object->as.codeBlock.theme);
-
-					ImGui::TableNextColumn(); ImGui::Text("language");
-					ImGui::TableNextColumn(); ImGui::Text("%d", codeEditUserData.settings.style.getLanguageId());
-
-					ImGui::TableNextColumn(); ImGui::Text("standard token type");
-					ImGui::TableNextColumn(); ImGui::Text("%d", codeEditUserData.settings.style.getStandardTokenType());
-
-					ImGui::TableNextColumn(); ImGui::Text("foreground");
-					Vec4 foregroundColor = theme->getColor(codeEditUserData.settings.style.getForegroundColor());
-					std::string foregroundStr = toHexString(foregroundColor);
-					ImGui::TableNextColumn(); ImGui::Text("%s", foregroundStr.c_str()); ImGui::SameLine();
-					ImGui::ColorButton("##ForegroundInspector_InspectorPanel", foregroundColor, 
-						ImGuiColorEditFlags_NoLabel
-					);
-
-					ImGui::TableNextColumn(); ImGui::Text("background");
-					Vec4 backgroundColor = theme->getColor(codeEditUserData.settings.style.getBackgroundColor());
-					std::string backgroundStr = toHexString(backgroundColor);
-					ImGui::TableNextColumn(); ImGui::Text("%s", backgroundStr.c_str()); ImGui::SameLine();
-					ImGui::ColorButton("##ForegroundInspector_InspectorPanel", backgroundColor,
-						ImGuiColorEditFlags_NoLabel
-					);
-
-					ImGui::TableNextColumn(); ImGui::Text("font style");
-					ImGui::TableNextColumn(); ImGui::Text("%s", Css::toString(codeEditUserData.settings.style.getFontStyle()).c_str());
-
-					ImGui::Separator();
-
-					ImGui::TableNextColumn(); ImGui::Text("textmate scopes");
-					for (size_t i = 0; i < codeEditUserData.ancestors.size(); i++)
-					{
-						size_t backwardsIndex = codeEditUserData.ancestors.size() - i - 1;
-						std::string friendlyName = codeEditUserData.ancestors[backwardsIndex].getFriendlyName();
-						ImGui::TableNextColumn(); ImGui::Text(friendlyName.c_str());
-
-						if (i < codeEditUserData.ancestors.size() - 1)
-						{
-							ImGui::TableNextRow(); ImGui::TableNextColumn();
-						}
-					}
-
-					ImGui::TableNextRow(); ImGui::TableNextRow();
-
-					ImGui::TableNextColumn(); ImGui::Text("foreground");
-					bool foundThemeSelector = false;
-					if (codeEditUserData.usingDefaultSettings)
-					{
-						ImGui::TableNextColumn(); ImGui::Text("No theme selector");
-					}
-					else 
-					{
-						Vec4 const& foregroundCssColor = theme->getColor(codeEditUserData.settings.style.getForegroundColor());
-						std::string foregroundColorStr = toHexString(foregroundCssColor);
-						if (codeEditUserData.settings.style.isForegroundInherited())
-						{
-							foregroundColorStr = "inherit";
-						}
-
-						ImGui::TableNextColumn(); ImGui::Text(codeEditUserData.settings.styleMatched.c_str());
-						ImGui::TableNextRow(); ImGui::TableNextColumn();
-						ImGui::TableNextColumn(); ImGui::Text("{ \"foreground\": \"%s\"", foregroundColorStr.c_str());
-						foundThemeSelector = true;
-					}
-
-					ImGui::EndTable();
-				}
-
-				ImGui::EndChild();
 			}
 
 			return anyPropertyChanged;
