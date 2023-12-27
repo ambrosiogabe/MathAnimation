@@ -154,8 +154,50 @@ namespace MathAnim
 
 		CodeHighlightDebugInfo getAncestorsFor(SyntaxTheme const* theme, CodeHighlights const& highlights, size_t cursorPos) const;
 
-		CodeHighlights parse(const char* code, size_t codeLength, const SyntaxTheme& theme, bool printDebugInfo = false) const;
-		void reparseSection(CodeHighlights& codeHighlights, const std::string& newCode, size_t parseStart, size_t parseEnd, bool printDebugInfo = false) const;
+		CodeHighlights parse(const char* code, size_t codeLength, const SyntaxTheme& theme) const;
+
+		/**
+		* @brief This function checksand updates any lines starting from `lineToCheckFrom`and ending at
+		*        `lineToCheckFrom + maxLinesToUpdate`. It will resume updates at the last line if it exited early and
+		*         you run this function again with `lineToCheckFrom = lineToCheckFrom + maxLinesToUpdate`.
+		* 
+		* @param highlights The highlights object that will be modified if any updates are found
+		* @param lineToCheckFrom The first line that this method will begin checking from
+		* @param maxLinesToUpdate The maximum number of lines that can be updated before this function exits early
+		* @returns A span that indicates the first line updated and the last line updated
+		*/
+		Vec2i checkForUpdatesFrom(CodeHighlights& highlights, size_t lineToCheckFrom, size_t maxLinesToUpdate = DEFAULT_MAX_LINES_TO_UPDATE) const;
+
+		/**
+		* @brief This function should be run if you've inserted text and would like to modify the current `highlights` object. It will
+		*        check to see if there's been any changes between [insertStart, insertEnd] and update any lines as applicable. If the
+		*        changes exceed the range of [insertStart, insertEnd], then it will continue to update until it hits `maxLinesToUpdate`,
+		*        at which point you can resume parsing using `checkForUpdatesFrom` at a later time.
+		* 
+		* @param highlights The highlights object that will be modified if any updates are found
+		* @param newCodeBlock A stable pointer representing the new code block with the insertion already in the text
+		* @param newCodeBlockLength Length of the new code block
+		* @param insertStart Where the insertion started
+		* @param insertEnd Where the insertion ended. NOTE: This is inclusive of the insertEnd.
+		* @param maxLinesToUpdate The maximum number of lines that can be updated before this function exits early
+		* @returns A span that indicates the first line updated and the last line updated
+		*/
+		Vec2i insertText(CodeHighlights& highlights, const char* newCodeBlock, size_t newCodeBlockLength, size_t insertStart, size_t insertEnd, size_t maxLinesToUpdate = DEFAULT_MAX_LINES_TO_UPDATE) const;
+
+		/**
+		* @brief This function will update the `highlights` object passed in and check the lines surrounding the area removed.
+		*        It will update the lines around it if needed, and continue updating as far as needed. If it reaches the
+		*        `maxNumLinesToUpdate` then it will exit early and you can resume parsing using `checkForUpdatesFrom` at a later time.
+		* 
+		* @param highlights The highlights object that will be modified if any updates are found
+		* @param newCodeBlock A stable pointer representing the new code block with the text already removed
+		* @param newCodeBlockLength Length of the new code block
+		* @param removeStart Where the removal started
+		* @param removeEnd Where the removal ended
+		* @param maxLinesToUpdate The maximum number of lines that can be updated before this function exits early
+		* @returns A span that indicates the first line updated and the last line updated
+		*/
+		Vec2i removeText(CodeHighlights& highlights, const char* newCodeBlock, size_t newCodeBlockLength, size_t removeStart, size_t removeEnd, size_t maxLinesToUpdate = DEFAULT_MAX_LINES_TO_UPDATE) const;
 
 		std::string getStringifiedParseTreeFor(const std::string& code, SyntaxTheme const& theme) const;
 

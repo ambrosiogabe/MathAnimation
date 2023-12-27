@@ -8,6 +8,8 @@
 
 namespace MathAnim
 {
+	static constexpr size_t DEFAULT_MAX_LINES_TO_UPDATE = 30;
+
 	// Internal forward decls
 	struct Grammar;
 	struct PatternRepository;
@@ -107,7 +109,7 @@ namespace MathAnim
 		// @returns The overall span of this match
 		MatchSpan tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self, GrammarPatternGid gid) const;
 		// @returns The overall span of this match
-		MatchSpan resumeParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t currentByte, OnigRegex endPattern, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
+		MatchSpan resumeParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t currentByte, std::string const& dynamicEndPattern, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
 
 		void free();
 	};
@@ -171,7 +173,7 @@ namespace MathAnim
 	struct GrammarResumeParseInfo
 	{
 		GrammarPatternGid gid;
-		OnigRegex endPattern;
+		std::string dynamicEndPatternStr;
 		size_t anchor;
 		size_t currentByte;
 		size_t originalStart;
@@ -180,7 +182,7 @@ namespace MathAnim
 
 		inline bool operator==(GrammarResumeParseInfo const& other) const
 		{
-			return gid == other.gid && endPattern == other.endPattern && anchor == other.anchor;
+			return gid == other.gid && dynamicEndPatternStr == other.dynamicEndPatternStr && anchor == other.anchor;
 		}
 
 		inline bool operator!=(GrammarResumeParseInfo const& other) const
@@ -196,6 +198,7 @@ namespace MathAnim
 		std::vector<GrammarResumeParseInfo> patternStack;
 		uint32 byteStart;
 		uint32 numBytes;
+		bool needsToBeUpdated;
 	};
 
 	// This corresponds to the tree represented here: https://macromates.com/blog/2005/introduction-to-scopes/#htmlxml-analogy
@@ -228,10 +231,10 @@ namespace MathAnim
 		SourceGrammarTree initCodeBlock(const char* code, size_t codeLength) const;
 
 		// @returns -- The number of lines updated
-		size_t updateFromByte(SourceGrammarTree& tree, SyntaxTheme const& theme, uint32_t byteOffset = 0, uint32_t maxNumLinesToUpdate = 30) const;
+		size_t updateFromByte(SourceGrammarTree& tree, SyntaxTheme const& theme, uint32_t byteOffset = 0, uint32_t maxNumLinesToUpdate = DEFAULT_MAX_LINES_TO_UPDATE) const;
 
 		// @deprecated -- Do it yourself, no really. Do it yourself.
-		SourceGrammarTree Grammar::parseCodeBlock(const char* code, size_t codeLength, SyntaxTheme const& theme, bool printDebugStuff) const;
+		SourceGrammarTree Grammar::parseCodeBlock(const char* code, size_t codeLength, SyntaxTheme const& theme) const;
 
 		static Grammar* importGrammar(const char* filepath);
 		static void free(Grammar* grammar);

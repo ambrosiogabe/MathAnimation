@@ -233,7 +233,6 @@ namespace MathAnim
 		pushScopeToAncestorStack(line);
 		size_t endOfBeginBlockSubMatches = pushMatchesToLine(line, beginSubMatches, theme, start);
 
-		OnigRegex endPattern = this->end.simpleRegex;
 		if (this->end.isDynamic)
 		{
 			// Generate an on the fly pattern
@@ -261,27 +260,31 @@ namespace MathAnim
 				offsetToAdd += (replacementStringEnd - replacementStringBegin) - (replaceEndOffset - replaceBeginOffset);
 			}
 
-			// After substituting backrefs generate an on-the-fly end pattern to match
-			endPattern = onigFromString(regexPatternToTest, true);
-
-			g_logger_assert(endPattern != nullptr, "Failed to generate dynamic regex pattern with backreferences for pattern: '{}'", this->end.regexText);
+			resumeInfo.dynamicEndPatternStr = regexPatternToTest;
 		}
 
 		// We're potentially entering a pattern that could exceed this line, so we'll store the gid here in case
 		// we need to resume parsing at a later time
 		resumeInfo.gid = gid;
 		resumeInfo.anchor = beginBlockMatch->end;
-		resumeInfo.endPattern = endPattern;
 		resumeInfo.currentByte = endOfBeginBlockSubMatches;
 		resumeInfo.originalStart = beginBlockMatch->start;
 		resumeInfo.hasParentScope = this->scope.has_value();
 		line.patternStack.emplace_back(resumeInfo);
 
-		return resumeParse(line, code, theme, resumeInfo.currentByte, endPattern, beginBlockMatch->end, beginBlockMatch->end, code.length(), repo, region, self);
+		return resumeParse(line, code, theme, resumeInfo.currentByte, resumeInfo.dynamicEndPatternStr, beginBlockMatch->end, beginBlockMatch->end, code.length(), repo, region, self);
 	}
 
-	MatchSpan ComplexSyntaxPattern::resumeParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t currentByte, OnigRegex endPattern, size_t anchor, size_t start, size_t /*endOffset*/, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const
+	MatchSpan ComplexSyntaxPattern::resumeParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t currentByte, std::string const& dynamicEndPattern, size_t anchor, size_t start, size_t /*endOffset*/, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const
 	{
+		OnigRegex endPattern = this->end.simpleRegex;
+		if (this->end.isDynamic)
+		{
+			// After substituting backrefs generate an on-the-fly end pattern to match
+			endPattern = onigFromString(dynamicEndPattern, true);
+			g_logger_assert(endPattern != nullptr, "Failed to generate dynamic regex pattern with backreferences for pattern: '{}'", this->end.regexText);
+		}
+
 		// This match can go to the end of the string
 		std::optional<GrammarMatchV2> endBlockMatch = getFirstMatchV2(code, anchor, start, code.length(), endPattern, region, std::nullopt);
 		std::vector<GrammarMatchV2> endSubMatches = {};
@@ -467,6 +470,12 @@ namespace MathAnim
 
 		// This is if we've hit the end of the line early and want to return true
 	complexPattern_AddMatchesAndReturnEarly:
+
+		// Free dynamic regex if necessary
+		if (this->end.isDynamic)
+		{
+			onig_free(endPattern);
+		}
 
 		{
 			// Push an empty token with current ancestor stack to fill the rest of the line
@@ -1026,6 +1035,7 @@ namespace MathAnim
 	size_t Grammar::updateFromByte(SourceGrammarTree& tree, SyntaxTheme const& theme, uint32_t byteOffset, uint32_t maxNumLinesToUpdate) const
 	{
 		size_t numLinesUpdated = 1;
+		size_t currentLineInfoIndex = tree.sourceInfo.size();
 		while (numLinesUpdated <= maxNumLinesToUpdate)
 		{
 			std::vector<GrammarResumeParseInfo> oldPatternStack = {};
@@ -1035,33 +1045,48 @@ namespace MathAnim
 
 			// First find the line that we're updating
 			{
-				GrammarLineInfo* prevLineInfo = nullptr;
-				for (auto& info : tree.sourceInfo)
+				if (currentLineInfoIndex == tree.sourceInfo.size())
 				{
-					if (byteOffset >= info.byteStart && byteOffset < info.byteStart + info.numBytes)
+					for (size_t i = 0; i < tree.sourceInfo.size(); i++)
 					{
-						lineInfo = &info;
-
-						// Keep track of the old pattern stack so we know if we need to continue parsing the next line
-						oldPatternStack = lineInfo->patternStack;
-
-						// Reset this line's info to all the previous lines stuff since it will carry forward from there
-						if (prevLineInfo)
+						auto& info = tree.sourceInfo[i];
+						if (byteOffset >= info.byteStart && byteOffset < info.byteStart + info.numBytes)
 						{
-							lineInfo->ancestors = prevLineInfo->ancestors;
-							lineInfo->patternStack = prevLineInfo->patternStack;
-							lineInfo->tokens = {};
+							currentLineInfoIndex = i;
 						}
-						else
-						{
-							lineInfo->ancestors = {};
-							lineInfo->patternStack = {};
-							lineInfo->tokens = {};
-						}
-						break;
 					}
+				}
 
-					prevLineInfo = &info;
+				if (currentLineInfoIndex < tree.sourceInfo.size())
+				{
+					lineInfo = &tree.sourceInfo[currentLineInfoIndex];
+				}
+				else
+				{
+					return numLinesUpdated;
+				}
+
+				GrammarLineInfo* prevLineInfo = nullptr;
+				if (currentLineInfoIndex > 0 && currentLineInfoIndex <= tree.sourceInfo.size())
+				{
+					prevLineInfo = &tree.sourceInfo[currentLineInfoIndex - 1];
+				}
+
+				// Keep track of the old pattern stack so we know if we need to continue parsing the next line
+				oldPatternStack = lineInfo->patternStack;
+
+				// Reset this line's info to all the previous lines stuff since it will carry forward from there
+				if (prevLineInfo)
+				{
+					lineInfo->ancestors = prevLineInfo->ancestors;
+					lineInfo->patternStack = prevLineInfo->patternStack;
+					lineInfo->tokens = {};
+				}
+				else
+				{
+					lineInfo->ancestors = {};
+					lineInfo->patternStack = {};
+					lineInfo->tokens = {};
 				}
 			}
 
@@ -1070,6 +1095,8 @@ namespace MathAnim
 			{
 				return numLinesUpdated;
 			}
+
+			lineInfo->needsToBeUpdated = false;
 
 			size_t start = lineInfo->byteStart;
 			while (start < lineInfo->byteStart + lineInfo->numBytes)
@@ -1108,7 +1135,7 @@ namespace MathAnim
 						tree.codeBlock,
 						theme,
 						start,
-						resumeInfo.endPattern,
+						resumeInfo.dynamicEndPatternStr,
 						resumeInfo.anchor,
 						start,
 						lineInfo->byteStart + lineInfo->numBytes,
@@ -1199,12 +1226,20 @@ namespace MathAnim
 
 			byteOffset = lineInfo->byteStart + lineInfo->numBytes;
 			numLinesUpdated++;
+			currentLineInfoIndex++;
+		}
+
+		// If we get to here, mark the next line as needing an update just in case.
+		// That way the caller can pick up parsing again if needed when they scroll or something
+		if (currentLineInfoIndex < tree.sourceInfo.size())
+		{
+			tree.sourceInfo[currentLineInfoIndex].needsToBeUpdated = true;
 		}
 
 		return numLinesUpdated - 1;
 	}
 
-	SourceGrammarTree Grammar::parseCodeBlock(const char* code, size_t codeLength, SyntaxTheme const& theme, bool printDebugStuff) const
+	SourceGrammarTree Grammar::parseCodeBlock(const char* code, size_t codeLength, SyntaxTheme const& theme) const
 	{
 		SourceGrammarTree res = initCodeBlock(code, codeLength);
 
@@ -1212,12 +1247,6 @@ namespace MathAnim
 		while (currentLine <= res.sourceInfo.size())
 		{
 			currentLine += updateFromByte(res, theme, res.sourceInfo[currentLine - 1].byteStart);
-		}
-
-		if (printDebugStuff)
-		{
-			std::string stringifiedTree = res.getStringifiedTree(*this);
-			g_logger_info("Stringified Tree: {}\n", stringifiedTree);
 		}
 
 		return res;

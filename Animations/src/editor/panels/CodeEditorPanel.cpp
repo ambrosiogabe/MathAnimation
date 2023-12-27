@@ -282,6 +282,7 @@ namespace MathAnim
 				panel.visibleCharacterBufferSize,
 				CodeEditorPanelManager::getTheme()
 			);
+
 		}
 
 		bool update(CodeEditorPanelData& panel)
@@ -563,6 +564,20 @@ namespace MathAnim
 				{
 					int32 newLine = (int32)currentLine - ((int32)Input::scrollY * 3);
 					newLine = (int32)glm::clamp(newLine, 1, (int32)(panel.totalNumberLines + numberBufferLines - panel.numberLinesCanFitOnScreen));
+
+					if (newLine > (int32)panel.lineNumberStart)
+					{
+						Vec2i linesUpdated = CodeEditorPanelManager::getHighlighter().checkForUpdatesFrom(
+							panel.syntaxHighlightTree,
+							panel.lineNumberStart + panel.numberLinesCanFitOnScreen,
+							newLine - panel.lineNumberStart
+						);
+
+						if (linesUpdated.min < (int32)panel.totalNumberLines)
+						{
+							g_logger_info("Lines updated: {}\n", linesUpdated);
+						}
+					}
 
 					panel.lineNumberStart = (uint32)newLine;
 					currentLine = panel.lineNumberStart;
@@ -894,8 +909,15 @@ namespace MathAnim
 
 			g_memory_free(byteMappedString);
 
-			// TODO: Only reparse the effected lines
-			reparseSyntax(panel);
+			size_t numberLinesToUpdate = panel.numberLinesCanFitOnScreen;
+			CodeEditorPanelManager::getHighlighter().insertText(
+				panel.syntaxHighlightTree,
+				(const char*)panel.visibleCharacterBuffer,
+				panel.visibleCharacterBufferSize,
+				insertPosition,
+				insertPosition + stringNumBytes,
+				numberLinesToUpdate
+			);
 		}
 
 		void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint, size_t insertPosition)

@@ -8,6 +8,11 @@ namespace MathAnim
 {
 	CodeHighlightIter& CodeHighlightIter::next(size_t bytePos)
 	{
+		if (currentLineIter == tree->sourceInfo.end())
+		{
+			return *this;
+		}
+
 		// Check if we're at the end of the token
 		if (tree && currentTokenIter != currentLineIter->tokens.end())
 		{
@@ -155,7 +160,7 @@ namespace MathAnim
 		return res;
 	}
 
-	CodeHighlights SyntaxHighlighter::parse(const char* code, size_t codeLength, const SyntaxTheme& theme, bool printDebugInfo) const
+	CodeHighlights SyntaxHighlighter::parse(const char* code, size_t codeLength, const SyntaxTheme& theme) const
 	{
 		if (!this->grammar)
 		{
@@ -163,18 +168,208 @@ namespace MathAnim
 		}
 
 		CodeHighlights res = {};
-		res.tree = grammar->parseCodeBlock(code, codeLength, theme, printDebugInfo);
+		res.tree = grammar->parseCodeBlock(code, codeLength, theme);
 		res.theme = &theme;
 
 		return res;
 	}
 
-	void SyntaxHighlighter::reparseSection(CodeHighlights& /*codeHighlights*/, const std::string& /*newCode*/, size_t, size_t, bool /*printDebugInfo*/) const
+	Vec2i SyntaxHighlighter::checkForUpdatesFrom(CodeHighlights& highlights, size_t lineToCheckFrom, size_t maxLinesToUpdate) const
 	{
-		if (!this->grammar)
+		g_logger_assert(lineToCheckFrom > 0, "There is no 0th line number.");
+
+		size_t lineInfoIndexToUpdateFrom = lineToCheckFrom - 1;
+		if (lineInfoIndexToUpdateFrom >= highlights.tree.sourceInfo.size())
 		{
-			return;
+			return { (int32)highlights.tree.sourceInfo.size(), (int32)highlights.tree.sourceInfo.size() };
 		}
+
+		int32 firstLineUpdated = (int32)highlights.tree.sourceInfo.size();
+		int32 lastLineUpdated = firstLineUpdated;
+
+		// Finally, actually reparse any effected lines, including all characters in between the insertion points
+		{
+			size_t numLinesUpdated = 0;
+			while (numLinesUpdated < maxLinesToUpdate)
+			{
+				if (lineInfoIndexToUpdateFrom + numLinesUpdated >= highlights.tree.sourceInfo.size())
+				{
+					break;
+				}
+
+				auto currentLineInfo = highlights.tree.sourceInfo.begin() + lineInfoIndexToUpdateFrom + numLinesUpdated;
+				if (currentLineInfo->needsToBeUpdated)
+				{
+					if (firstLineUpdated == (int32)highlights.tree.sourceInfo.size())
+					{
+						firstLineUpdated = (int32)(lineInfoIndexToUpdateFrom + numLinesUpdated + 1);
+					}
+
+					size_t numLinesParsed = this->grammar->updateFromByte(highlights.tree, *highlights.theme, currentLineInfo->byteStart, (uint32)(maxLinesToUpdate - numLinesUpdated));
+					numLinesUpdated += numLinesParsed;
+
+					lastLineUpdated = (int32)(lineInfoIndexToUpdateFrom + numLinesUpdated + 1);
+				}
+				else
+				{
+					numLinesUpdated++;
+				}
+			}
+		}
+
+		if (firstLineUpdated == highlights.tree.sourceInfo.size())
+		{
+			return { (int32)highlights.tree.sourceInfo.size(), (int32)highlights.tree.sourceInfo.size() };
+		}
+
+		return { firstLineUpdated, lastLineUpdated };
+	}
+
+	Vec2i SyntaxHighlighter::insertText(CodeHighlights& highlights, const char* newCodeBlock, size_t newCodeBlockLength, size_t insertStart, size_t insertEnd, size_t maxLinesToUpdate) const
+	{
+		size_t oldCodeLength = highlights.tree.codeLength;
+
+		// First find the line that we need to update (or the end of the list if the insertion occurred at the end of the code block
+		highlights.tree.codeBlock = newCodeBlock;
+		highlights.tree.codeLength = newCodeBlockLength;
+
+		size_t lineInfoIndexToUpdateFrom = highlights.tree.sourceInfo.size();
+		for (size_t i = 0; i < highlights.tree.sourceInfo.size(); i++)
+		{
+			auto& lineInfo = highlights.tree.sourceInfo[i];
+			if (lineInfo.byteStart <= insertStart && lineInfo.byteStart + lineInfo.numBytes > insertStart)
+			{
+				lineInfoIndexToUpdateFrom = i;
+				break;
+			}
+		}
+
+		if (lineInfoIndexToUpdateFrom == highlights.tree.sourceInfo.size())
+		{
+			g_logger_assert(insertStart >= oldCodeLength, "We should only be updating from the end of the list when the insertion occurred at the end of the old source information.");
+
+			if (highlights.tree.sourceInfo.size() == 0)
+			{
+				GrammarLineInfo emptyLine = {};
+				highlights.tree.sourceInfo.emplace_back(emptyLine);
+			}
+			else
+			{
+				// Subtract 1 so we begin updating the last line of the code
+				lineInfoIndexToUpdateFrom--;
+			}
+		}
+
+		// Next, update the line beginnings and line lengths for all effected lines (or create new lines if new lines were made)
+		// and also figure out which of those lines need to be updated
+		{
+			auto currentLineInfo = highlights.tree.sourceInfo.begin() + lineInfoIndexToUpdateFrom;
+
+			size_t cursorIndex = insertStart;
+			while (cursorIndex < highlights.tree.codeLength)
+			{
+				// If we hit a newline or the end of the code, update the line we're currently on
+				if (highlights.tree.codeBlock[cursorIndex] == '\n' || cursorIndex == highlights.tree.codeLength - 1)
+				{
+					// Update the current line
+					size_t newNumBytes = cursorIndex - currentLineInfo->byteStart + 1;
+					bool nextLineNeedsUpdatingToo = false;
+					if (currentLineInfo->numBytes != newNumBytes)
+					{
+						currentLineInfo->needsToBeUpdated = true;
+						// Also update the next line if possible
+						nextLineNeedsUpdatingToo = true;
+					}
+
+					currentLineInfo->numBytes = (uint32)newNumBytes;
+					currentLineInfo++;
+
+					// If there was a newline in the insertion text, then
+					// insert a new line in our source info here
+					if (cursorIndex >= insertStart && cursorIndex < insertEnd && highlights.tree.codeBlock[cursorIndex] == '\n')
+					{
+						// Create a new entry for the new line info if we're not at the end of the file
+						currentLineInfo = highlights.tree.sourceInfo.insert(currentLineInfo, GrammarLineInfo{});
+						currentLineInfo->needsToBeUpdated = true;
+						currentLineInfo->byteStart = (uint32)(cursorIndex + 1);
+						currentLineInfo->numBytes = 0;
+					}
+
+					if (currentLineInfo != highlights.tree.sourceInfo.end())
+					{
+						// We don't want to overwrite anything to false that does need to be updated, so we do an if check here
+						if (nextLineNeedsUpdatingToo)
+						{
+							currentLineInfo->needsToBeUpdated = true;
+						}
+						currentLineInfo->byteStart = (uint32)(cursorIndex + 1);
+					}
+
+					if (currentLineInfo == highlights.tree.sourceInfo.end() && cursorIndex < highlights.tree.codeLength - 1)
+					{
+						// Create a new entry for the new line info if we're not at the end of the file
+						highlights.tree.sourceInfo.push_back({});
+						currentLineInfo = highlights.tree.sourceInfo.begin() + (highlights.tree.sourceInfo.size() - 1);
+						currentLineInfo->needsToBeUpdated = true;
+						currentLineInfo->byteStart = (uint32)(cursorIndex + 1);
+						currentLineInfo->numBytes = 1;
+					}
+				}
+
+				cursorIndex++;
+			}
+		}
+
+		// Finally, actually reparse any effected lines, including all characters in between the insertion points
+		{
+			size_t cursorIndex = insertStart;
+			size_t numLinesUpdated = 0;
+			while (numLinesUpdated < maxLinesToUpdate)
+			{
+				size_t numLinesParsed = this->grammar->updateFromByte(highlights.tree, *highlights.theme, (uint32)cursorIndex, (uint32)(maxLinesToUpdate - numLinesUpdated));
+				numLinesUpdated += numLinesParsed;
+
+				if (lineInfoIndexToUpdateFrom + numLinesUpdated >= highlights.tree.sourceInfo.size())
+				{
+					break;
+				}
+
+				auto currentLineInfo = highlights.tree.sourceInfo.begin() + lineInfoIndexToUpdateFrom + numLinesUpdated;
+				cursorIndex = currentLineInfo->byteStart;
+
+				// If we've passed the insertion characters, then we only want to update lines that need to be udpated from
+				// here on out. So we'll skip over lines that didn't change
+				if (insertEnd < currentLineInfo->byteStart)
+				{
+					// Skip any lines that don't need to be updated
+					while (!currentLineInfo->needsToBeUpdated)
+					{
+						currentLineInfo++;
+						numLinesUpdated++;
+
+						if (numLinesUpdated > maxLinesToUpdate)
+						{
+							break;
+						}
+
+						if (currentLineInfo == highlights.tree.sourceInfo.end())
+						{
+							break;
+						}
+					}
+
+					if (lineInfoIndexToUpdateFrom + numLinesUpdated >= highlights.tree.sourceInfo.size())
+					{
+						break;
+					}
+
+					currentLineInfo = highlights.tree.sourceInfo.begin() + lineInfoIndexToUpdateFrom + numLinesUpdated;
+					cursorIndex = currentLineInfo->byteStart;
+				}
+			}
+		}
+
+		return { (int32)highlights.tree.sourceInfo.size(), (int32)highlights.tree.sourceInfo.size() };
 	}
 
 	std::string SyntaxHighlighter::getStringifiedParseTreeFor(const std::string& code, SyntaxTheme const& theme) const
@@ -184,7 +379,7 @@ namespace MathAnim
 			return {};
 		}
 
-		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code.c_str(), code.length(), theme, false);
+		SourceGrammarTree grammarTree = grammar->parseCodeBlock(code.c_str(), code.length(), theme);
 		return grammarTree.getStringifiedTree(*grammar);
 	}
 
