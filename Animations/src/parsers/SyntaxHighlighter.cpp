@@ -227,6 +227,9 @@ namespace MathAnim
 
 	Vec2i SyntaxHighlighter::insertText(CodeHighlights& highlights, const char* newCodeBlock, size_t newCodeBlockLength, size_t insertStart, size_t insertEnd, size_t maxLinesToUpdate) const
 	{
+		int32 firstLineUpdated = (int32)highlights.tree.sourceInfo.size();
+		int32 lastLineUpdated = firstLineUpdated;
+
 		size_t oldCodeLength = highlights.tree.codeLength;
 
 		// First find the line that we need to update (or the end of the list if the insertion occurred at the end of the code block
@@ -326,8 +329,15 @@ namespace MathAnim
 			size_t numLinesUpdated = 0;
 			while (numLinesUpdated < maxLinesToUpdate)
 			{
+				if (firstLineUpdated == highlights.tree.sourceInfo.size())
+				{
+					firstLineUpdated = (int32)(lineInfoIndexToUpdateFrom + numLinesUpdated + 1);
+				}
+
 				size_t numLinesParsed = this->grammar->updateFromByte(highlights.tree, *highlights.theme, (uint32)cursorIndex, (uint32)(maxLinesToUpdate - numLinesUpdated));
 				numLinesUpdated += numLinesParsed;
+
+				lastLineUpdated = (int32)(lineInfoIndexToUpdateFrom + numLinesUpdated + 1);
 
 				if (lineInfoIndexToUpdateFrom + numLinesUpdated >= highlights.tree.sourceInfo.size())
 				{
@@ -369,7 +379,7 @@ namespace MathAnim
 			}
 		}
 
-		return { (int32)highlights.tree.sourceInfo.size(), (int32)highlights.tree.sourceInfo.size() };
+		return { firstLineUpdated, lastLineUpdated };
 	}
 
 	std::string SyntaxHighlighter::getStringifiedParseTreeFor(const std::string& code, SyntaxTheme const& theme) const

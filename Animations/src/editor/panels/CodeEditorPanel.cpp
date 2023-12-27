@@ -29,6 +29,12 @@ namespace MathAnim
 
 	namespace CodeEditorPanel
 	{
+		// ------------- Internal Variables -------------
+		static bool inspectCodeStyles = false;
+		static bool visualizeSyntaxUpdates = false;
+		static uint32 numMsToShowLineUpdates = 500;
+		static Vec4 flashColor = "#36d174"_hex;
+
 		// ------------- Internal Functions -------------
 		static void resetSelection(CodeEditorPanelData& panel);
 		static void handleTypingUndo(CodeEditorPanelData& panel);
@@ -549,6 +555,40 @@ namespace MathAnim
 			uint32 currentLine = panel.lineNumberStart;
 			ImVec2 currentLetterDrawPos = renderNextLinePrefix(panel, currentLine, codeFont);
 
+			// Visualize syntax updates by flashing a green color behind any text that's been updated
+			if (visualizeSyntaxUpdates)
+			{
+				auto now = std::chrono::high_resolution_clock::now();
+				for (size_t i = 0; i < panel.debugData.linesUpdated.size(); i++)
+				{
+					auto const& linesUpdated = panel.debugData.linesUpdated[i];
+					auto lineStartTime = panel.debugData.ageOfLinesUpdated[i];
+					auto lineAge = std::chrono::duration_cast<std::chrono::milliseconds>(now - lineStartTime);
+
+					// Lines over a certain number of milliseconds stop showing
+					if (lineAge.count() > numMsToShowLineUpdates)
+					{
+						panel.debugData.linesUpdated.erase(panel.debugData.linesUpdated.begin() + i);
+						panel.debugData.ageOfLinesUpdated.erase(panel.debugData.ageOfLinesUpdated.begin() + i);
+						i--;
+						continue;
+					}
+
+					float lineAlpha = 1.0f - ((float)lineAge.count() / (float)numMsToShowLineUpdates);
+					Vec4 lineColor = flashColor;
+					lineColor.a = lineAlpha;
+
+					ImVec2 topLeftOfLine = getTopLeftOfLine(panel, linesUpdated.min, codeFont);
+					ImVec2 bottomRightOfArea = getTopLeftOfLine(panel, linesUpdated.max, codeFont);
+					bottomRightOfArea = ImVec2(
+						panel.drawEnd.x - scrollbarWidth,
+						bottomRightOfArea.y + getLineHeight(codeFont)
+					);
+
+					drawList->AddRectFilled(topLeftOfLine, bottomRightOfArea, ImColor(lineColor));
+				}
+			}
+
 			// Handle scroll bar render and logic
 			if (windowIsHovered && panel.numberLinesCanFitOnScreen < panel.totalNumberLines + numberBufferLines)
 			{
@@ -575,7 +615,8 @@ namespace MathAnim
 
 						if (linesUpdated.min < (int32)panel.totalNumberLines)
 						{
-							g_logger_info("Lines updated: {}\n", linesUpdated);
+							panel.debugData.linesUpdated.emplace_back(linesUpdated);
+							panel.debugData.ageOfLinesUpdated.emplace_back(std::chrono::high_resolution_clock::now());
 						}
 					}
 
@@ -839,7 +880,7 @@ namespace MathAnim
 					ImGui::Text("                       Character: \\%c", escapedCharacter);
 				}
 
-				static bool inspectCodeStyles = false;
+				ImGui::Checkbox(": Visualize Syntax Updates", &visualizeSyntaxUpdates);
 				ImGui::Checkbox(": Inspect Syntax Styles", &inspectCodeStyles);
 				if (inspectCodeStyles)
 				{
@@ -910,7 +951,7 @@ namespace MathAnim
 			g_memory_free(byteMappedString);
 
 			size_t numberLinesToUpdate = panel.numberLinesCanFitOnScreen;
-			CodeEditorPanelManager::getHighlighter().insertText(
+			Vec2i linesUpdated = CodeEditorPanelManager::getHighlighter().insertText(
 				panel.syntaxHighlightTree,
 				(const char*)panel.visibleCharacterBuffer,
 				panel.visibleCharacterBufferSize,
@@ -918,6 +959,12 @@ namespace MathAnim
 				insertPosition + stringNumBytes,
 				numberLinesToUpdate
 			);
+
+			if (linesUpdated.min < (int32)panel.totalNumberLines)
+			{
+				panel.debugData.linesUpdated.emplace_back(linesUpdated);
+				panel.debugData.ageOfLinesUpdated.emplace_back(std::chrono::high_resolution_clock::now());
+			}
 		}
 
 		void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint, size_t insertPosition)

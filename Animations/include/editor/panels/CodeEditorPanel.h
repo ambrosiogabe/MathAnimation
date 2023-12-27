@@ -7,6 +7,12 @@ namespace MathAnim
 {
 	struct TextEditorUndoSystem;
 
+	struct CodeEditorPanelDebugData
+	{
+		std::vector<Vec2i> linesUpdated;
+		std::vector<std::chrono::steady_clock::time_point> ageOfLinesUpdated;
+	};
+
 	struct CodeEditorPanelData
 	{
 		TextEditorUndoSystem* undoSystem;
@@ -36,6 +42,7 @@ namespace MathAnim
 		size_t visibleCharacterBufferSize;
 
 		CodeHighlights syntaxHighlightTree;
+		CodeEditorPanelDebugData debugData;
 	};
 
 	namespace CodeEditorPanel
