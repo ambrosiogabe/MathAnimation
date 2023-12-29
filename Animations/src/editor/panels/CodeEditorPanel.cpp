@@ -609,7 +609,7 @@ namespace MathAnim
 							newLine - panel.lineNumberStart
 						);
 
-						if (linesUpdated.min < (int32)panel.totalNumberLines)
+						if (linesUpdated.min <= (int32)panel.totalNumberLines)
 						{
 							panel.debugData.linesUpdated.emplace_back(linesUpdated);
 							panel.debugData.ageOfLinesUpdated.emplace_back(std::chrono::high_resolution_clock::now());
@@ -957,7 +957,7 @@ namespace MathAnim
 				numberLinesToUpdate
 			);
 
-			if (linesUpdated.min < (int32)panel.totalNumberLines)
+			if (linesUpdated.min <= (int32)panel.totalNumberLines)
 			{
 				panel.debugData.linesUpdated.emplace_back(linesUpdated);
 				panel.debugData.ageOfLinesUpdated.emplace_back(std::chrono::high_resolution_clock::now());
@@ -993,8 +993,6 @@ namespace MathAnim
 			panel.firstByteInSelection = (int32)panel.cursor.bytePos;
 			panel.lastByteInSelection = (int32)panel.cursor.bytePos;
 
-			// TODO: Only reparse the effected lines
-			reparseSyntax(panel);
 			scrollCursorIntoViewIfNeeded(panel);
 			setCursorDistanceFromLineStart(panel);
 
@@ -1020,8 +1018,6 @@ namespace MathAnim
 			panel.firstByteInSelection = (int32)panel.cursor.bytePos;
 			panel.lastByteInSelection = (int32)panel.cursor.bytePos;
 
-			// TODO: Only reparse the effected lines
-			reparseSyntax(panel);
 			setCursorDistanceFromLineStart(panel);
 
 			return true;
@@ -1528,6 +1524,23 @@ namespace MathAnim
 
 				panel.lineNumberStart = (uint32)glm::clamp(newLine, 1, (int32)panel.totalNumberLines + (int32)numberBufferLines);
 				panel.lineNumberByteStart = getLineNumberByteStartFrom(panel, panel.lineNumberStart);
+			}
+
+			// Update the syntax highlighting
+			size_t numberLinesToUpdate = panel.numberLinesCanFitOnScreen;
+			Vec2i linesUpdated = CodeEditorPanelManager::getHighlighter().removeText(
+				panel.syntaxHighlightTree,
+				(const char*)panel.visibleCharacterBuffer,
+				panel.visibleCharacterBufferSize,
+				textToRemoveOffset,
+				numberLinesInString,
+				numberLinesToUpdate
+			);
+
+			if (linesUpdated.min <= (int32)panel.totalNumberLines)
+			{
+				panel.debugData.linesUpdated.emplace_back(linesUpdated);
+				panel.debugData.ageOfLinesUpdated.emplace_back(std::chrono::high_resolution_clock::now());
 			}
 
 			return true;

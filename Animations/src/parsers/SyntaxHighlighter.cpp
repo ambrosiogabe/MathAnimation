@@ -3,6 +3,7 @@
 #include "parsers/Common.h"
 #include "parsers/SyntaxTheme.h"
 #include "platform/Platform.h"
+#include "math/CMath.h"
 
 namespace MathAnim
 {
@@ -187,7 +188,7 @@ namespace MathAnim
 		int32 firstLineUpdated = (int32)highlights.tree.sourceInfo.size();
 		int32 lastLineUpdated = firstLineUpdated;
 
-		// Finally, actually reparse any effected lines, including all characters in between the insertion points
+		// Reparse any lines marked as needing to be reparsed
 		{
 			size_t numLinesUpdated = 0;
 			while (numLinesUpdated < maxLinesToUpdate)
@@ -215,11 +216,6 @@ namespace MathAnim
 					numLinesUpdated++;
 				}
 			}
-		}
-
-		if (firstLineUpdated == highlights.tree.sourceInfo.size())
-		{
-			return { (int32)highlights.tree.sourceInfo.size(), (int32)highlights.tree.sourceInfo.size() };
 		}
 
 		return { firstLineUpdated, lastLineUpdated };
@@ -305,44 +301,98 @@ namespace MathAnim
 			}
 		}
 
-		int32 firstLineUpdated = (int32)highlights.tree.sourceInfo.size();
-		int32 lastLineUpdated = firstLineUpdated;
+		// Finally, actually reparse any effected lines
+		// There's a chance that this iterator got invalidated, so get a new iterator to be safe
+		auto lineInfoToUpdateFrom = highlights.tree.getLineForByte(insertStart);
+		size_t lineInfoIndexToUpdateFrom = lineInfoToUpdateFrom - highlights.tree.sourceInfo.begin();
 
-		// Finally, actually reparse any effected lines, including all characters in between the insertion points
+		return checkForUpdatesFrom(highlights, lineInfoIndexToUpdateFrom + 1, maxLinesToUpdate);
+	}
+
+	Vec2i SyntaxHighlighter::removeText(CodeHighlights& highlights, const char* newCodeBlock, size_t newCodeBlockLength, size_t removeStart, size_t numLinesRemoved, size_t maxLinesToUpdate) const
+	{
+		// Remove an equivalent number of lines that were removed from this selection, starting from
+		// the same line that the removeStart began
+		size_t lineIndexStartedRemovingFrom = highlights.tree.sourceInfo.size();
+		size_t numLinesToRemove = numLinesRemoved;
+		for (auto lineIter = highlights.tree.getLineForByte(removeStart); lineIter != highlights.tree.sourceInfo.end();)
 		{
-			// There's a chance that this iterator got invalidated, so get a new iterator to be safe
-			auto lineInfoToUpdateFrom = highlights.tree.getLineForByte(insertStart);
-			size_t lineInfoIndexToUpdateFrom = lineInfoToUpdateFrom - highlights.tree.sourceInfo.begin();
-			size_t numLinesUpdated = 0;
-
-			while (numLinesUpdated < maxLinesToUpdate)
+			if (lineIndexStartedRemovingFrom == highlights.tree.sourceInfo.size())
 			{
-				if (lineInfoIndexToUpdateFrom + numLinesUpdated >= highlights.tree.sourceInfo.size())
+				lineIndexStartedRemovingFrom = lineIter - highlights.tree.sourceInfo.begin();
+			}
+
+			if (numLinesToRemove == 0)
+			{
+				break;
+			}
+
+			// Remove this line
+			lineIter = highlights.tree.sourceInfo.erase(lineIter);
+			numLinesToRemove--;
+		}
+
+		size_t oldCodeLength = highlights.tree.codeLength;
+		highlights.tree.codeBlock = newCodeBlock;
+		highlights.tree.codeLength = newCodeBlockLength;
+
+		// Update beginnings/endings of all lines and mark any lines that need to be updated
+		{
+			auto currentLineInfo = highlights.tree.sourceInfo.begin() + lineIndexStartedRemovingFrom;
+			g_logger_assert(currentLineInfo != highlights.tree.sourceInfo.end(), "Cannot remove syntax highlighting from beyond the end of the file.");
+
+			// First, fix the current line info's start byte
+			size_t prevLineEnd = 0;
+			if (lineIndexStartedRemovingFrom > 0)
+			{
+				auto prevLineInfo = std::prev(currentLineInfo);
+				prevLineEnd = prevLineInfo->byteStart + prevLineInfo->numBytes;
+			}
+
+			currentLineInfo->byteStart = (uint32)prevLineEnd;
+
+			// Insert any newlines and figure out which lines need to be updated
+			size_t cursorIndex = removeStart;
+			while (cursorIndex < oldCodeLength)
+			{
+				// If we hit a newline or the end of the code, update the line we're currently on
+				if (cursorIndex >= highlights.tree.codeLength || cursorIndex == highlights.tree.codeLength - 1 || highlights.tree.codeBlock[cursorIndex] == '\n')
 				{
+					// Update the current line
+					uint32 endOfLine = CMath::min((uint32)cursorIndex, (uint32)highlights.tree.codeLength - 1);
+					currentLineInfo->numBytes = endOfLine - currentLineInfo->byteStart + 1;
+					currentLineInfo->needsToBeUpdated = true;
+					currentLineInfo++;
+
+					// Update the beginning of the next line
+					if (currentLineInfo != highlights.tree.sourceInfo.end())
+					{
+						currentLineInfo->needsToBeUpdated = true;
+						currentLineInfo->byteStart = (uint32)(cursorIndex + 1);
+					}
+
+					// We only need to check for updates at the line where the removal started, and the line right after it
 					break;
 				}
 
-				auto currentLineInfo = highlights.tree.sourceInfo.begin() + lineInfoIndexToUpdateFrom + numLinesUpdated;
-				if (currentLineInfo->needsToBeUpdated)
-				{
-					if (firstLineUpdated == highlights.tree.sourceInfo.size())
-					{
-						firstLineUpdated = (int32)(lineInfoIndexToUpdateFrom + numLinesUpdated + 1);
-					}
+				cursorIndex++;
+			}
 
-					size_t numLinesParsed = this->grammar->updateFromByte(highlights.tree, *highlights.theme, (uint32)currentLineInfo->byteStart, (uint32)(maxLinesToUpdate - numLinesUpdated));
-					numLinesUpdated += numLinesParsed;
-
-					lastLineUpdated = (int32)(lineInfoIndexToUpdateFrom + numLinesUpdated + 1);
-				}
-				else
+			// Next, update the remaining line beginning/endings
+			for (; currentLineInfo != highlights.tree.sourceInfo.end(); currentLineInfo++)
+			{
+				if (currentLineInfo != highlights.tree.sourceInfo.begin())
 				{
-					numLinesUpdated++;
+					auto prevLineInfo = std::prev(currentLineInfo);
+					currentLineInfo->byteStart = prevLineInfo->byteStart + prevLineInfo->numBytes;
+
+					g_logger_assert(currentLineInfo->byteStart + currentLineInfo->numBytes <= highlights.tree.codeLength, "We shouldn't be exceeding the capacity of our string length here.");
 				}
 			}
 		}
 
-		return { firstLineUpdated, lastLineUpdated };
+		// Finally, actually reparse any effected lines
+		return checkForUpdatesFrom(highlights, lineIndexStartedRemovingFrom + 1, maxLinesToUpdate);
 	}
 
 	std::string SyntaxHighlighter::getStringifiedParseTreeFor(const std::string& code, SyntaxTheme const& theme) const

@@ -193,11 +193,11 @@ namespace MathAnim
 		* @param newCodeBlock A stable pointer representing the new code block with the text already removed
 		* @param newCodeBlockLength Length of the new code block
 		* @param removeStart Where the removal started
-		* @param removeEnd Where the removal ended
+		* @param numLinesRemoved The number of newline characters that were removed in this selection
 		* @param maxLinesToUpdate The maximum number of lines that can be updated before this function exits early
 		* @returns A span that indicates the first line updated and the last line updated
 		*/
-		Vec2i removeText(CodeHighlights& highlights, const char* newCodeBlock, size_t newCodeBlockLength, size_t removeStart, size_t removeEnd, size_t maxLinesToUpdate = DEFAULT_MAX_LINES_TO_UPDATE) const;
+		Vec2i removeText(CodeHighlights& highlights, const char* newCodeBlock, size_t newCodeBlockLength, size_t removeStart, size_t numLinesRemoved, size_t maxLinesToUpdate = DEFAULT_MAX_LINES_TO_UPDATE) const;
 
 		std::string getStringifiedParseTreeFor(const std::string& code, SyntaxTheme const& theme) const;
 

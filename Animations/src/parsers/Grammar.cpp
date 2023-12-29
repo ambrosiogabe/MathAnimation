@@ -1111,6 +1111,12 @@ namespace MathAnim
 
 			lineInfo->needsToBeUpdated = false;
 
+			// If the code block string is nullptr, then we'll return early
+			if (!tree.codeBlock)
+			{
+				return numLinesUpdated;
+			}
+
 			size_t start = lineInfo->byteStart;
 			while (start < lineInfo->byteStart + lineInfo->numBytes)
 			{
@@ -1886,6 +1892,21 @@ namespace MathAnim
 
 	static void getFirstMatchInRegset(const std::string& str, size_t anchor, size_t startOffset, size_t endOffset, const PatternArray& pattern, int* patternMatched)
 	{
+		if (endOffset < startOffset)
+		{
+			// TODO: Is this a bug? It seems like the code still parses correctly here, and my code does the same thing that VsCode seems to do,
+			//       so this seems to be correct behavior that can occur naturally. For additional context: to trigger this condition
+			//       try parsing the code:
+			//       ```lua
+			//            function add(
+			//            
+			//            -- some comment
+			//       ```
+			//       using the Luau grammar, and you'll hit this condition.
+			*patternMatched = -1;
+			return;
+		}
+
 		const char* targetStr = str.c_str();
 		const char* targetStrEnd = targetStr + str.length();
 
