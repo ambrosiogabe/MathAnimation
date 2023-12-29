@@ -340,7 +340,6 @@ namespace MathAnim
 					addUtf8StringToBuffer(panel, (uint8*)utf8String, utf8StringNumBytes, panel.cursor.bytePos);
 
 					UndoSystem::insertTextAction(panel.undoSystem, utf8String, utf8StringNumBytes, insertPosition, numCharacters);
-					scrollCursorIntoViewIfNeeded(panel);
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_C, KeyMods::Ctrl))
 				{
@@ -964,6 +963,8 @@ namespace MathAnim
 				panel.debugData.linesUpdated.emplace_back(linesUpdated);
 				panel.debugData.ageOfLinesUpdated.emplace_back(std::chrono::high_resolution_clock::now());
 			}
+
+			scrollCursorIntoViewIfNeeded(panel);
 		}
 
 		void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint, size_t insertPosition)
@@ -994,6 +995,7 @@ namespace MathAnim
 
 			// TODO: Only reparse the effected lines
 			reparseSyntax(panel);
+			scrollCursorIntoViewIfNeeded(panel);
 
 			return true;
 		}
@@ -1800,9 +1802,25 @@ namespace MathAnim
 			{
 				if (cursorLine >= panel.lineNumberStart + panel.numberLinesCanFitOnScreen)
 				{
+					uint32 oldLineStart = panel.lineNumberStart;
+
 					// Bring new line into view
 					int32 newLineStart = (int32)cursorLine - (int32)panel.numberLinesCanFitOnScreen + 1;
 					panel.lineNumberStart = (uint32)glm::clamp(newLineStart, 1, (int32)panel.totalNumberLines);
+
+					// Parse up to the new end of our view if we scrolled down so the syntax highlighting is up to date
+					Vec2i linesUpdated = CodeEditorPanelManager::getHighlighter().checkForUpdatesFrom(
+						panel.syntaxHighlightTree,
+						oldLineStart + panel.numberLinesCanFitOnScreen,
+						newLineStart - oldLineStart
+					);
+
+					// Update bookkeeping for visualizing these syntax updates
+					if (linesUpdated.min < (int32)panel.totalNumberLines)
+					{
+						panel.debugData.linesUpdated.emplace_back(linesUpdated);
+						panel.debugData.ageOfLinesUpdated.emplace_back(std::chrono::high_resolution_clock::now());
+					}
 				}
 				else if (cursorLine < panel.lineNumberStart)
 				{
