@@ -857,6 +857,7 @@ namespace MathAnim
 			{
 				ImGui::Begin("Stats##Panel1", &inspectorOn);
 
+				ImGui::Text("         Panel Line Number Start: %d", panel.lineNumberStart);
 				ImGui::Text("                 Selection Begin: %d", panel.firstByteInSelection);
 				ImGui::Text("                   Selection End: %d", panel.lastByteInSelection);
 				ImGui::Text("                      Drag Start: %d", panel.mouseByteDragStart);
@@ -1494,7 +1495,7 @@ namespace MathAnim
 
 			// Count the number of lines in the text we're about to remove
 			uint32 numberLinesInString = 0;
-			for (int32 i = textToRemoveOffset; i <= textToRemoveOffset + textToRemoveNumBytes; i++)
+			for (int32 i = textToRemoveOffset; i < textToRemoveOffset + textToRemoveNumBytes; i++)
 			{
 				if (panel.visibleCharacterBuffer[i] == '\n')
 				{
@@ -1516,14 +1517,13 @@ namespace MathAnim
 			panel.visibleCharacterBuffer = (uint8*)g_memory_realloc((void*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize);
 
 			// Update total number of lines
-			uint32 oldTotalNumberLines = panel.totalNumberLines;
 			panel.totalNumberLines -= numberLinesInString;
 
 			// If removing the text changed the scroll height, shift the scroll up to fit on the screen
 			if (panel.lineNumberStart + panel.numberLinesCanFitOnScreen > panel.totalNumberLines + numberBufferLines)
 			{
-				uint32 delta = (oldTotalNumberLines + numberBufferLines) - panel.lineNumberStart;
-				int32 newLine = (int32)(panel.totalNumberLines + numberBufferLines) - (int32)delta;
+				int32 delta = (int32)(panel.lineNumberStart + panel.numberLinesCanFitOnScreen) - (int32)(panel.totalNumberLines + numberBufferLines);
+				int32 newLine = (int32)panel.lineNumberStart - delta;
 
 				panel.lineNumberStart = (uint32)glm::clamp(newLine, 1, (int32)panel.totalNumberLines + (int32)numberBufferLines);
 				panel.lineNumberByteStart = getLineNumberByteStartFrom(panel, panel.lineNumberStart);
