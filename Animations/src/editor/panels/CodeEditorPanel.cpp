@@ -580,10 +580,9 @@ namespace MathAnim
 
 					ImVec2 topLeftOfLine = getTopLeftOfLine(panel, linesUpdated.min, codeFont);
 					ImVec2 bottomRightOfArea = getTopLeftOfLine(panel, linesUpdated.max, codeFont);
-					bottomRightOfArea = ImVec2(
-						panel.drawEnd.x - scrollbarWidth,
-						bottomRightOfArea.y + getLineHeight(codeFont)
-					);
+					bottomRightOfArea.x = panel.drawEnd.x - scrollbarWidth;
+
+					// NOTE: We don't highlight below the last line because the last line is not inclusive in the updates
 
 					drawList->AddRectFilled(topLeftOfLine, bottomRightOfArea, ImColor(lineColor));
 				}

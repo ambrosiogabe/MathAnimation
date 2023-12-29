@@ -721,6 +721,19 @@ namespace MathAnim
 		}
 	}
 
+	std::vector<GrammarLineInfo>::iterator SourceGrammarTree::getLineForByte(size_t byte)
+	{
+		for (auto iter = sourceInfo.begin(); iter != sourceInfo.end(); iter++)
+		{
+			if (iter->byteStart <= byte && iter->byteStart + iter->numBytes > byte)
+			{
+				return iter;
+			}
+		}
+
+		return sourceInfo.end();
+	}
+
 	std::vector<ScopedName> SourceGrammarTree::getAllAncestorScopesAtChar(size_t cursorPos) const
 	{
 		for (auto const& line : this->sourceInfo)

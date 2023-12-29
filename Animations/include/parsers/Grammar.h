@@ -208,6 +208,8 @@ namespace MathAnim
 		const char* codeBlock;
 		size_t codeLength;
 
+		std::vector<GrammarLineInfo>::iterator getLineForByte(size_t byte);
+
 		std::vector<ScopedName> getAllAncestorScopesAtChar(size_t cursorPos) const;
 		std::string getMatchTextAtChar(size_t cursorPos) const;
 

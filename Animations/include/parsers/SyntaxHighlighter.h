@@ -170,15 +170,15 @@ namespace MathAnim
 
 		/**
 		* @brief This function should be run if you've inserted text and would like to modify the current `highlights` object. It will
-		*        check to see if there's been any changes between [insertStart, insertEnd] and update any lines as applicable. If the
-		*        changes exceed the range of [insertStart, insertEnd], then it will continue to update until it hits `maxLinesToUpdate`,
+		*        check to see if there's been any changes between [insertStart, insertEnd) and update any lines as applicable. If the
+		*        changes exceed the range of [insertStart, insertEnd), then it will continue to update until it hits `maxLinesToUpdate`,
 		*        at which point you can resume parsing using `checkForUpdatesFrom` at a later time.
 		* 
 		* @param highlights The highlights object that will be modified if any updates are found
 		* @param newCodeBlock A stable pointer representing the new code block with the insertion already in the text
 		* @param newCodeBlockLength Length of the new code block
 		* @param insertStart Where the insertion started
-		* @param insertEnd Where the insertion ended. NOTE: This is inclusive of the insertEnd.
+		* @param insertEnd Where the insertion ended. NOTE: This is NOT inclusive of insertEnd.
 		* @param maxLinesToUpdate The maximum number of lines that can be updated before this function exits early
 		* @returns A span that indicates the first line updated and the last line updated
 		*/
