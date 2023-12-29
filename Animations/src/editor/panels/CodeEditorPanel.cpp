@@ -517,7 +517,6 @@ namespace MathAnim
 					}
 
 					addCodepointToBuffer(panel, codepoint, (int32)panel.cursor.bytePos);
-					setCursorDistanceFromLineStart(panel);
 					fileHasBeenEdited = true;
 				}
 
@@ -535,7 +534,6 @@ namespace MathAnim
 					}
 
 					addCodepointToBuffer(panel, (uint32)'\n', panel.cursor.bytePos);
-					setCursorDistanceFromLineStart(panel);
 					fileHasBeenEdited = true;
 				}
 			}
@@ -966,6 +964,7 @@ namespace MathAnim
 			}
 
 			scrollCursorIntoViewIfNeeded(panel);
+			setCursorDistanceFromLineStart(panel);
 		}
 
 		void addCodepointToBuffer(CodeEditorPanelData& panel, uint32 codepoint, size_t insertPosition)
@@ -997,6 +996,7 @@ namespace MathAnim
 			// TODO: Only reparse the effected lines
 			reparseSyntax(panel);
 			scrollCursorIntoViewIfNeeded(panel);
+			setCursorDistanceFromLineStart(panel);
 
 			return true;
 		}
@@ -1022,6 +1022,7 @@ namespace MathAnim
 
 			// TODO: Only reparse the effected lines
 			reparseSyntax(panel);
+			setCursorDistanceFromLineStart(panel);
 
 			return true;
 		}
