@@ -24,6 +24,7 @@ namespace MathAnim
 		uint32 lineNumberByteStart;
 		ImVec2 drawStart;
 		ImVec2 drawEnd;
+		float leftGutterWidth;
 
 		int32 undoTypingStart;
 

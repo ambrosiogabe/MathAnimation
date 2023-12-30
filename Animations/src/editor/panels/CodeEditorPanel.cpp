@@ -55,6 +55,14 @@ namespace MathAnim
 		// TODO: Move this to <cppStrings.hpp>
 		static uint8 codepointToUtf8Str(uint8* const buffer, uint32 codepoint);
 
+		static int32 getBeginningOfLineFrom(CodeEditorPanelData const& panel, int32 index);
+		static int32 getNumCharsFromBeginningOfLine(CodeEditorPanelData const& panel, int32 index);
+		static int32 getEndOfLineFrom(CodeEditorPanelData const& panel, int32 index);
+		static void setCursorDistanceFromLineStart(CodeEditorPanelData& panel);
+		static uint32 getLineNumberByteStartFrom(CodeEditorPanelData const& panel, uint32 lineNumber);
+		static uint32 getLineNumberFromPosition(CodeEditorPanelData const& panel, uint32 bytePos);
+		static float calculateLeftGutterWidth(CodeEditorPanelData const& panel);
+
 		// Simple calculation functions
 		static inline ImColor getColor(Vec4 const& color)
 		{
@@ -84,122 +92,9 @@ namespace MathAnim
 				io.MousePos.y >= rectStart.y && io.MousePos.y <= rectEnd.y;
 		}
 
-		static int32 getBeginningOfLineFrom(CodeEditorPanelData const& panel, int32 index)
-		{
-			if (index <= 0)
-			{
-				return 0;
-			}
-
-			auto tmpCursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, index);
-			if (tmpCursor.bytePos == panel.visibleCharacterBufferSize || (*tmpCursor).value() == (uint32)'\n')
-			{
-				--tmpCursor;
-			}
-
-			while (tmpCursor.bytePos != 0)
-			{
-				if ((*tmpCursor).value() == '\n')
-				{
-					++tmpCursor;
-					return (int32)tmpCursor.bytePos;
-				}
-				--tmpCursor;
-			}
-
-			return (int32)tmpCursor.bytePos;
-		}
-
-		static int32 getNumCharsFromBeginningOfLine(CodeEditorPanelData const& panel, int32 index)
-		{
-			if (index <= 0)
-			{
-				return 0;
-			}
-
-			int32 numChars = 0;
-			auto tmpCursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, index);
-			if (tmpCursor.bytePos == panel.visibleCharacterBufferSize || (*tmpCursor).value() == (uint32)'\n')
-			{
-				--tmpCursor;
-				numChars++;
-			}
-
-			while (tmpCursor.bytePos != 0)
-			{
-				if ((*tmpCursor).value() == '\n')
-				{
-					return numChars;
-				}
-
-				--tmpCursor;
-				numChars++;
-			}
-
-			return numChars;
-		}
-
-		static int32 getEndOfLineFrom(CodeEditorPanelData const& panel, int32 index)
-		{
-			int32 cursor = index;
-			while (cursor < panel.visibleCharacterBufferSize)
-			{
-				if (panel.visibleCharacterBuffer[cursor] == '\n')
-				{
-					return cursor;
-				}
-				cursor++;
-			}
-
-			return cursor - 1;
-		}
-
-		static void setCursorDistanceFromLineStart(CodeEditorPanelData& panel)
-		{
-			panel.beginningOfCurrentLineByte = getBeginningOfLineFrom(panel, (int32)panel.cursor.bytePos);
-			panel.numOfCharsFromBeginningOfLine = getNumCharsFromBeginningOfLine(panel, (int32)panel.cursor.bytePos);
-		}
-
-		static uint32 getLineNumberByteStartFrom(CodeEditorPanelData const& panel, uint32 lineNumber)
-		{
-			uint32 currentLine = 1;
-			for (uint32 i = 0; i < (uint32)panel.visibleCharacterBufferSize; i++)
-			{
-				if (currentLine >= lineNumber)
-				{
-					return i;
-				}
-
-				if (panel.visibleCharacterBuffer[i] == '\n')
-				{
-					currentLine++;
-				}
-			}
-
-			return (uint32)panel.visibleCharacterBufferSize;
-		}
-
-		static uint32 getLineNumberFromPosition(CodeEditorPanelData const& panel, uint32 bytePos)
-		{
-			uint32 currentLine = 1;
-			for (uint32 i = 0; i < (uint32)panel.visibleCharacterBufferSize; i++)
-			{
-				if (i >= bytePos)
-				{
-					return currentLine;
-				}
-
-				if (panel.visibleCharacterBuffer[i] == '\n')
-				{
-					currentLine++;
-				}
-			}
-
-			return panel.totalNumberLines;
-		}
-
 		// ------------- Internal Data -------------
-		static float leftGutterWidth = 60;
+		static float baseLeftGutterWidth = 130;
+		static float additionalLeftGutterWidth = 25;
 		static float scrollbarWidth = 10;
 		static float textCursorWidth = 3;
 		static uint32 numberBufferLines = 30;
@@ -542,6 +437,7 @@ namespace MathAnim
 			auto syntaxTheme = CodeEditorPanelManager::getTheme();
 			panel.drawStart = ImGui::GetCursorScreenPos();
 			panel.drawEnd = panel.drawStart + ImGui::GetContentRegionAvail();
+			panel.leftGutterWidth = calculateLeftGutterWidth(panel);
 
 			panel.numberLinesCanFitOnScreen = (uint32)glm::floor((panel.drawEnd.y - panel.drawStart.y) / getLineHeight(codeFont));
 
@@ -683,7 +579,7 @@ namespace MathAnim
 						textCursorDrawPosition = getTopLeftOfLine(panel, currentLine, codeFont);
 
 						const float lineHeight = codeFont->unsizedFont->lineHeight * codeFont->fontSizePixels;
-						textCursorDrawPosition = textCursorDrawPosition + ImVec2(leftGutterWidth + style.FramePadding.x, lineHeight);
+						textCursorDrawPosition = textCursorDrawPosition + ImVec2(panel.leftGutterWidth + style.FramePadding.x, lineHeight);
 					}
 					renderTextCursor(panel, textCursorDrawPosition, codeFont);
 				}
@@ -761,7 +657,7 @@ namespace MathAnim
 						);
 						drawList->AddRectFilled(textHighlightRectStart, lineEndPos, highlightTextColor);
 						textHighlightRectStart = ImVec2(
-							panel.drawStart.x + leftGutterWidth + style.FramePadding.x,
+							panel.drawStart.x + panel.leftGutterWidth + style.FramePadding.x,
 							letterBoundsStart.y + letterBoundsSize.y
 						);
 					}
@@ -1340,19 +1236,25 @@ namespace MathAnim
 			ImGuiStyle& style = ImGui::GetStyle();
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 
+			std::string largestNumberText = std::to_string(panel.totalNumberLines);
+			glm::vec2 largestNumberSize = font->getSizeOfString(largestNumberText);
+
+			// Center the number text according to the largest sized number, but make sure the numbers are all aligned still
+			ImVec2 lineStart = getTopLeftOfLine(panel, lineNumber, font);
+			ImVec2 rightSideOfLargestNumberSize = lineStart + ImVec2((panel.leftGutterWidth / 2.0f) + (largestNumberSize.x / 2.0f), 0.0f);
+
 			std::string numberText = std::to_string(lineNumber);
 			glm::vec2 textSize = font->getSizeOfString(numberText);
 
-			ImVec2 lineStart = getTopLeftOfLine(panel, lineNumber, font);
-			ImVec2 numberStart = lineStart + ImVec2(leftGutterWidth - textSize.x, 0.0f);
+			ImVec2 numberStart = rightSideOfLargestNumberSize - ImVec2(textSize.x, 0.0f);
 			addStringToDrawList(drawList, font, numberText, numberStart, ImColor(255, 255, 255, 255));
 
-			return lineStart + ImVec2(leftGutterWidth + style.FramePadding.x, 0.0f);
+			return lineStart + ImVec2(panel.leftGutterWidth + style.FramePadding.x, 0.0f);
 		}
 
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel)
 		{
-			ImVec2 textAreaStart = panel.drawStart + ImVec2(leftGutterWidth, 0.0f);
+			ImVec2 textAreaStart = panel.drawStart + ImVec2(panel.leftGutterWidth, 0.0f);
 			ImVec2 textAreaEnd = panel.drawEnd - ImVec2(scrollbarWidth, 0.0f);
 			return mouseIntersectsRect(textAreaStart, textAreaEnd);
 		}
@@ -1878,6 +1780,138 @@ namespace MathAnim
 			}
 
 			return 0;
+		}
+
+		static int32 getBeginningOfLineFrom(CodeEditorPanelData const& panel, int32 index)
+		{
+			if (index <= 0)
+			{
+				return 0;
+			}
+
+			auto tmpCursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, index);
+			if (tmpCursor.bytePos == panel.visibleCharacterBufferSize || (*tmpCursor).value() == (uint32)'\n')
+			{
+				--tmpCursor;
+			}
+
+			while (tmpCursor.bytePos != 0)
+			{
+				if ((*tmpCursor).value() == '\n')
+				{
+					++tmpCursor;
+					return (int32)tmpCursor.bytePos;
+				}
+				--tmpCursor;
+			}
+
+			return (int32)tmpCursor.bytePos;
+		}
+
+		static int32 getNumCharsFromBeginningOfLine(CodeEditorPanelData const& panel, int32 index)
+		{
+			if (index <= 0)
+			{
+				return 0;
+			}
+
+			int32 numChars = 0;
+			auto tmpCursor = CppUtils::String::makeIterFromBytePos(panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize, index);
+			if (tmpCursor.bytePos == panel.visibleCharacterBufferSize || (*tmpCursor).value() == (uint32)'\n')
+			{
+				--tmpCursor;
+				numChars++;
+			}
+
+			while (tmpCursor.bytePos != 0)
+			{
+				if ((*tmpCursor).value() == '\n')
+				{
+					return numChars;
+				}
+
+				--tmpCursor;
+				numChars++;
+			}
+
+			return numChars;
+		}
+
+		static int32 getEndOfLineFrom(CodeEditorPanelData const& panel, int32 index)
+		{
+			int32 cursor = index;
+			while (cursor < panel.visibleCharacterBufferSize)
+			{
+				if (panel.visibleCharacterBuffer[cursor] == '\n')
+				{
+					return cursor;
+				}
+				cursor++;
+			}
+
+			return cursor - 1;
+		}
+
+		static void setCursorDistanceFromLineStart(CodeEditorPanelData& panel)
+		{
+			panel.beginningOfCurrentLineByte = getBeginningOfLineFrom(panel, (int32)panel.cursor.bytePos);
+			panel.numOfCharsFromBeginningOfLine = getNumCharsFromBeginningOfLine(panel, (int32)panel.cursor.bytePos);
+		}
+
+		static uint32 getLineNumberByteStartFrom(CodeEditorPanelData const& panel, uint32 lineNumber)
+		{
+			uint32 currentLine = 1;
+			for (uint32 i = 0; i < (uint32)panel.visibleCharacterBufferSize; i++)
+			{
+				if (currentLine >= lineNumber)
+				{
+					return i;
+				}
+
+				if (panel.visibleCharacterBuffer[i] == '\n')
+				{
+					currentLine++;
+				}
+			}
+
+			return (uint32)panel.visibleCharacterBufferSize;
+		}
+
+		static uint32 getLineNumberFromPosition(CodeEditorPanelData const& panel, uint32 bytePos)
+		{
+			uint32 currentLine = 1;
+			for (uint32 i = 0; i < (uint32)panel.visibleCharacterBufferSize; i++)
+			{
+				if (i >= bytePos)
+				{
+					return currentLine;
+				}
+
+				if (panel.visibleCharacterBuffer[i] == '\n')
+				{
+					currentLine++;
+				}
+			}
+
+			return panel.totalNumberLines;
+		}
+
+		static float calculateLeftGutterWidth(CodeEditorPanelData const& panel)
+		{
+			if (panel.totalNumberLines >= 1'000)
+			{
+				int numAdditionalSpace = 0;
+				uint32 numLines = panel.totalNumberLines;
+				while (numLines >= 1'000)
+				{
+					numLines /= 10;
+					numAdditionalSpace++;
+				}
+
+				return baseLeftGutterWidth + (numAdditionalSpace * additionalLeftGutterWidth);
+			}
+
+			return baseLeftGutterWidth;
 		}
 	}
 }
