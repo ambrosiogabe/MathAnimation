@@ -46,6 +46,7 @@ namespace MathAnim
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber, SizedFont const* const font);
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel);
 		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const font, std::string const& str, ImVec2 const& drawPos, ImColor const& color);
+		static ImVec2 getGlyphSize(SizedFont const* const sizedFont, uint32 charToAdd);
 		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const font, uint32 charToAdd, ImVec2 const& drawPos, ImColor const& color);
 		static bool removeSelectedTextWithBackspace(CodeEditorPanelData& panel, bool addBackspaceToUndoHistory = true);
 		static bool removeSelectedTextWithDelete(CodeEditorPanelData& panel);
@@ -98,12 +99,19 @@ namespace MathAnim
 		static float scrollbarWidth = 10;
 		static float textCursorWidth = 3;
 		static uint32 numberBufferLines = 30;
+		static float baseNewlineCharacterWidth = 18.0f;
 
-		static ImColor lineNumberColor = ImColor(255, 255, 255);
-		static ImColor textCursorColor = ImColor(255, 255, 255);
-		static ImColor highlightTextColor = ImColor(115, 163, 240, 128);
 		static ImColor backgroundColor = ImColor(44, 44, 44);
-		static ImColor scrollbarColor = ImColor(95, 95, 95);
+
+		static ImColor editorSelectionBackground = ImColor(115, 163, 240, 128);
+		static ImColor editorCursorForeground = ImColor(255, 255, 255);
+
+		static ImColor editorLineNumberForeground = ImColor(230, 230, 230);
+		static ImColor editorLineNumberActiveForeground = ImColor(255, 255, 255);
+
+		static ImColor scrollbarSliderBackground = ImColor(95, 95, 95);
+		static ImColor scrollbarSliderActiveBackground = scrollbarSliderBackground;
+		static ImColor scrollbarSliderHoverBackground = scrollbarSliderBackground;
 
 		// TODO: Make this configurable
 		static int MAX_UNDO_HISTORY = 1024;
@@ -434,11 +442,11 @@ namespace MathAnim
 			}
 
 			// ---- Handle Rendering/mouse clicking ----
-			auto syntaxTheme = CodeEditorPanelManager::getTheme();
+			SyntaxTheme const& syntaxTheme = CodeEditorPanelManager::getTheme();
 			panel.drawStart = ImGui::GetCursorScreenPos();
 			panel.drawEnd = panel.drawStart + ImGui::GetContentRegionAvail();
 			panel.leftGutterWidth = calculateLeftGutterWidth(panel);
-
+			panel.cursorCurrentLine = getLineNumberFromPosition(panel, (uint32)panel.cursor.bytePos);
 			panel.numberLinesCanFitOnScreen = (uint32)glm::floor((panel.drawEnd.y - panel.drawStart.y) / getLineHeight(codeFont));
 
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -490,7 +498,13 @@ namespace MathAnim
 
 				ImVec2 scrollDrawStart = ImVec2(panel.drawEnd.x - scrollbarWidth, panel.drawStart.y + scrollYPos);
 				ImVec2 scrollDrawEnd = scrollDrawStart + ImVec2(scrollbarWidth, scrollbarHeight);
-				drawList->AddRectFilled(scrollDrawStart, scrollDrawEnd, scrollbarColor, 0.3f);
+
+				ImColor scrollbarBgColor = scrollbarSliderBackground;
+				if (syntaxTheme.scrollbarSliderBackground)
+				{
+					scrollbarBgColor = ImColor(syntaxTheme.getColor(syntaxTheme.scrollbarSliderBackground));
+				}
+				drawList->AddRectFilled(scrollDrawStart, scrollDrawEnd, scrollbarBgColor, 0.3f);
 
 				if (Input::scrollY != 0)
 				{
@@ -538,10 +552,8 @@ namespace MathAnim
 				panel.mouseIsDragSelecting = false;
 			}
 
-			bool lineHighlightStartFound = false;
 			bool lastCharWasNewline = false;
 			bool passedFirstCharacter = false;
-			ImVec2 textHighlightRectStart = ImVec2();
 			int32 closestByteToMouseCursor = (int32)panel.lineNumberByteStart;
 
 			// Render the text
@@ -558,6 +570,24 @@ namespace MathAnim
 				g_logger_assert(maybeCurrentCodepoint.hasValue(), "We shouldn't have any invalid UTF8 in our edit buffer.");
 				uint32 currentCodepoint = maybeCurrentCodepoint.value();
 				ImVec2 letterBoundsStart = currentLetterDrawPos;
+
+				// Before drawing the letter, draw the highlighted background if applicable
+				// Render selected text background color
+				if (panel.firstByteInSelection != panel.lastByteInSelection &&
+					cursor.bytePos >= panel.firstByteInSelection && cursor.bytePos < panel.lastByteInSelection)
+				{
+					ImVec2 glyphSize = getGlyphSize(codeFont, currentCodepoint);
+					ImVec2 highlightEnd = letterBoundsStart + glyphSize;
+
+					ImColor highlightTextColor = editorSelectionBackground;
+					if (syntaxTheme.editorSelectionBackground)
+					{
+						highlightTextColor = ImColor(syntaxTheme.getColor(syntaxTheme.editorSelectionBackground));
+					}
+					drawList->AddRectFilled(letterBoundsStart, highlightEnd, highlightTextColor);
+				}
+
+				// Render the letter and get the glyph size back
 				ImVec2 letterBoundsSize = addCharToDrawList(
 					drawList,
 					codeFont,
@@ -566,6 +596,7 @@ namespace MathAnim
 					highlightedColor
 				);
 
+				// Render the text cursor
 				if (cursor.bytePos == panel.cursor.bytePos)
 				{
 					ImVec2 textCursorDrawPosition = letterBoundsStart;
@@ -584,6 +615,7 @@ namespace MathAnim
 					renderTextCursor(panel, textCursorDrawPosition, codeFont);
 				}
 
+				// Handle newlines
 				if (currentCodepoint == (uint32)'\n')
 				{
 					currentLine++;
@@ -595,6 +627,25 @@ namespace MathAnim
 					}
 
 					currentLetterDrawPos = renderNextLinePrefix(panel, currentLine, codeFont);
+
+					// Render the current line highlighted color if applicable
+					// We don't render the highlight background if we're selecting text, I guess it's because it makes it confusing
+					// but it's mainly to match what VsCode does here
+					if (currentLine == panel.cursorCurrentLine && panel.firstByteInSelection == panel.lastByteInSelection)
+					{
+						if (syntaxTheme.editorLineHighlightBackground)
+						{
+							ImVec2 currentLineDrawEnd = ImVec2(
+								panel.drawEnd.x - scrollbarWidth,
+								currentLetterDrawPos.y + getLineHeight(codeFont)
+							);
+							drawList->AddRectFilled(
+								currentLetterDrawPos,
+								currentLineDrawEnd,
+								ImColor(syntaxTheme.getColor(syntaxTheme.editorLineHighlightBackground))
+							);
+						}
+					}
 				}
 
 				// If the mouse was clicked before any character, the closest byte is the first byte
@@ -638,46 +689,11 @@ namespace MathAnim
 					closestByteToMouseCursor = (int32)panel.visibleCharacterBufferSize;
 				}
 
-				// Render selected text
-				if (panel.firstByteInSelection != panel.lastByteInSelection &&
-					cursor.bytePos >= panel.firstByteInSelection && cursor.bytePos <= panel.lastByteInSelection)
+				// Don't increment the letter draw pos for newlines
+				if (currentCodepoint != '\n')
 				{
-					if (!lineHighlightStartFound)
-					{
-						textHighlightRectStart = letterBoundsStart;
-						lineHighlightStartFound = true;
-					}
-
-					if (currentCodepoint == (uint32)'\n' && cursor.bytePos != panel.lastByteInSelection)
-					{
-						// Draw highlight to the end of the line
-						ImVec2 lineEndPos = ImVec2(
-							panel.drawEnd.x - scrollbarWidth,
-							letterBoundsStart.y + letterBoundsSize.y
-						);
-						drawList->AddRectFilled(textHighlightRectStart, lineEndPos, highlightTextColor);
-						textHighlightRectStart = ImVec2(
-							panel.drawStart.x + panel.leftGutterWidth + style.FramePadding.x,
-							letterBoundsStart.y + letterBoundsSize.y
-						);
-					}
-					else if (cursor.bytePos == panel.lastByteInSelection)
-					{
-						// Draw highlight to beginning of the last character selected
-						ImVec2 highlightEnd = letterBoundsStart + ImVec2(0.0f, letterBoundsSize.y);
-						drawList->AddRectFilled(textHighlightRectStart, highlightEnd, highlightTextColor);
-					}
-					else if (cursor.bytePos == panel.visibleCharacterBufferSize - 1)
-					{
-						// NOTE: This is the special case of when you're highlighting the last character in the file, which we won't
-						//       iterate past normally
-						// Draw highlight to end of the last character selected
-						ImVec2 highlightEnd = letterBoundsStart + letterBoundsSize;
-						drawList->AddRectFilled(textHighlightRectStart, highlightEnd, highlightTextColor);
-					}
+					currentLetterDrawPos.x += letterBoundsSize.x;
 				}
-
-				currentLetterDrawPos.x += letterBoundsSize.x;
 				lastCharWasNewline = currentCodepoint == (uint32)'\n';
 				passedFirstCharacter = true;
 			}
@@ -1216,6 +1232,8 @@ namespace MathAnim
 				return;
 			}
 
+			SyntaxTheme const& syntaxTheme = CodeEditorPanelManager::getTheme();
+
 			if (panel.timeSinceCursorLastBlinked >= cursorBlinkTime)
 			{
 				panel.cursorIsBlinkedOn = !panel.cursorIsBlinkedOn;
@@ -1227,6 +1245,12 @@ namespace MathAnim
 				float currentLineHeight = font->fontSizePixels * font->unsizedFont->lineHeight;
 
 				ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+				ImColor textCursorColor = editorCursorForeground;
+				if (syntaxTheme.editorCursorForeground)
+				{
+					textCursorColor = ImColor(syntaxTheme.getColor(syntaxTheme.editorCursorForeground));
+				}
 				drawList->AddRectFilled(drawPosition, drawPosition + ImVec2(textCursorWidth, currentLineHeight), textCursorColor);
 			}
 		}
@@ -1235,6 +1259,7 @@ namespace MathAnim
 		{
 			ImGuiStyle& style = ImGui::GetStyle();
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			SyntaxTheme const& theme = CodeEditorPanelManager::getTheme();
 
 			std::string largestNumberText = std::to_string(panel.totalNumberLines);
 			glm::vec2 largestNumberSize = font->getSizeOfString(largestNumberText);
@@ -1247,8 +1272,26 @@ namespace MathAnim
 			glm::vec2 textSize = font->getSizeOfString(numberText);
 
 			ImVec2 numberStart = rightSideOfLargestNumberSize - ImVec2(textSize.x, 0.0f);
-			addStringToDrawList(drawList, font, numberText, numberStart, ImColor(255, 255, 255, 255));
 
+			// Figure out what color we should draw the line number as
+			ImColor numberColor = editorLineNumberForeground;
+			if (panel.cursorCurrentLine == lineNumber)
+			{
+				numberColor = editorLineNumberActiveForeground;
+				if (theme.editorLineNumberActiveForeground)
+				{
+					numberColor = ImColor(theme.getColor(theme.editorLineNumberActiveForeground));
+				}
+			}
+			else if (theme.editorLineNumberForeground)
+			{
+				numberColor = ImColor(theme.getColor(theme.editorLineNumberForeground));
+			}
+
+			// Draw the line number
+			addStringToDrawList(drawList, font, numberText, numberStart, numberColor);
+
+			// Return the new position
 			return lineStart + ImVec2(panel.leftGutterWidth + style.FramePadding.x, 0.0f);
 		}
 
@@ -1279,6 +1322,25 @@ namespace MathAnim
 			return cursorPos - drawPos;
 		}
 
+		static ImVec2 getGlyphSize(SizedFont const* const sizedFont, uint32 charToAdd)
+		{
+			Font const* const font = sizedFont->unsizedFont;
+
+			if (charToAdd == (uint32)'\n' || charToAdd == (uint32)'\r')
+			{
+				return ImVec2(baseNewlineCharacterWidth, (font->lineHeight * sizedFont->fontSizePixels));
+			}
+
+			const GlyphOutline& glyphOutline = font->getGlyphInfo(charToAdd);
+			if (!glyphOutline.svg)
+			{
+				return ImVec2(0.0f, (font->lineHeight * sizedFont->fontSizePixels));
+			}
+
+			const float totalFontHeight = sizedFont->fontSizePixels * font->lineHeight;
+			return Vec2{ glyphOutline.advanceX * (float)sizedFont->fontSizePixels, totalFontHeight };
+		}
+
 		static ImVec2 addCharToDrawList(ImDrawList* drawList, SizedFont const* const sizedFont, uint32 charToAdd, ImVec2 const& drawPos, ImColor const& color)
 		{
 			Font const* const font = sizedFont->unsizedFont;
@@ -1287,7 +1349,7 @@ namespace MathAnim
 
 			if (charToAdd == (uint32)'\n' || charToAdd == (uint32)'\r')
 			{
-				return ImVec2(0.0f, (font->lineHeight * sizedFont->fontSizePixels));
+				return ImVec2(baseNewlineCharacterWidth, (font->lineHeight * sizedFont->fontSizePixels));
 			}
 
 			const GlyphOutline& glyphOutline = font->getGlyphInfo(charToAdd);
@@ -1713,7 +1775,7 @@ namespace MathAnim
 		static void scrollCursorIntoViewIfNeeded(CodeEditorPanelData& panel)
 		{
 			// If cursor is off-screen, scroll it into view
-			uint32 cursorLine = getLineNumberFromPosition(panel, (int32)panel.cursor.bytePos);
+			uint32 cursorLine = getLineNumberFromPosition(panel, (uint32)panel.cursor.bytePos);
 			if (cursorLine < panel.lineNumberStart || cursorLine >= panel.lineNumberStart + panel.numberLinesCanFitOnScreen)
 			{
 				if (cursorLine >= panel.lineNumberStart + panel.numberLinesCanFitOnScreen)

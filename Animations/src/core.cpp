@@ -91,8 +91,33 @@ MathAnim::Vec4 toHex(const char* rawHexColor, size_t)
 	const char* hexColor = rawHexColor[0] == '#' ?
 		rawHexColor + 1 :
 		rawHexColor;
+
 	size_t length = strlen(hexColor);
-	g_logger_assert(length >= 6, "Invalid hex color '{}', hex color must have at least 6 digits.", rawHexColor);
+	g_logger_assert(length >= 3, "Invalid hex color '{}', hex color must have at least 6 digits.", rawHexColor);
+
+	// Shorthand like #fc0 -> #ffcc00
+	if (length == 3)
+	{
+		float color1 = (hexToFloat(hexColor[0]) * 16 + hexToFloat(hexColor[0])) / 255.0f;
+		float color2 = (hexToFloat(hexColor[1]) * 16 + hexToFloat(hexColor[1])) / 255.0f;
+		float color3 = (hexToFloat(hexColor[2]) * 16 + hexToFloat(hexColor[2])) / 255.0f;
+		return MathAnim::Vec4{
+			color1, color2, color3, 1.0f
+		};
+	}
+
+	// Shorthand like #fc2e -> #ffcc22ee
+	if (length == 4)
+	{
+		float color1 = (hexToFloat(hexColor[0]) * 16 + hexToFloat(hexColor[0])) / 255.0f;
+		float color2 = (hexToFloat(hexColor[1]) * 16 + hexToFloat(hexColor[1])) / 255.0f;
+		float color3 = (hexToFloat(hexColor[2]) * 16 + hexToFloat(hexColor[2])) / 255.0f;
+		float color4 = (hexToFloat(hexColor[3]) * 16 + hexToFloat(hexColor[3])) / 255.0f;
+		return MathAnim::Vec4{
+			color1, color2, color3, color4
+		};
+	}
+
 	float color1 = (hexToFloat(hexColor[0]) * 16 + hexToFloat(hexColor[1])) / 255.0f;
 	float color2 = (hexToFloat(hexColor[2]) * 16 + hexToFloat(hexColor[3])) / 255.0f;
 	float color3 = (hexToFloat(hexColor[4]) * 16 + hexToFloat(hexColor[5])) / 255.0f;

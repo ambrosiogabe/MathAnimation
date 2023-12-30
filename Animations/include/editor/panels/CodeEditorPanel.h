@@ -34,6 +34,7 @@ namespace MathAnim
 		int32 firstByteInSelection;
 		int32 lastByteInSelection;
 		CppUtils::BasicUtf8StringIter cursor;
+		uint32 cursorCurrentLine;
 		int32 numOfCharsFromBeginningOfLine;
 		int32 beginningOfCurrentLineByte;
 		float timeSinceCursorLastBlinked;

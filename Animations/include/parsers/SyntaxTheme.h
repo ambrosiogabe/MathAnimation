@@ -131,6 +131,17 @@ namespace MathAnim
 		uint32 defaultForeground;
 		uint32 defaultBackground;
 
+		uint32 editorLineHighlightBackground;
+		uint32 editorSelectionBackground;
+		uint32 editorCursorForeground;
+
+		uint32 editorLineNumberForeground;
+		uint32 editorLineNumberActiveForeground;
+
+		uint32 scrollbarSliderBackground;
+		uint32 scrollbarSliderActiveBackground;
+		uint32 scrollbarSliderHoverBackground;
+
 		// TODO: Switch to this, once we verify it's working correctly
 		SyntaxTrieNode root;
 		std::unordered_map<std::string, uint32> colorMap;

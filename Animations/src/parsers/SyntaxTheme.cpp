@@ -12,6 +12,8 @@ namespace MathAnim
 	using namespace nlohmann;
 
 	// -------------- Internal Functions --------------
+	static uint32 parseOrGetDefaultColor(SyntaxTheme* theme, nlohmann::json const& j, std::string const& propertyName, std::string const& fallbackColorValueHex);
+	static uint32 tryParseColor(SyntaxTheme* theme, nlohmann::json const& j, std::string const& propertyName);
 	static SyntaxTheme* importThemeFromJson(const json& json, const char* filepath);
 	static SyntaxTheme* importThemeFromXml(const XMLDocument& document, const char* filepath);
 	static const XMLElement* getValue(const XMLElement* element, const std::string& keyName);
@@ -570,6 +572,34 @@ namespace MathAnim
 	}
 
 	// -------------- Internal Functions --------------
+	static uint32 parseOrGetDefaultColor(SyntaxTheme* theme, nlohmann::json const& j, std::string const& propertyName, std::string const& fallbackColorValueHex)
+	{
+		if (j.contains(propertyName))
+		{
+			std::string const& colorStr = j[propertyName];
+			CssColor color = Css::colorFromString(colorStr);
+			g_logger_assert(color.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
+			return theme->getOrCreateColorIndex(colorStr, color.color);
+		}
+
+		Vec4 colorValue = toHex(fallbackColorValueHex);
+		return theme->getOrCreateColorIndex(fallbackColorValueHex, colorValue);
+	}
+
+	// @returns 0 (which represents an invalid color) when parsing fails
+	static uint32 tryParseColor(SyntaxTheme* theme, nlohmann::json const& j, std::string const& propertyName)
+	{
+		if (j.contains(propertyName))
+		{
+			std::string const& colorStr = j[propertyName];
+			CssColor color = Css::colorFromString(colorStr);
+			g_logger_assert(color.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
+			return theme->getOrCreateColorIndex(colorStr, color.color);
+		}
+
+		return 0;
+	}
+
 	static SyntaxTheme* importThemeFromJson(const json& j, const char* filepath)
 	{
 		if (!j.contains("tokenColors"))
@@ -595,29 +625,21 @@ namespace MathAnim
 
 		if (j.contains("colors"))
 		{
-			if (j["colors"].contains("editor.foreground"))
-			{
-				std::string const& foregroundColorStr = j["colors"]["editor.foreground"];
-				CssColor color = Css::colorFromString(foregroundColorStr);
-				g_logger_assert(color.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
-				theme->defaultForeground = theme->getOrCreateColorIndex(foregroundColorStr, color.color);
-			}
-			else
-			{
-				theme->defaultForeground = theme->getOrCreateColorIndex("#FFFFFF", Vec4{ 1, 1, 1, 1 });
-			}
+			nlohmann::json const& colorsJson = j["colors"];
 
-			if (j["colors"].contains("editor.background"))
-			{
-				std::string const& backgroundColorStr = j["colors"]["editor.background"];
-				CssColor color = Css::colorFromString(backgroundColorStr);
-				g_logger_assert(color.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
-				theme->defaultBackground = theme->getOrCreateColorIndex(backgroundColorStr, color.color);
-			}
-			else
-			{
-				theme->defaultBackground = theme->getOrCreateColorIndex("#00000000", Vec4{ 0, 0, 0, 0 });
-			}
+			theme->defaultForeground = parseOrGetDefaultColor(theme, colorsJson, "editor.foreground", "#FFFFFF");
+			theme->defaultBackground = parseOrGetDefaultColor(theme, colorsJson, "editor.background", "#000000");
+
+			theme->editorLineHighlightBackground = tryParseColor(theme, colorsJson, "editor.lineHighlightBackground");
+			theme->editorSelectionBackground = tryParseColor(theme, colorsJson, "editor.selectionBackground");
+			theme->editorCursorForeground = tryParseColor(theme, colorsJson, "editorCursor.foreground");
+
+			theme->editorLineNumberForeground = tryParseColor(theme, colorsJson, "editorLineNumber.foreground");
+			theme->editorLineNumberActiveForeground = tryParseColor(theme, colorsJson, "editorLineNumber.activeForeground");
+
+			theme->scrollbarSliderBackground = tryParseColor(theme, colorsJson, "scrollbarSlider.background");
+			theme->scrollbarSliderActiveBackground = tryParseColor(theme, colorsJson, "scrollbarSlider.activeBackground");
+			theme->scrollbarSliderHoverBackground = tryParseColor(theme, colorsJson, "scrollbarSlider.hoverBackground");
 
 			// Initialize the root of our tree (these are global settings)
 			theme->root.style.setForegroundColor(theme->defaultForeground);
@@ -640,7 +662,7 @@ namespace MathAnim
 			{
 				if (color.contains("settings"))
 				{
-					// This is presumably the defualt foreground/background settings and not a token rule
+					// This is presumably the default foreground/background settings and not a token rule
 					if (color["settings"].contains("foreground"))
 					{
 						std::string const& foregroundColorStr = color["settings"]["foreground"];
