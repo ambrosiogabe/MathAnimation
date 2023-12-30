@@ -115,7 +115,7 @@ namespace MathAnim
 		std::unordered_map<std::string, SyntaxTrieNode> children;
 
 		void insert(std::string const& name, ScopeSelector const& selector, PackedSyntaxStyle const& style, std::vector<ScopeSelector> const& ancestors = {}, size_t subScopeIndex = 0);
-		void calculateInheritedStyles(PackedSyntaxStyle inInheritedStyle = {});
+		void calculateInheritedStyles(PackedSyntaxStyle inInheritedStyle, bool isRoot);
 
 		void print(SyntaxTheme const& theme) const;
 	};

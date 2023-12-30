@@ -187,10 +187,15 @@ namespace MathAnim
 		iter->second.insert(inName, scope, inStyle, inAncestors, subScopeIndex + 1);
 	}
 
-	void SyntaxTrieNode::calculateInheritedStyles(PackedSyntaxStyle inInheritedStyle)
+	void SyntaxTrieNode::calculateInheritedStyles(PackedSyntaxStyle inInheritedStyle, bool isRoot)
 	{
-		inInheritedStyle.overwriteMergeWith(this->style);
-		this->inheritedStyle = inInheritedStyle;
+		// Don't use the root as a source of inheritance, because it messes some style resolution stuff up.
+		// See test `descendantSelectorSucceedsWithPartialMatches_2` for more an example of where this happens.
+		if (!isRoot)
+		{
+			inInheritedStyle.overwriteMergeWith(this->style);
+			this->inheritedStyle = inInheritedStyle;
+		}
 
 		for (auto& parentRule : this->parentRules)
 		{
@@ -200,7 +205,7 @@ namespace MathAnim
 
 		for (auto& [k, v] : this->children)
 		{
-			v.calculateInheritedStyles(inInheritedStyle);
+			v.calculateInheritedStyles(inInheritedStyle, false);
 		}
 	}
 
@@ -399,10 +404,11 @@ namespace MathAnim
 
 		// Ancestors are always passed in order from broad->narrow
 		//   Ex. source.lua -> punctuation.string.begin
+		std::string newStyleMatched = "";
 		for (auto const& ancestor : ancestorScopes)
 		{
 			SyntaxTrieNode const* node = &this->root;
-			resolvedStyle.styleMatched = "";
+			newStyleMatched = "";
 
 			// Query the trie and find out what styles apply to this ancestor
 			for (auto const& scope : ancestor.dotSeparatedScopes)
@@ -411,13 +417,13 @@ namespace MathAnim
 				if (iter == node->children.end())
 				{
 					// Strip last '.' off the resolved theme match
-					resolvedStyle.styleMatched = resolvedStyle.styleMatched.substr(0, resolvedStyle.styleMatched.length() - 1);
+					newStyleMatched = newStyleMatched.substr(0, newStyleMatched.length() - 1);
 					break;
 				}
 
 				// Drill down to the deepest node
 				node = &iter->second;
-				resolvedStyle.styleMatched += scope.getScopeName() + ".";
+				newStyleMatched += scope.getScopeName() + ".";
 			}
 
 			// First check if we match a parent rule, if we do, we'll take that because 
@@ -456,10 +462,14 @@ namespace MathAnim
 
 						for (auto const& resolvedAncestor : parentRule.ancestors)
 						{
-							resolvedStyle.styleMatched = resolvedAncestor.getFriendlyName() + " " + resolvedStyle.styleMatched;
+							newStyleMatched = resolvedAncestor.getFriendlyName() + " " + newStyleMatched;
 						}
 
-						foundParentRuleMatch = true;
+						if (resolvedStyle.style.getForegroundColor() != 0)
+						{
+							foundParentRuleMatch = true;
+							resolvedStyle.styleMatched = newStyleMatched;
+						}
 						break;
 					}
 				}
@@ -470,6 +480,11 @@ namespace MathAnim
 			{
 				resolvedStyle.style.overwriteMergeWith(node->inheritedStyle);
 				resolvedStyle.style.overwriteMergeWith(node->style);
+
+				if (node->style.getForegroundColor() != 0)
+				{
+					resolvedStyle.styleMatched = newStyleMatched;
+				}
 			}
 
 			if (usingDefaultSettings != nullptr) *usingDefaultSettings = (node == &root);
@@ -517,7 +532,7 @@ namespace MathAnim
 				std::ifstream file(filepath);
 				json j = json::parse(file, nullptr, true, true);
 				SyntaxTheme* theme = importThemeFromJson(j, filepathStr);
-				theme->root.calculateInheritedStyles();
+				theme->root.calculateInheritedStyles(PackedSyntaxStyle{}, true);
 				return theme;
 			}
 			catch (json::parse_error& ex)
@@ -538,7 +553,7 @@ namespace MathAnim
 			}
 
 			SyntaxTheme* theme = importThemeFromXml(doc, filepathStr);
-			theme->root.calculateInheritedStyles();
+			theme->root.calculateInheritedStyles(PackedSyntaxStyle{}, true);
 			return theme;
 		}
 
@@ -589,7 +604,7 @@ namespace MathAnim
 			}
 			else
 			{
-				theme->defaultForeground = theme->getOrCreateColorIndex("#FFFFFF", Vec4{1, 1, 1, 1});
+				theme->defaultForeground = theme->getOrCreateColorIndex("#FFFFFF", Vec4{ 1, 1, 1, 1 });
 			}
 
 			if (j["colors"].contains("editor.background"))
@@ -685,7 +700,7 @@ namespace MathAnim
 				{
 					trieThemeSettings.setForegroundColorInherited();
 				}
-				else 
+				else
 				{
 					trieThemeSettings.setForegroundColor(theme->getOrCreateColorIndex(foregroundColorStr, cssColor.color));
 				}

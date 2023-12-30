@@ -149,6 +149,24 @@ namespace MathAnim
 			END_TEST;
 		}
 
+		DEFINE_TEST(descendantSelectorSucceedsWithPartialMatches_2)
+		{
+			const SyntaxTheme* theme = Highlighters::getTheme(HighlighterTheme::OneMonokai);
+
+			const std::vector<ScopedName> ancestorScopes = {
+				ScopedName::from("source.lua"),
+				ScopedName::from("comment.block.lua"),
+				ScopedName::from("punctuation.definition.comment.begin.lua")
+			};
+
+			auto res = theme->match(ancestorScopes);
+
+			ASSERT_EQUAL(res.getFontStyle(), CssFontStyle::Normal);
+			ASSERT_EQUAL(theme->getColor(res.getForegroundColor()), "#676F7DFF"_hex);
+
+			END_TEST;
+		}
+
 		DEFINE_TEST(descendantSelectorFailsWhenBottomNodeIsNotSpecific)
 		{
 			const SyntaxTheme* theme = Highlighters::getTheme(HighlighterTheme::Gruvbox);
@@ -184,6 +202,7 @@ namespace MathAnim
 			ADD_TEST(testSuite, descendantSelectorHasPrecedenceOverNormalSelector);
 			ADD_TEST(testSuite, descendantSelectorFailsWhenAncestorsDontMatch);
 			ADD_TEST(testSuite, descendantSelectorSucceedsWithPartialMatches);
+			ADD_TEST(testSuite, descendantSelectorSucceedsWithPartialMatches_2);
 			ADD_TEST(testSuite, descendantSelectorFailsWhenBottomNodeIsNotSpecific);
 		}
 	}
