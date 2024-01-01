@@ -214,10 +214,7 @@ namespace MathAnim
 				// Handle copy/paste
 				if (Input::keyRepeatedOrDown(GLFW_KEY_V, KeyMods::Ctrl))
 				{
-					if (panel.undoTypingStart != -1)
-					{
-						handleTypingUndo(panel);
-					}
+					handleTypingUndo(panel);
 
 					if (panel.firstByteInSelection != panel.lastByteInSelection)
 					{
@@ -285,11 +282,7 @@ namespace MathAnim
 				// Handle undo/redo
 				if (Input::keyRepeatedOrDown(GLFW_KEY_Z, KeyMods::Ctrl))
 				{
-					if (panel.undoTypingStart != -1)
-					{
-						handleTypingUndo(panel);
-					}
-
+					handleTypingUndo(panel);
 					UndoSystem::undo(panel.undoSystem);
 				}
 				else if (Input::keyRepeatedOrDown(GLFW_KEY_Z, KeyMods::Ctrl | KeyMods::Shift) || Input::keyRepeatedOrDown(GLFW_KEY_Y, KeyMods::Ctrl))
@@ -391,6 +384,8 @@ namespace MathAnim
 				// TODO: Not all backspaces are handled for some reason
 				if (Input::keyRepeatedOrDown(GLFW_KEY_BACKSPACE))
 				{
+					handleTypingUndo(panel);
+
 					if (removeSelectedTextWithBackspace(panel))
 					{
 						fileHasBeenEdited = true;
@@ -400,6 +395,8 @@ namespace MathAnim
 				// Handle delete
 				if (Input::keyRepeatedOrDown(GLFW_KEY_DELETE))
 				{
+					handleTypingUndo(panel);
+
 					if (removeSelectedTextWithDelete(panel))
 					{
 						fileHasBeenEdited = true;
@@ -450,7 +447,6 @@ namespace MathAnim
 			panel.numberLinesCanFitOnScreen = (uint32)glm::floor((panel.drawEnd.y - panel.drawStart.y) / getLineHeight(codeFont));
 
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
-			drawList->PushClipRect(panel.drawStart, panel.drawEnd, true);
 			drawList->AddRectFilled(panel.drawStart, panel.drawEnd, getColor(syntaxTheme.getColor(syntaxTheme.defaultBackground)));
 
 			uint32 currentLine = panel.lineNumberStart;
@@ -531,6 +527,9 @@ namespace MathAnim
 					panel.lineNumberByteStart = getLineNumberByteStartFrom(panel, (uint32)newLine);
 				}
 			}
+
+			// Push the clip rect after we've rendered the scrollbar
+			drawList->PushClipRect(panel.drawStart, ImVec2(panel.drawEnd.x - scrollbarWidth, panel.drawEnd.y), true);
 
 			bool justStartedDragSelecting = false;
 			if (windowIsHovered && mouseInTextEditArea(panel))
@@ -704,6 +703,8 @@ namespace MathAnim
 			{
 				if (justStartedDragSelecting)
 				{
+					handleTypingUndo(panel);
+
 					panel.mouseByteDragStart = closestByteToMouseCursor;
 					panel.firstByteInSelection = closestByteToMouseCursor;
 					panel.lastByteInSelection = closestByteToMouseCursor;
@@ -738,6 +739,8 @@ namespace MathAnim
 			{
 				if (io.MouseDown[ImGuiMouseButton_Left])
 				{
+					handleTypingUndo(panel);
+
 					panel.cursor.bytePos = closestByteToMouseCursor;
 					setCursorDistanceFromLineStart(panel);
 				}
