@@ -22,6 +22,8 @@ namespace MathAnim
 		uint32 totalNumberLines;
 		uint32 lineNumberStart;
 		uint32 lineNumberByteStart;
+		uint32 hzCharacterOffset;
+		uint32 maxLineLength;
 		ImVec2 drawStart;
 		ImVec2 drawEnd;
 		float leftGutterWidth;
@@ -66,7 +68,7 @@ namespace MathAnim
 		bool removeTextWithDelete(CodeEditorPanelData& panel, int32 textToRemoveStart, int32 textToRemoveLength);
 
 		// Strip any carriage returns and invalid UTF8
-		void preprocessText(uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength, uint32* numberLines = nullptr);
+		void preprocessText(uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength, uint32* numberLines = nullptr, uint32* maxLineLength = nullptr);
 
 		// Adds carriage returns as necessary
 		void postprocessText(uint8* byteMappedString, size_t byteMappedStringNumBytes, uint8** outUtf8String, size_t* outUtf8StringNumBytes, bool includeCarriageReturnsForWindows = true);

@@ -78,15 +78,19 @@
             ]
         },
         {
-            "match": "(?<![\\w\\d.])0[xX][0-9A-Fa-f]+(?![pPeE.0-9])",
+            "match": "(?<![\\w\\d.])0[xX][0-9A-Fa-f_]+(?![pPeE.0-9])",
             "name": "constant.numeric.integer.hexadecimal.lua"
+        },
+        {
+            "match": "(?<![\\w\\d.])0[bB][01_]+",
+            "name": "constant.numeric.integer.binary.lua"
         },
         {
             "match": "(?<![\\w\\d.])0[xX][0-9A-Fa-f]+(\\.[0-9A-Fa-f]+)?([eE]-?\\d*)?([pP][-+]\\d+)?",
             "name": "constant.numeric.float.hexadecimal.lua"
         },
         {
-            "match": "(?<![\\w\\d.])\\d+(?![pPeE.0-9])",
+            "match": "(?<![\\w\\d.])[\\d_]+(?![pPeE.0-9])",
             "name": "constant.numeric.integer.lua"
         },
         {
@@ -140,7 +144,7 @@
             }
         },
         {
-            "begin": "(^  ->[0-9]*\\.)(\\s)\\b([a-zA-Z_][a-zA-Z0-9_\\.\\s,\\<\\|\\>]*)",
+            "begin": "(^  ->[0-9]*\\.)(\\s)\\b(any|nil|boolean|number|string|thread)",
             "beginCaptures": {
                 "0": {
                     "name": "support.type.lua"
@@ -158,8 +162,37 @@
             ]
         },
         {
+            "begin": "(^  ->[0-9]*\\.)(\\s)\\b([a-zA-Z_][a-zA-Z0-9_\\.\\s,\\<\\|\\>]*)",
+            "beginCaptures": {
+                "0": {
+                    "name": "entity.name.type.lua"
+                },
+                "1": {
+                    "name": "constant.numeric.integer.lua"
+                }
+            },
+            "end": "(?=\\n)",
+            "patterns": [
+                {
+                    "match": "-- (.)*",
+                    "name": "comment.block.lua"
+                }
+            ]
+        },
+        {
             "match": "\\b(break|do|else|for|if|elseif|goto|return|then|repeat|while|until|end|function|local|in|and|or|not)\\b",
             "name": "keyword.control.lua"
+        },
+        {
+            "match": "\\b(type)\\b(\\s)+([a-zA-Z_]+[a-zA-Z_0-9]*)",
+            "captures": {
+                "1": {
+                    "name": "storage.type.type.lua"
+                },
+                "3": {
+                    "name": "entity.name.type.lua"
+                }
+            }
         },
         {
             "match": "(?<![^.]\\.|:)\\b(false|nil|true|_ENV|_G|_VERSION|math\\.(pi|huge|maxinteger|mininteger)|utf8\\.charpattern|io\\.(stdin|stdout|stderr)|package\\.(config|cpath|loaded|loaders|path|preload|searchers))\\b|(?<![.])\\.{3}(?!\\.)",
@@ -182,40 +215,26 @@
             "name": "keyword.operator.lua"
         },
         {
-            "begin": "\\b(\\s*:\\s*)\\b([a-zA-Z_][a-zA-Z0-9_\\.]*)\\b(?!\\s*\\()",
-            "beginCaptures": {
-                "2": {
-                    "name": "support.type.lua"
-                }
-            },
-            "end": "(?=\\n)",
-            "patterns": [
-                {
-                    "match": "-- (.)*",
-                    "name": "comment.block.lua"
+            "match": "\\b(\\s*:\\s*)(any|nil|boolean|number|string|thread)\\b(?!\\s*\\()",
+            "captures": {
+                "1": {
+                    "name": "keyword.operator.type.annotation.lua"
                 },
-                {
-                    "include": "#luadoc.type"
+                "2": {
+                    "name": "entity.name.type.lua"
                 }
-            ]
+            }
         },
         {
-            "begin": "\\b\\(\\)(\\s*:\\s*)\\b([a-zA-Z_][a-zA-Z0-9_\\.]*)\\b(?!\\s*\\()",
-            "beginCaptures": {
-                "2": {
-                    "name": "support.type.lua"
-                }
-            },
-            "end": "(?=\\n)",
-            "patterns": [
-                {
-                    "match": "-- (.)*",
-                    "name": "comment.block.lua"
+            "match": "\\b(\\s*:\\s*)\\b([a-zA-Z_][a-zA-Z0-9_\\.]*)\\b(?!\\s*\\()",
+            "captures": {
+                "1": {
+                    "name": "keyword.operator.type.annotation.lua"
                 },
-                {
-                    "include": "#luadoc.type"
+                "2": {
+                    "name": "entity.name.type.lua"
                 }
-            ]
+            }
         },
         {
             "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(?=\\s*(?:[({\"']|\\[\\[))",
@@ -226,7 +245,7 @@
             "name": "variable.other.lua"
         },
         {
-            "match": "\\+|-|%|#|\\*|\\/|\\^|==?|~=|!=|<=?|>=?|(?<!\\.)\\.{2}(?!\\.)",
+            "match": "\\+(=)?|-(=)?|%(=)?|#|\\*(=)?|\\/(=)?|\\^(=)?|==?|~=|!=|<=?|>=?|(?<!\\.)\\.{2}(=)?(?!\\.)",
             "name": "keyword.operator.lua"
         },
         {
@@ -808,8 +827,12 @@
                             ]
                         },
                         {
-                            "match": "(([a-zA-Z_][a-zA-Z0-9_\\.\\*\\[\\]\\<\\>\\,]*))(?<!,)[ \\t]*",
+                            "match": "(any|nil|boolean|number|string|thread)(?<!,)[ \\t]*",
                             "name": "support.type.lua"
+                        },
+                        {
+                            "match": "(([a-zA-Z_][a-zA-Z0-9_\\.\\*\\[\\]\\<\\>\\,]*))(?<!,)[ \\t]*",
+                            "name": "entity.name.type.lua"
                         },
                         {
                             "match": "(\\.\\.\\.)[ \\t]*",
@@ -844,8 +867,12 @@
                     ]
                 },
                 {
-                    "match": "(([a-zA-Z_][a-zA-Z0-9_\\.\\*\\[\\]\\<\\>\\,]*))(?<!,)[ \\t]*",
+                    "match": "(any|nil|boolean|number|string|thread)(?<!,)[ \\t]*",
                     "name": "support.type.lua"
+                },
+                {
+                    "match": "(([a-zA-Z_][a-zA-Z0-9_\\.\\*\\[\\]\\<\\>\\,]*))(?<!,)[ \\t]*",
+                    "name": "entity.name.type.lua"
                 },
                 {
                     "match": "(\\.\\.\\.)[ \\t]*",

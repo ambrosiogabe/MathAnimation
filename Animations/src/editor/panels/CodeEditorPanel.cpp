@@ -141,8 +141,10 @@ namespace MathAnim
 			res->lineNumberByteStart = 0;
 			res->undoTypingStart = -1;
 			res->totalNumberLines = 0;
+			res->hzCharacterOffset = 0;
+			res->maxLineLength = 0;
 
-			preprocessText((uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize, &res->totalNumberLines);
+			preprocessText((uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize, &res->totalNumberLines, &res->maxLineLength);
 			// +1 for the extra line for EOF
 			res->totalNumberLines++;
 			res->cursor = CppUtils::String::makeIter(res->visibleCharacterBuffer, res->visibleCharacterBufferSize);
@@ -770,26 +772,67 @@ namespace MathAnim
 			{
 				ImGui::Begin("Stats##Panel1", &inspectorOn);
 
-				ImGui::Text("         Panel Line Number Start: %d", panel.lineNumberStart);
-				ImGui::Text("                 Selection Begin: %d", panel.firstByteInSelection);
-				ImGui::Text("                   Selection End: %d", panel.lastByteInSelection);
-				ImGui::Text("                      Drag Start: %d", panel.mouseByteDragStart);
-				ImGui::Text("                     Cursor Byte: %d", panel.cursor.bytePos);
-				ImGui::Text("         Line start dist (Chars): %d", panel.numOfCharsFromBeginningOfLine);
-				ImGui::Text("       Beginning of current line: %d", panel.beginningOfCurrentLineByte);
-				char character = panel.visibleCharacterBufferSize > 0
-					? (char)panel.visibleCharacterBuffer[panel.cursor.bytePos]
-					: '\0';
-				if (character != '\r' && character != '\n' && character != '\t' && character != '\0')
+				if (ImGui::BeginTable("Editor Stats", 2))
 				{
-					ImGui::Text("                       Character: %c", character);
-				}
-				else
-				{
-					char escapedCharacter = character == '\r' ? 'r' :
-						character == '\n' ? 'n' :
-						character == '\t' ? 't' : '0';
-					ImGui::Text("                       Character: \\%c", escapedCharacter);
+					ImGui::TableNextColumn(); ImGui::Text("Panel Line Number Start");
+					ImGui::TableNextColumn(); ImGui::Text("%d", panel.lineNumberStart);
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn(); ImGui::Text("Selection Begin");
+					ImGui::TableNextColumn(); ImGui::Text("%d", panel.firstByteInSelection);
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn(); ImGui::Text("Selection End");
+					ImGui::TableNextColumn(); ImGui::Text("%d", panel.lastByteInSelection);
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn(); ImGui::Text("Drag Start");
+					ImGui::TableNextColumn(); ImGui::Text("%d", panel.mouseByteDragStart);
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn(); ImGui::Text("Cursor Byte");
+					ImGui::TableNextColumn(); ImGui::Text("%d", panel.cursor.bytePos);
+					ImGui::TableNextRow();
+					
+					ImGui::TableNextColumn(); ImGui::Text("Line start dist (Chars)");
+					ImGui::TableNextColumn(); ImGui::Text("%d", panel.numOfCharsFromBeginningOfLine);
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn(); ImGui::Text("Beginning of current line");
+					ImGui::TableNextColumn(); ImGui::Text("%d", panel.beginningOfCurrentLineByte);
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn(); ImGui::Text("Character");
+					ImGui::TableNextColumn();
+					char character = panel.visibleCharacterBufferSize > 0 && panel.cursor.bytePos < panel.visibleCharacterBufferSize
+						? (char)panel.visibleCharacterBuffer[panel.cursor.bytePos]
+						: '\0';
+					if (character != '\r' && character != '\n' && character != '\t' && character != '\0')
+					{
+						ImGui::Text("%c", character);
+					}
+					else
+					{
+						char escapedCharacter = character == '\r' ? 'r' :
+							character == '\n' ? 'n' :
+							character == '\t' ? 't' : '0';
+						ImGui::Text("\\%c", escapedCharacter);
+					}
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn(); ImGui::Separator();
+					ImGui::TableNextColumn(); ImGui::Separator();
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn(); ImGui::Text("Max Line Length");
+					ImGui::TableNextColumn(); ImGui::Text("%d", panel.maxLineLength);
+					ImGui::TableNextRow();
+
+					ImGui::TableNextColumn(); ImGui::Text("Hz Char Offset");
+					ImGui::TableNextColumn(); ImGui::Text("%d", panel.hzCharacterOffset);
+					ImGui::TableNextRow();
+
+					ImGui::EndTable();
 				}
 
 				ImGui::Checkbox(": Visualize Syntax Updates", &visualizeSyntaxUpdates);
@@ -938,7 +981,7 @@ namespace MathAnim
 			return true;
 		}
 
-		void preprocessText(uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength, uint32* numberLines)
+		void preprocessText(uint8* utf8String, size_t stringNumBytes, uint8** outStr, size_t* outStrLength, uint32* numberLines, uint32* maxLineLength)
 		{
 			*outStr = nullptr;
 			*outStrLength = 0;
@@ -958,6 +1001,7 @@ namespace MathAnim
 			*outStr = (uint8*)g_memory_allocate(sizeof(uint8) * stringNumBytes);
 
 			auto parseInfo = maybeParseInfo.value();
+			uint32 charsInCurrentLine = 1;
 			while (parseInfo.cursor < parseInfo.numBytes)
 			{
 				uint8 numBytesParsed = 1;
@@ -972,6 +1016,13 @@ namespace MathAnim
 				if (numberLines != nullptr && codepoint.value() == '\n')
 				{
 					*numberLines += 1;
+
+					// Keep track of max line length
+					if (maxLineLength != nullptr && charsInCurrentLine > *maxLineLength)
+					{
+						*maxLineLength = charsInCurrentLine;
+					}
+					charsInCurrentLine = 0;
 				}
 
 				// Also, skip carriage returns 'cuz screw those
@@ -993,6 +1044,12 @@ namespace MathAnim
 				}
 
 				parseInfo.cursor += numBytesParsed;
+				charsInCurrentLine++;
+			}
+
+			if (maxLineLength != nullptr && charsInCurrentLine > *maxLineLength)
+			{
+				*maxLineLength = charsInCurrentLine;
 			}
 
 			*outStr = (uint8*)g_memory_realloc((void*)(*outStr), (*outStrLength) * sizeof(uint8));
