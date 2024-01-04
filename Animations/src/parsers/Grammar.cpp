@@ -1164,7 +1164,7 @@ namespace MathAnim
 					);
 
 					size_t newCursorPos = span.matchEnd;
-					if (newCursorPos == start || newCursorPos >= lineInfo->byteStart + lineInfo->numBytes)
+					if (span.matchEnd == span.matchStart || newCursorPos >= lineInfo->byteStart + lineInfo->numBytes)
 					{
 						// TODO: This duplicates a block slightly below, see if they should be combined
 
@@ -1208,7 +1208,7 @@ namespace MathAnim
 					);
 
 					size_t newCursorPos = span.matchEnd;
-					if (newCursorPos == start || newCursorPos >= lineInfo->byteStart + lineInfo->numBytes)
+					if (span.matchEnd == span.matchStart || newCursorPos >= lineInfo->byteStart + lineInfo->numBytes)
 					{
 						// Found all the matches for this line, we can stop parsing now
 						// If no matches were found, just add an empty token so we have comprehensive coverage with all tokens
