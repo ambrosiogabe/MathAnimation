@@ -10,6 +10,21 @@
     "comment": "Luau Syntax: version 0.1",
     "patterns": [
         {
+            "include": "#comments"
+        },
+        {
+            "include": "#while_loops"
+        },
+        {
+            "include": "#for_loops"
+        },
+        {
+            "include": "#if_else_stmts"
+        },
+        {
+            "include": "#repeat_loops"
+        },
+        {
             "include": "#function_definitions"
         },
         {
@@ -20,9 +35,6 @@
         },
         {
             "include": "#numberLiterals"
-        },
-        {
-            "include": "#comments"
         },
         {
             "include": "#table_constructor"
@@ -37,15 +49,159 @@
             "include": "#constants"
         },
         {
-            "include": "#binaryOp"
+            "include": "#operators"
         },
         {
-            "include": "#unaryOp"
+            "include": "#variable_names"
         }
     ],
     "repository": {
+        "while_loops": {
+            "begin": "(?=\\bwhile\\b)",
+            "end": "(?<=\\bend\\b)",
+            "patterns": [
+                {
+                    "begin": "\\bwhile\\b",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "keyword.control.while.luau"
+                        }
+                    },
+                    "end": "(?=\\bdo\\b)",
+                    "patterns": [
+                        {
+                            "include": "#simple_expression"
+                        }
+                    ]
+                },
+                {
+                    "include": "#block"
+                }
+            ]
+        },
+        "for_loops": {
+            "begin": "(?=\\bfor\\b)",
+            "end": "(?=\\bdo\\b)",
+            "patterns": [
+                {
+                    "begin": "\\bfor\\b",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "keyword.control.for.luau"
+                        }
+                    },
+                    "end": "(=|\\bin\\b)",
+                    "endCaptures": {
+                        "0": {
+                            "name": "keyword.control.luau"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "match": ",",
+                            "name": "punctuation.separator.comma.luau"
+                        },
+                        {
+                            "match": "\\b([a-zA-Z_$][\\w$]*)\\b",
+                            "name": "variable.other.luau"
+                        }
+                    ]
+                },
+                {
+                    "begin": "(?<=(=|\\bin\\b))",
+                    "end": "(?=\\bdo\\b)",
+                    "patterns": [
+                        {
+                            "match": ",",
+                            "name": "punctuation.separator.comma.luau"
+                        },
+                        {
+                            "include": "#simple_expression"
+                        }
+                    ]
+                }
+            ]
+        },
+        "repeat_loops": {
+            "begin": "\\brepeat\\b",
+            "beginCaptures": {
+                "0": {
+                    "name": "keyword.control.repeat.luau"
+                }
+            },
+            "end": "\\buntil\\b",
+            "endCaptures": {
+                "0": {
+                    "name": "keyword.control.until.luau"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "$self"
+                }
+            ]
+        },
+        "if_else_stmts": {
+            "begin": "(?=\\bif\\b)",
+            "end": "\\bend\\b",
+            "endCaptures": {
+                "0": {
+                    "name": "keyword.control.end.luau"
+                }
+            },
+            "patterns": [
+                {
+                    "begin": "\\G\\b(if)\\b",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "keyword.control.if.luau"
+                        }
+                    },
+                    "end": "\\bthen\\b",
+                    "endCaptures": {
+                        "0": {
+                            "name": "keyword.control.then.luau"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#simple_expression"
+                        }
+                    ]
+                },
+                {
+                    "begin": "\\b(elseif)\\b",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "keyword.control.elseif.luau"
+                        }
+                    },
+                    "end": "\\bthen\\b",
+                    "endCaptures": {
+                        "0": {
+                            "name": "keyword.control.then.luau"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#simple_expression"
+                        }
+                    ]
+                },
+                {
+                    "match": "\\belse\\b",
+                    "name": "keyword.control.else.luau"
+                },
+                {
+                    "include": "$self"
+                }
+            ]
+        },
         "simple_expression": {
             "patterns": [
+                {
+                    "include": "#comments"
+                },
                 {
                     "include": "#table_constructor"
                 },
@@ -62,10 +218,10 @@
                     "include": "#function_calls"
                 },
                 {
-                    "include": "#binaryOp"
+                    "include": "#operators"
                 },
                 {
-                    "include": "#unaryOp"
+                    "include": "#variable_names"
                 }
             ]
         },
@@ -92,10 +248,6 @@
                 },
                 {
                     "include": "#simple_expression"
-                },
-                {
-                    "match": "[a-zA-Z_$][\\w$]*",
-                    "name": "variable.other.luau"
                 }
             ]
         },
@@ -228,6 +380,34 @@
 					]
 				},
                 {
+					"begin": "([\\w$]+)\\s*(?={)",
+					"beginCaptures": {
+						"1": {
+							"patterns": [
+								{
+									"match": "\\b(dofile|require|dostring|next|nextvar|tostring|print|tonumber|type|assert|error|(set|get)global|setfallback)\\b",
+									"name": "support.function.luau"
+								},
+								{
+									"match": "[a-zA-Z_$][\\w$]*",
+									"name": "entity.name.function.luau"
+								},
+								{
+									"match": "\\d[\\w$]*",
+									"name": "invalid.illegal.identifier.luau"
+								}
+							]
+						}
+					},
+					"end": "(?<=})",
+					"name": "meta.function-call.luau",
+					"patterns": [
+						{
+							"include": "#table_constructor"
+						}
+					]
+				},
+                {
 					"begin": "([\\w$]+)\\s*(?=\\[\\[)",
 					"beginCaptures": {
 						"1": {
@@ -328,6 +508,30 @@
 					"patterns": [
 						{
 							"include": "#arguments"
+						}
+					]
+				},
+                {
+					"begin": "[\\.\\:]([\\w$]+)\\s*(?={)",
+					"beginCaptures": {
+						"1": {
+							"patterns": [
+								{
+									"match": "[a-zA-Z_$][\\w$]*",
+									"name": "entity.name.function.luau"
+								},
+								{
+									"match": "\\d[\\w$]*",
+									"name": "invalid.illegal.identifier.luau"
+								}
+							]
+						}
+					},
+					"end": "(?<=})",
+					"name": "meta.function-call.luau",
+					"patterns": [
+						{
+							"include": "#table_constructor"
 						}
 					]
 				},
@@ -538,32 +742,32 @@
         "numberLiterals": {
             "patterns": [
                 {
+                    "include": "#hexLiteral"
+                },
+                {
                     "include": "#floatingPointLiteral"
                 },
                 {
                     "include": "#integerLiteral"
-                },
-                {
-                    "include": "#hexLiteral"
                 }
             ]
         },
+        "hexLiteral": {
+            "match": "\\b0x[0-9a-fA-F]+",
+            "name": "constant.numeric.hexadecimal.luau"
+        },
         "integerLiteral": {
-            "match": "\\b[0-9]+\\b",
+            "match": "\\b[0-9]+",
             "name": "constant.numeric.decimal.luau"
         },
         "floatingPointLiteral": {
-            "match": "\\b[0-9]+(\\.)[0-9]+([eE](\\-)?[0-9]+)?\\b",
+            "match": "\\b[0-9]+(\\.)[0-9]+([eE](\\-)?[0-9]+)?",
             "name": "constant.numeric.decimal.luau",
             "captures": {
                 "1": {
                     "name": "meta.delimiter.decimal.period.luau"
                 }
             }
-        },
-        "hexLiteral": {
-            "match": "\\b0x[0-9a-fA-F]+\\b",
-            "name": "constant.numeric.hexadecimal.luau"
         },
         "stringLiterals": {
             "patterns": [
@@ -669,24 +873,32 @@
                 }
             ]
         },
-        "identifier": {
-            "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b",
-            "name": "variable.other.luau"
+        "variable_names": {
+            "patterns": [
+                {
+                    "match": "\\b\\.([a-zA-Z_$][\\w$]*)\\b",
+                    "captures": {
+                        "1": {
+                            "name": "entity.other.attribute.lua"
+                        }
+                    }
+                },
+                {
+                    "match": "\\b[a-zA-Z_$][\\w$]*\\b",
+                    "name": "variable.other.luau"
+                }
+            ]
         },
         "keywords": {
-            "match": "\\b(and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b",
+            "match": "\\b(break|do|else|elseif|end|for|function|if|in|local|repeat|return|then|until|while)\\b",
             "name": "keyword.control.luau"
         },
         "constants": {
             "match": "\\b(false|nil|true)\\b",
             "name": "constant.language.luau"
         },
-        "binaryOp": {
-            "match": "\\+|-|\\*|/|\\^|%|\\.\\.|<|<=|>|>=|==|~=",
-            "name": "keyword.operator.luau"
-        },
-        "unaryOp": {
-            "match": "-|\\bnot\\b|#|\\.\\.\\.",
+        "operators": {
+            "match": "\\+|-|\\*|/|\\^|%|\\.\\.(\\.)?|<(=)?|>(=)?|==|~=|\\b(not|and|or)\\b|#|=",
             "name": "keyword.operator.luau"
         }
     }
