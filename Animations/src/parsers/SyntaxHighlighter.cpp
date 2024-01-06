@@ -230,6 +230,8 @@ namespace MathAnim
 		{
 			// First find the line that we need to update (or the end of the list if the insertion occurred at the end of the code block
 			auto lineInfoToUpdateFrom = highlights.tree.getLineForByte(insertStart);
+
+			// Insert a new lineInfo if needed
 			if (lineInfoToUpdateFrom == highlights.tree.sourceInfo.end())
 			{
 				g_logger_assert(insertStart >= oldCodeLength, "We should only be updating from the end of the list when the insertion occurred at the end of the old source information.");
@@ -242,6 +244,16 @@ namespace MathAnim
 
 				// Go back 1 from the end so we begin updating the last line of the code
 				lineInfoToUpdateFrom = std::prev(highlights.tree.sourceInfo.end());
+			}
+
+			{
+				// Make sure to mark the previous line as needing an update, just to ensure that
+				// we don't miss anything that could've broken a multiline parse
+				auto prevLine = std::prev(lineInfoToUpdateFrom);
+				if (prevLine != highlights.tree.sourceInfo.end())
+				{
+					prevLine->needsToBeUpdated = true;
+				}
 			}
 
 			// Next, update the line beginnings and line lengths for all effected lines (or create new lines if new lines were made)
@@ -306,6 +318,12 @@ namespace MathAnim
 		auto lineInfoToUpdateFrom = highlights.tree.getLineForByte(insertStart);
 		size_t lineInfoIndexToUpdateFrom = lineInfoToUpdateFrom - highlights.tree.sourceInfo.begin();
 
+		// Make sure to start at the previous line just in case something changed there
+		if (lineInfoIndexToUpdateFrom > 0)
+		{
+			lineInfoIndexToUpdateFrom--;
+		}
+
 		return checkForUpdatesFrom(highlights, lineInfoIndexToUpdateFrom + 1, maxLinesToUpdate);
 	}
 
@@ -340,6 +358,16 @@ namespace MathAnim
 		{
 			auto currentLineInfo = highlights.tree.sourceInfo.begin() + lineIndexStartedRemovingFrom;
 			g_logger_assert(currentLineInfo != highlights.tree.sourceInfo.end(), "Cannot remove syntax highlighting from beyond the end of the file.");
+			
+			{
+				// Make sure to mark the previous line as needing an update, just to ensure that
+				// we don't miss anything that could've broken a multiline parse
+				auto prevLine = std::prev(currentLineInfo);
+				if (prevLine != highlights.tree.sourceInfo.end())
+				{
+					prevLine->needsToBeUpdated = true;
+				}
+			}
 
 			// First, fix the current line info's start byte
 			size_t prevLineEnd = 0;
@@ -389,6 +417,12 @@ namespace MathAnim
 					g_logger_assert(currentLineInfo->byteStart + currentLineInfo->numBytes <= highlights.tree.codeLength, "We shouldn't be exceeding the capacity of our string length here.");
 				}
 			}
+		}
+
+		// Make sure to start updating from 1 line previous just in case
+		if (lineIndexStartedRemovingFrom > 0)
+		{
+			lineIndexStartedRemovingFrom--;
 		}
 
 		// Finally, actually reparse any effected lines
