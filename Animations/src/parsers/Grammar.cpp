@@ -1151,7 +1151,7 @@ namespace MathAnim
 
 					auto span = pattern->complexPattern->resumeParse(
 						*lineInfo,
-						tree.codeBlock,
+						std::string(tree.codeBlock, tree.codeBlock + tree.codeLength),
 						theme,
 						start,
 						resumeInfo.dynamicEndPatternStr,
@@ -1197,7 +1197,7 @@ namespace MathAnim
 				{
 					auto span = this->patterns.tryParse(
 						*lineInfo,
-						tree.codeBlock,
+						std::string(tree.codeBlock, tree.codeBlock + tree.codeLength),
 						theme,
 						lineInfo->byteStart,
 						start,

@@ -246,6 +246,7 @@ namespace MathAnim
 				lineInfoToUpdateFrom = std::prev(highlights.tree.sourceInfo.end());
 			}
 
+			if (lineInfoToUpdateFrom != highlights.tree.sourceInfo.begin())
 			{
 				// Make sure to mark the previous line as needing an update, just to ensure that
 				// we don't miss anything that could've broken a multiline parse
@@ -262,7 +263,7 @@ namespace MathAnim
 			size_t cursorIndex = insertStart;
 
 			// Insert any newlines and figure out which lines need to be updated
-			while (cursorIndex < highlights.tree.codeLength)
+			while (cursorIndex < highlights.tree.codeLength) 
 			{
 				// If we hit a newline or the end of the code, update the line we're currently on
 				if (highlights.tree.codeBlock[cursorIndex] == '\n' || cursorIndex == highlights.tree.codeLength - 1)
@@ -354,11 +355,18 @@ namespace MathAnim
 		highlights.tree.codeBlock = newCodeBlock;
 		highlights.tree.codeLength = newCodeBlockLength;
 
+		// If the new code block is empty, just return 0 lines updated
+		if (highlights.tree.codeLength == 0)
+		{
+			return Vec2i{0, 0};
+		}
+
 		// Update beginnings/endings of all lines and mark any lines that need to be updated
 		{
 			auto currentLineInfo = highlights.tree.sourceInfo.begin() + lineIndexStartedRemovingFrom;
 			g_logger_assert(currentLineInfo != highlights.tree.sourceInfo.end(), "Cannot remove syntax highlighting from beyond the end of the file.");
 			
+			if (currentLineInfo != highlights.tree.sourceInfo.begin())
 			{
 				// Make sure to mark the previous line as needing an update, just to ensure that
 				// we don't miss anything that could've broken a multiline parse
