@@ -13,7 +13,7 @@
             "include": "#comments"
         },
         {
-            "include": "#local_typed_assignment"
+            "include": "#local_typed_var"
         },
         {
             "include": "#while_loops"
@@ -63,7 +63,7 @@
         }
     ],
     "repository": {
-        "local_typed_assignment": {
+        "local_typed_var": {
             "begin": "\\b(local)\\b\\s*\\b([a-zA-Z_$][\\w$]*)\\b\\s*:",
             "beginCaptures": {
                 "1": {
@@ -73,7 +73,8 @@
                     "name": "variable.other.luau"
                 }
             },
-            "end": "(?m)(?<=(>|\\w)(\\b|$|\\s))(?!\\s*(\\&|<|\\|))",
+            "name": "local.typed.var.decl",
+            "end": "(?m)((?<=([^\\-]>|\\w)(\\b|$|\\s))(?!\\s*(\\&|<|\\)|\\|)))|((?<=\\))(\\b|$|\\s))(?!\\s*(\\->|\\&|\\|))",
             "patterns": [
                 {
                     "include": "#type_annotations"
@@ -82,6 +83,47 @@
         },
         "type_annotations": {
             "patterns": [
+                {
+                    "begin": "\\s*\\(",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.bracket.round.begin"
+                        }
+                    },
+                    "end": "\\)",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.bracket.round.end"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "begin": "\\s*\\b([a-zA-Z_$][\\w$]*)\\b\\s*:",
+                            "beginCaptures": {
+                                "1": {
+                                    "name": "variable.parameter.function.luau"
+                                }
+                            },
+                            "end": ",|(?=\\))",
+                            "patterns": [
+                                {
+                                    "include": "#type_annotations"
+                                }
+                            ]
+                        },
+                        {
+                            "include": "#type_annotations"
+                        }
+                    ]
+                },
+                {
+                    "match": "\\->",
+                    "name": "keyword.operator.arrow.luau"
+                },
+                {
+                    "match": "(?m)\\&|\\|",
+                    "name": "keyword.operator.type.luau"
+                },
                 {
                     "begin": "(?m)\\s*(?=\\b([a-zA-Z_][\\w]*)\\b)",
                     "end": "(?m)(?<=(>|\\w))(?!\\s*(\\&|<|\\|))",
@@ -340,9 +382,6 @@
                     "end": "(?<=\\bend\\b)",
                     "patterns": [
                         {
-                            "include": "#function_body"
-                        },
-                        {
                             "begin": "\\G",
                             "end": "(?<=\\))",
                             "name": "meta.function.local.luau",
@@ -351,6 +390,9 @@
                                     "include": "#local_function_innards"
                                 }
                             ]
+                        },
+                        {
+                            "include": "#function_body"
                         }
                     ]
                 },
@@ -358,9 +400,6 @@
                     "begin": "(?=\\bfunction\\b\\s*)",
                     "end": "(?<=\\bend\\b)",
                     "patterns": [
-                        {
-                            "include": "#function_body"
-                        },
                         {
                             "begin": "\\G",
                             "end": "(?<=\\))",
@@ -370,6 +409,9 @@
                                     "include": "#function_innards"
                                 }
                             ]
+                        },
+                        {
+                            "include": "#function_body"
                         }
                     ]
                 }
@@ -671,9 +713,19 @@
         },
         "function_body": {
 			"patterns": [
+                {
+                    "name": "meta.function.return.type.luau",
+                    "begin": "\\s*:",
+                    "end": "(?m)((?<=([^\\-]>|\\w)(\\b|$|\\s))(?!\\s*(\\&|<|\\)|\\|)))|((?<=\\))(\\b|$|\\s))(?!\\s*(\\->|\\&|\\|))",
+                    "patterns": [
+                        {
+                            "include": "#type_annotations"
+                        }
+                    ]
+                },
 				{
                     "name": "meta.function.body.luau",
-					"begin": "(?<=\\))",
+					"begin": "\\b",
 					"end": "\\bend\\b",
 					"endCaptures": {
 						"0": {
@@ -912,7 +964,7 @@
                     "name": "punctuation.definition.string.begin.luau"
                 }
             },
-            "end": "'|(?<!\\\\|\\\\z)$",
+            "end": "\"|(?<!\\\\|\\\\z)$",
             "endCaptures": {
                 "0": {
                     "name": "punctuation.definition.string.end.luau"
