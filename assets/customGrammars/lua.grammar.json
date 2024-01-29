@@ -34,6 +34,9 @@
             "include": "#keywords"
         },
         {
+            "include": "#type_casts"
+        },
+        {
             "include": "#function_definitions"
         },
         {
@@ -74,7 +77,7 @@
                 }
             },
             "name": "local.typed.var.decl",
-            "end": "(?m)((?<=([^\\-]>|\\w)(\\b|$|\\s))(?!\\s*(\\&|<|\\)|\\|)))|((?<=\\))(\\b|$|\\s))(?!\\s*(\\->|\\&|\\|))",
+            "end": "(?m)((?<=([^\\-]>|\\w)(\\b|$|\\s))(?!\\s*(\\&|<|(\\)\\s*\\->)|\\|)))|((?<=\\))(\\b|$|\\s))(?!\\s*(\\->|\\&|\\|))",
             "patterns": [
                 {
                     "include": "#type_annotations"
@@ -716,7 +719,7 @@
                 {
                     "name": "meta.function.return.type.luau",
                     "begin": "\\s*:",
-                    "end": "(?m)((?<=([^\\-]>|\\w)(\\b|$|\\s))(?!\\s*(\\&|<|\\)|\\|)))|((?<=\\))(\\b|$|\\s))(?!\\s*(\\->|\\&|\\|))",
+                    "end": "(?m)((?<=([^\\-]>|\\w)(\\b|$|\\s))(?!\\s*(\\&|<|(\\)\\s*\\->)|\\|)))|((?<=\\))(\\b|$|\\s))(?!\\s*(\\->|\\&|\\|))",
                     "patterns": [
                         {
                             "include": "#type_annotations"
@@ -1058,6 +1061,21 @@
         "constants": {
             "match": "\\b(false|nil|true)\\b",
             "name": "constant.language.luau"
+        },
+        "type_casts": {
+            "begin": "\\:\\:",
+            "beginCaptures": {
+                "0": {
+                    "name": "meta.delimiter.type.cast.luau"
+                }
+            },
+            "name": "foo.luau",
+            "end": "(?m)((?<=([^\\-]>|\\w)(\\b|$|\\s))(?!\\s*(\\&|<|(\\)\\s*\\->)|\\|)))|((?<=\\))(\\b|$|\\s))(?!\\s*(\\->|\\&|\\|))",
+            "patterns": [
+                {
+                    "include": "#type_annotations"
+                }
+            ]
         },
         "operators": {
             "match": "(\\+|-|\\*|/|\\^|%|<|>|\\.\\.)(=)?|(\\.\\.(\\.)?|==|~=|\\b(not|and|or)\\b|#|=)",
