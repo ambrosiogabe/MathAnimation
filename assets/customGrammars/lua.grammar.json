@@ -528,6 +528,9 @@
                     "include": "#operators"
                 },
                 {
+                    "include": "#type_casts"
+                },
+                {
                     "match": "\\bcontinue\\b",
                     "name": "keyword.control.luau"
                 },
