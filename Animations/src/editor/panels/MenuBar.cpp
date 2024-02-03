@@ -1,10 +1,13 @@
 #include "editor/panels/MenuBar.h"
+#include "editor/panels/CodeEditorPanelManager.h"
+#include "editor/panels/RegexTester.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/EditorLayout.h"
 #include "editor/UndoSystem.h"
 #include "core/Application.h"
 #include "core/Profiling.h"
 #include "renderer/Colors.h"
+#include "parsers/SyntaxHighlighter.h"
 
 #include <imgui.h>
 
@@ -67,11 +70,37 @@ namespace MathAnim
 						UndoSystem::redo(Application::getUndoSystem());
 					}
 
+					ImGui::Separator();
+
+					if (ImGui::BeginMenu("Code Themes"))
+					{
+						for (uint8 i = 1; i < (uint8)_highlighterThemeNames.size(); i++)
+						{
+							const char* themeName = _highlighterThemeNames[i];
+							if (ImGui::MenuItem(themeName))
+							{
+								CodeEditorPanelManager::setTheme((HighlighterTheme)i);
+							}
+						}
+
+						ImGui::EndMenu();
+					}
+
 					ImGui::EndMenu();
 				}
 
 				if (ImGui::BeginMenu("View"))
 				{
+					if (ImGui::BeginMenu("Windows"))
+					{
+						if (ImGui::MenuItem("Regex Tester"))
+						{
+							RegexTester::showWindow();
+						}
+
+						ImGui::EndMenu();
+					}
+
 					if (ImGui::BeginMenu("Layouts"))
 					{
 						const std::vector<std::filesystem::path>& defaultLayouts = EditorLayout::getDefaultLayouts();

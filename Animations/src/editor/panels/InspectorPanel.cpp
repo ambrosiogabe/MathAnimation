@@ -1,5 +1,6 @@
 #include "editor/panels/InspectorPanel.h"
 #include "editor/panels/SceneHierarchyPanel.h"
+#include "editor/panels/CodeEditorPanel.h"
 #include "editor/imgui/ImGuiExtended.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/UndoSystem.h"
@@ -753,10 +754,10 @@ namespace MathAnim
 
 		struct CodeEditUserData
 		{
-			std::vector<ScopedName> ancestors;
-			TokenRuleMatch tokenMatch;
 			HighlighterLanguage language;
 			HighlighterTheme theme;
+			CodeHighlights highlights;
+			CodeHighlightDebugInfo parseInfo;
 			bool isActive;
 		};
 
@@ -781,8 +782,7 @@ namespace MathAnim
 				return 0;
 			}
 
-			userData.ancestors = highlighter->getAncestorsFor(data->Buf, data->CursorPos);
-			userData.tokenMatch = theme->match(userData.ancestors);
+			userData.parseInfo = highlighter->getAncestorsFor(theme, userData.highlights, data->CursorPos);
 
 			return 0;
 		}
@@ -841,8 +841,7 @@ namespace MathAnim
 			{
 				codeEditUserData.language = object->as.codeBlock.language;
 				codeEditUserData.theme = object->as.codeBlock.theme;
-				codeEditUserData.ancestors = {};
-				codeEditUserData.tokenMatch = {};
+				codeEditUserData.parseInfo = {};
 			}
 
 			g_memory_copyMem(scratch, scratchLength, object->as.codeBlock.text, object->as.codeBlock.textLength * sizeof(char));
@@ -868,6 +867,16 @@ namespace MathAnim
 					{
 						object->as.codeBlock.setText(scratch);
 						object->as.codeBlock.reInit(am, object);
+
+						if (codeEditUserData.isActive)
+						{
+							const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(codeEditUserData.language);
+							const SyntaxTheme* theme = Highlighters::getTheme(codeEditUserData.theme);
+							if (highlighter && theme)
+							{
+								codeEditUserData.highlights = highlighter->parse(object->as.codeBlock.text, object->as.codeBlock.textLength, *theme);
+							}
+						}
 					}
 				}
 			}
@@ -875,59 +884,24 @@ namespace MathAnim
 			// Debug stuff, checking this box allows you to inspect the styles and
 			// ancestors that are generated for the codeblock where the text cursor
 			// is located.
-			ImGui::Checkbox(": Inspect", &codeEditUserData.isActive);
+			if (ImGui::Checkbox(": Inspect", &codeEditUserData.isActive))
+			{
+				// Make sure to populate all the data the first time the checkbox is clicked
+				const SyntaxHighlighter* highlighter = Highlighters::getHighlighter(object->as.codeBlock.language);
+				const SyntaxTheme* theme = Highlighters::getTheme(object->as.codeBlock.theme);
+				if (highlighter && theme)
+				{
+					codeEditUserData.highlights = highlighter->parse(object->as.codeBlock.text, object->as.codeBlock.textLength, *theme);
+				}
+			}
+
 			if (codeEditUserData.isActive)
 			{
-				ImGui::BeginChild("Code Ancestors", ImVec2(0, 0), true);
-
-				if (ImGui::BeginTable("textmate scopes", 2))
+				const SyntaxTheme* theme = Highlighters::getTheme(codeEditUserData.theme);
+				if (theme)
 				{
-					ImGui::TableNextColumn(); ImGui::Text("textmate scopes");
-					for (size_t i = 0; i < codeEditUserData.ancestors.size(); i++)
-					{
-						size_t backwardsIndex = codeEditUserData.ancestors.size() - i - 1;
-						std::string friendlyName = codeEditUserData.ancestors[backwardsIndex].getFriendlyName();
-						ImGui::TableNextColumn(); ImGui::Text(friendlyName.c_str());
-
-						if (i < codeEditUserData.ancestors.size() - 1)
-						{
-							ImGui::TableNextRow(); ImGui::TableNextColumn();
-						}
-					}
-
-					ImGui::TableNextRow(); ImGui::TableNextRow();
-
-					ImGui::TableNextColumn(); ImGui::Text("foreground");
-					bool foundThemeSelector = false;
-					if (codeEditUserData.tokenMatch.matchedRule)
-					{
-						const auto* matchedRule = codeEditUserData.tokenMatch.matchedRule;
-						const ThemeSetting* setting = matchedRule->getSetting(ThemeSettingType::ForegroundColor);
-						if (setting && setting->foregroundColor.has_value())
-						{
-							const Vec4& foregroundColor = setting->foregroundColor.value().color;
-							std::string foregroundColorStr = toHexString(foregroundColor);
-							if (setting->foregroundColor.value().styleType == CssStyleType::Inherit)
-							{
-								foregroundColorStr = "inherit";
-							}
-
-							ImGui::TableNextColumn(); ImGui::Text(codeEditUserData.tokenMatch.styleMatched.c_str());
-							ImGui::TableNextRow(); ImGui::TableNextColumn();
-							ImGui::TableNextColumn(); ImGui::Text("{ \"foreground\": \"%s\"", foregroundColorStr.c_str());
-							foundThemeSelector = true;
-						}
-					}
-
-					if (!foundThemeSelector)
-					{
-						ImGui::TableNextColumn(); ImGui::Text("No theme selector");
-					}
-
-					ImGui::EndTable();
+					CodeEditorPanel::showInspectorGui(*theme, codeEditUserData.parseInfo);
 				}
-
-				ImGui::EndChild();
 			}
 
 			return anyPropertyChanged;

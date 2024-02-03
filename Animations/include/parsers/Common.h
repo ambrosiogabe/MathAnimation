@@ -13,12 +13,23 @@ namespace MathAnim
 
 	struct ScopeCapture
 	{
+		// This is the original capture text
+		std::string captureRegex;
+		// This is where we should start replacing the capture text with the capture
+		size_t captureReplaceStart;
+		// This is where we should end replacing the capture text with the capture
+		size_t captureReplaceEnd;
 		int captureIndex;
 		std::string capture;
 	};
 
 	struct Scope
 	{
+		Scope() 
+			: name(std::nullopt), capture(std::nullopt)
+		{
+		}
+
 		std::optional<std::string> name;
 		std::optional<ScopeCapture> capture;
 
@@ -31,59 +42,55 @@ namespace MathAnim
 		static MathAnim::Scope from(const std::string& string);
 	};
 
-	struct ScopedNameMatch
-	{
-		int levelMatched;
-	};
-
+	struct ScopeSelector;
 	struct ScopedName
 	{
 		std::vector<Scope> dotSeparatedScopes;
 
-		std::optional<ScopedNameMatch> matches(const ScopedName& other) const;
+		bool matches(ScopeSelector const& other) const;
 		std::string getFriendlyName() const;
 
 		static ScopedName from(const std::string& string);
+
+		bool strictEquals(ScopedName const& other) const
+		{
+			if (other.dotSeparatedScopes.size() != this->dotSeparatedScopes.size())
+			{
+				return false;
+			}
+
+			for (size_t i = 0; i < this->dotSeparatedScopes.size(); i++)
+			{
+				if (this->dotSeparatedScopes[i] != other.dotSeparatedScopes[i])
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
 	};
 
-	// Information on how scopes work here https://macromates.com/manual/en/scope_selectors
-	// 
-	// "string" matches anything starting with "string"
-	//   Examples: "string.quoted.double.cpp" "string.quoted" "string"
-	//             are all valid matches for the selector "string"
-	//
-	// An empty scope matches all scopes, but has the lowest ranking.
-	//
-	// Descendants also work like CSS descendants. See the link above for more info.
-
-	struct ScopeRuleMatch
+	struct ScopeSelector
 	{
-		int deepestScopeMatched;
-		std::vector<ScopedNameMatch> ancestorMatches;
-		std::vector<ScopedName> ancestorNames;
-	};
-	
-	struct ScopeRule
-	{
-		std::vector<ScopedName> scopes;
+		std::vector<std::string> dotSeparatedScopes;
 
-		std::optional<ScopeRuleMatch> matches(const std::vector<ScopedName>& ancestors) const;
+		std::string getFriendlyName() const;
+
+		static ScopeSelector from(const std::string& string);
 	};
 
-	struct ScopeRuleCollectionMatch
+	struct ScopeDescendantSelector
 	{
-		int ruleIndexMatched;
-		ScopeRuleMatch scopeRule;
+		std::vector<ScopeSelector> descendants;
 	};
 
-	struct ScopeRuleCollection
+	struct ScopeSelectorCollection
 	{
-		std::vector<ScopeRule> scopeRules;
+		std::vector<ScopeDescendantSelector> descendantSelectors;
 		std::string friendlyName;
 
-		std::optional<ScopeRuleCollectionMatch> matches(const std::vector<ScopedName>& ancestors) const;
-
-		static ScopeRuleCollection from(const std::string& str);
+		static ScopeSelectorCollection from(std::string const& str);
 	};
 
 	namespace Parser

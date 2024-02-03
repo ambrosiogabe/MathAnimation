@@ -2,19 +2,30 @@
 #define MATH_ANIM_GRAMMAR_H
 #include "core.h"
 #include "parsers/Common.h"
+#include "parsers/SyntaxTheme.h"
 
 #include <nlohmann/json_fwd.hpp>
 
 namespace MathAnim
 {
+	static constexpr size_t DEFAULT_MAX_LINES_TO_UPDATE = 30;
+
 	// Internal forward decls
 	struct Grammar;
 	struct PatternRepository;
-	struct GrammarMatch;
+	struct GrammarMatchV2;
 	struct SyntaxPattern;
+	struct GrammarLineInfo;
+	struct SourceGrammarTree;
 
 	// Typedefs
 	typedef uint64 GrammarPatternGid;
+
+	struct MatchSpan
+	{
+		size_t matchStart;
+		size_t matchEnd;
+	};
 
 	// Structs
 	struct PatternArray
@@ -24,8 +35,10 @@ namespace MathAnim
 		uint64 firstSelfPatternArrayIndex;
 		OnigRegSet* regset;
 
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
-		bool matchAll(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
+		// @returns The overall span of this match
+		MatchSpan tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
+		// @returns The overall span of all matches contained by this pattern array
+		MatchSpan tryParseAll(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
 
 		void free();
 	};
@@ -51,13 +64,32 @@ namespace MathAnim
 		static CaptureList from(const nlohmann::json& j, Grammar* self);
 	};
 
+	struct DynamicRegexCapture
+	{
+		size_t captureIndex;
+		size_t strReplaceStart;
+		size_t strReplaceEnd;
+	};
+
+	struct DynamicRegex
+	{
+		bool isDynamic;
+		OnigRegex simpleRegex;
+		std::string regexText;
+		std::vector<DynamicRegexCapture> backrefs;
+	};
+
 	struct SimpleSyntaxPattern
 	{
 		std::optional<ScopedName> scope;
 		OnigRegex regMatch;
 		std::optional<CaptureList> captures;
 
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
+		void pushScopeToAncestorStack(GrammarLineInfo& line, std::optional<GrammarMatchV2> const& match) const;
+		void popScopeFromAncestorStack(GrammarLineInfo& line) const;
+
+		// @returns The overall span of this match
+		MatchSpan tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
 
 		void free();
 	};
@@ -66,12 +98,18 @@ namespace MathAnim
 	{
 		std::optional<ScopedName> scope;
 		OnigRegex begin;
-		OnigRegex end;
+		DynamicRegex end;
 		std::optional<CaptureList> beginCaptures;
 		std::optional<CaptureList> endCaptures;
 		std::optional<PatternArray> patterns;
 
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches, Grammar const* self) const;
+		void pushScopeToAncestorStack(GrammarLineInfo& line) const;
+		void popScopeFromAncestorStack(GrammarLineInfo& line) const;
+
+		// @returns The overall span of this match
+		MatchSpan tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self, GrammarPatternGid gid) const;
+		// @returns The overall span of this match
+		MatchSpan resumeParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t currentByte, std::string const& dynamicEndPattern, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, Grammar const* self) const;
 
 		void free();
 	};
@@ -95,8 +133,9 @@ namespace MathAnim
 		const Grammar* self;
 		GrammarPatternGid gid;
 		uint64 patternArrayIndex;
-
-		bool match(const std::string& str, size_t anchor, size_t start, size_t end, const PatternRepository& repo, OnigRegion* region, std::vector<GrammarMatch>* outMatches) const;
+		
+		// @returns The overall span of this match
+		MatchSpan tryParse(GrammarLineInfo& line, std::string const& code, SyntaxTheme const& theme, size_t anchor, size_t start, size_t endOffset, const PatternRepository& repo, OnigRegion* region) const;
 
 		void free();
 	};
@@ -106,45 +145,76 @@ namespace MathAnim
 		std::unordered_map<std::string, SyntaxPattern*> patterns;
 	};
 
-	struct GrammarMatch
+	struct GrammarMatchV2
 	{
 		size_t start;
 		size_t end;
 		std::optional<ScopedName> scope;
-		std::vector<GrammarMatch> subMatches;
 	};
 
-	// Data for source grammar trees
-	struct Span
+	struct SourceSyntaxToken
 	{
-		size_t relativeStart;
-		size_t size;
+		// The byte that this token starts at, relative to the beginning of the line
+		uint32 relativeStart;
+		PackedSyntaxStyle style;
+		std::vector<ScopedName> debugAncestorStack;
 	};
 
-	struct SourceGrammarTreeNode
+	// TODO: Make this the only data structure that adds a debug ancestor stack to every token.
+	//       That way, we don't use this except for fast paths.
+	struct SourceSyntaxToken_Debug
 	{
-		size_t nextNodeDelta;
-		size_t parentDelta;
-		Span sourceSpan;
-		std::optional<ScopedName> scope;
-		bool isAtomicNode;
+		// The byte that this token starts at, relative to the beginning of the line
+		uint32 relativeStart;
+		PackedSyntaxStyle style;
+		std::vector<ScopedName> debugAncestorStack;
+	};
+
+	struct GrammarResumeParseInfo
+	{
+		GrammarPatternGid gid;
+		std::string dynamicEndPatternStr;
+		size_t anchor;
+		size_t currentByte;
+		size_t originalStart;
+		size_t gapTokenStart;
+		bool hasParentScope;
+
+		inline bool operator==(GrammarResumeParseInfo const& other) const
+		{
+			return gid == other.gid && dynamicEndPatternStr == other.dynamicEndPatternStr && anchor == other.anchor;
+		}
+
+		inline bool operator!=(GrammarResumeParseInfo const& other) const
+		{
+			return !(*this == other);
+		}
+	};
+
+	struct GrammarLineInfo
+	{
+		std::vector<SourceSyntaxToken> tokens;
+		std::vector<ScopedName> ancestors;
+		std::vector<GrammarResumeParseInfo> patternStack;
+		uint32 byteStart;
+		uint32 numBytes;
+		bool needsToBeUpdated;
 	};
 
 	// This corresponds to the tree represented here: https://macromates.com/blog/2005/introduction-to-scopes/#htmlxml-analogy
 	struct SourceGrammarTree
 	{
-		std::vector<SourceGrammarTreeNode> tree;
-		ScopedName rootScope;
-		std::string codeBlock;
+		std::vector<GrammarLineInfo> sourceInfo;
+		const char* codeBlock;
+		size_t codeLength;
 
-		void insertNode(const SourceGrammarTreeNode& node, size_t sourceSpanOffset);
-		void removeNode(size_t nodeIndex);
+		std::vector<GrammarLineInfo>::iterator getLineForByte(size_t byte);
 
-		std::vector<ScopedName> getAllAncestorScopes(size_t node) const;
 		std::vector<ScopedName> getAllAncestorScopesAtChar(size_t cursorPos) const;
+		std::string getMatchTextAtChar(size_t cursorPos) const;
 
-		// Default buffer size of 1MB
-		std::string getStringifiedTree(size_t bufferSize = 1024 * 10) const;
+		// Default buffer size of 10KB
+		std::string getStringifiedTree(Grammar const& grammar, size_t bufferSize = 1024 * 10) const;
 	};
 
 	// This loosely follows the rules set out by TextMate grammars.
@@ -160,8 +230,13 @@ namespace MathAnim
 		std::unordered_map<GrammarPatternGid, SyntaxPattern const *const> globalPatternIndex;
 		GrammarPatternGid gidCounter;
 
-		SourceGrammarTree parseCodeBlock(const std::string& code, bool printDebugStuff = false) const;
-		bool getNextMatch(const std::string& code, std::vector<GrammarMatch>* outMatches) const;
+		SourceGrammarTree initCodeBlock(const char* code, size_t codeLength) const;
+
+		// @returns -- The number of lines updated
+		size_t updateFromByte(SourceGrammarTree& tree, SyntaxTheme const& theme, uint32_t byteOffset = 0, uint32_t maxNumLinesToUpdate = DEFAULT_MAX_LINES_TO_UPDATE) const;
+
+		// @deprecated -- Do it yourself, no really. Do it yourself.
+		SourceGrammarTree Grammar::parseCodeBlock(const char* code, size_t codeLength, SyntaxTheme const& theme) const;
 
 		static Grammar* importGrammar(const char* filepath);
 		static void free(Grammar* grammar);

@@ -1,5 +1,6 @@
 #include "parsers/SyntaxTheme.h"
 #include "platform/Platform.h"
+#include "svg/Styles.h"
 
 #include <nlohmann/json.hpp>
 #include <../tinyxml2/tinyxml2.h>
@@ -10,231 +11,510 @@ namespace MathAnim
 {
 	using namespace nlohmann;
 
-	struct InternalScopeMatch
-	{
-		size_t globalRuleIndex;
-		ScopeRuleCollectionMatch match;
-	};
-
 	// -------------- Internal Functions --------------
+	static uint32 parseOrGetDefaultColor(SyntaxTheme* theme, nlohmann::json const& j, std::string const& propertyName, std::string const& fallbackColorValueHex);
+	static uint32 tryParseColor(SyntaxTheme* theme, nlohmann::json const& j, std::string const& propertyName);
 	static SyntaxTheme* importThemeFromJson(const json& json, const char* filepath);
 	static SyntaxTheme* importThemeFromXml(const XMLDocument& document, const char* filepath);
 	static const XMLElement* getValue(const XMLElement* element, const std::string& keyName);
 
-	const ThemeSetting* TokenRule::getSetting(ThemeSettingType type) const
+	void PackedSyntaxStyle::mergeWith(PackedSyntaxStyle other)
 	{
-		for (const ThemeSetting& setting : settings)
+		if (!this->getBackgroundColor())
 		{
-			if (setting.type == type)
-			{
-				return &setting;
-			}
+			this->setBackgroundColor(other.getBackgroundColor());
 		}
 
-		return nullptr;
+		if (this->getFontStyle() == CssFontStyle::None)
+		{
+			this->setFontStyle(other.getFontStyle());
+		}
+
+		if (!this->getForegroundColor())
+		{
+			this->setForegroundColor(other.getForegroundColor());
+		}
+
+		if (!this->getLanguageId())
+		{
+			this->setLanguageId(other.getLanguageId());
+		}
+
+		if (!this->getStandardTokenType())
+		{
+			this->setStandardTokenType(other.getStandardTokenType());
+		}
 	}
 
-	TokenRuleMatch SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
+	void PackedSyntaxStyle::overwriteMergeWith(PackedSyntaxStyle other)
 	{
-		// Pick the best rule according to the guide laid out here https://macromates.com/manual/en/scope_selectors
-		/*
-		* 1. Match the element deepest down in the scope e.g. "string" wins over "source.php" when
-		*    the scope is "source.php string.quoted".
-		*
-		* 2. Match most of the deepest element e.g. "string.quoted" wins over "string".
-		*
-		* 3. Rules 1 and 2 applied again to the scope selector when removing the deepest element
-		*    (in the case of a tie), e.g. "text source string" wins over "source string".
-		*/
-
-		std::vector<InternalScopeMatch> potentialMatches = {};
-
-		int deepestScopeMatched = 0;
-		for (size_t ruleIndex = 0; ruleIndex < tokenColors.size(); ruleIndex++)
+		if (other.getBackgroundColor())
 		{
-			const auto& rule = tokenColors[ruleIndex];
-			for (size_t collectionIndex = 0; collectionIndex < rule.scopeCollection.size(); collectionIndex++)
+			this->setBackgroundColor(other.getBackgroundColor());
+		}
+
+		if (other.getFontStyle() != CssFontStyle::None)
+		{
+			this->setFontStyle(other.getFontStyle());
+		}
+
+		if (other.getForegroundColor())
+		{
+			this->setForegroundColor(other.getForegroundColor());
+		}
+
+		if (other.getLanguageId())
+		{
+			this->setLanguageId(other.getLanguageId());
+		}
+
+		if (other.getStandardTokenType())
+		{
+			this->setStandardTokenType(other.getStandardTokenType());
+		}
+	}
+
+	void SyntaxTrieNode::insert(std::string const& inName, ScopeSelector const& scope, PackedSyntaxStyle const& inStyle, std::vector<ScopeSelector> const& inAncestors, size_t subScopeIndex)
+	{
+		g_logger_assert(subScopeIndex < scope.dotSeparatedScopes.size(), "Invalid sub-scope index '{}' encountered while generating theme trie. Out of range for sub-scopes of size '{}'.", subScopeIndex, scope.dotSeparatedScopes.size());
+
+		std::string const& subScope = scope.dotSeparatedScopes[subScopeIndex];
+		auto iter = this->children.find(subScope);
+
+		// Add the node if it hasn't been added already
+		if (iter == this->children.end())
+		{
+			this->children[subScope] = {};
+
+			// Reassign iter so it now has a value
+			iter = this->children.find(subScope);
+		}
+
+		// We've reached the end of this path in the trie, now insert the styles here and assert that
+		// a style/parent-style hasn't already been set for this particular rule
+		if (subScopeIndex == scope.dotSeparatedScopes.size() - 1)
+		{
+			// Add the style to the parent rule or the node
+			if (inAncestors.size() == 0)
 			{
-				const auto& scopeRule = rule.scopeCollection[collectionIndex];
-				auto match = scopeRule.matches(ancestorScopes);
-				if (match.has_value())
+				// Some themes are ill-formed (naughty developers!). If an ill-formed theme is found,
+				// we'll log a warning then discard the newer value and prefer the first-match instead
+				// 
+				// Sometimes though, the developers are merging different theme settings, like adding font-style
+				// or a color to a group of themes. In those cases, we'll just merge the themes.
+				if (!this->children[subScope].style.isEmpty())
 				{
-					if (match->scopeRule.deepestScopeMatched > deepestScopeMatched)
+					auto& styleToModify = this->children[subScope].style;
+
+					if (inStyle.getBackgroundColor())
 					{
-						deepestScopeMatched = match->scopeRule.deepestScopeMatched;
+						if (styleToModify.getBackgroundColor())
+						{
+							g_logger_warning("The scope rule '{}' tried to set the 'backgroundColor' twice. This rule is ambiguous.", scope.getFriendlyName());
+						}
+						else
+						{
+							styleToModify.setBackgroundColor(inStyle.getBackgroundColor());
+						}
 					}
 
-					potentialMatches.emplace_back(InternalScopeMatch{
-						ruleIndex,
-						match.value()
-						});
+					if (inStyle.getFontStyle() != CssFontStyle::None)
+					{
+						if (styleToModify.getFontStyle() != CssFontStyle::None)
+						{
+							g_logger_warning("The scope rule '{}' tried to set the 'fontStyle' twice. This rule is ambiguous.", scope.getFriendlyName());
+						}
+						else
+						{
+							styleToModify.setFontStyle(inStyle.getFontStyle());
+						}
+					}
+
+					if (inStyle.getForegroundColor())
+					{
+						if (styleToModify.getForegroundColor())
+						{
+							g_logger_warning("The scope rule '{}' tried to set the 'foregroundColor' twice. This rule is ambiguous.", scope.getFriendlyName());
+						}
+						else
+						{
+							styleToModify.setForegroundColor(inStyle.getForegroundColor());
+						}
+					}
+
+					if (inStyle.getLanguageId())
+					{
+						if (styleToModify.getLanguageId())
+						{
+							g_logger_warning("The scope rule '{}' tried to set the 'languageId' twice. This rule is ambiguous.", scope.getFriendlyName());
+						}
+						else
+						{
+							styleToModify.setLanguageId(inStyle.getLanguageId());
+						}
+					}
+
+					if (inStyle.getStandardTokenType())
+					{
+						if (styleToModify.getStandardTokenType())
+						{
+							g_logger_warning("The scope rule '{}' tried to set the 'standardTokenType' twice. This rule is ambiguous.", scope.getFriendlyName());
+						}
+						else
+						{
+							styleToModify.setStandardTokenType(inStyle.getStandardTokenType());
+						}
+					}
+
+					return;
+				}
+
+				this->children[subScope].style = inStyle;
+				this->children[subScope].name = inName;
+			}
+			else
+			{
+				SyntaxTrieParentRule newParentRule = {};
+				newParentRule.ancestors = inAncestors;
+				newParentRule.style = inStyle;
+
+				this->children[subScope].parentRules.push_back(newParentRule);
+			}
+
+			// End the recursion
+			return;
+		}
+
+		// Recurse and complete adding this sub-scope into the tree
+		iter->second.insert(inName, scope, inStyle, inAncestors, subScopeIndex + 1);
+	}
+
+	void SyntaxTrieNode::calculateInheritedStyles(PackedSyntaxStyle inInheritedStyle, bool isRoot)
+	{
+		// Don't use the root as a source of inheritance, because it messes some style resolution stuff up.
+		// See test `descendantSelectorSucceedsWithPartialMatches_2` for more an example of where this happens.
+		if (!isRoot)
+		{
+			inInheritedStyle.overwriteMergeWith(this->style);
+			this->inheritedStyle = inInheritedStyle;
+		}
+
+		for (auto& parentRule : this->parentRules)
+		{
+			parentRule.inheritedStyle = inInheritedStyle;
+			parentRule.inheritedStyle.overwriteMergeWith(parentRule.style);
+		}
+
+		for (auto& [k, v] : this->children)
+		{
+			v.calculateInheritedStyles(inInheritedStyle, false);
+		}
+	}
+
+	static void printTabs(std::string& res, size_t tabDepth = 0)
+	{
+		for (size_t t = 0; t < tabDepth * 2; t++)
+		{
+			res += ' ';
+		}
+	}
+
+	static void printThemeSettings(SyntaxTheme const& theme, PackedSyntaxStyle style, PackedSyntaxStyle inheritedStyle, std::string& res, size_t tabDepth = 0)
+	{
+		if (style.getForegroundColor())
+		{
+			printTabs(res, tabDepth);
+			res += "(ForegroundColor: ";
+			res += toHexString(theme.getColor(style.getForegroundColor())) + ")\n";
+		}
+		else if (inheritedStyle.getForegroundColor())
+		{
+			printTabs(res, tabDepth);
+			res += "(>>>ForegroundColor: ";
+			res += toHexString(theme.getColor(inheritedStyle.getForegroundColor())) + ")\n";
+		}
+
+		if (style.getFontStyle() != CssFontStyle::None)
+		{
+			printTabs(res, tabDepth);
+			res += "(FontStyle: " + Css::toString(style.getFontStyle()) + ")\n";
+		}
+		else if (inheritedStyle.getFontStyle() != CssFontStyle::None)
+		{
+			printTabs(res, tabDepth);
+			res += "(>>>FontStyle: " + Css::toString(inheritedStyle.getFontStyle()) + ")\n";
+		}
+
+		if (style.getBackgroundColor())
+		{
+			printTabs(res, tabDepth);
+			res += "(BackgroundColor: ";
+			res += toHexString(theme.getColor(style.getBackgroundColor())) + ")\n";
+		}
+		else if (inheritedStyle.getBackgroundColor())
+		{
+			printTabs(res, tabDepth);
+			res += "(>>>BackgroundColor: ";
+			res += toHexString(theme.getColor(inheritedStyle.getBackgroundColor())) + ")\n";
+		}
+	}
+
+	static void recursivePrint(SyntaxTheme const& theme, SyntaxTrieNode const& node, std::string& res, size_t tabDepth = 0)
+	{
+		if (node.parentRules.size() != 0)
+		{
+			for (size_t i = 0; i < node.parentRules.size(); i++)
+			{
+				auto& parent = node.parentRules[i];
+
+				// Print parent rules
+				for (size_t t = 0; t < tabDepth * 2; t++)
+				{
+					res += ' ';
+				}
+				res += "-^";
+
+				for (auto& ancestor : parent.ancestors)
+				{
+					res += ancestor.getFriendlyName();
+					res += ' ';
+				}
+
+				res += '\n';
+
+				printThemeSettings(theme, parent.style, parent.inheritedStyle, res, tabDepth);
+			}
+		}
+
+		for (auto& child : node.children)
+		{
+			// Print node connection
+			for (size_t i = 0; i < tabDepth * 2; i++)
+			{
+				res += ' ';
+			}
+			res += "|->";
+			res += child.first;
+			res += '\n';
+
+			printThemeSettings(theme, child.second.style, child.second.inheritedStyle, res, tabDepth);
+
+			// Print children, depth-first style
+			recursivePrint(theme, child.second, res, tabDepth + 1);
+		}
+	}
+
+	void SyntaxTrieNode::print(SyntaxTheme const& theme) const
+	{
+		std::string res = "";
+		recursivePrint(theme, *this, res);
+		g_logger_info("Tree: \n{}\n", res);
+	}
+
+	PackedSyntaxStyle SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes) const
+	{
+		PackedSyntaxStyle resolvedStyle = {};
+
+		// Set the resolved theme to the global default settings in case we don't find a match
+		{
+			resolvedStyle.setForegroundColor(this->defaultForeground);
+			resolvedStyle.setFontStyle(CssFontStyle::Normal);
+		}
+
+		// Ancestors are always passed in order from broad->narrow
+		//   Ex. source.lua -> punctuation.string.begin
+		for (auto const& ancestor : ancestorScopes)
+		{
+			SyntaxTrieNode const* node = &this->root;
+
+			// Query the trie and find out what styles apply to this ancestor
+			for (auto const& scope : ancestor.dotSeparatedScopes)
+			{
+				auto iter = node->children.find(scope.getScopeName());
+				if (iter == node->children.end())
+				{
 					break;
 				}
-			}
-		}
 
-		/*
-		* First pass to cull the list, follow this rule to cull potential matches:
-		*
-		*  1. Match the element deepest down in the scope e.g. "string" wins over "source.php" when
-		*    the scope is "source.php string.quoted".
-		*/
+				// Drill down to the deepest node
+				node = &iter->second;
+			}
 
-		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
-		{
-			if (iter->match.scopeRule.deepestScopeMatched < deepestScopeMatched)
+			// First check if we match a parent rule, if we do, we'll take that because 
+			// a parent rule match has more specificity then a normal match
+			bool foundParentRuleMatch = false;
+			if (node->parentRules.size() > 0)
 			{
-				iter = potentialMatches.erase(iter);
-			}
-			else
-			{
-				iter++;
-			}
-		}
-
-		/**
-		* Second pass to cull the list, follow this rule to cull more potential matches:
-		*
-		*  2. Match most of the deepest element e.g. "string.quoted" wins over "string".
-		*
-		*  NOTE (Deprecated?): I think the note below this one no longer applies. I've removed the code
-		*                      that used to do what the note below said and it still works alright /shrug.
-		*  NOTE:
-		*  This is kind of vague. What happens if you get "string.quoted.at.json" vs "string.quoted" for the pattern "string.quoted"
-		*  I believe "string.quoted" should win since it matches 100%, but the spec doesn't specify this. So
-		*  first I'll cull by the percentage matched of the total number of levels. In this case "string.quoted.at.json"
-		*  would match 0.5 and "string.quoted" would match 1.0, so "string.quoted" would win. Then, if you have
-		*  "string.quoted" vs "string", "string.quoted" would win since it goes two levels deep and is more specific.
-		*/
-		int maxLevelMatched = 0;
-		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end(); iter++)
-		{
-			if (iter->match.scopeRule.ancestorMatches[0].levelMatched > maxLevelMatched)
-			{
-				maxLevelMatched = iter->match.scopeRule.ancestorMatches[0].levelMatched;
-			}
-		}
-
-		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
-		{
-			if (iter->match.scopeRule.ancestorMatches[0].levelMatched < maxLevelMatched)
-			{
-				iter = potentialMatches.erase(iter);
-			}
-			else
-			{
-				iter++;
-			}
-		}
-
-		/*
-		* 3. Rules 1 and 2 applied again to the scope selector when removing the deepest element
-		*    (in the case of a tie), e.g. "text source string" wins over "source string".
-		* 
-		* NOTE: Right now I'm just culling whichever matches have less ancestors matched.
-		*/
-		size_t maxAncestorsMatched = 0;
-		for (size_t i = 0; i < potentialMatches.size(); i++) {
-			if (potentialMatches[i].match.scopeRule.ancestorMatches.size() > maxAncestorsMatched)
-			{
-				maxAncestorsMatched = potentialMatches[i].match.scopeRule.ancestorMatches.size();
-			}
-		}
-
-		for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
-		{
-			if (iter->match.scopeRule.ancestorMatches.size() < maxAncestorsMatched)
-			{
-				iter = potentialMatches.erase(iter);
-			}
-			else
-			{
-				iter++;
-			}
-		}
-
-		if (potentialMatches.size() > 0)
-		{
-			// Take the best ancestor match
-			std::vector<ScopedNameMatch> deepestAncestorLevelMatches = potentialMatches[0].match.scopeRule.ancestorMatches;
-			for (size_t i = 0; i < potentialMatches.size(); i++)
-			{
-				for (size_t j = 0; j < potentialMatches[i].match.scopeRule.ancestorMatches.size(); j++)
+				for (auto const& parentRule : node->parentRules)
 				{
-					if (j < deepestAncestorLevelMatches.size() && 
-						potentialMatches[i].match.scopeRule.ancestorMatches[j].levelMatched >
-						deepestAncestorLevelMatches[j].levelMatched)
-					{
-						deepestAncestorLevelMatches[j].levelMatched = potentialMatches[i].match.scopeRule.ancestorMatches[j].levelMatched;
-					}
-					else if (j >= deepestAncestorLevelMatches.size())
-					{
-						deepestAncestorLevelMatches.push_back(potentialMatches[i].match.scopeRule.ancestorMatches[j]);
-					}
-				}
-			}
+					// parentRule.ancestors goes from broad -> narrow
+					//   Ex: source.js -> string.quoted
 
-			for (auto iter = potentialMatches.begin(); iter != potentialMatches.end();)
-			{
-				bool erased = false;
-				for (size_t j = 0; j < iter->match.scopeRule.ancestorMatches.size(); j++)
-				{
-					if (j < deepestAncestorLevelMatches.size() &&
-						iter->match.scopeRule.ancestorMatches[j].levelMatched <
-						deepestAncestorLevelMatches[j].levelMatched)
+					// If this parent rule matches, we should expect to find all the ancestors listed in the same order
+					auto parentRuleAncestorCheck = parentRule.ancestors.begin();
+					for (auto const& ancestorCheck : ancestorScopes)
 					{
-						iter = potentialMatches.erase(iter);
-						erased = true;
+						// We have a match
+						if (parentRuleAncestorCheck == parentRule.ancestors.end())
+						{
+							break;
+						}
+
+						if (ancestorCheck.matches(*parentRuleAncestorCheck))
+						{
+							parentRuleAncestorCheck++;
+						}
+					}
+
+					// We have a match
+					if (parentRuleAncestorCheck == parentRule.ancestors.end())
+					{
+						// Hard merge with inherited styles then the actual styles to get
+						// both inherited and default styles applied
+						resolvedStyle.overwriteMergeWith(parentRule.inheritedStyle);
+						resolvedStyle.overwriteMergeWith(parentRule.style);
+
+						foundParentRuleMatch = true;
 						break;
 					}
 				}
-
-				if (!erased)
-				{
-					iter++;
-				}
 			}
 
-			const auto& match = potentialMatches[0];
-			const auto& tokenRuleMatch = tokenColors[match.globalRuleIndex];
-
-			std::string matchedOnStr = "";
-			for (size_t i = 0; i < match.match.scopeRule.ancestorMatches.size(); i++)
+			// If no parent rule match was found, just take the node's settings
+			if (!foundParentRuleMatch)
 			{
-				const auto& ancestor = match.match.scopeRule.ancestorMatches[i];
-				const auto& ancestorName = match.match.scopeRule.ancestorNames[i];
-				for (size_t j = 0; j < ancestor.levelMatched; j++)
-				{
-					g_logger_assert(j < ancestorName.dotSeparatedScopes.size(), "How did that happen?");
-					matchedOnStr += ancestorName.dotSeparatedScopes[j].getScopeName();
-					if (j < ancestor.levelMatched - 1)
-					{
-						matchedOnStr += ".";
-					}
-				}
-
-				if (i < match.match.scopeRule.ancestorMatches.size() - 1)
-				{
-					matchedOnStr += " ";
-				}
+				resolvedStyle.overwriteMergeWith(node->inheritedStyle);
+				resolvedStyle.overwriteMergeWith(node->style);
 			}
-
-			return {
-				&tokenRuleMatch,
-				matchedOnStr
-			};
 		}
 
-		return {
-			nullptr,
-			""
-		};
+		return resolvedStyle;
 	}
 
-	const ThemeSetting* SyntaxTheme::match(const std::vector<ScopedName>& ancestorScopes, ThemeSettingType settingType) const
+	// TODO: This is a duplicate of the function above, but it also keeps track of the name matched for debug purposes.
+	//       There's probably a way to combine these two if I really want to
+	DebugPackedSyntaxStyle SyntaxTheme::debugMatch(const std::vector<ScopedName>& ancestorScopes, bool* usingDefaultSettings) const
 	{
-		TokenRuleMatch matchedRule = match(ancestorScopes);
-		return matchedRule.getSetting(settingType);
+		DebugPackedSyntaxStyle resolvedStyle = {};
+		if (usingDefaultSettings != nullptr) *usingDefaultSettings = true;
+
+		// Set the resolved theme to the global default settings in case we don't find a match
+		{
+			resolvedStyle.style.setForegroundColor(this->defaultForeground);
+			resolvedStyle.style.setFontStyle(CssFontStyle::Normal);
+		}
+
+		// Ancestors are always passed in order from broad->narrow
+		//   Ex. source.lua -> punctuation.string.begin
+		std::string newStyleMatched = "";
+		for (auto const& ancestor : ancestorScopes)
+		{
+			SyntaxTrieNode const* node = &this->root;
+			newStyleMatched = "";
+
+			// Query the trie and find out what styles apply to this ancestor
+			for (auto const& scope : ancestor.dotSeparatedScopes)
+			{
+				auto iter = node->children.find(scope.getScopeName());
+				if (iter == node->children.end())
+				{
+					// Strip last '.' off the resolved theme match
+					newStyleMatched = newStyleMatched.substr(0, newStyleMatched.length() - 1);
+					break;
+				}
+
+				// Drill down to the deepest node
+				node = &iter->second;
+				newStyleMatched += scope.getScopeName() + ".";
+			}
+
+			// First check if we match a parent rule, if we do, we'll take that because 
+			// a parent rule match has more specificity then a normal match
+			bool foundParentRuleMatch = false;
+			if (node->parentRules.size() > 0)
+			{
+				for (auto const& parentRule : node->parentRules)
+				{
+					// parentRule.ancestors goes from broad -> narrow
+					//   Ex: source.js -> string.quoted
+
+					// If this parent rule matches, we should expect to find all the ancestors listed in the same order
+					auto parentRuleAncestorCheck = parentRule.ancestors.begin();
+					for (auto const& ancestorCheck : ancestorScopes)
+					{
+						// We have a match
+						if (parentRuleAncestorCheck == parentRule.ancestors.end())
+						{
+							break;
+						}
+
+						if (ancestorCheck.matches(*parentRuleAncestorCheck))
+						{
+							parentRuleAncestorCheck++;
+						}
+					}
+
+					// We have a match
+					if (parentRuleAncestorCheck == parentRule.ancestors.end())
+					{
+						// Hard merge with inherited styles then the actual styles to get
+						// both inherited and default styles applied
+						resolvedStyle.style.overwriteMergeWith(parentRule.inheritedStyle);
+						resolvedStyle.style.overwriteMergeWith(parentRule.style);
+
+						for (auto const& resolvedAncestor : parentRule.ancestors)
+						{
+							newStyleMatched = resolvedAncestor.getFriendlyName() + " " + newStyleMatched;
+						}
+
+						if (resolvedStyle.style.getForegroundColor() != 0)
+						{
+							foundParentRuleMatch = true;
+							resolvedStyle.styleMatched = newStyleMatched;
+						}
+						break;
+					}
+				}
+			}
+
+			// If no parent rule match was found, just take the node's settings
+			if (!foundParentRuleMatch)
+			{
+				resolvedStyle.style.overwriteMergeWith(node->inheritedStyle);
+				resolvedStyle.style.overwriteMergeWith(node->style);
+
+				if (node->style.getForegroundColor() != 0)
+				{
+					resolvedStyle.styleMatched = newStyleMatched;
+				}
+			}
+
+			if (usingDefaultSettings != nullptr) *usingDefaultSettings = (node == &root);
+		}
+
+		return resolvedStyle;
+	}
+
+	uint32 SyntaxTheme::getOrCreateColorIndex(std::string const& colorStr, Vec4 const& color)
+	{
+		if (auto iter = this->colorMap.find(colorStr); iter == this->colorMap.end())
+		{
+			uint32 newColorIndex = (uint32)this->colors.size();
+			g_logger_assert(newColorIndex < (1 << 9), "Invalid color. We can only have a maximum of '{}' unique colors in a style.", (1 << 9));
+			this->colorMap[colorStr] = newColorIndex;
+			this->colors.push_back(color);
+			return newColorIndex;
+		}
+		else
+		{
+			return iter->second;
+		}
+	}
+
+	Vec4 const& SyntaxTheme::getColor(uint32 id) const
+	{
+		g_logger_assert(id < this->colors.size(), "Invalid id '{}'. Only '{}' colors are available.", id, this->colors.size());
+		return this->colors[id];
 	}
 
 	SyntaxTheme* SyntaxTheme::importTheme(const char* filepathStr)
@@ -253,7 +533,9 @@ namespace MathAnim
 			{
 				std::ifstream file(filepath);
 				json j = json::parse(file, nullptr, true, true);
-				return importThemeFromJson(j, filepathStr);
+				SyntaxTheme* theme = importThemeFromJson(j, filepathStr);
+				theme->root.calculateInheritedStyles(PackedSyntaxStyle{}, true);
+				return theme;
 			}
 			catch (json::parse_error& ex)
 			{
@@ -272,7 +554,9 @@ namespace MathAnim
 				return nullptr;
 			}
 
-			return importThemeFromXml(doc, filepathStr);
+			SyntaxTheme* theme = importThemeFromXml(doc, filepathStr);
+			theme->root.calculateInheritedStyles(PackedSyntaxStyle{}, true);
+			return theme;
 		}
 
 		g_logger_warning("Unsupported theme file: '{}'", filepathStr);
@@ -288,6 +572,34 @@ namespace MathAnim
 	}
 
 	// -------------- Internal Functions --------------
+	static uint32 parseOrGetDefaultColor(SyntaxTheme* theme, nlohmann::json const& j, std::string const& propertyName, std::string const& fallbackColorValueHex)
+	{
+		if (j.contains(propertyName))
+		{
+			std::string const& colorStr = j[propertyName];
+			CssColor color = Css::colorFromString(colorStr);
+			g_logger_assert(color.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
+			return theme->getOrCreateColorIndex(colorStr, color.color);
+		}
+
+		Vec4 colorValue = toHex(fallbackColorValueHex);
+		return theme->getOrCreateColorIndex(fallbackColorValueHex, colorValue);
+	}
+
+	// @returns 0 (which represents an invalid color) when parsing fails
+	static uint32 tryParseColor(SyntaxTheme* theme, nlohmann::json const& j, std::string const& propertyName)
+	{
+		if (j.contains(propertyName))
+		{
+			std::string const& colorStr = j[propertyName];
+			CssColor color = Css::colorFromString(colorStr);
+			g_logger_assert(color.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
+			return theme->getOrCreateColorIndex(colorStr, color.color);
+		}
+
+		return 0;
+	}
+
 	static SyntaxTheme* importThemeFromJson(const json& j, const char* filepath)
 	{
 		if (!j.contains("tokenColors"))
@@ -304,40 +616,34 @@ namespace MathAnim
 
 		SyntaxTheme* theme = g_memory_new SyntaxTheme();
 
+		// Initialize the trie
+		theme->root = {};
+
+		// Set the 0th and 1rst color to an ugly pink for debugging purposes. The 0th and 1rst index should always be invalid.
+		theme->colors.push_back("#f542f2"_hex);
+		theme->colors.push_back("#f542f2"_hex);
+
 		if (j.contains("colors"))
 		{
-			if (j["colors"].contains("editor.foreground"))
-			{
-				std::string foregroundColorStr = j["colors"]["editor.foreground"];
-				theme->defaultForeground = Css::colorFromString(foregroundColorStr);
-			}
-			else
-			{
-				theme->defaultForeground = {
-					Vec4{ 1, 1, 1, 1 },
-					CssStyleType::Value
-				};
-			}
+			nlohmann::json const& colorsJson = j["colors"];
 
-			if (j["colors"].contains("editor.background"))
-			{
-				std::string backgroundColorStr = j["colors"]["editor.background"];
-				theme->defaultBackground = Css::colorFromString(backgroundColorStr);
-			}
-			else
-			{
-				theme->defaultBackground = {
-					Vec4{ 0, 0, 0, 0 },
-					CssStyleType::Value
-				};
-			}
+			theme->defaultForeground = parseOrGetDefaultColor(theme, colorsJson, "editor.foreground", "#FFFFFF");
+			theme->defaultBackground = parseOrGetDefaultColor(theme, colorsJson, "editor.background", "#000000");
 
-			TokenRule defaultThemeRule = {};
-			ThemeSetting defaultThemeSetting = {};
-			defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
-			defaultThemeSetting.foregroundColor = theme->defaultForeground;
-			defaultThemeRule.settings.push_back(defaultThemeSetting);
-			theme->defaultRule = defaultThemeRule;
+			theme->editorLineHighlightBackground = tryParseColor(theme, colorsJson, "editor.lineHighlightBackground");
+			theme->editorSelectionBackground = tryParseColor(theme, colorsJson, "editor.selectionBackground");
+			theme->editorCursorForeground = tryParseColor(theme, colorsJson, "editorCursor.foreground");
+
+			theme->editorLineNumberForeground = tryParseColor(theme, colorsJson, "editorLineNumber.foreground");
+			theme->editorLineNumberActiveForeground = tryParseColor(theme, colorsJson, "editorLineNumber.activeForeground");
+
+			theme->scrollbarSliderBackground = tryParseColor(theme, colorsJson, "scrollbarSlider.background");
+			theme->scrollbarSliderActiveBackground = tryParseColor(theme, colorsJson, "scrollbarSlider.activeBackground");
+			theme->scrollbarSliderHoverBackground = tryParseColor(theme, colorsJson, "scrollbarSlider.hoverBackground");
+
+			// Initialize the root of our tree (these are global settings)
+			theme->root.style.setForegroundColor(theme->defaultForeground);
+			theme->root.style.setBackgroundColor(theme->defaultBackground);
 		}
 
 		for (auto color : tokenColors)
@@ -356,24 +662,26 @@ namespace MathAnim
 			{
 				if (color.contains("settings"))
 				{
-					TokenRule defaultThemeRule = {};
-
-					// This is presumably the defualt foreground/background settings and not a token rule
+					// This is presumably the default foreground/background settings and not a token rule
 					if (color["settings"].contains("foreground"))
 					{
-						theme->defaultForeground = Css::colorFromString(color["settings"]["foreground"]);
+						std::string const& foregroundColorStr = color["settings"]["foreground"];
+						CssColor cssColor = Css::colorFromString(foregroundColorStr);
+						g_logger_assert(cssColor.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
+						theme->defaultForeground = theme->getOrCreateColorIndex(foregroundColorStr, cssColor.color);
+
+						theme->root.style.setForegroundColor(theme->defaultForeground);
 					}
 
 					if (color["settings"].contains("background"))
 					{
-						theme->defaultBackground = Css::colorFromString(color["settings"]["background"]);
-					}
+						std::string const& backgroundColorStr = color["settings"]["background"];
+						CssColor cssColor = Css::colorFromString(backgroundColorStr);
+						g_logger_assert(cssColor.styleType == CssStyleType::Value, "Cannot inherit color in default styles.");
+						theme->defaultBackground = theme->getOrCreateColorIndex(backgroundColorStr, cssColor.color);
 
-					ThemeSetting defaultThemeSetting = {};
-					defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
-					defaultThemeSetting.foregroundColor = theme->defaultForeground;
-					defaultThemeRule.settings.push_back(defaultThemeSetting);
-					theme->defaultRule = defaultThemeRule;
+						theme->root.style.setBackgroundColor(theme->defaultBackground);
+					}
 				}
 				else
 				{
@@ -405,41 +713,91 @@ namespace MathAnim
 				}
 			}
 
-			TokenRule rule = {};
-			rule.name = name;
+			PackedSyntaxStyle trieThemeSettings = {};
+			if (settingsJson.contains("foreground"))
+			{
+				const std::string& foregroundColorStr = settingsJson["foreground"];
+				CssColor cssColor = Css::colorFromString(foregroundColorStr);
+				if (cssColor.styleType == CssStyleType::Inherit)
+				{
+					trieThemeSettings.setForegroundColorInherited();
+				}
+				else
+				{
+					trieThemeSettings.setForegroundColor(theme->getOrCreateColorIndex(foregroundColorStr, cssColor.color));
+				}
+			}
+
+			if (settingsJson.contains("background"))
+			{
+				const std::string& backgroundColorStr = settingsJson["background"];
+				CssColor cssColor = Css::colorFromString(backgroundColorStr);
+				if (cssColor.styleType == CssStyleType::Inherit)
+				{
+					trieThemeSettings.setBackgroundColorInherited();
+				}
+				else
+				{
+					trieThemeSettings.setBackgroundColor(theme->getOrCreateColorIndex(backgroundColorStr, cssColor.color));
+				}
+			}
+
+			if (settingsJson.contains("fontStyle"))
+			{
+				std::string const& fontStyleStr = settingsJson["fontStyle"];
+				trieThemeSettings.setFontStyle(Css::fontStyleFromString(fontStyleStr));
+			}
+
 			if (color["scope"].is_array())
 			{
 				for (auto scope : color["scope"])
 				{
-					rule.scopeCollection.emplace_back(ScopeRuleCollection::from(scope));
+					auto selectorCollection = ScopeSelectorCollection::from(scope);
+
+					// Insert every rule into the trie so we have a resolved path for this specific rule
+					for (auto& descendantSelector : selectorCollection.descendantSelectors)
+					{
+						// If there's a parent scope, grab it
+						if (descendantSelector.descendants.size() >= 2)
+						{
+							ScopeSelector child = descendantSelector.descendants[descendantSelector.descendants.size() - 1];
+							descendantSelector.descendants.pop_back();
+
+							// Insert the ancestors scope
+							theme->root.insert(name, child, trieThemeSettings, descendantSelector.descendants);
+						}
+						else
+						{
+							// Insert the child scope
+							theme->root.insert(name, descendantSelector.descendants[0], trieThemeSettings);
+						}
+					}
 				}
 			}
 			else if (color["scope"].is_string())
 			{
-				rule.scopeCollection.emplace_back(ScopeRuleCollection::from(color["scope"]));
-			}
+				// TODO: This is duplicated from the stuff right above, it should prolly be a function
 
-			if (settingsJson.contains("foreground"))
-			{
-				const std::string& foregroundColorStr = settingsJson["foreground"];
-				ThemeSetting setting = {};
-				setting.type = ThemeSettingType::ForegroundColor;
-				setting.foregroundColor = Css::colorFromString(foregroundColorStr);
-				rule.settings.emplace_back(setting);
-			}
+				auto selectorCollection = ScopeSelectorCollection::from(color["scope"]);
 
-			if (rule.scopeCollection.size() > 0)
-			{
-				if (nameIsFirstScope)
+				// Insert every rule into the trie so we have a resolved path for this specific rule
+				for (auto& descendantSelector : selectorCollection.descendantSelectors)
 				{
-					rule.name = rule.scopeCollection[0].friendlyName;
-				}
+					// If there's a parent scope, grab it
+					if (descendantSelector.descendants.size() >= 2)
+					{
+						ScopeSelector child = descendantSelector.descendants[descendantSelector.descendants.size() - 1];
+						descendantSelector.descendants.pop_back();
 
-				theme->tokenColors.emplace_back(rule);
-			}
-			else
-			{
-				g_logger_warning("TokenColor '{}' is malformed. No scopes were successfully parsed.", name);
+						// Insert the ancestors scope
+						theme->root.insert(name, child, trieThemeSettings, descendantSelector.descendants);
+					}
+					else
+					{
+						// Insert the child scope
+						theme->root.insert(name, descendantSelector.descendants[0], trieThemeSettings);
+					}
+				}
 			}
 		}
 
@@ -507,30 +865,31 @@ namespace MathAnim
 			{
 				// Parse the settings for this theme
 				const XMLElement* themeSettingsDict = settingDictKey->NextSiblingElement("dict");
-				theme->defaultForeground = { Vec4{ 1, 1, 1, 1 }, CssStyleType::Value };
-				theme->defaultBackground = { Vec4{ 0, 0, 0, 0 }, CssStyleType::Value };
+				//theme->defaultForeground = { Vec4{ 1, 1, 1, 1 }, CssStyleType::Value };
+				//theme->defaultBackground = { Vec4{ 0, 0, 0, 0 }, CssStyleType::Value };
 
 				if (themeSettingsDict)
 				{
 					const XMLElement* backgroundValue = getValue(themeSettingsDict, "background");
 					if (backgroundValue && (std::strcmp(backgroundValue->Name(), "string") == 0))
 					{
-						theme->defaultBackground = Css::colorFromString(backgroundValue->Value());
+						//theme->defaultBackground = Css::colorFromString(backgroundValue->Value());
 					}
 
 					const XMLElement* foregroundValue = getValue(themeSettingsDict, "foreground");
 					if (foregroundValue && (std::strcmp(foregroundValue->Name(), "string") == 0))
 					{
-						theme->defaultForeground = Css::colorFromString(foregroundValue->Value());
+						//theme->defaultForeground = Css::colorFromString(foregroundValue->Value());
 					}
 				}
 
-				TokenRule defaultThemeRule = {};
-				ThemeSetting defaultThemeSetting = {};
-				defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
-				defaultThemeSetting.foregroundColor = theme->defaultForeground;
-				defaultThemeRule.settings.push_back(defaultThemeSetting);
-				theme->defaultRule = defaultThemeRule;
+				g_logger_error("TODO: Fix XML theme support.");
+				//TokenRule defaultThemeRule = {};
+				//ThemeSetting defaultThemeSetting = {};
+				//defaultThemeSetting.type = ThemeSettingType::ForegroundColor;
+				//defaultThemeSetting.foregroundColor = theme->defaultForeground;
+				//defaultThemeRule.settings.push_back(defaultThemeSetting);
+				//theme->defaultRule = defaultThemeRule;
 			}
 			else if (settingDictKey->Value() == std::string("name"))
 			{
@@ -571,20 +930,21 @@ namespace MathAnim
 					}
 				}
 
-				TokenRule rule = {};
-				rule.name = name;
-				rule.scopeCollection.emplace_back(ScopeRuleCollection::from(scopeValue->Value()));
+				g_logger_error("TODO: Fix XML theme support.");
+				//TokenRule rule = {};
+				//rule.name = name;
+				//rule.scopeCollection.emplace_back(ScopeRuleCollection::from(scopeValue->Value()));
 
-				if (foregroundSetting)
-				{
-					const std::string& colorHexStr = foregroundSetting->Value();
-					ThemeSetting foregroundSettingAsThemeSetting = {};
-					foregroundSettingAsThemeSetting.type = ThemeSettingType::ForegroundColor;
-					foregroundSettingAsThemeSetting.foregroundColor = Css::colorFromString(colorHexStr);
-					rule.settings.emplace_back(foregroundSettingAsThemeSetting);
-				}
+				//if (foregroundSetting)
+				//{
+				//	const std::string& colorHexStr = foregroundSetting->Value();
+				//	ThemeSetting foregroundSettingAsThemeSetting = {};
+				//	foregroundSettingAsThemeSetting.type = ThemeSettingType::ForegroundColor;
+				//	foregroundSettingAsThemeSetting.foregroundColor = Css::colorFromString(colorHexStr);
+				//	rule.settings.emplace_back(foregroundSettingAsThemeSetting);
+				//}
 
-				theme->tokenColors.emplace_back(rule);
+				//theme->tokenColors.emplace_back(rule);
 			}
 		}
 

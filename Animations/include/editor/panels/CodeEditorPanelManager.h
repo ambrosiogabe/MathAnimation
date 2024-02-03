@@ -1,9 +1,13 @@
 #include "core.h"
 
+#include "parsers/SyntaxHighlighter.h"
+
 namespace MathAnim
 {
 	struct AnimationManagerData;
 	struct SizedFont;
+	class SyntaxHighlighter;
+	struct SyntaxTheme;
 
 	namespace CodeEditorPanelManager
 	{
@@ -24,5 +28,10 @@ namespace MathAnim
 		uint8 addCharToFont(uint32 codepoint);
 
 		void imguiStats();
+
+		SyntaxHighlighter const& getHighlighter();
+		SyntaxTheme const& getTheme();
+
+		void setTheme(HighlighterTheme theme);
 	}
 }

@@ -34,32 +34,49 @@ namespace MathAnim
 
 	Scope Scope::from(const std::string& string)
 	{
-		Scope res;
-		res.capture = std::nullopt;
-		res.name = std::nullopt;
+		Scope res = Scope();
 
 		if (string.length() == 0)
 		{
 			return res;
 		}
 
-		// This is a capture scope
-		if (string[0] == '$')
+		// This is a capture scope if there is a $ in the capture
+		bool isCaptureScope = false;
+		size_t captureBegin = 0;
+		for (size_t i = 0; i < string.length(); i++)
 		{
-			for (size_t i = 1; i < string.length(); i++)
+			if (string[i] == '$')
+			{
+				isCaptureScope = true;
+				captureBegin = i;
+				break;
+			}
+		}
+
+		if (isCaptureScope)
+		{
+			size_t captureEnd = captureBegin;
+			for (size_t i = captureBegin + 1; i < string.length(); i++)
 			{
 				if (!Parser::isDigit(string[i]))
 				{
-					g_logger_error("Invalid scope '{}' encountered while parsing scoped name. Capture scopes must start with '$' and consist of only digits after the '$'.", string);
-					return res;
+					captureEnd = i;
+					break;
+				}
+				else if (i == string.length() - 1)
+				{
+					captureEnd = i + 1;
 				}
 			}
 
-			int captureIndex = std::stoi(string.substr(1));
-			res.capture = {
-				captureIndex,
-				""
-			};
+			int captureIndex = std::stoi(string.substr(captureBegin + 1, captureEnd - captureBegin + 1));
+			res.capture = ScopeCapture{};
+			res.capture->captureIndex =	captureIndex;
+			res.capture->captureReplaceStart = captureBegin;
+			res.capture->captureReplaceEnd = captureEnd;
+			res.capture->captureRegex = string;
+			res.capture->capture = "";
 		}
 		else
 		{
@@ -103,32 +120,22 @@ namespace MathAnim
 		return this->getScopeName() != other.getScopeName();
 	}
 
-	std::optional<ScopedNameMatch> ScopedName::matches(const ScopedName& other) const
+	bool ScopedName::matches(ScopeSelector const& other) const
 	{
-		bool matched = true;
-		int levelMatched = 0;
-		for (size_t index = 0; index < dotSeparatedScopes.size(); index++)
+		for (size_t i = 0; i < other.dotSeparatedScopes.size(); i++)
 		{
-			if (index >= other.dotSeparatedScopes.size())
+			if (i >= this->dotSeparatedScopes.size())
 			{
-				break;
-			}
-			else if (dotSeparatedScopes[index] != other.dotSeparatedScopes[index])
-			{
-				matched = false;
-				break;
+				return true;
 			}
 
-			levelMatched = (levelMatched)+1;
+			if (other.dotSeparatedScopes[i] != this->dotSeparatedScopes[i].getScopeName())
+			{
+				return false;
+			}
 		}
 
-		//*levelMatchPercent = (float)(*levelMatched) / (float)dotSeparatedScopes.size();
-		if (matched)
-		{
-			return ScopedNameMatch{ levelMatched };
-		}
-
-		return std::nullopt;
+		return true;
 	}
 
 	std::string ScopedName::getFriendlyName() const
@@ -171,114 +178,54 @@ namespace MathAnim
 		return scope;
 	}
 
-	std::optional<ScopeRuleMatch> ScopeRule::matches(const std::vector<ScopedName>& ancestors) const
+	std::string ScopeSelector::getFriendlyName() const
 	{
-		if (scopes.size() == 0)
+		std::string res = "";
+		for (size_t i = 0; i < dotSeparatedScopes.size(); i++)
 		{
-			return std::nullopt;
-		}
-
-		ScopeRuleMatch res = {};
-		size_t scopeIndex = 0;
-		for (size_t ancestorIndex = 0; ancestorIndex < ancestors.size(); ancestorIndex++)
-		{
-			auto scopeNameMatch = scopes[scopeIndex].matches(ancestors[ancestorIndex]);
-			if (scopeNameMatch.has_value())
+			res += dotSeparatedScopes[i];
+			if (i < dotSeparatedScopes.size() - 1)
 			{
-				res.ancestorMatches.emplace_back(scopeNameMatch.value());
-				res.ancestorNames.push_back(ancestors[ancestorIndex]);
-				res.deepestScopeMatched = (int)ancestorIndex + 1;
-
-				ancestorIndex = (ancestorIndex + 1);
-				scopeIndex = (scopeIndex + 1);
-				while (scopeIndex < scopes.size() && ancestorIndex < ancestors.size())
-				{
-					// Didn't get a full match on the rule, so this doesn't count as a match
-					auto nextScopeNameMatch = scopes[scopeIndex].matches(ancestors[ancestorIndex]);
-					if (!nextScopeNameMatch.has_value())
-					{
-						ancestorIndex++;
-					}
-					else
-					{
-						res.ancestorMatches.emplace_back(nextScopeNameMatch.value());
-						res.ancestorNames.push_back(ancestors[ancestorIndex]);
-						res.deepestScopeMatched = (int)ancestorIndex + 1;
-						scopeIndex++;
-					}
-				}
-
-				// Must match all scopes in the descendant heirarchy otherwise this isn't
-				// actually a match
-				if (scopeIndex != scopes.size())
-				{
-					return std::nullopt;
-				}
-				else
-				{
-					return res;
-				}
-			}
-		}
-
-		return std::nullopt;
-	}
-
-	std::optional<ScopeRuleCollectionMatch> ScopeRuleCollection::matches(const std::vector<ScopedName>& ancestors) const
-	{
-		std::optional<ScopeRuleCollectionMatch> res = std::nullopt;
-
-		int deepestScopeMatched = 0;
-		for (size_t i = 0; i < scopeRules.size(); i++)
-		{
-			const auto& scopeRule = scopeRules[i];
-			auto scopeRuleMatch = scopeRule.matches(ancestors);
-			if (!scopeRuleMatch.has_value())
-			{
-				continue;
-			}
-
-			if (scopeRuleMatch->deepestScopeMatched > deepestScopeMatched)
-			{
-				res = ScopeRuleCollectionMatch{
-					(int)i,
-					scopeRuleMatch.value()
-				};
-			}
-			else if (scopeRuleMatch->deepestScopeMatched > 0 && scopeRuleMatch->deepestScopeMatched == deepestScopeMatched)
-			{
-				if (scopeRuleMatch->ancestorMatches.size() > res->scopeRule.ancestorMatches.size())
-				{
-					res = ScopeRuleCollectionMatch{
-						(int)i,
-						scopeRuleMatch.value()
-					};
-				}
-				else if (scopeRuleMatch->ancestorMatches.size() == res->scopeRule.ancestorMatches.size())
-				{
-					if (scopeRuleMatch->ancestorMatches[0].levelMatched > res->scopeRule.ancestorMatches[0].levelMatched)
-					{
-						res = ScopeRuleCollectionMatch{
-							(int)i,
-							scopeRuleMatch.value()
-						};
-					}
-				}
+				res += ".";
 			}
 		}
 
 		return res;
 	}
 
-	ScopeRuleCollection ScopeRuleCollection::from(const std::string& str)
+	ScopeSelector ScopeSelector::from(const std::string& str)
 	{
-		ScopeRuleCollection res = {};
+		size_t scopeStart = 0;
+		ScopeSelector scope = {};
+		for (size_t i = 0; i < str.length(); i++)
+		{
+			if (str[i] == '.')
+			{
+				std::string scopeStr = str.substr(scopeStart, i - scopeStart);
+				scope.dotSeparatedScopes.emplace_back(scopeStr);
+				scopeStart = i + 1;
+			}
+		}
+
+		if (scopeStart > 0 && scopeStart < str.length())
+		{
+			// Add the last scope
+			std::string scopeStr = str.substr(scopeStart, str.length() - scopeStart);
+			scope.dotSeparatedScopes.emplace_back(scopeStr);
+		}
+
+		return scope;
+	}
+
+	ScopeSelectorCollection ScopeSelectorCollection::from(const std::string& str)
+	{
+		ScopeSelectorCollection res = {};
 
 		res.friendlyName = str;
 
 		size_t scopeStart = 0;
-		ScopeRule currentRule = {};
-		ScopedName currentScope = {};
+		ScopeDescendantSelector currentDescendantSelector = {};
+		ScopeSelector currentSelector = {};
 		for (size_t i = 0; i < str.length(); i++)
 		{
 			if (str[i] == '.' || str[i] == ' ' || str[i] == ',' || str[i] == '>')
@@ -286,7 +233,7 @@ namespace MathAnim
 				std::string scope = str.substr(scopeStart, i - scopeStart);
 				if (scope != "")
 				{
-					currentScope.dotSeparatedScopes.emplace_back(Scope::from(scope));
+					currentSelector.dotSeparatedScopes.emplace_back(scope);
 				}
 				scopeStart = i + 1;
 
@@ -306,35 +253,35 @@ namespace MathAnim
 			if (str[i] == ' ' || str[i] == ',')
 			{
 				// Space separated scope
-				if (currentScope.dotSeparatedScopes.size() > 0)
+				if (currentSelector.dotSeparatedScopes.size() > 0)
 				{
-					currentRule.scopes.emplace_back(currentScope);
+					currentDescendantSelector.descendants.emplace_back(currentSelector);
 				}
-				currentScope = {};
+				currentSelector = {};
 			}
 
 			if (str[i] == ',')
 			{
-				res.scopeRules.emplace_back(currentRule);
-				currentRule = {};
-				currentScope = {};
+				res.descendantSelectors.emplace_back(currentDescendantSelector);
+				currentSelector = {};
+				currentDescendantSelector = {};
 			}
 		}
 
 		// Don't forget about the final scope in the string
 		if (scopeStart < str.length())
 		{
-			currentScope.dotSeparatedScopes.emplace_back(Scope::from(str.substr(scopeStart, str.length() - scopeStart)));
+			currentSelector.dotSeparatedScopes.emplace_back(str.substr(scopeStart, str.length() - scopeStart));
 		}
 
-		if (currentScope.dotSeparatedScopes.size() > 0)
+		if (currentSelector.dotSeparatedScopes.size() > 0)
 		{
-			currentRule.scopes.emplace_back(currentScope);
+			currentDescendantSelector.descendants.emplace_back(currentSelector);
 		}
 
-		if (currentRule.scopes.size() > 0)
+		if (currentDescendantSelector.descendants.size() > 0)
 		{
-			res.scopeRules.emplace_back(currentRule);
+			res.descendantSelectors.emplace_back(currentDescendantSelector);
 		}
 
 		return res;

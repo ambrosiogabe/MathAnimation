@@ -51,6 +51,7 @@ target_compile_definitions(MathAnimations PRIVATE
         $<$<CONFIG:MinSizeRel>:_RELEASE=1>
         $<$<CONFIG:Release>:_RELEASE=1>
         $<$<CONFIG:RelWithProfiler>:_PROFILER=1>
+        $<$<CONFIG:DebugTests>:_MATH_ANIM_TESTS=1>
         $<$<CONFIG:RelTests>:_MATH_ANIM_TESTS=1>
 )
 
