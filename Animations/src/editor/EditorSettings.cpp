@@ -21,6 +21,7 @@ namespace MathAnim
 			data->viewMode = ViewMode::Normal;
 			data->activeObjectOutlineWidth = 9.0f;
 			data->activeObjectHighlightColor = "#FF9E28"_hex;
+			data->smoothCursor = false;
 		}
 
 		void imgui(AnimationManagerData* am)
@@ -74,6 +75,8 @@ namespace MathAnim
 					}
 					ImGui::EndCombo();
 				}
+
+				ImGui::Checkbox(": Smooth Cursor", &data->smoothCursor);
 
 				ImGui::End();
 			}

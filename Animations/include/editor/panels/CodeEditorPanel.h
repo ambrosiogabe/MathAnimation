@@ -35,6 +35,8 @@ namespace MathAnim
 		int32 mouseByteDragStart;
 		int32 firstByteInSelection;
 		int32 lastByteInSelection;
+		Vec2 lastCursorPosition;
+		float cursorTimeSpentInterpolating;
 		CppUtils::BasicUtf8StringIter cursor;
 		uint32 cursorCurrentLine;
 		int32 numOfCharsFromBeginningOfLine;

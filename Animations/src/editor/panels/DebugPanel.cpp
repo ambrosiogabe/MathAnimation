@@ -103,7 +103,7 @@ namespace MathAnim
 				{
 					fpsIndicatorColor = Colors::AccentYellow[3];
 				}
-				ImGui::TextColored(fpsIndicatorColor, "%2.3fms (%2.3f FPS)", avgFrameTime, 1.0f / avgFrameTime);
+				ImGui::TextColored(fpsIndicatorColor, "%2.3fms (%2.3f FPS)", avgFrameTime * 1000.0f, 1.0f / avgFrameTime);
 
 				// Update the array of previous frame times
 				previousFrameTimes[previousFrameTimesIndex] = Application::getDeltaTime();

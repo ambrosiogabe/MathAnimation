@@ -50,6 +50,7 @@ namespace MathAnim
 		float svgTargetScale;
 		Vec4 activeObjectHighlightColor;
 		float activeObjectOutlineWidth;
+		bool smoothCursor;
 	};
 
 	namespace EditorSettings

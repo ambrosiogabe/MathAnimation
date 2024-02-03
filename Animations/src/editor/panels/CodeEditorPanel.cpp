@@ -1,3 +1,4 @@
+#include "editor/EditorSettings.h"
 #include "editor/panels/CodeEditorPanel.h"
 #include "editor/panels/CodeEditorPanelManager.h"
 #include "editor/imgui/ImGuiLayer.h"
@@ -5,6 +6,7 @@
 #include "core/Application.h"
 #include "core/Input.h"
 #include "core/Window.h"
+#include "math/CMath.h"
 #include "renderer/Fonts.h"
 #include "editor/TextEditUndo.h"
 #include "parsers/SyntaxTheme.h"
@@ -34,6 +36,7 @@ namespace MathAnim
 		static bool visualizeSyntaxUpdates = false;
 		static uint32 numMsToShowLineUpdates = 500;
 		static Vec4 flashColor = "#36d174"_hex;
+		static float MAX_TIME_TO_INTERPOLATE_CURSOR = 0.1f;
 
 		// ------------- Internal Functions -------------
 		static void resetSelection(CodeEditorPanelData& panel);
@@ -601,7 +604,21 @@ namespace MathAnim
 				if (cursor.bytePos == panel.cursor.bytePos)
 				{
 					ImVec2 textCursorDrawPosition = letterBoundsStart;
-					renderTextCursor(panel, textCursorDrawPosition, codeFont);
+					EditorSettingsData const& editorSettings = EditorSettings::getSettings();
+					if (editorSettings.smoothCursor && panel.cursorTimeSpentInterpolating < MAX_TIME_TO_INTERPOLATE_CURSOR)
+					{
+						panel.cursorTimeSpentInterpolating += Application::getDeltaTime();
+						float t = panel.cursorTimeSpentInterpolating / MAX_TIME_TO_INTERPOLATE_CURSOR;
+						t = CMath::ease(t, EaseType::Linear, EaseDirection::In);
+						panel.lastCursorPosition =  CMath::interpolate(t, panel.lastCursorPosition, textCursorDrawPosition);
+						panel.timeSinceCursorLastBlinked = 0.0f;
+						renderTextCursor(panel, panel.lastCursorPosition, codeFont);
+					}
+					else
+					{
+						renderTextCursor(panel, textCursorDrawPosition, codeFont);
+						panel.lastCursorPosition = textCursorDrawPosition;
+					}
 				}
 				else if (cursor.bytePos == panel.visibleCharacterBufferSize - 1 && panel.cursor.bytePos == panel.visibleCharacterBufferSize)
 				{
@@ -753,6 +770,7 @@ namespace MathAnim
 					panel.mouseByteDragStart = (int32)panel.cursor.bytePos;
 					panel.firstByteInSelection = (int32)panel.cursor.bytePos;
 					panel.lastByteInSelection = (int32)panel.cursor.bytePos;
+					panel.cursorTimeSpentInterpolating = 0.0f;
 				}
 			}
 
@@ -793,7 +811,7 @@ namespace MathAnim
 					ImGui::TableNextColumn(); ImGui::Text("Cursor Byte");
 					ImGui::TableNextColumn(); ImGui::Text("%d", panel.cursor.bytePos);
 					ImGui::TableNextRow();
-					
+
 					ImGui::TableNextColumn(); ImGui::Text("Line start dist (Chars)");
 					ImGui::TableNextColumn(); ImGui::Text("%d", panel.numOfCharsFromBeginningOfLine);
 					ImGui::TableNextRow();
@@ -1261,6 +1279,7 @@ namespace MathAnim
 
 			panel.cursorIsBlinkedOn = true;
 			panel.timeSinceCursorLastBlinked = 0.0f;
+			panel.cursorTimeSpentInterpolating = 0.0f;
 
 			panel.cursor.bytePos = getNewCursorPositionFromMove(panel, direction);
 
