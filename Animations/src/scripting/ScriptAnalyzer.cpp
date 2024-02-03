@@ -10,8 +10,9 @@
 #include <lua.h>
 #include <luacode.h>
 #include <lualib.h>
-#include <Luau/Frontend.h>
+#include <Luau/Autocomplete.h>
 #include <Luau/BuiltinDefinitions.h>
+#include <Luau/Frontend.h>
 #pragma warning( pop )
 
 // ------------------------------- Internal Types -------------------------------
@@ -58,23 +59,32 @@ namespace MathAnim
 		: m_scriptDirectory(scriptDirectory)
 	{
 		Luau::FrontendOptions frontendOptions;
-		frontendOptions.retainFullTypeGraphs = false;
+		frontendOptions.retainFullTypeGraphs = true;
 
 		fileResolver = g_memory_new ScriptFileResolver(scriptDirectory);
 		configResolver = g_memory_new ScriptConfigResolver();
 		frontend = g_memory_new Luau::Frontend(fileResolver, configResolver, frontendOptions);
 
 		// Register the bundled builtin globals that come with Luau
-		Luau::registerBuiltinGlobals(frontend->typeChecker);
+		Luau::registerBuiltinGlobals(*frontend, frontend->globals, true);
+
+		Luau::freeze(frontend->globals.globalTypes);
+		Luau::freeze(frontend->globalsForAutocomplete.globalTypes);
+
 		{
 			// Register our own builtin globals 
-			Luau::LoadDefinitionFileResult loadResult =
-				Luau::loadDefinitionFile(
-					frontend->typeChecker,
-					frontend->typeChecker.globalScope,
-					MathAnimGlobals::getBuiltinDefinitionSource(),
-					"math-anim"
-				);
+			Luau::GlobalTypes& globals = frontend->globalsForAutocomplete;
+			unfreeze(globals.globalTypes);
+			Luau::LoadDefinitionFileResult loadResult = frontend->loadDefinitionFile(
+				globals,
+				globals.globalScope,
+				MathAnimGlobals::getBuiltinDefinitionSource(),
+				"math-anim",
+				false, /* Capture comments */
+				true /* Typecheck for autocomplete */
+			);
+			freeze(globals.globalTypes);
+
 			if (!loadResult.success)
 			{
 				g_logger_error("The ScriptAnalyzer failed to load math-anim builtin definitions. Errors:");
@@ -86,33 +96,34 @@ namespace MathAnim
 						loadResult.parseResult.errors[i].getLocation().begin.column);
 				}
 			}
-
-			// TODO: Why was this code here and then commented out?
-			//Luau::TypeArena& arena = frontend->typeChecker.globalTypes;
-			//arena.addType(loadResult.module.get()->astTypes[0]);
 		}
+
 		{
-			// Register our own builtin types 
-			Luau::LoadDefinitionFileResult loadResult =
-				Luau::loadDefinitionFile(
-					frontend->typeChecker,
-					frontend->typeChecker.globalScope,
-					MathAnimGlobals::getMathAnimApiTypes(),
-					"math-anim"
-				);
+			// Register our own builtin globals 
+			Luau::GlobalTypes& globals = frontend->globalsForAutocomplete;
+			unfreeze(globals.globalTypes);
+			Luau::LoadDefinitionFileResult loadResult = frontend->loadDefinitionFile(
+				globals,
+				globals.globalScope,
+				MathAnimGlobals::getMathAnimApiTypes(),
+				"math-anim",
+				false, /* Capture comments */
+				true /* Typecheck for autocomplete */
+			);
+			freeze(globals.globalTypes);
+
 			if (!loadResult.success)
 			{
 				g_logger_error("The ScriptAnalyzer failed to load math-anim builtin definitions. Errors:");
 				for (int i = 0; i < loadResult.parseResult.errors.size(); i++)
 				{
-					g_logger_error("{} at line:column {}:{}",
+					g_logger_error("{} at line : column {}:{}",
 						loadResult.parseResult.errors[i].getMessage(),
 						loadResult.parseResult.errors[i].getLocation().begin.line,
 						loadResult.parseResult.errors[i].getLocation().begin.column);
 				}
 			}
 		}
-		Luau::freeze(frontend->typeChecker.globalTypes);
 	}
 
 	bool ScriptAnalyzer::analyze(const std::string& filename)
@@ -181,6 +192,53 @@ namespace MathAnim
 
 		frontend->clear();
 		return cr.errors.size() == 0;
+	}
+
+	static std::optional<Luau::AutocompleteEntryMap> nullCallback(std::string /*tag*/, std::optional<const Luau::ClassType*> /*ptr*/, std::optional<std::string> /*contents*/)
+	{
+		return std::nullopt;
+	}
+
+	std::vector<std::string> ScriptAnalyzer::sandbox(std::string const& sourceCode, std::string const& scriptName, uint32 line, uint32 column)
+	{
+		if (!fileResolver || !configResolver || !frontend)
+		{
+			static bool displayWarning = true;
+			if (displayWarning)
+			{
+				g_logger_warning("Tried to sandbox a script, but the script analyzer was not initialized properly. Suppressing this message now.");
+				displayWarning = false;
+			}
+			return {};
+		}
+
+		ScriptFileResolver* scriptFileResolver = dynamic_cast<ScriptFileResolver*>(fileResolver);
+		scriptFileResolver->setAnonymousFile(sourceCode, scriptName);
+
+		Luau::CheckResult cr;
+		frontend->markDirty(scriptName);
+		frontend->check(scriptName);
+
+		Luau::FrontendOptions opts;
+		opts.forAutocomplete = true;
+		cr = frontend->check(scriptName, opts);
+
+		auto result = Luau::autocomplete(
+			*frontend,
+			scriptName,
+			Luau::Position(line - 1, column - 1),
+			nullCallback
+		);
+
+		std::vector<std::string> suggestions = {};
+		for (auto& [key, val] : result.entryMap)
+		{
+			suggestions.push_back(key);
+		}
+
+		frontend->clear();
+
+		return suggestions;
 	}
 
 	void ScriptAnalyzer::free()
@@ -283,6 +341,8 @@ std::string ScriptFileResolver::getHumanReadableModuleName(const Luau::ModuleNam
 ScriptConfigResolver::ScriptConfigResolver()
 {
 	defaultConfig.mode = Luau::Mode::Strict;
+	defaultConfig.enabledLint.warningMask = ~0ull;
+	defaultConfig.parseOptions.captureComments = true;
 }
 
 const Luau::Config& ScriptConfigResolver::getConfig(const Luau::ModuleName&) const

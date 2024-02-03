@@ -19,6 +19,8 @@ namespace MathAnim
 		bool analyze(const std::string& filename);
 		bool analyze(const std::string& sourceCode, const std::string& scriptName);
 
+		std::vector<std::string> sandbox(std::string const& sourceCode, std::string const& scriptName, uint32 line, uint32 column);
+
 		void free();
 
 	private:

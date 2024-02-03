@@ -5,6 +5,7 @@
 namespace MathAnim
 {
 	struct AnimationManagerData;
+	class ScriptAnalyzer;
 
 	namespace LuauLayer
 	{
@@ -20,6 +21,9 @@ namespace MathAnim
 		bool executeOnAnimObj(const std::string& scriptName, const std::string& functionName, AnimationManagerData* am, AnimObjId obj);
 
 		bool remove(const std::string& scriptName);
+
+		// TODO: Remove this, for testing only
+		ScriptAnalyzer& getScriptAnalyzer();
 
 		void free();
 	}

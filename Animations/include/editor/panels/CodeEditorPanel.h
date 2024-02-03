@@ -49,6 +49,8 @@ namespace MathAnim
 
 		CodeHighlights syntaxHighlightTree;
 		CodeEditorPanelDebugData debugData;
+		std::vector<std::string> intellisenseSuggestions;
+		bool intellisensePanelOpen;
 	};
 
 	namespace CodeEditorPanel
