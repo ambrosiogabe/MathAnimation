@@ -47,10 +47,13 @@ namespace MathAnim
 		uint8* visibleCharacterBuffer;
 		size_t visibleCharacterBufferSize;
 
+		std::vector<std::string> intellisenseSuggestions;
+		uint32 intellisenseScrollOffset;
+		uint32 selectedIntellisenseSuggestion;
+		bool intellisensePanelOpen;
+
 		CodeHighlights syntaxHighlightTree;
 		CodeEditorPanelDebugData debugData;
-		std::vector<std::string> intellisenseSuggestions;
-		bool intellisensePanelOpen;
 	};
 
 	namespace CodeEditorPanel

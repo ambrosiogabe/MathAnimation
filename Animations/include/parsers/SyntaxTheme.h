@@ -142,6 +142,10 @@ namespace MathAnim
 		uint32 scrollbarSliderActiveBackground;
 		uint32 scrollbarSliderHoverBackground;
 
+		uint32 editorSuggestWidgetBackground;
+		uint32 editorSuggestWidgetBorder;
+		uint32 editorSuggestWidgetSelectedBackground;
+
 		// TODO: Switch to this, once we verify it's working correctly
 		SyntaxTrieNode root;
 		std::unordered_map<std::string, uint32> colorMap;

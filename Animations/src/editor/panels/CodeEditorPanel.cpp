@@ -38,8 +38,14 @@ namespace MathAnim
 		static bool visualizeSyntaxUpdates = false;
 		static uint32 numMsToShowLineUpdates = 500;
 		static Vec4 flashColor = "#36d174"_hex;
-		static float MAX_TIME_TO_INTERPOLATE_CURSOR = 0.1f;
-		static float MIN_INTELLISENSE_PANEL_WIDTH = 300.0f;
+
+		static float maxTimeToInterpolateCursor = 0.1f;
+
+		static float minIntellisensePanelWidth= 400.0f;
+		static float intellisensePanelBorderWidth = 2.0f;
+		static float intellisenseSuggestionSpacing = 1.0f;
+		static float intellisenseFrameRounding = 4.0f;
+		static uint32 maxIntellisenseSuggestions = 12;
 
 		// ------------- Internal Functions -------------
 		static void resetSelection(CodeEditorPanelData& panel);
@@ -150,7 +156,10 @@ namespace MathAnim
 			res->totalNumberLines = 0;
 			res->hzCharacterOffset = 0;
 			res->maxLineLength = 0;
+
 			res->intellisensePanelOpen = false;
+			res->intellisenseScrollOffset = 0;
+			res->selectedIntellisenseSuggestion = 0;
 
 			preprocessText((uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize, &res->totalNumberLines, &res->maxLineLength);
 			// +1 for the extra line for EOF
@@ -310,11 +319,11 @@ namespace MathAnim
 					{
 						moveTextCursorAndResetSelection(panel, KeyMoveDirection::Left);
 					}
-					else if (Input::keyRepeatedOrDown(GLFW_KEY_UP))
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_UP) && !panel.intellisensePanelOpen)
 					{
 						moveTextCursorAndResetSelection(panel, KeyMoveDirection::Up);
 					}
-					else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN))
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN) && !panel.intellisensePanelOpen)
 					{
 						moveTextCursorAndResetSelection(panel, KeyMoveDirection::Down);
 					}
@@ -349,11 +358,55 @@ namespace MathAnim
 							panel.numOfCharsFromBeginningOfLine
 						);
 						panel.intellisensePanelOpen = true;
+						panel.intellisenseScrollOffset = 0;
+						panel.selectedIntellisenseSuggestion = 0;
 					}
 
 					if (Input::keyPressed(GLFW_KEY_ESCAPE))
 					{
 						panel.intellisensePanelOpen = false;
+					}
+
+					if (panel.intellisensePanelOpen)
+					{
+						if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN))
+						{
+							panel.selectedIntellisenseSuggestion++;
+							if (panel.selectedIntellisenseSuggestion >= (uint32)panel.intellisenseSuggestions.size())
+							{
+								panel.selectedIntellisenseSuggestion = 0;
+								panel.intellisenseScrollOffset = 0;
+							}
+
+							if ((panel.selectedIntellisenseSuggestion - panel.intellisenseScrollOffset) > maxIntellisenseSuggestions)
+							{
+								panel.intellisenseScrollOffset++;
+							}
+						}
+						else if (Input::keyRepeatedOrDown(GLFW_KEY_UP))
+						{
+							if (panel.selectedIntellisenseSuggestion == 0)
+							{
+								if (panel.intellisenseSuggestions.size() > 0)
+								{
+									panel.selectedIntellisenseSuggestion = (uint32)panel.intellisenseSuggestions.size() - 1;
+								}
+
+								if (panel.intellisenseSuggestions.size() > maxIntellisenseSuggestions)
+								{
+									panel.intellisenseScrollOffset = (uint32)panel.intellisenseSuggestions.size() - maxIntellisenseSuggestions;
+								}
+							}
+							else
+							{
+								panel.selectedIntellisenseSuggestion--;
+
+								if (panel.selectedIntellisenseSuggestion < panel.intellisenseScrollOffset)
+								{
+									panel.intellisenseScrollOffset = panel.selectedIntellisenseSuggestion;
+								}
+							}
+						}
 					}
 				}
 
@@ -640,10 +693,10 @@ namespace MathAnim
 				{
 					ImVec2 textCursorDrawPosition = letterBoundsStart;
 					EditorSettingsData const& editorSettings = EditorSettings::getSettings();
-					if (editorSettings.smoothCursor && panel.cursorTimeSpentInterpolating < MAX_TIME_TO_INTERPOLATE_CURSOR)
+					if (editorSettings.smoothCursor && panel.cursorTimeSpentInterpolating < maxTimeToInterpolateCursor)
 					{
 						panel.cursorTimeSpentInterpolating += Application::getDeltaTime();
-						float t = panel.cursorTimeSpentInterpolating / MAX_TIME_TO_INTERPOLATE_CURSOR;
+						float t = panel.cursorTimeSpentInterpolating / maxTimeToInterpolateCursor;
 						t = CMath::ease(t, EaseType::Linear, EaseDirection::In);
 						panel.lastCursorPosition = CMath::interpolate(t, panel.lastCursorPosition, textCursorDrawPosition);
 						panel.timeSinceCursorLastBlinked = 0.0f;
@@ -1404,29 +1457,71 @@ namespace MathAnim
 			ImGuiStyle& style = ImGui::GetStyle();
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-			Vec4 const& bgColor = syntaxTheme.getColor(syntaxTheme.defaultBackground);
-			Vec4 const& textColor = syntaxTheme.getColor(syntaxTheme.defaultForeground);
+			Vec4 const& borderColor = syntaxTheme.getColor(syntaxTheme.editorSuggestWidgetBorder);
+			Vec4 const& normalBgColor = syntaxTheme.getColor(syntaxTheme.editorSuggestWidgetBackground);
+			Vec4 const& normalFgColor = syntaxTheme.getColor(syntaxTheme.defaultForeground);
+			Vec4 const& selectedBgColor = syntaxTheme.getColor(syntaxTheme.editorSuggestWidgetSelectedBackground);
+			Vec4 const& selectedFgColor = "#FFF"_hex;
 
-			float maxSuggestionStrLength = MIN_INTELLISENSE_PANEL_WIDTH;
+			float maxSuggestionStrLength = minIntellisensePanelWidth;
 			for (auto& suggestion : panel.intellisenseSuggestions)
 			{
-				float strLength = ImGui::CalcTextSize(suggestion.c_str()).x;
+				float strLength = ImGui::CalcTextSize(suggestion.c_str()).x + intellisenseFrameRounding * 2.0f;
 				maxSuggestionStrLength = glm::max(maxSuggestionStrLength, strLength);
 			}
 
-			ImVec2 panelBgDrawStart = panel.lastCursorPosition + ImVec2(0.0f, getLineHeight(font));
-			ImVec2 panelBgDrawEnd = panelBgDrawStart 
-				+ ImVec2(maxSuggestionStrLength, panel.intellisenseSuggestions.size() * getLineHeight(font)) 
+			float lineHeight = getLineHeight(font);
+			float selectionHeight = lineHeight + intellisenseFrameRounding * 2.0f;
+
+			size_t numItemsToShow = panel.intellisenseSuggestions.size() > maxIntellisenseSuggestions
+				? maxIntellisenseSuggestions
+				: panel.intellisenseSuggestions.size();
+			ImVec2 panelBgDrawStart = panel.lastCursorPosition + ImVec2(0.0f, lineHeight);
+			ImVec2 panelBgDrawEnd = panelBgDrawStart
+				+ ImVec2(maxSuggestionStrLength, numItemsToShow * selectionHeight)
 				+ (style.FramePadding * 2.0f);
 
-			drawList->AddRectFilled(panelBgDrawStart - ImVec2(1, 1), panelBgDrawEnd + ImVec2(1, 1), ImColor(textColor));
-			drawList->AddRectFilled(panelBgDrawStart, panelBgDrawEnd, ImColor(bgColor));
+			ImVec2 borderSize = ImVec2(intellisensePanelBorderWidth, intellisensePanelBorderWidth);
+			drawList->AddRectFilled(panelBgDrawStart - borderSize, panelBgDrawEnd + borderSize, ImColor(borderColor), intellisenseFrameRounding);
+			drawList->AddRectFilled(panelBgDrawStart, panelBgDrawEnd, ImColor(normalBgColor), intellisenseFrameRounding);
 
 			ImVec2 cursor = panelBgDrawStart + style.FramePadding;
-			for (auto& suggestion : panel.intellisenseSuggestions) 
+			uint32 endIndex = panel.intellisenseSuggestions.size() >= maxIntellisenseSuggestions
+				? maxIntellisenseSuggestions
+				: (uint32)panel.intellisenseSuggestions.size();
+			for (uint32 index = panel.intellisenseScrollOffset; (index - panel.intellisenseScrollOffset) < endIndex; index++)
 			{
-				drawList->AddText(cursor, ImColor(textColor), suggestion.c_str());
-				cursor = cursor + ImVec2(0.0f, getLineHeight(font));
+				auto const& suggestion = panel.intellisenseSuggestions[index];
+
+				ImColor fgColor = normalFgColor;
+
+				if (index == panel.selectedIntellisenseSuggestion)
+				{
+					fgColor = ImColor(selectedFgColor);
+
+					drawList->AddRectFilled(
+						ImVec2(panelBgDrawStart.x, cursor.y),
+						ImVec2(panelBgDrawEnd.x, cursor.y + selectionHeight),
+						ImColor(selectedBgColor)
+					);
+				}
+
+				drawList->AddText(cursor + ImVec2(intellisenseFrameRounding, intellisenseFrameRounding), fgColor, suggestion.c_str());
+				cursor = cursor + ImVec2(0.0f, selectionHeight);
+			}
+
+			// Render scrollbar
+			if (panel.intellisenseSuggestions.size() > maxIntellisenseSuggestions)
+			{
+				float bgHeight = panelBgDrawEnd.y - panelBgDrawStart.y;
+				float scrollbarHeight = ((float)maxIntellisenseSuggestions / (float)panel.intellisenseSuggestions.size()) * bgHeight;
+				float scrollbarStartY = ((float)panel.intellisenseScrollOffset / (float)panel.intellisenseSuggestions.size()) * bgHeight;
+
+				ImVec2 scrollbarStart = ImVec2(panelBgDrawEnd.x, scrollbarStartY + panelBgDrawStart.y);
+				ImVec2 scrollbarEnd = scrollbarStart + ImVec2(-scrollbarWidth, scrollbarHeight);
+				ImColor scrollbarColor = syntaxTheme.getColor(syntaxTheme.scrollbarSliderBackground);
+
+				drawList->AddRectFilled(scrollbarStart, scrollbarEnd, scrollbarColor);
 			}
 		}
 

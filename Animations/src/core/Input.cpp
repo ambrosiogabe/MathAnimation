@@ -15,8 +15,8 @@ namespace MathAnim
 
 
 		// ----------- Internal Variables -----------
-		static constexpr float slowKeyRepeatTimeInterval = 0.013f;
-		static constexpr float firstRepeatFlag = -0.3f;
+		static constexpr float slowKeyRepeatTimeInterval = 0.03f;
+		static constexpr float firstRepeatFlag = -0.5f;
 
 		static uint32 lastCharacterTyped = 0;
 
