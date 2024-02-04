@@ -41,7 +41,7 @@ namespace MathAnim
 
 		static float maxTimeToInterpolateCursor = 0.1f;
 
-		static float minIntellisensePanelWidth= 400.0f;
+		static float minIntellisensePanelWidth = 400.0f;
 		static float intellisensePanelBorderWidth = 2.0f;
 		static float intellisenseSuggestionSpacing = 1.0f;
 		static float intellisenseFrameRounding = 4.0f;
@@ -54,7 +54,7 @@ namespace MathAnim
 		static void handleDeleteUndo(CodeEditorPanelData& panel, bool shouldSetTextSelectedOnUndo);
 		static void moveTextCursor(CodeEditorPanelData& panel, KeyMoveDirection direction);
 		static void moveTextCursorAndResetSelection(CodeEditorPanelData& panel, KeyMoveDirection direction);
-		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& textCursorDrawPosition, SizedFont const* const font);
+		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 textCursorDrawPosition, SizedFont const* const font);
 		static void renderIntellisensePanel(CodeEditorPanelData& panel, SizedFont const* const font);
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber, SizedFont const* const font);
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel);
@@ -66,6 +66,7 @@ namespace MathAnim
 		static bool removeText(CodeEditorPanelData& panel, int32 textToRemoveOffset, int32 textToRemoveNumBytes);
 		static int32 getNewCursorPositionFromMove(CodeEditorPanelData const& panel, KeyMoveDirection direction);
 		static void scrollCursorIntoViewIfNeeded(CodeEditorPanelData& panel);
+		static void openIntellisensePanelAtCursor(CodeEditorPanelData& panel);
 		// TODO: Move this to <cppStrings.hpp>
 		static uint8 codepointToUtf8Str(uint8* const buffer, uint32 codepoint);
 
@@ -349,17 +350,7 @@ namespace MathAnim
 				{
 					if (Input::keyPressed(GLFW_KEY_SPACE, KeyMods::Ctrl))
 					{
-						// Check intellisense!
-						auto& analyzer = LuauLayer::getScriptAnalyzer();
-						panel.intellisenseSuggestions = analyzer.sandbox(
-							std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
-							"code-being-edited",
-							panel.cursorCurrentLine,
-							panel.numOfCharsFromBeginningOfLine
-						);
-						panel.intellisensePanelOpen = true;
-						panel.intellisenseScrollOffset = 0;
-						panel.selectedIntellisenseSuggestion = 0;
+						openIntellisensePanelAtCursor(panel);
 					}
 
 					if (Input::keyPressed(GLFW_KEY_ESCAPE))
@@ -378,7 +369,7 @@ namespace MathAnim
 								panel.intellisenseScrollOffset = 0;
 							}
 
-							if ((panel.selectedIntellisenseSuggestion - panel.intellisenseScrollOffset) > maxIntellisenseSuggestions)
+							if ((panel.selectedIntellisenseSuggestion - panel.intellisenseScrollOffset) >= maxIntellisenseSuggestions)
 							{
 								panel.intellisenseScrollOffset++;
 							}
@@ -406,6 +397,15 @@ namespace MathAnim
 									panel.intellisenseScrollOffset = panel.selectedIntellisenseSuggestion;
 								}
 							}
+						}
+
+						// Blit the current intellisense suggestion into the buffer at the cursor
+						if (Input::keyPressed(GLFW_KEY_TAB) || Input::keyPressed(GLFW_KEY_ENTER))
+						{
+							auto const& suggestion = panel.intellisenseSuggestions[panel.selectedIntellisenseSuggestion];
+							addUtf8StringToBuffer(panel, (uint8*)suggestion.c_str(), suggestion.size(), panel.cursor.bytePos);
+							panel.intellisensePanelOpen = false;
+							fileHasBeenEdited = true;
 						}
 					}
 				}
@@ -509,10 +509,45 @@ namespace MathAnim
 						addCodepointToBuffer(panel, codepoint, (int32)panel.cursor.bytePos);
 						fileHasBeenEdited = true;
 					}
+
+					// Check to see if we should open intellisense
+					if (codepoint == '.' || codepoint == ':')
+					{
+						// If the previous character was not also the same character we'll open intellisense
+						auto prevChar = panel.cursor;
+						// We have to go back two characters because the cursor is already one character ahead of the last character typed
+						--prevChar;
+						--prevChar;
+						auto maybePrevChar = *prevChar;
+
+						if ((maybePrevChar.hasValue() && maybePrevChar.value() != codepoint) || prevChar.bytePos == panel.cursor.bytePos)
+						{
+							openIntellisensePanelAtCursor(panel);
+						}
+					}
+				}
+
+				// Handle tab key
+				if (Input::keyRepeatedOrDown(GLFW_KEY_TAB) && !panel.intellisensePanelOpen)
+				{
+					panel.intellisensePanelOpen = false;
+
+					if (panel.firstByteInSelection != panel.lastByteInSelection)
+					{
+						removeSelectedTextWithBackspace(panel);
+					}
+
+					if (panel.undoTypingStart == -1)
+					{
+						panel.undoTypingStart = (int32)panel.cursor.bytePos;
+					}
+
+					addCodepointToBuffer(panel, (uint32)'\t', panel.cursor.bytePos);
+					fileHasBeenEdited = true;
 				}
 
 				// Handle newline-insertion
-				if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER))
+				if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER) && !panel.intellisensePanelOpen)
 				{
 					panel.intellisensePanelOpen = false;
 
@@ -691,22 +726,7 @@ namespace MathAnim
 				// Render the text cursor
 				if (cursor.bytePos == panel.cursor.bytePos)
 				{
-					ImVec2 textCursorDrawPosition = letterBoundsStart;
-					EditorSettingsData const& editorSettings = EditorSettings::getSettings();
-					if (editorSettings.smoothCursor && panel.cursorTimeSpentInterpolating < maxTimeToInterpolateCursor)
-					{
-						panel.cursorTimeSpentInterpolating += Application::getDeltaTime();
-						float t = panel.cursorTimeSpentInterpolating / maxTimeToInterpolateCursor;
-						t = CMath::ease(t, EaseType::Linear, EaseDirection::In);
-						panel.lastCursorPosition = CMath::interpolate(t, panel.lastCursorPosition, textCursorDrawPosition);
-						panel.timeSinceCursorLastBlinked = 0.0f;
-						renderTextCursor(panel, panel.lastCursorPosition, codeFont);
-					}
-					else
-					{
-						renderTextCursor(panel, textCursorDrawPosition, codeFont);
-						panel.lastCursorPosition = textCursorDrawPosition;
-					}
+					renderTextCursor(panel, letterBoundsStart, codeFont);
 				}
 				else if (cursor.bytePos == panel.visibleCharacterBufferSize - 1 && panel.cursor.bytePos == panel.visibleCharacterBufferSize)
 				{
@@ -1416,7 +1436,7 @@ namespace MathAnim
 			resetSelection(panel);
 		}
 
-		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& drawPosition, SizedFont const* const font)
+		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 drawPosition, SizedFont const* const font)
 		{
 			if (!ImGui::IsWindowFocused() && !panel.mouseIsDragSelecting)
 			{
@@ -1424,6 +1444,25 @@ namespace MathAnim
 			}
 
 			SyntaxTheme const& syntaxTheme = CodeEditorPanelManager::getTheme();
+
+			// Smooth the cursor movement if needed
+			EditorSettingsData const& editorSettings = EditorSettings::getSettings();
+			if (editorSettings.smoothCursor && panel.cursorTimeSpentInterpolating < maxTimeToInterpolateCursor)
+			{
+				panel.timeSinceCursorLastBlinked = 0.0f;
+				panel.cursorIsBlinkedOn = true;
+				panel.cursorTimeSpentInterpolating += Application::getDeltaTime();
+
+				float t = panel.cursorTimeSpentInterpolating / maxTimeToInterpolateCursor;
+				t = CMath::ease(t, EaseType::Linear, EaseDirection::In);
+
+				panel.lastCursorPosition = CMath::interpolate(t, panel.lastCursorPosition, drawPosition);
+				drawPosition = panel.lastCursorPosition;
+			}
+			else
+			{
+				panel.lastCursorPosition = drawPosition;
+			}
 
 			if (panel.timeSinceCursorLastBlinked >= cursorBlinkTime)
 			{
@@ -1913,8 +1952,8 @@ namespace MathAnim
 			{
 				int32 endOfCurrentLine = getEndOfLineFrom(panel, (int32)panel.cursor.bytePos);
 
-				// If we're at the end of the file, move all the way to the end
-				if (endOfCurrentLine == panel.visibleCharacterBufferSize - 1)
+				// If we're at the end of the file, move all the way to the end if it's not a newline
+				if (endOfCurrentLine == panel.visibleCharacterBufferSize - 1 && panel.visibleCharacterBuffer[panel.visibleCharacterBufferSize - 1] != '\n')
 				{
 					endOfCurrentLine++;
 				}
@@ -2077,6 +2116,20 @@ namespace MathAnim
 
 				panel.lineNumberByteStart = getLineNumberByteStartFrom(panel, panel.lineNumberStart);
 			}
+		}
+
+		static void openIntellisensePanelAtCursor(CodeEditorPanelData& panel)
+		{
+			auto& analyzer = LuauLayer::getScriptAnalyzer();
+			panel.intellisenseSuggestions = analyzer.sandbox(
+				std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
+				"code-being-edited",
+				panel.cursorCurrentLine,
+				panel.numOfCharsFromBeginningOfLine
+			);
+			panel.intellisensePanelOpen = true;
+			panel.intellisenseScrollOffset = 0;
+			panel.selectedIntellisenseSuggestion = 0;
 		}
 
 		static uint8 codepointToUtf8Str(uint8* const outBuffer, uint32 code)
