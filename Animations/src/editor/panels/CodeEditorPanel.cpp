@@ -468,7 +468,11 @@ namespace MathAnim
 				// TODO: Not all backspaces are handled for some reason
 				if (Input::keyRepeatedOrDown(GLFW_KEY_BACKSPACE))
 				{
+					panel.cursorTimeSpentInterpolating = 0.0f;
+					panel.cursorIsBlinkedOn = true;
+					panel.timeSinceCursorLastBlinked = 0.0f;
 					panel.intellisensePanelOpen = false;
+
 					handleTypingUndo(panel);
 
 					if (removeSelectedTextWithBackspace(panel))
@@ -480,7 +484,10 @@ namespace MathAnim
 				// Handle delete
 				if (Input::keyRepeatedOrDown(GLFW_KEY_DELETE))
 				{
+					panel.cursorIsBlinkedOn = true;
+					panel.timeSinceCursorLastBlinked = 0.0f;
 					panel.intellisensePanelOpen = false;
+
 					handleTypingUndo(panel);
 
 					if (removeSelectedTextWithDelete(panel))
@@ -494,6 +501,9 @@ namespace MathAnim
 				{
 					if (!(codepoint == ' ' && Input::keyDown(GLFW_KEY_SPACE, KeyMods::Ctrl)))
 					{
+						panel.cursorTimeSpentInterpolating = 0.0f;
+						panel.cursorIsBlinkedOn = true;
+						panel.timeSinceCursorLastBlinked = 0.0f;
 						panel.intellisensePanelOpen = false;
 
 						if (panel.firstByteInSelection != panel.lastByteInSelection)
@@ -530,6 +540,9 @@ namespace MathAnim
 				// Handle tab key
 				if (Input::keyRepeatedOrDown(GLFW_KEY_TAB) && !panel.intellisensePanelOpen)
 				{
+					panel.cursorTimeSpentInterpolating = 0.0f;
+					panel.cursorIsBlinkedOn = true;
+					panel.timeSinceCursorLastBlinked = 0.0f;
 					panel.intellisensePanelOpen = false;
 
 					if (panel.firstByteInSelection != panel.lastByteInSelection)
@@ -549,6 +562,9 @@ namespace MathAnim
 				// Handle newline-insertion
 				if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER) && !panel.intellisensePanelOpen)
 				{
+					panel.cursorTimeSpentInterpolating = 0.0f;
+					panel.cursorIsBlinkedOn = true;
+					panel.timeSinceCursorLastBlinked = 0.0f;
 					panel.intellisensePanelOpen = false;
 
 					if (panel.firstByteInSelection != panel.lastByteInSelection)
@@ -966,20 +982,6 @@ namespace MathAnim
 					ImGui::TableNextColumn(); ImGui::Text("Hz Char Offset");
 					ImGui::TableNextColumn(); ImGui::Text("%d", panel.hzCharacterOffset);
 					ImGui::TableNextRow();
-
-					ImGui::EndTable();
-				}
-
-				if (ImGui::BeginTable("Intellisense Suggestions", 2))
-				{
-					int index = 0;
-					for (auto& suggestion : panel.intellisenseSuggestions)
-					{
-						ImGui::TableNextColumn(); ImGui::Text("[%d]", index);
-						ImGui::TableNextColumn(); ImGui::Text("%s", suggestion.c_str());
-						ImGui::TableNextRow();
-						index++;
-					}
 
 					ImGui::EndTable();
 				}
@@ -1822,7 +1824,7 @@ namespace MathAnim
 		static inline bool isBoundaryCharacter(uint32 c)
 		{
 			if (c == ':' || c == ';' || c == '"' || c == '\'' || c == '.' || c == '(' || c == ')' || c == '{' || c == '}'
-				|| c == '-' || c == '+' || c == '*' || c == '/' || c == ',' || c == '=' || c == '!' || c == '`')
+				|| c == '-' || c == '+' || c == '*' || c == '/' || c == ',' || c == '=' || c == '!' || c == '`' || c == '<' || c == '>')
 			{
 				return true;
 			}
