@@ -94,6 +94,9 @@ target_link_libraries(MathAnimations PUBLIC
 
     # Optick
     $<$<CONFIG:RelWithProfiler>:OptickCore>
+
+    # Rapid Fuzz
+    rapidfuzz::rapidfuzz
 )
 
 if(MATH_ANIMATION_OS_LINUX)

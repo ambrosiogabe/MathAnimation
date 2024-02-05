@@ -1,5 +1,6 @@
 #include "core.h"
 #include "parsers/SyntaxHighlighter.h"
+#include "scripting/ScriptAnalyzer.h"
 
 #include <cppUtils/cppStrings.hpp>
 
@@ -47,10 +48,12 @@ namespace MathAnim
 		uint8* visibleCharacterBuffer;
 		size_t visibleCharacterBufferSize;
 
-		std::vector<std::string> intellisenseSuggestions;
+		std::vector<AutocompleteSuggestion> intellisenseSuggestions;
+		std::vector<int> visibleIntellisenseSuggestions;
 		uint32 intellisenseScrollOffset;
 		uint32 selectedIntellisenseSuggestion;
 		bool intellisensePanelOpen;
+		std::string stringTypedSinceLastDot;
 
 		CodeHighlights syntaxHighlightTree;
 		CodeEditorPanelDebugData debugData;

@@ -3,6 +3,8 @@
 #include "platform/Platform.h"
 #include "editor/panels/ConsoleLog.h"
 
+#include <rapidfuzz/fuzz.hpp>
+
 #pragma warning( push )
 #pragma warning( disable : 4100 )
 #pragma warning( disable : 4324 )
@@ -10,7 +12,6 @@
 #include <lua.h>
 #include <luacode.h>
 #include <lualib.h>
-#include <Luau/Autocomplete.h>
 #include <Luau/BuiltinDefinitions.h>
 #include <Luau/Frontend.h>
 #pragma warning( pop )
@@ -52,6 +53,17 @@ enum class ReportFormat
 // ------------------------------- Internal Functions -------------------------------
 static void reportError(const Luau::Frontend* frontend, const char* filepath, ReportFormat format, const Luau::TypeError& error);
 static void report(ReportFormat format, const char* filepath, const Luau::Location& loc, const char* type, const char* message);
+
+// -- Internal Data --
+constexpr auto autocompleteKindPrecedence = fixedSizeArray<int, (int)Luau::AutocompleteEntryKind::GeneratedFunction + 1>(
+	0, // Property,
+	1, // Binding,
+	4, // Keyword,
+	5, // String,
+	2, // Type,
+	3, // Module,
+	6 // GeneratedFunction,
+);
 
 namespace MathAnim
 {
@@ -199,7 +211,22 @@ namespace MathAnim
 		return std::nullopt;
 	}
 
-	std::vector<std::string> ScriptAnalyzer::sandbox(std::string const& sourceCode, std::string const& scriptName, uint32 line, uint32 column)
+	static void sortSuggestionsByRankAndKind(std::vector<AutocompleteSuggestion>& suggestions)
+	{
+		std::sort(suggestions.begin(), suggestions.end(), [](AutocompleteSuggestion const& a, AutocompleteSuggestion const& b)
+			{
+				if (a.data.kind == b.data.kind)
+				{
+					return a.rank > b.rank;
+				}
+
+				// If they're different kinds of stuff, rank by kind of suggestion.
+				// For example, suggestions for variable properties should rank higher than keywords
+				return autocompleteKindPrecedence[(int)a.data.kind] < autocompleteKindPrecedence[(int)b.data.kind];
+			});
+	}
+
+	std::vector<AutocompleteSuggestion> ScriptAnalyzer::getSuggestions(std::string const& sourceCode, std::string const& scriptName, uint32 line, uint32 column)
 	{
 		if (!fileResolver || !configResolver || !frontend)
 		{
@@ -223,22 +250,60 @@ namespace MathAnim
 		opts.forAutocomplete = true;
 		cr = frontend->check(scriptName, opts);
 
-		auto result = Luau::autocomplete(
+		auto autocompleteRes = Luau::autocomplete(
 			*frontend,
 			scriptName,
 			Luau::Position(line - 1, column - 1),
 			nullCallback
 		);
 
-		std::vector<std::string> suggestions = {};
-		for (auto& [key, val] : result.entryMap)
+		std::vector<AutocompleteSuggestion> suggestions = {};
+		for (auto& [key, val] : autocompleteRes.entryMap)
 		{
-			suggestions.push_back(key);
+			AutocompleteSuggestion suggestion = {};
+			suggestion.text = key;
+			suggestion.data = val;
+			suggestion.rank = 0.0f;
+			suggestions.emplace_back(suggestion);
 		}
 
 		frontend->clear();
 
+		sortSuggestionsByRankAndKind(suggestions);
+
 		return suggestions;
+	}
+
+	void ScriptAnalyzer::sortSuggestionsByQuery(std::string const& query, std::vector<AutocompleteSuggestion>& suggestions, std::vector<int>& visibleSuggestions)
+	{
+		visibleSuggestions.clear();
+
+		// Re-rank all suggestions according to new query
+		int index = 0;
+		for (auto& suggestion : suggestions)
+		{
+			suggestion.rank = (float)rapidfuzz::fuzz::partial_ratio(query, suggestion.text);
+
+			// Only do more expensive string checks if ranking is similar
+			if (suggestion.rank > 50.0f)
+			{
+				suggestion.containsQuery = suggestion.text.find(query) != std::string::npos;
+
+				if (suggestion.containsQuery)
+				{
+					visibleSuggestions.push_back(index);
+				}
+			}
+			else if (query == "")
+			{
+				visibleSuggestions.push_back(index);
+			}
+
+			index++;
+		}
+
+		// Re-sort suggestions
+		sortSuggestionsByRankAndKind(suggestions);
 	}
 
 	void ScriptAnalyzer::free()
@@ -357,7 +422,7 @@ static void reportError(const Luau::Frontend* frontend, const char* filepath, Re
 		report(format, filepath, error.location, "SyntaxError", syntaxError->message.c_str());
 	else
 		report(format, filepath, error.location, "TypeError",
-			Luau::toString(error, Luau::TypeErrorToStringOptions{ frontend->fileResolver }).c_str());
+		Luau::toString(error, Luau::TypeErrorToStringOptions{ frontend->fileResolver }).c_str());
 }
 
 static void report(ReportFormat format, const char* filepath, const Luau::Location& loc, const char* type, const char* message)

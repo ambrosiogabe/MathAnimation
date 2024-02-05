@@ -363,7 +363,7 @@ namespace MathAnim
 						if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN))
 						{
 							panel.selectedIntellisenseSuggestion++;
-							if (panel.selectedIntellisenseSuggestion >= (uint32)panel.intellisenseSuggestions.size())
+							if (panel.selectedIntellisenseSuggestion >= (uint32)panel.visibleIntellisenseSuggestions.size())
 							{
 								panel.selectedIntellisenseSuggestion = 0;
 								panel.intellisenseScrollOffset = 0;
@@ -378,14 +378,14 @@ namespace MathAnim
 						{
 							if (panel.selectedIntellisenseSuggestion == 0)
 							{
-								if (panel.intellisenseSuggestions.size() > 0)
+								if (panel.visibleIntellisenseSuggestions.size() > 0)
 								{
-									panel.selectedIntellisenseSuggestion = (uint32)panel.intellisenseSuggestions.size() - 1;
+									panel.selectedIntellisenseSuggestion = (uint32)panel.visibleIntellisenseSuggestions.size() - 1;
 								}
 
-								if (panel.intellisenseSuggestions.size() > maxIntellisenseSuggestions)
+								if (panel.visibleIntellisenseSuggestions.size() > maxIntellisenseSuggestions)
 								{
-									panel.intellisenseScrollOffset = (uint32)panel.intellisenseSuggestions.size() - maxIntellisenseSuggestions;
+									panel.intellisenseScrollOffset = (uint32)panel.visibleIntellisenseSuggestions.size() - maxIntellisenseSuggestions;
 								}
 							}
 							else
@@ -402,9 +402,19 @@ namespace MathAnim
 						// Blit the current intellisense suggestion into the buffer at the cursor
 						if (Input::keyPressed(GLFW_KEY_TAB) || Input::keyPressed(GLFW_KEY_ENTER))
 						{
-							auto const& suggestion = panel.intellisenseSuggestions[panel.selectedIntellisenseSuggestion];
-							addUtf8StringToBuffer(panel, (uint8*)suggestion.c_str(), suggestion.size(), panel.cursor.bytePos);
+							// First remove the string that's been typed so far
+							removeTextWithBackspace(
+								panel,
+								(int32)(panel.cursor.bytePos - panel.stringTypedSinceLastDot.size()), 
+								(int32)panel.stringTypedSinceLastDot.size()
+							);
+
+							// Then blit the whole suggestion over that empty space
+							int index = panel.visibleIntellisenseSuggestions[panel.selectedIntellisenseSuggestion];
+							auto const& suggestion = panel.intellisenseSuggestions[index];
+							addUtf8StringToBuffer(panel, (uint8*)suggestion.text.c_str(), suggestion.text.size(), panel.cursor.bytePos);
 							panel.intellisensePanelOpen = false;
+							panel.stringTypedSinceLastDot = "";
 							fileHasBeenEdited = true;
 						}
 					}
@@ -504,7 +514,41 @@ namespace MathAnim
 						panel.cursorTimeSpentInterpolating = 0.0f;
 						panel.cursorIsBlinkedOn = true;
 						panel.timeSinceCursorLastBlinked = 0.0f;
-						panel.intellisensePanelOpen = false;
+
+						// Update autocompletesuggestions if possible
+						if (panel.intellisensePanelOpen)
+						{
+							if (Parser::isWhitespace((char)codepoint))
+							{
+								// If the user entered whitespace after entering a string since the last dot, close the current suggestions
+								if (panel.stringTypedSinceLastDot.size() > 0)
+								{
+									panel.intellisensePanelOpen = false;
+								}
+								
+								// Otherwise, if the user entered white space and still haven't typed a string, keep the intellisense panel
+								// open until they type a non-whitespace string
+							}
+							else
+							{
+								// Only add alpha-numeric characters to the current suggestion
+								if (Parser::isAlpha((char)codepoint) || Parser::isDigit((char)codepoint) || (char)codepoint == '_')
+								{
+									uint8 charStr[5] = { '\0', '\0' , '\0' , '\0' , '\0' };
+									codepointToUtf8Str(charStr, codepoint);
+									g_logger_assert(charStr[4] == '\0', "Codepoint to UTF8 corrupted the string somehow. Missing null byte.");
+									panel.stringTypedSinceLastDot += (const char*)charStr;
+
+									// Update intellisense suggestions
+									auto& analyzer = LuauLayer::getScriptAnalyzer();
+									analyzer.sortSuggestionsByQuery(panel.stringTypedSinceLastDot, panel.intellisenseSuggestions, panel.visibleIntellisenseSuggestions);
+								}
+								else
+								{
+									panel.intellisensePanelOpen = false;
+								}
+							}
+						}
 
 						if (panel.firstByteInSelection != panel.lastByteInSelection)
 						{
@@ -1489,7 +1533,7 @@ namespace MathAnim
 
 		static void renderIntellisensePanel(CodeEditorPanelData& panel, SizedFont const* const font)
 		{
-			if (!ImGui::IsWindowFocused() || panel.intellisenseSuggestions.size() == 0)
+			if (!ImGui::IsWindowFocused() || panel.visibleIntellisenseSuggestions.size() == 0)
 			{
 				return;
 			}
@@ -1505,18 +1549,20 @@ namespace MathAnim
 			Vec4 const& selectedFgColor = "#FFF"_hex;
 
 			float maxSuggestionStrLength = minIntellisensePanelWidth;
-			for (auto& suggestion : panel.intellisenseSuggestions)
+			for (auto index : panel.visibleIntellisenseSuggestions)
 			{
-				float strLength = ImGui::CalcTextSize(suggestion.c_str()).x + intellisenseFrameRounding * 2.0f;
+				g_logger_assert(index < panel.intellisenseSuggestions.size(), "Invalid index '{}' in visible intellisense suggestions.", index);
+				auto const& suggestion = panel.intellisenseSuggestions[index];
+				float strLength = ImGui::CalcTextSize(suggestion.text.c_str()).x + intellisenseFrameRounding * 2.0f;
 				maxSuggestionStrLength = glm::max(maxSuggestionStrLength, strLength);
 			}
 
 			float lineHeight = getLineHeight(font);
 			float selectionHeight = lineHeight + intellisenseFrameRounding * 2.0f;
 
-			size_t numItemsToShow = panel.intellisenseSuggestions.size() > maxIntellisenseSuggestions
+			size_t numItemsToShow = panel.visibleIntellisenseSuggestions.size() > maxIntellisenseSuggestions
 				? maxIntellisenseSuggestions
-				: panel.intellisenseSuggestions.size();
+				: panel.visibleIntellisenseSuggestions.size();
 			ImVec2 panelBgDrawStart = panel.lastCursorPosition + ImVec2(0.0f, lineHeight);
 			ImVec2 panelBgDrawEnd = panelBgDrawStart
 				+ ImVec2(maxSuggestionStrLength, numItemsToShow * selectionHeight)
@@ -1527,12 +1573,13 @@ namespace MathAnim
 			drawList->AddRectFilled(panelBgDrawStart, panelBgDrawEnd, ImColor(normalBgColor), intellisenseFrameRounding);
 
 			ImVec2 cursor = panelBgDrawStart + style.FramePadding;
-			uint32 endIndex = panel.intellisenseSuggestions.size() >= maxIntellisenseSuggestions
+			uint32 endIndex = panel.visibleIntellisenseSuggestions.size() >= maxIntellisenseSuggestions
 				? maxIntellisenseSuggestions
-				: (uint32)panel.intellisenseSuggestions.size();
+				: (uint32)panel.visibleIntellisenseSuggestions.size();
 			for (uint32 index = panel.intellisenseScrollOffset; (index - panel.intellisenseScrollOffset) < endIndex; index++)
 			{
-				auto const& suggestion = panel.intellisenseSuggestions[index];
+				auto suggestionIndex = panel.visibleIntellisenseSuggestions[index];
+				auto const& suggestion = panel.intellisenseSuggestions[suggestionIndex];
 
 				ImColor fgColor = normalFgColor;
 
@@ -1547,16 +1594,16 @@ namespace MathAnim
 					);
 				}
 
-				drawList->AddText(cursor + ImVec2(intellisenseFrameRounding, intellisenseFrameRounding), fgColor, suggestion.c_str());
+				drawList->AddText(cursor + ImVec2(intellisenseFrameRounding, intellisenseFrameRounding), fgColor, suggestion.text.c_str());
 				cursor = cursor + ImVec2(0.0f, selectionHeight);
 			}
 
 			// Render scrollbar
-			if (panel.intellisenseSuggestions.size() > maxIntellisenseSuggestions)
+			if (panel.visibleIntellisenseSuggestions.size() > maxIntellisenseSuggestions)
 			{
 				float bgHeight = panelBgDrawEnd.y - panelBgDrawStart.y;
-				float scrollbarHeight = ((float)maxIntellisenseSuggestions / (float)panel.intellisenseSuggestions.size()) * bgHeight;
-				float scrollbarStartY = ((float)panel.intellisenseScrollOffset / (float)panel.intellisenseSuggestions.size()) * bgHeight;
+				float scrollbarHeight = ((float)maxIntellisenseSuggestions / (float)panel.visibleIntellisenseSuggestions.size()) * bgHeight;
+				float scrollbarStartY = ((float)panel.intellisenseScrollOffset / (float)panel.visibleIntellisenseSuggestions.size()) * bgHeight;
 
 				ImVec2 scrollbarStart = ImVec2(panelBgDrawEnd.x, scrollbarStartY + panelBgDrawStart.y);
 				ImVec2 scrollbarEnd = scrollbarStart + ImVec2(-scrollbarWidth, scrollbarHeight);
@@ -2123,15 +2170,23 @@ namespace MathAnim
 		static void openIntellisensePanelAtCursor(CodeEditorPanelData& panel)
 		{
 			auto& analyzer = LuauLayer::getScriptAnalyzer();
-			panel.intellisenseSuggestions = analyzer.sandbox(
+			panel.intellisenseSuggestions = analyzer.getSuggestions(
 				std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
 				"code-being-edited",
 				panel.cursorCurrentLine,
 				panel.numOfCharsFromBeginningOfLine
 			);
+
+			panel.visibleIntellisenseSuggestions = {};
+			for (int i = 0; i < (int)panel.intellisenseSuggestions.size(); i++)
+			{
+				panel.visibleIntellisenseSuggestions.push_back(i);
+			}
+
 			panel.intellisensePanelOpen = true;
 			panel.intellisenseScrollOffset = 0;
 			panel.selectedIntellisenseSuggestion = 0;
+			panel.stringTypedSinceLastDot = "";
 		}
 
 		static uint8 codepointToUtf8Str(uint8* const outBuffer, uint32 code)
