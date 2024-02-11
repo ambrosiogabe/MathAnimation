@@ -27,6 +27,19 @@ namespace MathAnim
 		bool containsQuery;
 	};
 
+	struct FunctionParameter
+	{
+		std::string name;
+		std::string stringifiedType;
+	};
+
+	struct FunctionIntellisense 
+	{
+		std::string fnName;
+		std::vector<FunctionParameter> parameters;
+		std::vector<std::string> returnTypes;
+	};
+
 	class ScriptAnalyzer
 	{
 	public:
@@ -35,6 +48,7 @@ namespace MathAnim
 		bool analyze(const std::string& filename);
 		bool analyze(const std::string& sourceCode, const std::string& scriptName);
 
+		FunctionIntellisense getFunctionParameterIntellisense(std::string const& sourceCode, std::string const& scriptName, std::string const& fnName, uint32 line, uint32 column);
 		std::vector<AutocompleteSuggestion> getSuggestions(std::string const& sourceCode, std::string const& scriptName, uint32 line, uint32 column);
 		void sortSuggestionsByQuery(std::string const& query, std::vector<AutocompleteSuggestion>& suggestions, std::vector<int>& visibleSuggestions);
 

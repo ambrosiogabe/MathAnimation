@@ -48,6 +48,9 @@ namespace MathAnim
 		uint8* visibleCharacterBuffer;
 		size_t visibleCharacterBufferSize;
 
+		FunctionIntellisense functionInfo;
+		uint32 currentFunctionIntellisenseParam;
+
 		std::vector<AutocompleteSuggestion> intellisenseSuggestions;
 		std::vector<int> visibleIntellisenseSuggestions;
 		uint32 intellisenseScrollOffset;

@@ -405,7 +405,7 @@ namespace MathAnim
 							// First remove the string that's been typed so far
 							removeTextWithBackspace(
 								panel,
-								(int32)(panel.cursor.bytePos - panel.stringTypedSinceLastDot.size()), 
+								(int32)(panel.cursor.bytePos - panel.stringTypedSinceLastDot.size()),
 								(int32)panel.stringTypedSinceLastDot.size()
 							);
 
@@ -525,7 +525,7 @@ namespace MathAnim
 								{
 									panel.intellisensePanelOpen = false;
 								}
-								
+
 								// Otherwise, if the user entered white space and still haven't typed a string, keep the intellisense panel
 								// open until they type a non-whitespace string
 							}
@@ -578,6 +578,68 @@ namespace MathAnim
 						{
 							openIntellisensePanelAtCursor(panel);
 						}
+					}
+					// Check if we should pull up function documentation
+					else if (codepoint == '(')
+					{
+						// Look backwards until we reach a . or a :
+						uint32 fnStartByte = UINT32_MAX;
+						uint32 fnEndByte = UINT32_MAX;
+						bool startedParsingChars = false;
+						for (int32 tmpCursor = (int32)panel.cursor.bytePos - 2; tmpCursor > 0; tmpCursor--)
+						{
+							char currentChar = (char)panel.visibleCharacterBuffer[tmpCursor];
+							if (!startedParsingChars && Parser::isWhitespace(currentChar))
+							{
+								continue;
+							}
+
+							if (!startedParsingChars)
+							{
+								fnEndByte = (uint32)tmpCursor;
+								startedParsingChars = true;
+							}
+
+							if (!(Parser::isAlpha(currentChar) || Parser::isDigit(currentChar) || currentChar == '_'))
+							{
+								fnStartByte = tmpCursor + 1;
+								break;
+							}
+						}
+
+						if (fnStartByte != UINT32_MAX && fnEndByte != UINT32_MAX && fnEndByte > fnStartByte)
+						{
+							std::string fnIdentifier = std::string(
+								(const char*)panel.visibleCharacterBuffer,
+								fnStartByte,
+								fnEndByte - fnStartByte + 1
+							);
+							auto& analyzer = LuauLayer::getScriptAnalyzer();
+
+							uint32 lineNumber = getLineNumberFromPosition(panel, fnStartByte);
+							uint32 lineByteStart = getLineNumberByteStartFrom(panel, lineNumber);
+							uint32 column = fnEndByte - lineByteStart;
+
+							panel.functionInfo = analyzer.getFunctionParameterIntellisense(
+								std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
+								"code-being-edited",
+								fnIdentifier,
+								lineNumber,
+								column
+							);
+							panel.currentFunctionIntellisenseParam = 0;
+						}
+					}
+					// Check if we move to the next function parameter
+					else if (codepoint == ',' && panel.functionInfo.parameters.size() > 0)
+					{
+						panel.currentFunctionIntellisenseParam++;
+					}
+					// Check if we should close the function intellisense info
+					else if (codepoint == ')')
+					{
+						panel.functionInfo = {};
+						panel.currentFunctionIntellisenseParam = 0;
 					}
 				}
 
@@ -1039,6 +1101,48 @@ namespace MathAnim
 					auto parseInfo = highlighter.getAncestorsFor(&theme, panel.syntaxHighlightTree, panel.cursor.bytePos);
 
 					showInspectorGui(theme, parseInfo);
+				}
+
+				if (panel.functionInfo.parameters.size() > 0)
+				{
+					std::string fnDebugString = panel.functionInfo.fnName + "(";
+					FunctionParameter const* selectedParam = nullptr;
+					for (size_t i = 0; i < panel.functionInfo.parameters.size(); i++)
+					{
+						auto const& currentParam = panel.functionInfo.parameters[i];
+						fnDebugString += currentParam.name + ": " + currentParam.stringifiedType;
+
+						if (i == panel.currentFunctionIntellisenseParam)
+						{
+							selectedParam = &currentParam;
+						}
+
+						if (i < panel.functionInfo.parameters.size() - 1)
+						{
+							fnDebugString += ", ";
+						}
+					}
+
+					fnDebugString += ") -> (";
+
+					for (size_t i = 0; i < panel.functionInfo.returnTypes.size(); i++)
+					{
+						fnDebugString += panel.functionInfo.returnTypes[i];
+
+						if (i < panel.functionInfo.returnTypes.size() - 1)
+						{
+							fnDebugString += ",";
+						}
+					}
+
+					fnDebugString += ")";
+
+					ImGui::Separator();
+					ImGui::Text("%s", fnDebugString.c_str());
+					if (selectedParam)
+					{
+						ImGui::Text("Current Param: %s", selectedParam->name.c_str());
+					}
 				}
 
 				ImGui::End();
