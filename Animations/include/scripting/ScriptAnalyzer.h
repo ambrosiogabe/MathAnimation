@@ -1,6 +1,7 @@
 #ifndef MATH_ANIM_SCRIPT_ANALYZER
 #define MATH_ANIM_SCRIPT_ANALYZER
 #include "core.h"
+#include "parsers/SyntaxHighlighter.h"
 
 #pragma warning( push )
 #pragma warning( disable : 4100 )
@@ -29,7 +30,7 @@ namespace MathAnim
 
 	struct FunctionParameter
 	{
-		std::string name;
+		std::optional<std::string> name;
 		std::string stringifiedType;
 	};
 
@@ -38,6 +39,8 @@ namespace MathAnim
 		std::string fnName;
 		std::vector<FunctionParameter> parameters;
 		std::vector<std::string> returnTypes;
+
+		CodeHighlights highlightInfo;
 	};
 
 	class ScriptAnalyzer

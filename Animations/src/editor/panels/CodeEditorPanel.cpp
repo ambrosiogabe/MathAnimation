@@ -42,6 +42,7 @@ namespace MathAnim
 		static float maxTimeToInterpolateCursor = 0.1f;
 
 		static float minIntellisensePanelWidth = 400.0f;
+		static float functionInfoPanelWidth = 800.0f;
 		static float intellisensePanelBorderWidth = 2.0f;
 		static float intellisenseSuggestionSpacing = 1.0f;
 		static float intellisenseFrameRounding = 4.0f;
@@ -56,6 +57,7 @@ namespace MathAnim
 		static void moveTextCursorAndResetSelection(CodeEditorPanelData& panel, KeyMoveDirection direction);
 		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 textCursorDrawPosition, SizedFont const* const font);
 		static void renderIntellisensePanel(CodeEditorPanelData& panel, SizedFont const* const font);
+		static void renderFunctionInfoPanel(CodeEditorPanelData& panel, SizedFont const* const font);
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber, SizedFont const* const font);
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel);
 		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const font, std::string const& str, ImVec2 const& drawPos, ImColor const& color);
@@ -1010,10 +1012,8 @@ namespace MathAnim
 				renderTextCursor(panel, currentLetterDrawPos, codeFont);
 			}
 
-			if (panel.intellisensePanelOpen)
-			{
-				renderIntellisensePanel(panel, codeFont);
-			}
+			renderIntellisensePanel(panel, codeFont);
+			renderFunctionInfoPanel(panel, codeFont);
 
 			static bool inspectorOn = false;
 			if (windowIsFocused && Input::keyPressed(GLFW_KEY_I, KeyMods::Ctrl | KeyMods::Shift))
@@ -1101,48 +1101,6 @@ namespace MathAnim
 					auto parseInfo = highlighter.getAncestorsFor(&theme, panel.syntaxHighlightTree, panel.cursor.bytePos);
 
 					showInspectorGui(theme, parseInfo);
-				}
-
-				if (panel.functionInfo.parameters.size() > 0)
-				{
-					std::string fnDebugString = panel.functionInfo.fnName + "(";
-					FunctionParameter const* selectedParam = nullptr;
-					for (size_t i = 0; i < panel.functionInfo.parameters.size(); i++)
-					{
-						auto const& currentParam = panel.functionInfo.parameters[i];
-						fnDebugString += currentParam.name + ": " + currentParam.stringifiedType;
-
-						if (i == panel.currentFunctionIntellisenseParam)
-						{
-							selectedParam = &currentParam;
-						}
-
-						if (i < panel.functionInfo.parameters.size() - 1)
-						{
-							fnDebugString += ", ";
-						}
-					}
-
-					fnDebugString += ") -> (";
-
-					for (size_t i = 0; i < panel.functionInfo.returnTypes.size(); i++)
-					{
-						fnDebugString += panel.functionInfo.returnTypes[i];
-
-						if (i < panel.functionInfo.returnTypes.size() - 1)
-						{
-							fnDebugString += ",";
-						}
-					}
-
-					fnDebugString += ")";
-
-					ImGui::Separator();
-					ImGui::Text("%s", fnDebugString.c_str());
-					if (selectedParam)
-					{
-						ImGui::Text("Current Param: %s", selectedParam->name.c_str());
-					}
 				}
 
 				ImGui::End();
@@ -1637,7 +1595,7 @@ namespace MathAnim
 
 		static void renderIntellisensePanel(CodeEditorPanelData& panel, SizedFont const* const font)
 		{
-			if (!ImGui::IsWindowFocused() || panel.visibleIntellisenseSuggestions.size() == 0)
+			if (!panel.intellisensePanelOpen || !ImGui::IsWindowFocused() || panel.visibleIntellisenseSuggestions.size() == 0)
 			{
 				return;
 			}
@@ -1715,6 +1673,128 @@ namespace MathAnim
 
 				drawList->AddRectFilled(scrollbarStart, scrollbarEnd, scrollbarColor);
 			}
+		}
+
+		static void insertTextIntoFunctionInfoPanel(std::string const& str, ImGuiStyle const& style, float lineHeight, ImVec2* drawCursor, float* panelWidth, float* panelHeight, std::vector<std::pair<std::string, ImVec2>>* textPositions)
+		{
+			ImVec2 strSize = ImGui::CalcTextSize(str.c_str());
+
+			if (strSize.x > *panelWidth - (style.FramePadding.x * 2.0f))
+			{
+				*panelWidth = strSize.x + (style.FramePadding.x * 2.0f);
+			}
+
+			if (drawCursor->x + strSize.x > *panelWidth - (style.FramePadding.x * 2.0f))
+			{
+				drawCursor->y += lineHeight;
+				*panelHeight += lineHeight;
+				drawCursor->x = style.FramePadding.x;
+			}
+
+			textPositions->push_back({ str, *drawCursor });
+			drawCursor->x += strSize.x;
+		}
+
+		static void renderFunctionInfoPanel(CodeEditorPanelData& panel, SizedFont const* const font)
+		{
+			if (!ImGui::IsWindowFocused() || panel.functionInfo.fnName.length() == 0)
+			{
+				return;
+			}
+
+			ImGui::PushFont(ImGuiLayer::getMonoFont());
+
+			SyntaxTheme const& syntaxTheme = CodeEditorPanelManager::getTheme();
+			ImGuiStyle& style = ImGui::GetStyle();
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+			Vec4 const& borderColor = syntaxTheme.getColor(syntaxTheme.editorSuggestWidgetBorder);
+			Vec4 const& normalBgColor = syntaxTheme.getColor(syntaxTheme.editorSuggestWidgetBackground);
+			//Vec4 const& selectedFgColor = "#FFF"_hex;
+
+			float lineHeight = getLineHeight(font);
+
+			// First calculate where we'll put all the pieces of text (this does any wrapping of the text
+			// that's necessary within the panel and stuff)
+			std::vector<std::pair<std::string, ImVec2>> textPositions = {};
+			ImVec2 fnNameTextSize = ImGui::CalcTextSize(panel.functionInfo.fnName.c_str());
+
+			float panelWidth = functionInfoPanelWidth;
+			float panelHeight = fnNameTextSize.y + style.FramePadding.y * 2.0f;
+
+			ImVec2 drawCursor = style.FramePadding;
+
+			insertTextIntoFunctionInfoPanel("type ", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+			insertTextIntoFunctionInfoPanel(panel.functionInfo.fnName, style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+			insertTextIntoFunctionInfoPanel(" = (", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+
+			// Insert all parameter info draw positions
+			for (size_t i = 0; i < panel.functionInfo.parameters.size(); i++)
+			{
+				auto const& param = panel.functionInfo.parameters[i];
+				if (param.name.has_value())
+				{
+					insertTextIntoFunctionInfoPanel(param.name.value() + ": ", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+				}
+
+				if (i < panel.functionInfo.parameters.size() - 1)
+				{
+					insertTextIntoFunctionInfoPanel(param.stringifiedType + ", ", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+				}
+				else
+				{
+					insertTextIntoFunctionInfoPanel(param.stringifiedType, style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+				}
+			}
+
+			insertTextIntoFunctionInfoPanel("): (", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+
+			// Insert all return type information into panel
+			for (size_t i = 0; i < panel.functionInfo.returnTypes.size(); i++)
+			{
+				auto const& returnType = panel.functionInfo.returnTypes[i];
+				insertTextIntoFunctionInfoPanel(returnType, style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+
+				if (i < panel.functionInfo.returnTypes.size() - 1)
+				{
+					insertTextIntoFunctionInfoPanel(", ", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+				}
+			}
+
+			insertTextIntoFunctionInfoPanel(")", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+
+			ImVec2 panelBgDrawStart = panel.lastCursorPosition + ImVec2(0.0f, lineHeight);
+			ImVec2 panelBgDrawEnd = panelBgDrawStart
+				+ ImVec2(panelWidth, panelHeight)
+				+ (style.FramePadding * 2.0f);
+
+			ImVec2 borderSize = ImVec2(intellisensePanelBorderWidth, intellisensePanelBorderWidth);
+			drawList->AddRectFilled(panelBgDrawStart - borderSize, panelBgDrawEnd + borderSize, ImColor(borderColor), intellisenseFrameRounding);
+			drawList->AddRectFilled(panelBgDrawStart, panelBgDrawEnd, ImColor(normalBgColor), intellisenseFrameRounding);
+
+			ImVec2 textAreaStart = panelBgDrawStart + style.FramePadding;
+			uint32 currentByte = 0;
+			auto currentSourceToken = panel.functionInfo.highlightInfo.begin();
+			for (auto const& text : textPositions)
+			{
+				ImVec2 drawPos = textAreaStart + text.second;
+				const char* textCStr = text.first.c_str();
+
+				// Go character by character so that we color the characters correctly
+				for (size_t i = 0; i < text.first.length(); i++)
+				{
+					currentSourceToken = currentSourceToken.next(currentByte);
+					currentByte++;
+
+					ImColor color = ImColor(currentSourceToken.getForegroundColor(syntaxTheme));
+					drawList->AddText(drawPos, color, textCStr + i, textCStr + i + 1);
+					drawPos.x += ImGui::CalcTextSize(textCStr + i, textCStr + i + 1).x;
+				}
+			}
+
+			// Handle scrollbar stuff
+
+			ImGui::PopFont();
 		}
 
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber, SizedFont const* const font)

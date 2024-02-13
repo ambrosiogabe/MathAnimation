@@ -1,6 +1,7 @@
 #include "scripting/ScriptAnalyzer.h"
 #include "scripting/MathAnimGlobals.h"
 #include "platform/Platform.h"
+#include "editor/panels/CodeEditorPanelManager.h"
 #include "editor/panels/ConsoleLog.h"
 
 #include <rapidfuzz/fuzz.hpp>
@@ -249,18 +250,18 @@ namespace MathAnim
 		}
 
 		auto [argTypes, argVariadicPack] = flatten(fnType->argTypes);
-		for (size_t i = 0; i < fnType->argNames.size(); i++)
+		for (size_t i = 0; i < argTypes.size(); i++)
 		{
-			if (i < argTypes.size() && fnType->argNames[i].has_value())
+			// TODO: Find out if there's a way to get a type prefix. 
+			//       Like, if you import a module then name it ModuleImport.Type
+			//       how can I find out what ModuleImport is called here?
+			FunctionParameter param = {};
+			if (i < fnType->argNames.size() && fnType->argNames[i].has_value())
 			{
-				// TODO: Find out if there's a way to get a type prefix. 
-				//       Like, if you import a module then name it ModuleImport.Type
-				//       how can I find out what ModuleImport is called here?
-				FunctionParameter param = {};
 				param.name = fnType->argNames[i]->name;
-				param.stringifiedType = toString(argTypes[i]);
-				res.parameters.emplace_back(param);
 			}
+			param.stringifiedType = toString(argTypes[i]);
+			res.parameters.emplace_back(param);
 		}
 
 		auto [retTypes, retVariadicPack] = flatten(fnType->retTypes);
@@ -268,6 +269,41 @@ namespace MathAnim
 		{
 			res.returnTypes.emplace_back(toString(retTypes[i]));
 		}
+
+		// Stringify the function info then parse it to get syntax highlight info
+		std::string stringifiedFunctionType = "";
+		stringifiedFunctionType += "type " + res.fnName + " = (";
+
+		for (size_t i = 0; i < res.parameters.size(); i++)
+		{
+			if (res.parameters[i].name.has_value())
+			{
+				stringifiedFunctionType += res.parameters[i].name.value() + ": ";
+			}
+			stringifiedFunctionType += res.parameters[i].stringifiedType;
+
+			if (i < res.parameters.size() - 1)
+			{
+				stringifiedFunctionType += ", ";
+			}
+		}
+
+		stringifiedFunctionType += "): (";
+		for (size_t i = 0; i < res.returnTypes.size(); i++)
+		{
+			stringifiedFunctionType += res.returnTypes[i];
+
+			if (i < res.returnTypes.size() - 1)
+			{
+				stringifiedFunctionType += ", ";
+			}
+		}
+
+		stringifiedFunctionType += ")";
+
+		auto const& highlighter = CodeEditorPanelManager::getHighlighter();
+		auto const& theme = CodeEditorPanelManager::getTheme();
+		res.highlightInfo = highlighter.parse(stringifiedFunctionType.c_str(), stringifiedFunctionType.size(), theme);
 
 		return res;
 	}
