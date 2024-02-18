@@ -101,7 +101,7 @@ namespace MathAnim
 				globals.globalScope,
 				MathAnimGlobals::getBuiltinDefinitionSource(),
 				"math-anim",
-				false, /* Capture comments */
+				true, /* Capture comments */
 				true /* Typecheck for autocomplete */
 			);
 			freeze(globals.globalTypes);
@@ -128,7 +128,7 @@ namespace MathAnim
 				globals.globalScope,
 				MathAnimGlobals::getMathAnimApiTypes(),
 				"math-anim",
-				false, /* Capture comments */
+				true, /* Capture comments */
 				true /* Typecheck for autocomplete */
 			);
 			freeze(globals.globalTypes);
@@ -215,38 +215,75 @@ namespace MathAnim
 		return cr.errors.size() == 0;
 	}
 
-	FunctionIntellisense ScriptAnalyzer::getFunctionParameterIntellisense(std::string const& sourceCode, std::string const& scriptName, std::string const& fnName, uint32 line, uint32 column)
+	FunctionIntellisense ScriptAnalyzer::getFunctionParameterIntellisense(std::string const& sourceCode, std::string const& scriptName, uint32 line, uint32 column)
 	{
-		FunctionIntellisense res = {};
-		res.fnName = fnName;
-
 		// TODO: Abstract this stuff into a check function
 		ScriptFileResolver* scriptFileResolver = dynamic_cast<ScriptFileResolver*>(fileResolver);
 		scriptFileResolver->setAnonymousFile(sourceCode, scriptName);
 
 		CheckResult cr;
 		frontend->markDirty(scriptName);
-		frontend->check(scriptName);
 
 		FrontendOptions frontendOpts;
 		frontendOpts.forAutocomplete = true;
+		frontendOpts.retainFullTypeGraphs = true;
 		cr = frontend->check(scriptName, frontendOpts);
 
 		auto mainSource = frontend->getSourceModule(scriptName);
 		auto mainModule = frontend->moduleResolver.getModule(scriptName);
 
-		std::optional<DocumentationSymbol> docSymbol = getDocumentationSymbolAtPosition(
-			*mainSource,
-			*mainModule,
-			Position(line - 1, column)
-		);
-		std::optional<TypeId> type = findTypeAtPosition(*mainModule, *mainSource, Position(line - 1, column));
+		// If either of these is nullptr, we can't get type information
+		if (!mainSource || !mainModule)
+		{
+			return {};
+		}
+
+		AstExpr* astExpr = findExprAtPosition(*mainSource, Position(line - 1, column + 1));
+		if (!astExpr)
+		{
+			return {};
+		}
+
+		AstExprCall* exprCall = astExpr->as<AstExprCall>();
+		if (!exprCall || !exprCall->func)
+		{
+			return {};
+		}
+
+		FunctionIntellisense res = {};
+		Position fnIdentifierBegin = Position(line - 1, column + 1);
+		if (auto* funcName = exprCall->func->as<AstExprIndexName>(); funcName && funcName->index.value)
+		{
+			res.fnName = funcName->index.value;
+			fnIdentifierBegin = funcName->indexLocation.begin;
+		}
+		else if (auto* globalFunc = exprCall->func->as<AstExprGlobal>(); globalFunc && globalFunc->name.value)
+		{
+			res.fnName = globalFunc->name.value;
+			fnIdentifierBegin = globalFunc->location.begin;
+		}
+		else if (auto* localFunc = exprCall->func->as<AstExprLocal>();
+			localFunc && localFunc->local && localFunc->local->name.value)
+		{
+			res.fnName = localFunc->local->name.value;
+			fnIdentifierBegin = localFunc->location.begin;
+		}
+		else
+		{
+			return {};
+		}
+
+		std::optional<TypeId> type = findTypeAtPosition(*mainModule, *mainSource, fnIdentifierBegin);
+		if (!type.has_value())
+		{
+			return {};
+		}
+
 		TypeId id = follow(type.value());
 		FunctionType const* fnType = get<FunctionType>(id);
-
 		if (!fnType)
 		{
-			return res;
+			return {};
 		}
 
 		auto [argTypes, argVariadicPack] = flatten(fnType->argTypes);
@@ -260,8 +297,19 @@ namespace MathAnim
 			{
 				param.name = fnType->argNames[i]->name;
 			}
-			param.stringifiedType = toString(argTypes[i]);
-			res.parameters.emplace_back(param);
+
+			TypeId argType = follow(argTypes[i]);
+
+			if (auto* asError = get<ErrorType>(argType); asError)
+			{
+				param.stringifiedType = "T";
+				res.parameters.emplace_back(param);
+			}
+			else
+			{
+				param.stringifiedType = toString(argType);
+				res.parameters.emplace_back(param);
+			}
 		}
 
 		auto [retTypes, retVariadicPack] = flatten(fnType->retTypes);

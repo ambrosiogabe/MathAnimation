@@ -582,55 +582,21 @@ namespace MathAnim
 						}
 					}
 					// Check if we should pull up function documentation
-					else if (codepoint == '(')
+					else if (codepoint == '(' && panel.cursor.bytePos > 0)
 					{
-						// Look backwards until we reach a . or a :
-						uint32 fnStartByte = UINT32_MAX;
-						uint32 fnEndByte = UINT32_MAX;
-						bool startedParsingChars = false;
-						for (int32 tmpCursor = (int32)panel.cursor.bytePos - 2; tmpCursor > 0; tmpCursor--)
-						{
-							char currentChar = (char)panel.visibleCharacterBuffer[tmpCursor];
-							if (!startedParsingChars && Parser::isWhitespace(currentChar))
-							{
-								continue;
-							}
+						auto& analyzer = LuauLayer::getScriptAnalyzer();
 
-							if (!startedParsingChars)
-							{
-								fnEndByte = (uint32)tmpCursor;
-								startedParsingChars = true;
-							}
+						uint32 lineNumber = getLineNumberFromPosition(panel, (uint32)panel.cursor.bytePos - 1);
+						uint32 lineByteStart = getLineNumberByteStartFrom(panel, lineNumber);
+						uint32 column = (uint32)panel.cursor.bytePos - 1 - lineByteStart;
 
-							if (!(Parser::isAlpha(currentChar) || Parser::isDigit(currentChar) || currentChar == '_'))
-							{
-								fnStartByte = tmpCursor + 1;
-								break;
-							}
-						}
-
-						if (fnStartByte != UINT32_MAX && fnEndByte != UINT32_MAX && fnEndByte > fnStartByte)
-						{
-							std::string fnIdentifier = std::string(
-								(const char*)panel.visibleCharacterBuffer,
-								fnStartByte,
-								fnEndByte - fnStartByte + 1
-							);
-							auto& analyzer = LuauLayer::getScriptAnalyzer();
-
-							uint32 lineNumber = getLineNumberFromPosition(panel, fnStartByte);
-							uint32 lineByteStart = getLineNumberByteStartFrom(panel, lineNumber);
-							uint32 column = fnEndByte - lineByteStart;
-
-							panel.functionInfo = analyzer.getFunctionParameterIntellisense(
-								std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
-								"code-being-edited",
-								fnIdentifier,
-								lineNumber,
-								column
-							);
-							panel.currentFunctionIntellisenseParam = 0;
-						}
+						panel.functionInfo = analyzer.getFunctionParameterIntellisense(
+							std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
+							"code-being-edited",
+							lineNumber,
+							column
+						);
+						panel.currentFunctionIntellisenseParam = 0;
 					}
 					// Check if we move to the next function parameter
 					else if (codepoint == ',' && panel.functionInfo.parameters.size() > 0)
