@@ -230,15 +230,14 @@ namespace MathAnim
 		cr = frontend->check(scriptName, frontendOpts);
 
 		auto mainSource = frontend->getSourceModule(scriptName);
-		auto mainModule = frontend->moduleResolver.getModule(scriptName);
 
-		// If either of these is nullptr, we can't get type information
-		if (!mainSource || !mainModule)
+		// If this is nullptr, we can't get type information
+		if (!mainSource)
 		{
 			return {};
 		}
 
-		AstExpr* astExpr = findExprAtPosition(*mainSource, Position(line - 1, column + 1));
+		AstExpr* astExpr = findExprAtPosition(*mainSource, Position(line - 1, column));
 		if (!astExpr)
 		{
 			return {};
@@ -269,6 +268,12 @@ namespace MathAnim
 			fnIdentifierBegin = localFunc->location.begin;
 		}
 		else
+		{
+			return {};
+		}
+
+		auto mainModule = frontend->moduleResolverForAutocomplete.getModule(scriptName);
+		if (!mainModule)
 		{
 			return {};
 		}
