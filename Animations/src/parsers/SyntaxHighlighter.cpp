@@ -362,6 +362,7 @@ namespace MathAnim
 		}
 
 		// Update beginnings/endings of all lines and mark any lines that need to be updated
+		if (lineIndexStartedRemovingFrom < highlights.tree.sourceInfo.size())
 		{
 			auto currentLineInfo = highlights.tree.sourceInfo.begin() + lineIndexStartedRemovingFrom;
 			g_logger_assert(currentLineInfo != highlights.tree.sourceInfo.end(), "Cannot remove syntax highlighting from beyond the end of the file.");

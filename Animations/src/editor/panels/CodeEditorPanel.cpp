@@ -1,13 +1,17 @@
+#include "editor/EditorSettings.h"
 #include "editor/panels/CodeEditorPanel.h"
 #include "editor/panels/CodeEditorPanelManager.h"
 #include "editor/imgui/ImGuiLayer.h"
+#include "editor/TextEditUndo.h"
 #include "platform/Platform.h"
 #include "core/Application.h"
 #include "core/Input.h"
 #include "core/Window.h"
+#include "math/CMath.h"
 #include "renderer/Fonts.h"
-#include "editor/TextEditUndo.h"
 #include "parsers/SyntaxTheme.h"
+#include "scripting/LuauLayer.h"
+#include "scripting/ScriptAnalyzer.h"
 
 #include <cppUtils/cppStrings.hpp>
 
@@ -35,6 +39,15 @@ namespace MathAnim
 		static uint32 numMsToShowLineUpdates = 500;
 		static Vec4 flashColor = "#36d174"_hex;
 
+		static float maxTimeToInterpolateCursor = 0.1f;
+
+		static float minIntellisensePanelWidth = 400.0f;
+		static float functionInfoPanelWidth = 800.0f;
+		static float intellisensePanelBorderWidth = 2.0f;
+		static float intellisenseSuggestionSpacing = 1.0f;
+		static float intellisenseFrameRounding = 4.0f;
+		static uint32 maxIntellisenseSuggestions = 12;
+
 		// ------------- Internal Functions -------------
 		static void resetSelection(CodeEditorPanelData& panel);
 		static void handleTypingUndo(CodeEditorPanelData& panel);
@@ -42,7 +55,9 @@ namespace MathAnim
 		static void handleDeleteUndo(CodeEditorPanelData& panel, bool shouldSetTextSelectedOnUndo);
 		static void moveTextCursor(CodeEditorPanelData& panel, KeyMoveDirection direction);
 		static void moveTextCursorAndResetSelection(CodeEditorPanelData& panel, KeyMoveDirection direction);
-		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& textCursorDrawPosition, SizedFont const* const font);
+		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 textCursorDrawPosition, SizedFont const* const font);
+		static void renderIntellisensePanel(CodeEditorPanelData& panel, SizedFont const* const font);
+		static void renderFunctionInfoPanel(CodeEditorPanelData& panel, SizedFont const* const font);
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber, SizedFont const* const font);
 		static bool mouseInTextEditArea(CodeEditorPanelData const& panel);
 		static ImVec2 addStringToDrawList(ImDrawList* drawList, SizedFont const* const font, std::string const& str, ImVec2 const& drawPos, ImColor const& color);
@@ -53,6 +68,7 @@ namespace MathAnim
 		static bool removeText(CodeEditorPanelData& panel, int32 textToRemoveOffset, int32 textToRemoveNumBytes);
 		static int32 getNewCursorPositionFromMove(CodeEditorPanelData const& panel, KeyMoveDirection direction);
 		static void scrollCursorIntoViewIfNeeded(CodeEditorPanelData& panel);
+		static void openIntellisensePanelAtCursor(CodeEditorPanelData& panel);
 		// TODO: Move this to <cppStrings.hpp>
 		static uint8 codepointToUtf8Str(uint8* const buffer, uint32 codepoint);
 
@@ -143,6 +159,10 @@ namespace MathAnim
 			res->totalNumberLines = 0;
 			res->hzCharacterOffset = 0;
 			res->maxLineLength = 0;
+
+			res->intellisensePanelOpen = false;
+			res->intellisenseScrollOffset = 0;
+			res->selectedIntellisenseSuggestion = 0;
 
 			preprocessText((uint8*)memory.data, fileSize, &res->visibleCharacterBuffer, &res->visibleCharacterBufferSize, &res->totalNumberLines, &res->maxLineLength);
 			// +1 for the extra line for EOF
@@ -302,11 +322,11 @@ namespace MathAnim
 					{
 						moveTextCursorAndResetSelection(panel, KeyMoveDirection::Left);
 					}
-					else if (Input::keyRepeatedOrDown(GLFW_KEY_UP))
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_UP) && !panel.intellisensePanelOpen)
 					{
 						moveTextCursorAndResetSelection(panel, KeyMoveDirection::Up);
 					}
-					else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN))
+					else if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN) && !panel.intellisensePanelOpen)
 					{
 						moveTextCursorAndResetSelection(panel, KeyMoveDirection::Down);
 					}
@@ -325,6 +345,80 @@ namespace MathAnim
 					else if (Input::keyRepeatedOrDown(GLFW_KEY_END))
 					{
 						moveTextCursorAndResetSelection(panel, KeyMoveDirection::RightUntilEnd);
+					}
+				}
+
+				// Handle intellisense key combos
+				{
+					if (Input::keyPressed(GLFW_KEY_SPACE, KeyMods::Ctrl))
+					{
+						openIntellisensePanelAtCursor(panel);
+					}
+
+					if (Input::keyPressed(GLFW_KEY_ESCAPE))
+					{
+						panel.intellisensePanelOpen = false;
+					}
+
+					if (panel.intellisensePanelOpen)
+					{
+						if (Input::keyRepeatedOrDown(GLFW_KEY_DOWN))
+						{
+							panel.selectedIntellisenseSuggestion++;
+							if (panel.selectedIntellisenseSuggestion >= (uint32)panel.visibleIntellisenseSuggestions.size())
+							{
+								panel.selectedIntellisenseSuggestion = 0;
+								panel.intellisenseScrollOffset = 0;
+							}
+
+							if ((panel.selectedIntellisenseSuggestion - panel.intellisenseScrollOffset) >= maxIntellisenseSuggestions)
+							{
+								panel.intellisenseScrollOffset++;
+							}
+						}
+						else if (Input::keyRepeatedOrDown(GLFW_KEY_UP))
+						{
+							if (panel.selectedIntellisenseSuggestion == 0)
+							{
+								if (panel.visibleIntellisenseSuggestions.size() > 0)
+								{
+									panel.selectedIntellisenseSuggestion = (uint32)panel.visibleIntellisenseSuggestions.size() - 1;
+								}
+
+								if (panel.visibleIntellisenseSuggestions.size() > maxIntellisenseSuggestions)
+								{
+									panel.intellisenseScrollOffset = (uint32)panel.visibleIntellisenseSuggestions.size() - maxIntellisenseSuggestions;
+								}
+							}
+							else
+							{
+								panel.selectedIntellisenseSuggestion--;
+
+								if (panel.selectedIntellisenseSuggestion < panel.intellisenseScrollOffset)
+								{
+									panel.intellisenseScrollOffset = panel.selectedIntellisenseSuggestion;
+								}
+							}
+						}
+
+						// Blit the current intellisense suggestion into the buffer at the cursor
+						if (Input::keyPressed(GLFW_KEY_TAB) || Input::keyPressed(GLFW_KEY_ENTER))
+						{
+							// First remove the string that's been typed so far
+							removeTextWithBackspace(
+								panel,
+								(int32)(panel.cursor.bytePos - panel.stringTypedSinceLastDot.size()),
+								(int32)panel.stringTypedSinceLastDot.size()
+							);
+
+							// Then blit the whole suggestion over that empty space
+							int index = panel.visibleIntellisenseSuggestions[panel.selectedIntellisenseSuggestion];
+							auto const& suggestion = panel.intellisenseSuggestions[index];
+							addUtf8StringToBuffer(panel, (uint8*)suggestion.text.c_str(), suggestion.text.size(), panel.cursor.bytePos);
+							panel.intellisensePanelOpen = false;
+							panel.stringTypedSinceLastDot = "";
+							fileHasBeenEdited = true;
+						}
 					}
 				}
 
@@ -386,6 +480,11 @@ namespace MathAnim
 				// TODO: Not all backspaces are handled for some reason
 				if (Input::keyRepeatedOrDown(GLFW_KEY_BACKSPACE))
 				{
+					panel.cursorTimeSpentInterpolating = 0.0f;
+					panel.cursorIsBlinkedOn = true;
+					panel.timeSinceCursorLastBlinked = 0.0f;
+					panel.intellisensePanelOpen = false;
+
 					handleTypingUndo(panel);
 
 					if (removeSelectedTextWithBackspace(panel))
@@ -397,6 +496,10 @@ namespace MathAnim
 				// Handle delete
 				if (Input::keyRepeatedOrDown(GLFW_KEY_DELETE))
 				{
+					panel.cursorIsBlinkedOn = true;
+					panel.timeSinceCursorLastBlinked = 0.0f;
+					panel.intellisensePanelOpen = false;
+
 					handleTypingUndo(panel);
 
 					if (removeSelectedTextWithDelete(panel))
@@ -408,6 +511,114 @@ namespace MathAnim
 				// Handle text-insertion
 				if (uint32 codepoint = Input::getLastCharacterTyped(); codepoint != 0)
 				{
+					if (!(codepoint == ' ' && Input::keyDown(GLFW_KEY_SPACE, KeyMods::Ctrl)))
+					{
+						panel.cursorTimeSpentInterpolating = 0.0f;
+						panel.cursorIsBlinkedOn = true;
+						panel.timeSinceCursorLastBlinked = 0.0f;
+
+						// Update autocompletesuggestions if possible
+						if (panel.intellisensePanelOpen)
+						{
+							if (Parser::isWhitespace((char)codepoint))
+							{
+								// If the user entered whitespace after entering a string since the last dot, close the current suggestions
+								if (panel.stringTypedSinceLastDot.size() > 0)
+								{
+									panel.intellisensePanelOpen = false;
+								}
+
+								// Otherwise, if the user entered white space and still haven't typed a string, keep the intellisense panel
+								// open until they type a non-whitespace string
+							}
+							else
+							{
+								// Only add alpha-numeric characters to the current suggestion
+								if (Parser::isAlpha((char)codepoint) || Parser::isDigit((char)codepoint) || (char)codepoint == '_')
+								{
+									uint8 charStr[5] = { '\0', '\0' , '\0' , '\0' , '\0' };
+									codepointToUtf8Str(charStr, codepoint);
+									g_logger_assert(charStr[4] == '\0', "Codepoint to UTF8 corrupted the string somehow. Missing null byte.");
+									panel.stringTypedSinceLastDot += (const char*)charStr;
+
+									// Update intellisense suggestions
+									auto& analyzer = LuauLayer::getScriptAnalyzer();
+									analyzer.sortSuggestionsByQuery(panel.stringTypedSinceLastDot, panel.intellisenseSuggestions, panel.visibleIntellisenseSuggestions);
+								}
+								else
+								{
+									panel.intellisensePanelOpen = false;
+								}
+							}
+						}
+
+						if (panel.firstByteInSelection != panel.lastByteInSelection)
+						{
+							removeSelectedTextWithBackspace(panel);
+						}
+
+						if (panel.undoTypingStart == -1)
+						{
+							panel.undoTypingStart = (int32)panel.cursor.bytePos;
+						}
+
+						addCodepointToBuffer(panel, codepoint, (int32)panel.cursor.bytePos);
+						fileHasBeenEdited = true;
+					}
+
+					// Check to see if we should open intellisense
+					if (codepoint == '.' || codepoint == ':')
+					{
+						// If the previous character was not also the same character we'll open intellisense
+						auto prevChar = panel.cursor;
+						// We have to go back two characters because the cursor is already one character ahead of the last character typed
+						--prevChar;
+						--prevChar;
+						auto maybePrevChar = *prevChar;
+
+						if ((maybePrevChar.hasValue() && maybePrevChar.value() != codepoint) || prevChar.bytePos == panel.cursor.bytePos)
+						{
+							openIntellisensePanelAtCursor(panel);
+						}
+					}
+					// Check if we should pull up function documentation
+					else if (codepoint == '(' && panel.cursor.bytePos > 0)
+					{
+						auto& analyzer = LuauLayer::getScriptAnalyzer();
+
+						uint32 lineNumber = getLineNumberFromPosition(panel, (uint32)panel.cursor.bytePos - 1);
+						uint32 lineByteStart = getLineNumberByteStartFrom(panel, lineNumber);
+						uint32 column = (uint32)panel.cursor.bytePos - 1 - lineByteStart;
+
+						panel.functionInfo = analyzer.getFunctionParameterIntellisense(
+							std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
+							"code-being-edited",
+							lineNumber,
+							column
+						);
+						panel.currentFunctionIntellisenseParam = 0;
+					}
+					// Check if we move to the next function parameter
+					else if (codepoint == ',' && panel.functionInfo.parameters.size() > 0)
+					{
+						panel.currentFunctionIntellisenseParam++;
+					}
+					// Check if we should close the function intellisense info
+					else if (codepoint == ')')
+					{
+						panel.functionInfo = {};
+						panel.currentFunctionIntellisenseParam = 0;
+					}
+				}
+
+				// Handle tab key
+				if (Input::keyRepeatedOrDown(GLFW_KEY_TAB) && !panel.intellisensePanelOpen)
+				{
+					panel.cursorTimeSpentInterpolating = 0.0f;
+					panel.cursorIsBlinkedOn = true;
+					panel.timeSinceCursorLastBlinked = 0.0f;
+					panel.intellisensePanelOpen = false;
+
 					if (panel.firstByteInSelection != panel.lastByteInSelection)
 					{
 						removeSelectedTextWithBackspace(panel);
@@ -418,13 +629,18 @@ namespace MathAnim
 						panel.undoTypingStart = (int32)panel.cursor.bytePos;
 					}
 
-					addCodepointToBuffer(panel, codepoint, (int32)panel.cursor.bytePos);
+					addCodepointToBuffer(panel, (uint32)'\t', panel.cursor.bytePos);
 					fileHasBeenEdited = true;
 				}
 
 				// Handle newline-insertion
-				if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER))
+				if (Input::keyRepeatedOrDown(GLFW_KEY_ENTER) && !panel.intellisensePanelOpen)
 				{
+					panel.cursorTimeSpentInterpolating = 0.0f;
+					panel.cursorIsBlinkedOn = true;
+					panel.timeSinceCursorLastBlinked = 0.0f;
+					panel.intellisensePanelOpen = false;
+
 					if (panel.firstByteInSelection != panel.lastByteInSelection)
 					{
 						removeSelectedTextWithBackspace(panel);
@@ -600,8 +816,7 @@ namespace MathAnim
 				// Render the text cursor
 				if (cursor.bytePos == panel.cursor.bytePos)
 				{
-					ImVec2 textCursorDrawPosition = letterBoundsStart;
-					renderTextCursor(panel, textCursorDrawPosition, codeFont);
+					renderTextCursor(panel, letterBoundsStart, codeFont);
 				}
 				else if (cursor.bytePos == panel.visibleCharacterBufferSize - 1 && panel.cursor.bytePos == panel.visibleCharacterBufferSize)
 				{
@@ -753,6 +968,7 @@ namespace MathAnim
 					panel.mouseByteDragStart = (int32)panel.cursor.bytePos;
 					panel.firstByteInSelection = (int32)panel.cursor.bytePos;
 					panel.lastByteInSelection = (int32)panel.cursor.bytePos;
+					panel.cursorTimeSpentInterpolating = 0.0f;
 				}
 			}
 
@@ -761,6 +977,9 @@ namespace MathAnim
 			{
 				renderTextCursor(panel, currentLetterDrawPos, codeFont);
 			}
+
+			renderIntellisensePanel(panel, codeFont);
+			renderFunctionInfoPanel(panel, codeFont);
 
 			static bool inspectorOn = false;
 			if (windowIsFocused && Input::keyPressed(GLFW_KEY_I, KeyMods::Ctrl | KeyMods::Shift))
@@ -793,7 +1012,11 @@ namespace MathAnim
 					ImGui::TableNextColumn(); ImGui::Text("Cursor Byte");
 					ImGui::TableNextColumn(); ImGui::Text("%d", panel.cursor.bytePos);
 					ImGui::TableNextRow();
-					
+
+					ImGui::TableNextColumn(); ImGui::Text("Cursor current line");
+					ImGui::TableNextColumn(); ImGui::Text("%d", panel.cursorCurrentLine);
+					ImGui::TableNextRow();
+
 					ImGui::TableNextColumn(); ImGui::Text("Line start dist (Chars)");
 					ImGui::TableNextColumn(); ImGui::Text("%d", panel.numOfCharsFromBeginningOfLine);
 					ImGui::TableNextRow();
@@ -1261,6 +1484,8 @@ namespace MathAnim
 
 			panel.cursorIsBlinkedOn = true;
 			panel.timeSinceCursorLastBlinked = 0.0f;
+			panel.cursorTimeSpentInterpolating = 0.0f;
+			panel.intellisensePanelOpen = false;
 
 			panel.cursor.bytePos = getNewCursorPositionFromMove(panel, direction);
 
@@ -1285,7 +1510,7 @@ namespace MathAnim
 			resetSelection(panel);
 		}
 
-		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 const& drawPosition, SizedFont const* const font)
+		static void renderTextCursor(CodeEditorPanelData& panel, ImVec2 drawPosition, SizedFont const* const font)
 		{
 			if (!ImGui::IsWindowFocused() && !panel.mouseIsDragSelecting)
 			{
@@ -1293,6 +1518,25 @@ namespace MathAnim
 			}
 
 			SyntaxTheme const& syntaxTheme = CodeEditorPanelManager::getTheme();
+
+			// Smooth the cursor movement if needed
+			EditorSettingsData const& editorSettings = EditorSettings::getSettings();
+			if (editorSettings.smoothCursor && panel.cursorTimeSpentInterpolating < maxTimeToInterpolateCursor)
+			{
+				panel.timeSinceCursorLastBlinked = 0.0f;
+				panel.cursorIsBlinkedOn = true;
+				panel.cursorTimeSpentInterpolating += Application::getDeltaTime();
+
+				float t = panel.cursorTimeSpentInterpolating / maxTimeToInterpolateCursor;
+				t = CMath::ease(t, EaseType::Linear, EaseDirection::In);
+
+				panel.lastCursorPosition = CMath::interpolate(t, panel.lastCursorPosition, drawPosition);
+				drawPosition = panel.lastCursorPosition;
+			}
+			else
+			{
+				panel.lastCursorPosition = drawPosition;
+			}
 
 			if (panel.timeSinceCursorLastBlinked >= cursorBlinkTime)
 			{
@@ -1313,6 +1557,210 @@ namespace MathAnim
 				}
 				drawList->AddRectFilled(drawPosition, drawPosition + ImVec2(textCursorWidth, currentLineHeight), textCursorColor);
 			}
+		}
+
+		static void renderIntellisensePanel(CodeEditorPanelData& panel, SizedFont const* const font)
+		{
+			if (!panel.intellisensePanelOpen || !ImGui::IsWindowFocused() || panel.visibleIntellisenseSuggestions.size() == 0)
+			{
+				return;
+			}
+
+			SyntaxTheme const& syntaxTheme = CodeEditorPanelManager::getTheme();
+			ImGuiStyle& style = ImGui::GetStyle();
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+			Vec4 const& borderColor = syntaxTheme.getColor(syntaxTheme.editorSuggestWidgetBorder);
+			Vec4 const& normalBgColor = syntaxTheme.getColor(syntaxTheme.editorSuggestWidgetBackground);
+			Vec4 const& normalFgColor = syntaxTheme.getColor(syntaxTheme.defaultForeground);
+			Vec4 const& selectedBgColor = syntaxTheme.getColor(syntaxTheme.editorSuggestWidgetSelectedBackground);
+			Vec4 const& selectedFgColor = "#FFF"_hex;
+
+			float maxSuggestionStrLength = minIntellisensePanelWidth;
+			for (auto index : panel.visibleIntellisenseSuggestions)
+			{
+				g_logger_assert(index < panel.intellisenseSuggestions.size(), "Invalid index '{}' in visible intellisense suggestions.", index);
+				auto const& suggestion = panel.intellisenseSuggestions[index];
+				float strLength = ImGui::CalcTextSize(suggestion.text.c_str()).x + intellisenseFrameRounding * 2.0f;
+				maxSuggestionStrLength = glm::max(maxSuggestionStrLength, strLength);
+			}
+
+			float lineHeight = getLineHeight(font);
+			float selectionHeight = lineHeight + intellisenseFrameRounding * 2.0f;
+
+			size_t numItemsToShow = panel.visibleIntellisenseSuggestions.size() > maxIntellisenseSuggestions
+				? maxIntellisenseSuggestions
+				: panel.visibleIntellisenseSuggestions.size();
+			ImVec2 panelBgDrawStart = panel.lastCursorPosition + ImVec2(0.0f, lineHeight);
+			ImVec2 panelBgDrawEnd = panelBgDrawStart
+				+ ImVec2(maxSuggestionStrLength, numItemsToShow * selectionHeight)
+				+ (style.FramePadding * 2.0f);
+
+			ImVec2 borderSize = ImVec2(intellisensePanelBorderWidth, intellisensePanelBorderWidth);
+			drawList->AddRectFilled(panelBgDrawStart - borderSize, panelBgDrawEnd + borderSize, ImColor(borderColor), intellisenseFrameRounding);
+			drawList->AddRectFilled(panelBgDrawStart, panelBgDrawEnd, ImColor(normalBgColor), intellisenseFrameRounding);
+
+			ImVec2 cursor = panelBgDrawStart + style.FramePadding;
+			uint32 endIndex = panel.visibleIntellisenseSuggestions.size() >= maxIntellisenseSuggestions
+				? maxIntellisenseSuggestions
+				: (uint32)panel.visibleIntellisenseSuggestions.size();
+			for (uint32 index = panel.intellisenseScrollOffset; (index - panel.intellisenseScrollOffset) < endIndex; index++)
+			{
+				auto suggestionIndex = panel.visibleIntellisenseSuggestions[index];
+				auto const& suggestion = panel.intellisenseSuggestions[suggestionIndex];
+
+				ImColor fgColor = normalFgColor;
+
+				if (index == panel.selectedIntellisenseSuggestion)
+				{
+					fgColor = ImColor(selectedFgColor);
+
+					drawList->AddRectFilled(
+						ImVec2(panelBgDrawStart.x, cursor.y),
+						ImVec2(panelBgDrawEnd.x, cursor.y + selectionHeight),
+						ImColor(selectedBgColor)
+					);
+				}
+
+				drawList->AddText(cursor + ImVec2(intellisenseFrameRounding, intellisenseFrameRounding), fgColor, suggestion.text.c_str());
+				cursor = cursor + ImVec2(0.0f, selectionHeight);
+			}
+
+			// Render scrollbar
+			if (panel.visibleIntellisenseSuggestions.size() > maxIntellisenseSuggestions)
+			{
+				float bgHeight = panelBgDrawEnd.y - panelBgDrawStart.y;
+				float scrollbarHeight = ((float)maxIntellisenseSuggestions / (float)panel.visibleIntellisenseSuggestions.size()) * bgHeight;
+				float scrollbarStartY = ((float)panel.intellisenseScrollOffset / (float)panel.visibleIntellisenseSuggestions.size()) * bgHeight;
+
+				ImVec2 scrollbarStart = ImVec2(panelBgDrawEnd.x, scrollbarStartY + panelBgDrawStart.y);
+				ImVec2 scrollbarEnd = scrollbarStart + ImVec2(-scrollbarWidth, scrollbarHeight);
+				ImColor scrollbarColor = syntaxTheme.getColor(syntaxTheme.scrollbarSliderBackground);
+
+				drawList->AddRectFilled(scrollbarStart, scrollbarEnd, scrollbarColor);
+			}
+		}
+
+		static void insertTextIntoFunctionInfoPanel(std::string const& str, ImGuiStyle const& style, float lineHeight, ImVec2* drawCursor, float* panelWidth, float* panelHeight, std::vector<std::pair<std::string, ImVec2>>* textPositions)
+		{
+			ImVec2 strSize = ImGui::CalcTextSize(str.c_str());
+
+			if (strSize.x > *panelWidth - (style.FramePadding.x * 2.0f))
+			{
+				*panelWidth = strSize.x + (style.FramePadding.x * 2.0f);
+			}
+
+			if (drawCursor->x + strSize.x > *panelWidth - (style.FramePadding.x * 2.0f))
+			{
+				drawCursor->y += lineHeight;
+				*panelHeight += lineHeight;
+				drawCursor->x = style.FramePadding.x;
+			}
+
+			textPositions->push_back({ str, *drawCursor });
+			drawCursor->x += strSize.x;
+		}
+
+		static void renderFunctionInfoPanel(CodeEditorPanelData& panel, SizedFont const* const font)
+		{
+			if (!ImGui::IsWindowFocused() || panel.functionInfo.fnName.length() == 0)
+			{
+				return;
+			}
+
+			ImGui::PushFont(ImGuiLayer::getMonoFont());
+
+			SyntaxTheme const& syntaxTheme = CodeEditorPanelManager::getTheme();
+			ImGuiStyle& style = ImGui::GetStyle();
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+			Vec4 const& borderColor = syntaxTheme.getColor(syntaxTheme.editorSuggestWidgetBorder);
+			Vec4 const& normalBgColor = syntaxTheme.getColor(syntaxTheme.editorSuggestWidgetBackground);
+			//Vec4 const& selectedFgColor = "#FFF"_hex;
+
+			float lineHeight = getLineHeight(font);
+
+			// First calculate where we'll put all the pieces of text (this does any wrapping of the text
+			// that's necessary within the panel and stuff)
+			std::vector<std::pair<std::string, ImVec2>> textPositions = {};
+			ImVec2 fnNameTextSize = ImGui::CalcTextSize(panel.functionInfo.fnName.c_str());
+
+			float panelWidth = functionInfoPanelWidth;
+			float panelHeight = fnNameTextSize.y + style.FramePadding.y * 2.0f;
+
+			ImVec2 drawCursor = style.FramePadding;
+
+			insertTextIntoFunctionInfoPanel("type ", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+			insertTextIntoFunctionInfoPanel(panel.functionInfo.fnName, style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+			insertTextIntoFunctionInfoPanel(" = (", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+
+			// Insert all parameter info draw positions
+			for (size_t i = 0; i < panel.functionInfo.parameters.size(); i++)
+			{
+				auto const& param = panel.functionInfo.parameters[i];
+				if (param.name.has_value())
+				{
+					insertTextIntoFunctionInfoPanel(param.name.value() + ": ", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+				}
+
+				if (i < panel.functionInfo.parameters.size() - 1)
+				{
+					insertTextIntoFunctionInfoPanel(param.stringifiedType + ", ", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+				}
+				else
+				{
+					insertTextIntoFunctionInfoPanel(param.stringifiedType, style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+				}
+			}
+
+			insertTextIntoFunctionInfoPanel("): (", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+
+			// Insert all return type information into panel
+			for (size_t i = 0; i < panel.functionInfo.returnTypes.size(); i++)
+			{
+				auto const& returnType = panel.functionInfo.returnTypes[i];
+				insertTextIntoFunctionInfoPanel(returnType, style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+
+				if (i < panel.functionInfo.returnTypes.size() - 1)
+				{
+					insertTextIntoFunctionInfoPanel(", ", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+				}
+			}
+
+			insertTextIntoFunctionInfoPanel(")", style, lineHeight, &drawCursor, &panelWidth, &panelHeight, &textPositions);
+
+			ImVec2 panelBgDrawStart = panel.lastCursorPosition + ImVec2(0.0f, lineHeight);
+			ImVec2 panelBgDrawEnd = panelBgDrawStart
+				+ ImVec2(panelWidth, panelHeight)
+				+ (style.FramePadding * 2.0f);
+
+			ImVec2 borderSize = ImVec2(intellisensePanelBorderWidth, intellisensePanelBorderWidth);
+			drawList->AddRectFilled(panelBgDrawStart - borderSize, panelBgDrawEnd + borderSize, ImColor(borderColor), intellisenseFrameRounding);
+			drawList->AddRectFilled(panelBgDrawStart, panelBgDrawEnd, ImColor(normalBgColor), intellisenseFrameRounding);
+
+			ImVec2 textAreaStart = panelBgDrawStart + style.FramePadding;
+			uint32 currentByte = 0;
+			auto currentSourceToken = panel.functionInfo.highlightInfo.begin();
+			for (auto const& text : textPositions)
+			{
+				ImVec2 drawPos = textAreaStart + text.second;
+				const char* textCStr = text.first.c_str();
+
+				// Go character by character so that we color the characters correctly
+				for (size_t i = 0; i < text.first.length(); i++)
+				{
+					currentSourceToken = currentSourceToken.next(currentByte);
+					currentByte++;
+
+					ImColor color = ImColor(currentSourceToken.getForegroundColor(syntaxTheme));
+					drawList->AddText(drawPos, color, textCStr + i, textCStr + i + 1);
+					drawPos.x += ImGui::CalcTextSize(textCStr + i, textCStr + i + 1).x;
+				}
+			}
+
+			// Handle scrollbar stuff
+
+			ImGui::PopFont();
 		}
 
 		static ImVec2 renderNextLinePrefix(CodeEditorPanelData& panel, uint32 lineNumber, SizedFont const* const font)
@@ -1573,7 +2021,7 @@ namespace MathAnim
 		static inline bool isBoundaryCharacter(uint32 c)
 		{
 			if (c == ':' || c == ';' || c == '"' || c == '\'' || c == '.' || c == '(' || c == ')' || c == '{' || c == '}'
-				|| c == '-' || c == '+' || c == '*' || c == '/' || c == ',' || c == '=' || c == '!' || c == '`')
+				|| c == '-' || c == '+' || c == '*' || c == '/' || c == ',' || c == '=' || c == '!' || c == '`' || c == '<' || c == '>')
 			{
 				return true;
 			}
@@ -1703,8 +2151,8 @@ namespace MathAnim
 			{
 				int32 endOfCurrentLine = getEndOfLineFrom(panel, (int32)panel.cursor.bytePos);
 
-				// If we're at the end of the file, move all the way to the end
-				if (endOfCurrentLine == panel.visibleCharacterBufferSize - 1)
+				// If we're at the end of the file, move all the way to the end if it's not a newline
+				if (endOfCurrentLine == panel.visibleCharacterBufferSize - 1 && panel.visibleCharacterBuffer[panel.visibleCharacterBufferSize - 1] != '\n')
 				{
 					endOfCurrentLine++;
 				}
@@ -1867,6 +2315,28 @@ namespace MathAnim
 
 				panel.lineNumberByteStart = getLineNumberByteStartFrom(panel, panel.lineNumberStart);
 			}
+		}
+
+		static void openIntellisensePanelAtCursor(CodeEditorPanelData& panel)
+		{
+			auto& analyzer = LuauLayer::getScriptAnalyzer();
+			panel.intellisenseSuggestions = analyzer.getSuggestions(
+				std::string((const char*)panel.visibleCharacterBuffer, panel.visibleCharacterBufferSize),
+				"code-being-edited",
+				panel.cursorCurrentLine,
+				panel.numOfCharsFromBeginningOfLine
+			);
+
+			panel.visibleIntellisenseSuggestions = {};
+			for (int i = 0; i < (int)panel.intellisenseSuggestions.size(); i++)
+			{
+				panel.visibleIntellisenseSuggestions.push_back(i);
+			}
+
+			panel.intellisensePanelOpen = true;
+			panel.intellisenseScrollOffset = 0;
+			panel.selectedIntellisenseSuggestion = 0;
+			panel.stringTypedSinceLastDot = "";
 		}
 
 		static uint8 codepointToUtf8Str(uint8* const outBuffer, uint32 code)

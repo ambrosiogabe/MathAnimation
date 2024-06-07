@@ -641,6 +641,10 @@ namespace MathAnim
 			theme->scrollbarSliderActiveBackground = tryParseColor(theme, colorsJson, "scrollbarSlider.activeBackground");
 			theme->scrollbarSliderHoverBackground = tryParseColor(theme, colorsJson, "scrollbarSlider.hoverBackground");
 
+			theme->editorSuggestWidgetBackground = tryParseColor(theme, colorsJson, "editorSuggestWidget.background");
+			theme->editorSuggestWidgetBorder = tryParseColor(theme, colorsJson, "editorSuggestWidget.border");
+			theme->editorSuggestWidgetSelectedBackground = tryParseColor(theme, colorsJson, "editorSuggestWidget.selectedBackground");
+
 			// Initialize the root of our tree (these are global settings)
 			theme->root.style.setForegroundColor(theme->defaultForeground);
 			theme->root.style.setBackgroundColor(theme->defaultBackground);

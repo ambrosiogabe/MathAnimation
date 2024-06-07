@@ -5,7 +5,7 @@ namespace MathAnim
 	namespace MathAnimGlobals
 	{
         static const std::string_view builtinDefinitionLuaSrc = R"BUILTIN_SRC(
-type Logger = {
+export type Logger = {
     write: <T...>(T...) -> (),
     info: <T...>(T...) -> (),
     warn: <T...>(T...) -> (),
@@ -84,7 +84,7 @@ export type AnimObject = {
     svgObject: SvgObject,
 }
 
-type MathAnimModule = {
+export type MathAnimModule = {
     createAnimObject: (parent: AnimObject) -> AnimObject
 }
 

@@ -67,3 +67,6 @@
 [submodule "Animations/vendor/optick"]
 	path = Animations/vendor/optick
 	url = https://github.com/bombomby/optick
+[submodule "Animations/vendor/rapidFuzz"]
+	path = Animations/vendor/rapidFuzz
+	url = https://github.com/rapidfuzz/rapidfuzz-cpp.git

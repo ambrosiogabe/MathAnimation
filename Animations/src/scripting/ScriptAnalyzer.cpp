@@ -1,7 +1,10 @@
 #include "scripting/ScriptAnalyzer.h"
 #include "scripting/MathAnimGlobals.h"
 #include "platform/Platform.h"
+#include "editor/panels/CodeEditorPanelManager.h"
 #include "editor/panels/ConsoleLog.h"
+
+#include <rapidfuzz/fuzz.hpp>
 
 #pragma warning( push )
 #pragma warning( disable : 4100 )
@@ -10,12 +13,17 @@
 #include <lua.h>
 #include <luacode.h>
 #include <lualib.h>
-#include <Luau/Frontend.h>
 #include <Luau/BuiltinDefinitions.h>
+#include <Luau/Frontend.h>
+#include <Luau/Documentation.h>
+#include <Luau/AstQuery.h>
+#include <Luau/ToString.h>
 #pragma warning( pop )
 
+using namespace Luau;
+
 // ------------------------------- Internal Types -------------------------------
-struct ScriptFileResolver : public Luau::FileResolver
+struct ScriptFileResolver : public FileResolver
 {
 	std::string anonymousSource;
 	std::string anonymousName;
@@ -25,20 +33,20 @@ struct ScriptFileResolver : public Luau::FileResolver
 
 	void setAnonymousFile(const std::string& source, const std::string& name);
 
-	virtual std::optional<Luau::SourceCode> readSource(const Luau::ModuleName& name) override;
+	virtual std::optional<SourceCode> readSource(const ModuleName& name) override;
 
-	std::optional<Luau::ModuleInfo> resolveModule(const Luau::ModuleInfo* context, Luau::AstExpr* node) override;
+	std::optional<ModuleInfo> resolveModule(const ModuleInfo* context, AstExpr* node) override;
 
-	std::string getHumanReadableModuleName(const Luau::ModuleName& name) const override;
+	std::string getHumanReadableModuleName(const ModuleName& name) const override;
 };
 
-struct ScriptConfigResolver : public Luau::ConfigResolver
+struct ScriptConfigResolver : public ConfigResolver
 {
-	Luau::Config defaultConfig;
+	Config defaultConfig;
 
 	ScriptConfigResolver();
 
-	virtual const Luau::Config& getConfig(const Luau::ModuleName& name) const override;
+	virtual const Config& getConfig(const ModuleName& name) const override;
 };
 
 enum class ReportFormat
@@ -49,32 +57,55 @@ enum class ReportFormat
 };
 
 // ------------------------------- Internal Functions -------------------------------
-static void reportError(const Luau::Frontend* frontend, const char* filepath, ReportFormat format, const Luau::TypeError& error);
-static void report(ReportFormat format, const char* filepath, const Luau::Location& loc, const char* type, const char* message);
+static void reportError(const Frontend* frontend, const char* filepath, ReportFormat format, const TypeError& error);
+static void report(ReportFormat format, const char* filepath, const Location& loc, const char* type, const char* message);
+
+// -- Internal Data --
+constexpr auto autocompleteKindPrecedence = fixedSizeArray<int, (int)AutocompleteEntryKind::GeneratedFunction + 1>(
+	0, // Property,
+	1, // Binding,
+	4, // Keyword,
+	5, // String,
+	2, // Type,
+	3, // Module,
+	6 // GeneratedFunction,
+	);
 
 namespace MathAnim
 {
 	ScriptAnalyzer::ScriptAnalyzer(const std::filesystem::path& scriptDirectory)
 		: m_scriptDirectory(scriptDirectory)
 	{
-		Luau::FrontendOptions frontendOptions;
-		frontendOptions.retainFullTypeGraphs = false;
+		FrontendOptions frontendOptions;
+		frontendOptions.retainFullTypeGraphs = true;
 
 		fileResolver = g_memory_new ScriptFileResolver(scriptDirectory);
 		configResolver = g_memory_new ScriptConfigResolver();
-		frontend = g_memory_new Luau::Frontend(fileResolver, configResolver, frontendOptions);
+		frontend = g_memory_new Frontend(fileResolver, configResolver, frontendOptions);
+
+		unfreeze(frontend->globals.globalTypes);
+		unfreeze(frontend->globalsForAutocomplete.globalTypes);
 
 		// Register the bundled builtin globals that come with Luau
-		Luau::registerBuiltinGlobals(frontend->typeChecker);
+		registerBuiltinGlobals(*frontend, frontend->globals, true);
+
+		freeze(frontend->globals.globalTypes);
+		freeze(frontend->globalsForAutocomplete.globalTypes);
+
 		{
 			// Register our own builtin globals 
-			Luau::LoadDefinitionFileResult loadResult =
-				Luau::loadDefinitionFile(
-					frontend->typeChecker,
-					frontend->typeChecker.globalScope,
-					MathAnimGlobals::getBuiltinDefinitionSource(),
-					"math-anim"
-				);
+			GlobalTypes& globals = frontend->globalsForAutocomplete;
+			unfreeze(globals.globalTypes);
+			LoadDefinitionFileResult loadResult = frontend->loadDefinitionFile(
+				globals,
+				globals.globalScope,
+				MathAnimGlobals::getBuiltinDefinitionSource(),
+				"math-anim",
+				true, /* Capture comments */
+				true /* Typecheck for autocomplete */
+			);
+			freeze(globals.globalTypes);
+
 			if (!loadResult.success)
 			{
 				g_logger_error("The ScriptAnalyzer failed to load math-anim builtin definitions. Errors:");
@@ -86,33 +117,34 @@ namespace MathAnim
 						loadResult.parseResult.errors[i].getLocation().begin.column);
 				}
 			}
-
-			// TODO: Why was this code here and then commented out?
-			//Luau::TypeArena& arena = frontend->typeChecker.globalTypes;
-			//arena.addType(loadResult.module.get()->astTypes[0]);
 		}
+
 		{
-			// Register our own builtin types 
-			Luau::LoadDefinitionFileResult loadResult =
-				Luau::loadDefinitionFile(
-					frontend->typeChecker,
-					frontend->typeChecker.globalScope,
-					MathAnimGlobals::getMathAnimApiTypes(),
-					"math-anim"
-				);
+			// Register our own builtin globals 
+			GlobalTypes& globals = frontend->globalsForAutocomplete;
+			unfreeze(globals.globalTypes);
+			LoadDefinitionFileResult loadResult = frontend->loadDefinitionFile(
+				globals,
+				globals.globalScope,
+				MathAnimGlobals::getMathAnimApiTypes(),
+				"math-anim",
+				true, /* Capture comments */
+				true /* Typecheck for autocomplete */
+			);
+			freeze(globals.globalTypes);
+
 			if (!loadResult.success)
 			{
 				g_logger_error("The ScriptAnalyzer failed to load math-anim builtin definitions. Errors:");
 				for (int i = 0; i < loadResult.parseResult.errors.size(); i++)
 				{
-					g_logger_error("{} at line:column {}:{}",
+					g_logger_error("{} at line : column {}:{}",
 						loadResult.parseResult.errors[i].getMessage(),
 						loadResult.parseResult.errors[i].getLocation().begin.line,
 						loadResult.parseResult.errors[i].getLocation().begin.column);
 				}
 			}
 		}
-		Luau::freeze(frontend->typeChecker.globalTypes);
 	}
 
 	bool ScriptAnalyzer::analyze(const std::string& filename)
@@ -128,7 +160,7 @@ namespace MathAnim
 			return false;
 		}
 
-		Luau::CheckResult cr;
+		CheckResult cr;
 
 		if (frontend->isDirty(filename))
 			cr = frontend->check(filename);
@@ -164,7 +196,7 @@ namespace MathAnim
 		ScriptFileResolver* scriptFileResolver = dynamic_cast<ScriptFileResolver*>(fileResolver);
 		scriptFileResolver->setAnonymousFile(sourceCode, scriptName);
 
-		Luau::CheckResult cr;
+		CheckResult cr;
 
 		if (frontend->isDirty(scriptName))
 			cr = frontend->check(scriptName);
@@ -181,6 +213,267 @@ namespace MathAnim
 
 		frontend->clear();
 		return cr.errors.size() == 0;
+	}
+
+	FunctionIntellisense ScriptAnalyzer::getFunctionParameterIntellisense(std::string const& sourceCode, std::string const& scriptName, uint32 line, uint32 column)
+	{
+		// TODO: Abstract this stuff into a check function
+		ScriptFileResolver* scriptFileResolver = dynamic_cast<ScriptFileResolver*>(fileResolver);
+		scriptFileResolver->setAnonymousFile(sourceCode, scriptName);
+
+		CheckResult cr;
+		frontend->markDirty(scriptName);
+
+		FrontendOptions frontendOpts;
+		frontendOpts.forAutocomplete = true;
+		frontendOpts.retainFullTypeGraphs = true;
+		cr = frontend->check(scriptName, frontendOpts);
+
+		auto mainSource = frontend->getSourceModule(scriptName);
+
+		// If this is nullptr, we can't get type information
+		if (!mainSource)
+		{
+			return {};
+		}
+
+		AstExpr* astExpr = findExprAtPosition(*mainSource, Position(line - 1, column));
+		if (!astExpr)
+		{
+			return {};
+		}
+
+		AstExprCall* exprCall = astExpr->as<AstExprCall>();
+		if (!exprCall || !exprCall->func)
+		{
+			return {};
+		}
+
+		FunctionIntellisense res = {};
+		Position fnIdentifierBegin = Position(line - 1, column + 1);
+		if (auto* funcName = exprCall->func->as<AstExprIndexName>(); funcName && funcName->index.value)
+		{
+			res.fnName = funcName->index.value;
+			fnIdentifierBegin = funcName->indexLocation.begin;
+		}
+		else if (auto* globalFunc = exprCall->func->as<AstExprGlobal>(); globalFunc && globalFunc->name.value)
+		{
+			res.fnName = globalFunc->name.value;
+			fnIdentifierBegin = globalFunc->location.begin;
+		}
+		else if (auto* localFunc = exprCall->func->as<AstExprLocal>();
+			localFunc && localFunc->local && localFunc->local->name.value)
+		{
+			res.fnName = localFunc->local->name.value;
+			fnIdentifierBegin = localFunc->location.begin;
+		}
+		else
+		{
+			return {};
+		}
+
+		auto mainModule = frontend->moduleResolverForAutocomplete.getModule(scriptName);
+		if (!mainModule)
+		{
+			return {};
+		}
+
+		std::optional<TypeId> type = findTypeAtPosition(*mainModule, *mainSource, fnIdentifierBegin);
+		if (!type.has_value())
+		{
+			return {};
+		}
+
+		TypeId id = follow(type.value());
+		FunctionType const* fnType = get<FunctionType>(id);
+		if (!fnType)
+		{
+			return {};
+		}
+
+		auto [argTypes, argVariadicPack] = flatten(fnType->argTypes);
+		for (size_t i = 0; i < argTypes.size(); i++)
+		{
+			// TODO: Find out if there's a way to get a type prefix. 
+			//       Like, if you import a module then name it ModuleImport.Type
+			//       how can I find out what ModuleImport is called here?
+			FunctionParameter param = {};
+			if (i < fnType->argNames.size() && fnType->argNames[i].has_value())
+			{
+				param.name = fnType->argNames[i]->name;
+			}
+
+			TypeId argType = follow(argTypes[i]);
+
+			if (auto* asError = get<ErrorType>(argType); asError)
+			{
+				param.stringifiedType = "T";
+				res.parameters.emplace_back(param);
+			}
+			else
+			{
+				param.stringifiedType = toString(argType);
+				res.parameters.emplace_back(param);
+			}
+		}
+
+		auto [retTypes, retVariadicPack] = flatten(fnType->retTypes);
+		for (size_t i = 0; i < retTypes.size(); i++)
+		{
+			res.returnTypes.emplace_back(toString(retTypes[i]));
+		}
+
+		// Stringify the function info then parse it to get syntax highlight info
+		std::string stringifiedFunctionType = "";
+		stringifiedFunctionType += "type " + res.fnName + " = (";
+
+		for (size_t i = 0; i < res.parameters.size(); i++)
+		{
+			if (res.parameters[i].name.has_value())
+			{
+				stringifiedFunctionType += res.parameters[i].name.value() + ": ";
+			}
+			stringifiedFunctionType += res.parameters[i].stringifiedType;
+
+			if (i < res.parameters.size() - 1)
+			{
+				stringifiedFunctionType += ", ";
+			}
+		}
+
+		stringifiedFunctionType += "): (";
+		for (size_t i = 0; i < res.returnTypes.size(); i++)
+		{
+			stringifiedFunctionType += res.returnTypes[i];
+
+			if (i < res.returnTypes.size() - 1)
+			{
+				stringifiedFunctionType += ", ";
+			}
+		}
+
+		stringifiedFunctionType += ")";
+
+		auto const& highlighter = CodeEditorPanelManager::getHighlighter();
+		auto const& theme = CodeEditorPanelManager::getTheme();
+		res.highlightInfo = highlighter.parse(stringifiedFunctionType.c_str(), stringifiedFunctionType.size(), theme);
+
+		return res;
+	}
+
+	static std::optional<AutocompleteEntryMap> nullCallback(std::string /*tag*/, std::optional<const ClassType*> /*ptr*/, std::optional<std::string> /*contents*/)
+	{
+		return std::nullopt;
+	}
+
+	static void sortSuggestionsByRankAndKind(std::vector<AutocompleteSuggestion>& suggestions)
+	{
+		std::sort(suggestions.begin(), suggestions.end(), [](AutocompleteSuggestion const& a, AutocompleteSuggestion const& b)
+			{
+				if (a.data.kind == b.data.kind)
+				{
+					return a.rank > b.rank;
+				}
+
+				// If they're different kinds of stuff, rank by kind of suggestion.
+				// For example, suggestions for variable properties should rank higher than keywords
+				return autocompleteKindPrecedence[(int)a.data.kind] < autocompleteKindPrecedence[(int)b.data.kind];
+			});
+	}
+
+	std::vector<AutocompleteSuggestion> ScriptAnalyzer::getSuggestions(std::string const& sourceCode, std::string const& scriptName, uint32 line, uint32 column)
+	{
+		if (!fileResolver || !configResolver || !frontend)
+		{
+			static bool displayWarning = true;
+			if (displayWarning)
+			{
+				g_logger_warning("Tried to sandbox a script, but the script analyzer was not initialized properly. Suppressing this message now.");
+				displayWarning = false;
+			}
+			return {};
+		}
+
+		ScriptFileResolver* scriptFileResolver = dynamic_cast<ScriptFileResolver*>(fileResolver);
+		scriptFileResolver->setAnonymousFile(sourceCode, scriptName);
+
+		CheckResult cr;
+		frontend->markDirty(scriptName);
+		frontend->check(scriptName);
+
+		FrontendOptions opts;
+		opts.forAutocomplete = true;
+		cr = frontend->check(scriptName, opts);
+
+		auto autocompleteRes = autocomplete(
+			*frontend,
+			scriptName,
+			Position(line - 1, column - 1),
+			nullCallback
+		);
+
+		std::vector<AutocompleteSuggestion> suggestions = {};
+		for (auto& [key, val] : autocompleteRes.entryMap)
+		{
+			AutocompleteSuggestion suggestion = {};
+			suggestion.text = key;
+			suggestion.data = val;
+			suggestion.rank = 0.0f;
+			suggestions.emplace_back(suggestion);
+		}
+
+		frontend->clear();
+
+		sortSuggestionsByRankAndKind(suggestions);
+
+		return suggestions;
+	}
+
+	void ScriptAnalyzer::sortSuggestionsByQuery(std::string const& query, std::vector<AutocompleteSuggestion>& suggestions, std::vector<int>& visibleSuggestions)
+	{
+		// Re-sort suggestions
+		sortSuggestionsByRankAndKind(suggestions);
+
+		// Then rank the suggestions
+		std::string lowercaseQuery{};
+		lowercaseQuery.reserve(query.size());
+		for (size_t i = 0; i < query.size(); i++)
+		{
+			lowercaseQuery += (char)std::tolower(query[i]);
+		}
+
+		visibleSuggestions.clear();
+
+		// Re-rank all suggestions according to new query
+		int index = 0;
+		for (auto& suggestion : suggestions)
+		{
+			std::string lowercaseSuggestion{};
+			lowercaseSuggestion.reserve(suggestion.text.size());
+			for (size_t i = 0; i < suggestion.text.size(); i++)
+			{
+				lowercaseSuggestion += (char)std::tolower(suggestion.text[i]);
+			}
+
+			suggestion.rank = (float)rapidfuzz::fuzz::partial_ratio(lowercaseQuery, lowercaseSuggestion);
+
+			// Only do more expensive string checks if ranking is similar
+			if (suggestion.rank > 0.0f)
+			{
+				suggestion.containsQuery = lowercaseSuggestion.find(lowercaseQuery) != std::string::npos;
+
+				if (suggestion.containsQuery)
+				{
+					visibleSuggestions.push_back(index);
+				}
+			}
+			else if (query == "")
+			{
+				visibleSuggestions.push_back(index);
+			}
+
+			index++;
+		}
 	}
 
 	void ScriptAnalyzer::free()
@@ -207,11 +500,11 @@ void ScriptFileResolver::setAnonymousFile(const std::string& source, const std::
 	anonymousName = name;
 }
 
-std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::ModuleName& name)
+std::optional<SourceCode> ScriptFileResolver::readSource(const ModuleName& name)
 {
 	if (name == "math-anim" || name == "math-anim.luau")
 	{
-		Luau::SourceCode res;
+		SourceCode res;
 		res.type = res.Module;
 		res.source = MathAnim::MathAnimGlobals::getMathAnimModule();
 		return res;
@@ -220,7 +513,7 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 	std::string scriptPath = (scriptDirectory / name).string();
 	if (!MathAnim::Platform::fileExists(scriptPath.c_str()) && anonymousName == name)
 	{
-		Luau::SourceCode res;
+		SourceCode res;
 		res.source = anonymousSource;
 		res.type = res.Module;
 		anonymousName = "UNDEFINED";
@@ -228,7 +521,7 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 		return res;
 	}
 
-	Luau::SourceCode res;
+	SourceCode res;
 	res.type = res.Module;
 
 	FILE* fp = fopen(scriptPath.c_str(), "rb");
@@ -261,18 +554,18 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 	return res;
 }
 
-std::optional<Luau::ModuleInfo> ScriptFileResolver::resolveModule(const Luau::ModuleInfo*, Luau::AstExpr* node)
+std::optional<ModuleInfo> ScriptFileResolver::resolveModule(const ModuleInfo*, AstExpr* node)
 {
-	if (Luau::AstExprConstantString* expr = node->as<Luau::AstExprConstantString>())
+	if (AstExprConstantString* expr = node->as<AstExprConstantString>())
 	{
-		Luau::ModuleName name = std::string(expr->value.data, expr->value.size) + ".luau";
+		ModuleName name = std::string(expr->value.data, expr->value.size) + ".luau";
 		return { {name} };
 	}
 
 	return std::nullopt;
 }
 
-std::string ScriptFileResolver::getHumanReadableModuleName(const Luau::ModuleName& name) const
+std::string ScriptFileResolver::getHumanReadableModuleName(const ModuleName& name) const
 {
 	if (name == "-")
 		return "stdin";
@@ -282,25 +575,27 @@ std::string ScriptFileResolver::getHumanReadableModuleName(const Luau::ModuleNam
 // ------------------------------- Config Resolver -------------------------------
 ScriptConfigResolver::ScriptConfigResolver()
 {
-	defaultConfig.mode = Luau::Mode::Strict;
+	defaultConfig.mode = Mode::Strict;
+	defaultConfig.enabledLint.warningMask = ~0ull;
+	defaultConfig.parseOptions.captureComments = true;
 }
 
-const Luau::Config& ScriptConfigResolver::getConfig(const Luau::ModuleName&) const
+const Config& ScriptConfigResolver::getConfig(const ModuleName&) const
 {
 	return defaultConfig;
 }
 
 // ------------------------------- Internal Functions -------------------------------
-static void reportError(const Luau::Frontend* frontend, const char* filepath, ReportFormat format, const Luau::TypeError& error)
+static void reportError(const Frontend* frontend, const char* filepath, ReportFormat format, const TypeError& error)
 {
-	if (const Luau::SyntaxError* syntaxError = Luau::get_if<Luau::SyntaxError>(&error.data))
+	if (const SyntaxError* syntaxError = get_if<SyntaxError>(&error.data))
 		report(format, filepath, error.location, "SyntaxError", syntaxError->message.c_str());
 	else
 		report(format, filepath, error.location, "TypeError",
-			Luau::toString(error, Luau::TypeErrorToStringOptions{ frontend->fileResolver }).c_str());
+		toString(error, TypeErrorToStringOptions{ frontend->fileResolver }).c_str());
 }
 
-static void report(ReportFormat format, const char* filepath, const Luau::Location& loc, const char* type, const char* message)
+static void report(ReportFormat format, const char* filepath, const Location& loc, const char* type, const char* message)
 {
 	switch (format)
 	{

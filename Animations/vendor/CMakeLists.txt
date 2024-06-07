@@ -145,3 +145,9 @@ set(OPTICK_INSTALL_TARGETS OFF)
 set(OPTICK_ENABLED ON)
 
 add_subdirectory(optick)
+
+
+##############
+# Rapid Fuzz #
+##############
+add_subdirectory(rapidFuzz)

@@ -290,6 +290,11 @@ namespace MathAnim
 			return true;
 		}
 
+		ScriptAnalyzer& getScriptAnalyzer()
+		{
+			return *analyzer;
+		}
+
 		void free()
 		{
 			if (analyzer)

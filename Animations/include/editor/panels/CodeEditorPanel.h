@@ -1,5 +1,6 @@
 #include "core.h"
 #include "parsers/SyntaxHighlighter.h"
+#include "scripting/ScriptAnalyzer.h"
 
 #include <cppUtils/cppStrings.hpp>
 
@@ -35,6 +36,8 @@ namespace MathAnim
 		int32 mouseByteDragStart;
 		int32 firstByteInSelection;
 		int32 lastByteInSelection;
+		Vec2 lastCursorPosition;
+		float cursorTimeSpentInterpolating;
 		CppUtils::BasicUtf8StringIter cursor;
 		uint32 cursorCurrentLine;
 		int32 numOfCharsFromBeginningOfLine;
@@ -44,6 +47,16 @@ namespace MathAnim
 
 		uint8* visibleCharacterBuffer;
 		size_t visibleCharacterBufferSize;
+
+		FunctionIntellisense functionInfo;
+		uint32 currentFunctionIntellisenseParam;
+
+		std::vector<AutocompleteSuggestion> intellisenseSuggestions;
+		std::vector<int> visibleIntellisenseSuggestions;
+		uint32 intellisenseScrollOffset;
+		uint32 selectedIntellisenseSuggestion;
+		bool intellisensePanelOpen;
+		std::string stringTypedSinceLastDot;
 
 		CodeHighlights syntaxHighlightTree;
 		CodeEditorPanelDebugData debugData;
