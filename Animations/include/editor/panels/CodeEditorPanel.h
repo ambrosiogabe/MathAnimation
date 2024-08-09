@@ -47,6 +47,11 @@ namespace MathAnim
 
 		CodeHighlights syntaxHighlightTree;
 		CodeEditorPanelDebugData debugData;
+
+		// Debugging info
+		std::unordered_set<uint32> breakpoints;
+		uint32 currentExecutingLine;
+		bool debuggingSessionActive;
 	};
 
 	namespace CodeEditorPanel

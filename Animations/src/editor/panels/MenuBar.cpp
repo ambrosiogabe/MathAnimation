@@ -1,5 +1,6 @@
 #include "editor/panels/MenuBar.h"
 #include "editor/panels/CodeEditorPanelManager.h"
+#include "editor/panels/LuauWatchWindow.h"
 #include "editor/panels/RegexTester.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/EditorLayout.h"
@@ -93,6 +94,11 @@ namespace MathAnim
 				{
 					if (ImGui::BeginMenu("Windows"))
 					{
+						if (ImGui::MenuItem("Watch Window"))
+						{
+							LuauWatchWindow::showWindow();
+						}
+
 						if (ImGui::MenuItem("Regex Tester"))
 						{
 							RegexTester::showWindow();

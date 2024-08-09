@@ -158,6 +158,11 @@ namespace MathAnim
 
 			res->undoSystem = UndoSystem::createTextEditorUndoSystem(res, MAX_UNDO_HISTORY);
 
+			// Init debug stuff
+			res->breakpoints = {};
+			res->currentExecutingLine = 0;
+			res->debuggingSessionActive = false;
+
 			g_memory_free(memory.data);
 
 			return res;
@@ -793,7 +798,7 @@ namespace MathAnim
 					ImGui::TableNextColumn(); ImGui::Text("Cursor Byte");
 					ImGui::TableNextColumn(); ImGui::Text("%d", panel.cursor.bytePos);
 					ImGui::TableNextRow();
-					
+
 					ImGui::TableNextColumn(); ImGui::Text("Line start dist (Chars)");
 					ImGui::TableNextColumn(); ImGui::Text("%d", panel.numOfCharsFromBeginningOfLine);
 					ImGui::TableNextRow();
@@ -1327,6 +1332,34 @@ namespace MathAnim
 			// Center the number text according to the largest sized number, but make sure the numbers are all aligned still
 			ImVec2 lineStart = getTopLeftOfLine(panel, lineNumber, font);
 			ImVec2 rightSideOfLargestNumberSize = lineStart + ImVec2((panel.leftGutterWidth / 2.0f) + (largestNumberSize.x / 2.0f), 0.0f);
+
+			// Handle drawing/inserting/removing breakpoints
+			{
+				float lineHeight = getLineHeight(font);
+				bool mouseHoveredOverLineNumber = ImGui::IsMouseHoveringRect(lineStart, ImVec2(rightSideOfLargestNumberSize.x, lineStart.y + lineHeight));
+				auto breakpointIter = panel.breakpoints.find(lineNumber);
+				if (mouseHoveredOverLineNumber || breakpointIter != panel.breakpoints.end())
+				{
+					int alpha = mouseHoveredOverLineNumber && breakpointIter == panel.breakpoints.end() ? 128 : 255;
+
+					constexpr float breakpointRadius = 8.0f;
+					float breakpointX = lineStart.x + ((panel.leftGutterWidth - largestNumberSize.x) / 4.0f);
+					float breakpointY = lineStart.y + (lineHeight / 2.0f);
+					drawList->AddCircleFilled(ImVec2(breakpointX, breakpointY), breakpointRadius, ImColor(255, 0, 0, alpha));
+
+					if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && mouseHoveredOverLineNumber)
+					{
+						if (breakpointIter == panel.breakpoints.end())
+						{
+							panel.breakpoints.insert(lineNumber);
+						}
+						else
+						{
+							panel.breakpoints.erase(breakpointIter);
+						}
+					}
+				}
+			}
 
 			std::string numberText = std::to_string(lineNumber);
 			glm::vec2 textSize = font->getSizeOfString(numberText);

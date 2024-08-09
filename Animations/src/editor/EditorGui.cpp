@@ -7,6 +7,7 @@
 #include "editor/panels/ErrorPopups.h"
 #include "editor/panels/ExportPanel.h"
 #include "editor/panels/InspectorPanel.h"
+#include "editor/panels/LuauWatchWindow.h"
 #include "editor/panels/RegexTester.h"
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/timeline/Timeline.h"
@@ -151,6 +152,7 @@ namespace MathAnim
 			CodeEditorPanelManager::update(am, editorViewportDockId);
 			ErrorPopups::update(am);
 			RegexTester::update();
+			LuauWatchWindow::update();
 
 			// TODO: Do this in a central file
 			checkHotKeys(am);
