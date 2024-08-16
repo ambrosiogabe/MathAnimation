@@ -637,7 +637,10 @@ namespace MathAnim
 					// Render the current line highlighted color if applicable
 					// We don't render the highlight background if we're selecting text, I guess it's because it makes it confusing
 					// but it's mainly to match what VsCode does here
-					if (currentLine == panel.cursorCurrentLine && panel.firstByteInSelection == panel.lastByteInSelection)
+					// We also only highlight the currently executing line if we're in the middle of a debugging session
+					bool isSelectingText = panel.firstByteInSelection != panel.lastByteInSelection;
+					bool shouldDrawBecauseOfCurrentLine = !panel.debuggingSessionActive && currentLine == panel.cursorCurrentLine;
+					if ((shouldDrawBecauseOfCurrentLine && !isSelectingText) || (panel.debuggingSessionActive && panel.currentExecutingLine == currentLine))
 					{
 						if (syntaxTheme.editorLineHighlightBackground)
 						{
@@ -1333,6 +1336,36 @@ namespace MathAnim
 			ImVec2 lineStart = getTopLeftOfLine(panel, lineNumber, font);
 			ImVec2 rightSideOfLargestNumberSize = lineStart + ImVec2((panel.leftGutterWidth / 2.0f) + (largestNumberSize.x / 2.0f), 0.0f);
 
+			// Handle drawing little arrow if we're in a debugging session
+			if (panel.debuggingSessionActive)
+			{
+				float lineHeight = getLineHeight(font);
+				if (lineNumber == panel.currentExecutingLine)
+				{
+					constexpr float arrowStemWidth = 12.0f;
+					constexpr float arrowStemHeight = 6.0f;
+					const float arrowTipHeight = lineHeight * (2.0f / 3.0f);
+					const float arrowTipWidth = arrowTipHeight - 2.0f;
+					const auto arrowColor = ImColor(242, 201, 87);
+
+					float arrowCenterX = lineStart.x + ((panel.leftGutterWidth - largestNumberSize.x) / 4.0f) + ((arrowStemWidth + arrowTipWidth) / 4.0f);
+					float centerY = lineStart.y + (lineHeight / 2.0f);
+
+					float arrowStemX = arrowCenterX - arrowStemWidth;
+					drawList->AddRectFilled(
+						ImVec2(arrowStemX, centerY - arrowStemHeight / 2.0f),
+						ImVec2(arrowStemX + arrowStemWidth, centerY + arrowStemHeight / 2.0f),
+						arrowColor
+					);
+					drawList->AddTriangleFilled(
+						ImVec2(arrowCenterX, centerY - arrowTipHeight / 2.0f),
+						ImVec2(arrowCenterX + arrowTipWidth, centerY),
+						ImVec2(arrowCenterX, centerY + arrowTipHeight / 2.0f),
+						arrowColor
+					);
+				}
+			}
+
 			// Handle drawing/inserting/removing breakpoints
 			{
 				float lineHeight = getLineHeight(font);
@@ -1345,7 +1378,15 @@ namespace MathAnim
 					constexpr float breakpointRadius = 8.0f;
 					float breakpointX = lineStart.x + ((panel.leftGutterWidth - largestNumberSize.x) / 4.0f);
 					float breakpointY = lineStart.y + (lineHeight / 2.0f);
-					drawList->AddCircleFilled(ImVec2(breakpointX, breakpointY), breakpointRadius, ImColor(255, 0, 0, alpha));
+
+					if (!panel.debuggingSessionActive)
+					{
+						drawList->AddCircleFilled(ImVec2(breakpointX, breakpointY), breakpointRadius, ImColor(255, 0, 0, alpha));
+					}
+					else
+					{
+						drawList->AddCircle(ImVec2(breakpointX, breakpointY), breakpointRadius, ImColor(255, 0, 0, alpha));
+					}
 
 					if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && mouseHoveredOverLineNumber)
 					{

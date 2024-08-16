@@ -5,6 +5,7 @@
 #include "core/Input.h"
 #include "renderer/Fonts.h"
 #include "parsers/SyntaxHighlighter.h"
+#include "scripting/LuauLayer.h"
 
 namespace MathAnim
 {
@@ -122,6 +123,11 @@ namespace MathAnim
 				{
 					bool hasBeenEdited = CodeEditorPanel::update(*editor->panel);
 					editor->isEditedWithoutSave = editor->isEditedWithoutSave || hasBeenEdited;
+
+					if (Input::keyPressed(GLFW_KEY_5, KeyMods::Ctrl))
+					{
+						LuauLayer::startDebugging(editor->panel->filepath.filename().string(), editor->panel);
+					}
 				}
 
 				bool windowIsFocused = ImGui::IsWindowFocused();

@@ -5,6 +5,7 @@
 namespace MathAnim
 {
 	struct AnimationManagerData;
+	struct CodeEditorPanelData;
 
 	namespace LuauLayer
 	{
@@ -14,6 +15,9 @@ namespace MathAnim
 
 		bool compile(const std::string& filename);
 		bool compile(const std::string& sourceCode, const std::string& scriptName);
+
+		bool startDebugging(const std::string& filename, CodeEditorPanelData* editor);
+
 		const std::string& getCurrentExecutingScriptFilepath();
 
 		bool execute(const std::string& scriptName);

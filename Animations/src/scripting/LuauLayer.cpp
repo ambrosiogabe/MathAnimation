@@ -1,4 +1,5 @@
 #include "core.h"
+#include "core/Input.h"
 #include "scripting/LuauLayer.h"
 #include "scripting/GlobalApi.h"
 #include "scripting/ScriptAnalyzer.h"
@@ -6,6 +7,7 @@
 #include "animation/Animation.h"
 #include "animation/AnimationManager.h"
 #include "editor/panels/ConsoleLog.h"
+#include "editor/panels/CodeEditorPanel.h"
 
 #pragma warning( push )
 #pragma warning( disable : 4100 )
@@ -45,6 +47,64 @@ namespace MathAnim
 		std::filesystem::path scriptDirectory = "";
 		const Bytecode* currentExecutingScript = nullptr;
 
+		// TESTING
+		//void* userdata; // arbitrary userdata pointer that is never overwritten by Luau
+
+		//void (*interrupt)(lua_State* L, int gc);  // gets called at safepoints (loop back edges, call/ret, gc) if set
+		//void (*panic)(lua_State* L, int errcode); // gets called when an unprotected error is raised (if longjmp is used)
+
+		//void (*userthread)(lua_State* LP, lua_State* L); // gets called when L is created (LP == parent) or destroyed (LP == NULL)
+		//int16_t(*useratom)(const char* s, size_t l);    // gets called when a string is created; returned atom can be retrieved via tostringatom
+
+		//void (*debugbreak)(lua_State* L, lua_Debug* ar);     // gets called when BREAK instruction is encountered
+		//void (*debugstep)(lua_State* L, lua_Debug* ar);      // gets called after each instruction in single step mode
+		//void (*debuginterrupt)(lua_State* L, lua_Debug* ar); // gets called when thread execution is interrupted by break in another thread
+		//void (*debugprotectederror)(lua_State* L);           // gets called when protected call results in an error
+
+		static bool isDebugging = false;
+		static int lastLineWeWereDebugging = -1;
+		static void debugBreak(lua_State* L, lua_Debug* ar)
+		{
+			lua_singlestep(L, true);
+			lastLineWeWereDebugging = ar->currentline;
+			if (!isDebugging)
+			{
+				auto* callbacks = lua_callbacks(luaState);
+				auto* editor = (CodeEditorPanelData*)callbacks->userdata;
+				editor->currentExecutingLine = ar->currentline;
+				editor->debuggingSessionActive = true;
+
+				g_logger_info("Hit Breakpoint! Current line: {}", ar->currentline);
+				isDebugging = true;
+				lua_yield(L, 0);
+			}
+		}
+
+		static void debugStep(lua_State* L, lua_Debug* ar)
+		{
+			if (lastLineWeWereDebugging != ar->currentline)
+			{
+				auto* callbacks = lua_callbacks(luaState);
+				auto* editor = (CodeEditorPanelData*)callbacks->userdata;
+				editor->currentExecutingLine = ar->currentline;
+
+				lastLineWeWereDebugging = ar->currentline;
+				g_logger_info("Debug Stepping. Current line: {}", ar->currentline);
+				lua_yield(L, 0);
+			}
+		}
+
+		static void debugInterrupt(lua_State*, lua_Debug* ar)
+		{
+			g_logger_info("Debug Interrupting. Current line: {}", ar->currentline);
+		}
+
+		static void debugProtectedError(lua_State*)
+		{
+			g_logger_info("Debug Protected error!");
+		}
+		// TESTING
+
 		void init(const std::filesystem::path& inScriptDirectory, AnimationManagerData* am)
 		{
 			Platform::createDirIfNotExists(inScriptDirectory.string().c_str());
@@ -54,11 +114,41 @@ namespace MathAnim
 			scriptDirectory = inScriptDirectory;
 
 			analyzer = g_memory_new ScriptAnalyzer(inScriptDirectory);
+
+			auto* callbacks = lua_callbacks(luaState);
+			callbacks->debugbreak = debugBreak;
+			callbacks->debugstep = debugStep;
+			callbacks->debuginterrupt = debugInterrupt;
+			callbacks->debugprotectederror = debugProtectedError;
 		}
 
 		void update()
 		{
+			if (currentExecutingScript && Input::keyPressed(GLFW_KEY_6, KeyMods::Ctrl))
+			{
+				int result = lua_resume(luaState, NULL, 0);
+				if (result == LUA_OK)
+				{
+					auto* callbacks = lua_callbacks(luaState);
+					auto* editor = (CodeEditorPanelData*)callbacks->userdata;
+					editor->debuggingSessionActive = false;
 
+					currentExecutingScript = nullptr;
+					isDebugging = false;
+					lastLineWeWereDebugging = -1;
+					lua_singlestep(luaState, false);
+				}
+				else if (result != LUA_YIELD)
+				{
+					ParsedError error = parseError(lua_tostring(luaState, -1));
+					ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
+					lua_pop(luaState, 1);
+
+					currentExecutingScript = nullptr;
+					isDebugging = false;
+					lua_singlestep(luaState, false);
+				}
+			}
 		}
 
 		bool compile(const std::string& filename)
@@ -179,6 +269,51 @@ namespace MathAnim
 
 			static const std::string dummyScriptName = "NULL_SCRIPT";
 			return dummyScriptName;
+		}
+
+		bool startDebugging(const std::string& filename, CodeEditorPanelData* editor)
+		{
+			auto iter = cachedBytecode.find(filename);
+			if (iter == cachedBytecode.end())
+			{
+				g_logger_warning("Tried to execute script '{}' which was never compiled successfully.", filename);
+				return false;
+			}
+
+			const Bytecode& bytecode = iter->second;
+			currentExecutingScript = &bytecode;
+			int result = luau_load(luaState, filename.c_str(), bytecode.bytes, bytecode.size, 0);
+
+			if (result != 0)
+			{
+				lua_pop(luaState, 1);
+				currentExecutingScript = nullptr;
+				return false;
+			}
+
+			for (auto const breakpointLine : editor->breakpoints)
+			{
+				lua_breakpoint(luaState, -1, breakpointLine, true);
+			}
+
+			// Setup user data so we can tell our code editor what line is currently executing
+			auto* callbacks = lua_callbacks(luaState);
+			callbacks->userdata = editor;
+
+			// NOTE: lua_resume will begin a coroutine, this will suspend execution
+			//       if it YIELDS, which should happen once it hits a breakpoint
+			result = lua_resume(luaState, NULL, 0);
+			if (result != LUA_YIELD && result != LUA_OK)
+			{
+				ParsedError error = parseError(lua_tostring(luaState, -1));
+				ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
+				lua_pop(luaState, 1);
+
+				currentExecutingScript = nullptr;
+				return false;
+			}
+
+			return true;
 		}
 
 		bool execute(const std::string& filename)

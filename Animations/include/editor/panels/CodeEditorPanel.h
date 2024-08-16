@@ -1,4 +1,5 @@
 #include "core.h"
+#include "core.h"
 #include "parsers/SyntaxHighlighter.h"
 
 #include <cppUtils/cppStrings.hpp>
