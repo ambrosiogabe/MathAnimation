@@ -25,6 +25,7 @@
 #include "editor/Gizmos.h"
 #include "editor/EditorCameraController.h"
 #include "editor/EditorSettings.h"
+#include "editor/LayoutSerializer.h"
 #include "editor/timeline/Timeline.h"
 #include "editor/imgui/ImGuiLayer.h"
 #include "editor/panels/CodeEditorPanelManager.h"
@@ -81,6 +82,8 @@ namespace MathAnim
 		static float deltaTime = 0.0f;
 
 		static const char* winTitle = "Math Animations";
+
+		static std::vector<EditorWindowData> applicationLayoutData = {};
 
 		// ------- Internal Functions -------
 		static nlohmann::json serializeCameras();
@@ -183,6 +186,9 @@ namespace MathAnim
 			double previousTime = glfwGetTime() - 0.16f;
 			int deltaFrame = 0;
 
+			// Useful if we need to do things on specific frames while initializing
+			uint32 globalFrameCount = 0;
+
 			svgCache->clearAll();
 
 			while (isRunning && !window->shouldClose())
@@ -230,6 +236,9 @@ namespace MathAnim
 				// Update camera matrices
 				// NOTE: The editor camera matrices are updated in EditorCameraController::update
 				AnimationManager::calculateCameraMatrices(am);
+
+				// Useful for calculating when to serialize our editor layout
+				bool isLastFrame = !isRunning || window->shouldClose();
 
 				// Render all animation draw calls to main framebuffer
 				if (EditorGui::mainViewportActive() || ExportPanel::isExportingVideo())
@@ -314,7 +323,22 @@ namespace MathAnim
 				ImGui::ShowDemoWindow();
 				SceneManagementPanel::update(sceneData);
 				EditorGui::update(mainFramebuffer, editorFramebuffer, am, deltaTime);
-				ImGuiLayer::endFrame();
+
+				// Serialize layout if needed
+				if (isLastFrame)
+				{
+					applicationLayoutData.clear();
+					applicationLayoutData = LayoutSerializer::imguiLastFrame();
+				}
+
+				// We wait until the second frame so any code editors that are being opened have time to process
+				// on the first frame
+				if (globalFrameCount == 2)
+				{
+					LayoutSerializer::imguiFirstFrame(applicationLayoutData);
+				}
+
+				ImGuiLayer::endFrame(globalFrameCount > 2);
 				GL::popDebugGroup();
 
 				// End frame stuff
@@ -335,11 +359,12 @@ namespace MathAnim
 					reloadCurrentSceneInternal();
 					reloadCurrentScene = false;
 				}
+
+				globalFrameCount++;
 			}
 
 			// If the window is closing, save the last rendered frame to a preview image
-			// TODO: Do this a better way
-			//       Like no hard coded image path here and hard coded number of components
+			// TODO: Do this a better way. Like no hard coded image path here and hard coded number of components
 			if (AnimationManager::hasActiveCamera(am))
 			{
 				Renderer::pushCamera2D(&AnimationManager::getActiveCamera(am));
@@ -456,6 +481,7 @@ namespace MathAnim
 		constexpr const char* SceneHierarchyProp = "SceneHierarchy";
 		constexpr const char* CodeEditorsDataProp = "CodeEditorPanelManager";
 		constexpr const char* EditorCamerasProp = "EditorCameras";
+		constexpr const char* EditorLayoutProp = "EditorLayout";
 		void saveCurrentScene()
 		{
 			// Write data to json files
@@ -472,6 +498,7 @@ namespace MathAnim
 			sceneJson[EditorCamerasProp] = serializeCameras();
 			SceneHierarchyPanel::serialize(sceneJson[SceneHierarchyProp]);
 			CodeEditorPanelManager::serialize(sceneJson[CodeEditorsDataProp]);
+			LayoutSerializer::serialize(sceneJson[EditorLayoutProp], applicationLayoutData);
 
 			try
 			{
@@ -640,6 +667,11 @@ namespace MathAnim
 				if (sceneJson.contains(CodeEditorsDataProp) && !sceneJson[CodeEditorsDataProp].is_null())
 				{
 					CodeEditorPanelManager::deserialize(sceneJson[CodeEditorsDataProp]);
+				}
+
+				if (sceneJson.contains(EditorLayoutProp) && !sceneJson[EditorLayoutProp].is_null())
+				{
+					applicationLayoutData = LayoutSerializer::deserialize(sceneJson[EditorLayoutProp]);
 				}
 			}
 			catch (const std::exception& ex)

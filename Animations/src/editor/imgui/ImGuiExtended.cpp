@@ -149,6 +149,19 @@ namespace MathAnim
 		static ImGuiStateEx<std::string> inputTextMultilineData;
 		static ImGuiStateEx<std::string> fileDragDropData;
 
+		void makeDockTabVisible(const char* windowName, bool focusWindow)
+		{
+			ImGuiWindow* window = ImGui::FindWindowByName(windowName);
+			if (window == NULL || window->DockNode == NULL || window->DockNode->TabBar == NULL)
+				return;
+			window->DockNode->TabBar->NextSelectedTabId = window->TabId;
+
+			if (focusWindow)
+			{
+				ImGui::FocusWindow(window);
+			}
+		}
+
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size)
 		{
 			ToggleState& state = toggleStates.findOrDefault(string, { false });

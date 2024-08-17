@@ -87,7 +87,7 @@ namespace MathAnim
 					window->close();
 					projectWasSelected = true;
 				}
-				ImGuiLayer::endFrame();
+				ImGuiLayer::endFrame(true);
 
 				window->swapBuffers();
 			}

@@ -35,6 +35,15 @@ namespace MathAnim
 
 	namespace ImGuiExtended
 	{
+		/**
+		 * @brief This will make the window passed in visible in the dock. So, for example, if you
+		 *        have multiple tabs in one docked space and want to make one of the tabs visible
+		 *        you can pass the window name of the tab to this function and it will make it visible.
+		 * 
+		 * @param windowName The same name you used to create the window
+		*/
+		void makeDockTabVisible(const char* windowName, bool focusWindow = false);
+
 		bool ToggleButton(const char* string, bool* enabled, const ImVec2& size = ImVec2(0, 0));
 		bool OutlineButton(const char* string, const ImVec2& size = ImVec2(0, 0));
 		bool IconButton(const char* icon, const char* string, const ImVec2& size = ImVec2(0, 0));

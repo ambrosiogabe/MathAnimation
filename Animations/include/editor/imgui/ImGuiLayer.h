@@ -38,7 +38,7 @@ namespace MathAnim
 		);
 
 		void beginFrame();
-		void endFrame();
+		void endFrame(bool render);
 
 		void keyEvent();
 		void mouseEvent();

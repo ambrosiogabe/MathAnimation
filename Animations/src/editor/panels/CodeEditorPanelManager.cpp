@@ -1,5 +1,6 @@
 #include "editor/panels/CodeEditorPanelManager.h"
 #include "core/Serialization.hpp"
+#include "editor/imgui/ImGuiExtended.h"
 #include "editor/panels/CodeEditorPanel.h"
 #include "editor/TextEditUndo.h"
 #include "animation/AnimationManager.h"
@@ -121,16 +122,12 @@ namespace MathAnim
 
 				lineNumberToGoTo = -1;
 				fileToMakeActive = -1;
+
+				ImGuiExtended::makeDockTabVisible(editor.windowName.c_str());
 			}
 
 			for (auto editor = openEditors.begin(); editor != openEditors.end();)
 			{
-				if (editor->setFocus)
-				{
-					ImGui::SetNextWindowFocus();
-					editor->setFocus = false;
-				}
-
 				bool open = true;
 				int windowFlags = editor->isEditedWithoutSave ? ImGuiWindowFlags_UnsavedDocument : 0;
 				bool windowIsActive = ImGui::Begin(editor->windowName.c_str(), &open, windowFlags);
@@ -188,12 +185,7 @@ namespace MathAnim
 		{
 			if (auto iter = fileMap.find(filename); iter == fileMap.end())
 			{
-				filesToOpen.push(
-					{
-						filename, 
-						{}
-					}
-				);
+				filesToOpen.emplace(SerializableCodeEditorData{ filename, {} });
 				lineNumberToGoTo = lineNumber;
 			}
 			else
@@ -205,10 +197,7 @@ namespace MathAnim
 
 		void openFile(std::string const& filename)
 		{
-			if (fileMap.find(filename) == fileMap.end())
-			{
-				filesToOpen.emplace(SerializableCodeEditorData{filename, {}});
-			}
+			openFile(filename, 0);
 		}
 
 		void closeFile(std::string const& file)

@@ -49,7 +49,7 @@ namespace MathAnim
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 			if ((uint8)flags & (uint8)ImGuiLayerFlags::EnableDocking)
 				io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;       // Enable Docking
-			if ((uint8)flags & (uint8)ImGuiLayerFlags::EnableViewports) 
+			if ((uint8)flags & (uint8)ImGuiLayerFlags::EnableViewports)
 				io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;     // Enable Multi-Viewport / Platform Windows
 			io.ConfigWindowsMoveFromTitleBarOnly = true;
 			bool wantSaveIniFile = (uint8)ImGuiLayerFlags::SaveIniSettings & (uint8)layerFlags;
@@ -61,11 +61,11 @@ namespace MathAnim
 			// NOTE(voxel): This looks right for my machine (May have to go back and forth on the value 128.f
 			glm::ivec2 monitor_size = Window::getMonitorWorkingSize();
 			float fontSize = monitor_size.x / (128.f + 16.0f);
-#if defined(_WIN32)
+			#if defined(_WIN32)
 			defaultFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize);
-#elif defined(__linux__)
+			#elif defined(__linux__)
 			defaultFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/liberation/LiberationSans-Regular.ttf", fontSize);
-#endif
+			#endif
 
 			static const ImWchar iconRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
 			ImFontConfig config = {};
@@ -78,19 +78,19 @@ namespace MathAnim
 			// Add the rest of the fonts separately
 			config.MergeMode = false;
 			config.SizePixels = fontSize * 1.5f;
-#if defined(_WIN32)
+			#if defined(_WIN32)
 			mediumFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/Arial.ttf", fontSize * 1.5f);
-#elif defined(__linux__)
+			#elif defined(__linux__)
 			mediumFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/liberation/LiberationSerif-Regular.ttf", fontSize * 1.5f);
-#endif
+			#endif
 
 			config.MergeMode = false;
 			config.SizePixels = fontSize;
-#if defined(_WIN32)
+			#if defined(_WIN32)
 			monoFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/consola.ttf", fontSize);
-#elif defined(__linux__)
+			#elif defined(__linux__)
 			monoFont = io.Fonts->AddFontFromFileTTF("/usr/share/fonts/liberation/LiberationMono-Regular.ttf", fontSize);
-#endif
+			#endif
 
 			config.SizePixels = fontSize * 1.5f;
 			mediumSolidIconFont = io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.ttf", fontSize * 1.5f, &config, iconRanges);
@@ -147,7 +147,7 @@ namespace MathAnim
 				ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 		}
 
-		void endFrame()
+		void endFrame(bool render)
 		{
 			MP_PROFILE_EVENT("ImGuiLayer_EndFrame");
 
@@ -161,8 +161,11 @@ namespace MathAnim
 				ImGui::Render();
 			}
 
-			GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
-			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+			if (render)
+			{
+				GL::bindFramebuffer(GL_FRAMEBUFFER, 0);
+				ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+			}
 
 			ImGuiIO& io = ImGui::GetIO();
 
@@ -230,8 +233,8 @@ namespace MathAnim
 			}
 
 			const std::filesystem::path& layoutRoot = EditorLayout::getLayoutsRoot();
-			std::filesystem::path fullPathJson = (layoutRoot/(std::string(name) + ".json"));
-			std::filesystem::path fullPathIni = (layoutRoot/(std::string(name) + ".ini"));
+			std::filesystem::path fullPathJson = (layoutRoot / (std::string(name) + ".json"));
+			std::filesystem::path fullPathIni = (layoutRoot / (std::string(name) + ".ini"));
 
 			glm::vec2 resolution = Application::getAppWindowSize();
 			ImGui::SaveIniSettingsToDisk(fullPathIni.string().c_str());
@@ -241,9 +244,9 @@ namespace MathAnim
 			}
 
 			ImGuiIniParser::convertImGuiIniToJson(
-				fullPathIni.string().c_str(), 
-				fullPathJson.string().c_str(), 
-				Vec2{resolution.x, resolution.y}
+				fullPathIni.string().c_str(),
+				fullPathJson.string().c_str(),
+				Vec2{ resolution.x, resolution.y }
 			);
 			if (!Platform::fileExists(fullPathJson.string().c_str()))
 			{

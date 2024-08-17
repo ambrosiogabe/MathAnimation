@@ -1,4 +1,5 @@
-#include "core.h"
+#ifndef CODE_EDITOR_PANEL_H
+#define CODE_EDITOR_PANEL_H
 #include "core.h"
 #include "parsers/SyntaxHighlighter.h"
 
@@ -82,3 +83,5 @@ namespace MathAnim
 		void showInspectorGui(SyntaxTheme const& theme, CodeHighlightDebugInfo const& parseInfo);
 	}
 }
+
+#endif

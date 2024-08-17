@@ -1,6 +1,9 @@
+#ifndef CODE_EDITOR_PANEL_MANAGER_H
+#define CODE_EDITOR_PANEL_MANAGER_H
 #include "core.h"
 
 #include "parsers/SyntaxHighlighter.h"
+#include <nlohmann/json_fwd.hpp>
 
 namespace MathAnim
 {
@@ -38,3 +41,5 @@ namespace MathAnim
 		void deserialize(const nlohmann::json& j);
 	}
 }
+
+#endif
