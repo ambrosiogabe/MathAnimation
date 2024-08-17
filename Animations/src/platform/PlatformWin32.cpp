@@ -353,6 +353,12 @@ namespace MathAnim
 			return (uint64)ShellExecuteA(NULL, "open", "cmd", command.c_str(), NULL, SW_HIDE);
 		}
 
+		bool copyFile(const char* srcFile, const char* dst, FileCopyOptions options)
+		{
+			bool failIfExists = ((uint8)options & (uint8)FileCopyOptions::FailIfDstExists);
+			return CopyFileA(srcFile, dst, failIfExists);
+		}
+
 		bool fileExists(const char* filename)
 		{
 			DWORD dwAttrib = GetFileAttributesA(filename);

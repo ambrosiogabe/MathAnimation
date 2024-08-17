@@ -8,6 +8,7 @@
 #include "animation/AnimationManager.h"
 #include "editor/panels/ConsoleLog.h"
 #include "editor/panels/CodeEditorPanel.h"
+#include "svg/Svg.h"
 
 #pragma warning( push )
 #pragma warning( disable : 4100 )
@@ -34,6 +35,12 @@ namespace MathAnim
 		std::string message;
 	};
 
+	enum class LoadBytecodeOptions : uint8
+	{
+		None = 1,
+		PopBytecode = None << 1,
+	};
+
 	namespace LuauLayer
 	{
 		// ---------- Internal Functions ----------
@@ -43,7 +50,7 @@ namespace MathAnim
 		static bool analyzeScriptFile(const std::string& filename);
 		static bool analyzeScriptSource(const std::string& sourceCode, const std::string& scriptName);
 		static Bytecode compileToBytecode(const char* data, size_t dataSize, std::string const& scriptName);
-		static int executeBytecode(Bytecode const& bytecode);
+		static int loadBytecode(Bytecode const& bytecode, LoadBytecodeOptions options = LoadBytecodeOptions::PopBytecode);
 		static bool readFile(std::string const& scriptPath, RawMemory* memory);
 
 		// ---------- Internal Variables ----------
@@ -159,7 +166,7 @@ namespace MathAnim
 			Bytecode bytecode = compileToBytecode((const char*)memory.data, memory.size, scriptPath);
 			memory.free();
 
-			int result = executeBytecode(bytecode);
+			int result = loadBytecode(bytecode);
 
 			// If the script throws a runtime error, don't cache it
 			if (result != 0)
@@ -184,7 +191,7 @@ namespace MathAnim
 
 			Bytecode bytecode = compileToBytecode(sourceCode.c_str(), sourceCode.length(), scriptName);
 			bytecode.scriptFilepath = scriptName;
-			int result = executeBytecode(bytecode);
+			int result = loadBytecode(bytecode);
 
 			if (result != 0)
 			{
@@ -227,7 +234,7 @@ namespace MathAnim
 
 			const Bytecode& bytecode = iter->second;
 			currentExecutingScript = &bytecode;
-			int result = luau_load(luaState, filename.c_str(), bytecode.bytes, bytecode.size, 0);
+			int result = loadBytecode(bytecode, LoadBytecodeOptions::None);
 
 			if (result != 0)
 			{
@@ -344,6 +351,7 @@ namespace MathAnim
 					AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
 					if (childObj)
 					{
+						childObj->_svgObjectStart->finalize();
 						childObj->retargetSvgScale();
 					}
 				}
@@ -454,11 +462,16 @@ namespace MathAnim
 			};
 		}
 
-		static int executeBytecode(Bytecode const& bytecode)
+		static int loadBytecode(Bytecode const& bytecode, LoadBytecodeOptions options)
 		{
 			int result = luau_load(luaState, bytecode.scriptFilepath.c_str(), bytecode.bytes, bytecode.size, 0);
-			// Pop the bytecode off the stack
-			lua_pop(luaState, 1);
+
+			bool popBytecode = ((uint8)options & (uint8)LoadBytecodeOptions::PopBytecode);
+			if (popBytecode)
+			{
+				// Pop the bytecode off the stack
+				lua_pop(luaState, 1);
+			}
 
 			return result;
 		}

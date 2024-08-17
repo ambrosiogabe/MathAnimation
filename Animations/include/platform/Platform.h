@@ -16,6 +16,18 @@ namespace MathAnim
 		MemMapUserData* userData;
 	};
 
+	enum class FileCopyOptions : uint8
+	{
+		/**
+		 * @brief Copy happens with no custom behavior
+		*/
+		None = 1,
+		/**
+		 * @brief If the file at `dst` exists, then the copy fails
+		*/
+		FailIfDstExists = None << 1
+	};
+
 	namespace Platform
 	{
 		void free();
@@ -31,6 +43,18 @@ namespace MathAnim
 		bool openFileWithDefaultProgram(const char* filepath);
 
 		bool openFileWithVsCode(const char* filepath, int lineNumber = -1);
+
+		/**
+		 * @brief Copys file from `srcFile` to the destination specified by `dst`
+		 * 
+		 * @param srcFile The filepath of the file to copy
+		 * @param dst The location of the file to be copied to
+		 * @param options A list of options to customize what happens on copy
+		 * 
+		 * @return True if the copy succeeds. False if the `srcFile` does not exist,
+		 *         or one of the options fails.
+		*/
+		bool copyFile(const char* srcFile, const char* dst, FileCopyOptions options = FileCopyOptions::None);
 
 		bool fileExists(const char* filename);
 

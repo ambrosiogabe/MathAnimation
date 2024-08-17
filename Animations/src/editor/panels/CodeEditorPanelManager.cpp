@@ -5,6 +5,7 @@
 #include "core/Input.h"
 #include "renderer/Fonts.h"
 #include "parsers/SyntaxHighlighter.h"
+#include "platform/Platform.h"
 #include "scripting/LuauLayer.h"
 
 namespace MathAnim

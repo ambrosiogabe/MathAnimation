@@ -599,6 +599,7 @@ namespace MathAnim
 			}
 			else
 			{
+				g_memory_free(dest->md5);
 				dest->md5 = nullptr;
 			}
 		}
@@ -1471,6 +1472,8 @@ namespace MathAnim
 
 	void SvgObject::calculateMd5(const RawMemory& b64Path)
 	{
+		g_memory_free(md5);
+
 		std::string md5Str = Platform::md5FromString((const char*)b64Path.data, b64Path.size - 1);
 		md5Length = md5Str.length();
 		md5 = (uint8*)g_memory_allocate(sizeof(uint8) * (md5Length + 1));

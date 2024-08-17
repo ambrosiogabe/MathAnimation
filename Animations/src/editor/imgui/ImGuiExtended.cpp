@@ -425,7 +425,7 @@ namespace MathAnim
 				outBuffer,
 				[&]()
 				{
-					return InputText(label, outBuffer, outBufferSize);
+					return FileDragDropInputBox(label, outBuffer, outBufferSize);
 				});
 		}
 

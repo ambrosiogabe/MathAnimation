@@ -38,6 +38,18 @@ namespace MathAnim
 		int newParent;
 	};
 
+	enum class PendingCtxActionType : uint8
+	{
+		None = 0,
+		DeleteAnimObj = 1
+	};
+
+	struct PendingCtxAction
+	{
+		PendingCtxActionType type;
+		AnimObjId objId;
+	};
+
 	namespace SceneHierarchyPanel
 	{
 		// --------- Internal variables ---------
@@ -49,7 +61,7 @@ namespace MathAnim
 		static bool mouseHoveredSceneHeirarchyPanel = false;
 
 		// --------- Internal functions ---------
-		static void openContextMenu(AnimationManagerData* am, SceneTreeMetadata* elementClicked);
+		static PendingCtxAction openContextMenu(AnimationManagerData* am, SceneTreeMetadata* elementClicked);
 		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, AnimObjId nextAnimObjParentId, bool* dropTargetEffected);
 		static bool isDescendantOf(AnimationManagerData* am, AnimObjId childAnimObjId, AnimObjId parentAnimObjId);
 		static bool imGuiSceneHeirarchyWindow(int* inBetweenIndex);
@@ -138,6 +150,8 @@ namespace MathAnim
 
 			bool movedAnimObjectInSceneHierarchy = false;
 
+			auto pendingActions = std::vector<PendingCtxAction>();
+
 			// Now iterate through all the entities
 			int activeElementIndex = -1;
 			bool contextItemMenuOpen = false;
@@ -199,7 +213,11 @@ namespace MathAnim
 				if (ImGui::BeginPopupContextItem())
 				{
 					contextItemMenuOpen = true;
-					openContextMenu(am, &element);
+					auto pendingAction = openContextMenu(am, &element);
+					if (pendingAction.type != PendingCtxActionType::None)
+					{
+						pendingActions.emplace_back(pendingAction);
+					}
 					ImGui::EndPopup();
 				}
 			}
@@ -250,6 +268,30 @@ namespace MathAnim
 						Application::getUndoSystem(),
 						animObject->id
 					);
+				}
+			}
+
+			// Handle pending actions
+			for (auto const& action : pendingActions)
+			{
+				switch (action.type)
+				{
+				case PendingCtxActionType::DeleteAnimObj:
+				{
+					const AnimObject* animObject = AnimationManager::getObject(am, action.objId);
+					if (animObject)
+					{
+						// TODO: Have this create some sort of event that we can subscribe to like:
+						//    EVENT --- DeleteAnimObject
+						// That way I don't have to worry about who's responsibility it is to remove
+						// the anim objects from the animation manager and the timeline
+						UndoSystem::removeObjFromScene(
+							Application::getUndoSystem(),
+							animObject->id
+						);
+					}
+				}
+				break;
 				}
 			}
 
@@ -345,8 +387,12 @@ namespace MathAnim
 		}
 
 		// --------- Internal functions ---------
-		static void openContextMenu(AnimationManagerData* am, SceneTreeMetadata* elementClicked)
+		static PendingCtxAction openContextMenu(AnimationManagerData* am, SceneTreeMetadata* elementClicked)
 		{
+			PendingCtxAction retValue = {};
+			retValue.objId = NULL_ANIM_OBJECT;
+			retValue.type = PendingCtxActionType::None;
+
 			const Vec4& grayedTextColor = Colors::Neutral[3];
 
 			ImGui::BeginDisabled(elementClicked == nullptr);
@@ -372,10 +418,8 @@ namespace MathAnim
 
 			if (ImGui::MenuItem("Delete", "Del"))
 			{
-				UndoSystem::removeObjFromScene(
-					Application::getUndoSystem(),
-					elementClicked->animObjectId
-				);
+				retValue.objId = elementClicked->animObjectId;
+				retValue.type = PendingCtxActionType::DeleteAnimObj;
 			}
 			ImGui::EndDisabled();
 
@@ -505,6 +549,7 @@ namespace MathAnim
 				);
 			}
 
+			return retValue;
 		}
 
 		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, AnimObjId nextAnimObjParentId, bool* dropTargetEffected)

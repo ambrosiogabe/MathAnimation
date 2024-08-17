@@ -38,6 +38,7 @@ namespace MathAnim
 		static std::filesystem::path assetsRoot;
 		static std::filesystem::path scriptsRoot;
 		static FileSystemWatcher* scriptWatcher = nullptr;
+		static const char* defaultNewScriptFilepath = "./assets/defaultScripts/mathAnimDefaultNewScript.luau";
 
 		void init(const std::filesystem::path& projectRoot)
 		{
@@ -240,6 +241,8 @@ namespace MathAnim
 
 		static void newScriptAddedCallback(const char* filename)
 		{
+			// Copy the default script to the new location
+			Platform::copyFile(defaultNewScriptFilepath, filename);
 			// TODO: Add custom options if people want to use something else as their
 			//       editor. An example would be something like VSCode
 			// Platform::openFileWithVsCode(filename);
