@@ -8,6 +8,7 @@
 #include "animation/AnimationManager.h"
 #include "editor/panels/ConsoleLog.h"
 #include "editor/panels/CodeEditorPanel.h"
+#include "editor/panels/CodeEditorPanelManager.h"
 #include "svg/Svg.h"
 
 #pragma warning( push )
@@ -41,6 +42,12 @@ namespace MathAnim
 		PopBytecode = None << 1,
 	};
 
+	struct AnimObjectDebugData
+	{
+		CodeEditorPanelData* editor;
+		AnimObjId object;
+	};
+
 	namespace LuauLayer
 	{
 		// ---------- Internal Functions ----------
@@ -69,11 +76,10 @@ namespace MathAnim
 			if (!isDebugging)
 			{
 				auto* callbacks = lua_callbacks(luaState);
-				auto* editor = (CodeEditorPanelData*)callbacks->userdata;
-				editor->currentExecutingLine = ar->currentline;
-				editor->debuggingSessionActive = true;
+				auto* debug = (AnimObjectDebugData*)callbacks->userdata;
+				debug->editor->currentExecutingLine = ar->currentline;
+				debug->editor->debuggingSessionActive = true;
 
-				g_logger_info("Hit Breakpoint! Current line: {}", ar->currentline);
 				isDebugging = true;
 				lua_yield(L, 0);
 			}
@@ -84,11 +90,10 @@ namespace MathAnim
 			if (lastLineWeWereDebugging != ar->currentline)
 			{
 				auto* callbacks = lua_callbacks(luaState);
-				auto* editor = (CodeEditorPanelData*)callbacks->userdata;
-				editor->currentExecutingLine = ar->currentline;
+				auto* debug = (AnimObjectDebugData*)callbacks->userdata;
+				debug->editor->currentExecutingLine = ar->currentline;
 
 				lastLineWeWereDebugging = ar->currentline;
-				g_logger_info("Debug Stepping. Current line: {}", ar->currentline);
 				lua_yield(L, 0);
 			}
 		}
@@ -120,21 +125,50 @@ namespace MathAnim
 			callbacks->debugprotectederror = debugProtectedError;
 		}
 
-		void update()
+		void update(AnimationManagerData* am)
 		{
+			bool runScriptDebugCode = false;
+
+			if (currentExecutingScript && Input::keyPressed(GLFW_KEY_7, KeyMods::Ctrl))
+			{
+				lua_singlestep(luaState, false);
+				runScriptDebugCode = true;
+			}
+
 			if (currentExecutingScript && Input::keyPressed(GLFW_KEY_6, KeyMods::Ctrl))
 			{
+				runScriptDebugCode = true;
+			}
+
+			if (runScriptDebugCode)
+			{
 				int result = lua_resume(luaState, NULL, 0);
+				auto* callbacks = lua_callbacks(luaState);
+				auto* debug = (AnimObjectDebugData*)callbacks->userdata;
+				const AnimObject* obj = AnimationManager::getObject(am, debug->object);
+
+				if (obj)
+				{
+					for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
+					{
+						AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
+						if (childObj)
+						{
+							childObj->_svgObjectStart->finalize();
+							childObj->retargetSvgScale();
+						}
+					}
+				}
+
 				if (result == LUA_OK)
 				{
-					auto* callbacks = lua_callbacks(luaState);
-					auto* editor = (CodeEditorPanelData*)callbacks->userdata;
-					editor->debuggingSessionActive = false;
+					debug->editor->debuggingSessionActive = false;
 
 					currentExecutingScript = nullptr;
 					isDebugging = false;
 					lastLineWeWereDebugging = -1;
 					lua_singlestep(luaState, false);
+					g_memory_free(debug);
 				}
 				else if (result != LUA_YIELD)
 				{
@@ -145,6 +179,7 @@ namespace MathAnim
 					currentExecutingScript = nullptr;
 					isDebugging = false;
 					lua_singlestep(luaState, false);
+					g_memory_free(debug);
 				}
 			}
 		}
@@ -250,7 +285,10 @@ namespace MathAnim
 
 			// Setup user data so we can tell our code editor what line is currently executing
 			auto* callbacks = lua_callbacks(luaState);
-			callbacks->userdata = editor;
+			auto debug = (AnimObjectDebugData*)g_memory_allocate(sizeof(AnimObjectDebugData));
+			debug->editor = editor;
+			debug->object = NULL_ANIM_OBJECT;
+			callbacks->userdata = debug;
 
 			// NOTE: lua_resume will begin a coroutine, this will suspend execution
 			//       if it YIELDS, which should happen once it hits a breakpoint
@@ -262,7 +300,13 @@ namespace MathAnim
 				lua_pop(luaState, 1);
 
 				currentExecutingScript = nullptr;
+				g_memory_free(debug);
 				return false;
+			}
+
+			if (result == LUA_OK)
+			{
+				g_memory_free(debug);
 			}
 
 			return true;
@@ -363,6 +407,97 @@ namespace MathAnim
 			lua_pop(luaState, 1);
 			currentExecutingScript = nullptr;
 			return false;
+		}
+
+		bool debugOnAnimObj(const std::string& filename, const std::string& functionName, AnimationManagerData* am, AnimObjId id)
+		{
+			const AnimObject* obj = AnimationManager::getObject(am, id);
+			if (!obj)
+			{
+				g_logger_error("Cannot run script on null anim object. Object '{}' does not exist.", id);
+				return false;
+			}
+
+			auto iter = cachedBytecode.find(filename);
+			if (iter == cachedBytecode.end())
+			{
+				g_logger_warning("Tried to execute script '{}' which was never compiled successfully.", filename);
+				return false;
+			}
+
+			const Bytecode& bytecode = iter->second;
+			currentExecutingScript = &bytecode;
+			int result = luau_load(luaState, filename.c_str(), bytecode.bytes, bytecode.size, 0);
+
+			CodeEditorPanelData* editor = CodeEditorPanelManager::getEditor(filename);
+			if (editor)
+			{
+				for (auto const breakpointLine : editor->breakpoints)
+				{
+					lua_breakpoint(luaState, -1, breakpointLine, true);
+				}
+			}
+
+			if (result != 0)
+			{
+				lua_pop(luaState, 1);
+				currentExecutingScript = nullptr;
+				return false;
+			}
+
+			// Run the script to get all the function definitions loaded
+			result = lua_pcall(luaState, 0, LUA_MULTRET, 0);
+			if (result)
+			{
+				ParsedError error = parseError(lua_tostring(luaState, -1));
+				ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
+				lua_pop(luaState, 1);
+				return false;
+			}
+
+			// Get the function and push it on top of the stack
+			lua_getfield(luaState, LUA_GLOBALSINDEX, functionName.c_str());
+			// Push anim object to top of the stack
+			ScriptApi::pushAnimObject(luaState, *obj);
+
+			// Setup user data so we can tell our code editor what line is currently executing
+			auto* callbacks = lua_callbacks(luaState);
+			auto debugData = (AnimObjectDebugData*)g_memory_allocate(sizeof(AnimObjectDebugData));
+			debugData->object = id;
+			debugData->editor = editor;
+			callbacks->userdata = debugData;
+
+			// NOTE: lua_resume will begin a coroutine, this will suspend execution
+			//       if it YIELDS, which should happen once it hits a breakpoint
+			result = lua_resume(luaState, NULL, 1);
+			if (result != LUA_YIELD && result != LUA_OK)
+			{
+				ParsedError error = parseError(lua_tostring(luaState, -1));
+				ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
+				lua_pop(luaState, 1);
+
+				currentExecutingScript = nullptr;
+				g_memory_free(debugData);
+				return false;
+			}
+
+			// Free debug data if we finished execution without hitting a breakpoint
+			if (result == LUA_OK)
+			{
+				g_memory_free(debugData);
+			}
+
+			for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
+			{
+				AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
+				if (childObj)
+				{
+					childObj->_svgObjectStart->finalize();
+					childObj->retargetSvgScale();
+				}
+			}
+
+			return true;
 		}
 
 		bool remove(const std::string& filename)

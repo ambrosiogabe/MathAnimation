@@ -231,7 +231,7 @@ namespace MathAnim
 				GizmoManager::update(am);
 				EditorCameraController::update(deltaTime, editorCamera);
 				LaTexLayer::update();
-				LuauLayer::update();
+				LuauLayer::update(am);
 
 				// Update camera matrices
 				// NOTE: The editor camera matrices are updated in EditorCameraController::update
@@ -333,12 +333,13 @@ namespace MathAnim
 
 				// We wait until the second frame so any code editors that are being opened have time to process
 				// on the first frame
-				if (globalFrameCount == 2)
+				constexpr int numFramesToWaitBeforeDisplay = 2;
+				if (globalFrameCount == numFramesToWaitBeforeDisplay)
 				{
 					LayoutSerializer::imguiFirstFrame(applicationLayoutData);
 				}
 
-				ImGuiLayer::endFrame(globalFrameCount > 2);
+				ImGuiLayer::endFrame(globalFrameCount > numFramesToWaitBeforeDisplay);
 				GL::popDebugGroup();
 
 				// End frame stuff

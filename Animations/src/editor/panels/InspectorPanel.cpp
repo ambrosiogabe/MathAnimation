@@ -2008,7 +2008,11 @@ namespace MathAnim
 				}
 			}
 
-			if (ImGui::Button("Generate"))
+			bool shouldGenerate = ImGui::Button("Generate");
+			ImGui::SameLine();
+			bool shouldDebug = ImGui::Button("Debug");
+
+			if (shouldGenerate || shouldDebug)
 			{
 				anyPropertyChanged = true;
 
@@ -2030,7 +2034,17 @@ namespace MathAnim
 					// Next init again which should regenerate the children
 					if (LuauLayer::compile(script.scriptFilepath))
 					{
-						if (!LuauLayer::executeOnAnimObj(script.scriptFilepath, "generate", am, obj->id))
+						bool cleanup = false;
+						if (shouldDebug)
+						{
+							cleanup = !LuauLayer::debugOnAnimObj(script.scriptFilepath, "generate", am, obj->id);
+						}
+						else
+						{
+							cleanup = !LuauLayer::executeOnAnimObj(script.scriptFilepath, "generate", am, obj->id);
+						}
+
+						if (cleanup)
 						{
 							// If execution fails, delete any objects that may have been created prematurely
 							for (int i = 0; i < obj->generatedChildrenIds.size(); i++)

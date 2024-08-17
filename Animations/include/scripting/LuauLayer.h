@@ -11,7 +11,7 @@ namespace MathAnim
 	{
 		void init(const std::filesystem::path& scriptDirectory, AnimationManagerData* am);
 
-		void update();
+		void update(AnimationManagerData* am);
 
 		bool compile(const std::string& filename);
 		bool compile(const std::string& sourceCode, const std::string& scriptName);
@@ -22,6 +22,7 @@ namespace MathAnim
 
 		bool execute(const std::string& scriptName);
 		bool executeOnAnimObj(const std::string& scriptName, const std::string& functionName, AnimationManagerData* am, AnimObjId obj);
+		bool debugOnAnimObj(const std::string& scriptName, const std::string& functionName, AnimationManagerData* am, AnimObjId obj);
 
 		bool remove(const std::string& scriptName);
 

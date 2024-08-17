@@ -218,6 +218,20 @@ namespace MathAnim
 			}
 		}
 
+		CodeEditorPanelData* getEditor(std::string const& filename)
+		{
+			if (auto iter = fileMap.find(filename); iter != fileMap.end())
+			{
+				size_t index = iter->second;
+				if (index < openEditors.size())
+				{
+					return openEditors[index].panel;
+				}
+			}
+
+			return nullptr;
+		}
+
 		SizedFont const* const getCodeFont()
 		{
 			return codeFont;

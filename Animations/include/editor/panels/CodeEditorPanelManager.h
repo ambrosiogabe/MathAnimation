@@ -11,6 +11,7 @@ namespace MathAnim
 	struct SizedFont;
 	class SyntaxHighlighter;
 	struct SyntaxTheme;
+	struct CodeEditorPanelData;
 
 	namespace CodeEditorPanelManager
 	{
@@ -22,6 +23,8 @@ namespace MathAnim
 		void openFile(std::string const& filename, uint32 lineNumber);
 		void openFile(std::string const& filename);
 		void closeFile(std::string const& filename);
+
+		CodeEditorPanelData* getEditor(std::string const& filename);
 
 		SizedFont const* const getCodeFont();
 
