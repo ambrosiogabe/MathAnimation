@@ -336,6 +336,7 @@ namespace MathAnim
 			}
 		}
 
+		constexpr const char* JsonPropField = "SceneHierarchyOrder";
 		void serialize(nlohmann::json& j)
 		{
 			nlohmann::json orderedEntitiesJson = {};
@@ -349,19 +350,19 @@ namespace MathAnim
 				SERIALIZE_NON_NULL_PROP(data, &metadata, isOpen);
 				orderedEntitiesJson.push_back(data);
 			}
-			j["SceneHierarchyOrder"] = orderedEntitiesJson;
+			j[JsonPropField] = orderedEntitiesJson;
 		}
 
 		void deserialize(const nlohmann::json& j)
 		{
 			orderedEntities.clear();
 
-			if (!j.contains("SceneHierarchyOrder"))
+			if (!j.contains(JsonPropField))
 			{
 				return;
 			}
 
-			for (auto& entityJson : j["SceneHierarchyOrder"])
+			for (auto& entityJson : j[JsonPropField])
 			{
 				if (entityJson.is_null()) continue;
 

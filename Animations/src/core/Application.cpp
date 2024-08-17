@@ -27,6 +27,7 @@
 #include "editor/EditorSettings.h"
 #include "editor/timeline/Timeline.h"
 #include "editor/imgui/ImGuiLayer.h"
+#include "editor/panels/CodeEditorPanelManager.h"
 #include "editor/panels/SceneManagementPanel.h"
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/panels/InspectorPanel.h"
@@ -450,6 +451,11 @@ namespace MathAnim
 			saveCurrentScene();
 		}
 
+		constexpr const char* AnimationDataProp = "AnimationManager";
+		constexpr const char* TimelineDataProp = "TimelineData";
+		constexpr const char* SceneHierarchyProp = "SceneHierarchy";
+		constexpr const char* CodeEditorsDataProp = "CodeEditorPanelManager";
+		constexpr const char* EditorCamerasProp = "EditorCameras";
 		void saveCurrentScene()
 		{
 			// Write data to json files
@@ -461,10 +467,11 @@ namespace MathAnim
 			sceneJson["Version"]["Minor"] = SERIALIZER_VERSION_MINOR;
 			sceneJson["Version"]["Full"] = std::to_string(SERIALIZER_VERSION_MAJOR) + "." + std::to_string(SERIALIZER_VERSION_MINOR);
 
-			AnimationManager::serialize(am, sceneJson["AnimationManager"]);
-			Timeline::serialize(EditorGui::getTimelineData(), sceneJson["TimelineData"]);
-			sceneJson["EditorCameras"] = serializeCameras();
-			SceneHierarchyPanel::serialize(sceneJson["SceneHierarchy"]);
+			AnimationManager::serialize(am, sceneJson[AnimationDataProp]);
+			Timeline::serialize(EditorGui::getTimelineData(), sceneJson[TimelineDataProp]);
+			sceneJson[EditorCamerasProp] = serializeCameras();
+			SceneHierarchyPanel::serialize(sceneJson[SceneHierarchyProp]);
+			CodeEditorPanelManager::serialize(sceneJson[CodeEditorsDataProp]);
 
 			try
 			{
@@ -609,25 +616,30 @@ namespace MathAnim
 				}
 
 				int loadedProjectCurrentFrame = 0;
-				if (sceneJson.contains("TimelineData") && !sceneJson["TimelineData"].is_null())
+				if (sceneJson.contains(TimelineDataProp) && !sceneJson[TimelineDataProp].is_null())
 				{
-					TimelineData timeline = Timeline::deserialize(sceneJson["TimelineData"]);
+					TimelineData timeline = Timeline::deserialize(sceneJson[TimelineDataProp]);
 					EditorGui::setTimelineData(timeline);
 					loadedProjectCurrentFrame = timeline.currentFrame;
 				}
 
-				if (sceneJson.contains("AnimationManager") && !sceneJson["AnimationManager"].is_null())
+				if (sceneJson.contains(AnimationDataProp) && !sceneJson[AnimationDataProp].is_null())
 				{
-					AnimationManager::deserialize(am, sceneJson["AnimationManager"], loadedProjectCurrentFrame, versionMajor, versionMinor);
+					AnimationManager::deserialize(am, sceneJson[AnimationDataProp], loadedProjectCurrentFrame, versionMajor, versionMinor);
 					// Flush any pending objects to be created for real
 					AnimationManager::endFrame(am);
 				}
 
-				deserializeCameras(sceneJson["EditorCameras"], versionMajor);
+				deserializeCameras(sceneJson[EditorCamerasProp], versionMajor);
 
-				if (sceneJson.contains("SceneHierarchy") && !sceneJson["SceneHierarchy"].is_null())
+				if (sceneJson.contains(SceneHierarchyProp) && !sceneJson[SceneHierarchyProp].is_null())
 				{
-					SceneHierarchyPanel::deserialize(sceneJson["SceneHierarchy"]);
+					SceneHierarchyPanel::deserialize(sceneJson[SceneHierarchyProp]);
+				}
+
+				if (sceneJson.contains(CodeEditorsDataProp) && !sceneJson[CodeEditorsDataProp].is_null())
+				{
+					CodeEditorPanelManager::deserialize(sceneJson[CodeEditorsDataProp]);
 				}
 			}
 			catch (const std::exception& ex)

@@ -100,6 +100,8 @@ do { \
   } \
 } while(false)
 
+#define SERIALIZE_SIMPLE_SET(j, obj, prop) SERIALIZE_SIMPLE_ARRAY(j, obj, prop)
+
 // ------ My Vector Types ------
 #define SERIALIZE_VEC(j, obj, prop) \
   CMath::serialize(j, #prop, (obj)->prop)
@@ -177,12 +179,22 @@ do { \
   } \
 } while(false)
 
-#define DESERIALIZE_SIMPLE_ARRAY(obj, prop, j) \
+#define DESERIALIZE_SIMPLE_ARRAY(obj, prop, j, type) \
 do { \
   (obj)->prop = {}; \
   if (j.contains(#prop) && !j[#prop].is_null()) { \
     for (size_t i = 0; i < j[#prop].size(); i++) { \
-    	(obj)->prop.emplace_back(j[#prop][i]); \
+    	(obj)->prop.emplace_back(j[#prop][i].get<type>()); \
+    } \
+  } \
+} while(false)
+
+#define DESERIALIZE_SIMPLE_SET(obj, prop, j, type) \
+do { \
+  (obj)->prop = {}; \
+  if (j.contains(#prop) && !j[#prop].is_null()) { \
+    for (size_t i = 0; i < j[#prop].size(); i++) { \
+    	(obj)->prop.insert(j[#prop][i].get<type>()); \
     } \
   } \
 } while(false)

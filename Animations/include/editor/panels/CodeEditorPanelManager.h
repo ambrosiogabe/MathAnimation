@@ -33,5 +33,8 @@ namespace MathAnim
 		SyntaxTheme const& getTheme();
 
 		void setTheme(HighlighterTheme theme);
+
+		void serialize(nlohmann::json& j);
+		void deserialize(const nlohmann::json& j);
 	}
 }

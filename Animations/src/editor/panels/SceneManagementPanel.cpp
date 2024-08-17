@@ -124,7 +124,7 @@ namespace MathAnim
 		SceneData deserialize(const nlohmann::json& j)
 		{
 			SceneData res = {};
-			DESERIALIZE_SIMPLE_ARRAY(&res, sceneNames, j);
+			DESERIALIZE_SIMPLE_ARRAY(&res, sceneNames, j, std::string);
 			DESERIALIZE_PROP(&res, currentScene, j, 0);
 			return res;
 		}

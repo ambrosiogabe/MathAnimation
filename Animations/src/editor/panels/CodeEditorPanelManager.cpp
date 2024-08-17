@@ -1,4 +1,5 @@
 #include "editor/panels/CodeEditorPanelManager.h"
+#include "core/Serialization.hpp"
 #include "editor/panels/CodeEditorPanel.h"
 #include "editor/TextEditUndo.h"
 #include "animation/AnimationManager.h"
@@ -8,6 +9,8 @@
 #include "platform/Platform.h"
 #include "scripting/LuauLayer.h"
 
+#include <nlohmann/json.hpp>
+
 namespace MathAnim
 {
 	struct CodeEditorMetadata
@@ -15,8 +18,15 @@ namespace MathAnim
 		CodeEditorPanelData* panel;
 		uint64_t uuid;
 		std::string windowName;
+		std::string filename;
 		bool isEditedWithoutSave;
 		bool setFocus;
+	};
+
+	struct SerializableCodeEditorData
+	{
+		std::string filename;
+		std::unordered_set<uint32> breakpoints;
 	};
 
 	namespace CodeEditorPanelManager
@@ -26,10 +36,12 @@ namespace MathAnim
 		// ----------- Internal data -----------
 		static std::unordered_map<std::string, size_t> fileMap;
 		static std::vector<CodeEditorMetadata> openEditors;
+
 		static uint64_t uuidCounter = 0;
-		static std::string nextFileToAdd = "";
+		static std::queue<SerializableCodeEditorData> filesToOpen = {};
 		static int fileToMakeActive = -1;
 		static int lineNumberToGoTo = -1;
+
 		static const char* luaGrammarJsonFile = "./assets/customGrammars/lua.grammar.json";
 		static SyntaxHighlighter const* luaGrammar = nullptr;
 		static SyntaxTheme const* syntaxTheme = nullptr;
@@ -43,7 +55,7 @@ namespace MathAnim
 		void init()
 		{
 			codeFont = Fonts::loadSizedFont(codeFontRegularFile, fontSizePx, CharRange::Ascii, false);
-			
+
 			Highlighters::importGrammar(luaGrammarJsonFile);
 			luaGrammar = Highlighters::getImportedHighlighter(luaGrammarJsonFile);
 			syntaxTheme = Highlighters::getTheme(HighlighterTheme::OneDark);
@@ -67,22 +79,25 @@ namespace MathAnim
 
 		void update(AnimationManagerData const*, ImGuiID parentDockId)
 		{
-			if (nextFileToAdd != "")
+			while (filesToOpen.size() > 0)
 			{
+				SerializableCodeEditorData fileToAdd = filesToOpen.front();
+				filesToOpen.pop();
+
 				ImGui::SetNextWindowDockID(parentDockId, ImGuiCond_Appearing);
 
 				CodeEditorMetadata nextWindow = {};
-				nextWindow.panel = CodeEditorPanel::openFile(nextFileToAdd);
+				nextWindow.panel = CodeEditorPanel::openFile(fileToAdd.filename);
+				nextWindow.panel->breakpoints = fileToAdd.breakpoints;
 				nextWindow.uuid = uuidCounter++;
 				nextWindow.windowName = nextWindow.panel->filepath.filename().string() + "##" + std::to_string(nextWindow.uuid);
+				nextWindow.filename = fileToAdd.filename;
 				openEditors.emplace_back(nextWindow);
-				fileMap[nextFileToAdd] = openEditors.size() - 1;
+				fileMap[fileToAdd.filename] = openEditors.size() - 1;
 
 				// Create window real quick so that it's opened docked to the correct place
 				ImGui::Begin(nextWindow.windowName.c_str());
 				ImGui::End();
-
-				nextFileToAdd = "";
 
 				if (lineNumberToGoTo != -1)
 				{
@@ -120,7 +135,7 @@ namespace MathAnim
 				int windowFlags = editor->isEditedWithoutSave ? ImGuiWindowFlags_UnsavedDocument : 0;
 				bool windowIsActive = ImGui::Begin(editor->windowName.c_str(), &open, windowFlags);
 
-				if (windowIsActive) 
+				if (windowIsActive)
 				{
 					bool hasBeenEdited = CodeEditorPanel::update(*editor->panel);
 					editor->isEditedWithoutSave = editor->isEditedWithoutSave || hasBeenEdited;
@@ -173,7 +188,12 @@ namespace MathAnim
 		{
 			if (auto iter = fileMap.find(filename); iter == fileMap.end())
 			{
-				nextFileToAdd = filename;
+				filesToOpen.push(
+					{
+						filename, 
+						{}
+					}
+				);
 				lineNumberToGoTo = lineNumber;
 			}
 			else
@@ -187,7 +207,7 @@ namespace MathAnim
 		{
 			if (fileMap.find(filename) == fileMap.end())
 			{
-				nextFileToAdd = filename;
+				filesToOpen.emplace(SerializableCodeEditorData{filename, {}});
 			}
 		}
 
@@ -247,7 +267,7 @@ namespace MathAnim
 				{
 					g_logger_error("Not good, we ran out of room for our codepoints. We have more than 255 unique characters in all files.");
 				}
-				
+
 				loadedCodepoints[codepoint] = (uint8)(loadedCodepointsSet.size() - 1);
 				return (uint8)loadedCodepoints.size() - 1;
 			}
@@ -277,6 +297,52 @@ namespace MathAnim
 			for (auto editor = openEditors.begin(); editor != openEditors.end(); editor++)
 			{
 				CodeEditorPanel::reparseSyntax(*editor->panel);
+			}
+		}
+
+		constexpr const char* JsonPropField = "CodeEditors";
+		void serialize(nlohmann::json& j)
+		{
+			nlohmann::json editorsJson = {};
+			for (auto const& editor : openEditors)
+			{
+				SerializableCodeEditorData saveData = {
+					editor.filename,
+					editor.panel->breakpoints
+				};
+				nlohmann::json data = {};
+				SERIALIZE_NON_NULL_PROP(data, &saveData, filename);
+				SERIALIZE_SIMPLE_SET(data, &saveData, breakpoints);
+				editorsJson.push_back(data);
+			}
+
+			j[JsonPropField] = editorsJson;
+		}
+
+		void deserialize(const nlohmann::json& j)
+		{
+			openEditors.clear();
+
+			if (!j.contains(JsonPropField))
+			{
+				return;
+			}
+
+			for (auto& editorJson : j[JsonPropField])
+			{
+				if (editorJson.is_null()) continue;
+
+				SerializableCodeEditorData meta = {};
+				DESERIALIZE_PROP(&meta, filename, editorJson, "");
+				DESERIALIZE_SIMPLE_SET(&meta, breakpoints, editorJson, uint32);
+
+				if (meta.filename == "")
+				{
+					g_logger_warning("Could not re-open code editor. Invalid filepath.");
+					continue;
+				}
+
+				filesToOpen.emplace(meta);
 			}
 		}
 
