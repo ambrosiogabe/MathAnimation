@@ -39,6 +39,12 @@ namespace MathAnim
 		// ---------- Internal Functions ----------
 		static void* luaAllocWrapper(void* ud, void* ptr, size_t osize, size_t nsize);
 		static ParsedError parseError(const char* luaRuntimeErrorMessage);
+		static void tryRemoveCachedBytecode(const std::string& filename);
+		static bool analyzeScriptFile(const std::string& filename);
+		static bool analyzeScriptSource(const std::string& sourceCode, const std::string& scriptName);
+		static Bytecode compileToBytecode(const char* data, size_t dataSize, std::string const& scriptName);
+		static int executeBytecode(Bytecode const& bytecode);
+		static bool readFile(std::string const& scriptPath, RawMemory* memory);
 
 		// ---------- Internal Variables ----------
 		ScriptAnalyzer* analyzer = nullptr;
@@ -46,20 +52,6 @@ namespace MathAnim
 		std::unordered_map<std::string, Bytecode> cachedBytecode;
 		std::filesystem::path scriptDirectory = "";
 		const Bytecode* currentExecutingScript = nullptr;
-
-		// TESTING
-		//void* userdata; // arbitrary userdata pointer that is never overwritten by Luau
-
-		//void (*interrupt)(lua_State* L, int gc);  // gets called at safepoints (loop back edges, call/ret, gc) if set
-		//void (*panic)(lua_State* L, int errcode); // gets called when an unprotected error is raised (if longjmp is used)
-
-		//void (*userthread)(lua_State* LP, lua_State* L); // gets called when L is created (LP == parent) or destroyed (LP == NULL)
-		//int16_t(*useratom)(const char* s, size_t l);    // gets called when a string is created; returned atom can be retrieved via tostringatom
-
-		//void (*debugbreak)(lua_State* L, lua_Debug* ar);     // gets called when BREAK instruction is encountered
-		//void (*debugstep)(lua_State* L, lua_Debug* ar);      // gets called after each instruction in single step mode
-		//void (*debuginterrupt)(lua_State* L, lua_Debug* ar); // gets called when thread execution is interrupted by break in another thread
-		//void (*debugprotectederror)(lua_State* L);           // gets called when protected call results in an error
 
 		static bool isDebugging = false;
 		static int lastLineWeWereDebugging = -1;
@@ -103,7 +95,6 @@ namespace MathAnim
 		{
 			g_logger_info("Debug Protected error!");
 		}
-		// TESTING
 
 		void init(const std::filesystem::path& inScriptDirectory, AnimationManagerData* am)
 		{
@@ -153,109 +144,57 @@ namespace MathAnim
 
 		bool compile(const std::string& filename)
 		{
-			if (!analyzer->analyze(filename))
+			if (!analyzeScriptFile(filename))
 			{
-				// If the bytecode exists, free the bytes since the most recent code is broken
-				auto iter = cachedBytecode.find(filename);
-				if (iter != cachedBytecode.end())
-				{
-					::free(iter->second.bytes);
-					cachedBytecode.erase(iter);
-				}
 				return false;
 			}
 
 			std::string scriptPath = (scriptDirectory / filename).make_preferred().lexically_normal().string();
-			FILE* fp = fopen(scriptPath.c_str(), "rb");
-			if (!fp)
+			RawMemory memory;
+			if (!readFile(scriptPath, &memory))
 			{
-				g_logger_warning("Could not open file '{}', error opening file.", filename);
 				return false;
 			}
 
-			fseek(fp, 0, SEEK_END);
-			size_t fileSize = ftell(fp);
-			fseek(fp, 0, SEEK_SET);
-
-			RawMemory memory;
-			memory.init(fileSize + 1);
-			fread(memory.data, fileSize, 1, fp);
-			memory.data[fileSize] = '\0';
-			fclose(fp);
-
-			lua_CompileOptions compileOptions = {};
-			compileOptions.optimizationLevel = 1;
-			compileOptions.debugLevel = 1;
-			size_t bytecodeSize = 0;
-			char* bytecode = luau_compile((const char*)memory.data, memory.size, &compileOptions, &bytecodeSize);
-			int result = luau_load(luaState, filename.c_str(), bytecode, bytecodeSize, 0);
-
+			Bytecode bytecode = compileToBytecode((const char*)memory.data, memory.size, scriptPath);
 			memory.free();
 
-			// Pop the bytecode off the stack
-			lua_pop(luaState, 1);
+			int result = executeBytecode(bytecode);
 
+			// If the script throws a runtime error, don't cache it
 			if (result != 0)
 			{
-				::free(bytecode);
+				::free(bytecode.bytes);
 				return false;
 			}
 
-			{
-				// If the bytecode exists, free the bytes since it's about to be
-				// replaced
-				auto iter = cachedBytecode.find(filename);
-				if (iter != cachedBytecode.end())
-				{
-					::free(iter->second.bytes);
-				}
-			}
-
-			Bytecode res;
-			res.bytes = bytecode;
-			res.size = bytecodeSize;
-			res.scriptFilepath = scriptPath;
-			cachedBytecode[filename] = res;
+			// Remove the script first since we're about to cache new bytecode
+			tryRemoveCachedBytecode(filename);
+			cachedBytecode[filename] = bytecode;
 
 			return true;
 		}
 
 		bool compile(const std::string& sourceCode, const std::string& scriptName)
 		{
-			if (!analyzer->analyze(sourceCode, scriptName))
+			if (!analyzeScriptSource(sourceCode, scriptName))
 			{
 				return false;
 			}
 
-			lua_CompileOptions compileOptions = {};
-			compileOptions.optimizationLevel = 1;
-			compileOptions.debugLevel = 1;
-			size_t bytecodeSize = 0;
-			char* bytecode = luau_compile(sourceCode.c_str(), sourceCode.length(), &compileOptions, &bytecodeSize);
-			int result = luau_load(luaState, scriptName.c_str(), bytecode, bytecodeSize, 0);
-
-			// Pop the bytecode off the stack
-			lua_pop(luaState, 1);
+			Bytecode bytecode = compileToBytecode(sourceCode.c_str(), sourceCode.length(), scriptName);
+			bytecode.scriptFilepath = scriptName;
+			int result = executeBytecode(bytecode);
 
 			if (result != 0)
 			{
-				::free(bytecode);
+				::free(bytecode.bytes);
 				return false;
 			}
 
-			// If the bytecode exists, free the bytes since it's about to be
-			// replaced
-			auto iter = cachedBytecode.find(scriptName);
-			if (iter != cachedBytecode.end())
-			{
-				::free(iter->second.bytes);
-			}
-
-			Bytecode res;
-			res.bytes = bytecode;
-			res.size = bytecodeSize;
-			res.scriptFilepath = scriptName;
-			cachedBytecode[scriptName] = res;
+			// If the bytecode exists, free the bytes since it's about to be replaced
+			tryRemoveCachedBytecode(scriptName);
+			cachedBytecode[scriptName] = bytecode;
 
 			return true;
 		}
@@ -276,8 +215,14 @@ namespace MathAnim
 			auto iter = cachedBytecode.find(filename);
 			if (iter == cachedBytecode.end())
 			{
-				g_logger_warning("Tried to execute script '{}' which was never compiled successfully.", filename);
-				return false;
+				// Try to compile
+				if (!compile(filename))
+				{
+					g_logger_warning("Tried to debug script '{}' which was never compiled successfully.", filename);
+					return false;
+				}
+
+				iter = cachedBytecode.find(filename);
 			}
 
 			const Bytecode& bytecode = iter->second;
@@ -460,6 +405,84 @@ namespace MathAnim
 			}
 			else
 				return ::realloc(ptr, nsize);
+		}
+
+		static void tryRemoveCachedBytecode(const std::string& filename)
+		{
+			auto iter = cachedBytecode.find(filename);
+			if (iter != cachedBytecode.end())
+			{
+				::free(iter->second.bytes);
+				cachedBytecode.erase(iter);
+			}
+		}
+
+		static bool analyzeScriptFile(const std::string& filename)
+		{
+			if (!analyzer->analyze(filename))
+			{
+				// If the bytecode exists, free the bytes since the most recent code is broken
+				tryRemoveCachedBytecode(filename);
+				return false;
+			}
+
+			return true;
+		}
+
+		static bool analyzeScriptSource(const std::string& sourceCode, const std::string& scriptName)
+		{
+			if (!analyzer->analyze(sourceCode, scriptName))
+			{
+				tryRemoveCachedBytecode(scriptName);
+				return false;
+			}
+
+			return true;
+		}
+
+		static Bytecode compileToBytecode(const char* data, size_t dataSize, std::string const& scriptName)
+		{
+			lua_CompileOptions compileOptions = {};
+			compileOptions.optimizationLevel = 1;
+			compileOptions.debugLevel = 1;
+			size_t bytecodeSize = 0;
+			char* bytecode = luau_compile(data, dataSize, &compileOptions, &bytecodeSize);
+			return {
+				scriptName,
+				bytecode,
+				bytecodeSize
+			};
+		}
+
+		static int executeBytecode(Bytecode const& bytecode)
+		{
+			int result = luau_load(luaState, bytecode.scriptFilepath.c_str(), bytecode.bytes, bytecode.size, 0);
+			// Pop the bytecode off the stack
+			lua_pop(luaState, 1);
+
+			return result;
+		}
+
+		static bool readFile(std::string const& scriptPath, RawMemory* memory)
+		{
+			// Read the file
+			FILE* fp = fopen(scriptPath.c_str(), "rb");
+			if (!fp)
+			{
+				g_logger_warning("Could not open file '{}', error opening file.", scriptPath.c_str());
+				return false;
+			}
+
+			fseek(fp, 0, SEEK_END);
+			size_t fileSize = ftell(fp);
+			fseek(fp, 0, SEEK_SET);
+
+			memory->init(fileSize + 1);
+			fread(memory->data, fileSize, 1, fp);
+			memory->data[fileSize] = '\0';
+			fclose(fp);
+
+			return true;
 		}
 
 		// Disgusting quick parsing to get the dumb error message in
