@@ -2069,15 +2069,18 @@ namespace MathAnim
 		unsigned char* pixels = plutovg_surface_get_data(data->surface);
 		int surfaceWidth = plutovg_surface_get_width(data->surface);
 		int surfaceHeight = plutovg_surface_get_height(data->surface);
-		data->texture->uploadSubImage(
-			(int)data->textureOffset.x,
-			(int)(data->texture->height - data->textureOffset.y - surfaceHeight),
-			surfaceWidth,
-			surfaceHeight,
-			pixels,
-			surfaceWidth * surfaceHeight * sizeof(uint8) * 4,
-			true
-		);
+		if (surfaceWidth > 0 && surfaceHeight > 0)
+		{
+			data->texture->uploadSubImage(
+				(int)data->textureOffset.x,
+				(int)(data->texture->height - data->textureOffset.y - surfaceHeight),
+				surfaceWidth,
+				surfaceHeight,
+				pixels,
+				surfaceWidth * surfaceHeight * sizeof(uint8) * 4,
+				true
+			);
+		}
 
 		plutovg_surface_destroy(data->surface);
 		plutovg_destroy(data->pluto);

@@ -1,4 +1,5 @@
 #include "core.h"
+#include "core/Application.h"
 #include "core/Input.h"
 #include "scripting/LuauLayer.h"
 #include "scripting/GlobalApi.h"
@@ -67,35 +68,37 @@ namespace MathAnim
 		std::filesystem::path scriptDirectory = "";
 		const Bytecode* currentExecutingScript = nullptr;
 
-		static bool isDebugging = false;
 		static int lastLineWeWereDebugging = -1;
+		static bool skipDebugStep = false;
+		static int frameAdd = 1;
 		static void debugBreak(lua_State* L, lua_Debug* ar)
 		{
 			lua_singlestep(L, true);
-			lastLineWeWereDebugging = ar->currentline;
-			if (!isDebugging)
+			if (lastLineWeWereDebugging != ar->currentline)
 			{
+				lastLineWeWereDebugging = ar->currentline;
+				skipDebugStep = false;
+
 				auto* callbacks = lua_callbacks(luaState);
 				auto* debug = (AnimObjectDebugData*)callbacks->userdata;
 				debug->editor->currentExecutingLine = ar->currentline;
 				debug->editor->debuggingSessionActive = true;
 
-				isDebugging = true;
 				lua_yield(L, 0);
 			}
 		}
 
 		static void debugStep(lua_State* L, lua_Debug* ar)
 		{
-			if (lastLineWeWereDebugging != ar->currentline)
+			if (!skipDebugStep && lastLineWeWereDebugging != ar->currentline)
 			{
 				auto* callbacks = lua_callbacks(luaState);
 				auto* debug = (AnimObjectDebugData*)callbacks->userdata;
 				debug->editor->currentExecutingLine = ar->currentline;
-
-				lastLineWeWereDebugging = ar->currentline;
 				lua_yield(L, 0);
 			}
+
+			lastLineWeWereDebugging = ar->currentline;
 		}
 
 		static void debugInterrupt(lua_State*, lua_Debug* ar)
@@ -129,13 +132,13 @@ namespace MathAnim
 		{
 			bool runScriptDebugCode = false;
 
-			if (currentExecutingScript && Input::keyPressed(GLFW_KEY_7, KeyMods::Ctrl))
+			if (currentExecutingScript && Input::keyPressed(GLFW_KEY_F5))
 			{
-				lua_singlestep(luaState, false);
+				skipDebugStep = true;
 				runScriptDebugCode = true;
 			}
 
-			if (currentExecutingScript && Input::keyPressed(GLFW_KEY_6, KeyMods::Ctrl))
+			if (currentExecutingScript && Input::keyPressed(GLFW_KEY_F10))
 			{
 				runScriptDebugCode = true;
 			}
@@ -158,6 +161,9 @@ namespace MathAnim
 							childObj->retargetSvgScale();
 						}
 					}
+
+					Application::setFrameIndex(Application::getFrameIndex() + frameAdd);
+					frameAdd *= -1;
 				}
 
 				if (result == LUA_OK)
@@ -165,7 +171,6 @@ namespace MathAnim
 					debug->editor->debuggingSessionActive = false;
 
 					currentExecutingScript = nullptr;
-					isDebugging = false;
 					lastLineWeWereDebugging = -1;
 					lua_singlestep(luaState, false);
 					g_memory_free(debug);
@@ -177,7 +182,6 @@ namespace MathAnim
 					lua_pop(luaState, 1);
 
 					currentExecutingScript = nullptr;
-					isDebugging = false;
 					lua_singlestep(luaState, false);
 					g_memory_free(debug);
 				}
@@ -515,6 +519,13 @@ namespace MathAnim
 
 		void free()
 		{
+			if (currentExecutingScript)
+			{
+				auto* callbacks = lua_callbacks(luaState);
+				auto* debug = (AnimObjectDebugData*)callbacks->userdata;
+				g_memory_free(debug);
+			}
+
 			if (analyzer)
 			{
 				analyzer->free();

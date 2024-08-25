@@ -52,7 +52,7 @@ namespace MathAnim
 			res.init(len + 1);
 
 			size_t inPosition = 0;
-			while ((numBytes - inPosition) >= 3U)
+			while (numBytes >= inPosition && (numBytes - inPosition) >= 3U)
 			{
 				res.data[res.offset++] = base64Table[in[0] >> 2];
 				res.data[res.offset++] = base64Table[((in[0] & 0x03U) << 4) | (in[1] >> 4)];
@@ -62,7 +62,7 @@ namespace MathAnim
 				inPosition += 3;
 			}
 
-			if (((numBytes - inPosition) != 0U))
+			if (numBytes > inPosition && ((numBytes - inPosition) != 0U))
 			{
 				res.data[res.offset++] = base64Table[in[0] >> 2];
 				if ((numBytes - inPosition) == 1U)

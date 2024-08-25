@@ -86,7 +86,7 @@ namespace MathAnim
 		uint64 hashValue = hash(svg->md5, svg->md5Length, parent->svgScale, parent->percentReplacementTransformed);
 
 		// Only add the SVG if it hasn't already been added
-		if (!existsInternal(hashValue))
+		if (!existsInternal(hashValue) && svg->numPaths > 0 && svg->approximatePerimeter > 0)
 		{
 			// Setup the texture coords and everything 
 			Vec2 svgTextureOffset = cacheCurrentPos;
