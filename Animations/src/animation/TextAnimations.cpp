@@ -132,19 +132,7 @@ namespace MathAnim
 
 	void TextObject::reInit(AnimationManagerData* am, AnimObject* obj)
 	{
-		// First remove all generated children, which were generated as a result
-		// of this object (presumably)
-		// NOTE: This is direct descendants, no recursive children here
-		for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
-		{
-			AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
-			if (child)
-			{
-				SceneHierarchyPanel::deleteAnimObject(*child);
-				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
-			}
-		}
-		obj->generatedChildrenIds.clear();
+		obj->deleteGeneratedChildren(am);
 
 		// Next init again which should regenerate the children
 		init(am, obj->id);
@@ -315,19 +303,7 @@ namespace MathAnim
 
 	void LaTexObject::reInit(AnimationManagerData* am, AnimObject* obj)
 	{
-		// First remove all generated children, which were generated as a result
-		// of this object (presumably)
-		// NOTE: This is direct descendants, no recursive children here
-		for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
-		{
-			AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
-			if (child)
-			{
-				SceneHierarchyPanel::deleteAnimObject(*child);
-				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
-			}
-		}
-		obj->generatedChildrenIds.clear();
+		obj->deleteGeneratedChildren(am);
 
 		// Next init again which should regenerate the children
 		init(am, obj->id);
@@ -552,19 +528,7 @@ namespace MathAnim
 
 	void CodeBlock::reInit(AnimationManagerData* am, AnimObject* obj)
 	{
-		// First remove all generated children, which were generated as a result
-		// of this object (presumably)
-		// NOTE: This is direct descendants, no recursive children here
-		for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
-		{
-			AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
-			if (child)
-			{
-				SceneHierarchyPanel::deleteAnimObject(*child);
-				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
-			}
-		}
-		obj->generatedChildrenIds.clear();
+		obj->deleteGeneratedChildren(am);
 
 		// Next init again which should regenerate the children
 		this->init(am, obj->id);

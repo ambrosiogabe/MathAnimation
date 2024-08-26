@@ -1,6 +1,7 @@
 #include "core.h"
 #include "core/Application.h"
 #include "core/Input.h"
+#include "core/Profiling.h"
 #include "scripting/LuauLayer.h"
 #include "scripting/GlobalApi.h"
 #include "scripting/ScriptAnalyzer.h"
@@ -106,11 +107,6 @@ namespace MathAnim
 			g_logger_info("Debug Interrupting. Current line: {}", ar->currentline);
 		}
 
-		static void debugProtectedError(lua_State*)
-		{
-			g_logger_info("Debug Protected error!");
-		}
-
 		void init(const std::filesystem::path& inScriptDirectory, AnimationManagerData* am)
 		{
 			Platform::createDirIfNotExists(inScriptDirectory.string().c_str());
@@ -125,7 +121,6 @@ namespace MathAnim
 			callbacks->debugbreak = debugBreak;
 			callbacks->debugstep = debugStep;
 			callbacks->debuginterrupt = debugInterrupt;
-			callbacks->debugprotectederror = debugProtectedError;
 		}
 
 		void update(AnimationManagerData* am)
@@ -351,6 +346,7 @@ namespace MathAnim
 
 		bool executeOnAnimObj(const std::string& filename, const std::string& functionName, AnimationManagerData* am, AnimObjId id)
 		{
+			MP_PROFILE_EVENT("LuauLayer_ExecuteOnAnimObj");
 			const AnimObject* obj = AnimationManager::getObject(am, id);
 			if (!obj)
 			{
@@ -365,42 +361,65 @@ namespace MathAnim
 				return false;
 			}
 
-			const Bytecode& bytecode = iter->second;
-			currentExecutingScript = &bytecode;
-			int result = luau_load(luaState, filename.c_str(), bytecode.bytes, bytecode.size, 0);
+			int result = 0;
+			{
+				MP_PROFILE_EVENT("LuauLayer_LoadBytecode");
+				const Bytecode& bytecode = iter->second;
+				currentExecutingScript = &bytecode;
+				result = luau_load(luaState, filename.c_str(), bytecode.bytes, bytecode.size, 0);
+			}
 
 			if (result == 0)
 			{
-				// Run the script to get all the function definitions loaded
-				result = lua_pcall(luaState, 0, LUA_MULTRET, 0);
-				if (result)
 				{
-					ParsedError error = parseError(lua_tostring(luaState, -1));
-					ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
-					lua_pop(luaState, 1);
-					return false;
-				}
-
-				// Get the function and push it on top of the stack
-				lua_getfield(luaState, LUA_GLOBALSINDEX, functionName.c_str());
-				// Push anim object to top of the stack
-				ScriptApi::pushAnimObject(luaState, *obj);
-				result = lua_pcall(luaState, 1, 0, 0);
-				if (result)
-				{
-					ParsedError error = parseError(lua_tostring(luaState, -1));
-					ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
-					lua_pop(luaState, 1);
-					return false;
-				}
-
-				for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
-				{
-					AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
-					if (childObj)
+					MP_PROFILE_EVENT("LuauLayer_ExecuteBytecode");
+					// Run the script to get all the function definitions loaded
+					result = lua_pcall(luaState, 0, LUA_MULTRET, 0);
+					if (result)
 					{
-						childObj->_svgObjectStart->finalize();
-						childObj->retargetSvgScale();
+						ParsedError error = parseError(lua_tostring(luaState, -1));
+						ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
+						lua_pop(luaState, 1);
+						return false;
+					}
+				}
+
+				{
+					MP_PROFILE_EVENT("LuauLayer_ExecuteFunction");
+					{
+						MP_PROFILE_EVENT("LuauLayer_PushFunctionToStack");
+						// Get the function and push it on top of the stack
+						lua_getfield(luaState, LUA_GLOBALSINDEX, functionName.c_str());
+					}
+					{
+						MP_PROFILE_EVENT("LuauLayer_PushAnimObjectToStack");
+						// Push anim object to top of the stack
+						ScriptApi::pushAnimObject(luaState, *obj);
+					}
+					{
+						MP_PROFILE_EVENT("LuauLayer_PCallFunction");
+						result = lua_pcall(luaState, 1, 0, 0);
+					}
+
+					if (result)
+					{
+						ParsedError error = parseError(lua_tostring(luaState, -1));
+						ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
+						lua_pop(luaState, 1);
+						return false;
+					}
+				}
+
+				{
+					MP_PROFILE_EVENT("LuauLayer_FinalizeAnimObjects");
+					for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
+					{
+						AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
+						if (childObj)
+						{
+							childObj->_svgObjectStart->finalize();
+							childObj->retargetSvgScale();
+						}
 					}
 				}
 

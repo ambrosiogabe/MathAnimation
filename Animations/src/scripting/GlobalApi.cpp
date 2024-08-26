@@ -47,7 +47,7 @@ do { \
 	} \
 } while(false)
 
-static std::string getAsString(lua_State * L, int index = 1);
+static std::string getAsString(lua_State* L, int index = 1);
 
 extern "C"
 {
@@ -55,10 +55,12 @@ extern "C"
 
 	// --------------- Internal Variables ---------------
 	static std::unordered_map<lua_CFunction, std::string> cFunctionDebugNames;
+	static size_t renderOrderUuid = 0;
 
 	// --------------- Internal Functions ---------------
 	static uint64 toU64(lua_State* L, int index);
 	static void pushU64(lua_State* L, uint64 value);
+	static bool isVec4(lua_State* L, int index);
 	static Vec4 toVec4(lua_State* L, int index);
 	static void pushVec4(lua_State* L, const Vec4& value);
 	static Vec3 toVec3(lua_State* L, int index);
@@ -105,6 +107,124 @@ extern "C"
 	int global_logError(lua_State* L)
 	{
 		return luaPrint(L, g_logger_level_Error);
+	}
+
+	// ------- Math Anim Gui Module -------
+	int global_dragNumberFn(lua_State* L)
+	{
+		int nargs = lua_gettop(L);
+		argumentCheck(L, 2, 3, "dragNumber(AnimObject, string, number?)", nargs);
+
+		AnimationManagerData* am = getAnimationManagerData(L);
+
+		if (!lua_istable(L, 1))
+		{
+			throwError(L, "Error: MathAnimGui.dragNumber expects first argument to be of type AnimObject.");
+		}
+
+		if (!lua_isstring(L, 2))
+		{
+			throwError(L, "Error: MathAnimGui.dragNumber expects second argument to be of type string.");
+		}
+
+		double defaultValue = 0;
+		if (lua_isnumber(L, 3))
+		{
+			defaultValue = lua_tonumber(L, 3);
+		}
+
+		// First parameter is AnimObject
+		lua_getfield(L, 1, "id");
+		AnimObjId id = toU64(L, -1);
+		lua_pop(L, 1);
+
+		// Second param is string
+		const char* label = lua_tostring(L, 2);
+
+		AnimObject* obj = AnimationManager::getMutableObject(am, id);
+		if (obj)
+		{
+			auto* prop = obj->as.script.findProp(label);
+			if (!prop)
+			{
+				DynamicScriptPropValue defaultProp{};
+				defaultProp.as.number = defaultValue;
+				defaultProp.type = DynamicScriptPropType::Number;
+				obj->as.script.insertProp(label, defaultProp);
+				lua_pushnumber(L, defaultValue);
+			}
+			else
+			{
+				prop->shouldRender = true;
+				prop->renderOrder = renderOrderUuid++;
+				lua_pushnumber(L, prop->value.as.number);
+			}
+		}
+		else
+		{
+			throwError(L, "Error: MathAnimGui.dragNumber expects first argument to be of type AnimObject. Invalid AnimObject was supplied.");
+		}
+
+		return 1;
+	}
+
+	int global_colorPickerFn(lua_State* L)
+	{
+		int nargs = lua_gettop(L);
+		argumentCheck(L, 2, 3, "colorPicker(AnimObject, string, Vec4Color?)", nargs);
+
+		AnimationManagerData* am = getAnimationManagerData(L);
+
+		if (!lua_istable(L, 1))
+		{
+			throwError(L, "Error: MathAnimGui.colorPicker expects first argument to be of type AnimObject.");
+		}
+
+		if (!lua_isstring(L, 2))
+		{
+			throwError(L, "Error: MathAnimGui.colorPicker expects second argument to be of type string.");
+		}
+
+		Vec4 defaultValue = {1.0f, 1.0f, 1.0f, 1.0f};
+		if (isVec4(L, 3))
+		{
+			defaultValue = toVec4(L, 3);
+			defaultValue /= 255.0f;
+		}
+
+		// First parameter is AnimObject
+		lua_getfield(L, 1, "id");
+		AnimObjId id = toU64(L, -1);
+		lua_pop(L, 1);
+
+		// Second param is string
+		const char* label = lua_tostring(L, 2);
+
+		AnimObject* obj = AnimationManager::getMutableObject(am, id);
+		if (obj)
+		{
+			auto* prop = obj->as.script.findProp(label);
+			if (!prop)
+			{
+				DynamicScriptPropValue defaultProp{};
+				defaultProp.as.color = defaultValue;
+				defaultProp.type = DynamicScriptPropType::Color;
+				obj->as.script.insertProp(label, defaultProp);
+				pushVec4(L, defaultValue);
+			}
+			else
+			{
+				prop->shouldRender = true;
+				prop->renderOrder = renderOrderUuid++;
+				pushVec4(L, prop->value.as.color);
+			}
+		}
+		else
+		{
+			throwError(L, "Error: MathAnimGui.dragNumber expects first argument to be of type AnimObject. Invalid AnimObject was supplied.");
+		}
+
+		return 1;
 	}
 
 	// ------- Anim Objects -------
@@ -762,6 +882,10 @@ extern "C"
 		{
 			return global_loadMathAnimLib(L);
 		}
+		else if (file == "math-anim-gui")
+		{
+			return global_loadMathAnimGuiLib(L);
+		}
 
 		g_logger_warning("Requiring user created files not supported yet for file: '{}'", file);
 		return 0;
@@ -773,6 +897,19 @@ extern "C"
 
 		pushCFunction(L, global_createAnimObjectFn, "math-anim.createAnimObject: (parent: AnimObject) -> AnimObject");
 		lua_setfield(L, -2, "createAnimObject");
+
+		return 1;
+	}
+
+	int global_loadMathAnimGuiLib(lua_State* L)
+	{
+		lua_createtable(L, 0, 1);
+
+		pushCFunction(L, global_dragNumberFn, "math-anim-gui.dragNumber: (parent: AnimObject, label: string, default: number?) -> number");
+		lua_setfield(L, -2, "dragNumber");
+
+		pushCFunction(L, global_colorPickerFn, "math-anim-gui.colorPicker: (parent: AnimObject, label: string, default: Vec4Color?) -> Vec4Color");
+		lua_setfield(L, -2, "colorPicker");
 
 		return 1;
 	}
@@ -806,6 +943,64 @@ extern "C"
 
 		lua_pushinteger(L, high);
 		lua_setfield(L, -2, "high");
+	}
+
+	static bool isVec4(lua_State* L, int index)
+	{
+		// Vec4 could be x, y, z, w or r, g, b, a so try both
+		lua_getfield(L, index, "x");
+		if (!lua_isnumber(L, -1))
+		{
+			lua_pop(L, 1);
+			lua_getfield(L, index, "r");
+			if (!lua_isnumber(L, -1))
+			{
+				lua_pop(L, 1);
+				return false;
+			}
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, index, "y");
+		if (!lua_isnumber(L, -1))
+		{
+			lua_pop(L, 1);
+			lua_getfield(L, index, "g");
+			if (!lua_isnumber(L, -1))
+			{
+				lua_pop(L, 1);
+				return false;
+			}
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, index, "z");
+		if (!lua_isnumber(L, -1))
+		{
+			lua_pop(L, 1);
+			lua_getfield(L, index, "b");
+			if (!lua_isnumber(L, -1))
+			{
+				lua_pop(L, 1);
+				return false;
+			}
+		}
+		lua_pop(L, 1);
+
+		lua_getfield(L, index, "w");
+		if (!lua_isnumber(L, -1))
+		{
+			lua_pop(L, 1);
+			lua_getfield(L, index, "a");
+			if (!lua_isnumber(L, -1))
+			{
+				lua_pop(L, 1);
+				return false;
+			}
+		}
+		lua_pop(L, 1);
+
+		return true;
 	}
 
 	static Vec4 toVec4(lua_State* L, int index)
@@ -868,8 +1063,8 @@ extern "C"
 		return res;
 	}
 
-#pragma warning( push )
-#pragma warning( disable : 4505 )
+	#pragma warning( push )
+	#pragma warning( disable : 4505 )
 	static void pushVec4(lua_State* L, const Vec4& value)
 	{
 		lua_createtable(L, 0, 4);
@@ -966,10 +1161,10 @@ extern "C"
 		lua_setfield(L, -2, "y");
 	}
 
-#pragma warning( pop )
+	#pragma warning( pop )
 
-#pragma warning( push )
-#pragma warning( disable : 4702 )
+	#pragma warning( push )
+	#pragma warning( disable : 4702 )
 
 	static void pushCFunction(lua_State* L, lua_CFunction fn, const char* debugName)
 	{

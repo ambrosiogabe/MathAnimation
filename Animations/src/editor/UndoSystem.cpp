@@ -278,6 +278,25 @@ namespace MathAnim
 		EnumPropType propType;
 	};
 
+	class ModifyDoubleCommand : public Command
+	{
+	public:
+		ModifyDoubleCommand(AnimObjId objId, double oldValue, double newValue, DoublePropType propType, const char* label)
+			: objId(objId), oldValue(oldValue), newValue(newValue), propType(propType), label(label)
+		{
+		}
+
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
+
+	private:
+		AnimObjId objId;
+		double oldValue;
+		double newValue;
+		DoublePropType propType;
+		std::string label;
+	};
+
 	class ModifyFloatCommand : public Command
 	{
 	public:
@@ -353,8 +372,8 @@ namespace MathAnim
 	class ModifyVec4Command : public Command
 	{
 	public:
-		ModifyVec4Command(AnimObjId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType)
-			: objId(objId), oldVec(oldVec), newVec(newVec), propType(propType)
+		ModifyVec4Command(AnimObjId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType, const char* label)
+			: objId(objId), oldVec(oldVec), newVec(newVec), propType(propType), label(label)
 		{
 		}
 
@@ -366,6 +385,7 @@ namespace MathAnim
 		Vec4 oldVec;
 		Vec4 newVec;
 		Vec4PropType propType;
+		std::string label;
 	};
 
 	class ModifyStringCommand : public Command
@@ -628,6 +648,18 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
+		void setDoubleProp(UndoSystemData* us, ObjOrAnimId objId, double oldValue, double newValue, DoublePropType propType, const char* label)
+		{
+			// Don't add this to the undo history if they don't actually change the stuff
+			if (oldValue == newValue)
+			{
+				return;
+			}
+
+			auto* newCommand = g_memory_new ModifyDoubleCommand(objId, oldValue, newValue, propType, label);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
 		void setFloatProp(UndoSystemData* us, ObjOrAnimId objId, float oldValue, float newValue, FloatPropType propType)
 		{
 			// Don't add this to the undo history if they don't actually change the stuff
@@ -676,7 +708,7 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
-		void setVec4Prop(UndoSystemData* us, ObjOrAnimId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType)
+		void setVec4Prop(UndoSystemData* us, ObjOrAnimId objId, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType, const char* label)
 		{
 			// Don't add this to the undo history if they don't actually change the stuff
 			if (oldVec == newVec)
@@ -684,7 +716,7 @@ namespace MathAnim
 				return;
 			}
 
-			auto* newCommand = g_memory_new ModifyVec4Command(objId, oldVec, newVec, propType);
+			auto* newCommand = g_memory_new ModifyVec4Command(objId, oldVec, newVec, propType, label);
 			pushAndExecuteCommand(us, newCommand);
 		}
 
@@ -1402,6 +1434,68 @@ namespace MathAnim
 		}
 	}
 
+	void ModifyDoubleCommand::undo(void* userContext)
+	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case DoublePropType::Dynamic:
+				assertCorrectType(obj, AnimObjectTypeV1::ScriptObject);
+				if (auto prop = obj->as.script.findProp(this->label.c_str()); prop)
+				{
+					prop->value.as.number = this->oldValue;
+				}
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case DoublePropType::Dynamic:
+				break;
+			}
+		}
+	}
+
+	void ModifyDoubleCommand::execute(void* userContext)
+	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
+		AnimObject* obj = AnimationManager::getMutableObject(am, this->objId);
+		if (obj)
+		{
+			switch (propType)
+			{
+			case DoublePropType::Dynamic:
+				assertCorrectType(obj, AnimObjectTypeV1::ScriptObject);
+				if (auto prop = obj->as.script.findProp(this->label.c_str()); prop)
+				{
+					prop->value.as.number = this->newValue;
+				}
+				break;
+			}
+			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, this->objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case DoublePropType::Dynamic:
+				break;
+			}
+		}
+	}
+
 	void ModifyFloatCommand::undo(void* userContext)
 	{
 		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
@@ -1773,6 +1867,13 @@ namespace MathAnim
 				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.fillColor = this->newVec;
 				break;
+			case Vec4PropType::Dynamic:
+				assertCorrectType(obj, AnimObjectTypeV1::ScriptObject);
+				if (auto prop = obj->as.script.findProp(this->label.c_str()); prop)
+				{
+					prop->value.as.color = this->newVec;
+				}
+				break;
 				// NOTE: The following are animations
 			case Vec4PropType::CircumscribeColor:
 				break;
@@ -1791,6 +1892,7 @@ namespace MathAnim
 				break;
 				// NOTE: The following are anim objects
 			case Vec4PropType::CameraBackgroundColor:
+			case Vec4PropType::Dynamic:
 				break;
 			}
 		}
@@ -1808,6 +1910,13 @@ namespace MathAnim
 			case Vec4PropType::CameraBackgroundColor:
 				assertCorrectType(obj, AnimObjectTypeV1::Camera);
 				obj->as.camera.fillColor = this->oldVec;
+				break;
+			case Vec4PropType::Dynamic:
+				assertCorrectType(obj, AnimObjectTypeV1::ScriptObject);
+				if (auto prop = obj->as.script.findProp(this->label.c_str()); prop)
+				{
+					prop->value.as.color = this->oldVec;
+				}
 				break;
 				// NOTE: The following are animations
 			case Vec4PropType::CircumscribeColor:
@@ -1827,6 +1936,7 @@ namespace MathAnim
 				break;
 				// NOTE: The following are anim objects
 			case Vec4PropType::CameraBackgroundColor:
+			case Vec4PropType::Dynamic:
 				break;
 			}
 		}

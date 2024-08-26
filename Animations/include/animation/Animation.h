@@ -379,13 +379,45 @@ namespace MathAnim
 		static CameraObject legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 
+	enum class DynamicScriptPropType : uint8
+	{
+		Number,
+		Color
+	};
+
+	struct DynamicScriptPropValue
+	{
+		DynamicScriptPropType type;
+		union
+		{
+			Vec4 color;
+			double number;
+		} as;
+	};
+
+	struct DynamicScriptProp
+	{
+		char* label;
+		size_t labelSize;
+		DynamicScriptPropValue value;
+		bool shouldRender;
+		size_t renderOrder;
+	};
+
 	struct ScriptObject
 	{
 		char* scriptFilepath;
 		size_t scriptFilepathLength;
+		DynamicScriptProp* customData;
+		size_t customDataLength;
 
 		void setFilepath(const char* str, size_t strLength);
 		void setFilepath(const std::string& str);
+
+		DynamicScriptProp* findProp(const char* str);
+		void insertProp(const char* str, DynamicScriptPropValue value);
+
+		bool isValid() const;
 
 		void serialize(nlohmann::json& j) const;
 		void free();
@@ -535,6 +567,8 @@ namespace MathAnim
 		void copyStrokeWidthToChildren(AnimationManagerData* am) const;
 		void copyStrokeColorToChildren(AnimationManagerData* am) const;
 		void copyFillColorToChildren(AnimationManagerData* am) const;
+
+		void deleteGeneratedChildren(AnimationManagerData* am);
 
 		AnimObjectBreadthFirstIter beginBreadthFirst(const AnimationManagerData* am) const;
 		inline AnimObjId end() const { return NULL_ANIM_OBJECT; }

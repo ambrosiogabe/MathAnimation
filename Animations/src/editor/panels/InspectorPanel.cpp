@@ -2012,24 +2012,83 @@ namespace MathAnim
 			ImGui::SameLine();
 			bool shouldDebug = ImGui::Button("Debug");
 
+			// NOTE: Recompile script every 1 second, a small hack to make sure we don't tank performance
+			//       but also have the most recent changes (since the last second) in the script loaded.
+			static int framesSinceLastCompile = 61;
+			if (framesSinceLastCompile > 60)
+			{
+				LuauLayer::compile(script.scriptFilepath);
+			}
+			framesSinceLastCompile++;
+
+			// TODO: This is probably pretty bad for performance. We shouldn't recompile every frame,
+			//       and instead only recompile the script when it gets changed
+			LuauLayer::executeOnAnimObj(script.scriptFilepath, "onInspector", am, obj->id);
+
+			struct
+			{
+				bool operator()(DynamicScriptProp& a, DynamicScriptProp& b) const { return a.renderOrder < b.renderOrder; }
+			} dynamicScriptRenderOrderAsc;
+			std::sort(script.customData, script.customData + script.customDataLength, dynamicScriptRenderOrderAsc);
+
+			for (size_t i = 0; i < script.customDataLength; i++)
+			{
+				auto& dynamicProp = script.customData[i];
+				if (dynamicProp.shouldRender)
+				{
+					switch (dynamicProp.value.type)
+					{
+					case DynamicScriptPropType::Number:
+						if (auto res = ImGuiExtended::DragDoubleEx(dynamicProp.label, &dynamicProp.value.as.number);
+							ANY_EDIT)
+						{
+							anyPropertyChanged = true;
+
+							if (FINISHED_EDITING)
+							{
+								UndoSystem::setDoubleProp(
+									Application::getUndoSystem(),
+									obj->id,
+									res.ogData,
+									dynamicProp.value.as.number,
+									DoublePropType::Dynamic,
+									dynamicProp.label
+								);
+							}
+						}
+						break;
+					case DynamicScriptPropType::Color:
+						if (auto res = ImGuiExtended::ColorEdit4Ex(dynamicProp.label, &dynamicProp.value.as.color);
+							ANY_EDIT)
+						{
+							anyPropertyChanged = true;
+
+							if (FINISHED_EDITING)
+							{
+								UndoSystem::setVec4Prop(
+									Application::getUndoSystem(),
+									obj->id,
+									res.ogData,
+									dynamicProp.value.as.color,
+									Vec4PropType::Dynamic,
+									dynamicProp.label
+								);
+							}
+						}
+						break;
+					}
+
+					dynamicProp.shouldRender = false;
+				}
+			}
+
 			if (shouldGenerate || shouldDebug)
 			{
 				anyPropertyChanged = true;
 
-				if (script.scriptFilepathLength > 0 && Platform::fileExists(script.scriptFilepath))
+				if (script.isValid())
 				{
-					// First remove all generated children, which were generated as a result
-					// of this object (presumably)
-					for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
-					{
-						AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
-						if (child)
-						{
-							SceneHierarchyPanel::deleteAnimObject(*child);
-							AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
-						}
-					}
-					obj->generatedChildrenIds.clear();
+					obj->deleteGeneratedChildren(am);
 
 					// Next init again which should regenerate the children
 					if (LuauLayer::compile(script.scriptFilepath))
@@ -2047,16 +2106,7 @@ namespace MathAnim
 						if (cleanup)
 						{
 							// If execution fails, delete any objects that may have been created prematurely
-							for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
-							{
-								AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
-								if (child)
-								{
-									SceneHierarchyPanel::deleteAnimObject(*child);
-									AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
-								}
-							}
-							obj->generatedChildrenIds.clear();
+							obj->deleteGeneratedChildren(am);
 						}
 					}
 

@@ -55,6 +55,8 @@ namespace MathAnim
 		CameraBackgroundColor = 0,
 		// Circumscribe
 		CircumscribeColor,
+		// Scriptable types
+		Dynamic,
 	};
 
 	enum class StringPropType : uint8
@@ -108,6 +110,12 @@ namespace MathAnim
 		AxisFontSizePixels,
 		AxisLabelPadding,
 		AxisLabelStrokeWidth,
+	};
+
+	enum class DoublePropType : uint8
+	{
+		// Dynamic props are any props set by a script
+		Dynamic
 	};
 
 	enum class EnumPropType : uint8
@@ -181,11 +189,12 @@ namespace MathAnim
 		void applyU8Vec4ToChildren(UndoSystemData* us, ObjOrAnimId id, U8Vec4PropType propType);
 		void setU8Vec4Prop(UndoSystemData* us, ObjOrAnimId id, const glm::u8vec4& oldVec, const glm::u8vec4& newVec, U8Vec4PropType propType);
 		void setEnumProp(UndoSystemData* us, ObjOrAnimId id, int oldEnum, int newEnum, EnumPropType propType);
+		void setDoubleProp(UndoSystemData* us, ObjOrAnimId id, double oldValue, double newValue, DoublePropType propType, const char* label = "");
 		void setFloatProp(UndoSystemData* us, ObjOrAnimId id, float oldValue, float newValue, FloatPropType propType);
 		void setVec2Prop(UndoSystemData* us, ObjOrAnimId id, const Vec2& oldVec, const Vec2& newVec, Vec2PropType propType);
 		void setVec2iProp(UndoSystemData* us, ObjOrAnimId id, const Vec2i& oldVec, const Vec2i& newVec, Vec2iPropType propType);
 		void setVec3Prop(UndoSystemData* us, ObjOrAnimId id, const Vec3& oldVec, const Vec3& newVec, Vec3PropType propType);
-		void setVec4Prop(UndoSystemData* us, ObjOrAnimId id, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType);
+		void setVec4Prop(UndoSystemData* us, ObjOrAnimId id, const Vec4& oldVec, const Vec4& newVec, Vec4PropType propType, const char* label = "");
 		void setStringProp(UndoSystemData* us, ObjOrAnimId id, const std::string& oldString, const std::string& newString, StringPropType propType);
 		void setFont(UndoSystemData* us, ObjOrAnimId id, const std::string& oldFont, const std::string& newFont);
 

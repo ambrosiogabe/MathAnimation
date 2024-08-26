@@ -217,6 +217,14 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 		return res;
 	}
 
+	if (name == "math-anim-gui" || name == "math-anim-gui.luau")
+	{
+		Luau::SourceCode res;
+		res.type = res.Module;
+		res.source = MathAnim::MathAnimGlobals::getMathAnimGuiModule();
+		return res;
+	}
+
 	std::string scriptPath = (scriptDirectory / name).string();
 	if (!MathAnim::Platform::fileExists(scriptPath.c_str()) && anonymousName == name)
 	{

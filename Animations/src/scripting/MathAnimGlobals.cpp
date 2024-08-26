@@ -92,6 +92,21 @@ local MathAnim: MathAnimModule
 return MathAnim
 )BUILTIN_TYPES";
 
+        static constexpr std::string_view mathAnimGuiModule = R"BUILTIN_TYPES(
+type MathAnimGuiModule = {
+    dragNumber: (parent: AnimObject, label: string, default: number?) -> number,
+    colorPicker: (parent: AnimObject, label: string, default: Vec4Color?) -> Vec4Color
+}
+
+local MathAnimGui: MathAnimGuiModule
+return MathAnimGui
+)BUILTIN_TYPES";
+
+        std::string_view getMathAnimGuiModule()
+        {
+            return mathAnimGuiModule;
+        }
+
         std::string_view getMathAnimModule()
         {
             return mathAnimModule;

@@ -19,6 +19,7 @@
 #include "editor/EditorGui.h"
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/UndoSystem.h"
+#include "platform/Platform.h"
 
 #include <nlohmann/json.hpp>
 
@@ -1081,6 +1082,42 @@ namespace MathAnim
 		setFilepath(str.c_str(), str.length());
 	}
 
+	DynamicScriptProp* ScriptObject::findProp(const char* cStr)
+	{
+		std::string str = std::string(cStr);
+		for (size_t i = 0; i < this->customDataLength; i++)
+		{
+			if (str == this->customData[i].label)
+			{
+				return this->customData + i;
+			}
+		}
+
+		return nullptr;
+	}
+
+	void ScriptObject::insertProp(const char* cStr, DynamicScriptPropValue value)
+	{
+		std::string str = std::string(cStr);
+
+		this->customData = (DynamicScriptProp*)g_memory_realloc(this->customData, (this->customDataLength + 1) * sizeof(DynamicScriptProp));
+		this->customDataLength++;
+
+		DynamicScriptProp& prop = this->customData[this->customDataLength - 1];
+		prop.labelSize = str.length() + 1;
+		prop.label = (char*)g_memory_allocate(sizeof(char) * prop.labelSize);
+		prop.shouldRender = false;
+		prop.value = value;
+
+		g_memory_copyMem(prop.label, prop.labelSize, (void*)str.c_str(), str.length());
+		prop.label[prop.labelSize - 1] = '\0';
+	}
+
+	bool ScriptObject::isValid() const
+	{
+		return scriptFilepathLength > 0 && Platform::fileExists(scriptFilepath);
+	}
+
 	void ScriptObject::serialize(nlohmann::json& memory) const
 	{
 		SERIALIZE_NULLABLE_CSTRING(memory, this, scriptFilepath, "Undefined");
@@ -1088,13 +1125,17 @@ namespace MathAnim
 
 	void ScriptObject::free()
 	{
-		if (scriptFilepath)
+		for (size_t i = 0; i < customDataLength; i++)
 		{
-			g_memory_free((void*)scriptFilepath);
+			g_memory_free(customData[i].label);
 		}
+		g_memory_free(customData);
+		g_memory_free((void*)scriptFilepath);
 
 		scriptFilepath = nullptr;
 		scriptFilepathLength = 0;
+		customData = nullptr;
+		customDataLength = 0;
 	}
 
 	ScriptObject ScriptObject::deserialize(const nlohmann::json& j, uint32 version)
@@ -1240,19 +1281,7 @@ namespace MathAnim
 
 	void ImageObject::reInit(AnimationManagerData* am, AnimObject* obj, bool resetSize)
 	{
-		// First remove all generated children, which were generated as a result
-		// of this object (presumably)
-		// NOTE: This is direct descendants, no recursive children here
-		for (int i = 0; i < obj->generatedChildrenIds.size(); i++)
-		{
-			AnimObject* child = AnimationManager::getMutableObject(am, obj->generatedChildrenIds[i]);
-			if (child)
-			{
-				SceneHierarchyPanel::deleteAnimObject(*child);
-				AnimationManager::removeAnimObject(am, obj->generatedChildrenIds[i]);
-			}
-		}
-		obj->generatedChildrenIds.clear();
+		obj->deleteGeneratedChildren(am);
 
 		if (!isNull(obj->as.image.textureHandle))
 		{
@@ -1876,6 +1905,20 @@ namespace MathAnim
 				child->_fillColorStart = this->_fillColorStart;
 			}
 		}
+	}
+
+	void AnimObject::deleteGeneratedChildren(AnimationManagerData* am)
+	{
+		for (size_t i = 0; i < generatedChildrenIds.size(); i++)
+		{
+			AnimObject* child = AnimationManager::getMutableObject(am, generatedChildrenIds[i]);
+			if (child)
+			{
+				SceneHierarchyPanel::deleteAnimObject(*child);
+				AnimationManager::removeAnimObject(am, generatedChildrenIds[i]);
+			}
+		}
+		generatedChildrenIds.clear();
 	}
 
 	AnimObjectBreadthFirstIter AnimObject::beginBreadthFirst(const AnimationManagerData* am) const

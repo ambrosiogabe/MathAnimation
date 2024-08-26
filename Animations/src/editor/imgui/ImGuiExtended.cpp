@@ -141,6 +141,7 @@ namespace MathAnim
 		static ImGuiStateEx<Vec4> colorEdit4Data;
 		static ImGuiStateEx<int> comboData;
 		static ImGuiStateEx<Vec2i> dragInt2Data;
+		static ImGuiStateEx<double> dragDoubleData;
 		static ImGuiStateEx<float> dragFloatData;
 		static ImGuiStateEx<Vec2> dragFloat2Data;
 		static ImGuiStateEx<Vec3> dragFloat3Data;
@@ -839,6 +840,28 @@ namespace MathAnim
 				[&]()
 				{
 					return DragInt2(label, v, v_speed, v_min, v_max, format, flags);
+				});
+		}
+
+		EditState DragDouble(const char* label, double* p_data, float v_speed, const double* p_min, const double* p_max, const char* format, ImGuiSliderFlags flags)
+		{
+			std::string fullLabel = label + std::string("##DragDouble");
+			return undoableImGuiFunction(
+				fullLabel,
+				[&]()
+				{
+					return ImGui::DragScalar(label, ImGuiDataType_Double, p_data, v_speed, p_min, p_max, format, flags);
+				});
+		}
+
+		ImGuiDataEx<double> DragDoubleEx(const char* label, double* p_data, float v_speed, const double* p_min, const double* p_max, const char* format, ImGuiSliderFlags flags)
+		{
+			return dragDoubleData.undoableImGuiFunctionEx(
+				label,
+				*p_data,
+				[&]()
+				{
+					return DragDouble(label, p_data, v_speed, p_min, p_max, format, flags);
 				});
 		}
 

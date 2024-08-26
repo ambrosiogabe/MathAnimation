@@ -13,6 +13,10 @@ extern "C"
 	int global_logWarning(lua_State* L);
 	int global_logError(lua_State* L);
 
+	// ------- Math Anim Gui Module -------
+	int global_dragNumberFn(lua_State* L);
+	int global_colorPickerFn(lua_State* L);
+
 	// ------- Anim Objects -------
 	int global_createAnimObjectFn(lua_State* L);
 	int global_setAnimObjName(lua_State* L);
@@ -46,6 +50,7 @@ extern "C"
 	// ------- Exported libraries/shared library support -------
 	int global_require(lua_State* L);
 	int global_loadMathAnimLib(lua_State* L);
+	int global_loadMathAnimGuiLib(lua_State* L);
 }
 
 namespace MathAnim

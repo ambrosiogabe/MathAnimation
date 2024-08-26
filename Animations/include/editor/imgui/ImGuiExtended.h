@@ -83,6 +83,9 @@ namespace MathAnim
 		EditState DragInt2(const char* label, Vec2i* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", ImGuiSliderFlags flags = 0);
 		ImGuiDataEx<Vec2i> DragInt2Ex(const char* label, Vec2i* v, float v_speed = 1.0f, int v_min = 0, int v_max = 0, const char* format = "%d", ImGuiSliderFlags flags = 0);
 
+		EditState DragDouble(const char* label, double* v, float v_speed = 1.0f, const double* p_min = NULL, const double* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
+		ImGuiDataEx<double> DragDoubleEx(const char* label, double* v, float v_speed = 1.0f, const double* p_min = NULL, const double* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
+
 		EditState DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
 		ImGuiDataEx<float> DragFloatEx(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
 		EditState DragFloat2(const char* label, Vec2* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
