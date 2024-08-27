@@ -2011,9 +2011,16 @@ namespace MathAnim
 			bool shouldGenerate = ImGui::Button("Generate");
 			ImGui::SameLine();
 			bool shouldDebug = ImGui::Button("Debug");
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::BeginTooltip();
+				ImGui::Text("Note: While debugging, any script code in `onInspector` will not be run.");
+				ImGui::EndTooltip();
+			}
 
 			// NOTE: Recompile script every 1 second, a small hack to make sure we don't tank performance
 			//       but also have the most recent changes (since the last second) in the script loaded.
+			//       Compilation is pretty negligible, ~.01-.04ms in Release mode.
 			static int framesSinceLastCompile = 61;
 			if (framesSinceLastCompile > 60)
 			{
@@ -2021,9 +2028,12 @@ namespace MathAnim
 			}
 			framesSinceLastCompile++;
 
-			// TODO: This is probably pretty bad for performance. We shouldn't recompile every frame,
-			//       and instead only recompile the script when it gets changed
-			LuauLayer::executeOnAnimObj(script.scriptFilepath, "onInspector", am, obj->id);
+			if (LuauLayer::pushBytecode(script.scriptFilepath))
+			{
+				LuauLayer::executeBytecode();
+				LuauLayer::executeOnAnimObj("onInspector", am, obj->id);
+				LuauLayer::popBytecode();
+			}
 
 			struct
 			{
@@ -2091,23 +2101,24 @@ namespace MathAnim
 					obj->deleteGeneratedChildren(am);
 
 					// Next init again which should regenerate the children
-					if (LuauLayer::compile(script.scriptFilepath))
+					bool cleanup = false;
+					if (shouldDebug)
 					{
-						bool cleanup = false;
-						if (shouldDebug)
-						{
-							cleanup = !LuauLayer::debugOnAnimObj(script.scriptFilepath, "generate", am, obj->id);
-						}
-						else
-						{
-							cleanup = !LuauLayer::executeOnAnimObj(script.scriptFilepath, "generate", am, obj->id);
-						}
+						cleanup = !LuauLayer::debugGenerateAnimObj(script.scriptFilepath, am, obj->id);
+					}
+					else
+					{
+						LuauLayer::pushBytecode(script.scriptFilepath);
+						LuauLayer::executeBytecode();
+						LuauLayer::executeOnAnimObj("onInspector", am, obj->id);
+						cleanup = !LuauLayer::executeOnAnimObj("generate", am, obj->id);
+						LuauLayer::popBytecode();
+					}
 
-						if (cleanup)
-						{
-							// If execution fails, delete any objects that may have been created prematurely
-							obj->deleteGeneratedChildren(am);
-						}
+					if (cleanup)
+					{
+						// If execution fails, delete any objects that may have been created prematurely
+						obj->deleteGeneratedChildren(am);
 					}
 
 					// Copy the svgObjectStart to all the svgObjects to any generated children

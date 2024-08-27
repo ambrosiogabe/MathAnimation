@@ -68,6 +68,7 @@ namespace MathAnim
 		std::unordered_map<std::string, Bytecode> cachedBytecode;
 		std::filesystem::path scriptDirectory = "";
 		const Bytecode* currentExecutingScript = nullptr;
+		bool isDebuggingCurrentScript = false;
 
 		static int lastLineWeWereDebugging = -1;
 		static bool skipDebugStep = false;
@@ -166,6 +167,7 @@ namespace MathAnim
 					debug->editor->debuggingSessionActive = false;
 
 					currentExecutingScript = nullptr;
+					isDebuggingCurrentScript = false;
 					lastLineWeWereDebugging = -1;
 					lua_singlestep(luaState, false);
 					g_memory_free(debug);
@@ -177,6 +179,7 @@ namespace MathAnim
 					lua_pop(luaState, 1);
 
 					currentExecutingScript = nullptr;
+					isDebuggingCurrentScript = false;
 					lua_singlestep(luaState, false);
 					g_memory_free(debug);
 				}
@@ -311,46 +314,10 @@ namespace MathAnim
 			return true;
 		}
 
-		bool execute(const std::string& filename)
+		bool pushBytecode(const std::string& filename)
 		{
-			auto iter = cachedBytecode.find(filename);
-			if (iter == cachedBytecode.end())
+			if (currentExecutingScript || isDebuggingCurrentScript)
 			{
-				g_logger_warning("Tried to execute script '{}' which was never compiled successfully.", filename);
-				return false;
-			}
-
-			const Bytecode& bytecode = iter->second;
-			currentExecutingScript = &bytecode;
-			int result = luau_load(luaState, filename.c_str(), bytecode.bytes, bytecode.size, 0);
-
-			if (result == 0)
-			{
-				result = lua_pcall(luaState, 0, LUA_MULTRET, 0);
-				if (result)
-				{
-					ParsedError error = parseError(lua_tostring(luaState, -1));
-					ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
-					lua_pop(luaState, 1);
-					return false;
-				}
-
-				currentExecutingScript = nullptr;
-				return true;
-			}
-
-			lua_pop(luaState, 1);
-			currentExecutingScript = nullptr;
-			return false;
-		}
-
-		bool executeOnAnimObj(const std::string& filename, const std::string& functionName, AnimationManagerData* am, AnimObjId id)
-		{
-			MP_PROFILE_EVENT("LuauLayer_ExecuteOnAnimObj");
-			const AnimObject* obj = AnimationManager::getObject(am, id);
-			if (!obj)
-			{
-				g_logger_error("Cannot run script on null anim object. Object '{}' does not exist.", id);
 				return false;
 			}
 
@@ -361,116 +328,32 @@ namespace MathAnim
 				return false;
 			}
 
-			int result = 0;
+			int result = LUA_OK;
 			{
 				MP_PROFILE_EVENT("LuauLayer_LoadBytecode");
 				const Bytecode& bytecode = iter->second;
 				currentExecutingScript = &bytecode;
 				result = luau_load(luaState, filename.c_str(), bytecode.bytes, bytecode.size, 0);
+				if (result != LUA_OK)
+				{
+					lua_pop(luaState, 1);
+					return false;
+				}
 			}
 
-			if (result == 0)
-			{
-				{
-					MP_PROFILE_EVENT("LuauLayer_ExecuteBytecode");
-					// Run the script to get all the function definitions loaded
-					result = lua_pcall(luaState, 0, LUA_MULTRET, 0);
-					if (result)
-					{
-						ParsedError error = parseError(lua_tostring(luaState, -1));
-						ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
-						lua_pop(luaState, 1);
-						return false;
-					}
-				}
-
-				{
-					MP_PROFILE_EVENT("LuauLayer_ExecuteFunction");
-					{
-						MP_PROFILE_EVENT("LuauLayer_PushFunctionToStack");
-						// Get the function and push it on top of the stack
-						lua_getfield(luaState, LUA_GLOBALSINDEX, functionName.c_str());
-					}
-					{
-						MP_PROFILE_EVENT("LuauLayer_PushAnimObjectToStack");
-						// Push anim object to top of the stack
-						ScriptApi::pushAnimObject(luaState, *obj);
-					}
-					{
-						MP_PROFILE_EVENT("LuauLayer_PCallFunction");
-						result = lua_pcall(luaState, 1, 0, 0);
-					}
-
-					if (result)
-					{
-						ParsedError error = parseError(lua_tostring(luaState, -1));
-						ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
-						lua_pop(luaState, 1);
-						return false;
-					}
-				}
-
-				{
-					MP_PROFILE_EVENT("LuauLayer_FinalizeAnimObjects");
-					for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
-					{
-						AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
-						if (childObj)
-						{
-							childObj->_svgObjectStart->finalize();
-							childObj->retargetSvgScale();
-						}
-					}
-				}
-
-				currentExecutingScript = nullptr;
-				return true;
-			}
-
-			lua_pop(luaState, 1);
-			currentExecutingScript = nullptr;
-			return false;
+			return true;
 		}
 
-		bool debugOnAnimObj(const std::string& filename, const std::string& functionName, AnimationManagerData* am, AnimObjId id)
+		bool executeBytecode()
 		{
-			const AnimObject* obj = AnimationManager::getObject(am, id);
-			if (!obj)
+			if (!currentExecutingScript || isDebuggingCurrentScript)
 			{
-				g_logger_error("Cannot run script on null anim object. Object '{}' does not exist.", id);
 				return false;
 			}
 
-			auto iter = cachedBytecode.find(filename);
-			if (iter == cachedBytecode.end())
-			{
-				g_logger_warning("Tried to execute script '{}' which was never compiled successfully.", filename);
-				return false;
-			}
-
-			const Bytecode& bytecode = iter->second;
-			currentExecutingScript = &bytecode;
-			int result = luau_load(luaState, filename.c_str(), bytecode.bytes, bytecode.size, 0);
-
-			CodeEditorPanelData* editor = CodeEditorPanelManager::getEditor(filename);
-			if (editor)
-			{
-				for (auto const breakpointLine : editor->breakpoints)
-				{
-					lua_breakpoint(luaState, -1, breakpointLine, true);
-				}
-			}
-
-			if (result != 0)
-			{
-				lua_pop(luaState, 1);
-				currentExecutingScript = nullptr;
-				return false;
-			}
-
-			// Run the script to get all the function definitions loaded
-			result = lua_pcall(luaState, 0, LUA_MULTRET, 0);
-			if (result)
+			MP_PROFILE_EVENT("LuauLayer_ExecuteBytecode");
+			int result = lua_pcall(luaState, 0, LUA_MULTRET, 0);
+			if (result != LUA_OK)
 			{
 				ParsedError error = parseError(lua_tostring(luaState, -1));
 				ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
@@ -478,10 +361,125 @@ namespace MathAnim
 				return false;
 			}
 
-			// Get the function and push it on top of the stack
-			lua_getfield(luaState, LUA_GLOBALSINDEX, functionName.c_str());
-			// Push anim object to top of the stack
-			ScriptApi::pushAnimObject(luaState, *obj);
+			return true;
+		}
+
+		bool popBytecode()
+		{
+			if (!currentExecutingScript)
+			{
+				return false;
+			}
+
+			currentExecutingScript = nullptr;
+			return true;
+		}
+
+		bool executeOnAnimObj(const std::string& functionName, AnimationManagerData* am, AnimObjId id)
+		{
+			MP_PROFILE_EVENT("LuauLayer_ExecuteOnAnimObj");
+			// Can't execute a script while one is already being debugged
+			if (isDebuggingCurrentScript)
+			{
+				return false;
+			}
+
+			if (!currentExecutingScript)
+			{
+				g_logger_warning("Tried to execute script on anim object, but no script was loaded.");
+				return false;
+			}
+
+			const AnimObject* obj = AnimationManager::getObject(am, id);
+			if (!obj)
+			{
+				g_logger_error("Cannot run script on null anim object. Object '{}' does not exist.", id);
+				return false;
+			}
+
+			int result = LUA_OK;
+			{
+				MP_PROFILE_EVENT("LuauLayer_ExecuteFunction");
+				{
+					MP_PROFILE_EVENT("LuauLayer_PushFunctionToStack");
+					// Get the function and push it on top of the stack
+					lua_getfield(luaState, LUA_GLOBALSINDEX, functionName.c_str());
+				}
+				{
+					MP_PROFILE_EVENT("LuauLayer_PushAnimObjectToStack");
+					// Push anim object to top of the stack
+					ScriptApi::pushAnimObject(luaState, *obj);
+				}
+				{
+					MP_PROFILE_EVENT("LuauLayer_PCallFunction");
+					result = lua_pcall(luaState, 1, 0, 0);
+				}
+
+				if (result)
+				{
+					ParsedError error = parseError(lua_tostring(luaState, -1));
+					ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
+					lua_pop(luaState, 1);
+					return false;
+				}
+			}
+
+			{
+				MP_PROFILE_EVENT("LuauLayer_FinalizeAnimObjects");
+				for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
+				{
+					AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
+					if (childObj)
+					{
+						childObj->_svgObjectStart->finalize();
+						childObj->retargetSvgScale();
+					}
+				}
+
+				return true;
+			}
+		}
+
+		bool debugGenerateAnimObj(const std::string& filename, AnimationManagerData* am, AnimObjId id)
+		{
+			if (currentExecutingScript)
+			{
+				g_logger_warning("Tried to debug script on anim object, a script '{}' was already loaded.", currentExecutingScript->scriptFilepath);
+				return false;
+			}
+
+			if (!pushBytecode(filename))
+			{
+				return false;
+			}
+
+			const AnimObject* obj = AnimationManager::getObject(am, id);
+			if (!obj)
+			{
+				g_logger_error("Cannot debug script on null anim object. Object '{}' does not exist.", id);
+				popBytecode();
+				return false;
+			}
+
+			CodeEditorPanelData* editor = CodeEditorPanelManager::getEditor(currentExecutingScript->scriptFilepath);
+			if (!editor)
+			{
+				// If no editor is open, there's no way to debug the script because no breakpoints will have been set
+				popBytecode();
+				return false;
+			}
+
+			for (auto const breakpointLine : editor->breakpoints)
+			{
+				lua_breakpoint(luaState, 1, breakpointLine, true);
+			}
+
+			if (!executeBytecode())
+			{
+				g_logger_warning("Failed to execute bytecode for script '{}' while debugging.", currentExecutingScript->scriptFilepath);
+				popBytecode();
+				return false;
+			}
 
 			// Setup user data so we can tell our code editor what line is currently executing
 			auto* callbacks = lua_callbacks(luaState);
@@ -490,6 +488,27 @@ namespace MathAnim
 			debugData->editor = editor;
 			callbacks->userdata = debugData;
 
+			// Get the function and push it on top of the stack
+			lua_getfield(luaState, LUA_GLOBALSINDEX, "onInspector");
+			// Push anim object to top of the stack
+			ScriptApi::pushAnimObject(luaState, *obj);
+
+			int result = lua_pcall(luaState, 1, 0, 0);
+			if (result != LUA_OK)
+			{
+				ParsedError error = parseError(lua_tostring(luaState, -1));
+				ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
+				g_memory_free(debugData);
+				lua_pop(luaState, 1);
+				popBytecode();
+				return false;
+			}
+
+			// Get the function and push it on top of the stack
+			lua_getfield(luaState, LUA_GLOBALSINDEX, "generate");
+			// Push anim object to top of the stack
+			ScriptApi::pushAnimObject(luaState, *obj);
+
 			// NOTE: lua_resume will begin a coroutine, this will suspend execution
 			//       if it YIELDS, which should happen once it hits a breakpoint
 			result = lua_resume(luaState, NULL, 1);
@@ -497,16 +516,19 @@ namespace MathAnim
 			{
 				ParsedError error = parseError(lua_tostring(luaState, -1));
 				ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
-				lua_pop(luaState, 1);
-
-				currentExecutingScript = nullptr;
 				g_memory_free(debugData);
+				lua_pop(luaState, 1);
+				popBytecode();
 				return false;
 			}
+
+			isDebuggingCurrentScript = true;
 
 			// Free debug data if we finished execution without hitting a breakpoint
 			if (result == LUA_OK)
 			{
+				popBytecode();
+				isDebuggingCurrentScript = false;
 				g_memory_free(debugData);
 			}
 
@@ -521,6 +543,19 @@ namespace MathAnim
 			}
 
 			return true;
+		}
+
+		bool execute(const std::string& filename)
+		{
+			if (pushBytecode(filename))
+			{
+				if (executeBytecode())
+				{
+					return popBytecode();
+				}
+			}
+
+			return false;
 		}
 
 		bool remove(const std::string& filename)

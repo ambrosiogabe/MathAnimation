@@ -216,7 +216,8 @@ extern "C"
 			{
 				prop->shouldRender = true;
 				prop->renderOrder = renderOrderUuid++;
-				pushVec4(L, prop->value.as.color);
+				Vec4 colorRange255 = prop->value.as.color * 255.0f;
+				pushVec4(L, colorRange255);
 			}
 		}
 		else
