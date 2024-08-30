@@ -24,13 +24,6 @@
 
 namespace MathAnim
 {
-	struct Bytecode
-	{
-		std::string scriptFilepath;
-		char* bytes;
-		size_t size;
-	};
-
 	struct ParsedError
 	{
 		std::string filepath;
@@ -60,7 +53,6 @@ namespace MathAnim
 		static bool analyzeScriptSource(const std::string& sourceCode, const std::string& scriptName);
 		static Bytecode compileToBytecode(const char* data, size_t dataSize, std::string const& scriptName);
 		static int loadBytecode(Bytecode const& bytecode, LoadBytecodeOptions options = LoadBytecodeOptions::PopBytecode);
-		static bool readFile(std::string const& scriptPath, RawMemory* memory);
 
 		// ---------- Internal Variables ----------
 		ScriptAnalyzer* analyzer = nullptr;
@@ -193,15 +185,13 @@ namespace MathAnim
 				return false;
 			}
 
-			std::string scriptPath = (scriptDirectory / filename).make_preferred().lexically_normal().string();
-			RawMemory memory;
-			if (!readFile(scriptPath, &memory))
+			std::optional<Luau::SourceCode> maybeSourceCode = analyzer->resolveFile(filename);
+			if (!maybeSourceCode.has_value())
 			{
 				return false;
 			}
-
-			Bytecode bytecode = compileToBytecode((const char*)memory.data, memory.size, scriptPath);
-			memory.free();
+			auto const& sourceCode = maybeSourceCode.value();
+			Bytecode bytecode = compileToBytecode((const char*)sourceCode.source.c_str(), sourceCode.source.size(), filename);
 
 			int result = loadBytecode(bytecode);
 
@@ -241,6 +231,25 @@ namespace MathAnim
 			cachedBytecode[scriptName] = bytecode;
 
 			return true;
+		}
+
+		Bytecode getBytecode(const std::string& filename)
+		{
+			auto iter = cachedBytecode.find(filename);
+			if (iter == cachedBytecode.end())
+			{
+				// Try to compile
+				if (!compile(filename))
+				{
+					Bytecode res = {};
+					res.isValid = false;
+					return res;
+				}
+
+				iter = cachedBytecode.find(filename);
+			}
+
+			return iter->second;
 		}
 
 		const std::string& getCurrentExecutingScriptFilepath()
@@ -324,7 +333,6 @@ namespace MathAnim
 			auto iter = cachedBytecode.find(filename);
 			if (iter == cachedBytecode.end())
 			{
-				g_logger_warning("Tried to execute script '{}' which was never compiled successfully.", filename);
 				return false;
 			}
 
@@ -658,7 +666,8 @@ namespace MathAnim
 			return {
 				scriptName,
 				bytecode,
-				bytecodeSize
+				bytecodeSize,
+				true
 			};
 		}
 
@@ -674,28 +683,6 @@ namespace MathAnim
 			}
 
 			return result;
-		}
-
-		static bool readFile(std::string const& scriptPath, RawMemory* memory)
-		{
-			// Read the file
-			FILE* fp = fopen(scriptPath.c_str(), "rb");
-			if (!fp)
-			{
-				g_logger_warning("Could not open file '{}', error opening file.", scriptPath.c_str());
-				return false;
-			}
-
-			fseek(fp, 0, SEEK_END);
-			size_t fileSize = ftell(fp);
-			fseek(fp, 0, SEEK_SET);
-
-			memory->init(fileSize + 1);
-			fread(memory->data, fileSize, 1, fp);
-			memory->data[fileSize] = '\0';
-			fclose(fp);
-
-			return true;
 		}
 
 		// Disgusting quick parsing to get the dumb error message in

@@ -879,17 +879,42 @@ extern "C"
 		}
 
 		std::string file = lua_tostring(L, 1);
-		if (file == "math-anim")
+		if (file == "anim-core")
 		{
 			return global_loadMathAnimLib(L);
 		}
-		else if (file == "math-anim-gui")
+		else if (file == "anim-gui")
 		{
 			return global_loadMathAnimGuiLib(L);
 		}
 
-		g_logger_warning("Requiring user created files not supported yet for file: '{}'", file);
-		return 0;
+		Bytecode bytecode = LuauLayer::getBytecode(file);
+		if (!bytecode.isValid)
+		{
+			std::string errorMessage = "Failed to compile module '" + file + "'. Cannot import module.";
+			throwErrorNoReturn(L, errorMessage.c_str());
+			return 0;
+		}
+
+		int res = luau_load(L, file.c_str(), bytecode.bytes, bytecode.size, 0);
+		if (res != LUA_OK)
+		{
+			lua_pop(L, 1);
+			std::string errorMessage = "Failed to load module '" + file + "'. Cannot import module.";
+			throwErrorNoReturn(L, errorMessage.c_str());
+			return 0;
+		}
+
+		res = lua_pcall(L, 0, LUA_MULTRET, 0);
+		if (res != LUA_OK)
+		{
+			lua_pop(L, 1);
+			std::string errorMessage = "Failed to load module '" + file + "'. Cannot import module.";
+			throwErrorNoReturn(L, errorMessage.c_str());
+			return 0;
+		}
+
+		return 1;
 	}
 
 	int global_loadMathAnimLib(lua_State* L)
@@ -911,6 +936,8 @@ extern "C"
 
 		pushCFunction(L, global_colorPickerFn, "math-anim-gui.colorPicker: (parent: AnimObject, label: string, default: Vec4Color?) -> Vec4Color");
 		lua_setfield(L, -2, "colorPicker");
+
+		
 
 		return 1;
 	}

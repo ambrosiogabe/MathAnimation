@@ -382,8 +382,14 @@ namespace MathAnim
 	enum class DynamicScriptPropType : uint8
 	{
 		Number,
-		Color
+		Color,
+		Length
 	};
+
+	constexpr auto _dynamicScriptPropTypeNames = fixedSizeArray<const char*, (size_t)DynamicScriptPropType::Length>(
+		"Number",
+		"Color"
+	);
 
 	struct DynamicScriptPropValue
 	{
@@ -398,7 +404,7 @@ namespace MathAnim
 	struct DynamicScriptProp
 	{
 		char* label;
-		size_t labelSize;
+		size_t labelLength;
 		DynamicScriptPropValue value;
 		bool shouldRender;
 		size_t renderOrder;

@@ -1104,13 +1104,13 @@ namespace MathAnim
 		this->customDataLength++;
 
 		DynamicScriptProp& prop = this->customData[this->customDataLength - 1];
-		prop.labelSize = str.length() + 1;
-		prop.label = (char*)g_memory_allocate(sizeof(char) * prop.labelSize);
+		prop.labelLength = str.length();
+		prop.label = (char*)g_memory_allocate(sizeof(char) * (prop.labelLength + 1));
 		prop.shouldRender = false;
 		prop.value = value;
 
-		g_memory_copyMem(prop.label, prop.labelSize, (void*)str.c_str(), str.length());
-		prop.label[prop.labelSize - 1] = '\0';
+		g_memory_copyMem(prop.label, prop.labelLength, (void*)str.c_str(), str.length());
+		prop.label[prop.labelLength] = '\0';
 	}
 
 	bool ScriptObject::isValid() const
@@ -1121,6 +1121,34 @@ namespace MathAnim
 	void ScriptObject::serialize(nlohmann::json& memory) const
 	{
 		SERIALIZE_NULLABLE_CSTRING(memory, this, scriptFilepath, "Undefined");
+
+		memory["CustomData"] = nlohmann::json::array();
+
+		// Write out each dynamic prop
+		for (size_t i = 0; i < customDataLength; i++)
+		{
+			auto const& prop = customData[i];
+			if (prop.labelLength > 0)
+			{
+				auto const& propValue = prop.value;
+				nlohmann::json propJson = nlohmann::json();
+
+				SERIALIZE_NULLABLE_CSTRING(propJson, &prop, label, "");
+				SERIALIZE_ENUM(propJson, &propValue, type, _dynamicScriptPropTypeNames);
+
+				switch (propValue.type)
+				{
+				case DynamicScriptPropType::Number:
+					SERIALIZE_NON_NULL_PROP(propJson, &propValue, as.number);
+					break;
+				case DynamicScriptPropType::Color:
+					SERIALIZE_VEC(propJson, &propValue, as.color);
+					break;
+				}
+
+				memory["CustomData"].push_back(propJson);
+			}
+		}
 	}
 
 	void ScriptObject::free()
@@ -1147,6 +1175,41 @@ namespace MathAnim
 		{
 			ScriptObject res = {};
 			DESERIALIZE_NULLABLE_CSTRING(&res, scriptFilepath, j);
+
+			if (j.contains("CustomData"))
+			{
+				nlohmann::json const& customDataJson = j["CustomData"];
+
+				res.customDataLength = customDataJson.size();
+				res.customData = (DynamicScriptProp*)g_memory_allocate(sizeof(DynamicScriptProp) * res.customDataLength);
+
+				// Deserialize each dynamic prop
+				for (size_t i = 0; i < customDataJson.size(); i++)
+				{
+					auto const& propJson = customDataJson[i];
+					auto& prop = res.customData[i];
+					auto& propValue = prop.value;
+
+					DESERIALIZE_NULLABLE_CSTRING(&prop, label, propJson);
+					DESERIALIZE_ENUM(&propValue, type, _dynamicScriptPropTypeNames, DynamicScriptPropType, propJson);
+
+					switch (propValue.type)
+					{
+					case DynamicScriptPropType::Number:
+						DESERIALIZE_PROP(&propValue, as.number, propJson, 0.0f);
+						break;
+					case DynamicScriptPropType::Color:
+						DESERIALIZE_VEC4(&propValue, as.color, propJson, (Vec4{ 1.0f, 1.0f, 1.0f, 1.0f }));
+						break;
+					}
+				}
+			}
+			else
+			{
+				res.customDataLength = 0;
+				res.customData = nullptr;
+			}
+
 			return res;
 		}
 		break;

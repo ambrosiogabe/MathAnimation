@@ -58,7 +58,7 @@ namespace MathAnim
 		: m_scriptDirectory(scriptDirectory)
 	{
 		Luau::FrontendOptions frontendOptions;
-		frontendOptions.retainFullTypeGraphs = false;
+		frontendOptions.retainFullTypeGraphs = true;
 
 		fileResolver = g_memory_new ScriptFileResolver(scriptDirectory);
 		configResolver = g_memory_new ScriptConfigResolver();
@@ -91,27 +91,27 @@ namespace MathAnim
 			//Luau::TypeArena& arena = frontend->typeChecker.globalTypes;
 			//arena.addType(loadResult.module.get()->astTypes[0]);
 		}
-		{
-			// Register our own builtin types 
-			Luau::LoadDefinitionFileResult loadResult =
-				Luau::loadDefinitionFile(
-					frontend->typeChecker,
-					frontend->typeChecker.globalScope,
-					MathAnimGlobals::getMathAnimApiTypes(),
-					"math-anim"
-				);
-			if (!loadResult.success)
-			{
-				g_logger_error("The ScriptAnalyzer failed to load math-anim builtin definitions. Errors:");
-				for (int i = 0; i < loadResult.parseResult.errors.size(); i++)
-				{
-					g_logger_error("{} at line:column {}:{}",
-						loadResult.parseResult.errors[i].getMessage(),
-						loadResult.parseResult.errors[i].getLocation().begin.line,
-						loadResult.parseResult.errors[i].getLocation().begin.column);
-				}
-			}
-		}
+		//{
+		//	// Register our own builtin types 
+		//	Luau::LoadDefinitionFileResult loadResult =
+		//		Luau::loadDefinitionFile(
+		//			frontend->typeChecker,
+		//			frontend->typeChecker.globalScope,
+		//			MathAnimGlobals::getAnimCoreModule(),
+		//			"anim-core"
+		//		);
+		//	if (!loadResult.success)
+		//	{
+		//		g_logger_error("The ScriptAnalyzer failed to load math-anim builtin definitions. Errors:");
+		//		for (int i = 0; i < loadResult.parseResult.errors.size(); i++)
+		//		{
+		//			g_logger_error("{} at line:column {}:{}",
+		//				loadResult.parseResult.errors[i].getMessage(),
+		//				loadResult.parseResult.errors[i].getLocation().begin.line,
+		//				loadResult.parseResult.errors[i].getLocation().begin.column);
+		//		}
+		//	}
+		//}
 		Luau::freeze(frontend->typeChecker.globalTypes);
 	}
 
@@ -183,6 +183,22 @@ namespace MathAnim
 		return cr.errors.size() == 0;
 	}
 
+	std::optional<Luau::SourceCode> ScriptAnalyzer::resolveFile(const std::string& filename)
+	{
+		if (!fileResolver || !configResolver || !frontend)
+		{
+			static bool displayWarning = true;
+			if (displayWarning)
+			{
+				g_logger_warning("Tried to resolve a script, but the script analyzer was not initialized properly. Suppressing this message now.");
+				displayWarning = false;
+			}
+			return std::nullopt;
+		}
+
+		return fileResolver->readSource(filename);
+	}
+
 	void ScriptAnalyzer::free()
 	{
 		g_memory_delete(fileResolver);
@@ -209,19 +225,27 @@ void ScriptFileResolver::setAnonymousFile(const std::string& source, const std::
 
 std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::ModuleName& name)
 {
-	if (name == "math-anim" || name == "math-anim.luau")
+	if (name == "anim-core" || name == "anim-core.luau")
 	{
 		Luau::SourceCode res;
 		res.type = res.Module;
-		res.source = MathAnim::MathAnimGlobals::getMathAnimModule();
+		res.source = MathAnim::MathAnimGlobals::getAnimCoreModule();
 		return res;
 	}
 
-	if (name == "math-anim-gui" || name == "math-anim-gui.luau")
+	if (name == "anim-gui" || name == "anim-gui.luau")
 	{
 		Luau::SourceCode res;
 		res.type = res.Module;
-		res.source = MathAnim::MathAnimGlobals::getMathAnimGuiModule();
+		res.source = MathAnim::MathAnimGlobals::getAnimGuiModule();
+		return res;
+	}
+
+	if (name == "anim-math" || name == "anim-math.luau")
+	{
+		Luau::SourceCode res;
+		res.type = res.Module;
+		res.source = MathAnim::MathAnimGlobals::getAnimMathModule();
 		return res;
 	}
 
