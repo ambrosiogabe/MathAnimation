@@ -1591,6 +1591,7 @@ namespace MathAnim
 		case AnimObjectTypeV1::Circle:
 		case AnimObjectTypeV1::SvgObject:
 		case AnimObjectTypeV1::Arrow:
+		case AnimObjectTypeV1::ScriptObject: // It's possible for ScriptObject's to have an Svg attached
 		{
 			MP_PROFILE_EVENT("AnimObject_Render_SvgObject");
 
@@ -1639,7 +1640,6 @@ namespace MathAnim
 		case AnimObjectTypeV1::LaTexObject:
 		case AnimObjectTypeV1::SvgFileObject:
 		case AnimObjectTypeV1::Camera:
-		case AnimObjectTypeV1::ScriptObject:
 		case AnimObjectTypeV1::CodeBlock:
 		case AnimObjectTypeV1::Image:
 		case AnimObjectTypeV1::Cube:
@@ -1984,6 +1984,23 @@ namespace MathAnim
 		generatedChildrenIds.clear();
 	}
 
+	void AnimObject::resetSvgObject()
+	{
+		if (this->_svgObjectStart)
+		{
+			this->_svgObjectStart->free();
+			*this->_svgObjectStart = Svg::createDefault();
+
+			if (!this->svgObject)
+			{
+				this->svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+				*this->svgObject = Svg::createDefault();
+			}
+
+			Svg::copy(this->svgObject, this->_svgObjectStart);
+		}
+	}
+
 	AnimObjectBreadthFirstIter AnimObject::beginBreadthFirst(const AnimationManagerData* am) const
 	{
 		return AnimObjectBreadthFirstIter(am, this->id);
@@ -2109,6 +2126,7 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::ScriptObject:
 			SERIALIZE_OBJECT(memory, this, as.script);
+			SERIALIZE_OBJECT_PTR(memory, this, _svgObjectStart);
 			break;
 		case AnimObjectTypeV1::Image:
 			SERIALIZE_OBJECT(memory, this, as.image);
@@ -2227,6 +2245,15 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::ScriptObject:
 			DESERIALIZE_OBJECT(&res, as.script, ScriptObject, version, j);
+			DESERIALIZE_OBJECT(&res, _svgObjectStart, SvgObject, version, j);
+			if (!res._svgObjectStart)
+			{
+				res._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+				*res._svgObjectStart = Svg::createDefault();
+			}
+			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res.svgObject = Svg::createDefault();
+			Svg::copy(res.svgObject, res._svgObjectStart);
 			break;
 		case AnimObjectTypeV1::Image:
 			DESERIALIZE_OBJECT(&res, as.image, ImageObject, version, j);
@@ -2543,6 +2570,10 @@ namespace MathAnim
 			break;
 		case AnimObjectTypeV1::ScriptObject:
 			res.as.script = ScriptObject::createDefault();
+			res._svgObjectStart = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res._svgObjectStart = Svg::createDefault();
+			res.svgObject = (SvgObject*)g_memory_allocate(sizeof(SvgObject));
+			*res.svgObject = Svg::createDefault();
 			break;
 		case AnimObjectTypeV1::Image:
 			res.as.image = ImageObject::createDefault();

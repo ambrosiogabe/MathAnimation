@@ -545,7 +545,15 @@ namespace MathAnim
 
 				// Then reallocate memory. If dest had less, this will acquire enough new memory
 				// If dest had more, this will get rid of the extra memory
-				dest->paths = (Path*)g_memory_realloc(dest->paths, sizeof(Path) * src->numPaths);
+				if (src->numPaths > 0)
+				{
+					dest->paths = (Path*)g_memory_realloc(dest->paths, sizeof(Path) * src->numPaths);
+				}
+				else
+				{
+					g_memory_free(dest->paths);
+					dest->paths = nullptr;
+				}
 
 				// Go through and initialize the curves for any new curves that were added
 				for (int contouri = dest->numPaths; contouri < src->numPaths; contouri++)

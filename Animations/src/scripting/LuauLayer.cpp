@@ -398,7 +398,7 @@ namespace MathAnim
 				return false;
 			}
 
-			const AnimObject* obj = AnimationManager::getObject(am, id);
+			AnimObject* obj = AnimationManager::getMutableObject(am, id);
 			if (!obj)
 			{
 				g_logger_error("Cannot run script on null anim object. Object '{}' does not exist.", id);
@@ -434,14 +434,21 @@ namespace MathAnim
 
 			{
 				MP_PROFILE_EVENT("LuauLayer_FinalizeAnimObjects");
-				for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
+				// TODO: Just make an oninspector function and generate function in C++ code instead of this abstract execute thing
+				if (functionName == "generate")
 				{
-					AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
-					if (childObj)
+					for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
 					{
-						childObj->_svgObjectStart->finalize();
-						childObj->retargetSvgScale();
+						AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
+						if (childObj)
+						{
+							childObj->_svgObjectStart->finalize();
+							childObj->retargetSvgScale();
+						}
 					}
+
+					obj->_svgObjectStart->finalize();
+					obj->retargetSvgScale();
 				}
 
 				return true;

@@ -575,6 +575,7 @@ namespace MathAnim
 		void copyFillColorToChildren(AnimationManagerData* am) const;
 
 		void deleteGeneratedChildren(AnimationManagerData* am);
+		void resetSvgObject();
 
 		AnimObjectBreadthFirstIter beginBreadthFirst(const AnimationManagerData* am) const;
 		inline AnimObjId end() const { return NULL_ANIM_OBJECT; }

@@ -2098,7 +2098,10 @@ namespace MathAnim
 
 				if (script.isValid())
 				{
+					// We delete generated children and also reset the svg object so the script is free to modify it
+					// if it wants to
 					obj->deleteGeneratedChildren(am);
+					obj->resetSvgObject();
 
 					// Next init again which should regenerate the children
 					bool cleanup = false;
@@ -2119,6 +2122,7 @@ namespace MathAnim
 					{
 						// If execution fails, delete any objects that may have been created prematurely
 						obj->deleteGeneratedChildren(am);
+						obj->resetSvgObject();
 					}
 
 					// Copy the svgObjectStart to all the svgObjects to any generated children
@@ -2134,6 +2138,9 @@ namespace MathAnim
 							}
 						}
 					}
+
+					// Also copy the parent svg object over
+					Svg::copy(obj->svgObject, obj->_svgObjectStart);
 				}
 			}
 
