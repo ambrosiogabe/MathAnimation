@@ -14,8 +14,9 @@ extern "C"
 	int global_logError(lua_State* L);
 
 	// ------- Math Anim Gui Module -------
-	int global_dragNumberFn(lua_State* L);
-	int global_colorPickerFn(lua_State* L);
+	int animGui_dragNumberFn(lua_State* L);
+	int animGui_colorPickerFn(lua_State* L);
+	int animGui_registerFn(lua_State* L);
 
 	// ------- Anim Objects -------
 	int global_createAnimObjectFn(lua_State* L);

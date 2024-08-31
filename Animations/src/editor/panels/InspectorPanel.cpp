@@ -2017,6 +2017,14 @@ namespace MathAnim
 				ImGui::Text("Note: While debugging, any script code in `onInspector` will not be run.");
 				ImGui::EndTooltip();
 			}
+			
+			if (ImGui::Button("Register"))
+			{
+				LuauLayer::pushBytecode(script.scriptFilepath);
+				LuauLayer::executeBytecode();
+				LuauLayer::executeOnAnimObj("register", am, obj->id);
+				LuauLayer::popBytecode();
+			}
 
 			// NOTE: Recompile script every 1 second, a small hack to make sure we don't tank performance
 			//       but also have the most recent changes (since the last second) in the script loaded.

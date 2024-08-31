@@ -95,9 +95,17 @@ return MathAnim
         static constexpr std::string_view animGuiModule = R"BUILTIN_TYPES(
 local MathAnim = require('anim-core')
 
+export type RegisterProps = {
+    label: string,
+    mainMenu: string?,
+    header: string?
+}
+
 export type MathAnimGuiModule = {
     dragNumber: (parent: MathAnim.AnimObject, label: string, default: number?) -> number,
-    colorPicker: (parent: MathAnim.AnimObject, label: string, default: Vec4Color?) -> Vec4Color
+    colorPicker: (parent: MathAnim.AnimObject, label: string, default: Vec4Color?) -> Vec4Color,
+
+    register: (props: RegisterProps) -> ()
 }
 
 local MathAnimGui: MathAnimGuiModule

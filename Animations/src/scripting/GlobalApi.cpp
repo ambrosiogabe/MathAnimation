@@ -49,6 +49,123 @@ do { \
 
 static std::string getAsString(lua_State* L, int index = 1);
 
+enum class TypePropType : uint8
+{
+	String,
+	Number,
+	Table
+};
+
+struct TypeProp
+{
+	TypePropType type;
+	bool isOptional;
+	std::string name;
+};
+
+struct Type
+{
+	std::vector<TypeProp> props;
+};
+
+struct TypeValidationResult
+{
+	bool isValid;
+	std::string message;
+};
+
+static TypeValidationResult isType(lua_State* L, int index, Type const& type)
+{
+	TypeValidationResult result = {};
+	result.isValid = true;
+	result.message = "Error: Incorrect type.";
+
+	for (auto const& prop : type.props)
+	{
+		if (prop.isOptional)
+		{
+			continue;
+		}
+
+		lua_getfield(L, index, prop.name.c_str());
+		switch (prop.type)
+		{
+		case TypePropType::Number:
+			if (!lua_isnumber(L, -1))
+			{
+				result.isValid = false;
+				result.message += "Required prop '" + prop.name + "' is not a number.";
+			}
+			break;
+		case TypePropType::String:
+			if (!lua_isstring(L, -1))
+			{
+				result.isValid = false;
+				result.message += "Required prop '" + prop.name + "' is not a string.";
+			}
+			break;
+		case TypePropType::Table:
+			if (!lua_istable(L, -1))
+			{
+				result.isValid = false;
+				result.message += "Required prop '" + prop.name + "' is not a table.";
+			}
+			break;
+		}
+		lua_pop(L, 1);
+	}
+
+	return result;
+}
+
+struct SimpleOptionalValue
+{
+	std::optional<std::string> asString;
+	std::optional<double> asNumber;
+};
+
+static SimpleOptionalValue getField(lua_State* L, int index, Type const& type, std::string const& fieldName)
+{
+	SimpleOptionalValue ret = {};
+
+	for (auto const& prop : type.props)
+	{
+		if (prop.name == fieldName)
+		{
+			lua_getfield(L, index, prop.name.c_str());
+			switch (prop.type)
+			{
+			case TypePropType::Number:
+				if (lua_isnumber(L, -1) && prop.name == fieldName)
+				{
+					double value = lua_tonumber(L, -1);
+					lua_pop(L, 1);
+					ret.asNumber = value;
+					return ret;
+				}
+				break;
+			case TypePropType::String:
+				if (lua_isstring(L, -1) && prop.name == fieldName)
+				{
+					std::string value = lua_tostring(L, -1);
+					lua_pop(L, 1);
+					ret.asString = value;
+					return ret;
+				}
+				break;
+			case TypePropType::Table:
+				g_logger_error("No support for this yet.");
+				break;
+			}
+			lua_pop(L, 1);
+
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 extern "C"
 {
 	using namespace MathAnim;
@@ -110,7 +227,7 @@ extern "C"
 	}
 
 	// ------- Math Anim Gui Module -------
-	int global_dragNumberFn(lua_State* L)
+	int animGui_dragNumberFn(lua_State* L)
 	{
 		int nargs = lua_gettop(L);
 		argumentCheck(L, 2, 3, "dragNumber(AnimObject, string, number?)", nargs);
@@ -168,7 +285,7 @@ extern "C"
 		return 1;
 	}
 
-	int global_colorPickerFn(lua_State* L)
+	int animGui_colorPickerFn(lua_State* L)
 	{
 		int nargs = lua_gettop(L);
 		argumentCheck(L, 2, 3, "colorPicker(AnimObject, string, Vec4Color?)", nargs);
@@ -185,7 +302,7 @@ extern "C"
 			throwError(L, "Error: MathAnimGui.colorPicker expects second argument to be of type string.");
 		}
 
-		Vec4 defaultValue = {1.0f, 1.0f, 1.0f, 1.0f};
+		Vec4 defaultValue = { 1.0f, 1.0f, 1.0f, 1.0f };
 		if (isVec4(L, 3))
 		{
 			defaultValue = toVec4(L, 3);
@@ -226,6 +343,53 @@ extern "C"
 		}
 
 		return 1;
+	}
+
+	int animGui_registerFn(lua_State* L)
+	{
+		int nargs = lua_gettop(L);
+		argumentCheck(L, 1, 1, "register(props: RegisterProps)", nargs);
+
+		const Type registerProps = Type{
+			std::vector<TypeProp>{
+			{
+			TypePropType::String,
+			false,
+			"label"
+			},
+			{
+			TypePropType::String,
+			true,
+			"mainMenu"
+			},
+			{
+			TypePropType::String,
+			true,
+			"header"
+			}}
+		};
+
+		TypeValidationResult validationResult = isType(L, 1, registerProps);
+		if (!validationResult.isValid)
+		{
+			throwError(L, validationResult.message.c_str());
+		}
+
+		auto label = getField(L, 1, registerProps, "label");
+		g_logger_assert(label.asString.has_value(), "How did this happen?");
+
+		auto header = getField(L, 1, registerProps, "header");
+		auto mainMenu = getField(L, 1, registerProps, "mainMenu");
+
+		SceneHierarchyPanel::removeContextMenuItemsWith(LuauLayer::getCurrentExecutingScriptFilepath());
+		SceneHierarchyPanel::addContextMenuItem(
+			LuauLayer::getCurrentExecutingScriptFilepath(),
+			label.asString.value(),
+			mainMenu.asString.value_or(""),
+			header.asString.value_or("")
+		);
+
+		return 0;
 	}
 
 	// ------- Anim Objects -------
@@ -931,13 +1095,14 @@ extern "C"
 	{
 		lua_createtable(L, 0, 1);
 
-		pushCFunction(L, global_dragNumberFn, "math-anim-gui.dragNumber: (parent: AnimObject, label: string, default: number?) -> number");
+		pushCFunction(L, animGui_dragNumberFn, "math-anim-gui.dragNumber: (parent: AnimObject, label: string, default: number?) -> number");
 		lua_setfield(L, -2, "dragNumber");
 
-		pushCFunction(L, global_colorPickerFn, "math-anim-gui.colorPicker: (parent: AnimObject, label: string, default: Vec4Color?) -> Vec4Color");
+		pushCFunction(L, animGui_colorPickerFn, "math-anim-gui.colorPicker: (parent: AnimObject, label: string, default: Vec4Color?) -> Vec4Color");
 		lua_setfield(L, -2, "colorPicker");
 
-		
+		pushCFunction(L, animGui_registerFn, "math-anim-gui.register: (props: RegisterProps) -> ()");
+		lua_setfield(L, -2, "register");
 
 		return 1;
 	}

@@ -50,6 +50,25 @@ namespace MathAnim
 		AnimObjId objId;
 	};
 
+	struct DynamicContextItem
+	{
+		std::string label;
+		std::string scriptName;
+	};
+
+	struct DynamicContextSubMenu
+	{
+		std::string menuLabel;
+		std::unordered_map<std::string, std::vector<DynamicContextItem>> itemsWithHeader;
+		std::vector<DynamicContextItem> items;
+	};
+
+	struct DynamicContextMenu
+	{
+		std::unordered_map<std::string, DynamicContextSubMenu> subMenus;
+		std::vector<DynamicContextItem> items;
+	};
+
 	namespace SceneHierarchyPanel
 	{
 		// --------- Internal variables ---------
@@ -59,6 +78,12 @@ namespace MathAnim
 		static std::vector<SceneTreeMetadata> orderedEntities = {};
 		static SceneTreeMoveData dragDropMove;
 		static bool mouseHoveredSceneHeirarchyPanel = false;
+		static DynamicContextMenu dynamicContextItems = {};
+
+		static const std::unordered_set<std::string> reservedShapeHeaders = {
+			"2D Shapes",
+			"3D Shapes"
+		};
 
 		// --------- Internal functions ---------
 		static PendingCtxAction openContextMenu(AnimationManagerData* am, SceneTreeMetadata* elementClicked);
@@ -70,6 +95,12 @@ namespace MathAnim
 		static void updateLevel(int parentIndex, int newLevel);
 		static int getNumChildren(int parentIndex);
 		static void addExistingAnimObject(AnimationManagerData* am, const AnimObject& obj, int level);
+
+		static void renderContextMenuItem(DynamicContextItem const& item);
+		static void renderContextMenuCollection(std::vector<DynamicContextItem> const& items);
+		static void renderContextSubMenuCollection(std::unordered_map<std::string, DynamicContextSubMenu>::iterator subMenuIter);
+		static void renderContextSubMenuWithHeader(std::unordered_map<std::string, DynamicContextSubMenu>::iterator subMenuIter, std::string const& header);
+		static bool renderContextSubMenu(std::unordered_map<std::string, DynamicContextSubMenu>::iterator subMenuIter, Vec4 const& grayedTextColor, std::unordered_set<std::string> const& reservedHeaders);
 
 		void init(AnimationManagerData* am)
 		{
@@ -387,6 +418,109 @@ namespace MathAnim
 			return mouseHoveredSceneHeirarchyPanel;
 		}
 
+		void addContextMenuItem(std::string const& scriptName, std::string const& label, std::string const& menu, std::string const& header)
+		{
+			DynamicContextItem newItem = {};
+			newItem.label = label;
+			newItem.scriptName = scriptName;
+
+			if (menu.length() > 0)
+			{
+				auto iter = dynamicContextItems.subMenus.find(menu);
+				if (iter == dynamicContextItems.subMenus.end())
+				{
+					dynamicContextItems.subMenus.emplace(menu, DynamicContextSubMenu{});
+					iter = dynamicContextItems.subMenus.find(menu);
+					g_logger_assert(iter != dynamicContextItems.subMenus.end(), "How did this happen? Out of memory?");
+				}
+
+				if (header.length() > 0)
+				{
+					auto subIter = iter->second.itemsWithHeader.find(header);
+					if (subIter == iter->second.itemsWithHeader.end())
+					{
+						iter->second.itemsWithHeader.emplace(header, std::vector<DynamicContextItem>{});
+						subIter = iter->second.itemsWithHeader.find(header);
+						g_logger_assert(subIter != iter->second.itemsWithHeader.end(), "How did this happen? Out of memory?");
+					}
+
+					subIter->second.emplace_back(newItem);
+					return;
+				}
+
+				iter->second.items.emplace_back(newItem);
+				return;
+			}
+
+			dynamicContextItems.items.emplace_back(newItem);
+			return;
+		}
+
+		void removeContextMenuItemsWith(std::string const& scriptName)
+		{
+			for (auto menuIt = dynamicContextItems.subMenus.begin(); menuIt != dynamicContextItems.subMenus.end();)
+			{
+				auto& itemsWithHeader = menuIt->second.itemsWithHeader;
+				for (auto headerIt = itemsWithHeader.begin(); headerIt != itemsWithHeader.end();)
+				{
+					auto itemCollectionIt = headerIt->second;
+					for (auto itemIt = itemCollectionIt.begin(); itemIt != itemCollectionIt.end();)
+					{
+						if (itemIt->scriptName == scriptName)
+						{
+							itemIt = itemCollectionIt.erase(itemIt);
+						}
+						else
+						{
+							itemIt++;
+						}
+					}
+
+					if (itemCollectionIt.size() == 0)
+					{
+						headerIt = itemsWithHeader.erase(headerIt);
+					}
+					else
+					{
+						headerIt++;
+					}
+				}
+
+				for (auto itemIt = menuIt->second.items.begin(); itemIt != menuIt->second.items.end();)
+				{
+					if (itemIt->scriptName == scriptName)
+					{
+						itemIt = menuIt->second.items.erase(itemIt);
+					}
+					else
+					{
+						itemIt++;
+					}
+				}
+
+				if (menuIt->second.items.size() == 0 && menuIt->second.itemsWithHeader.size() == 0)
+				{
+					menuIt = dynamicContextItems.subMenus.erase(menuIt);
+				}
+				else
+				{
+					menuIt++;
+				}
+			}
+
+			for (auto itemIt = dynamicContextItems.items.begin(); itemIt != dynamicContextItems.items.end();)
+			{
+				if (itemIt->scriptName == scriptName)
+				{
+					itemIt = dynamicContextItems.items.erase(itemIt);
+				}
+				else
+				{
+					itemIt++;
+				}
+			}
+		}
+
 		// --------- Internal functions ---------
 		static PendingCtxAction openContextMenu(AnimationManagerData* am, SceneTreeMetadata* elementClicked)
 		{
@@ -443,8 +577,12 @@ namespace MathAnim
 
 			if (ImGui::BeginMenu("Shapes"))
 			{
+				auto shapesIter = dynamicContextItems.subMenus.find("Shapes");
+
 				ImGui::TextColored(grayedTextColor, "2D Shapes");
 				ImGui::Separator();
+
+				renderContextSubMenuWithHeader(shapesIter, "2D Shapes");
 
 				if (ImGui::MenuItem("Square"))
 				{
@@ -481,6 +619,8 @@ namespace MathAnim
 				ImGui::TextColored(grayedTextColor, "3D Shapes");
 				ImGui::Separator();
 
+				renderContextSubMenuWithHeader(shapesIter, "3D Shapes");
+
 				if (ImGui::MenuItem("Cube"))
 				{
 					UndoSystem::addNewObjToScene(
@@ -489,11 +629,24 @@ namespace MathAnim
 					);
 				}
 
+				if (renderContextSubMenu(shapesIter, grayedTextColor, reservedShapeHeaders))
+				{
+					ImGui::Separator();
+				}
+
+				renderContextSubMenuCollection(shapesIter);
+
 				ImGui::EndMenu();
 			}
 
 			if (ImGui::BeginMenu("Text"))
 			{
+				auto textIter = dynamicContextItems.subMenus.find("Text");
+				if (renderContextSubMenu(textIter, grayedTextColor, {}))
+				{
+					ImGui::Separator();
+				}
+
 				if (ImGui::MenuItem("Text Object"))
 				{
 					UndoSystem::addNewObjToScene(
@@ -521,7 +674,33 @@ namespace MathAnim
 					);
 				}
 
+				renderContextSubMenuCollection(textIter);
+
 				ImGui::EndMenu();
+			}
+
+			for (auto const& [label, subMenu] : dynamicContextItems.subMenus)
+			{
+				if (ImGui::BeginMenu(label.c_str()))
+				{
+					bool needsSeparator = false;
+					for (auto const& [header, headerItems] : subMenu.itemsWithHeader)
+					{
+						ImGui::TextColored(grayedTextColor, header.c_str());
+						ImGui::Separator();
+
+						renderContextMenuCollection(headerItems);
+						needsSeparator = true;
+					}
+
+					if (needsSeparator)
+					{
+						ImGui::Separator();
+					}
+					renderContextMenuCollection(subMenu.items);
+
+					ImGui::EndMenu();
+				}
 			}
 
 			ImGui::Separator();
@@ -549,6 +728,8 @@ namespace MathAnim
 					(int)AnimObjectTypeV1::ScriptObject
 				);
 			}
+
+			renderContextMenuCollection(dynamicContextItems.items);
 
 			return retValue;
 		}
@@ -917,6 +1098,66 @@ namespace MathAnim
 				}
 				children.pop_back();
 			}
+		}
+
+		static void renderContextMenuItem(DynamicContextItem const& item)
+		{
+			if (ImGui::MenuItem(item.label.c_str()))
+			{
+				UndoSystem::addNewObjToScene(
+					Application::getUndoSystem(),
+					(int)AnimObjectTypeV1::ScriptObject
+				);
+			}
+		}
+
+		static void renderContextMenuCollection(std::vector<DynamicContextItem> const& items)
+		{
+			for (auto const& item : items)
+			{
+				renderContextMenuItem(item);
+			}
+		}
+
+		static void renderContextSubMenuCollection(std::unordered_map<std::string, DynamicContextSubMenu>::iterator subMenuIter)
+		{
+			if (subMenuIter != dynamicContextItems.subMenus.end())
+			{
+				renderContextMenuCollection(subMenuIter->second.items);
+			}
+		}
+
+		static void renderContextSubMenuWithHeader(std::unordered_map<std::string, DynamicContextSubMenu>::iterator subMenuIter, std::string const& header)
+		{
+			if (subMenuIter != dynamicContextItems.subMenus.end())
+			{
+				auto listIter = subMenuIter->second.itemsWithHeader.find(header);
+				if (listIter != subMenuIter->second.itemsWithHeader.end())
+				{
+					renderContextMenuCollection(listIter->second);
+				}
+			}
+		}
+
+		static bool renderContextSubMenu(std::unordered_map<std::string, DynamicContextSubMenu>::iterator subMenuIter, Vec4 const& grayedTextColor, std::unordered_set<std::string> const& reservedHeaders)
+		{
+			bool needsSeparator = false;
+			if (subMenuIter != dynamicContextItems.subMenus.end())
+			{
+				for (auto const& [label, collection] : subMenuIter->second.itemsWithHeader)
+				{
+					if (reservedHeaders.find(label) == reservedHeaders.end())
+					{
+						ImGui::TextColored(grayedTextColor, label.c_str());
+						ImGui::Separator();
+
+						renderContextMenuCollection(collection);
+						needsSeparator = true;
+					}
+				}
+			}
+
+			return needsSeparator;
 		}
 	}
 }

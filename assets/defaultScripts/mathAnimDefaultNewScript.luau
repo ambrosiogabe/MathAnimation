@@ -1,4 +1,4 @@
-local MathAnim = require("math-anim")
+local MathAnim = require("anim-core")
 
 -- This is automatically called when the object is generated
 function generate(parent: MathAnim.AnimObject)

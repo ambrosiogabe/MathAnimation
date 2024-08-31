@@ -22,6 +22,9 @@ namespace MathAnim
 		void deserialize(const nlohmann::json& memory);
 
 		bool mouseIsHovered();
+
+		void addContextMenuItem(std::string const& scriptName, std::string const& label, std::string const& menu = "", std::string const& header = "");
+		void removeContextMenuItemsWith(std::string const& scriptName);
 	};
 }
 
