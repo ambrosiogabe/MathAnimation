@@ -85,6 +85,11 @@ namespace MathAnim
 			"3D Shapes"
 		};
 
+		static const std::unordered_set<std::string> reservedMenuNames = {
+			"Shapes",
+			"Text"
+		};
+
 		// --------- Internal functions ---------
 		static PendingCtxAction openContextMenu(AnimationManagerData* am, SceneTreeMetadata* elementClicked);
 		static bool doTreeNode(AnimationManagerData* am, SceneTreeMetadata& element, const AnimObject& animObject, AnimObjId nextAnimObjParentId, bool* dropTargetEffected);
@@ -584,30 +589,6 @@ namespace MathAnim
 
 				renderContextSubMenuWithHeader(shapesIter, "2D Shapes");
 
-				if (ImGui::MenuItem("Square"))
-				{
-					UndoSystem::addNewObjToScene(
-						Application::getUndoSystem(),
-						(int)AnimObjectTypeV1::Square
-					);
-				}
-
-				if (ImGui::MenuItem("Circle"))
-				{
-					UndoSystem::addNewObjToScene(
-						Application::getUndoSystem(),
-						(int)AnimObjectTypeV1::Circle
-					);
-				}
-
-				if (ImGui::MenuItem("Arrow"))
-				{
-					UndoSystem::addNewObjToScene(
-						Application::getUndoSystem(),
-						(int)AnimObjectTypeV1::Arrow
-					);
-				}
-
 				if (ImGui::MenuItem("Axis"))
 				{
 					UndoSystem::addNewObjToScene(
@@ -681,6 +662,11 @@ namespace MathAnim
 
 			for (auto const& [label, subMenu] : dynamicContextItems.subMenus)
 			{
+				if (reservedMenuNames.find(label) != reservedMenuNames.end())
+				{
+					continue;
+				}
+
 				if (ImGui::BeginMenu(label.c_str()))
 				{
 					bool needsSeparator = false;
@@ -1104,9 +1090,9 @@ namespace MathAnim
 		{
 			if (ImGui::MenuItem(item.label.c_str()))
 			{
-				UndoSystem::addNewObjToScene(
+				UndoSystem::addScriptObjToScene(
 					Application::getUndoSystem(),
-					(int)AnimObjectTypeV1::ScriptObject
+					item.scriptName
 				);
 			}
 		}

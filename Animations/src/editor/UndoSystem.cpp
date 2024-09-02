@@ -104,6 +104,31 @@ namespace MathAnim
 		AnimId animToAddTo;
 	};
 
+	class AddScriptObjectToSceneCommand : public Command
+	{
+	public:
+		AddScriptObjectToSceneCommand(std::string const& scriptName)
+			: scriptName(scriptName), objCreated(NULL_ANIM_OBJECT)
+		{
+		}
+
+		virtual void execute(void* userContext) override;
+		virtual void undo(void* userContext) override;
+
+		virtual ~AddScriptObjectToSceneCommand() override
+		{
+			if (!isNull(objCreated))
+			{
+				animObj.free();
+			}
+		}
+
+	private:
+		std::string scriptName;
+		AnimObjId objCreated;
+		AnimObject animObj;
+	};
+
 	class AddObjectToSceneCommand : public Command
 	{
 	public:
@@ -762,6 +787,12 @@ namespace MathAnim
 			pushAndExecuteCommand(us, newCommand);
 		}
 
+		void addScriptObjToScene(UndoSystemData* us, std::string const& scriptName)
+		{
+			auto* newCommand = g_memory_new AddScriptObjectToSceneCommand(scriptName);
+			pushAndExecuteCommand(us, newCommand);
+		}
+
 		void addNewObjToScene(UndoSystemData* us, int animObjType)
 		{
 			assertEnumInRange<AnimObjectTypeV1>(animObjType);
@@ -832,6 +863,35 @@ namespace MathAnim
 	{
 		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
 		AnimationManager::addObjectToAnim(am, objToAdd, animToAddTo);
+	}
+
+	void AddScriptObjectToSceneCommand::execute(void* userContext)
+	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
+		if (this->objCreated == NULL_ANIM_OBJECT)
+		{
+			this->animObj = AnimObject::createDefault(am, AnimObjectTypeV1::ScriptObject);
+			this->animObj.as.script.setFilepath(this->scriptName);
+			this->objCreated = animObj.id;
+		}
+
+		AnimObject deepCopy = this->animObj.createDeepCopy(true);
+		AnimationManager::addAnimObject(am, deepCopy);
+		SceneHierarchyPanel::addNewAnimObject(deepCopy);
+	}
+
+	void AddScriptObjectToSceneCommand::undo(void* userContext)
+	{
+		AnimationManagerData* const am = (AnimationManagerData* const)userContext;
+
+		if (!isNull(this->objCreated))
+		{
+			const AnimObject* animObject = AnimationManager::getObject(am, this->objCreated);
+			SceneHierarchyPanel::deleteAnimObject(*animObject);
+			AnimationManager::removeAnimObject(am, animObject->id);
+			InspectorPanel::setActiveAnimObject(am, NULL_ANIM_OBJECT);
+		}
 	}
 
 	void AddObjectToSceneCommand::execute(void* userContext)

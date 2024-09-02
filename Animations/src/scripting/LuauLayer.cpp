@@ -53,6 +53,7 @@ namespace MathAnim
 		static bool analyzeScriptSource(const std::string& sourceCode, const std::string& scriptName);
 		static Bytecode compileToBytecode(const char* data, size_t dataSize, std::string const& scriptName);
 		static int loadBytecode(Bytecode const& bytecode, LoadBytecodeOptions options = LoadBytecodeOptions::PopBytecode);
+		static void registerScriptsInDir(std::filesystem::path const& dir);
 
 		// ---------- Internal Variables ----------
 		ScriptAnalyzer* analyzer = nullptr;
@@ -62,6 +63,8 @@ namespace MathAnim
 		std::filesystem::path scriptDirectory = "";
 		const Bytecode* currentExecutingScript = nullptr;
 		bool isDebuggingCurrentScript = false;
+
+		static const char* defaultAnimObjScriptsDir = "./assets/defaultScripts/animObjectScripts";
 
 		static int lastLineWeWereDebugging = -1;
 		static bool skipDebugStep = false;
@@ -113,21 +116,8 @@ namespace MathAnim
 
 			analyzer = g_memory_new ScriptAnalyzer(inScriptDirectory);
 
-			for (auto file : std::filesystem::directory_iterator(inScriptDirectory))
-			{
-				if (!file.is_regular_file())
-				{
-					continue;
-				}
-
-				// TODO: This should be renamed... It's always the full filepath and this is super confusing in code
-				std::string const& filename = file.path().string();
-				LuauLayer::compile(filename);
-				LuauLayer::pushBytecode(filename);
-				LuauLayer::executeBytecode();
-				LuauLayer::executeFn("register");
-				LuauLayer::popBytecode();
-			}
+			registerScriptsInDir(inScriptDirectory);
+			registerScriptsInDir(defaultAnimObjScriptsDir);
 		}
 
 		void update(AnimationManagerData* am)
@@ -140,7 +130,7 @@ namespace MathAnim
 				runScriptDebugCode = true;
 			}
 
-			if (currentExecutingScript && scriptState && Input::keyPressed(GLFW_KEY_F10))
+			if (currentExecutingScript && scriptState && Input::keyRepeatedOrDown(GLFW_KEY_F10))
 			{
 				runScriptDebugCode = true;
 			}
@@ -875,6 +865,25 @@ namespace MathAnim
 			}
 
 			return res;
+		}
+
+		static void registerScriptsInDir(std::filesystem::path const& dir)
+		{
+			for (auto file : std::filesystem::directory_iterator(dir))
+			{
+				if (!file.is_regular_file())
+				{
+					continue;
+				}
+
+				// TODO: This should be renamed... It's always the full filepath and this is super confusing in code
+				std::string const& filename = file.path().string();
+				LuauLayer::compile(filename);
+				LuauLayer::pushBytecode(filename);
+				LuauLayer::executeBytecode();
+				LuauLayer::executeFn("register");
+				LuauLayer::popBytecode();
+			}
 		}
 	}
 }

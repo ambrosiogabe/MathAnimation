@@ -250,6 +250,13 @@ std::optional<Luau::SourceCode> ScriptFileResolver::readSource(const Luau::Modul
 	}
 
 	std::string scriptPath = (scriptDirectory / name).string();
+
+	// If the filename is actually a valid path to a file, then just use that
+	if (MathAnim::Platform::fileExists(name.c_str()))
+	{
+		scriptPath = name;
+	}
+
 	if (!MathAnim::Platform::fileExists(scriptPath.c_str()) && anonymousName == name)
 	{
 		Luau::SourceCode res;

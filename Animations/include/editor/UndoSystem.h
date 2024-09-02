@@ -203,6 +203,7 @@ namespace MathAnim
 		void addObjectToAnim(UndoSystemData* us, AnimObjId objToAdd, AnimId animToAddTo);
 		void removeObjectFromAnim(UndoSystemData* us, AnimObjId objToAdd, AnimId animToAddTo);
 
+		void addScriptObjToScene(UndoSystemData* us, std::string const& scriptName);
 		void addNewObjToScene(UndoSystemData* us, int animObjType);
 		void removeObjFromScene(UndoSystemData* us, AnimObjId objId);
 
