@@ -2022,7 +2022,7 @@ namespace MathAnim
 			{
 				LuauLayer::pushBytecode(script.scriptFilepath);
 				LuauLayer::executeBytecode();
-				LuauLayer::executeOnAnimObj("register", am, obj->id);
+				LuauLayer::executeFn("register");
 				LuauLayer::popBytecode();
 			}
 

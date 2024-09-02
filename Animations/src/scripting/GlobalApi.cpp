@@ -1633,9 +1633,7 @@ namespace MathAnim
 			pushCFunction(L, global_require, "require: (module: string) -> any");
 			lua_setglobal(L, "require");
 
-			// TODO: We should do this to sandbox the scripts, but this prevents the scripts
-			// from calling global functions
-			// luaL_sandbox(L);
+			luaL_sandbox(L);
 		}
 
 		void pushAnimObject(lua_State* L, const AnimObject& obj)
