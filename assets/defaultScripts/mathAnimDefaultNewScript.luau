@@ -31,11 +31,29 @@ function generate(parent: MathAnim.AnimObject)
         waveform.svgObject:lineTo({x = currentX, y = -randomHeight * maxHeight})
     end
     waveform.svgObject:closePath(true)
-
-
 end
 
--- TODO: Implement this
+-- @param t: The percent of time, ranging from 0.0-1.0, that this animation is at. 0.0
+--           means the animation just started, 1.0 means the animation is complete.
+-- @param obj: The object that's being animated
+function onAnimate(t: number, obj: MathAnim.AnimObject)
+    obj:setPercentCreated(t)
+    
+    local fadeInStart = 0.8
+    local amountToFadeIn = ((t - fadeInStart) / (1.0 - fadeInStart))
+    local percentToFadeIn = math.max(math.min(amountToFadeIn, 1.0), 0.0)
+
+    local color = obj:getColor()
+    color.a = percentToFadeIn * color.a 
+    obj:setColor(currentColor)
+
+    if (obj:getStrokeWidth() <= 0.0) then
+        local strokeColor = obj:getStrokeColor()
+        strokeColor.a = (1.0 - percentToFadeIn) * 255.0
+        obj:setStrokeColor(strokeColor)
+    end
+end
+
 function onInspector(parent: MathAnim.AnimObject)
 
 end

@@ -78,9 +78,15 @@ export type SvgObject = {
 export type AnimObject = {
     id: u64,
     setName: (self: AnimObject, name: string) -> (),
-    setPositionVec: (self: AnimObject, position: Vec3) -> (),
-    setPosition: (self: AnimObject, x: number, y: number, z: number) -> (),
-    setColor: (self: AnimObject, color: Vec4) -> (),
+    setPositionVec: (self: AnimObject, position: Vec3, setStart: boolean?) -> (),
+    setPosition: (self: AnimObject, x: number, y: number, z: number, setStart: boolean?) -> (),
+    setColor: (self: AnimObject, color: Vec4, setStart: boolean?) -> (),
+    setStrokeColor: (self: AnimObject, color: Vec4, setStart: boolean?) -> (),
+    setPercentCreated: (self: AnimObject, percentCreated: number) -> (),
+
+    getColor: (self: AnimObject) -> Vec4Color,
+    getStrokeColor: (self: AnimObject) -> Vec4Color,
+    getStrokeWidth: (self: AnimObject) -> number,
     svgObject: SvgObject,
 }
 

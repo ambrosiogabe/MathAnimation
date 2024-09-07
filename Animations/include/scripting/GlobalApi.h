@@ -19,11 +19,20 @@ extern "C"
 	int animGui_registerFn(lua_State* L);
 
 	// ------- Anim Objects -------
-	int global_createAnimObjectFn(lua_State* L);
-	int global_setAnimObjName(lua_State* L);
-	int global_setAnimObjPosVec3(lua_State* L);
-	int global_setAnimObjPosFloats(lua_State* L);
-	int global_setAnimObjColor(lua_State* L);
+	int animCore_createAnimObjectFn(lua_State* L);
+
+	// AnimObjSetters
+	int animObj_setName(lua_State* L);
+	int animObj_setPosVec3(lua_State* L);
+	int animObj_setPosFloats(lua_State* L);
+	int animObj_setColor(lua_State* L);
+	int animObj_setStrokeColor(lua_State* L);
+	int animObj_setPercentCreated(lua_State* L);
+
+	// AnimObjGetters
+	int animObj_getColor(lua_State* L);
+	int animObj_getStrokeColor(lua_State* L);
+	int animObj_getStrokeWidth(lua_State* L);
 
 	// ------- Svg Objects -------
 	int global_svgBeginPath(lua_State* L);

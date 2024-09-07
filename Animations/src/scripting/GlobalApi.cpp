@@ -35,13 +35,13 @@ do { \
 	} \
 } while (false)
 
-#define argumentCheckWithSelf(L, expectedNumArgs, fnSignature, actualNumArgs) \
+#define argumentCheckWithSelf(L, start, end, fnSignature, actualNumArgs) \
 do { \
-	if (actualNumArgs != expectedNumArgs + 1) { \
-		if (actualNumArgs == expectedNumArgs) { \
+	if (!(actualNumArgs >= start + 1 && actualNumArgs <= end + 1)) {  \
+		if (actualNumArgs == start) { \
 			ConsoleLog::error(L, "Invalid number of arguments passed to "#fnSignature". Did you call setName like obj."#fnSignature"? If you did, you need to change the syntax to obj:"#fnSignature" with the ':' instead of the '.'"); \
 		} else { \
-			ConsoleLog::error(L, "Invalid number of arguments passed to "#fnSignature". Expected %d number of arguments, instead got: %d", expectedNumArgs, actualNumArgs); \
+			ConsoleLog::error(L, "Invalid number of arguments passed to "#fnSignature". Expected  >= "#start" && <= "#end", instead got: %d", actualNumArgs); \
 		} \
 		throwError(L, "Invalid number of arguments passed to "#fnSignature); \
 	} \
@@ -179,6 +179,7 @@ extern "C"
 	static void pushU64(lua_State* L, uint64 value);
 	static bool isVec4(lua_State* L, int index);
 	static Vec4 toVec4(lua_State* L, int index);
+	static void pushVec4Color(lua_State* L, const glm::u8vec4& value);
 	static void pushVec4(lua_State* L, const Vec4& value);
 	static Vec3 toVec3(lua_State* L, int index);
 	static void pushVec3(lua_State* L, const Vec3& value);
@@ -393,7 +394,7 @@ extern "C"
 	}
 
 	// ------- Anim Objects -------
-	int global_createAnimObjectFn(lua_State* L)
+	int animCore_createAnimObjectFn(lua_State* L)
 	{
 		int nargs = lua_gettop(L);
 		argumentCheck(L, 1, 1, "createAnimObject(AnimObject)", nargs);
@@ -420,11 +421,12 @@ extern "C"
 		return 1;
 	}
 
-	int global_setAnimObjName(lua_State* L)
+	// AnimObjSetters
+	int animObj_setName(lua_State* L)
 	{
 		// setName: (self: AnimObject, name: string) -> (),
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, setName(nameString), nargs);
+		argumentCheckWithSelf(L, 1, 1, setName(nameString), nargs);
 
 		AnimationManagerData* am = getAnimationManagerData(L);
 
@@ -452,11 +454,11 @@ extern "C"
 		return 0;
 	}
 
-	int global_setAnimObjPosVec3(lua_State* L)
+	int animObj_setPosVec3(lua_State* L)
 	{
-		// setPositionVec: (self: AnimObject, position : Vec3) -> (),
+		// AnimObject.setPositionVec: (self: AnimObject, position: Vec3, setStart: boolean?) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, setPosition({ x = xPos, y = yPos, z = zPos }), nargs);
+		argumentCheckWithSelf(L, 1, 2, setPosition({ x = xPos, y = yPos, z = zPos }, setStart ? ), nargs);
 
 		AnimationManagerData* am = getAnimationManagerData(L);
 
@@ -468,20 +470,31 @@ extern "C"
 		// Position is arg 2
 		Vec3 position = toVec3(L, 2);
 
+		// SetStart is arg 3
+		bool setStart = false;
+		if (lua_isboolean(L, 3))
+		{
+			setStart = lua_toboolean(L, 5);
+		}
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, id);
 		if (obj)
 		{
-			obj->_positionStart = position;
+			if (setStart)
+			{
+				obj->_positionStart = position;
+			}
+			obj->position = position;
 		}
 
 		return 0;
 	}
 
-	int global_setAnimObjPosFloats(lua_State* L)
+	int animObj_setPosFloats(lua_State* L)
 	{
-		// setPosition: (self: AnimObject, x: number, y: number, z: number) -> (),
+		// setPosition: (self: AnimObject, x: number, y: number, z: number, setStart: boolean?) -> (),
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 3, setPosition(x, y, z), nargs);
+		argumentCheckWithSelf(L, 3, 4, setPosition(x, y, z, setStart ? ), nargs);
 
 		AnimationManagerData* am = getAnimationManagerData(L);
 
@@ -508,21 +521,31 @@ extern "C"
 			throwError(L, "Expected number as third argument in setPosition(x, y, z). Got something else instead.");
 		}
 
+		// SetStart is arg 5
+		bool setStart = false;
+		if (lua_isboolean(L, 5))
+		{
+			setStart = lua_toboolean(L, 5);
+		}
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, id);
 		if (obj)
 		{
-			obj->_positionStart = Vec3{ x, y, z };
-			obj->position = obj->_positionStart;
+			if (setStart)
+			{
+				obj->_positionStart = Vec3{ x, y, z };
+			}
+			obj->position = Vec3{ x, y, z };
 		}
 
 		return 0;
 	}
 
-	int global_setAnimObjColor(lua_State* L)
+	int animObj_setColor(lua_State* L)
 	{
-		// setColor: (self: AnimObject, color: Vec4) -> ()
+		// setColor: (self: AnimObject, color: Vec4, setStart: boolean?) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, setColor: (self: AnimObject, color : Vec4), nargs);
+		argumentCheckWithSelf(L, 1, 2, setColor: (self: AnimObject, color : Vec4, setStart ? ), nargs);
 
 		AnimationManagerData* am = getAnimationManagerData(L);
 
@@ -534,19 +557,169 @@ extern "C"
 		// Position is arg 2
 		Vec4 color = toVec4(L, 2);
 
+		// SetStart is arg 3
+		bool setStart = false;
+		if (lua_isboolean(L, 3))
+		{
+			setStart = lua_toboolean(L, 3);
+		}
+
 		AnimObject* obj = AnimationManager::getMutableObject(am, id);
 		if (obj)
 		{
-			obj->_fillColorStart = glm::u8vec4(
+			auto typedColor = glm::u8vec4(
 				(uint8)(color.r),
 				(uint8)(color.g),
 				(uint8)(color.b),
 				(uint8)(color.a)
 			);
-			obj->fillColor = obj->_fillColorStart;
+
+			if (setStart)
+			{
+				obj->_fillColorStart = typedColor;
+			}
+			obj->fillColor = typedColor;
 		}
 
 		return 0;
+	}
+
+	int animObj_setStrokeColor(lua_State* L)
+	{
+		// setStrokeColor: (self: AnimObject, color: Vec4, setColorStart: boolean?) -> ()
+		int nargs = lua_gettop(L);
+		argumentCheckWithSelf(L, 1, 2, setStrokeColor: (self: AnimObject, color : Vec4, setStart : boolean ? ) -> (), nargs);
+
+		AnimationManagerData* am = getAnimationManagerData(L);
+
+		// AnimObj is first parameter
+		lua_getfield(L, 1, "id");
+		uint64 id = toU64(L, -1);
+		lua_pop(L, 1);
+
+		// Color is arg 2
+		Vec4 color = toVec4(L, 2);
+
+		// SetStart is arg 3
+		bool setStart = false;
+		if (lua_isboolean(L, 3))
+		{
+			setStart = lua_toboolean(L, 3);
+		}
+
+		AnimObject* obj = AnimationManager::getMutableObject(am, id);
+		if (obj)
+		{
+			auto typedColor = glm::u8vec4(
+				(uint8)(color.r),
+				(uint8)(color.g),
+				(uint8)(color.b),
+				(uint8)(color.a)
+			);
+			if (setStart)
+			{
+				obj->_strokeColorStart = typedColor;
+			}
+			obj->strokeColor = typedColor;
+		}
+
+		return 0;
+	}
+
+	int animObj_setPercentCreated(lua_State* L)
+	{
+		// setPercentCreated: (self: AnimObject, percentCreated: number) -> ()
+		int nargs = lua_gettop(L);
+		argumentCheckWithSelf(L, 1, 2, (self: AnimObject, percentCreated : number, setStart : boolean = false) -> (), nargs);
+
+		AnimationManagerData* am = getAnimationManagerData(L);
+
+		// AnimObj is first parameter
+		lua_getfield(L, 1, "id");
+		uint64 id = toU64(L, -1);
+		lua_pop(L, 1);
+
+		// percentCreated is arg 2
+		if (!lua_isnumber(L, 2))
+		{
+			throwError(L, "Expected type 'number' for second argument.");
+		}
+		float percentCreated = (float)lua_tonumber(L, 2);
+
+		AnimObject* obj = AnimationManager::getMutableObject(am, id);
+		if (obj)
+		{
+			obj->percentCreated = percentCreated;
+		}
+
+		return 0;
+	}
+
+	// AnimObjGetters
+	int animObj_getColor(lua_State* L)
+	{
+		// getColor: (self: AnimObject) -> Vec4Color
+		int nargs = lua_gettop(L);
+		argumentCheckWithSelf(L, 0, 0, (self: AnimObject)->Vec4Color, nargs);
+
+		AnimationManagerData* am = getAnimationManagerData(L);
+
+		// AnimObj is first parameter
+		lua_getfield(L, 1, "id");
+		uint64 id = toU64(L, -1);
+		lua_pop(L, 1);
+
+		AnimObject const* obj = AnimationManager::getObject(am, id);
+		if (obj)
+		{
+			pushVec4Color(L, obj->fillColor);
+		}
+
+		return 1;
+	}
+
+	int animObj_getStrokeColor(lua_State* L)
+	{
+		// getStrokeColor(self: AnimObject) -> Vec4Color
+		int nargs = lua_gettop(L);
+		argumentCheckWithSelf(L, 0, 0, (self: AnimObject)->Vec4Color, nargs);
+
+		AnimationManagerData* am = getAnimationManagerData(L);
+
+		// AnimObj is first parameter
+		lua_getfield(L, 1, "id");
+		uint64 id = toU64(L, -1);
+		lua_pop(L, 1);
+
+		AnimObject const* obj = AnimationManager::getObject(am, id);
+		if (obj)
+		{
+			pushVec4Color(L, obj->strokeColor);
+		}
+
+		return 1;
+	}
+
+	int animObj_getStrokeWidth(lua_State* L)
+	{
+		// getStrokeWidth(self: AnimObject) -> number
+		int nargs = lua_gettop(L);
+		argumentCheckWithSelf(L, 0, 0, (self: AnimObject)->number, nargs);
+
+		AnimationManagerData* am = getAnimationManagerData(L);
+
+		// AnimObj is first parameter
+		lua_getfield(L, 1, "id");
+		uint64 id = toU64(L, -1);
+		lua_pop(L, 1);
+
+		AnimObject const* obj = AnimationManager::getObject(am, id);
+		if (obj)
+		{
+			lua_pushnumber(L, (double)obj->strokeWidth);
+		}
+
+		return 1;
 	}
 
 	// ------- Svg Objects -------
@@ -554,7 +727,7 @@ extern "C"
 	{
 		// beginPath: (startPosition: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, beginPath: (startPosition: Vec2), nargs);
+		argumentCheckWithSelf(L, 1, 1, beginPath: (startPosition: Vec2), nargs);
 
 		AnimationManagerData* am = getAnimationManagerData(L);
 
@@ -599,7 +772,7 @@ extern "C"
 	{
 		// closePath: (connectLastPoint: boolean) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, closePath: (connectLastPoint: boolean), nargs);
+		argumentCheckWithSelf(L, 1, 1, closePath: (connectLastPoint: boolean), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -624,7 +797,7 @@ extern "C"
 	{
 		// setPathAsHole: () -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 0, setPathAsHole: (), nargs);
+		argumentCheckWithSelf(L, 0, 0, setPathAsHole: (), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -647,7 +820,7 @@ extern "C"
 	{
 		// moveTo: (position: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, moveTo: (connectLastPoint: boolean), nargs);
+		argumentCheckWithSelf(L, 1, 1, moveTo: (connectLastPoint: boolean), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -668,7 +841,7 @@ extern "C"
 	{
 		// lineTo: (p0: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, lineTo: (p0: Vec2), nargs);
+		argumentCheckWithSelf(L, 1, 1, lineTo: (p0: Vec2), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -689,7 +862,7 @@ extern "C"
 	{
 		// vtLineTo: (y0: number) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, vtLineTo: (y0: number), nargs);
+		argumentCheckWithSelf(L, 1, 1, vtLineTo: (y0: number), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -714,7 +887,7 @@ extern "C"
 	{
 		// hzLineTo: (x0: number) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, hzLineTo: (x0: number), nargs);
+		argumentCheckWithSelf(L, 1, 1, hzLineTo: (x0: number), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -739,7 +912,7 @@ extern "C"
 	{
 		// quadTo: (p0: Vec2, p1: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 2, quadTo: (p0: Vec2, p1 : Vec2), nargs);
+		argumentCheckWithSelf(L, 2, 2, quadTo: (p0: Vec2, p1 : Vec2), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -764,7 +937,7 @@ extern "C"
 	{
 		// cubicTo: (p0: Vec2, p1: Vec2, p2: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 3, cubicTo: (p0: Vec2, p1 : Vec2, p2 : Vec2), nargs);
+		argumentCheckWithSelf(L, 3, 3, cubicTo: (p0: Vec2, p1 : Vec2, p2 : Vec2), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -792,7 +965,7 @@ extern "C"
 	{
 		// arcTo: (radius: Vec2, xAxisRot: number, largeArcFlag: boolean, sweepFlag: boolean, p0: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 5, arcTo: (radius: Vec2, xAxisRot : number, largeArcFlag : boolean, sweepFlag : boolean, p0 : Vec2), nargs);
+		argumentCheckWithSelf(L, 5, 5, arcTo: (radius: Vec2, xAxisRot : number, largeArcFlag : boolean, sweepFlag : boolean, p0 : Vec2), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -839,7 +1012,7 @@ extern "C"
 	{
 		// moveTo: (position: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, moveTo: (connectLastPoint: boolean), nargs);
+		argumentCheckWithSelf(L, 1, 1, moveTo: (connectLastPoint: boolean), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -860,7 +1033,7 @@ extern "C"
 	{
 		// lineTo: (p0: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, lineTo: (p0: Vec2), nargs);
+		argumentCheckWithSelf(L, 1, 1, lineTo: (p0: Vec2), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -881,7 +1054,7 @@ extern "C"
 	{
 		// vtLineTo: (y0: number) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, vtLineTo: (y0: number), nargs);
+		argumentCheckWithSelf(L, 1, 1, vtLineTo: (y0: number), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -906,7 +1079,7 @@ extern "C"
 	{
 		// hzLineTo: (x0: number) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 1, hzLineTo: (x0: number), nargs);
+		argumentCheckWithSelf(L, 1, 1, hzLineTo: (x0: number), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -931,7 +1104,7 @@ extern "C"
 	{
 		// quadTo: (p0: Vec2, p1: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 2, quadTo: (p0: Vec2, p1 : Vec2), nargs);
+		argumentCheckWithSelf(L, 2, 2, quadTo: (p0: Vec2, p1 : Vec2), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -956,7 +1129,7 @@ extern "C"
 	{
 		// cubicTo: (p0: Vec2, p1: Vec2, p2: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 3, cubicTo: (p0: Vec2, p1 : Vec2, p2 : Vec2), nargs);
+		argumentCheckWithSelf(L, 3, 3, cubicTo: (p0: Vec2, p1 : Vec2, p2 : Vec2), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -984,7 +1157,7 @@ extern "C"
 	{
 		// arcTo: (radius: Vec2, xAxisRot: number, largeArcFlag: boolean, sweepFlag: boolean, p0: Vec2) -> ()
 		int nargs = lua_gettop(L);
-		argumentCheckWithSelf(L, 5, arcTo: (radius: Vec2, xAxisRot : number, largeArcFlag : boolean, sweepFlag : boolean, p0 : Vec2), nargs);
+		argumentCheckWithSelf(L, 5, 5, arcTo: (radius: Vec2, xAxisRot : number, largeArcFlag : boolean, sweepFlag : boolean, p0 : Vec2), nargs);
 
 		// SvgObject is first arg
 		lua_getfield(L, 1, "ptr");
@@ -1085,7 +1258,7 @@ extern "C"
 	{
 		lua_createtable(L, 0, 1);
 
-		pushCFunction(L, global_createAnimObjectFn, "math-anim.createAnimObject: (parent: AnimObject) -> AnimObject");
+		pushCFunction(L, animCore_createAnimObjectFn, "math-anim.createAnimObject: (parent: AnimObject) -> AnimObject");
 		lua_setfield(L, -2, "createAnimObject");
 
 		return 1;
@@ -1258,6 +1431,23 @@ extern "C"
 
 	#pragma warning( push )
 	#pragma warning( disable : 4505 )
+	static void pushVec4Color(lua_State* L, const glm::u8vec4& value)
+	{
+		lua_createtable(L, 0, 4);
+
+		lua_pushnumber(L, value.x);
+		lua_setfield(L, -2, "r");
+
+		lua_pushnumber(L, value.y);
+		lua_setfield(L, -2, "g");
+
+		lua_pushnumber(L, value.z);
+		lua_setfield(L, -2, "b");
+
+		lua_pushnumber(L, value.w);
+		lua_setfield(L, -2, "a");
+	}
+
 	static void pushVec4(lua_State* L, const Vec4& value)
 	{
 		lua_createtable(L, 0, 4);
@@ -1643,17 +1833,34 @@ namespace MathAnim
 			pushU64(L, obj.id);
 			lua_setfield(L, -2, "id");
 
-			pushCFunction(L, global_setAnimObjName, "AnimObject.setName: (self: AnimObject, name: string) -> ()");
+			// AnimObjSetters
+			pushCFunction(L, animObj_setName, "AnimObject.setName: (self: AnimObject, name: string) -> ()");
 			lua_setfield(L, -2, "setName");
 
-			pushCFunction(L, global_setAnimObjPosVec3, "AnimObject.setPositionVec: (self: AnimObject, position: Vec3) -> ()");
+			pushCFunction(L, animObj_setPosVec3, "AnimObject.setPositionVec: (self: AnimObject, position: Vec3, setStart: boolean?) -> ()");
 			lua_setfield(L, -2, "setPositionVec");
 
-			pushCFunction(L, global_setAnimObjPosFloats, "AnimObject.setPosition: (self: AnimObject, x: number, y: number, z: number) -> ()");
+			pushCFunction(L, animObj_setPosFloats, "AnimObject.setPosition: (self: AnimObject, x: number, y: number, z: number, setStart: boolean?) -> ()");
 			lua_setfield(L, -2, "setPosition");
 
-			pushCFunction(L, global_setAnimObjColor, " setColor: (self: AnimObject, color: Vec4) -> ()");
+			pushCFunction(L, animObj_setColor, "AnimObject.setColor: (self: AnimObject, color: Vec4, setStart: boolean?) -> ()");
 			lua_setfield(L, -2, "setColor");
+
+			pushCFunction(L, animObj_setStrokeColor, "AnimObject.setStrokeColor: (self: AnimObject, color: Vec4, setStart: boolean?) -> ()");
+			lua_setfield(L, -2, "setStrokeColor");
+
+			pushCFunction(L, animObj_setPercentCreated, "AnimObject.setPercentCreated: (self: AnimObject, percentCreated: number) -> ()");
+			lua_setfield(L, -2, "setPercentCreated");
+
+			// AnimObjGetters
+			pushCFunction(L, animObj_getColor, "AnimObject.getColor: (self: AnimObject) -> Vec4Color");
+			lua_setfield(L, -2, "getColor");
+
+			pushCFunction(L, animObj_getStrokeColor, "AnimObject.getStrokeColor(self: AnimObject) -> Vec4Color");
+			lua_setfield(L, -2, "getStrokeColor");
+
+			pushCFunction(L, animObj_getStrokeWidth, "AnimObject.getStrokeWidth(self: AnimObject) -> number");
+			lua_setfield(L, -2, "getStrokeWidth");
 
 			pushNewSvgObject(L, obj);
 			lua_setfield(L, -2, "svgObject");
