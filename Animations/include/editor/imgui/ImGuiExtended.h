@@ -7,6 +7,11 @@
 
 #include "core.h"
 
+#define NO_EDIT res.editState == EditState::NotEditing
+#define BEING_EDITED res.editState == EditState::BeingEdited
+#define FINISHED_EDITING res.editState == EditState::FinishedEditing
+#define ANY_EDIT res.editState != EditState::NotEditing
+
 namespace MathAnim
 {
 	struct AnimObjectPayload;

@@ -190,6 +190,11 @@ namespace MathAnim
 
 		bool compile(const std::string& filename)
 		{
+			if (!analyzer)
+			{
+				return false;
+			}
+
 			if (!analyzeScriptFile(filename))
 			{
 				return false;
@@ -405,6 +410,79 @@ namespace MathAnim
 
 			currentExecutingScript = nullptr;
 			return true;
+		}
+
+		bool executeOnAnimate(const std::string& functionName, AnimationManagerData* am, AnimObjId id, float t)
+		{
+			MP_PROFILE_EVENT("LuauLayer_ExecuteOnAnimObj");
+			// Can't execute a script while one is already being debugged
+			if (isDebuggingCurrentScript)
+			{
+				return false;
+			}
+
+			if (!currentExecutingScript || !scriptState)
+			{
+				g_logger_warning("Tried to execute script on anim object, but no script was loaded.");
+				return false;
+			}
+
+			AnimObject* obj = AnimationManager::getMutableObject(am, id);
+			if (!obj)
+			{
+				g_logger_error("Cannot run script on null anim object. Object '{}' does not exist.", id);
+				return false;
+			}
+
+			int result = LUA_OK;
+			{
+				MP_PROFILE_EVENT("LuauLayer_ExecuteFunction");
+				{
+					MP_PROFILE_EVENT("LuauLayer_PushFunctionToStack");
+					// Get the function and push it on top of the stack
+					lua_getfield(scriptState, LUA_GLOBALSINDEX, functionName.c_str());
+				}
+				lua_pushnumber(scriptState, (double)t);
+				{
+					MP_PROFILE_EVENT("LuauLayer_PushAnimObjectToStack");
+					// Push anim object to top of the stack
+					ScriptApi::pushAnimObject(scriptState, *obj);
+				}
+				{
+					MP_PROFILE_EVENT("LuauLayer_PCallFunction");
+					result = lua_pcall(scriptState, 2, 0, 0);
+				}
+
+				if (result)
+				{
+					ParsedError error = parseError(lua_tostring(scriptState, -1));
+					ConsoleLog::error(error.filepath.c_str(), error.lineNumber, "%s", error.message.c_str());
+					lua_pop(scriptState, 1);
+					return false;
+				}
+			}
+
+			{
+				MP_PROFILE_EVENT("LuauLayer_FinalizeAnimObjects");
+				// TODO: Just make an oninspector function and generate function in C++ code instead of this abstract execute thing
+				if (functionName == "generate")
+				{
+					for (auto breadthFirstIter = obj->beginBreadthFirst(am); breadthFirstIter != obj->end(); ++breadthFirstIter)
+					{
+						AnimObject* childObj = AnimationManager::getMutableObject(am, *breadthFirstIter);
+						if (childObj)
+						{
+							childObj->_svgObjectStart->finalize();
+							childObj->retargetSvgScale();
+						}
+					}
+
+					obj->_svgObjectStart->finalize();
+					obj->retargetSvgScale();
+				}
+
+				return true;
+			}
 		}
 
 		bool executeOnAnimObj(const std::string& functionName, AnimationManagerData* am, AnimObjId id)

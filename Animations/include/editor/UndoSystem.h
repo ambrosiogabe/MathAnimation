@@ -8,8 +8,6 @@ namespace MathAnim
 	struct UndoSystemData;
 	struct AnimObject;
 
-	typedef AnimObjId ObjOrAnimId;
-
 	enum class U8Vec4PropType : uint8
 	{
 		// Base

@@ -42,6 +42,7 @@ namespace MathAnim
 		bool executeBytecode();
 		bool popBytecode();
 
+		bool executeOnAnimate(const std::string& functionName, AnimationManagerData* am, AnimObjId obj, float t);
 		bool executeOnAnimObj(const std::string& functionName, AnimationManagerData* am, AnimObjId obj);
 		bool executeFn(const std::string& functionName);
 		bool debugGenerateAnimObj(const std::string& filename, AnimationManagerData* am, AnimObjId obj);

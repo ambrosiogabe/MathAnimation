@@ -211,26 +211,29 @@ namespace MathAnim
 
 		static void onScriptChanged(const std::filesystem::path& scriptPath)
 		{
-			LuauLayer::compile(scriptPath.filename().string());
-			LuauLayer::execute(scriptPath.filename().string());
+			auto fullPath = scriptsRoot / scriptPath;
+			LuauLayer::compile(fullPath.string());
+			LuauLayer::execute(fullPath.string());
 		}
 
 		static void onScriptDeleted(const std::filesystem::path& scriptPath)
 		{
-			LuauLayer::remove(scriptPath.filename().string());
+			auto fullPath = scriptsRoot / scriptPath;
+			LuauLayer::remove(fullPath.string());
 			CodeEditorPanelManager::closeFile(scriptPath.string());
 		}
 
 		static void onScriptCreated(const std::filesystem::path& scriptPath)
 		{
 			auto fullScriptPath = scriptsRoot / scriptPath;
-			LuauLayer::remove(fullScriptPath.filename().string());
-			CodeEditorPanelManager::openFile(fullScriptPath.string());
+			LuauLayer::remove(fullScriptPath.string());
+			CodeEditorPanelManager::openFile(scriptPath.string());
 		}
 
 		static void onScriptRenamed(const std::filesystem::path& scriptPath)
 		{
-			LuauLayer::remove(scriptPath.filename().string());
+			auto fullPath = scriptsRoot / scriptPath;
+			LuauLayer::remove(fullPath.string());
 		}
 
 		static void scriptRenamedCallback(const char* oldFilename, const char* newFilename)

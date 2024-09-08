@@ -20,14 +20,14 @@
 #include "editor/panels/SceneHierarchyPanel.h"
 #include "editor/UndoSystem.h"
 #include "platform/Platform.h"
+#include "scripting/LuauLayer.h"
 
 #include <nlohmann/json.hpp>
 
 namespace MathAnim
 {
 	// ------- Private variables --------
-	static AnimObjId animObjectUidCounter = 0;
-	static AnimObjId animationUidCounter = 0;
+	static AnimObjId uidCounter = 0;
 
 	// ----------------------------- Internal Functions -----------------------------
 	static void onMoveToGizmo(AnimationManagerData* am, Animation* anim);
@@ -241,6 +241,20 @@ namespace MathAnim
 			}
 		}
 		break;
+		case AnimTypeV1::Script:
+		{
+			if (obj)
+			{
+				if (LuauLayer::pushBytecode(this->as.script.scriptFilepath))
+				{
+					LuauLayer::executeBytecode();
+					LuauLayer::executeOnAnimObj("onInspector", am, obj->id);
+					LuauLayer::executeOnAnimate("onAnimate", am, obj->id, t);
+					LuauLayer::popBytecode();
+				}
+			}
+		}
+		break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
 			break;
@@ -341,6 +355,11 @@ namespace MathAnim
 			// TODO: Implement me
 		}
 		break;
+		case AnimTypeV1::Script:
+		{
+			// TODO: Implement me
+		}
+		break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
 			break;
@@ -373,6 +392,11 @@ namespace MathAnim
 		case AnimTypeV1::Shift:
 			// TODO: What should happen here?
 			break;
+		case AnimTypeV1::Script:
+		{
+			// TODO: Add some sort of script on gizmo thing that allows scripts to inject custom gizmos
+		}
+		break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
 			break;
@@ -405,6 +429,11 @@ namespace MathAnim
 		case AnimTypeV1::Shift:
 			// TODO: What should we do here?
 			break;
+		case AnimTypeV1::Script:
+		{
+			// TODO: Add some sort of script on gizmo thing that allows scripts to inject custom gizmos
+		}
+		break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
 			break;
@@ -413,7 +442,27 @@ namespace MathAnim
 
 	void Animation::free()
 	{
-		// TODO: Place any animation freeing in here
+		switch (type)
+		{
+		case AnimTypeV1::Script:
+			this->as.script.free();
+			break;
+		case AnimTypeV1::Create:
+		case AnimTypeV1::UnCreate:
+		case AnimTypeV1::FadeIn:
+		case AnimTypeV1::FadeOut:
+		case AnimTypeV1::Transform:
+		case AnimTypeV1::AnimateStrokeColor:
+		case AnimTypeV1::AnimateFillColor:
+		case AnimTypeV1::AnimateStrokeWidth:
+		case AnimTypeV1::Circumscribe:
+		case AnimTypeV1::AnimateScale:
+		case AnimTypeV1::RotateTo:
+		case AnimTypeV1::Shift:
+		case AnimTypeV1::Length:
+		case AnimTypeV1::None:
+			break;
+		}
 	}
 
 	void Animation::serialize(nlohmann::json& memory) const
@@ -461,6 +510,12 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::Circumscribe:
 			SERIALIZE_OBJECT(memory, this, as.circumscribe);
+			break;
+		case AnimTypeV1::Script:
+			// TODO: We really only need to serialize the script filepath, so serializing
+			//       everything is probably overkill here. If save file sizes ever get too large
+			//       optimize this.
+			SERIALIZE_OBJECT(memory, this, as.script);
 			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
@@ -780,7 +835,7 @@ namespace MathAnim
 		DESERIALIZE_ID(&res, id, j);
 		if (!isNull(res.id))
 		{
-			animationUidCounter = glm::max(animationUidCounter, res.id + 1);
+			uidCounter = glm::max(uidCounter, res.id + 1);
 		}
 
 		DESERIALIZE_ENUM(&res, easeType, easeTypeNames, EaseType, j);
@@ -823,6 +878,9 @@ namespace MathAnim
 		case AnimTypeV1::Circumscribe:
 			DESERIALIZE_OBJECT(&res, as.circumscribe, Circumscribe, version, j);
 			break;
+		case AnimTypeV1::Script:
+			DESERIALIZE_OBJECT(&res, as.script, ScriptObject, version, j);
+			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
 			break;
@@ -859,7 +917,7 @@ namespace MathAnim
 			memory.read<int32>(&res.duration);
 
 			memory.read<AnimId>(&res.id);
-			animationUidCounter = glm::max(animationUidCounter, res.id + 1);
+			uidCounter = glm::max(uidCounter, res.id + 1);
 
 			uint8 easeTypeInt, easeDirectionInt;
 			memory.read<uint8>(&easeTypeInt);
@@ -914,6 +972,7 @@ namespace MathAnim
 			case AnimTypeV1::Circumscribe:
 				res.as.circumscribe = Circumscribe::legacy_deserialize(memory);
 				break;
+			case AnimTypeV1::Script:
 			case AnimTypeV1::Length:
 			case AnimTypeV1::None:
 				break;
@@ -976,6 +1035,9 @@ namespace MathAnim
 			break;
 		case AnimTypeV1::Circumscribe:
 			res.as.circumscribe = Circumscribe::createDefault();
+			break;
+		case AnimTypeV1::Script:
+			res.as.script = ScriptObject::createDefault();
 			break;
 		case AnimTypeV1::Length:
 		case AnimTypeV1::None:
@@ -1062,6 +1124,114 @@ namespace MathAnim
 		const Vec4 greenBrown = "#272822FF"_hex;
 		res.fillColor = greenBrown;
 		return res;
+	}
+
+	void ScriptObject::executeGenerate(AnimationManagerData* am, AnimObject* obj, bool debug)
+	{
+		if (isValid())
+		{
+			// We delete generated children and also reset the svg object so the script is free to modify it
+			// if it wants to
+			obj->deleteGeneratedChildren(am);
+			obj->resetSvgObject();
+
+			// Next init again which should regenerate the children
+			bool cleanup = false;
+			if (debug)
+			{
+				cleanup = !LuauLayer::debugGenerateAnimObj(scriptFilepath, am, obj->id);
+			}
+			else
+			{
+				LuauLayer::pushBytecode(scriptFilepath);
+				LuauLayer::executeBytecode();
+				LuauLayer::executeOnAnimObj("onInspector", am, obj->id);
+				cleanup = !LuauLayer::executeOnAnimObj("generate", am, obj->id);
+				LuauLayer::popBytecode();
+			}
+
+			if (cleanup)
+			{
+				// If execution fails, delete any objects that may have been created prematurely
+				obj->deleteGeneratedChildren(am);
+				obj->resetSvgObject();
+			}
+
+			// Copy the svgObjectStart to all the svgObjects to any generated children
+			// to make sure that they render properly
+			for (auto childId : obj->generatedChildrenIds)
+			{
+				AnimObject* child = AnimationManager::getMutableObject(am, childId);
+				if (child)
+				{
+					if (child->_svgObjectStart)
+					{
+						Svg::copy(child->svgObject, child->_svgObjectStart);
+					}
+				}
+			}
+
+			// Also copy the parent svg object over
+			Svg::copy(obj->svgObject, obj->_svgObjectStart);
+		}
+	}
+
+	bool ScriptObject::handleInspector(ObjOrAnimId id)
+	{
+		bool anyPropertyChanged = false;
+
+		for (size_t i = 0; i < customDataLength; i++)
+		{
+			auto& dynamicProp = customData[i];
+			if (dynamicProp.shouldRender)
+			{
+				switch (dynamicProp.value.type)
+				{
+				case DynamicScriptPropType::Number:
+					if (auto res = ImGuiExtended::DragDoubleEx(dynamicProp.label, &dynamicProp.value.as.number);
+						ANY_EDIT)
+					{
+						anyPropertyChanged = true;
+
+						if (FINISHED_EDITING)
+						{
+							UndoSystem::setDoubleProp(
+								Application::getUndoSystem(),
+								id,
+								res.ogData,
+								dynamicProp.value.as.number,
+								DoublePropType::Dynamic,
+								dynamicProp.label
+							);
+						}
+					}
+					break;
+				case DynamicScriptPropType::Color:
+					if (auto res = ImGuiExtended::ColorEdit4Ex(dynamicProp.label, &dynamicProp.value.as.color);
+						ANY_EDIT)
+					{
+						anyPropertyChanged = true;
+
+						if (FINISHED_EDITING)
+						{
+							UndoSystem::setVec4Prop(
+								Application::getUndoSystem(),
+								id,
+								res.ogData,
+								dynamicProp.value.as.color,
+								Vec4PropType::Dynamic,
+								dynamicProp.label
+							);
+						}
+					}
+					break;
+				}
+
+				dynamicProp.shouldRender = false;
+			}
+		}
+
+		return anyPropertyChanged;
 	}
 
 	void ScriptObject::setFilepath(const char* str, size_t strLength)
@@ -1181,7 +1351,14 @@ namespace MathAnim
 				nlohmann::json const& customDataJson = j["CustomData"];
 
 				res.customDataLength = customDataJson.size();
-				res.customData = (DynamicScriptProp*)g_memory_allocate(sizeof(DynamicScriptProp) * res.customDataLength);
+				if (res.customDataLength > 0)
+				{
+					res.customData = (DynamicScriptProp*)g_memory_allocate(sizeof(DynamicScriptProp) * res.customDataLength);
+				}
+				else
+				{
+					res.customData = nullptr;
+				}
 
 				// Deserialize each dynamic prop
 				for (size_t i = 0; i < customDataJson.size(); i++)
@@ -2178,7 +2355,7 @@ namespace MathAnim
 		DESERIALIZE_ID(&res, id, j);
 		if (!isNull(res.id))
 		{
-			animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
+			uidCounter = glm::max(uidCounter, res.id + 1);
 		}
 
 		DESERIALIZE_ID_ARRAY(&res, generatedChildrenIds, j);
@@ -2343,7 +2520,7 @@ namespace MathAnim
 			res.drawCurveDebugBoxes = drawCurveDebugBoxes != 0;
 
 			memory.read<AnimObjId>(&res.id);
-			animObjectUidCounter = glm::max(animObjectUidCounter, res.id + 1);
+			uidCounter = glm::max(uidCounter, res.id + 1);
 			memory.read<AnimObjId>(&res.parentId);
 
 			uint32 numGeneratedChildrenIds;
@@ -2677,15 +2854,15 @@ namespace MathAnim
 
 	AnimObjId AnimObject::getNextUid()
 	{
-		AnimObjId res = animObjectUidCounter++;
-		g_logger_assert(animObjectUidCounter < UINT64_MAX, "Somehow our UID counter reached '{}'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", UINT64_MAX);
+		AnimObjId res = uidCounter++;
+		g_logger_assert(uidCounter < UINT64_MAX, "Somehow our UID counter reached '{}'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually 2 billion animations in the scene.", UINT64_MAX);
 		return res;
 	}
 
 	AnimId Animation::getNextUid()
 	{
-		AnimId res = animationUidCounter++;
-		g_logger_assert(animationUidCounter < UINT64_MAX, "Somehow our UID counter reached '{}'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually bazillion animations in the scene.", UINT64_MAX);
+		AnimId res = uidCounter++;
+		g_logger_assert(uidCounter < UINT64_MAX, "Somehow our UID counter reached '{}'. If this ever happens, re-map all ID's to a lower range since it's likely there's not actually bazillion animations in the scene.", UINT64_MAX);
 		return res;
 	}
 

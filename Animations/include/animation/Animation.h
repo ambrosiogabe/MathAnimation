@@ -98,6 +98,7 @@ namespace MathAnim
 		Shift,
 		Circumscribe,
 		AnimateScale,
+		Script,
 		Length
 	};
 
@@ -115,7 +116,8 @@ namespace MathAnim
 		"Animate Stroke Width",
 		"Shift",
 		"Circumscribe",
-		"Animate Scale"
+		"Animate Scale",
+		"Script"
 		);
 
 	enum class PlaybackType : uint8
@@ -146,7 +148,8 @@ namespace MathAnim
 		false, // AnimateStrokeWidth,
 		false, // Shift,
 		false, // Circumscribe
-		false  // AnimateScale
+		false, // AnimateScale
+		true   // Script
 		);
 
 	constexpr auto _isAnimationGroupData = fixedSizeArray<bool, (size_t)AnimTypeV1::Length>(
@@ -163,7 +166,8 @@ namespace MathAnim
 		false, // AnimateStrokeWidth,
 		true,  // Shift,
 		false, // Circumscribe
-		false  // AnimateScale
+		false, // AnimateScale
+		true   // Script
 		);
 
 	// Animation Structs
@@ -272,6 +276,65 @@ namespace MathAnim
 		static Circumscribe legacy_deserialize(RawMemory& memory);
 	};
 
+	enum class DynamicScriptPropType : uint8
+	{
+		Number,
+		Color,
+		Length
+	};
+
+	constexpr auto _dynamicScriptPropTypeNames = fixedSizeArray<const char*, (size_t)DynamicScriptPropType::Length>(
+		"Number",
+		"Color"
+		);
+
+	struct DynamicScriptPropValue
+	{
+		DynamicScriptPropType type;
+		union
+		{
+			Vec4 color;
+			double number;
+		} as;
+	};
+
+	struct DynamicScriptProp
+	{
+		char* label;
+		size_t labelLength;
+		DynamicScriptPropValue value;
+		bool shouldRender;
+		size_t renderOrder;
+	};
+
+	struct ScriptObject
+	{
+		char* scriptFilepath;
+		size_t scriptFilepathLength;
+		DynamicScriptProp* customData;
+		size_t customDataLength;
+
+		void executeGenerate(AnimationManagerData* am, AnimObject* obj, bool debug = false);
+		bool handleInspector(ObjOrAnimId id);
+
+		void setFilepath(const char* str, size_t strLength);
+		void setFilepath(const std::string& str);
+
+		DynamicScriptProp* findProp(const char* str);
+		void insertProp(const char* str, DynamicScriptPropValue value);
+
+		bool isValid() const;
+
+		void serialize(nlohmann::json& j) const;
+		void free();
+
+		static ScriptObject deserialize(const nlohmann::json& j, uint32 version);
+		static ScriptObject createDefault();
+
+		[[deprecated("This is for upgrading legacy projects developed in beta")]]
+		static ScriptObject legacy_deserialize(RawMemory& memory, uint32 version);
+	};
+
 	// Base Structs
 	struct Animation
 	{
@@ -296,6 +359,7 @@ namespace MathAnim
 			MoveToData moveTo;
 			Circumscribe circumscribe;
 			AnimateScaleData animateScale;
+			ScriptObject script;
 		} as;
 
 		// Apply the animation state using a interpolation t value
@@ -377,62 +441,6 @@ namespace MathAnim
 
 		[[deprecated("This is for upgrading legacy projects developed in beta")]]
 		static CameraObject legacy_deserialize(RawMemory& memory, uint32 version);
-	};
-
-	enum class DynamicScriptPropType : uint8
-	{
-		Number,
-		Color,
-		Length
-	};
-
-	constexpr auto _dynamicScriptPropTypeNames = fixedSizeArray<const char*, (size_t)DynamicScriptPropType::Length>(
-		"Number",
-		"Color"
-	);
-
-	struct DynamicScriptPropValue
-	{
-		DynamicScriptPropType type;
-		union
-		{
-			Vec4 color;
-			double number;
-		} as;
-	};
-
-	struct DynamicScriptProp
-	{
-		char* label;
-		size_t labelLength;
-		DynamicScriptPropValue value;
-		bool shouldRender;
-		size_t renderOrder;
-	};
-
-	struct ScriptObject
-	{
-		char* scriptFilepath;
-		size_t scriptFilepathLength;
-		DynamicScriptProp* customData;
-		size_t customDataLength;
-
-		void setFilepath(const char* str, size_t strLength);
-		void setFilepath(const std::string& str);
-
-		DynamicScriptProp* findProp(const char* str);
-		void insertProp(const char* str, DynamicScriptPropValue value);
-
-		bool isValid() const;
-
-		void serialize(nlohmann::json& j) const;
-		void free();
-
-		static ScriptObject deserialize(const nlohmann::json& j, uint32 version);
-		static ScriptObject createDefault();
-
-		[[deprecated("This is for upgrading legacy projects developed in beta")]]
-		static ScriptObject legacy_deserialize(RawMemory& memory, uint32 version);
 	};
 
 	enum class ImageFilterMode : uint8

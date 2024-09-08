@@ -23,11 +23,6 @@
 
 #include <nfd.h>
 
-#define NO_EDIT res.editState == EditState::NotEditing
-#define BEING_EDITED res.editState == EditState::BeingEdited
-#define FINISHED_EDITING res.editState == EditState::FinishedEditing
-#define ANY_EDIT res.editState != EditState::NotEditing
-
 namespace MathAnim
 {
 	namespace InspectorPanel
@@ -66,6 +61,7 @@ namespace MathAnim
 		static bool handleCubeInspector(AnimationManagerData* am, AnimObject* object);
 		static bool handleAxisInspector(AnimationManagerData* am, AnimObject* object);
 		static bool handleScriptObjectInspector(AnimationManagerData* am, AnimObject* object);
+		static bool handleScriptAnimationInspector(AnimationManagerData* am, Animation* anim);
 		static bool handleImageObjectInspector(AnimationManagerData* am, AnimObject* object);
 
 		void update(AnimationManagerData* am)
@@ -638,6 +634,8 @@ namespace MathAnim
 				case AnimTypeV1::Circumscribe:
 					anyPropertyChanged = anyPropertyChanged || handleCircumscribeInspector(am, animation);
 					break;
+				case AnimTypeV1::Script:
+					anyPropertyChanged = anyPropertyChanged || handleScriptAnimationInspector(am, animation);
 				case AnimTypeV1::Length:
 				case AnimTypeV1::None:
 					break;
@@ -2049,108 +2047,98 @@ namespace MathAnim
 			} dynamicScriptRenderOrderAsc;
 			std::sort(script.customData, script.customData + script.customDataLength, dynamicScriptRenderOrderAsc);
 
-			for (size_t i = 0; i < script.customDataLength; i++)
-			{
-				auto& dynamicProp = script.customData[i];
-				if (dynamicProp.shouldRender)
-				{
-					switch (dynamicProp.value.type)
-					{
-					case DynamicScriptPropType::Number:
-						if (auto res = ImGuiExtended::DragDoubleEx(dynamicProp.label, &dynamicProp.value.as.number);
-							ANY_EDIT)
-						{
-							anyPropertyChanged = true;
-
-							if (FINISHED_EDITING)
-							{
-								UndoSystem::setDoubleProp(
-									Application::getUndoSystem(),
-									obj->id,
-									res.ogData,
-									dynamicProp.value.as.number,
-									DoublePropType::Dynamic,
-									dynamicProp.label
-								);
-							}
-						}
-						break;
-					case DynamicScriptPropType::Color:
-						if (auto res = ImGuiExtended::ColorEdit4Ex(dynamicProp.label, &dynamicProp.value.as.color);
-							ANY_EDIT)
-						{
-							anyPropertyChanged = true;
-
-							if (FINISHED_EDITING)
-							{
-								UndoSystem::setVec4Prop(
-									Application::getUndoSystem(),
-									obj->id,
-									res.ogData,
-									dynamicProp.value.as.color,
-									Vec4PropType::Dynamic,
-									dynamicProp.label
-								);
-							}
-						}
-						break;
-					}
-
-					dynamicProp.shouldRender = false;
-				}
-			}
+			anyPropertyChanged = anyPropertyChanged || script.handleInspector(obj->id);
 
 			if (shouldGenerate || shouldDebug)
 			{
 				anyPropertyChanged = true;
+				script.executeGenerate(am, obj, shouldDebug);
+			}
 
-				if (script.isValid())
+			return anyPropertyChanged;
+		}
+
+		static bool handleScriptAnimationInspector(AnimationManagerData*, Animation* anim)
+		{
+			bool anyPropertyChanged = false;
+
+			ScriptObject& script = anim->as.script;
+
+			constexpr size_t bufferSize = 512;
+			char buffer[bufferSize] = "Drag File Here";
+			if (bufferSize >= script.scriptFilepathLength + 1 && script.scriptFilepathLength > 0)
+			{
+				g_memory_copyMem((void*)buffer, bufferSize, script.scriptFilepath, sizeof(char) * script.scriptFilepathLength);
+				buffer[script.scriptFilepathLength] = '\0';
+			}
+
+			if (auto res = ImGuiExtended::FileDragDropInputBoxEx(": Script File##ScriptFileTarget", buffer, bufferSize);
+				ANY_EDIT)
+			{
+				anyPropertyChanged = true;
+
+				if (FINISHED_EDITING)
 				{
-					// We delete generated children and also reset the svg object so the script is free to modify it
-					// if it wants to
-					obj->deleteGeneratedChildren(am);
-					obj->resetSvgObject();
-
-					// Next init again which should regenerate the children
-					bool cleanup = false;
-					if (shouldDebug)
-					{
-						cleanup = !LuauLayer::debugGenerateAnimObj(script.scriptFilepath, am, obj->id);
-					}
-					else
-					{
-						LuauLayer::pushBytecode(script.scriptFilepath);
-						LuauLayer::executeBytecode();
-						LuauLayer::executeOnAnimObj("onInspector", am, obj->id);
-						cleanup = !LuauLayer::executeOnAnimObj("generate", am, obj->id);
-						LuauLayer::popBytecode();
-					}
-
-					if (cleanup)
-					{
-						// If execution fails, delete any objects that may have been created prematurely
-						obj->deleteGeneratedChildren(am);
-						obj->resetSvgObject();
-					}
-
-					// Copy the svgObjectStart to all the svgObjects to any generated children
-					// to make sure that they render properly
-					for (auto childId : obj->generatedChildrenIds)
-					{
-						AnimObject* child = AnimationManager::getMutableObject(am, childId);
-						if (child)
-						{
-							if (child->_svgObjectStart)
-							{
-								Svg::copy(child->svgObject, child->_svgObjectStart);
-							}
-						}
-					}
-
-					// Also copy the parent svg object over
-					Svg::copy(obj->svgObject, obj->_svgObjectStart);
+					UndoSystem::setStringProp(
+						Application::getUndoSystem(),
+						anim->id,
+						res.ogData,
+						std::string(buffer),
+						StringPropType::ScriptFile
+					);
 				}
 			}
+
+			//bool shouldGenerate = ImGui::Button("Generate");
+			//ImGui::SameLine();
+			//bool shouldDebug = ImGui::Button("Debug");
+			//if (ImGui::IsItemHovered())
+			//{
+			//	ImGui::BeginTooltip();
+			//	ImGui::Text("Note: While debugging, any script code in `onInspector` will not be run.");
+			//	ImGui::EndTooltip();
+			//}
+
+			//if (ImGui::Button("Register"))
+			//{
+			//	LuauLayer::pushBytecode(script.scriptFilepath);
+			//	LuauLayer::executeBytecode();
+			//	LuauLayer::executeFn("register");
+			//	LuauLayer::popBytecode();
+			//}
+
+			// NOTE: Recompile script every 1 second, a small hack to make sure we don't tank performance
+			//       but also have the most recent changes (since the last second) in the script loaded.
+			//       Compilation is pretty negligible, ~.01-.04ms in Release mode.
+			static int framesSinceLastCompile = 61;
+			if (framesSinceLastCompile > 60)
+			{
+				LuauLayer::compile(script.scriptFilepath);
+			}
+			framesSinceLastCompile++;
+
+			// TODO: Get inspector support for animations
+			/*if (LuauLayer::pushBytecode(script.scriptFilepath))
+			{
+				LuauLayer::executeBytecode();
+				LuauLayer::executeOnAnimObj("onInspector", am, obj->id);
+				LuauLayer::popBytecode();
+			}*/
+
+			struct
+			{
+				bool operator()(DynamicScriptProp& a, DynamicScriptProp& b) const { return a.renderOrder < b.renderOrder; }
+			} dynamicScriptRenderOrderAsc;
+			std::sort(script.customData, script.customData + script.customDataLength, dynamicScriptRenderOrderAsc);
+
+			anyPropertyChanged = anyPropertyChanged || script.handleInspector(anim->id);
+
+			// TODO: This probably isn't needed for animation scripts
+			/*if (shouldGenerate || shouldDebug)
+			{
+				anyPropertyChanged = true;
+				script.executeGenerate(am, anim, shouldDebug);
+			}*/
 
 			return anyPropertyChanged;
 		}

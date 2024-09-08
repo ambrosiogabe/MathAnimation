@@ -1520,6 +1520,11 @@ namespace MathAnim
 			switch (propType)
 			{
 			case DoublePropType::Dynamic:
+				assertCorrectType(anim, AnimTypeV1::Script);
+				if (auto prop = anim->as.script.findProp(this->label.c_str()); prop)
+				{
+					prop->value.as.number = this->oldValue;
+				}
 				break;
 			}
 		}
@@ -1551,6 +1556,11 @@ namespace MathAnim
 			switch (propType)
 			{
 			case DoublePropType::Dynamic:
+				assertCorrectType(anim, AnimTypeV1::Script);
+				if (auto prop = anim->as.script.findProp(this->label.c_str()); prop)
+				{
+					prop->value.as.number = this->newValue;
+				}
 				break;
 			}
 		}
@@ -1953,6 +1963,11 @@ namespace MathAnim
 				// NOTE: The following are anim objects
 			case Vec4PropType::CameraBackgroundColor:
 			case Vec4PropType::Dynamic:
+				assertCorrectType(anim, AnimTypeV1::Script);
+				if (auto prop = anim->as.script.findProp(this->label.c_str()); prop)
+				{
+					prop->value.as.color = this->newVec;
+				}
 				break;
 			}
 		}
@@ -1994,9 +2009,15 @@ namespace MathAnim
 				assertCorrectType(anim, AnimTypeV1::Circumscribe);
 				anim->as.circumscribe.color = this->oldVec;
 				break;
+			case Vec4PropType::Dynamic:
+				assertCorrectType(anim, AnimTypeV1::Script);
+				if (auto prop = anim->as.script.findProp(this->label.c_str()); prop)
+				{
+					prop->value.as.color = this->oldVec;
+				}
+				break;
 				// NOTE: The following are anim objects
 			case Vec4PropType::CameraBackgroundColor:
-			case Vec4PropType::Dynamic:
 				break;
 			}
 		}
@@ -2080,6 +2101,34 @@ namespace MathAnim
 
 			AnimationManager::updateObjectState(am, this->objId);
 		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case StringPropType::Name:
+			case StringPropType::TextObjectText:
+			case StringPropType::CodeBlockText:
+			case StringPropType::LaTexText:
+			case StringPropType::SvgFilepath:
+			case StringPropType::ImageFilepath:
+				break;
+			case StringPropType::ScriptFile:
+			{
+				assertCorrectType(anim, AnimTypeV1::Script);
+				if (Platform::fileExists(newString.c_str()))
+				{
+					anim->as.script.setFilepath(newString);
+				}
+				else if (newString != "")
+				{
+					ErrorPopups::popupMissingFileError(newString, "Cannot redo set script file.");
+				}
+			}
+			break;
+			}
+		}
 	}
 
 	void ModifyStringCommand::undo(void* userContext)
@@ -2158,6 +2207,34 @@ namespace MathAnim
 			break;
 			}
 			AnimationManager::updateObjectState(am, this->objId);
+		}
+
+		Animation* anim = AnimationManager::getMutableAnimation(am, objId);
+		if (anim)
+		{
+			switch (propType)
+			{
+			case StringPropType::Name:
+			case StringPropType::TextObjectText:
+			case StringPropType::CodeBlockText:
+			case StringPropType::LaTexText:
+			case StringPropType::SvgFilepath:
+			case StringPropType::ImageFilepath:
+				break;
+			case StringPropType::ScriptFile:
+			{
+				assertCorrectType(obj, AnimObjectTypeV1::ScriptObject);
+				if (Platform::fileExists(oldString.c_str()))
+				{
+					obj->as.script.setFilepath(oldString);
+				}
+				else if (newString != "")
+				{
+					ErrorPopups::popupMissingFileError(oldString, "Cannot undo set script file.");
+				}
+			}
+			break;
+			}
 		}
 	}
 

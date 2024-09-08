@@ -228,6 +228,7 @@ T findMatchingEnum(const std::array<const char*, N> enumNamesAsStr, const std::s
 typedef uint64 AnimObjId;
 typedef uint64 AnimId;
 typedef uint64 TextureHandle;
+typedef AnimObjId ObjOrAnimId;
 
 namespace MathAnim
 {
